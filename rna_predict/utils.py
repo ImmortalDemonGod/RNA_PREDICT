@@ -14,6 +14,7 @@ def layernorm(x, eps=1e-5):
     var = x.var(dim=-1, unbiased=False, keepdim=True)
     return (x - mean) / torch.sqrt(var + eps)
 
+
 def inverse_squared_dist(delta, eps=1e-8):
     """
     Given relative positions (delta) of shape [..., 3],
@@ -21,6 +22,7 @@ def inverse_squared_dist(delta, eps=1e-8):
     """
     dist_sq = torch.sum(delta * delta, dim=-1, keepdim=True)
     return 1.0 / (1.0 + dist_sq + eps)
+
 
 def scatter_mean(src, index, dim_size, dim=0):
     """
