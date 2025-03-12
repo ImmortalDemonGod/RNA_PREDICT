@@ -1,10 +1,12 @@
 import torch
 import torch.nn as nn
+
 from rna_predict.atom_encoder import AtomAttentionEncoder
 
 ###############################################################################
 # Input Feature Embedder
 ###############################################################################
+
 
 class InputFeatureEmbedder(nn.Module):
     """
@@ -14,13 +16,26 @@ class InputFeatureEmbedder(nn.Module):
 
     The final single-token embedding is then produced by combining these two streams.
     """
-    def __init__(self, c_token=384, restype_dim=32, profile_dim=32,
-                 c_atom=128, c_pair=32, num_heads=4, num_layers=3, use_optimized=False):
+
+    def __init__(
+        self,
+        c_token=384,
+        restype_dim=32,
+        profile_dim=32,
+        c_atom=128,
+        c_pair=32,
+        num_heads=4,
+        num_layers=3,
+        use_optimized=False,
+    ):
         super().__init__()
         self.atom_encoder = AtomAttentionEncoder(
-            c_atom=c_atom, c_pair=c_pair, c_token=c_token,
-            num_heads=num_heads, num_layers=num_layers,
-            use_optimized=use_optimized
+            c_atom=c_atom,
+            c_pair=c_pair,
+            c_token=c_token,
+            num_heads=num_heads,
+            num_layers=num_layers,
+            use_optimized=use_optimized,
         )
         # Linear layer to embed extra token-level features.
         # For example: restype (32) + profile (32) + deletion_mean (1) = 65.
@@ -44,11 +59,13 @@ class InputFeatureEmbedder(nn.Module):
         )
 
         # Merge with extra token-level features.
-        restype = f["restype"]           # [N_token, restype_dim]
-        profile = f["profile"]           # [N_token, profile_dim]
+        restype = f["restype"]  # [N_token, restype_dim]
+        profile = f["profile"]  # [N_token, profile_dim]
         deletion_mean = f["deletion_mean"].unsqueeze(-1)  # [N_token, 1]
 
-        extras = torch.cat([restype, profile, deletion_mean], dim=-1)  # [N_token, in_extras]
+        extras = torch.cat(
+            [restype, profile, deletion_mean], dim=-1
+        )  # [N_token, in_extras]
         extras_emb = self.extra_linear(extras)  # [N_token, c_token]
 
         single_emb = a_token + extras_emb
