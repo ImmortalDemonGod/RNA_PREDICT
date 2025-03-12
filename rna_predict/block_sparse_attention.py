@@ -1,3 +1,4 @@
+import torch
 
 ###############################################################################
 # NAIVE Local Block-Sparse Attention (with Naive Backprop)
