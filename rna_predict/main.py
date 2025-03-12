@@ -1,12 +1,14 @@
-import sys
 import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+import sys
 import torch
 from rna_predict.input_feature_embedding import InputFeatureEmbedder
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 ###############################################################################
 # Example Usage
 ###############################################################################
+
 
 def demo_run_input_embedding():
     """
@@ -43,11 +45,15 @@ def demo_run_input_embedding():
         c_pair=32,
         num_heads=4,
         num_layers=3,
-        use_optimized=True  # <--- toggle here
+        use_optimized=True,  # <--- toggle here
     )
 
     # Forward pass.
     single_emb = embedder(f, trunk_sing=None, trunk_pair=None, block_index=block_index)
-    print("Output single-token embedding shape:", single_emb.shape)  # Expected: [N_token, c_token]
+    print(
+        "Output single-token embedding shape:", single_emb.shape
+    )  # Expected: [N_token, c_token]
+
+
 if __name__ == "__main__":
     demo_run_input_embedding()
