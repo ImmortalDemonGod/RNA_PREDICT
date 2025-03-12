@@ -80,10 +80,14 @@ class AtomTransformerBlock(nn.Module):
 
         # (5) local block-sparse attention
         if self.use_optimized:
-            # Use the block-sparse kernel
-            attn_out = self.bs_attn(q, k, v, pair_bias_heads)
+            try:
+                # Attempt to use the optimized block-sparse kernel.
+                attn_out = self.bs_attn(q, k, v, pair_bias_heads)
+            except RuntimeError as e:
+                print("Warning: optimized block-sparse attention failed:", e, "Falling back to naive attention.")
+                attn_out = LocalBlockSparseAttentionNaive.apply(q, k, v, pair_bias_heads, block_index)
         else:
-            # Use naive version
+            # Use naive version directly.
             attn_out = LocalBlockSparseAttentionNaive.apply(q, k, v, pair_bias_heads, block_index)
 
         # (6) Merge heads.
