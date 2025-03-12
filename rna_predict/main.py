@@ -1,3 +1,6 @@
+import torch
+from rna_predict.input_feature_embedding import InputFeatureEmbedder
+
 ###############################################################################
 # Example Usage
 ###############################################################################
