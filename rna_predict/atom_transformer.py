@@ -1,13 +1,15 @@
-import math
-import torch
 import torch.nn as nn
-import torch.nn.functional as F
+
+from rna_predict.block_sparse_attention import (
+    BlockSparseAttentionOptimized,
+    LocalBlockSparseAttentionNaive,
+)
 from rna_predict.utils import layernorm
-from rna_predict.block_sparse_attention import BlockSparseAttentionOptimized, LocalBlockSparseAttentionNaive
 
 ###############################################################################
 # Atom Transformer Blocks
 ###############################################################################
+
 
 class AtomTransformerBlock(nn.Module):
     """
@@ -19,6 +21,7 @@ class AtomTransformerBlock(nn.Module):
 
     You can toggle use_optimized = True/False.
     """
+
     def __init__(self, c_atom=128, num_heads=4, use_optimized=False):
         super().__init__()
         self.num_heads = num_heads
@@ -40,15 +43,14 @@ class AtomTransformerBlock(nn.Module):
 
         # MLP transition (feed-forward network)
         self.mlp = nn.Sequential(
-            nn.Linear(c_atom, 4 * c_atom),
-            nn.SiLU(),
-            nn.Linear(4 * c_atom, c_atom)
+            nn.Linear(c_atom, 4 * c_atom), nn.SiLU(), nn.Linear(4 * c_atom, c_atom)
         )
 
         # If we use the optimized approach:
         if self.use_optimized:
-            self.bs_attn = BlockSparseAttentionOptimized(num_heads, block_size=128,
-                                                         local_window=32, causal=False)
+            self.bs_attn = BlockSparseAttentionOptimized(
+                num_heads, block_size=128, local_window=32, causal=False
+            )
 
     def forward(self, x, pair_emb, block_index):
         """
@@ -85,13 +87,21 @@ class AtomTransformerBlock(nn.Module):
                 attn_out = self.bs_attn(q, k, v, pair_bias_heads)
             except RuntimeError as e:
                 # Print the warning only once per instance.
-                if not hasattr(self, '_optimized_warning_printed'):
-                    print("Warning: optimized block-sparse attention failed:", e, "Falling back to naive attention.")
+                if not hasattr(self, "_optimized_warning_printed"):
+                    print(
+                        "Warning: optimized block-sparse attention failed:",
+                        e,
+                        "Falling back to naive attention.",
+                    )
                     self._optimized_warning_printed = True
-                attn_out = LocalBlockSparseAttentionNaive.apply(q, k, v, pair_bias_heads, block_index)
+                attn_out = LocalBlockSparseAttentionNaive.apply(
+                    q, k, v, pair_bias_heads, block_index
+                )
         else:
             # Use naive version directly.
-            attn_out = LocalBlockSparseAttentionNaive.apply(q, k, v, pair_bias_heads, block_index)
+            attn_out = LocalBlockSparseAttentionNaive.apply(
+                q, k, v, pair_bias_heads, block_index
+            )
 
         # (6) Merge heads.
         attn_out = attn_out.reshape(N_atom, self.c_atom)
@@ -106,15 +116,19 @@ class AtomTransformerBlock(nn.Module):
 
         return x
 
+
 class AtomTransformer(nn.Module):
     """
     A stack of AtomTransformerBlock layers.
     """
+
     def __init__(self, c_atom=128, num_heads=4, num_layers=3, use_optimized=False):
         super().__init__()
         self.blocks = nn.ModuleList(
-            [AtomTransformerBlock(c_atom, num_heads, use_optimized=use_optimized)
-             for _ in range(num_layers)]
+            [
+                AtomTransformerBlock(c_atom, num_heads, use_optimized=use_optimized)
+                for _ in range(num_layers)
+            ]
         )
 
     def forward(self, x, pair_emb, block_index):
