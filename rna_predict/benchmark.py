@@ -28,7 +28,10 @@ def benchmark_decoding_latency_and_memory(
       num_warmup: warmup iterations (not timed).
       num_iters: timed iterations.
     """
-
+    
+    if device == "cuda" and not torch.cuda.is_available():
+        print("Warning: CUDA not available. Switching to CPU.")
+        device = "cpu"
     embedder = InputFeatureEmbedder(
         c_token=384,
         restype_dim=32,
@@ -128,7 +131,10 @@ def benchmark_input_embedding(
     measuring forward + backward pass times.
     Toggle use_optimized = True/False to compare naive vs. block-sparse.
     """
-
+    
+    if device == "cuda" and not torch.cuda.is_available():
+        print("Warning: CUDA not available. Switching to CPU.")
+        device = "cpu"
     embedder = InputFeatureEmbedder(
         c_token=384,
         restype_dim=32,
