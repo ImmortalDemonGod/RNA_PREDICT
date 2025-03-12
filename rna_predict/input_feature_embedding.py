@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from rna_predict.atom_encoder import AtomAttentionEncoder
 
 ###############################################################################
 # Input Feature Embedder
