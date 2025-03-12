@@ -1,3 +1,6 @@
+import torch
+import torch.nn as nn
+
 ###############################################################################
 # AtomAttentionEncoder
 ###############################################################################
@@ -22,15 +25,15 @@ class AtomAttentionEncoder(nn.Module):
 
         # (1) Per-atom input: example input dims = pos (3) + charge (1) + element (128) + name (16)
         in_atom_dim = 3 + 1 + 128 + 16
-        self.atom_linear = BitLinear(in_atom_dim, c_atom)
+        self.atom_linear = nn.Linear(in_atom_dim, c_atom)
 
         # (2) Pairwise embedding: example input dims = delta (3) + same_entity (1)
         in_pair_dim = 3 + 1
-        self.pair_linear = BitLinear(in_pair_dim, c_pair)
+        self.pair_linear = nn.Linear(in_pair_dim, c_pair)
         self.mlp_pair = nn.Sequential(
-            BitLinear(c_pair, 2 * c_pair),
+            nn.Linear(c_pair, 2 * c_pair),
             nn.ReLU(),
-            BitLinear(2 * c_pair, c_pair)
+            nn.Linear(2 * c_pair, c_pair)
         )
 
         # (4) Atom transformer: local self-attention among atoms (naive or optimized).
@@ -40,7 +43,7 @@ class AtomAttentionEncoder(nn.Module):
         )
 
         # (5) Final projection from atom embedding to token embedding.
-        self.post_atom_proj = BitLinear(c_atom, c_token)
+        self.post_atom_proj = nn.Linear(c_atom, c_token)
 
     def forward(self, f, trunk_sing=None, trunk_pair=None, block_index=None):
         """
