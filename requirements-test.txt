@@ -1,0 +1,9 @@
+black>=25.1.0
+coverage>=7.6.12
+flake8>=7.1.2
+gitchangelog>=3.0.4
+isort>=6.0.1
+mkdocs>=1.6.1
+mypy>=1.15.0
+pytest>=8.3.5
+pytest-cov>=6.0.0
