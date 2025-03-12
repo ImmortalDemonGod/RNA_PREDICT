@@ -222,5 +222,12 @@ except ImportError:
     def build_local_blockmask(*args, **kwargs):
         return None
     class BlockSparseAttentionOptimized(nn.Module):
+        def __init__(self, nheads, block_size=128, local_window=32, causal=False):
+            super().__init__()
+            self.nheads = nheads
+            self.block_size = block_size
+            self.local_window = local_window
+            self.causal = causal
+
         def forward(self, q, k, v, pair_bias):
             raise RuntimeError("block_sparse_attn not installed.")
