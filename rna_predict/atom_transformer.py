@@ -1,3 +1,8 @@
+import math
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
 ###############################################################################
 # Atom Transformer Blocks
 ###############################################################################
@@ -19,23 +24,23 @@ class AtomTransformerBlock(nn.Module):
         self.use_optimized = use_optimized
 
         # Linear projections for Q, K, and V.
-        self.W_q = BitLinear(c_atom, c_atom, bias=False)
-        self.W_k = BitLinear(c_atom, c_atom, bias=False)
-        self.W_v = BitLinear(c_atom, c_atom, bias=False)
+        self.W_q = nn.Linear(c_atom, c_atom, bias=False)
+        self.W_k = nn.Linear(c_atom, c_atom, bias=False)
+        self.W_v = nn.Linear(c_atom, c_atom, bias=False)
         # To compute a per-head pairwise bias from pair embeddings.
         #
         # NOTE: We are feeding pair_emb.mean(dim=-1, keepdim=True),
         # so the input dimension is 1. This is the shape fix.
-        self.W_b = BitLinear(1, num_heads, bias=False)
+        self.W_b = nn.Linear(1, num_heads, bias=False)
 
         # Final projection after multi-head attention.
-        self.W_out = BitLinear(c_atom, c_atom, bias=False)
+        self.W_out = nn.Linear(c_atom, c_atom, bias=False)
 
         # MLP transition (feed-forward network)
         self.mlp = nn.Sequential(
-            BitLinear(c_atom, 4 * c_atom),
+            nn.Linear(c_atom, 4 * c_atom),
             nn.SiLU(),
-            BitLinear(4 * c_atom, c_atom)
+            nn.Linear(4 * c_atom, c_atom)
         )
 
         # If we use the optimized approach:

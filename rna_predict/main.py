@@ -46,6 +46,5 @@ def demo_run_input_embedding():
     # Forward pass.
     single_emb = embedder(f, trunk_sing=None, trunk_pair=None, block_index=block_index)
     print("Output single-token embedding shape:", single_emb.shape)  # Expected: [N_token, c_token]
-
-    if __name__ == "__main__":
-        demo_run_input_embedding()
+if __name__ == "__main__":
+    demo_run_input_embedding()

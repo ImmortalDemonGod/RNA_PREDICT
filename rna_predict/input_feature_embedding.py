@@ -1,3 +1,6 @@
+import torch
+import torch.nn as nn
+
 ###############################################################################
 # Input Feature Embedder
 ###############################################################################
@@ -21,7 +24,7 @@ class InputFeatureEmbedder(nn.Module):
         # Linear layer to embed extra token-level features.
         # For example: restype (32) + profile (32) + deletion_mean (1) = 65.
         in_extras = restype_dim + profile_dim + 1
-        self.extra_linear = BitLinear(in_extras, c_token)
+        self.extra_linear = nn.Linear(in_extras, c_token)
         self.final_ln = nn.LayerNorm(c_token)
 
     def forward(self, f, trunk_sing=None, trunk_pair=None, block_index=None):
