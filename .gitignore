@@ -131,3 +131,6 @@ dmypy.json
 # templates
 .github/templates/*
 .aider*
+github_automation_output/*
+log.txt
+uv.lock
