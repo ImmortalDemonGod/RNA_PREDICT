@@ -1,12 +1,23 @@
+[build-system]
+requires = ["setuptools>=66.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "rna-predict"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
+license = { file = "LICENSE" }
 requires-python = ">=3.13"
-dependencies = []
 
-[dependency-groups]
+# Core dependencies
+dependencies = [
+    "numpy>=2.2.3",
+    "torch>=2.6.0",
+]
+
+# If you have optional (dev) dependencies:
+[project.optional-dependencies]
 dev = [
     "black>=25.1.0",
     "coverage>=7.6.12",
@@ -18,3 +29,7 @@ dev = [
     "pytest>=8.3.5",
     "pytest-cov>=6.0.0",
 ]
+
+# If you want a console script:
+[project.scripts]
+rna_predict = "rna_predict.__main__:main"
