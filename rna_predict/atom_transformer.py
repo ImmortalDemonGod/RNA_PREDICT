@@ -2,6 +2,8 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from rna_predict.utils import layernorm
+from rna_predict.block_sparse_attention import BlockSparseAttentionOptimized, LocalBlockSparseAttentionNaive
 
 ###############################################################################
 # Atom Transformer Blocks

@@ -1,6 +1,7 @@
 import math
 import torch.nn.functional as F
 import torch
+import torch.nn as nn
 
 ###############################################################################
 # NAIVE Local Block-Sparse Attention (with Naive Backprop)
