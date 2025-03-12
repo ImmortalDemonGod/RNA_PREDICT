@@ -1,21 +1,24 @@
 ################################################################################
 
-import sys
 import os
-
+import sys
 import time
-from rna_predict.input_feature_embedding import InputFeatureEmbedder
+
 import torch
 import torch.nn as nn
+
+from rna_predict.input_feature_embedding import InputFeatureEmbedder
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+
 def benchmark_decoding_latency_and_memory(
-    N_atom_list = [128, 256, 512],
-    N_token_list = [32, 64, 128],
-    block_size = 16,
-    device = "cuda",
-    num_warmup = 5,
-    num_iters = 10
+    N_atom_list=[128, 256, 512],
+    N_token_list=[32, 64, 128],
+    block_size=16,
+    device="cuda",
+    num_warmup=5,
+    num_iters=10,
 ):
     """
     Measures the forward-pass ("decoding") latency and peak GPU memory usage.
@@ -28,7 +31,7 @@ def benchmark_decoding_latency_and_memory(
       num_warmup: warmup iterations (not timed).
       num_iters: timed iterations.
     """
-    
+
     if device == "cuda" and not torch.cuda.is_available():
         print("Warning: CUDA not available. Switching to CPU.")
         device = "cpu"
@@ -39,7 +42,7 @@ def benchmark_decoding_latency_and_memory(
         c_atom=128,
         c_pair=32,
         num_heads=4,
-        num_layers=3
+        num_layers=3,
     ).to(device)
 
     # Switch to eval mode and no_grad for pure inference
@@ -66,7 +69,9 @@ def benchmark_decoding_latency_and_memory(
             # Warmup (not timed)
             with torch.no_grad():
                 for _ in range(num_warmup):
-                    _ = embedder(f, trunk_sing=None, trunk_pair=None, block_index=block_index)
+                    _ = embedder(
+                        f, trunk_sing=None, trunk_pair=None, block_index=block_index
+                    )
                     torch.cuda.synchronize(device) if device == "cuda" else None
 
             # Timed decoding + memory usage
@@ -79,20 +84,23 @@ def benchmark_decoding_latency_and_memory(
                         torch.cuda.reset_peak_memory_stats(device)
 
                     start = time.time()
-                    out = embedder(f, trunk_sing=None, trunk_pair=None, block_index=block_index)
+                    out = embedder(
+                        f, trunk_sing=None, trunk_pair=None, block_index=block_index
+                    )
                     torch.cuda.synchronize(device) if device == "cuda" else None
                     end = time.time()
 
                     # Record forward (decoding) time
-                    fwd_time += (end - start)
+                    fwd_time += end - start
 
                     if device == "cuda":
                         peak_mem_bytes = torch.cuda.max_memory_allocated(device)
-                        peak_mem_mb = peak_mem_bytes / (1024 ** 2)
+                        peak_mem_mb = peak_mem_bytes / (1024**2)
                         print(f"   Iter peak GPU memory usage: {peak_mem_mb:.2f} MB")
 
             avg_fwd = fwd_time / num_iters
             print(f"Avg Decoding (Forward) Time: {avg_fwd:.4f} s")
+
 
 ###############################################################################
 # Key Points
@@ -114,24 +122,22 @@ def benchmark_decoding_latency_and_memory(
 # now with shape-consistent pair-bias. You can choose naive or block-sparse local attention.
 ###############################################################################
 
-import time
-import torch
 
 def benchmark_input_embedding(
-    N_atom_list = [128, 256, 512],
-    N_token_list = [32, 64, 128],
-    block_size = 16,
-    device = "cuda",
-    num_warmup = 5,
-    num_iters = 10,
-    use_optimized=False
+    N_atom_list=[128, 256, 512],
+    N_token_list=[32, 64, 128],
+    block_size=16,
+    device="cuda",
+    num_warmup=5,
+    num_iters=10,
+    use_optimized=False,
 ):
     """
     Benchmarks the InputFeatureEmbedder on random synthetic data,
     measuring forward + backward pass times.
     Toggle use_optimized = True/False to compare naive vs. block-sparse.
     """
-    
+
     if device == "cuda" and not torch.cuda.is_available():
         print("Warning: CUDA not available. Switching to CPU.")
         device = "cpu"
@@ -143,14 +149,16 @@ def benchmark_input_embedding(
         c_pair=32,
         num_heads=4,
         num_layers=3,
-        use_optimized=use_optimized
+        use_optimized=use_optimized,
     ).to(device)
 
     criterion = nn.MSELoss().to(device)
 
     for N_atom in N_atom_list:
         for N_token in N_token_list:
-            print(f"\n=== Benchmarking N_atom={N_atom}, N_token={N_token}, optimized={use_optimized} ===")
+            print(
+                f"\n=== Benchmarking N_atom={N_atom}, N_token={N_token}, optimized={use_optimized} ==="
+            )
 
             f = {}
             f["ref_pos"] = torch.randn(N_atom, 3, device=device)
@@ -167,7 +175,9 @@ def benchmark_input_embedding(
 
             # Warmup
             for _ in range(num_warmup):
-                out = embedder(f, trunk_sing=None, trunk_pair=None, block_index=block_index)
+                out = embedder(
+                    f, trunk_sing=None, trunk_pair=None, block_index=block_index
+                )
                 loss = criterion(out, torch.randn(N_token, 384, device=device))
                 loss.backward()
 
@@ -178,17 +188,19 @@ def benchmark_input_embedding(
 
             for _ in range(num_iters):
                 start = time.time()
-                out = embedder(f, trunk_sing=None, trunk_pair=None, block_index=block_index)
+                out = embedder(
+                    f, trunk_sing=None, trunk_pair=None, block_index=block_index
+                )
                 torch.cuda.synchronize(device) if device == "cuda" else None
                 end = time.time()
-                fwd_time += (end - start)
+                fwd_time += end - start
 
                 loss = criterion(out, torch.randn(N_token, 384, device=device))
                 start = time.time()
                 loss.backward()
                 torch.cuda.synchronize(device) if device == "cuda" else None
                 end = time.time()
-                bwd_time += (end - start)
+                bwd_time += end - start
 
                 embedder.zero_grad(set_to_none=True)
 
