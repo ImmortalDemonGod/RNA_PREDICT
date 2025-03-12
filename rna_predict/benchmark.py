@@ -2,11 +2,12 @@
 
 import sys
 import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
 import time
 from rna_predict.input_feature_embedding import InputFeatureEmbedder
 import torch
 import torch.nn as nn
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 def benchmark_decoding_latency_and_memory(
     N_atom_list = [128, 256, 512],
