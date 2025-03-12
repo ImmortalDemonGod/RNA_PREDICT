@@ -1,11 +1,13 @@
 import math
-import torch.nn.functional as F
+
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 ###############################################################################
 # NAIVE Local Block-Sparse Attention (with Naive Backprop)
 ###############################################################################
+
 
 class LocalBlockSparseAttentionNaive(torch.autograd.Function):
     """
@@ -34,9 +36,9 @@ class LocalBlockSparseAttentionNaive(torch.autograd.Function):
 
         # Loop over each atom and perform local attention over its neighbors.
         for i in range(N_atom):
-            neighbor_idxs = block_index[i]        # shape: [block_size]
-            k_neighbors = k[neighbor_idxs]       # [block_size, n_heads, c_per_head]
-            v_neighbors = v[neighbor_idxs]       # [block_size, n_heads, c_per_head]
+            neighbor_idxs = block_index[i]  # shape: [block_size]
+            k_neighbors = k[neighbor_idxs]  # [block_size, n_heads, c_per_head]
+            v_neighbors = v[neighbor_idxs]  # [block_size, n_heads, c_per_head]
             bias_neighbors = pair_bias[i, neighbor_idxs]  # [block_size, n_heads]
 
             q_i = q[i].unsqueeze(0)  # [1, n_heads, c_per_head]
@@ -79,18 +81,22 @@ class LocalBlockSparseAttentionNaive(torch.autograd.Function):
         for i in range(N_atom):
             neighbor_idxs = saved_neighbors[i]
             attn_weights = saved_attn[i]  # shape: [block_size, n_heads]
-            grad_i = grad_out[i]          # shape: [n_heads, c_per_head]
+            grad_i = grad_out[i]  # shape: [n_heads, c_per_head]
             block_size = neighbor_idxs.shape[0]
 
             # =========================
             # gradient wrt v_neighbors
-            dv_neighbors = grad_i.unsqueeze(0) * attn_weights.unsqueeze(-1)  # [block_size, n_heads, c_per_head]
+            dv_neighbors = grad_i.unsqueeze(0) * attn_weights.unsqueeze(
+                -1
+            )  # [block_size, n_heads, c_per_head]
             dv[neighbor_idxs] += dv_neighbors
 
             # =========================
             # gradient wrt attn_weights
             v_neighbors = v[neighbor_idxs]
-            dlogits = torch.sum(v_neighbors * grad_i.unsqueeze(0), dim=-1)  # [block_size, n_heads]
+            dlogits = torch.sum(
+                v_neighbors * grad_i.unsqueeze(0), dim=-1
+            )  # [block_size, n_heads]
             sum_d = torch.sum(attn_weights * dlogits, dim=0, keepdim=True)
             dlogits_ = attn_weights * (dlogits - sum_d)
 
@@ -109,6 +115,7 @@ class LocalBlockSparseAttentionNaive(torch.autograd.Function):
 
         return dq, dk, dv, dpbias, None
 
+
 ###############################################################################
 # (NEW) Optimized Local Block-Sparse w/ Block Sparse Attention
 ###############################################################################
@@ -116,7 +123,9 @@ try:
     # If block_sparse_attn is installed
     from block_sparse_attn import block_sparse_attn_func
 
-    def build_local_blockmask(N_atom, block_size=128, local_window=32, nheads=4, causal=False):
+    def build_local_blockmask(
+        N_atom, block_size=128, local_window=32, nheads=4, causal=False
+    ):
         """
         Build a 2D blockmask for local attention. We'll produce shape:
           [batch=1, nheads, nrow, ncol]
@@ -124,6 +133,7 @@ try:
         local_window is the band in #atoms to each side of the diagonal block.
         """
         from math import ceil
+
         nrow = ceil(N_atom / block_size)
         ncol = ceil(N_atom / block_size)
         mask = torch.zeros((1, nheads, nrow, ncol), dtype=torch.bool)
@@ -140,7 +150,7 @@ try:
         # If causal => zero out any block col > row
         if causal:
             for row_idx in range(nrow):
-                mask[:, :, row_idx, row_idx+1:] = False
+                mask[:, :, row_idx, row_idx + 1 :] = False
 
         return mask
 
@@ -151,6 +161,7 @@ try:
 
         We do NOT implement the naive backward ourselves; the block_sparse_attn_func handles that.
         """
+
         def __init__(self, nheads, block_size=128, local_window=32, causal=False):
             super().__init__()
             self.nheads = nheads
@@ -185,8 +196,9 @@ try:
             # Typically you might do a pass that modifies the attention scores. We'll do partial:
 
             # "base_blockmask" controlling which blocks are valid
-            blockmask = build_local_blockmask(N_atom, self.block_size, self.local_window,
-                                              self.nheads, self.causal).to(device)
+            blockmask = build_local_blockmask(
+                N_atom, self.block_size, self.local_window, self.nheads, self.causal
+            ).to(device)
 
             # shape = [batch_size=1, nheads, nrow, ncol]
             # head_mask_type: 1 => block-sparse for all heads
@@ -197,18 +209,22 @@ try:
 
             # p_dropout = 0.0 for simplicity
             out_reshape = block_sparse_attn_func(
-                q_reshape, k_reshape, v_reshape,
-                cu_seqlens, cu_seqlens,
+                q_reshape,
+                k_reshape,
+                v_reshape,
+                cu_seqlens,
+                cu_seqlens,
                 head_mask_type,  # all = 1 => block-sparse for each head
                 streaming_info,
-                blockmask,       # shape [1, nheads, nrow, ncol]
-                max_seqlen, max_seqlen,
+                blockmask,  # shape [1, nheads, nrow, ncol]
+                max_seqlen,
+                max_seqlen,
                 p_dropout=0.0,
                 deterministic=True,
                 softmax_scale=None,
                 is_causal=self.causal,
                 exact_streaming=False,
-                return_attn_probs=False
+                return_attn_probs=False,
             )
             # out_reshape: [N_atom, nheads, c_per_head]
             # We skip pair_bias for demonstration. If you need it, you can embed it inside
@@ -219,8 +235,10 @@ try:
 except ImportError:
     # If block_sparse_attn is not installed, define a dummy fallback
     print("block_sparse_attn not found; using only naive LocalBlockSparseAttention.")
+
     def build_local_blockmask(*args, **kwargs):
         return None
+
     class BlockSparseAttentionOptimized(nn.Module):
         def __init__(self, nheads, block_size=128, local_window=32, causal=False):
             super().__init__()
