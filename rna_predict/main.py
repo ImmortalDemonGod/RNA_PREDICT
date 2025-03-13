@@ -2,7 +2,7 @@ import os
 import sys
 import torch
 from rna_predict.models.encoder.input_feature_embedding import InputFeatureEmbedder
-from rna_predict.dataset_loader import stream_bprna_dataset
+from rna_predict.dataset.dataset_loader import stream_bprna_dataset
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
