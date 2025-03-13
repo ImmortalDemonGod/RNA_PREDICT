@@ -67,8 +67,21 @@ def demo_stream_bprna():
         if idx >= 4:  # stop after 5 rows
             break
 
+def show_full_bprna_structure():
+    """
+    Print the complete dictionary of the first row, demonstrating all columns.
+    """
+    bprna_stream = stream_bprna_dataset(split="train")
+    first_row = next(iter(bprna_stream))  # Get the first sample.
+    print("Column names:", list(first_row.keys()))
+    print("\nFull first sample:\n")
+    for key, value in first_row.items():
+        print(f"{key}: {value}")
+
 if __name__ == "__main__":
     print("Running demo_run_input_embedding()...")
     demo_run_input_embedding()
     print("\nNow streaming the bprna-spot dataset...")
     demo_stream_bprna()
+    print("\nShowing the full dataset structure for the first row...")
+    show_full_bprna_structure()
