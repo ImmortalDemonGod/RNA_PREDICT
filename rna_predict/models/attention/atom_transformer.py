@@ -4,7 +4,7 @@ from rna_predict.models.attention.block_sparse import (
     BlockSparseAttentionOptimized,
     LocalBlockSparseAttentionNaive,
 )
-from rna_predict.utils import layernorm
+from rna_predict.utils.scatter_utils import layernorm
 
 ###############################################################################
 # Atom Transformer Blocks
