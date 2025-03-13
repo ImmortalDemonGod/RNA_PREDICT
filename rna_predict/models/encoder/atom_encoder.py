@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 from rna_predict.models.attention.atom_transformer import AtomTransformer
-from rna_predict.utils import scatter_mean
+from rna_predict.utils.scatter_utils import scatter_mean
 
 ###############################################################################
 # AtomAttentionEncoder
