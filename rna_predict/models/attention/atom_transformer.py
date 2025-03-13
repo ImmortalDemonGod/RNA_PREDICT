@@ -1,6 +1,6 @@
 import torch.nn as nn
 
-from rna_predict.block_sparse_attention import (
+from rna_predict.models.attention.block_sparse import (
     BlockSparseAttentionOptimized,
     LocalBlockSparseAttentionNaive,
 )
