@@ -1,7 +1,7 @@
 import os
 import sys
 import torch
-from rna_predict.input_feature_embedding import InputFeatureEmbedder
+from rna_predict.models.encoder.input_feature_embedding import InputFeatureEmbedder
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
