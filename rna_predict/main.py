@@ -2,6 +2,7 @@ import os
 import sys
 import torch
 from rna_predict.models.encoder.input_feature_embedding import InputFeatureEmbedder
+from rna_predict.dataset_loader import stream_bprna_dataset
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -55,5 +56,19 @@ def demo_run_input_embedding():
     )  # Expected: [N_token, c_token]
 
 
+def demo_stream_bprna():
+    """
+    Demonstration of how to call stream_bprna_dataset() and iterate a few rows.
+    """
+    bprna_stream = stream_bprna_dataset(split="train")
+    for idx, row in enumerate(bprna_stream):
+        seq_len = len(row["sequence"])
+        print(f"Row {idx}: id={row['id']}, sequence length={seq_len}")
+        if idx >= 4:  # stop after 5 rows
+            break
+
 if __name__ == "__main__":
+    print("Running demo_run_input_embedding()...")
     demo_run_input_embedding()
+    print("\nNow streaming the bprna-spot dataset...")
+    demo_stream_bprna()
