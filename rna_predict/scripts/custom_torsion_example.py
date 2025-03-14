@@ -195,7 +195,7 @@ def main():
     pdb_path = sys.argv[1]
     chain_id = sys.argv[2] if len(sys.argv) >= 3 else "A"
 
-    angles = calculate_rna_torsions_mdanalysis(pdb_path, chain_id=chain_id)
+    angles = calculate_rna_torsions_mdanalysis(pdb_path, chain_id=chain_id, fallback=True)
     for angle_name, values in angles.items():
         print(f"{angle_name}: {values}")
 
