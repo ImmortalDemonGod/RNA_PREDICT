@@ -177,16 +177,19 @@ def convert_cif_to_pdb(cif_file):
     io.save(pdb_path)
     return pdb_path
 
+
 def calculate_rna_torsions_mdanalysis(pdb_file, chain_id="A", fallback=False):
     """
     Calculate backbone and glycosidic torsion angles (alpha, beta, gamma,
     delta, epsilon, zeta, chi) for an RNA chain using MDAnalysis.
-    For .cif files, we convert them to a temporary PDB with BioPython first.
+    For .cif files, we convert them to PDB with BioPython first.
 
     This implementation uses a safe "gather atoms, then compute dihedral" approach,
     ensuring that each torsion angle is computed independently, so we don't rely
     on partially assigned local variables.
     """
+    from MDAnalysis import Universe
+
     # 1) If it's a .cif file, convert to .pdb
     _, ext = os.path.splitext(pdb_file)
     ext = ext.lower()
@@ -202,22 +205,38 @@ def calculate_rna_torsions_mdanalysis(pdb_file, chain_id="A", fallback=False):
 
     # 2) Create the Universe
     try:
-        u = mda.Universe(mdanalysis_file)
+        u = Universe(mdanalysis_file)
     finally:
-        # If we created a temp file, we can decide to keep it or remove it
         pass
+
+    # Debug: Print all segments and their chain IDs
+    print("=== DEBUG: Segments in this Universe ===")
+    for seg in u.segments:
+        print(f"  Segment segid={seg.segid}, n_res={len(seg.residues)}")
+
+    # Debug: Print any chain info from 'nucleic' selection, in case there's a label mismatch
+    all_nucleic = u.select_atoms("nucleic")
+    unique_segids = set(a.segment.segid for a in all_nucleic.atoms)
+    print(f"=== DEBUG: Found segids in 'nucleic': {unique_segids}")
 
     # 3) Attempt chain selection
     print("Segments:", u.segments)
     print("Residues:", u.residues)
 
     chain = u.select_atoms(f"(segid {chain_id}) or (chainID {chain_id})")
+    print(f"Selecting chain with chain_id='{chain_id}'... Found {len(chain)} atoms.")
+
     if len(chain) == 0:
         if fallback:
             print(f"No atoms found for chainID={chain_id}. Falling back to all nucleic.")
             chain = u.select_atoms("nucleic")
         else:
             raise ValueError(f"No atoms found for chainID='{chain_id}'. Check your PDB/cif labeling.")
+
+    # Extra debug: show residue numbering in the chain
+    print("=== DEBUG: Residue numbering in selected chain ===")
+    for r in chain.residues:
+        print(f"   Residue {r.resname}, resid={r.resid}, segid={r.segid}")
 
     torsion_data = {
         "alpha": [],
