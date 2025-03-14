@@ -12,7 +12,9 @@ requires-python = ">=3.13"
 
 # Core dependencies
 dependencies = [
+    "biopython>=1.85",
     "datasets>=3.3.2",
+    "mdanalysis>=2.9.0",
     "numpy>=2.2.3",
     "torch>=2.6.0",
 ]
