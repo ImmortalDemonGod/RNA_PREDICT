@@ -35,26 +35,30 @@ def compute_dihedral(atom_selection):
     radians = calc_dihedrals(p1, p2, p3, p4)[0]
     return np.degrees(radians)
 
-def calculate_rna_torsions_mdanalysis(pdb_file, chain_id="A"):
+def calculate_rna_torsions_mdanalysis(pdb_file, chain_id="A", fallback=False):
     """
     Calculates backbone (alpha, beta, gamma, delta, epsilon, zeta)
     and glycosidic (chi) torsion angles for the specified RNA chain.
     Args:
         pdb_file (str): Path to the PDB/mmCIF file containing the RNA structure.
         chain_id (str): Which chain to analyze, default 'A'.
+        fallback (bool): Whether to fallback to selecting all nucleic if no chain is found.
     Returns:
         dict: { 'alpha': [...], 'beta': [...], 'gamma': [...], 
                 'delta': [...], 'epsilon': [...], 'zeta': [...], 'chi': [...] }
-              Each entry is a list of angles (or None) in residue order.
+              Each entry is a list of angles (or np.nan) in residue order.
     """
     u = mda.Universe(pdb_file)
     print("Segments:", u.segments)
     print("Residues:", u.residues)
-    # Select chain by known identifiers (adjust as needed)
+    # Unify chain selection
     rna_chain = u.select_atoms(f"(segid {chain_id}) or (chainID {chain_id})")
     if len(rna_chain) == 0:
-        print("No atoms found with segid/chainID, falling back to all nucleic.")
-        rna_chain = u.select_atoms("nucleic")
+        if fallback:
+            print(f"No atoms found with segid/chainID={chain_id}, falling back to all nucleic.")
+            rna_chain = u.select_atoms("nucleic")
+        else:
+            raise ValueError(f"No atoms found for chain/segment='{chain_id}'. Check PDB labeling.")
 
     torsion_data = {
         "alpha": [],
@@ -82,6 +86,10 @@ def calculate_rna_torsions_mdanalysis(pdb_file, chain_id="A"):
             ])
         else:
             alpha_val = None
+        if alpha_val is None:
+            alpha_val = np.nan
+        else:
+            alpha_val = np.float64(alpha_val)
         torsion_data["alpha"].append(alpha_val)
 
         # β: P(i) - O5'(i) - C5'(i) - C4'(i)
@@ -91,6 +99,10 @@ def calculate_rna_torsions_mdanalysis(pdb_file, chain_id="A"):
             res.atoms.select_atoms("name C5'")[0]   if res.atoms.select_atoms("name C5'") else None,
             res.atoms.select_atoms("name C4'")[0]   if res.atoms.select_atoms("name C4'") else None
         ])
+        if beta_val is None:
+            beta_val = np.nan
+        else:
+            beta_val = np.float64(beta_val)
         torsion_data["beta"].append(beta_val)
 
         # γ: O5'(i) - C5'(i) - C4'(i) - C3'(i)
@@ -100,6 +112,10 @@ def calculate_rna_torsions_mdanalysis(pdb_file, chain_id="A"):
             res.atoms.select_atoms("name C4'")[0] if res.atoms.select_atoms("name C4'") else None,
             res.atoms.select_atoms("name C3'")[0] if res.atoms.select_atoms("name C3'") else None
         ])
+        if gamma_val is None:
+            gamma_val = np.nan
+        else:
+            gamma_val = np.float64(gamma_val)
         torsion_data["gamma"].append(gamma_val)
 
         # δ: C5'(i) - C4'(i) - C3'(i) - O3'(i)
@@ -109,6 +125,10 @@ def calculate_rna_torsions_mdanalysis(pdb_file, chain_id="A"):
             res.atoms.select_atoms("name C3'")[0] if res.atoms.select_atoms("name C3'") else None,
             res.atoms.select_atoms("name O3'")[0] if res.atoms.select_atoms("name O3'") else None
         ])
+        if delta_val is None:
+            delta_val = np.nan
+        else:
+            delta_val = np.float64(delta_val)
         torsion_data["delta"].append(delta_val)
 
         # ε: C4'(i) - C3'(i) - O3'(i) - P(i+1)
@@ -121,6 +141,10 @@ def calculate_rna_torsions_mdanalysis(pdb_file, chain_id="A"):
             ])
         else:
             epsilon_val = None
+        if epsilon_val is None:
+            epsilon_val = np.nan
+        else:
+            epsilon_val = np.float64(epsilon_val)
         torsion_data["epsilon"].append(epsilon_val)
 
         # ζ: C3'(i) - O3'(i) - P(i+1) - O5'(i+1)
@@ -133,6 +157,10 @@ def calculate_rna_torsions_mdanalysis(pdb_file, chain_id="A"):
             ])
         else:
             zeta_val = None
+        if zeta_val is None:
+            zeta_val = np.nan
+        else:
+            zeta_val = np.float64(zeta_val)
         torsion_data["zeta"].append(zeta_val)
 
         # χ: glycosidic angle
@@ -151,6 +179,10 @@ def calculate_rna_torsions_mdanalysis(pdb_file, chain_id="A"):
         chi_val = None
         if O4 and C1 and N_base and C_base:
             chi_val = compute_dihedral([O4, C1, N_base, C_base])
+        if chi_val is None:
+            chi_val = np.nan
+        else:
+            chi_val = np.float64(chi_val)
         torsion_data["chi"].append(chi_val)
 
     return torsion_data
