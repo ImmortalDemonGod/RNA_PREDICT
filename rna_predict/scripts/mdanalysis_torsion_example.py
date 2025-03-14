@@ -42,7 +42,12 @@ def calculate_rna_torsions_mdanalysis(pdb_file, chain_id="A"):
     Returns a dict of angle lists in residue order.
     """
     u = mda.Universe(pdb_file)
+    print("Segments:", u.segments)
+    print("Residues:", u.residues)
     chain = u.select_atoms(f"chainID {chain_id}")
+    if len(chain) == 0:
+        print("No atoms found with chainID, falling back to all nucleic.")
+        chain = u.select_atoms("nucleic")
 
     torsion_data = {
         "alpha": [],
