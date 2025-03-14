@@ -18,8 +18,13 @@ def compute_dihedral(atom_selection):
     Expects a list of 4 MDAnalysis atom objects.
     Returns the angle in degrees or None if any atom is missing.
     """
-    if None in atom_selection or len(atom_selection) < 4:
+    # Explicitly check each item for None to avoid 'NoneType' comparison with AtomGroup
+    if len(atom_selection) < 4:
         return None
+    for atom in atom_selection:
+        if atom is None:
+            return None
+
     coords = np.array([atm.position for atm in atom_selection]).reshape(1, 4, 3)
     radians = calc_dihedrals(coords)[0]
     return np.degrees(radians)
