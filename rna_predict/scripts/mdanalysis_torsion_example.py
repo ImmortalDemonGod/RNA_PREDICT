@@ -41,7 +41,13 @@ def calculate_rna_torsions_mdanalysis(pdb_file, chain_id="A", fallback=False):
     MDAnalysis.
     Returns a dict of angle lists in residue order.
     """
-    u = mda.Universe(pdb_file)
+    import os
+
+    _, ext = os.path.splitext(pdb_file)
+    if ext.lower() == ".cif":
+        u = mda.Universe(pdb_file, format="MMCIF")
+    else:
+        u = mda.Universe(pdb_file)
     print("Segments:", u.segments)
     print("Residues:", u.residues)
 
@@ -168,7 +174,7 @@ def main():
     pdb_path = sys.argv[1]
     chain_id = sys.argv[2] if len(sys.argv) >= 3 else "A"
 
-    torsions = calculate_rna_torsions_mdanalysis(pdb_path, chain_id)
+    torsions = calculate_rna_torsions_mdanalysis(pdb_path, chain_id, fallback=True)
     for angle_name, values in torsions.items():
         print(f"{angle_name}: {values}")
 
