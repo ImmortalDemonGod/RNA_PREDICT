@@ -18,15 +18,21 @@ def compute_dihedral(atom_selection):
     Expects a list of 4 MDAnalysis atom objects.
     Returns the angle in degrees or None if any atom is missing.
     """
-    # Explicitly check each item for None to avoid 'NoneType' comparison with AtomGroup
+    # Explicitly check each item for None
     if len(atom_selection) < 4:
         return None
     for atom in atom_selection:
         if atom is None:
             return None
 
-    coords = np.array([atm.position for atm in atom_selection]).reshape(1, 4, 3)
-    radians = calc_dihedrals(coords)[0]
+    # Extract each atom's position as shape (1,3)
+    p1 = atom_selection[0].position.reshape(1, 3)
+    p2 = atom_selection[1].position.reshape(1, 3)
+    p3 = atom_selection[2].position.reshape(1, 3)
+    p4 = atom_selection[3].position.reshape(1, 3)
+
+    # Pass four separate arrays to calc_dihedrals
+    radians = calc_dihedrals(p1, p2, p3, p4)[0]
     return np.degrees(radians)
 
 def calculate_rna_torsions_mdanalysis(pdb_file, chain_id="A"):
