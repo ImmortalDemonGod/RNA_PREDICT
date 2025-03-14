@@ -19,10 +19,125 @@ import MDAnalysis as mda
 from Bio.PDB.MMCIFParser import MMCIFParser
 from Bio.PDB.PDBIO import PDBIO
 
+def safe_select_atom(res, name):
+    """
+    Return the first position array if the named atom is present
+    in the residue, else return None.
+    """
+    if res is None:
+        return None
+    sel = res.atoms.select_atoms(f"name {name}")
+    if sel and len(sel.positions) > 0:
+        return sel.positions[0]
+    return None
+
+def gather_atoms_for_alpha(prev_res, cur_res):
+    """
+    Gather atoms for alpha torsion:
+    O3'(i-1) - P(i) - O5'(i) - C5'(i).
+    """
+    return (
+        safe_select_atom(prev_res, "O3'"),
+        safe_select_atom(cur_res,  "P"),
+        safe_select_atom(cur_res,  "O5'"),
+        safe_select_atom(cur_res,  "C5'")
+    )
+
+def gather_atoms_for_beta(cur_res):
+    """
+    Gather atoms for beta torsion:
+    P(i) - O5'(i) - C5'(i) - C4'(i).
+    """
+    return (
+        safe_select_atom(cur_res, "P"),
+        safe_select_atom(cur_res, "O5'"),
+        safe_select_atom(cur_res, "C5'"),
+        safe_select_atom(cur_res, "C4'")
+    )
+
+def gather_atoms_for_gamma(cur_res):
+    """
+    Gather atoms for gamma torsion:
+    O5'(i) - C5'(i) - C4'(i) - C3'(i).
+    """
+    return (
+        safe_select_atom(cur_res, "O5'"),
+        safe_select_atom(cur_res, "C5'"),
+        safe_select_atom(cur_res, "C4'"),
+        safe_select_atom(cur_res, "C3'")
+    )
+
+def gather_atoms_for_delta(cur_res):
+    """
+    Gather atoms for delta torsion:
+    C5'(i) - C4'(i) - C3'(i) - O3'(i).
+    """
+    return (
+        safe_select_atom(cur_res, "C5'"),
+        safe_select_atom(cur_res, "C4'"),
+        safe_select_atom(cur_res, "C3'"),
+        safe_select_atom(cur_res, "O3'")
+    )
+
+def gather_atoms_for_epsilon(cur_res, next_res):
+    """
+    Gather atoms for epsilon torsion:
+    C4'(i) - C3'(i) - O3'(i) - P(i+1).
+    """
+    return (
+        safe_select_atom(cur_res,  "C4'"),
+        safe_select_atom(cur_res,  "C3'"),
+        safe_select_atom(cur_res,  "O3'"),
+        safe_select_atom(next_res, "P")
+    )
+
+def gather_atoms_for_zeta(cur_res, next_res):
+    """
+    Gather atoms for zeta torsion:
+    C3'(i) - O3'(i) - P(i+1) - O5'(i+1).
+    """
+    return (
+        safe_select_atom(cur_res,  "C3'"),
+        safe_select_atom(cur_res,  "O3'"),
+        safe_select_atom(next_res, "P"),
+        safe_select_atom(next_res, "O5'")
+    )
+
+def gather_atoms_for_chi(cur_res):
+    """
+    Gather atoms for the glycosidic angle (chi).
+    For purines: O4' - C1' - N9 - C4
+    For pyrimidines: O4' - C1' - N1 - C2
+    """
+    O4  = safe_select_atom(cur_res, "O4'")
+    C1  = safe_select_atom(cur_res, "C1'")
+    resname = cur_res.resname.strip().upper()
+    if resname.startswith("A") or resname.startswith("G"):
+        N_base = safe_select_atom(cur_res, "N9")
+        C_base = safe_select_atom(cur_res, "C4")
+    else:
+        N_base = safe_select_atom(cur_res, "N1")
+        C_base = safe_select_atom(cur_res, "C2")
+    return (O4, C1, N_base, C_base)
+
+def compute_dihedral_or_nan(atom_tuple):
+    """
+    If any of the four atoms is None, return NaN.
+    Otherwise, compute the dihedral angle using calc_dihedral.
+    """
+    if any(a is None for a in atom_tuple):
+        return np.nan
+    p1, p2, p3, p4 = atom_tuple
+    angle_deg = calc_dihedral(p1, p2, p3, p4)
+    if angle_deg is None:
+        return np.nan
+    return np.float64(angle_deg)
+
 def calc_dihedral(p1, p2, p3, p4):
     """
-    Calculate the dihedral angle (in degrees) for four 3D points 
+    Calculate the dihedral angle (in degrees) for four 3D points
     p1, p2, p3, p4 (each a NumPy array [x,y,z]).
+    If cross products are too small, return None.
     """
     b1 = p2 - p1
     b2 = p3 - p2
@@ -33,7 +148,7 @@ def calc_dihedral(p1, p2, p3, p4):
     norm_n1 = np.linalg.norm(n1)
     norm_n2 = np.linalg.norm(n2)
     if norm_n1 < 1e-12 or norm_n2 < 1e-12:
-        return None  # can't compute angle if cross product is ~0
+        return None
 
     cos_angle = np.dot(n1, n2) / (norm_n1 * norm_n2)
     cos_angle = max(-1.0, min(1.0, cos_angle))  # clamp
@@ -43,7 +158,7 @@ def calc_dihedral(p1, p2, p3, p4):
         phi = -phi
     return np.degrees(phi)
 
-@snoop
+
 def convert_cif_to_pdb(cif_file):
     """
     Convert an mmCIF file to a temporary PDB file using BioPython.
@@ -62,12 +177,15 @@ def convert_cif_to_pdb(cif_file):
     io.save(pdb_path)
     return pdb_path
 
-@snoop
 def calculate_rna_torsions_mdanalysis(pdb_file, chain_id="A", fallback=False):
     """
     Calculate backbone and glycosidic torsion angles (alpha, beta, gamma,
     delta, epsilon, zeta, chi) for an RNA chain using MDAnalysis.
-    For .cif files, we convert them to PDB with BioPython first.
+    For .cif files, we convert them to a temporary PDB with BioPython first.
+
+    This implementation uses a safe "gather atoms, then compute dihedral" approach,
+    ensuring that each torsion angle is computed independently, so we don't rely
+    on partially assigned local variables.
     """
     # 1) If it's a .cif file, convert to .pdb
     _, ext = os.path.splitext(pdb_file)
@@ -87,9 +205,6 @@ def calculate_rna_torsions_mdanalysis(pdb_file, chain_id="A", fallback=False):
         u = mda.Universe(mdanalysis_file)
     finally:
         # If we created a temp file, we can decide to keep it or remove it
-        # after the Universe is loaded. Usually we can remove it right away
-        # but some platforms might require it open.
-        # We'll remove at the end of the function once analysis done.
         pass
 
     # 3) Attempt chain selection
@@ -119,115 +234,48 @@ def calculate_rna_torsions_mdanalysis(pdb_file, chain_id="A", fallback=False):
         prev_res = residues[i - 1] if i > 0 else None
         next_res = residues[i + 1] if i < len(residues) - 1 else None
 
-        # alpha: O3'(i-1) - P(i) - O5'(i) - C5'(i)
+        # alpha: gather from prev & cur
         if prev_res:
-            alpha_val = None
-            try:
-                O3i_1 = prev_res.atoms.select_atoms("name O3'").positions[0]
-                Pi    = res.atoms.select_atoms("name P").positions[0]
-                O5i   = res.atoms.select_atoms("name O5'").positions[0]
-                C5i   = res.atoms.select_atoms("name C5'").positions[0]
-                alpha_val = calc_dihedral(O3i_1, Pi, O5i, C5i)
-            except IndexError:
-                alpha_val = None
-            if alpha_val is None:
-                alpha_val = np.nan
-            else:
-                alpha_val = np.float64(alpha_val)
-            torsion_data["alpha"].append(alpha_val)
+            alpha_tuple = gather_atoms_for_alpha(prev_res, res)
+            alpha_val = compute_dihedral_or_nan(alpha_tuple)
         else:
-            torsion_data["alpha"].append(np.nan)
+            alpha_val = np.nan
+        torsion_data["alpha"].append(alpha_val)
 
-        # beta: P(i) - O5'(i) - C5'(i) - C4'(i)
-        beta_val = None
-        try:
-            Pi   = res.atoms.select_atoms("name P").positions[0]
-            O5i  = res.atoms.select_atoms("name O5'").positions[0]
-            C5i  = res.atoms.select_atoms("name C5'").positions[0]
-            C4i  = res.atoms.select_atoms("name C4'").positions[0]
-            beta_val = calc_dihedral(Pi, O5i, C5i, C4i)
-        except IndexError:
-            pass
-        if beta_val is None:
-            beta_val = np.nan
-        else:
-            beta_val = np.float64(beta_val)
+        # beta
+        beta_tuple = gather_atoms_for_beta(res)
+        beta_val = compute_dihedral_or_nan(beta_tuple)
         torsion_data["beta"].append(beta_val)
 
-        # gamma: O5'(i) - C5'(i) - C4'(i) - C3'(i)
-        gamma_val = None
-        try:
-            C3i = res.atoms.select_atoms("name C3'").positions[0]
-            gamma_val = calc_dihedral(O5i, C5i, C4i, C3i)
-        except IndexError:
-            pass
-        if gamma_val is None:
-            gamma_val = np.nan
-        else:
-            gamma_val = np.float64(gamma_val)
+        # gamma
+        gamma_tuple = gather_atoms_for_gamma(res)
+        gamma_val = compute_dihedral_or_nan(gamma_tuple)
         torsion_data["gamma"].append(gamma_val)
 
-        # delta: C5'(i) - C4'(i) - C3'(i) - O3'(i)
-        delta_val = None
-        try:
-            O3i = res.atoms.select_atoms("name O3'").positions[0]
-            delta_val = calc_dihedral(C5i, C4i, C3i, O3i)
-        except IndexError:
-            pass
-        if delta_val is None:
-            delta_val = np.nan
-        else:
-            delta_val = np.float64(delta_val)
+        # delta
+        delta_tuple = gather_atoms_for_delta(res)
+        delta_val = compute_dihedral_or_nan(delta_tuple)
         torsion_data["delta"].append(delta_val)
 
-        # epsilon: C4'(i) - C3'(i) - O3'(i) - P(i+1)
-        epsilon_val = None
+        # epsilon
         if next_res:
-            try:
-                P_ip1 = next_res.atoms.select_atoms("name P").positions[0]
-                epsilon_val = calc_dihedral(C4i, C3i, O3i, P_ip1)
-            except IndexError:
-                pass
-        if epsilon_val is None:
-            epsilon_val = np.nan
+            epsilon_tuple = gather_atoms_for_epsilon(res, next_res)
+            epsilon_val = compute_dihedral_or_nan(epsilon_tuple)
         else:
-            epsilon_val = np.float64(epsilon_val)
+            epsilon_val = np.nan
         torsion_data["epsilon"].append(epsilon_val)
 
-        # zeta: C3'(i) - O3'(i) - P(i+1) - O5'(i+1)
-        zeta_val = None
+        # zeta
         if next_res:
-            try:
-                O5_ip1 = next_res.atoms.select_atoms("name O5'").positions[0]
-                P_ip1  = next_res.atoms.select_atoms("name P").positions[0]
-                zeta_val = calc_dihedral(C3i, O3i, P_ip1, O5_ip1)
-            except IndexError:
-                pass
-        if zeta_val is None:
-            zeta_val = np.nan
+            zeta_tuple = gather_atoms_for_zeta(res, next_res)
+            zeta_val = compute_dihedral_or_nan(zeta_tuple)
         else:
-            zeta_val = np.float64(zeta_val)
+            zeta_val = np.nan
         torsion_data["zeta"].append(zeta_val)
 
-        # chi: glycosidic angle
-        chi_val = None
-        try:
-            O4  = res.atoms.select_atoms("name O4'").positions[0]
-            C1  = res.atoms.select_atoms("name C1'").positions[0]
-            resname = res.resname.strip().upper()
-            if resname.startswith("A") or resname.startswith("G"):
-                N_base = res.atoms.select_atoms("name N9").positions[0]
-                C_base = res.atoms.select_atoms("name C4").positions[0]
-            else:
-                N_base = res.atoms.select_atoms("name N1").positions[0]
-                C_base = res.atoms.select_atoms("name C2").positions[0]
-            chi_val = calc_dihedral(O4, C1, N_base, C_base)
-        except IndexError:
-            pass
-        if chi_val is None:
-            chi_val = np.nan
-        else:
-            chi_val = np.float64(chi_val)
+        # chi: gather from current residue alone
+        chi_tuple = gather_atoms_for_chi(res)
+        chi_val = compute_dihedral_or_nan(chi_tuple)
         torsion_data["chi"].append(chi_val)
 
     # Clean up temporary file if used
@@ -236,7 +284,7 @@ def calculate_rna_torsions_mdanalysis(pdb_file, chain_id="A", fallback=False):
 
     return torsion_data
 
-@snoop
+
 def main():
     if len(sys.argv) < 2:
         print("Usage: python mdanalysis_torsion_example.py <rna_structure.[pdb|cif]> [chainID]")
