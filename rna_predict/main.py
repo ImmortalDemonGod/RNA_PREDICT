@@ -118,7 +118,7 @@ def demo_compute_torsions_for_bprna():
 
         # Alternatively, if you have a chain ID or other info, set chain_id here
         chain_id = "A"
-        angles = calculate_rna_torsions_mdanalysis(pdb_file, chain_id=chain_id)
+        angles = calculate_rna_torsions_mdanalysis(pdb_file, chain_id=chain_id, fallback=True)
 
         print(f"\n=== Torsion angles for {rna_id} (chain {chain_id}) ===")
         for angle_name, angle_list in angles.items():
