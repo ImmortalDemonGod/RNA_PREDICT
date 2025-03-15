@@ -184,7 +184,7 @@ def convert_cif_to_pdb(cif_file):
     return pdb_path
 
 
-def calculate_rna_torsions_mdanalysis(pdb_file, chain_id="A", fallback=False):
+def calculate_rna_torsions_mdanalysis(pdb_file, chain_id="A", fallback=False, csv_file=None):
     """
     Calculate backbone and glycosidic torsion angles (alpha, beta, gamma,
     delta, epsilon, zeta, chi) for an RNA chain using MDAnalysis.
@@ -365,7 +365,8 @@ def calculate_rna_torsions_mdanalysis(pdb_file, chain_id="A", fallback=False):
             test_chain = u.select_atoms(f"(segid {seg}) and nucleic")
             if len(test_chain.residues) < 1:
                 continue
-            score = compute_angle_score(test_chain, pdb_file)
+            # Now that csv_file is passed in, we can safely call compute_angle_score:
+            score = compute_angle_score(test_chain, csv_file)
             if score < best_score:
                 best_score = score
                 best_seg = seg
