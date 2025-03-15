@@ -365,7 +365,7 @@ def calculate_rna_torsions_mdanalysis(pdb_file, chain_id="A", fallback=False):
             test_chain = u.select_atoms(f"(segid {seg}) and nucleic")
             if len(test_chain.residues) < 1:
                 continue
-            score = compute_angle_score(test_chain, csv_file)
+            score = compute_angle_score(test_chain, pdb_file)
             if score < best_score:
                 best_score = score
                 best_seg = seg
