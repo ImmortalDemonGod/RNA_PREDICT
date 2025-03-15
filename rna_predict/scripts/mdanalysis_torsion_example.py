@@ -18,6 +18,12 @@ import MDAnalysis as mda
 
 from Bio.PDB.MMCIFParser import MMCIFParser
 from Bio.PDB.PDBIO import PDBIO
+# We'll implement a real angle-difference scoring function to compare with CSV angles:
+import pandas as pd
+import numpy as np
+from io import StringIO
+import re
+from mdanalysis_torsion_example import calculate_rna_torsions_mdanalysis as local_calc
 
 def safe_select_atom(res, name):
     """
@@ -227,11 +233,153 @@ def calculate_rna_torsions_mdanalysis(pdb_file, chain_id="A", fallback=False):
     print(f"Selecting chain with chain_id='{chain_id}'... Found {len(chain)} atoms.")
 
     if len(chain) == 0:
-        if fallback:
-            print(f"No atoms found for chainID={chain_id}. Falling back to all nucleic.")
-            chain = u.select_atoms("nucleic")
+        # Attempt to autodetect among all segids found in nucleic
+        candidate_segids = set(a.segment.segid for a in u.select_atoms("nucleic").atoms)
+        print(f"No atoms found for chainID={chain_id}. Trying all candidate segids: {candidate_segids}")
+
+        best_seg = None
+        best_chain = None
+        best_score = float('inf')
+
+
+
+        def compute_angle_score(test_chain, csv_file):
+            # 1) Load CSV angles
+            lines_csv = []
+            with open(csv_file, "r") as f_in:
+                for line in f_in:
+                    if not line.strip() or '====' in line:
+                        continue
+                    if line.startswith("index_chain") or re.match(r'^\\d', line.strip()):
+                        lines_csv.append(line)
+            df_str = "".join(lines_csv)
+            df = pd.read_csv(StringIO(df_str), sep=",")
+            alpha_csv   = df["alpha"].to_numpy(dtype=float)
+            beta_csv    = df["beta"].to_numpy(dtype=float)
+            gamma_csv   = df["gamma"].to_numpy(dtype=float)
+            delta_csv   = df["delta"].to_numpy(dtype=float)
+            epsilon_csv = df["epsilon"].to_numpy(dtype=float)
+            zeta_csv    = df["zeta"].to_numpy(dtype=float)
+            chi_csv     = df["chi"].to_numpy(dtype=float)
+
+            # 2) Compute new angles from test_chain
+            # We'll create a Universe with only the test_chain: or just pass to local_calc
+            # But local_calc expects a path, so we do an inline approach:
+            # Or we can call local_calc on the entire Universe, but restricting to test_chain's residues.
+            # For simplicity, let's do a partial approach:
+            # We'll rely on your existing logic to gather angles from 'test_chain'.
+            # We'll copy/paste the gather logic from within the same file or from custom script.
+
+            # For demonstration, let's call local_calc on a temporary file approach:
+            # This might be tricky if we only have an in-memory selection. Alternatively, we can adapt the logic directly.
+            # Here we show a pseudo approach:
+            new_angles = {
+                "alpha": [],
+                "beta": [],
+                "gamma": [],
+                "delta": [],
+                "epsilon": [],
+                "zeta": [],
+                "chi": []
+            }
+            # We'll gather real angles from the 'test_chain' the same way the main code does:
+            all_res = test_chain.residues
+            for i, res in enumerate(all_res):
+                prev_res = all_res[i - 1] if i > 0 else None
+                next_res = all_res[i + 1] if i < len(all_res) - 1 else None
+                # we can call gather_atoms, compute_dihedral, etc.
+                # For brevity, let's do alpha only. In reality, replicate for all angles:
+                from .mdanalysis_torsion_example import (
+                    gather_atoms_for_alpha,
+                    gather_atoms_for_beta,
+                    gather_atoms_for_gamma,
+                    gather_atoms_for_delta,
+                    gather_atoms_for_epsilon,
+                    gather_atoms_for_zeta,
+                    gather_atoms_for_chi,
+                    compute_dihedral_or_nan
+                )
+                if prev_res:
+                    alpha_tuple = gather_atoms_for_alpha(prev_res, res)
+                    alpha_val = compute_dihedral_or_nan(alpha_tuple)
+                else:
+                    alpha_val = np.nan
+                new_angles["alpha"].append(alpha_val)
+
+                beta_tuple = gather_atoms_for_beta(res)
+                beta_val = compute_dihedral_or_nan(beta_tuple)
+                new_angles["beta"].append(beta_val)
+
+                gamma_tuple = gather_atoms_for_gamma(res)
+                gamma_val = compute_dihedral_or_nan(gamma_tuple)
+                new_angles["gamma"].append(gamma_val)
+
+                delta_tuple = gather_atoms_for_delta(res)
+                delta_val = compute_dihedral_or_nan(delta_tuple)
+                new_angles["delta"].append(delta_val)
+
+                if next_res:
+                    eps_tuple = gather_atoms_for_epsilon(res, next_res)
+                    eps_val = compute_dihedral_or_nan(eps_tuple)
+                else:
+                    eps_val = np.nan
+                new_angles["epsilon"].append(eps_val)
+
+                if next_res:
+                    zeta_tuple = gather_atoms_for_zeta(res, next_res)
+                    zeta_val = compute_dihedral_or_nan(zeta_tuple)
+                else:
+                    zeta_val = np.nan
+                new_angles["zeta"].append(zeta_val)
+
+                chi_tuple = gather_atoms_for_chi(res)
+                chi_val = compute_dihedral_or_nan(chi_tuple)
+                new_angles["chi"].append(chi_val)
+
+            alpha_new   = np.array(new_angles["alpha"],   dtype=float)
+            beta_new    = np.array(new_angles["beta"],    dtype=float)
+            gamma_new   = np.array(new_angles["gamma"],   dtype=float)
+            delta_new   = np.array(new_angles["delta"],   dtype=float)
+            epsilon_new = np.array(new_angles["epsilon"], dtype=float)
+            zeta_new    = np.array(new_angles["zeta"],    dtype=float)
+            chi_new     = np.array(new_angles["chi"],     dtype=float)
+
+            # 3) Align/truncate
+            n_csv = len(alpha_csv)
+            n_new = len(alpha_new)
+            n_min = min(n_csv, n_new)
+            # 4) compute average absolute difference
+            diff_alpha   = np.nanmean(np.abs(alpha_new[:n_min]   - alpha_csv[:n_min]))
+            diff_beta    = np.nanmean(np.abs(beta_new[:n_min]    - beta_csv[:n_min]))
+            diff_gamma   = np.nanmean(np.abs(gamma_new[:n_min]   - gamma_csv[:n_min]))
+            diff_delta   = np.nanmean(np.abs(delta_new[:n_min]   - delta_csv[:n_min]))
+            diff_eps     = np.nanmean(np.abs(epsilon_new[:n_min] - epsilon_csv[:n_min]))
+            diff_zeta    = np.nanmean(np.abs(zeta_new[:n_min]    - zeta_csv[:n_min]))
+            diff_chi     = np.nanmean(np.abs(chi_new[:n_min]     - chi_csv[:n_min]))
+
+            # Combine them:
+            overall_score = np.mean([diff_alpha, diff_beta, diff_gamma, diff_delta, diff_eps, diff_zeta, diff_chi])
+            return overall_score
+
+        for seg in candidate_segids:
+            test_chain = u.select_atoms(f"(segid {seg}) and nucleic")
+            if len(test_chain.residues) < 1:
+                continue
+            score = compute_angle_score(test_chain, csv_file)
+            if score < best_score:
+                best_score = score
+                best_seg = seg
+                best_chain = test_chain
+
+        if best_chain is not None:
+            print(f"Auto-selected chain segid='{best_seg}' with score={best_score}")
+            chain = best_chain
         else:
-            raise ValueError(f"No atoms found for chainID='{chain_id}'. Check your PDB/cif labeling.")
+            if fallback:
+                print(f"All segids tested but none chosen. Falling back to all nucleic.")
+                chain = u.select_atoms('nucleic')
+            else:
+                raise ValueError(f"No valid chain found for chainID='{chain_id}' and autodetect failed. Check your PDB/cif labeling.")
 
     # Extra debug: show residue numbering in the chain
     print("=== DEBUG: Residue numbering in selected chain ===")
