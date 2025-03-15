@@ -74,7 +74,7 @@ def compare_torsions(csv_file, cif_file, chain_id="A"):
 
     # 2) Compute angles from the CIF
     # We'll rely on the fallback approach to handle chain selection
-    angles_mdanalysis = calculate_rna_torsions_mdanalysis(cif_file, chain_id, fallback=True)
+    angles_mdanalysis = calculate_rna_torsions_mdanalysis(cif_file, chain_id, fallback=True, csv_file=csv_file)
     # angles_mdanalysis is a dict of lists: angles_mdanalysis["alpha"] -> list of floats
     alpha_new   = np.array(angles_mdanalysis["alpha"],   dtype=float)
     beta_new    = np.array(angles_mdanalysis["beta"],    dtype=float)
