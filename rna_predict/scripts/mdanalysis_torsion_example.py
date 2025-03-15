@@ -23,7 +23,7 @@ import pandas as pd
 import numpy as np
 from io import StringIO
 import re
-from mdanalysis_torsion_example import calculate_rna_torsions_mdanalysis as local_calc
+# from mdanalysis_torsion_example import calculate_rna_torsions_mdanalysis as local_calc
 
 def safe_select_atom(res, name):
     """
