@@ -39,5 +39,6 @@ rna_predict = "rna_predict.__main__:main"
 
 [dependency-groups]
 dev = [
+    "mkdocs>=1.6.1",
     "snoop>=0.6.0",
 ]
