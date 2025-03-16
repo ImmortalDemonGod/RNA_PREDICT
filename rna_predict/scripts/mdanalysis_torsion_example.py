@@ -289,16 +289,10 @@ def calculate_rna_torsions_mdanalysis(pdb_file, chain_id="A", fallback=False, cs
                 next_res = all_res[i + 1] if i < len(all_res) - 1 else None
                 # we can call gather_atoms, compute_dihedral, etc.
                 # For brevity, let's do alpha only. In reality, replicate for all angles:
-                from .mdanalysis_torsion_example import (
-                    gather_atoms_for_alpha,
-                    gather_atoms_for_beta,
-                    gather_atoms_for_gamma,
-                    gather_atoms_for_delta,
-                    gather_atoms_for_epsilon,
-                    gather_atoms_for_zeta,
-                    gather_atoms_for_chi,
-                    compute_dihedral_or_nan
-                )
+                # Already in the same file, no need for relative import. We'll directly reference local methods.
+                # Use gather_atoms_for_alpha, gather_atoms_for_beta, gather_atoms_for_gamma, gather_atoms_for_delta,
+                # gather_atoms_for_epsilon, gather_atoms_for_zeta, gather_atoms_for_chi, compute_dihedral_or_nan
+                # from the same file.
                 if prev_res:
                     alpha_tuple = gather_atoms_for_alpha(prev_res, res)
                     alpha_val = compute_dihedral_or_nan(alpha_tuple)
