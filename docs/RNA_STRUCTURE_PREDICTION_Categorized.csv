@@ -1,0 +1,1060 @@
+Column A: Paper Title,Column B: ABSTRACT,Column C: Category
+"Accurate RNA 3D structure prediction using
+a language model-based deep learning
+approach","Accurate prediction of RNA three-dimensional (3D) structures remains
+an unsolved challenge. Determining RNA 3D structures is crucial for
+understanding their functions and informing RNA-targeting drug
+development and synthetic biology design. The structural fexibility of RNA,
+which leads to the scarcity of experimentally determined data, complicates
+computational prediction eforts. Here we present RhoFold+, an RNA
+language model-based deep learning method that accurately predicts 3D
+structures of single-chain RNAs from sequences. By integrating an RNA
+language model pretrained on ~23.7 million RNA sequences and leveraging
+techniques to address data scarcity, RhoFold+ ofers a fully automated
+end-to-end pipeline for RNA 3D structure prediction. Retrospective
+evaluations on RNA-Puzzles and CASP15 natural RNA targets demonstrate
+the superiority of RhoFold+ over existing methods, including human
+expert groups. Its efcacy and generalizability are further validated
+through cross-family and cross-type assessments, as well as time-censored
+benchmarks. Additionally, RhoFold+ predicts RNA secondary structures and
+interhelical angles, providing empirically verifable features that broaden its
+applicability to RNA structure and function studies.",Deep Learning-based Prediction; RNA 3D Structure Prediction; Computational Methods; Language Model Applications; Automated Pipeline
+"Abundance of correctly folded RNA motifs in
+sequence space, calculated on computational grids","Although functional RNA molecules are known to be
+
+biased in overall composition, the effects of back-
+ground composition on the probability of finding a
+
+particular active site by chance has received little
+attention. The probability of finding a particular
+
+motif has important implications both for under-
+standing the distribution of functional RNAs in
+
+ancient and modern organisms with varying genome
+compositions and for tuning SELEX pools to optimize
+the chance of finding specific functions. Here we
+develop a new method for calculating the probability
+of finding a modular motif containing base-paired
+regions, and use a computational grid to fold several
+
+hundred million random RNA sequences contain-
+ing the core elements of the isoleucine aptamer and
+
+the hammerhead ribozyme to estimate the probability
+
+that a sequence containing these structural ele-
+ments will fold correctly when isolated from back-
+ground sequences of different compositions. We
+
+find that the two motifs are most likely to be found
+in distinct regions of compositional space, and that
+the regions of greatest abundance are influenced by
+the probability of finding theconserved bases, finding
+the flanking helices, and folding, in that order of
+importance. Additionally, we can refine our estimates
+of the number of random sequences required for a
+50% probability of finding an example of each site
+in unbiased random pools of length 100 to 4.1 3 109
+for the isoleucine aptamer and 1.6 3 1010 for the
+hammerhead ribozyme. These figures are consistent
+with the facile recovery of these motifs from SELEX
+experiments.",RNA Motif Analysis; Computational Probability Modeling; Sequence Composition Studies; Functional RNA Discovery; SELEX Optimization and Analysis
+Accelerated protein structure comparison using TM-score-GPU,"Motivation: Accurate comparisons of different protein structures
+play important roles in structural biology, structure prediction and
+functional annotation. The root-mean-square-deviation (RMSD) after
+optimal superposition is the predominant measure of similarity due
+to the ease and speed of computation. However, global RMSD is
+dependent on the length of the protein and can be dominated by
+divergent loops that can obscure local regions of similarity. A more
+sophisticated measure of structure similarity, Template Modeling
+(TM)-score, avoids these problems, and it is one of the measures
+used by the community-wide experiments of critical assessment
+of protein structure prediction to compare predicted models with
+experimental structures. TM-score calculations are, however, much
+slower than RMSD calculations. We have therefore implemented
+a very fast version of TM-score for Graphical Processing Units
+(TM-score-GPU), using a new and novel hybrid Kabsch/quaternion
+method for calculating the optimal superposition and RMSD that
+is designed for parallel applications. This acceleration in speed
+allows TM-score to be used efficiently in computationally intensive
+
+applications such as for clustering of protein models and genome-
+wide comparisons of structure.
+
+Results: TM-score-GPU was applied to six sets of models from
+Nutritious Rice for the World for a total of 3 million comparisons.
+TM-score-GPU is 68 times faster on an ATI 5870 GPU, on average,
+than the original CPU single-threaded implementation on an AMD
+Phenom II 810 quad-core processor.
+Availability and implementation: The complete source, including
+the GPU code and the hybrid RMSD subroutine, can be
+downloaded and used without restriction at http://software.compbio.
+washington.edu/misc/downloads/tmscore/. The implementation is in
+C++/OpenCL.
+Contact: ram@compbio.washington.edu
+Supplementary Information: Supplementary data are available at
+Bioinformatics online.",Protein Structure Comparison; GPU-Accelerated Computing; Computational Biology Tools; Structural Similarity Metrics; High-Performance Bioinformatics
+"Vfold2D-MC: A physics-based hybrid model for predicting RNA
+secondary structure folding","Accurate prediction of RNA structure and folding stability has a far-reaching impact on our
+understanding of RNA functions. Here we develop Vfold2D-MC, a new physics-based model, to
+predict RNA structure and folding thermodynamics from the sequence. The model employs virtual
+bond-based coarse-graining of RNA backbone conformation and generates RNA conformations
+through Monte Carlo sampling of the bond angles and torsional angles of the virtual bonds.
+Using a coarse-grained statistical potential derived from the known structures, we assign each
+conformation with a statistical weight. The weighted average over the conformational ensemble
+gives the entropy and free energy parameters for the hairpin, bulge, and internal loops, and
+multi-way junctions. From the thermodynamic parameters, we predict RNA structures, melting
+curves, and structural changes from the sequence. Theory-experiment comparisons indicate that
+Vfold2D-MC not only gives improved structure predictions but also enables the interpretation
+of thermodynamic results for different RNA structures, including multibranched junctions.
+This new model sets a promising framework to treat more complicated RNA structures, such
+as pseudoknotted and intramolecular kissing loops, for which experimental thermodynamic
+parameters are often unavailable.",RNA Secondary Structure Prediction; Physics-Based Computational Modeling; Thermodynamic Analysis; Monte Carlo Sampling Methods; Coarse-Grained Modeling
+"Structure and stability of RNA/RNA kissing complex:
+with application to HIV dimerization initiation signal","We develop a statistical mechanical model to predict the structure and folding stability of the RNA/RNA kissing-loop complex.
+One of the key ingredients of the theory is the conformational entropy for the RNA/RNA kissing complex. We employ the
+recently developed virtual bond-based RNA folding model (Vfold model) to evaluate the entropy parameters for the different
+types of kissing loops. A benchmark test against experiments suggests that the entropy calculation is reliable. As an application
+of the model, we apply the model to investigate the structure and folding thermodynamics for the kissing complex of the HIV-1
+dimerization initiation signal. With the physics-based energetic parameters, we compute the free energy landscape for the HIV-1
+dimer. From the energy landscape, we identify two minimal free energy structures, which correspond to the kissing-loop dimer
+and the extended-duplex dimer, respectively. The results support the two-step dimerization process for the HIV-1 replication
+cycle. Furthermore, based on the Vfold model and energy minimization, the theory can predict the native structure as well as
+the local minima in the free energy landscape. The root-mean-square deviations (RMSDs) for the predicted kissing-loop dimer
+and extended-duplex dimer are ~3.0 A ̊ . The method developed here provides a new method to study the RNA/RNA kissing
+complex.
+Keywords: RNA/RNA kissing complex; HIV dimerization; structural predictions; folding thermodynamics; energy landscape;
+three-dimensional structure (3D)",RNA/RNA Interaction Modeling; Kissing-loop Complexes; Thermodynamic Stability Analysis; Statistical Mechanical Modeling; HIV RNA Structure and Dimerization
+"Vfold: A Web Server for RNA Structure and Folding
+Thermodynamics Prediction","Background: The ever increasing discovery of non-coding RNAs leads to unprecedented demand for the accurate modeling
+of RNA folding, including the predictions of two-dimensional (base pair) and three-dimensional all-atom structures and
+folding stabilities. Accurate modeling of RNA structure and stability has far-reaching impact on our understanding of RNA
+functions in human health and our ability to design RNA-based therapeutic strategies.
+Results: The Vfold server offers a web interface to predict (a) RNA two-dimensional structure from the nucleotide sequence,
+(b) three-dimensional structure from the two-dimensional structure and the sequence, and (c) folding thermodynamics
+(heat capacity melting curve) from the sequence. To predict the two-dimensional structure (base pairs), the server generates
+an ensemble of structures, including loop structures with the different intra-loop mismatches, and evaluates the free
+energies using the experimental parameters for the base stacks and the loop entropy parameters given by a coarse-grained
+RNA folding model (the Vfold model) for the loops. To predict the three-dimensional structure, the server assembles the
+motif scaffolds using structure templates extracted from the known PDB structures and refines the structure using all-atom
+energy minimization.
+Conclusions: The Vfold-based web server provides a user friendly tool for the prediction of RNA structure and stability. The
+web server and the source codes are freely accessible for public use at ‘‘http://rna.physics.missouri.edu’’.
+Citation: Xu X, Zhao P, Chen S-J (2014) Vfold: A Web Server for RNA Structure and Folding Thermodynamics Prediction. PLoS ONE 9(9): e107504. doi:10.1371/
+journal.pone.0107504
+Editor: Ying Xu, University of Georgia, United States of America
+Received May 20, 2014; Accepted August 11, 2014; Published September 12, 2014
+Copyright:  2014 Xu et al. This is an open-access article distributed under the terms of the Creative Commons Attribution License, which permits unrestricted
+use, distribution, and reproduction in any medium, provided the original author and source are credited.
+Data Availability: The authors confirm that all data underlying the findings are fully available without restriction. The web server can be accessed at http://rna.
+physics.missouri.edu.
+Funding: This research was supported by National Institutes of Health (NIH) grant GM063732 and National Science Foundation (NSF) grant MCB0920411. The
+funders had no role in study design, data collection and analysis, decision to publish, or preparation of the manuscript.
+Competing Interests: The authors have declared that no competing interests exist.
+* Email: chenshi@missouri.edu",RNA Structure Prediction Tools; Web-based Bioinformatics Resources; Thermodynamics and Stability Analysis; Coarse-Grained RNA Models; Computational RNA Folding
+The building blocks and motifs of RNA architecture,"RNA motifs can be defined broadly as recurrent structural elements containing multiple
+intramolecular RNA–RNA interactions, as observed in atomic-resolution RNA structures. They
+constitute the modular building blocks of RNA architecture, which is organized hierarchically.
+Recent work has focused on analyzing RNA backbone conformations to identify, define and
+search for new instances of recurrent motifs in X-ray structures. One current view asserts that
+recurrent RNA strand segments with characteristic backbone configurations qualify as independent
+motifs. Other considerations indicate that, to characterize modular motifs, one must take into
+account the larger structural context of such strand segments. This follows the biologically relevant
+motivation, which is to identify RNA structural characteristics that are subject to sequence
+constraints and that thus relate RNA architectures to sequences.",RNA Structural Motifs; Modular RNA Architecture; Backbone Conformation Analysis; Sequence-Structure Relationships; Structural Biology of RNA
+"TMQuery: a database of precomputed template
+modeling scores for assessment of protein
+structural similarity","Summary: Comparisons of protein structures are critical for developing novel protein designs, annotating protein
+
+functions and predicting protein structure. The template modeling score (TM-score) is a widely used but computa-
+tionally expensive measure of protein similarity that is applicable to a wide variety of structural biology problems.
+
+We introduce TMQuery—a continuously updated database containing over eight billion pre-computed TM-score
+values for every pair of proteins in the Protein Data Bank, allowing researchers to quickly query and download
+TM-scores via a web interface.
+Availability and implementation: Publicly available at https://tmquery.gsk.com/.
+Contact: gurpreet.13.singh@gsk.com",Protein Structure Databases; Template Modeling Score (TM-score); Computational Structural Biology; Web-based Bioinformatics Databases; Protein Structural Similarity Analysis
+"The non-Watson±Crick base pairs and their
+associated isostericity matrices","RNA molecules exhibit complex structures in which
+
+a large fraction of the bases engage in non-
+Watson±Crick base pairing, forming motifs that
+
+mediate long-range RNA±RNA interactions and
+create binding sites for proteins and small molecule
+
+ligands. The rapidly growing number of three-
+dimensional RNA structures at atomic resolution
+
+requires that databases contain the annotation of
+such base pairs. An unambiguous and descriptive
+nomenclature was proposed recently in which
+RNA base pairs were classi®ed by the base edges
+participating in the interaction (Watson±Crick,
+Hoogsteen/CH or sugar edge) and the orientation of
+the glycosidic bonds relative to the hydrogen bonds
+(cis or trans). Twelve basic geometric families were
+identi®ed and all 12 have been observed in crystal
+structures. For each base pairing family, we present
+here the 4 3 4 `isostericity matrices' summarizing
+the geometric relationships between the 16 pairwise
+combinations of the four standard bases, A, C, G
+and U. Whenever available, a representative
+example of each observed base pair from X-ray
+crystal structures (3.0 AÊ resolution or better) is
+provided or, otherwise, theoretically plausible
+models. This format makes apparent the recurrent
+geometric patterns that are observed and helps
+identify isosteric pairs that co-vary or interchange
+in sequences of homologous molecules while
+maintaining conserved three-dimensional motifs.",Non-Watson–Crick Base Pairing; RNA Structural Annotation; Isostericity Matrices; Geometric RNA Base-Pair Analysis; 3D RNA Structure Databases
+"RNAMotifScanX: a graph alignment approach for RNA
+structural motif identification","RNA structural motifs are recurrent three-dimensional (3D) components found in the RNA architecture. These RNA structural
+motifs play important structural or functional roles and usually exhibit highly conserved 3D geometries and base-interaction
+patterns. Analysis of the RNA 3D structures and elucidation of their molecular functions heavily rely on efficient and accurate
+identification of these motifs. However, efficient RNA structural motif search tools are lacking due to the high complexity of
+these motifs. In this work, we present RNAMotifScanX, a motif search tool based on a base-interaction graph alignment
+algorithm. This novel algorithm enables automatic identification of both partially and fully matched motif instances.
+RNAMotifScanX considers noncanonical base-pairing interactions, base-stacking interactions, and sequence conservation of
+the motifs, which leads to significantly improved sensitivity and specificity as compared with other state-of-the-art search
+tools. RNAMotifScanX also adopts a carefully designed branch-and-bound technique, which enables ultra-fast search of large
+kink-turn motifs against a 23S rRNA. The software package RNAMotifScanX is implemented using GNU C++, and is freely
+available from http://genome.ucf.edu/RNAMotifScanX.
+Keywords: RNA structural motif; noncanonical base pair; base-stacking interaction; ribosomal RNA",RNA Structural Motif Detection; Noncanonical Base-Pairing Analysis; Base-Stacking Interactions; Graph-Based RNA Analysis; Computational Tool Development
+"RNAdegformer: accurate prediction of mRNA
+degradation at nucleotide resolution with deep learning","Messenger RNA-based therapeutics have shown tremendous potential, as demonstrated by the rapid development of messenger RNA
+based vaccines for COVID-19. Nevertheless, distribution of mRNA vaccines worldwide has been hampered by mRNA’s inherent thermal
+instability due to in-line hydrolysis, a chemical degradation reaction. Therefore, predicting and understanding RNA degradation is a
+crucial and urgent task. Here we present RNAdegformer, an effective and interpretable model architecture that excels in predicting
+RNA degradation. RNAdegformer processes RNA sequences with self-attention and convolutions, two deep learning techniques that
+have proved dominant in the fields of computer vision and natural language processing, while utilizing biophysical features of RNA.
+We demonstrate that RNAdegformer outperforms previous best methods at predicting degradation properties at nucleotide resolution
+for COVID-19 mRNA vaccines. RNAdegformer predictions also exhibit improved correlation with RNA in vitro half-life compared with
+previous best methods. Additionally, we showcase how direct visualization of self-attention maps assists informed decision-making.
+Further, our model reveals important features in determining mRNA degradation rates via leave-one-feature-out analysis.
+Keywords: mRNA vaccine degradation, deep learning, bioinformatics, COVID-19 mRNA",mRNA Degradation Prediction; RNA Stability and Half-Life Analysis; Deep Learning; Biophysical RNA Modeling; COVID-19 mRNA Vaccine Optimization
+"RNAcentral: a comprehensive database of non-coding
+RNA sequences","RNAcentral is a database of non-coding RNA
+
+(ncRNA) sequences that aggregates data from spe-
+cialised ncRNA resources and provides a single
+
+entry point for accessing ncRNA sequences of all
+ncRNA types from all organisms. Since its launch
+
+in 2014, RNAcentral has integrated twelve new re-
+sources, taking the total number of collaborating
+
+database to 22, and began importing new types of
+data, such as modified nucleotides from MODOMICS
+and PDB. We created new species-specific identifiers
+that refer to unique RNA sequences within a context of single species. The website has been subject to
+
+continuous improvements focusing on text and se-
+quence similarity searches as well as genome brows-
+ing functionality. All RNAcentral data is provided for
+
+free and is available for browsing, bulk downloads,
+and programmatic access at http://rnacentral.org/.",Non-coding RNA Databases; Database Integration and Management; Bioinformatics Data Accessibility; Sequence and Genome Browsing Tools; RNA Bioinformatics Resources
+"RNADiffFold: generative RNA secondary structure
+prediction using discrete diffusion models","Ribonucleic acid (RNA) molecules are essential macromolecules that perform diverse biological functions in living beings. Precise
+prediction of RNA secondary structures is instrumental in deciphering their complex three-dimensional architecture and functionality.
+Traditional methodologies for RNA structure prediction, including energy-based and learning-based approaches, often depict RNA
+secondary structures from a static perspective and rely on stringent a priori constraints. Inspired by the success of diffusion models, in
+this work, we introduce RNADiffFold, an innovative generative prediction approach of RNA secondary structures based on multinomial
+diffusion. We reconceptualize the prediction of contact maps as akin to pixel-wise segmentation and accordingly train a denoising
+model to refine the contact maps starting from a noise-infused state progressively. We also devise a potent conditioning mechanism
+that harnesses features extracted from RNA sequences to steer the model toward generating an accurate secondary structure. These
+features encompass one-hot encoded sequences, probabilistic maps generated from a pre-trained scoring network, and embeddings
+and attention maps derived from RNA foundation model. Experimental results on both within- and cross-family datasets demonstrate
+RNADiffFold’s competitive performance compared with current state-of-the-art methods. Additionally, RNADiffFold has shown a
+notable proficiency in capturing the dynamic aspects of RNA structures, a claim corroborated by its performance on datasets comprising
+multiple conformations.
+Keywords: RNA secondary structure prediction; deep learning; discrete diffusion model",RNA Secondary Structure Prediction; Generative Deep Learning Models; Discrete Diffusion Models; Dynamic RNA Structure Analysis; Sequence-conditioned Structure Generation
+"Structure and
+Dynamics of RNA","These excerpts from ""Structure and Dynamics of RNA"" present a comprehensive overview of RNA research as of 1986, stemming from a NATO Advanced Research Workshop. The text explores RNA's intricate three-dimensional architecture and its dynamic behavior through various biophysical techniques like NMR and spectroscopy. It investigates factors influencing RNA stability, such as base stacking and loop formation, and examines the conformations of RNA constituents. Several chapters focus on specific RNA types, including ribosomal RNA (rRNA), transfer RNA (tRNA), and viral RNA, detailing their structural features and functional roles, often employing methods like cross-linking and mutagenesis. The collection also addresses RNA synthesis using RNA polymerase and the interaction of RNA with proteins and other molecules. Collectively, these contributions illuminate the multifaceted nature of RNA structure and its importance in biological processes. Dynamics of RNA
+
+This briefing document reviews the main themes and important ideas presented in the provided excerpts from ""Structure_and_Dynamics_of_RNA.pdf"". The document covers topics ranging from thermodynamic stability of RNA structures to anomalous conformations, dynamics studied by NMR, and structural features of various RNA molecules like tRNA and ribosomal RNA.
+Main Themes and Important Ideas
+1. Thermodynamics of RNA Structure Formation
+
+    Free Energy Increments: The stability of RNA structures is governed by free energy changes associated with the addition of base pairs, dangling ends, and terminal phosphates. Figure 2 and Table 1 provide data on these increments for different core helices (GCG, GCGC, GGCC) at 37°C and in 1M NaCl.
+    For example, Table 1 shows the free energy increment for adding a 5' dangling A to a GGCC core is -0.9 kcal/mol, while a 3' dangling A is -2.2 kcal/mol, indicating a stronger stabilizing effect for the 3' end.
+    The free energy increment for forming a terminal CG base pair with a GGCC core is also provided.
+    Nearest Neighbor Parameters: Revised nearest neighbor parameters are crucial for accurate prediction of RNA structure using computational methods like the Zuker and Stiegler program. The parameters in Table 3 (not shown in detail but referenced) were used to predict the structure of a self-splicing intervening sequence.
+    Stability Increments: Table 1 details stability increments for various terminal additions (phosphates, dangling ends, base pairs, mismatches) to different core helices under specific ionic conditions. These parameters are derived from thermodynamic studies of oligonucleotide equilibria.
+
+2. Anomalous Conformations and Stacking
+
+    Helical Preference: Short single-stranded RNA fragments typically favor a right-handed helical conformation.
+    Cornelis Altona states, ""Short single-stranded RNA fragments normally display a strong tendency to favour a right-handed helical conformation."" (p. 13)
+    Stacking Interactions: Base-base stacking interactions are enthalpy-favorable but entropy-unfavorable, leading to a delicate balance that can be easily shifted by minor structural variations.
+    ""This 'vertical' base-base interaction usually is accompanied by a large change of the enthalpy (-6Hstack ~ 5 to 7 kcal/mole per interaction in a single-helical array...)."" (p. 14)
+    ""The extremely favourable enthalpy factor does not necessarily mean that nucleic acids are permanently locked into a base-stacked array, for at ambient temperature it is balanced by a counter factor: a large and unfavourable entropy term: - 65stack ~ 15 to 25 cal/mole/K."" (p. 14)
+    Conformational Transmission: In trimers and higher oligomers, next-nearest-neighbor interactions can influence conformation. The behavior of U-A-U and A-U-A trimers highlights this, with A-U-A exhibiting a 1-3 stacking interaction and a ""bulge-out"" of the central pyrimidine.
+    ""For example, the trimer U-A-U (A = m~A) behaves in a fashion that can be predicted from the known stacking proper­ ties of its dimer constituents U-A and A-U, whereas the trimer A-U-A behaves in an entirely different way. In the latter compound the two purines engage in a 1-3 stacking interaction. At the same time the central pyri­ midine residue is pushed outside the purine-purine interaction zone (bulge-out)."" (p. 13)
+    Bulges: Bulged-out residues can disrupt normal stacking patterns and often prefer the S sugar conformation, unlike classical RNA helices that favor the N form.
+    ""Bulged-out triplets share another characteristic property: compared to classical RNA helices, which invariably prefer to have the sugars adopt the N form (Table IV), the bulges definitely prefer S (Table V)."" (p. 14)
+    Bulges can allow 3'-stacking but may impede 5'-stacking. Double bulges might indicate flexibility to adapt to conflicting structural demands.
+
+3. NMR Spectroscopy in RNA Structure and Dynamics
+
+    Backbone Geometry: NMR methods can determine sugar-phosphate backbone geometry by surveying dihedral angles (β, γ, δ, ε). Specific coupling constants (e.g., JH3',P, JC4'P, JC2'P) provide information about these angles.
+    ""s(C4' - C3' - 03' - P). The conformational situation about s is usual­ ly given in terms of an equilibrium between two, distinctly non-classical, rotamers st and c, the s+ region appears 'forbidden'. Fig. 3C reveals that s can in principle be monitored by three couplings: J H3 ,P , JC4'P and J C2 'p."" (p. 14)
+    Chemical Shifts: Differential shieldings of protons in RNA fragments provide insights into stacking and bulging phenomena (Tables II and III). Changes in chemical shifts with temperature can indicate the stability of stacked structures versus bulges. Bulged residues often show less temperature dependence in their chemical shifts.
+    NOE (Nuclear Overhauser Effect): NOE measurements, including NOESY experiments, can determine interproton distances and provide information about the three-dimensional structure of RNA molecules. Short mixing times are crucial for larger molecules to avoid spin diffusion.
+    ""In addition to providing assignments, NOE measurements can be used to determine interproton distances."" (p. 139)
+    Equation [2] (not explicitly shown but referenced) is used to relate NOE intensities to interproton distances.
+    Caution is advised regarding spin diffusion and the influence of nearby protons on distance determination. Internal references, like the H5-H6 base vector and H1'-H2' sugar vector, can help assess the reliability of distance estimates.
+    Rotational Relaxation: Measurements of rotational relaxation times using fluorescence anisotropy decay (Table Z and Figure 5) provide information about the overall motion and local flexibility of RNA components like modified bases (e.g., deoxy-2-aminopurine, wybutine).
+
+4. Structural Features of Specific RNAs
+
+    tRNA: The structure of tRNA, including the anticodon loop and stem (Figure 3 on p. 143), is stabilized by stacking interactions and polar electrostatic interactions. Molecular dynamics simulations (pp. 151-154) can provide insights into the flexibility and dynamics of tRNA domains like the anticodon arm. Studies using chemical modification (DMS, DEPC, ENU) reveal the accessibility of specific bases and phosphates, providing information about secondary and tertiary structure (Figure 2 on p. 127). Comparisons between different tRNAs (e.g., tRNAAsp and tRNAPhe) highlight conserved and variable structural elements (Figures 1 and 2 on p. 113).
+    Ribosomal RNA (rRNA):5S rRNA: Exhibits dynamic secondary structures with potential equilibria between different conformations (Figure 2 on p. 193). ""Compact"" and ""conventional"" models exist, suggesting that internal loops may be more complex structures, possibly involving bulges or symmetrical odd base pairs (Figure 3 on p. 195). Chemical and enzymatic probing (e.g., S1 nuclease digestion) reveals accessibility patterns that vary with temperature and can indicate dynamic regions (Figure 1 on p. 205, Table 1 on p. 207). Phylogenetic analyses and comparisons across different organisms (eukaryotes, eubacteria) highlight conserved and variable structural features (Tables 4-7 on pp. 210-216).
+    23S rRNA: Chemical modification studies using diethyl pyrocarbonate and dimethyl sulphate under native and semi-denaturing conditions can identify accessible adenosines and cytidines in specific domains (Figure 1 on p. 224, Figure on p. 225). These data can be correlated with phylogenetic analyses to identify potentially functionally important sites.
+    16S rRNA: The 3' end of 16S rRNA is implicated in forming a short double strand with mRNA (Shine-Dalgarno interaction), which can stimulate the binding of initiator tRNA to the 30S ribosome (Figure 3 on p. 279). Oligonucleotides containing the Shine-Dalgarno region and initiation codon can be used to study this interaction.
+    Viroids and Virusoids: These small pathogenic RNAs exhibit characteristic secondary structures with varying degrees of base pairing and bifurcations (Table I and Figure on pp. 320-321). Thermodynamic parameters derived from experiments and calculations provide insights into their stability and structural transitions.
+
+5. Chemical Modification as a Probe of RNA Structure
+
+Various chemical reagents (e.g., bisulphite, dimethylsulphate, diethylpyrocarbonate, ethylnitrosourea, kethoxal) and nucleases are used to probe the accessibility of specific bases and phosphodiester bonds in RNA molecules under different conditions (native, semi-denatured). The pattern of modification or cleavage reveals information about base pairing, stacking, and tertiary interactions.
+6. Computational Methods in RNA Structure Prediction
+
+Computer programs (e.g., Zuker and Stiegler) utilize thermodynamic parameters (nearest neighbor rules, loop penalties) to predict RNA secondary structure and folding. Molecular mechanics calculations (e.g., using AMBER program) and molecular dynamics simulations can provide insights into RNA conformation, dynamics, and stability.
+
+This briefing document highlights the multifaceted nature of RNA structure and dynamics, emphasizing the interplay between thermodynamics, sequence, and environmental factors in shaping RNA architecture and function. Experimental techniques like NMR and chemical modification, combined with computational approaches, are crucial for unraveling the complexities of RNA molecules.",RNA Structural Dynamics; Thermodynamic Analysis of RNA; Chemical Probing of RNA Structure; RNA Computational Modeling and Simulation; RNA Structural Biology
+"NuFold: end-to-end approach for RNA
+tertiary structure prediction with flexible
+nucleobase center representation","RNA plays a crucial role not only in information transfer as messenger RNA
+during gene expression but also in various biological functions as non-coding
+RNAs. Understanding mechanical mechanisms of function needs tertiary
+
+structure information; however, experimental determination of three-
+dimensional RNA structures is costly and time-consuming, leading to a sub-
+stantial gap between RNA sequence and structural data. To address this
+
+challenge, we developed NuFold, a novel computational approach that
+leverages state-of-the-art deep learning architecture to accurately predict RNA
+tertiary structures. NuFold is a deep neural network trained end-to-end for the
+output structure from the input sequence. NuFold incorporates a nucleobase
+center representation, which enables flexible conformation of ribose rings.
+Benchmark study showed that NuFold clearly outperformed energy-based
+methods and demonstrated comparable results with existing state-of-the-art
+deep-learning-based methods. NuFold exhibited a particular advantage in
+building correct local geometries of RNA. Analyses of individual components
+in the NuFold pipeline indicated that the performance improved by utilizing
+metagenome sequences for multiple sequence alignment and increasing the
+number of recycling. NuFold is also capable of predicting multimer complex
+structures of RNA by linking the input sequences.",RNA Tertiary Structure Prediction; End-to-End Deep Learning Models; Flexible RNA Structure Representation; Multimeric RNA Complex Prediction; Metagenome-informed RNA Modeling
+Physics-based de novo prediction of RNA 3D structures,"Current experiments on structural determination cannot keep up the pace with the steadily
+emerging RNA sequences and new functions. This underscores the request for an accurate model
+for RNA three-dimensional (3D) structural prediction. Although considerable progress has been
+made in mechanistic studies, accurate prediction for RNA tertiary folding from sequence remains
+an unsolved problem. The first and most important requirement for the prediction of RNA
+
+structure from physical principles is an accurate free energy model. A recently developed three-
+vector virtual bond-based RNA folding model (“Vfold”) has allowed us to compute the chain
+
+entropy and predict folding free energies and structures for RNA secondary structures and simple
+pseudoknots. Here we develop a free energy-based method to predict larger more complex RNA
+tertiary folds. The approach is based on a multiscaling strategy: from the nucleotide sequence, we
+predict the two-dimensional (2D) structures (defined by the base pairs and tertiary contacts); based
+on the 2D structure, we construct a 3D scaffold; with the 3D scaffold as the initial state, we
+combine AMBER energy minimization and PDB-based fragment search to predict the all-atom
+structure. A key advantage of the approach is the statistical mechanical calculation for the
+conformational entropy of RNA structures, including those with cross-linked loops. Benchmark
+tests show that the model leads to significant improvements in RNA 3D structure prediction.
+Keywords
+Energy landscape; RNA folding; Structural prediction; Tertiary structure",De Novo RNA 3D Structure Prediction; Physics-Based Computational Models; Multiscale Modeling Approaches; Conformational Entropy Calculation; Fragment-based Structure Prediction
+"RNA structuralmotifs: building blocks
+of a modular biomolecule","Abstract. RNAs are modular biomolecules, composed largely of conserved structural
+subunits, or motifs. These structural motifs comprise the secondary structure of RNA and are knit
+together via tertiary interactions into a compact, functional, three-dimensional structure and are
+to be distinguished from motifs defined by sequence or function. A relatively small number of
+structural motifs are found repeatedly in RNA hairpin and internal loops, and are observed to be
+composed of a limited number of common ‘ structural elements ’. In addition to secondary and
+tertiary structure motifs, there are functional motifs specific for certain biological roles and binding
+motifs that serve to complex metals or other ligands. Research is continuing into the identification
+and classification of RNA structural motifs and is being initiated to predict motifs from sequence,
+to trace their phylogenetic relationships and to use them as building blocks in RNA engineering.",RNA Structural Motifs; Modular RNA Architecture; Tertiary Interactions in RNA; Functional and Binding RNA Motifs; RNA Motif Engineering and Phylogenetics
+"Mining for recurrent long-range interactions in RNA
+structures reveals embedded hierarchies in network
+families","The wealth of the combinatorics of nucleotide base
+
+pairs enables RNA molecules to assemble into so-
+phisticated interaction networks, which are used to
+
+create complex 3D substructures. These interaction
+networks are essential to shape the 3D architecture
+of the molecule, and also to provide the key elements
+
+to carry molecular functions such as protein or lig-
+and binding. They are made of organised sets of
+
+long-range tertiary interactions which connect dis-
+tinct secondary structure elements in 3D structures.
+
+Here, we present a de novo data-driven approach
+to extract automatically from large data sets of full
+RNA 3D structures the recurrent interaction networks
+(RINs). Our methodology enables us for the first time
+
+to detect the interaction networks connecting dis-
+tinct components of the RNA structure, highlight-
+ing their diversity and conservation through non-
+related functional RNAs. We use a graphical model
+
+to perform pairwise comparisons of all RNA struc-
+tures available and to extract RINs and modules. Our
+
+analysis yields a complete catalog of RNA 3D struc-
+tures available in the Protein Data Bank and reveals
+
+the intricate hierarchical organization of the RNA in-
+teraction networks and modules. We assembled our
+
+results in an online database (http://carnaval.lri.fr)
+which will be regularly updated. Within the site, a tool
+allows users with a novel RNA structure to detect
+automatically whether the novel structure contains
+previously observed RINs.",RNA Interaction Networks; Long-Range Tertiary Interactions; Graphical Models in RNA Analysis; RNA Structure Hierarchies; Database of RNA Structural Interactions
+"Interpretable RNA Foundation Model from Unannotated Data for
+Highly Accurate RNA Structure and Function Predictions","Non-coding RNA structure and function are essential to understanding various biological processes, such
+as cell signaling, gene expression, and post-transcriptional regulations. These are all among the core problems
+in the RNA field. With the rapid growth of sequencing technology, we have accumulated a massive amount
+of unannotated RNA sequences. On the other hand, expensive experimental observatory results in only limited
+numbers of annotated data and 3D structures. Hence, it is still challenging to design computational methods for
+
+predicting their structures and functions. The lack of annotated data and systematic study causes inferior per-
+formance. To resolve the issue, we propose a novel RNA foundation model (RNA-FM) to take advantage of all
+
+the 23 million non-coding RNA sequences through self-supervised learning. Within this approach, we discover
+that the pre-trained RNA-FM could infer sequential and evolutionary information of non-coding RNAs without
+
+using any labels. Furthermore, we demonstrate RNA-FM’s effectiveness by applying it to the downstream sec-
+ondary/3D structure prediction, SARS-CoV-2 genome structure and evolution prediction, protein-RNA binding
+
+preference modeling, and gene expression regulation modeling. The comprehensive experiments show that the
+proposed method improves the RNA structural and functional modelling results significantly and consistently.
+Despite only being trained with unlabelled data, RNA-FM can serve as the foundational model for the field.",RNA Foundation Models; Self-supervised Learning for RNA; RNA Structural and Functional Prediction; Unannotated RNA Sequence Analysis; RNA Evolution and Protein-RNA Interaction Modeling
+"Predicting RNA folding thermodynamics with a
+reduced chain representation model","Based on the virtual bond representation for the nucleotide backbone, we develop a reduced conformational model for RNA.
+We use the experimentally measured atomic coordinates to model the helices and use the self-avoiding walks in a diamond
+lattice to model the loop conformations. The atomic coordinates of the helices and the lattice representation for the loops are
+matched at the loop–helix junction, where steric viability is accounted for. Unlike the previous simplified lattice-based models,
+the present virtual bond model can account for the atomic details of realistic three-dimensional RNA structures. Based on the
+model, we develop a statistical mechanical theory for RNA folding energy landscapes and folding thermodynamics. Tests against
+experiments show that the theory can give much more improved predictions for the native structures, the thermal denaturation
+curves, and the equilibrium folding/unfolding pathways than the previous models. The application of the model to the P5abc
+region of Tetrahymena group I ribozyme reveals the misfolded intermediates as well as the native-like intermediates in the
+equilibrium folding process. Moreover, based on the free energy landscape analysis for each and every loop mutation, the model
+predicts five lethal mutations that can completely alter the free energy landscape and the folding stability of the molecule.
+Keywords: RNA folding; misfolded intermediates; stability; cooperativity",RNA Folding Prediction; Lattice-based Modeling; Structural Prediction Accuracy; Thermal Denaturation Analysis; RNA Folding Pathway Analysis
+"Geometric nomenclature and classification
+of RNA base pairs","Non-Watson–Crick base pairs mediate specific interactions responsible for RNA–RNA self-assembly and RNA–
+
+protein recognition. An unambiguous and descriptive nomenclature with well-defined and nonoverlapping param-
+eters is needed to communicate concisely structural information about RNA base pairs. The definitions should reflect
+
+underlying molecular structures and interactions and, thus, facilitate automated annotation, classification, and com-
+parison of new RNA structures. We propose a classification based on the observation that the planar edge-to-edge,
+
+hydrogen-bonding interactions between RNA bases involve one of three distinct edges: the Watson–Crick edge, the
+
+Hoogsteen edge, and the Sugar edge (which includes the 29-OH and which has also been referred to as the Shallow-
+groove edge). Bases can interact in either of two orientations with respect to the glycosidic bonds, cis or trans relative
+
+to the hydrogen bonds. This gives rise to 12 basic geometric types with at least two H bonds connecting the bases.
+For each geometric type, the relative orientations of the strands can be easily deduced. High-resolution examples of
+11 of the 12 geometries are presently available. Bifurcated pairs, in which a single exocyclic carbonyl or amino group
+of one base directly contacts the edge of a second base, and water-inserted pairs, in which single functional groups
+on each base interact directly, are intermediate between two of the standard geometries. The nomenclature facilitates
+the recognition of isosteric relationships among base pairs within each geometry, and thus facilitates the recognition
+
+of recurrent three-dimensional motifs from comparison of homologous sequences. Graphical conventions are pro-
+posed for displaying non-Watson–Crick interactions on a secondary structure diagram. The utility of the classification
+
+in homology modeling of RNA tertiary motifs is illustrated.
+Keywords: bifurcated; Hoogsteen edge; isostericity; nomenclature; non-Watson–Crick base pairing;
+Shallow-groove; Sugar-edge; water-inserted; Watson–Crick edge",RNA Base Pair Nomenclature; Non-Watson–Crick Base Pairing; Geometric Classification; Automated Structural Annotation; Isostericity and Structural Relationships
+Physics-based RNA structure prediction,"Abstract Despite the success of RNA secondary structure prediction for simple, short RNAs, the problem of
+predicting RNAs with long-range tertiary folds remains. Furthermore, RNA 3D structure prediction is
+
+hampered by the lack of the knowledge about the tertiary contacts and their thermodynamic pa-
+rameters. Low-resolution structural modeling enables us to estimate the conformational entropies for a
+
+number of tertiary folds through rigorous statistical mechanical calculations. The models lead to 3D
+tertiary folds at coarse-grained level. The coarse-grained structures serve as the initial structures for
+all-atom molecular dynamics refinement to build the final all-atom 3D structures. In this paper, we
+present an overview of RNA computational models for secondary and tertiary structures’ predictions
+and then focus on a recently developed RNA statistical mechanical model—the Vfold model. The main
+emphasis is placed on the physics behind the models, including the treatment of the non-canonical
+interactions in secondary and tertiary structure modelings, and the correlations to RNA functions.
+
+Keywords RNA, Vfold, 2D structure prediction, 3D structure prediction, Tertiary motif",Physics-Based RNA Structure Prediction; Statistical Mechanical Models in RNA; Coarse-Grained RNA Structure Modeling; Molecular Dynamics Refinement; Non-canonical RNA Interactions
+"RNA Structure
+Prediction","The provided text offers a comprehensive overview of computational methods for analyzing RNA structure and interactions. It discusses algorithms for predicting secondary and tertiary structures, including those that consider pseudoknots and utilize machine learning to improve accuracy and avoid overfitting. Several web servers and tools are introduced for tasks such as structure prediction, analysis of base pairing probabilities, detection of RNA-RNA interactions, and identification of evolutionarily conserved structures. Furthermore, the text explores methods for assessing the impact of mutations on RNA structure and the use of deep learning to understand RNA-binding protein preferences. Finally, it covers computational approaches for 3D RNA nanostructure design and standardized methods for comparing and evaluating predicted RNA structures. Date: October 26, 2023 Prepared for: [Your Intended Audience] Subject: Review of ""RNA_Structure_Prediction.pdf"" Excerpts
+
+This briefing document summarizes the main themes and important ideas presented in the provided excerpts from ""RNA_Structure_Prediction.pdf"". The excerpts cover a broad range of topics within the field, including fundamental principles of RNA folding, computational methods for structure prediction (secondary and tertiary), analysis of structural changes due to sequence variations, evolutionary conservation of RNA structure, RNA-RNA interaction prediction, RNA-protein interaction analysis, experimental methods for structure determination, and computational tools for RNA 3D modeling and design.
+Main Themes and Important Ideas:
+
+1. Thermodynamic Basis of RNA Folding and Prediction:
+
+    RNA structure formation is governed by free energy changes, with the probability of a specific structure being related to the exponential of its free energy change, as described by the Boltzmann distribution. The excerpt presents the formula: ""P ζ∈Ω xð Þ edG ζ,xð Þ=RT , where dG(ζ, x) is the free energy change of sequence x and structure ζ, R is the gas constant, T is the absolute temperature, andΩ(x) represents the set of all possible structures of sequence x.""
+    Dynamic programming (DP) is a key technique for efficiently computing the free energy of RNA subsequences and subsequently the partition function and structure probabilities. This involves breaking down the problem into smaller, overlapping subproblems.
+    The nearest neighbor model is a widely used approach for modeling RNA secondary structures based on energy models. It decomposes structures into loop substructures enclosed by neighboring base pairs (hairpin loops, stacking, bulge loops, internal loops, multibranch loops, and external loops).
+    Energy models utilize parameters derived from experimental data to estimate the free energy contributions of different structural elements, including base pairs, stacking interactions, loops, and dangling ends. The ""negative values of the Turner free energy parameter set [21]"" are specifically mentioned as being used in scoring models.
+    Algorithms like Rfold and its derivatives (Raccess, ParasoR) utilize stochastic context-free grammars and thermodynamic folding models to analyze local RNA secondary structures, often employing a ""maximal span of base pairs to implement feasible structural analysis of long RNAs.""
+
+2. Computational Methods for RNA Structure Prediction:
+
+    The document highlights various algorithms for RNA secondary structure prediction, including those based on energy minimization using dynamic programming (e.g., algorithms implementing the nearest neighbor model) and machine learning approaches (e.g., using structured support vector machines (SSVM) to integrate thermodynamic and machine learning models).
+    Linear-time algorithms for RNA structure prediction (e.g., LinearFold, LinearPartition) are discussed as offering significant improvements in computational efficiency compared to traditional methods with higher time complexities (e.g., Vienna RNAfold, CONTRAfold). The excerpt provides performance comparisons showing that LinearFold-V and LinearFold-C have runtimes scaling roughly as ""~n1.2"" and ""~n1.1"", respectively, compared to Vienna RNAfold and CONTRAfold with ""~n2.4"" to ""~n3.0"" scaling.
+    Algorithms for predicting RNA secondary structures including pseudoknots, such as LandscapeFold, are covered. LandscapeFold employs a direct enumeration of states approach, building structures by finding ""mutually compatible combinations of stems.""
+    Methods for calculating base pairing probabilities are described, utilizing inside and outside variables in dynamic programming frameworks. The probability of a base pair (i, j) is given by ""pij ¼ ZB ij ñ bZB ij Z :"", where ZB ij and bZB ij are inside and outside variables, and Z is the partition function.
+
+3. Analyzing the Impact of Sequence Variations on RNA Structure:
+
+    The document addresses the prediction of RNA secondary structure alterations caused by single nucleotide variants (SNVs/SNPs). Tools like Radiam leverage the location-specific dependency of variables in algorithms like Rfold to efficiently recompute structure probabilities upon mutation.
+    ParasoR is presented as a tool that uses the Radiam algorithm to analyze the impact of mutations on stem probabilities and compute empirical p-values to assess the significance of structural changes.
+    The SSS-test is described as a method to evaluate the impact of indels (insertions/deletions) on non-coding RNA (ncRNA) structures by comparing the structural distance between a species' RNA and a family consensus, and by assessing the likelihood of observing the indel within a neutral model using rank statistics.
+
+4. Evolutionary Conservation of RNA Secondary Structure:
+
+    The evolutionary conservation of RNA secondary structure is discussed, with methods like the SSS-test being used to identify RNA regions under selection to maintain their structure.
+    The concept of dominant bases in multiple sequence alignments and their role in identifying species-specific substitutions affecting RNA structure are mentioned.
+
+5. Prediction of RNA-RNA Interactions (RRIs):
+
+    Fast computational methods for predicting RNA-RNA interactions, particularly for transcriptome-scale datasets, are highlighted. Tools and web services dedicated to RRI prediction are mentioned.
+    Specific examples like snoRNAs mediating RNA modification through base-pairing RRIs are provided.
+
+6. Understanding RNA-Protein Interactions:
+
+    Deep neural networks (DNNs), as implemented in ResidualBind, are used to uncover sequence-structure preferences of RNA-binding proteins (RBPs).
+    Global importance analysis (GIA) is presented as a method to measure the population-level effect size of sequence features (like motifs) on RBP binding predictions. In silico mutagenesis is also mentioned as a powerful approach to highlight learned motif representations.
+
+7. Experimental Methods for RNA Structure Determination:
+
+    High-throughput structural analysis methods are mentioned in the context of RNA structure determination. (Details of specific methods are not elaborated in these excerpts).
+
+8. RNA 3D Modeling and Design:
+
+    Tools for RNA 3D modeling, such as FARFAR2 (available online), are mentioned.
+    RNAMake is introduced as a software package for the automated 3D design and evaluation of RNA nanostructures. It utilizes a motif dictionary and pathfinding algorithms to assemble RNA motifs into desired 3D architectures.
+    RNAMake has been used for various design challenges, including aligning parts of the tetraloop/tetra-loop receptor, building tethers in ribosomes, and improving aptamer binding properties.
+    The software includes a Monte Carlo design algorithm and the ability to estimate the thermodynamic contribution of helical elements in RNA 3D structures.
+
+9. Metrics for RNA Structure Comparison and Evaluation:
+
+    Metrics for comparing and assessing discrepancies between RNA 3D structures and models are discussed, referencing studies [83, 84] and tools like the RNA-puzzles toolkit.
+    For secondary structure comparison, Sensitivity (SEN), Positive Predictive Value (PPV), and F-value are defined as common evaluation metrics based on correctly (TP) and incorrectly (FP, FN) predicted base pairs.
+    The RNA-Puzzles toolkit includes tools for calculating all-atom Root-Mean-Square Deviation (RMSD) and interaction network fidelity (INF) to compare predicted and reference 3D structures.
+
+Key Tools and Databases Mentioned:
+
+    ViennaRNA package: A suite of algorithms for RNA secondary structure prediction and analysis.
+    CONTRAfold: A method for RNA secondary structure prediction using conditional random fields.
+    LinearFold & LinearPartition: Linear-time algorithms for RNA structure prediction and partition function calculation.
+    LandscapeFold: An algorithm for nucleic acid structure prediction including pseudoknots.
+    Rfold, Raccess, ParasoR: Algorithms for local RNA secondary structure analysis, accessibility prediction, and analysis of mutation effects.
+    Radiam: An algorithm for efficient recomputation of RNA structure probabilities after mutations.
+    SSS-test: A statistical test for evaluating the structural impact of indels in ncRNAs.
+    TOPAS: A tool for network-based structural alignment of RNA sequences.
+    ResidualBind: A tool utilizing deep neural networks to analyze RNA-binding protein preferences.
+    FARFAR2: An online tool for RNA 3D modeling.
+    RNAMake: A software package for automated RNA 3D nanostructure design.
+    RNA-Puzzles toolkit: A resource for RNA 3D structure benchmark datasets and evaluation tools.
+    NNDB (Nearest Neighbor Parameter Database): A database for predicting the stability of nucleic acid secondary structures.
+    RNAcentral: A comprehensive database of non-coding RNA sequences.
+
+Challenges and Future Directions (Implied):
+
+    Computational limitations in robustness and performance stability for many RNA structure prediction methods, despite high prediction accuracy in some cases.
+    The complexity of predicting RNA structures with pseudoknots.
+    Accurately modeling the impact of indels on ncRNA structures.
+    Developing more sophisticated computational tools for targeted RNA 3D design to address diverse nanotechnology applications.
+    The need for robust metrics and benchmarks for evaluating RNA 3D structure prediction methods.
+
+This briefing document provides a high-level overview of the key concepts and tools discussed in the provided excerpts. Further in-depth reading of the original source is recommended for a comprehensive understanding of each topic.",RNA Secondary and Tertiary Structure Prediction; Computational RNA Structure Analysis; RNA-RNA and RNA-Protein Interaction Modeling; Sequence Variation and Structural Impact; RNA 3D Modeling and Design Tools
+"RNA secondary structure prediction using an
+ensemble of two-dimensional deep neural
+networks and transfer learning","The majority of our human genome transcribes into noncoding RNAs with unknown struc-
+tures and functions. Obtaining functional clues for noncoding RNAs requires accurate base-
+pairing or secondary-structure prediction. However, the performance of such predictions by
+
+current folding-based algorithms has been stagnated for more than a decade. Here, we
+
+propose the use of deep contextual learning for base-pair prediction including those non-
+canonical and non-nested (pseudoknot) base pairs stabilized by tertiary interactions. Since
+
+only <250 nonredundant, high-resolution RNA structures are available for model training, we
+utilize transfer learning from a model initially trained with a recent high-quality bpRNA
+dataset of >10,000 nonredundant RNAs made available through comparative analysis.
+The resulting method achieves large, statistically significant improvement in predicting all
+base pairs, noncanonical and non-nested base pairs in particular. The proposed method
+(SPOT-RNA), with a freely available server and standalone software, should be useful for
+improving RNA structure modeling, sequence alignment, and functional annotations.",RNA Secondary Structure Prediction; Deep Neural Network Ensemble Methods; Transfer Learning in RNA; Non-Canonical and Pseudoknot Structure Modeling; RNA Functional Annotation
+"RNA-Puzzles Round IV: 3D structure predictions of four
+ribozymes and two aptamers","RNA-Puzzles is a collective endeavor dedicated to the advancement and improvement of RNA 3D structure prediction.
+With agreement from crystallographers, the RNA structures are predicted by various groups before the publication of
+the crystal structures. We now report the prediction of 3D structures for six RNA sequences: four nucleolytic ribozymes
+and two riboswitches. Systematic protocols for comparing models and crystal structures are described and analyzed. In
+these six puzzles, we discuss (i) the comparison between the automated web servers and human experts; (ii) the prediction
+of coaxial stacking; (iii) the prediction of structural details and ligand binding; (iv) the development of novel prediction
+methods; and (v) the potential improvements to be made. We show that correct prediction of coaxial stacking and tertiary
+contacts is essential for the prediction of RNA architecture, while ligand binding modes can only be predicted with low
+
+resolution and simultaneous prediction of RNA structure with accurate ligand binding still remains out of reach. All the pre-
+dicted models are available for the future development of force field parameters and the improvement of comparison and
+
+assessment tools.
+Keywords: RNA structure; aptamer; modeling; prediction; ribozyme",RNA 3D Structure Prediction; Aptamer and Ribozyme Modeling; Automated vs Expert Predictions; Coaxial Stacking and Ligand Binding; RNA Prediction Benchmarking
+"Accurate structure prediction of
+biomolecular interactions with AlphaFold 3","The introduction of AlphaFold 21
+
+has spurred a revolution in modelling the structure
+of proteins and their interactions, enabling a huge range of applications in protein
+modelling and design2–6
+
+. Here we describe our AlphaFold 3 model with a substantially
+updated difusion-based architecture that is capable of predicting the joint structure
+of complexes including proteins, nucleic acids, small molecules, ions and modifed
+residues. The new AlphaFold model demonstrates substantially improved accuracy
+over many previous specialized tools: far greater accuracy for protein–ligand
+interactions compared with state-of-the-art docking tools, much higher accuracy
+for protein–nucleic acid interactions compared with nucleic-acid-specifc predictors
+and substantially higher antibody–antigen prediction accuracy compared with
+AlphaFold-Multimer v.2.37,8
+
+. Together, these results show that high-accuracy
+modelling across biomolecular space is possible within a single unifed deep-learning
+framework.",Biomolecular Interaction Prediction; AlphaFold-based Structure Modeling; Protein–Nucleic Acid Interaction Modeling; Protein–Ligand and Antibody–Antigen Predictions; Unified Deep Learning Approaches
+"Automated classification of RNA 3D motifs
+and the RNA 3D Motif Atlas","The analysis of atomic-resolution RNA three-dimensional (3D) structures reveals that many internal and hairpin loops are
+modular, recurrent, and structured by conserved non-Watson–Crick base pairs. Structurally similar loops define RNA 3D
+motifs that are conserved in homologous RNA molecules, but can also occur at nonhomologous sites in diverse RNAs, and
+which often vary in sequence. To further our understanding of RNA motif structure and sequence variability and to provide
+a useful resource for structure modeling and prediction, we present a new method for automated classification of internal
+and hairpin loop RNA 3D motifs and a new online database called the RNA 3D Motif Atlas. To classify the motif instances,
+a representative set of internal and hairpin loops is automatically extracted from a nonredundant list of RNA-containing
+PDB files. Their structures are compared geometrically, all-against-all, using the FR3D program suite. The loops are clustered
+into motif groups, taking into account geometric similarity and structural annotations and making allowance for a variable
+number of bulged bases. The automated procedure that we have implemented identifies all hairpin and internal loop
+motifs previously described in the literature. All motif instances and motif groups are assigned unique and stable identifiers
+and are made available in the RNA 3D Motif Atlas (http://rna.bgsu.edu/motifs), which is automatically updated every four
+weeks. The RNA 3D Motif Atlas provides an interactive user interface for exploring motif diversity and tools for programmatic
+data access.
+Keywords: RNA 3D motifs; RNA 3D structure; motif classification; FR3D",Automated RNA Motif Classification; RNA 3D Motif Analysis; Geometric RNA Structure Comparison; Structural Bioinformatics Tools; RNA Structure Databases and Interactive Interfaces
+Supplementary information Accurate structure prediction of biomolecular interactions with AlphaFold 3,"Contents
+1 Notation 1
+2 Data pipeline 1
+2.1 Parsing . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 1
+2.2 Genetic search . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 1
+2.3 MSA processing . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 2
+2.4 Template search . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 2
+2.5 Training data . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 3
+2.5.1 Weighted PDB dataset . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 3
+2.5.2 Distillation datasets . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 4
+2.5.3 Training set clustering . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 5
+2.5.4 Filtering . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 5
+2.6 Tokenization . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 6
+2.7 Cropping . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 6
+2.7.1 Contiguous cropping . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 6
+2.7.2 Spatial Cropping . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 6
+2.7.3 Spatial Interface Cropping . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 6
+2.8 Featurisation and model inputs . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 7
+3 Model architecture 8
+3.1 Input embeddings . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 9
+3.1.1 Input embedder . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 9
+3.1.2 Relative position encoding . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 10
+3.2 Sequence-local atom attention . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 11
+3.3 MSA Module . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 14
+3.4 Triangle updates of the pair representation . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 16
+3.5 Template embedding . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 18
+3.6 Pairformer stack . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 18
+3.7 Diffusion Module . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 19
+3.7.1 Diffusion Training . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 23
+4 Auxiliary heads 25
+4.1 Mini diffusion rollout . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 25
+4.2 Chain permutation and symmetry resolution . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 25
+4.3 Model confidence prediction . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 25
+4.3.1 Predicted local distance difference test (pLDDT) . . . . . . . . . . . . . . . . . . . . . . . . . 26
+4.3.2 Predicted aligned error (PAE) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 26
+4.3.3 Predicted distance error (PDE) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 27
+4.3.4 Experimentally resolved prediction . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 28
+4.3.5 Confidence head architecture . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 28
+4.4 Distogram prediction . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 28
+5 Training and inference 29
+5.1 Structure filters . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 29
+5.2 Training stages . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 29
+5.3 Loss . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 29
+5.4 Optimization . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 29
+5.5 Dropout . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 30
+5.6 Inference Setup . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 30
+5.7 Model selection . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 30
+5.8 Validation set . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 31
+5.9 Confidence measures and sample ranking . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 31
+5.9.1 Alignment-based confidence measures . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 31
+5.9.2 Clashes . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 32
+5.9.3 Sample ranking . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 32
+5.10 Inference Time . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 33
+
+Supplementary information for AlphaFold 3
+6 Evaluation 33
+6.1 Recent PDB evaluation set . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 33
+6.2 Evaluation set clustering . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 34
+6.3 Evaluation metrics . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 34
+6.4 Aggregation of scores . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 34
+6.5 Baselines . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 34
+7 Differences to AlphaFold 2 and AlphaFold-Multimer 35
+8 Supplemental Results 36
+8.1 Selected examples . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 36
+9 Appendix: CCD code and PDB ID tables 37
+List of Supplementary Figures
+1 Sequence-local atom attention . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 11
+2 MSA Module. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 14
+List of Supplementary Tables
+1 Genetics databases for protein chains . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 2
+2 Genetics databases for RNA chains . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 2
+3 Sampling of training examples . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 3
+4 Weights for sampling cropping strategies . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 6
+5 Input features to the model . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 7
+6 Training stages . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 29
+7 Weighting of accuracy metrics for model selection . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 30
+8 Inference time in seconds by complex size, using 16 A100 . . . . . . . . . . . . . . . . . . . . . . . . 33
+9 Crystallization aids . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 37
+10 Ligand exclusion list . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 37
+11 CCD codes defining glycans . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 37
+12 Ions . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 37
+13 Standard residues . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 38
+14 Recent PDB test set with nucleic acid complexes . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 38
+15 PoseBusters V2 Common Natural Ligands . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 38
+List of Algorithms
+1 MainInferenceLoop Main Inference Loop . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 9
+2 InputFeatureEmbedder Construct an initial single (1D) embedding . . . . . . . . . . . . . . . . . . . 10
+3 RelativePositionEncoding Relative position encoding . . . . . . . . . . . . . . . . . . . . . . . . . 10
+4 one_hot One-hot encoding with nearest bin . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 11
+5 AtomAttentionEncoder Atom attention encoder . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 12
+6 AtomAttentionDecoder Atom attention decoder . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 13
+7 AtomTransformer Atom Transformer . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 13
+8 MsaModule MSA Module . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 15
+9 OuterProductMean Outer product mean . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 15
+10 MSAPairWeightedAveraging MSA row-wise gated self-attention using only pair bias . . . . . . . . . . 15
+11 Transition Transition layer . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 16
+12 TriangleMultiplicationOutgoing Triangular multiplicative update using “outgoing” edges . . . . . 16
+13 TriangleMultiplicationIncoming Triangular multiplicative update using “incoming” edges . . . . . 16
+14 TriangleAttentionStartingNode Triangular gated self-attention around starting node . . . . . . . . . 17
+15 TriangleAttentionEndingNode Triangular gated self-attention around ending node . . . . . . . . . . 17
+16 TemplateEmbedder Template embedder . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 18
+17 PairformerStack Pairformer stack . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 19
+
+Supplementary information for AlphaFold 3
+18 SampleDiffusion Sample Diffusion . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 20
+19 CentreRandomAugmentation Centre and Random Augmentation . . . . . . . . . . . . . . . . . . . . . 20
+20 DiffusionModule Diffusion Module . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 21
+21 DiffusionConditioning Diffusion Conditioning . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 21
+22 FourierEmbedding Fourier Embedding . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 22
+23 DiffusionTransformer Diffusion Transformer . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 22
+24 AttentionPairBias Attention with pair bias . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 22
+25 ConditionedTransitionBlock Conditioned Transition Block . . . . . . . . . . . . . . . . . . . . . . 23
+26 AdaLN Adaptive LayerNorm . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 23
+27 SmoothLDDTLoss Smooth LDDT Loss . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 24
+28 weighted_rigid_align Weighted Rigid Align . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 25
+29 expressCoordinatesInFrame Express coordinates in frame . . . . . . . . . . . . . . . . . . . . . . . 27
+30 computeAlignmentError Compute alignment error . . . . . . . . . . . . . . . . . . . . . . . . . . . . 27
+31 ConfidenceHead Confidence head . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 28",Supplementary Information for AlphaFold; Deep Learning Model Architecture; Biomolecular Interaction Prediction; Data Processing Pipelines; Model Evaluation and Benchmarking
+"Deep learning models for predicting RNA
+degradation via dual crowdsourcing","Solution descriptions from Kaggle teams
+1st Place - Jiayang Gao (also called ""Nullrecurrent"" model)
+My final submission is a simple ensemble of 4 models, each starts with an auto-encoder pretrained GNN
+architecture, followed by LSTM, GRU or Wavenet layers. My model takes in two kinds of features, (1)
+1D features with length n (the length of the mRNA sequence), representing features at each location of
+the sequence; (2) 2D features with size n^2, representing ""distance"" or ""relationship"" concepts between
+each pair. The strongest 1D features are the distance to the closest paired position, as well as the distance
+to the closest unpaired position - reactivity increases as the distance to the closest paired position becomes
+larger. The strongest 2D feature is the distance between each pair in the primary pairing based graph - this
+allows the model to capture the ""neighbors"" caused by pairing. One major difficulty of this problem is
+generalizing the model to different sequence lengths, and I use a semi-supervised approach to make my
+model more generalizable. In particular, I randomly generate sequences of different length, calculate their
+BPP matrix and pairing structure using the Arnie library, pseudo label their targets, and train them
+together with the original train dataset. This semi-supervised learning approach is particularly useful in
+this problem, for which sample size is small and labeled data is expensive to obtain.
+https://www.kaggle.com/c/stanford-covid-vaccine/discussion/189620
+
+2nd Place - Kazuki ** 2 (also called ""Kazuki2"" model)
+The mRNA sequence is not just a linear series of data, but also constitutes a loop by pairing between
+specific bases. Therefore, we thought of constructing LSTM/GRU and GNN independently, and
+integrating the prediction results with XGBoost. The base pair probabilities (bpps) are calculated by
+prediction, and the calculation results differ depending on the algorithm used. Therefore, we used several
+algorithms in Arnie to predict base pairs, and used these algorithms as data augmentation and input
+multiple bpps simultaneously to improve the performance. We prepared 38 LSTM/GRU-based and 49
+GNN-based bpps by changing the types of bpps and their architectures, and integrated them with
+XGBoost to help improve the stability of prediction. Also, since the sequences in the test set tended to be
+longer than those in the training data, we confirmed in preliminary experiments that the model trained by
+shortening the sequences in the training data (107 to 88) was applicable to sequences of the original
+length (107).
+https://www.kaggle.com/c/stanford-covid-vaccine/discussion/189709
+3rd Place - Striderl
+My solution is an ensemble of various models of different structures and different training techniques. I
+added various LSTM/GRU/wavenet layers at the end of the AE pretrained GNN structure, in which 2 x
+128 units of LSTM or GRU layers work the best for me. Besides the common features used by other
+teams like structure adjacency matrix and neighbor adjacency matrix, I used RNAComposer to generate
+3D structures for each sample in the competition, and used predicted 3D distance to form the distance
+matrix. I used Arnie to predict other possible base pairs as data augmentation. Besides, another
+augmentation I used was to reverse the sequence and targets. The two augmentations quadruple the size
+of the original data. I also used pseudo labeling technique to iteratively improve my best single model.
+4th Place - FromTheWheel & Dyed & StoneShop
+The 4th place solution is a blend of 4 different models, in which the RNN layers were varied
+(LSTM+LSTM, LSTM+GRU, GRU+LSTM and GRU+GRU). We represent the RNA sequences as
+graphs where each base corresponds to a node. The network then learns a representation for each of these
+graphs and passes this representation through bi-directional RNN layers to obtain a sequence of predicted
+targets. Both the edge and node features were derived from the given sequence and provided Base Pairing
+Probability (BPP) matrix. One-hot-encoded bases (A, G, C, or U), one-hot-encoded positional feature (the
+remainder of the base index divided by 3), one-hot-encoded loop types, loop type probabilities (CapR)
+
+and BPP sum and number of zero's were beneficial node features. The distances (manhattan) between
+bases, normalized by sequence length and whether there is a base-pairing indicated in the structure were
+used as edge features. All these features were also inferred for newly generated BPP matrices, generated
+with 6 libraries available within the ARNIE software package. The new information derived from the
+CONTRAfold library was the most useful for this task, followed by RNAsoft, RNAstructure and Vienna.
+We also tried to use 3D angle information (binned and then categorically encoded) extracted with
+AMIGOS: this boosted our simple LSTM architecture used to fast check the feature importance but
+deteriorated the performance of our final model.
+5th Place - tito
+My solution is a simple ensemble of GNN-based model and GRU/LSTM-based model. The features are
+not significantly different from those used by the other teams. I focused mainly on augmentation. (1) I
+used eternafold, vienna, nupack, contrafold and rnasoft to extract structure and loop_type. These backend
+engines are used to extract additional bpps too. Especially eternafold and contrafold worked well. (2) In
+this competition, the sequence length of the test data was longer than that of the training data, so we
+added a dummy sequence to the training data. (3) I added reversed sequence to training data. I think
+augmentation was important in this competition.
+6th Place - nyanp
+The data in this competition is very unique in two ways: 1) the sequence length is different between the
+training data and the private test data, and 2) the sequence has long-term dependencies via pairing. My
+NN model is constructed by stacking 1D SE-ResNet Layer and Graph Convolution Layer in order to
+make the model invariant to sequence length and to capture the long-term dependency. The Graph
+Convolution Layer is computed by a simple sum of products of the BPP matrix or adjacency matrix and
+the sequence feature vector. The best single model was ranked 42nd (0.35045) on the private leaderboard,
+while it was 513th (0.24371) on the public leaderboard. This indicates that my model is more robust to
+changes in sequence length compared to the other participants. Best ensemble achieved MSRMSE's of
+0.23069/0.34538 on the public/private leaderboard by combining 4 different architectures.
+https://www.kaggle.com/c/stanford-covid-vaccine/discussion/189241
+https://www.kaggle.com/nyanpn/6th-place-cnn-gcn
+7th Place - One architecture
+Main features for my solution used were base pairing probability matrix, nucleotide sequence, structure,
+and loop type. Additionally, an inverse distance matrix (nucleotides at position i and j have distance |i-j|
+
+between them) was added to the base pairing probability matrix before inputting it as a bias for the self-
+attention matrix. The conventional type of positional encoding as detailed in the original transformer or
+
+learnable positional encoding were not used; instead, position was encoded by the inverse distance matrix.
+Further, 5 secondary structure packages were used to generate pairing probability matrix, structure, and
+loop type at 37 and 50 C, resulting in 10 sets of features for each sequence. The architecture used was
+almost identical to bert aside from the 1D/2D convolution/deconvolution layers (without padding). The
+core module (ConvTransformerEncoder) was constructed as follows: (1) 1D convolution on the sequence
+of encodings and 2D convolution on the bpp feature map. (2) self-attention with bpp feature map as
+additive bias (3) position wise feedforward network. (4) 1D deconvolution on the sequence of encodings
+and 2D deconvolution on the bpp feature map. All available sequences were used to pretrain
+(unsupervised) models on randomly mutated or masked (with NULL token) sequence retrieval loss
+(basically just softmax to retrieve correct nucleotide/structure/loop). For convenience, two linear decoders
+were initialized before pretraining, one for sequence retrieval, and another for degradation predictions
+later on. The Ranger optimizer was used with a flat and anneal schedule. Some sequences were excluded
+during training on degradation targets based on signal to noise threshold (0.25, 0.5, or 1). My biggest
+discovery from this competition is that the vanilla positional encoding used in the original transformer
+paper does not generalize well to this task at least. It seems that the type of positional encoding used in
+
+most transformers does not adequately describe the concept of position, which is fine for NLP because I
+believe order and position of words are not as important as for RNA. The vanilla positional encoding is
+more of an absolute positional encoding, whereas the inverse distance basically encoders relative position
+in a very simple way that generalized better to longer sequences. Best ensemble achieved MSRMSE's of
+0.23056/0.34550 on the public/private leaderboard.
+8th Place - ishikei
+My solution is an ensemble of GRU/LSTM and GNN. Each model is AE pretrained with all data. For
+features, bpps was augmented with different temperature parameters (T=37, 50) using the ARNIE
+package (vienna, nupack, rnastructure, rnasoft, eternafold, contrafold). I also added the shannon entropy
+at each base position. Because all of the data in this competition are predicted values except for the
+sequence, I think it would have been effective to use an ensemble of bpps predictions from various
+algorithms. At high temperature: Since the secondary structure of RNA is temperature-dependent, I think
+it was effective to use bpps with T changed as input. At high pH: Alkaline hydrolysis of RNA can occur
+at any position in the sequence (probably) as well, so I think the prediction itself is difficult.
+https://www.kaggle.com/c/stanford-covid-vaccine/discussion/190314
+9th Place - Keep going to be GM
+The big issue of this contest is that the train and test RNA sequence lengths are different, and the data
+contains noise. The RNA sequence length used for training was 107, and the final ranking was obtained
+for 130 sequences. Different models with fluent feature engineering to enhance the generalization of
+predictions. Because RNA can have both graph and sequence, traditional recurrent neural networks
+(LSTM, GRU), transformer and graph-neural networks were applied. For feature engineering, (A, G, C,
+or U) were represented by embedding layers. And, various (N, N) adjacency matrices called bpps, which
+are probabilities of being linked between nucleotides are calculated with various softwares, such as
+CONTRAFold, RNAFold. The statistical features such as ratio of (A, G, C, or U) in sequence are added.
+has are also included.I created the (N, N) matrix for fixed attention in various ways. Bpps was created
+using several packages. The distance matrix was augmented using gaussian. With these features, dozens
+of models were created by differing hyperparameters of sequential blocks and graph convolution layers.
+https://www.kaggle.com/c/stanford-covid-vaccine/discussion/189845
+11th Place - Social Distancing Please
+Our solution is an ensemble of multiple models. There are mainly 2 types of models. The first type is a
+combination of 1D Convolution Layers, Graph Convolution Layers, and RNN Layers. The second type is
+a combination of WaveNet layers and RNN Layers. The most powerful features are the adjacency
+matrices constructed by the given structure sequence and the given base-pair probabilities. The adjacency
+matrices are used for the Graph Convolution Layers. Another useful trick we have used is to apply a
+lower training weight to the top 6 sequence position, it is because the sequence start is similar across the
+different sequences. We also used 2 different Linear Regression models to ensemble the predictions in
+different sequence positions that are seqpos[:6] and seqpos[6:].
+13th Place - The Machine
+The main idea behind our approach is generating bpp matrices from all the libraries included in Arnie,
+training a model from the output structures of each library and finally creating an ensemble of all the
+trained models. Although each library provides sub optimal bpp, their consensus provides a better
+solution. We also included several architectures in the ensemble and the best of them consisted of 1D
+convolution, static graph convolution and bi-directional LSTM layers. A static graph convolution layer
+processes each two connected nucleotides in the predicted secondary structure (zeros added when a
+nucleotide isn't connected). All our models were trained on all the data using self supervised learning then
+fine-tuned on the training data only using supervised learning.",RNA Degradation Prediction; Graph Neural Networks (GNNs); Deep Learning Ensemble Methods; Base-Pair Probability Modeling; Data Augmentation and Crowdsourced Modeling
+Frequency and isostericity of RNA base pairs,"Most of the hairpin, internal and junction loops that
+appear single-stranded in standard RNA secondary
+
+structures form recurrent 3D motifs, where non-
+Watson–Crick base pairs play a central role. Non-
+Watson–Crick base pairs also play crucial roles in
+
+tertiary contacts in structured RNA molecules. We
+previously classified RNA base pairs geometrically
+so as to group together those base pairs that are
+structurally similar (isosteric) and therefore able to
+
+substitute for each other by mutation without dis-
+rupting the 3D structure. Here, we introduce a quan-
+titative measure of base pair isostericity, the
+
+IsoDiscrepancy Index (IDI), to more accurately
+
+determine which base pair substitutions can poten-
+tially occur in conserved motifs. We extract and
+
+classify base pairs from a reduced-redundancy set
+of RNA 3D structures from the Protein Data Bank
+(PDB) and calculate centroids (exemplars) for each
+base combination and geometric base pair type
+(family). We use the exemplars and IDI values to
+update our online Basepair Catalog and the
+Isostericity Matrices (IM) for each base pair family.
+From the database of base pairs observed in 3D
+
+structures we derive base pair occurrence frequen-
+cies for each of the 12 geometric base pair families.
+
+In order to improve the statistics from the 3D struc-
+tures, we also derive base pair occurrence frequen-
+cies from rRNA sequence alignments.",RNA Base-Pair Isostericity; RNA Structural Motifs; Quantitative Structural Analysis; Geometric Classification of Base Pairs; Base Pair Frequency Analysis
+"Assessment of three-dimensional
+RNA structure prediction in CASP15","The prediction of RNA three-dimensional structures remains an unsolved problem. Here, we
+report assessments of RNA structure predictions in CASP15, the first CASP exercise that
+involved RNA structure modeling. Forty two predictor groups submitted models for at least one
+of twelve RNA-containing targets. These models were evaluated by the RNA-Puzzles
+organizers and, separately, by a CASP-recruited team using metrics (GDT, lDDT) and
+approaches (Z-score rankings) initially developed for assessment of proteins and generalized
+here for RNA assessment. The two assessments independently ranked the same predictor
+groups as first (AIchemy_RNA2), second (Chen), and third (RNAPolis and GeneSilico, tied);
+predictions from deep learning approaches were significantly worse than these top ranked
+groups, which did not use deep learning. Further analyses based on direct comparison of
+predicted models to cryogenic electron microscopy (cryo-EM) maps and X-ray diffraction data
+support these rankings. With the exception of two RNA-protein complexes, models submitted by
+CASP15 groups correctly predicted the global fold of the RNA targets. Comparisons of CASP15
+submissions to designed RNA nanostructures as well as molecular replacement trials highlight
+the potential utility of current RNA modeling approaches for RNA nanotechnology and structural
+
+biology, respectively. Nevertheless, challenges remain in modeling fine details such as non-
+canonical pairs, in ranking among submitted models, and in prediction of multiple structures
+
+resolved by cryo-EM or crystallography.",RNA 3D Structure Prediction; CASP15 RNA Assessment; RNA-Puzzles Structural Metrics; Comparative Analysis of RNA Modeling Methods; RNA Nanostructure and Structural Biology Applications
+"Deep learning models for predicting RNA
+degradation via dual crowdsourcing","Medicines based on messenger RNA (mRNA) hold immense potential,
+as evidenced by their rapid deployment as COVID-19 vaccines. However,
+worldwide distribution of mRNA molecules has been limited by their
+thermostability, which is fundamentally limited by the intrinsic instability of
+RNA molecules to a chemical degradation reaction called in-line hydrolysis.
+Predicting the degradation of an RNA molecule is a key task in designing
+more stable RNA-based therapeutics. Here, we describe a crowdsourced
+machine learning competition (‘Stanford OpenVaccine’) on Kaggle,
+involving single-nucleotide resolution measurements on 6,043 diverse
+102–130-nucleotide RNA constructs that were themselves solicited through
+crowdsourcing on the RNA design platform Eterna. The entire experiment
+was completed in less than 6 months, and 41% of nucleotide-level predictions
+from the winning model were within experimental error of the ground
+truth measurement. Furthermore, these models generalized to blindly
+predicting orthogonal degradation data on much longer mRNA molecules
+(504–1,588 nucleotides) with improved accuracy compared with previously
+published models. These results indicate that such models can represent
+in-line hydrolysis with excellent accuracy, supporting their use for designing
+stabilized messenger RNAs. The integration of two crowdsourcing platforms,
+one for dataset creation and another for machine learning, may be fruitful for
+other urgent problems that demand scientifc discovery on rapid timescales.",RNA Degradation Prediction; Crowdsourced Data for RNA Stability; Machine Learning Benchmarking; Nucleotide-level Predictions; mRNA Vaccine Stability Optimization
+"Deep learning models for predicting RNA
+degradation via dual crowdsourcing","Medicines based on messenger RNA (mRNA) hold immense potential,
+as evidenced by their rapid deployment as COVID-19 vaccines. However,
+worldwide distribution of mRNA molecules has been limited by their
+thermostability, which is fundamentally limited by the intrinsic instability of
+RNA molecules to a chemical degradation reaction called in-line hydrolysis.
+Predicting the degradation of an RNA molecule is a key task in designing
+more stable RNA-based therapeutics. Here, we describe a crowdsourced
+machine learning competition (‘Stanford OpenVaccine’) on Kaggle,
+involving single-nucleotide resolution measurements on 6,043 diverse
+102–130-nucleotide RNA constructs that were themselves solicited through
+crowdsourcing on the RNA design platform Eterna. The entire experiment
+was completed in less than 6 months, and 41% of nucleotide-level predictions
+from the winning model were within experimental error of the ground
+truth measurement. Furthermore, these models generalized to blindly
+predicting orthogonal degradation data on much longer mRNA molecules
+(504–1,588 nucleotides) with improved accuracy compared with previously
+published models. These results indicate that such models can represent
+in-line hydrolysis with excellent accuracy, supporting their use for designing
+stabilized messenger RNAs. The integration of two crowdsourcing platforms,
+one for dataset creation and another for machine learning, may be fruitful for
+other urgent problems that demand scientifc discovery on rapid timescales.",mRNA Degradation Prediction; Dual Crowdsourcing Approaches; Single-Nucleotide Resolution Modeling; Thermostability of mRNA Therapeutics; RNA Stability in Vaccine Design
+"Deep learning models for predicting RNA
+degradation via dual crowdsourcing","Messenger RNA-based medicines hold immense potential, as evidenced by their rapid deployment as
+COVID-19 vaccines. However, worldwide distribution of mRNA molecules has been limited by their
+thermostability, which is fundamentally limited by the intrinsic instability of RNA molecules to a
+chemical degradation reaction called in-line hydrolysis. Predicting the degradation of an RNA molecule is
+a key task in designing more stable RNA-based therapeutics. Here, we describe a crowdsourced machine
+learning competition (""Stanford OpenVaccine"") on Kaggle, involving single-nucleotide resolution
+
+2
+
+measurements on 6043 102-130-nucleotide diverse RNA constructs that were themselves solicited
+through crowdsourcing on the RNA design platform Eterna. The entire experiment was completed in less
+than 6 months, and 41% of nucleotide-level predictions from the winning model were within
+experimental error of the ground truth measurement. Furthermore, these models generalized to blindly
+predicting orthogonal degradation data on much longer mRNA molecules (504-1588 nucleotides) with
+improved accuracy compared to previously published models. Top teams integrated natural language
+processing architectures and data augmentation techniques with predictions from previous dynamic
+programming models for RNA secondary structure. These results indicate that such models are capable of
+representing in-line hydrolysis with excellent accuracy, supporting their use for designing stabilized
+messenger RNAs. The integration of two crowdsourcing platforms, one for data set creation and another
+for machine learning, may be fruitful for other urgent problems that demand scientific discovery on rapid
+timescales.",mRNA Degradation Prediction; Crowdsourced Machine Learning Competition; RNA Thermostability Analysis; Nucleotide-level RNA Stability Prediction; Scalable RNA Stability Models
+"Broadly applicable and accurate protein design by integrating
+structure prediction networks and diffusion generative models","There has been considerable recent progress in designing new proteins using deep learning
+methods1–9. Despite this progress, a general deep learning framework for protein design that
+enables solution of a wide range of design challenges, including de novo binder design and
+design of higher order symmetric architectures, has yet to be described. Diffusion models10,11
+have had considerable success in image and language generative modeling but limited success
+when applied to protein modeling, likely due to the complexity of protein backbone geometry
+and sequence-structure relationships. Here we show that by fine tuning the RoseTTAFold
+structure prediction network on protein structure denoising tasks, we obtain a generative model
+of protein backbones that achieves outstanding performance on unconditional and
+topology-constrained protein monomer design, protein binder design, symmetric oligomer
+
+available under aCC-BY-ND 4.0 International license.
+
+(which was not certified by peer review) is the author/funder, who has granted bioRxiv a license to display the preprint in perpetuity. It is made
+bioRxiv preprint doi: https://doi.org/10.1101/2022.12.09.519842; this version posted December 10, 2022. The copyright holder for this preprint
+
+design, enzyme active site scaffolding, and symmetric motif scaffolding for therapeutic and
+metal-binding protein design. We demonstrate the power and generality of the method, called
+RoseTTAFold Diffusion (RFdiffusion), by experimentally characterizing the structures and
+functions of hundreds of new designs. In a manner analogous to networks which produce
+images from user-specified inputs, RFdiffusion enables the design of diverse, complex,
+functional proteins from simple molecular specifications.",Protein Design via Deep Learning; Diffusion Generative Models; RoseTTAFold Structure Prediction; De Novo Protein and Enzyme Design; Functional Protein Engineering
