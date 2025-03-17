@@ -134,3 +134,4 @@ dmypy.json
 github_automation_output/*
 log.txt
 uv.lock
+docs/.DS_Store
