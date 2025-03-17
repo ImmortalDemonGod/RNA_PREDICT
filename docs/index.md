@@ -214,3 +214,249 @@ This doc is crucial if you’re actively competing or training a model for the K
 ---
 
 *We hope this guide clarifies each document’s purpose and interconnections. Happy exploring!*
+===
+V2:
+# RNA_PREDICT Documentation
+
+Welcome to the RNA_PREDICT documentation homepage! This page provides a structured, detailed overview of all documentation files within the `docs/` directory, organized to help users quickly navigate and understand the resources available in this project. Each document is summarized to clarify its context, content structure, key points, and usage scenarios.
+
+---
+
+## 📌 Project Commands Overview
+
+To quickly manage and interact with this MkDocs documentation, utilize the following commands:
+
+- **`mkdocs new [dir-name]`**: Create a new MkDocs project in the specified directory.
+- **`mkdocs serve`**: Launch a live-reloading local documentation server for rapid editing and review.
+- **`mkdocs build`**: Generate a static HTML documentation website for deployment.
+- **`mkdocs -h`**: Display a help message outlining available commands and usage.
+
+---
+
+## 📁 Documentation File Breakdown
+
+### 📖 Pipeline Documentation
+
+- **`AlphaFold3_progress.md`**:
+  - Tracks the implementation progress of an RNA-specific pipeline inspired by AlphaFold 3 (AF3).
+  - Lists implemented components, pending modules, and future action steps clearly.
+  - Essential for those involved in pipeline development and AF3 model adaptation.
+
+- **`Multi_Stage_Implementation_Plan.md`**:
+  - Details the technical architecture and phased rollout strategy for the RNA 3D prediction pipeline.
+  - Useful for technical leads overseeing the project’s structural evolution.
+
+- **Stage-specific Documentation**:
+  - **StageA_RFold.md**: Details Stage A, focused on RNA folding.
+  - **Stage_B.md**: Covers intermediate torsion angle generation.
+  - **Stage_C.md**: Describes final Cartesian coordinate generation.
+  - Ideal for understanding modular responsibilities and interdependencies.
+
+- **`core_framework.md`**:
+  - Outlines a structured, three-step pipeline (sequence → 2D structure → torsion angles → 3D structure).
+  - Ideal for team onboarding and understanding modular task assignments.
+
+### 📚 Reference and Research Resources
+
+- **Torsion Angle Documentation**:
+  - **`torsion_angles.md`**:
+    - Comprehensive guide covering definitions, computational methods, tools, theoretical frameworks, and advanced considerations for RNA torsion angles.
+    - Recommended as a foundational resource for researchers and developers.
+
+  - **`torsion_angle_Latent_Manifold_Representation.md`**:
+    - Proposes innovative methods for RNA conformation representation using lower-dimensional latent spaces (e.g., autoencoders, VAEs).
+    - Aimed at advanced researchers exploring cutting-edge representation strategies.
+
+- **External Literature**:
+  - **`RNA_papers.md`**:
+    - Analyzes multiple reference list versions for RNA 3D structure prediction methods.
+    - Highlights essential papers (e.g., NuFold, CASP15, RNA-Puzzles) critical for competitive RNA prediction.
+
+  - **`2d_structure_prediction_papers.md`**:
+    - Curates literature specifically on RNA secondary (2D) structure prediction methodologies.
+
+  - **`RNA_STRUCTURE_PREDICTION_Categorized.csv`**:
+    - Categorized dataset offering structured references for RNA prediction literature, facilitating efficient literature review.
+
+  - **`ConnectedPapers-for-RNA-secondary-structure-prediction-using-an-ensemble-of-two_20dimensional-deep-neural-networks-and-transfer-learning.txt`**:
+    - Captures insights from Connected Papers related to ensemble and transfer-learning-based RNA secondary prediction.
+
+- **Isostericity Reference**:
+  - **`RNA_isostericity.md`**:
+    - Explores RNA isostericity, detailing the theory, significance, and practical implications for RNA modeling.
+
+### ⚙️ Advanced Methods and Techniques
+
+- **Diffusion Models**:
+  - **`s4_diffusion.md`**:
+    - Introduces Liquid-S4 state-space models for diffusion, highlighting experimental outcomes, pseudocode, and integration with AF3-inspired pipelines.
+
+  - **`test_time_scaling.md`**:
+    - Discusses adjustable inference strategies in diffusion models, balancing computation speed and result quality.
+
+- **AlphaFold Adaptation**:
+  - **`AF3_paper.md`**:
+    - Summarizes foundational principles and innovations introduced by AlphaFold 3.
+    - Essential reference for those adapting AF3 methodologies to RNA prediction.
+
+### 🎯 Competition and Application Context
+
+- **`kaggle_competition.md`**:
+  - Provides comprehensive details about the Stanford RNA 3D Folding challenge on Kaggle.
+  - Covers competition goals, datasets, scoring metrics, submission guidelines, and common FAQs.
+  - Crucial for competitors preparing submissions and strategizing model training.
+
+---
+
+## 🌐 Inter-document Synergies
+
+- **Pipeline Integration**: Documents like `core_framework.md` and `AlphaFold3_progress.md` articulate clear interfaces between theoretical insights (e.g., `torsion_angles.md`) and practical applications (`kaggle_competition.md`).
+
+- **Cutting-edge Techniques**: Advanced documentation (`s4_diffusion.md`, `torsion_angle_Latent_Manifold_Representation.md`) points toward future pipeline enhancements and novel research directions.
+
+- **Comprehensive Reference Set**: The combination of external literature documentation provides a robust framework for researchers seeking authoritative references to benchmark or validate RNA structure prediction methods.
+
+---
+
+## 🚩 Recommended Next Steps
+
+- **For Newcomers**:
+  - Start with `core_framework.md` for foundational understanding, proceed to `torsion_angles.md` for geometrical basics, and use `kaggle_competition.md` for practical application context.
+
+- **For Advanced Practitioners**:
+  - Explore innovative representation methods in `torsion_angle_Latent_Manifold_Representation.md` or integrate S4-based models described in `s4_diffusion.md`.
+
+- **For Research-oriented Users**:
+  - Use external literature docs (`RNA_papers.md`, `2d_structure_prediction_papers.md`) to align your work with current scientific standards and benchmarks.
+
+---
+
+This structured overview is intended to optimize your engagement with the RNA_PREDICT documentation, accelerating both onboarding and deep technical engagement. Happy exploring and contributing!
+
+=====
+V3:
+Below is a suggested organizational structure for your document set, grouping them by pipeline stage, supporting references, and advanced methods. The goal is to make it easy for collaborators (or your future self) to locate the right file for each step of the RNA 3D pipeline, as well as any extra in-depth or next-gen resources.
+
+⸻
+
+1. Main Pipeline Files
+
+(A) Stage A – 2D Predictor
+	•	StageA_RFold.md
+	•	Integrates the K-rook-based RFold approach, guaranteeing valid base pairs.
+	•	Proposed new location: pipeline/stageA/StageA_RFold.md.
+
+(B) Stage B – Torsion-Angle Predictor
+	•	Stage_B.md
+	•	Detailed design for predicting backbone torsion angles using adjacency from Stage A + GNN/Transformer.
+	•	Proposed location: pipeline/stageB/Stage_B.md.
+
+(C) Stage C – Forward Kinematics to 3D
+	•	Stage_C.md
+	•	Consolidated plan for converting torsion angles → 3D coordinates, including sugar pucker or local minimization.
+	•	Proposed location: pipeline/stageC/Stage_C.md.
+
+(D) Multi-Stage Overviews
+	•	core_framework.md
+	•	High-level 1→2→3 steps (2D→torsion→3D).
+	•	Proposed location: pipeline/overview/core_framework.md.
+	•	Multi_Stage_RNA3D_Pipeline_Technical_Architecture&Implementation_Plan.md
+	•	Comprehensive blueprint that merges older “versions.”
+	•	Proposed location: pipeline/overview/Multi_Stage_Implementation_Plan.md.
+
+(E) Competition Context
+	•	kaggle_competition.md
+	•	Summaries of competition structure, data usage, 5-model submission format, TM-score, etc.
+	•	Proposed location: pipeline/kaggle_info/kaggle_competition.md.
+
+These are your main practical docs for each stage, plus the big overview references.
+
+⸻
+
+2. Supporting Materials & In-Depth Guides
+
+2.1 Torsion Angles & 2D→3D Tools
+	•	torsion_angles.md
+	•	Thorough explanation of how to compute α..ζ, χ, sugar pucker, referencing standard software (3DNA, PyMOL, etc.).
+	•	Proposed location: reference/torsion_calculations/torsion_angles.md.
+	•	torsion_angle_Latent_Manifold_Representation.md
+	•	Argues for a data-driven latent approach beyond classical torsions.
+	•	Proposed location: reference/advanced_geom/torsion_angle_Latent_Manifold_Representation.md.
+
+2.2 Isostericity & Sequence Preservation
+	•	RNA_isostericity.md
+	•	Algorithm for base-pair substitutions preserving 3D geometry without MSAs.
+	•	Proposed location: reference/isosteric_substitutions/RNA_isostericity.md.
+
+2.3 Summaries of External References / Papers
+	•	RNA_papers.md
+	•	Compares multiple “versions” of an RNA references list and identifies which are best for Kaggle.
+	•	Proposed location: reference/external_lit/RNA_papers.md.
+
+⸻
+
+3. Advanced or Next-Generation Approaches
+
+3.1 Diffusion & State-Space Models
+	•	s4_diffusion.md
+	•	Liquid-S4 or S4-based approach for large-step angle or coordinate diffusion.
+	•	Proposed location: advanced_methods/diffusion/s4_diffusion.md.
+	•	test_time_scaling.md
+	•	Explains how diffusion steps can be a test-time knob.
+	•	Proposed location: advanced_methods/diffusion/test_time_scaling.md.
+
+3.2 AlphaFold 3–Style Systems
+	•	AlphaFold3_progress.md
+	•	Merges V1–V3 reviews into a single doc, highlighting partial re-implementation progress.
+	•	Proposed location: advanced_methods/af3/AlphaFold3_progress.md.
+	•	AF3_paper.md
+	•	The large “supplementary style” doc with entire pipeline for AlphaFold 3 (templates, trunk, diffusion, confidence heads).
+	•	Proposed location: advanced_methods/af3/AF3_paper.md.
+
+⸻
+
+4. Illustrative Folder/Directory Tree
+
+Here’s what it might look like in practice:
+
+docs/
+ ├── pipeline/
+ │    ├── overview/
+ │    │    ├── core_framework.md
+ │    │    └── Multi_Stage_Implementation_Plan.md
+ │    ├── stageA/
+ │    │    └── StageA_RFold.md
+ │    ├── stageB/
+ │    │    └── Stage_B.md
+ │    ├── stageC/
+ │    │    └── Stage_C.md
+ │    └── kaggle_info/
+ │         └── kaggle_competition.md
+ ├── reference/
+ │    ├── torsion_calculations/
+ │    │    └── torsion_angles.md
+ │    ├── advanced_geom/
+ │    │    └── torsion_angle_Latent_Manifold_Representation.md
+ │    ├── isosteric_substitutions/
+ │    │    └── RNA_isostericity.md
+ │    └── external_lit/
+ │         └── RNA_papers.md
+ └── advanced_methods/
+      ├── diffusion/
+      │    ├── s4_diffusion.md
+      │    └── test_time_scaling.md
+      └── af3/
+           ├── AlphaFold3_progress.md
+           └── AF3_paper.md
+
+This structure groups everything by stage (A, B, C) plus a top-level overview folder (for pipeline wide docs) and reference vs. advanced methods subfolders.
+
+⸻
+
+5. Conclusion & Benefits
+	•	Clear Stage Flow: The pipeline folder focuses on your day-to-day “build the pipeline” docs: Stage A, Stage B, Stage C, plus the overview.
+	•	Supporting “Reference”: Torsion angle tutorials, isostericity design, or external references.
+	•	Advanced: If you want to incorporate diffusion or an AlphaFold 3–like approach, jump to advanced_methods/.
+
+With this reorganization, collaborators can easily see how the 2D→Torsion→3D pipeline is constructed (pipeline folder), what optional advanced expansions exist (advanced_methods folder), and how to handle specialized references or knowledge (reference folder).
+===
