@@ -135,3 +135,5 @@ github_automation_output/*
 log.txt
 uv.lock
 docs/.DS_Store
+docs/advanced_methods/.DS_Store
+docs/pipeline/.DS_Store
