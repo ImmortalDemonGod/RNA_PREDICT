@@ -16,6 +16,8 @@ dependencies = [
     "datasets>=3.3.2",
     "mdanalysis>=2.9.0",
     "numpy>=2.2.3",
+    "pymdownx",
+    "python-markdown-math>=0.8",
     "torch>=2.0.1, <2.6.0",
 ]
 
