@@ -52,29 +52,21 @@ def benchmark_decoding_latency_and_memory(
 
     for N_atom in N_atom_list:
         for N_token in N_token_list:
-            print(
-                f"\n=== Decoding Benchmark N_atom={N_atom}, N_token={N_token} ==="
-            )
+            print(f"\n=== Decoding Benchmark N_atom={N_atom}, N_token={N_token} ===")
 
             # Prepare synthetic features on the specified device
             f = {}
             f["ref_pos"] = torch.randn(N_atom, 3, device=device)
-            f["ref_charge"] = torch.randint(
-                -2, 3, (N_atom,), device=device
-            ).float()
+            f["ref_charge"] = torch.randint(-2, 3, (N_atom,), device=device).float()
             f["ref_element"] = torch.randn(N_atom, 128, device=device)
             f["ref_atom_name_chars"] = torch.randn(N_atom, 16, device=device)
-            f["atom_to_token"] = torch.randint(
-                0, N_token, (N_atom,), device=device
-            )
+            f["atom_to_token"] = torch.randint(0, N_token, (N_atom,), device=device)
 
             f["restype"] = torch.randn(N_token, 32, device=device)
             f["profile"] = torch.randn(N_token, 32, device=device)
             f["deletion_mean"] = torch.randn(N_token, device=device)
 
-            block_index = torch.randint(
-                0, N_atom, (N_atom, block_size), device=device
-            )
+            block_index = torch.randint(0, N_atom, (N_atom, block_size), device=device)
 
             # Warmup (not timed)
             with torch.no_grad():
@@ -85,9 +77,7 @@ def benchmark_decoding_latency_and_memory(
                         trunk_pair=None,
                         block_index=block_index,
                     )
-                    torch.cuda.synchronize(
-                        device
-                    ) if device == "cuda" else None
+                    torch.cuda.synchronize(device) if device == "cuda" else None
 
             # Timed decoding + memory usage
             fwd_time = 0.0
@@ -105,22 +95,16 @@ def benchmark_decoding_latency_and_memory(
                         trunk_pair=None,
                         block_index=block_index,
                     )
-                    torch.cuda.synchronize(
-                        device
-                    ) if device == "cuda" else None
+                    torch.cuda.synchronize(device) if device == "cuda" else None
                     end = time.time()
 
                     # Record forward (decoding) time
                     fwd_time += end - start
 
                     if device == "cuda":
-                        peak_mem_bytes = torch.cuda.max_memory_allocated(
-                            device
-                        )
+                        peak_mem_bytes = torch.cuda.max_memory_allocated(device)
                         peak_mem_mb = peak_mem_bytes / (1024**2)
-                        print(
-                            f"   Iter peak GPU memory usage: {peak_mem_mb:.2f} MB"
-                        )
+                        print(f"   Iter peak GPU memory usage: {peak_mem_mb:.2f} MB")
 
             avg_fwd = fwd_time / num_iters
             print(f"Avg Decoding (Forward) Time: {avg_fwd:.4f} s")
@@ -186,22 +170,16 @@ def benchmark_input_embedding(
 
             f = {}
             f["ref_pos"] = torch.randn(N_atom, 3, device=device)
-            f["ref_charge"] = torch.randint(
-                -2, 3, (N_atom,), device=device
-            ).float()
+            f["ref_charge"] = torch.randint(-2, 3, (N_atom,), device=device).float()
             f["ref_element"] = torch.randn(N_atom, 128, device=device)
             f["ref_atom_name_chars"] = torch.randn(N_atom, 16, device=device)
-            f["atom_to_token"] = torch.randint(
-                0, N_token, (N_atom,), device=device
-            )
+            f["atom_to_token"] = torch.randint(0, N_token, (N_atom,), device=device)
 
             f["restype"] = torch.randn(N_token, 32, device=device)
             f["profile"] = torch.randn(N_token, 32, device=device)
             f["deletion_mean"] = torch.randn(N_token, device=device)
 
-            block_index = torch.randint(
-                0, N_atom, (N_atom, block_size), device=device
-            )
+            block_index = torch.randint(0, N_atom, (N_atom, block_size), device=device)
 
             # Warmup
             for _ in range(num_warmup):
@@ -242,9 +220,7 @@ def benchmark_input_embedding(
 
             avg_fwd = fwd_time / num_iters
             avg_bwd = bwd_time / num_iters
-            print(
-                f"Avg Forward: {avg_fwd:.4f}s,  Avg Backward: {avg_bwd:.4f}s"
-            )
+            print(f"Avg Forward: {avg_fwd:.4f}s,  Avg Backward: {avg_bwd:.4f}s")
 
 
 if __name__ == "__main__":
