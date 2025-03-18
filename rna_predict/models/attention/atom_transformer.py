@@ -124,15 +124,11 @@ class AtomTransformer(nn.Module):
     A stack of AtomTransformerBlock layers.
     """
 
-    def __init__(
-        self, c_atom=128, num_heads=4, num_layers=3, use_optimized=False
-    ):
+    def __init__(self, c_atom=128, num_heads=4, num_layers=3, use_optimized=False):
         super().__init__()
         self.blocks = nn.ModuleList(
             [
-                AtomTransformerBlock(
-                    c_atom, num_heads, use_optimized=use_optimized
-                )
+                AtomTransformerBlock(c_atom, num_heads, use_optimized=use_optimized)
                 for _ in range(num_layers)
             ]
         )
