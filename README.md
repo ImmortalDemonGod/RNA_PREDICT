@@ -160,10 +160,6 @@ for i in range(1, N_res):
 
 ---
 
-> 📝 **Note:** Consider MkDocs admonitions for detailed technical documentation (collapsible boxes, notes, warnings). Diagrams and visuals recommended.
-
----
-
 🌟 **Conclusion:**
 
 Structured, MkDocs-friendly documentation, explicitly detailed with filenames, pipeline stages, algorithmic insights, and clear performance guidelines to enhance readability and comprehensive understanding.
