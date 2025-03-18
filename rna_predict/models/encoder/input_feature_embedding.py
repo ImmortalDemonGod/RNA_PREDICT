@@ -55,7 +55,10 @@ class InputFeatureEmbedder(nn.Module):
           single_emb: [N_token, c_token] – the final token-level embedding.
         """
         a_token, q_atom, c_atom0, p_lm = self.atom_encoder(
-            f, trunk_sing=trunk_sing, trunk_pair=trunk_pair, block_index=block_index
+            f,
+            trunk_sing=trunk_sing,
+            trunk_pair=trunk_pair,
+            block_index=block_index,
         )
 
         # Merge with extra token-level features.
