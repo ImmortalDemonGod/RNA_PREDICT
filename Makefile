@@ -103,7 +103,7 @@ switch-to-poetry: ## Switch to poetry package manager.
 	@echo "Switching to poetry ..."
 	@if ! poetry --version > /dev/null; then echo 'poetry is required, install from https://python-poetry.org/'; exit 1; fi
 	@rm -rf .venv
-	@poetry init --no-interaction --name=a_flask_test --author=rochacbruno
+	@poetry init --no-interaction --name=a_flask_test --author=ImmortalDemonGod
 	@echo "" >> pyproject.toml
 	@echo "[tool.poetry.scripts]" >> pyproject.toml
 	@echo "rna_predict = 'rna_predict.__main__:main'" >> pyproject.toml
@@ -121,7 +121,7 @@ init:             ## Initialize the project based on an application template.
 	@./.github/init.sh
 
 
-# This project has been generated from rochacbruno/python-project-template
-# __author__ = 'rochacbruno'
+# This project has been generated from ImmortalDemonGod/python-project-template
+# __author__ = 'ImmortalDemonGod'
 # __sponsor__ = https://github.com/sponsors/ImmortalDemonGod/
 # __sponsor__ = https://github.com/sponsors/ImmortalDemonGod/
