@@ -1,5 +1,5 @@
-
 from datasets import load_dataset
+
 
 def stream_bprna_dataset(split="train"):
     """
@@ -7,8 +7,6 @@ def stream_bprna_dataset(split="train"):
     Returns an IterableDataset object for the specified split.
     """
     ds_iter = load_dataset(
-        "multimolecule/bprna-spot",
-        split=split,
-        streaming=True
+        "multimolecule/bprna-spot", split=split, streaming=True
     )
     return ds_iter
