@@ -39,12 +39,16 @@ class LocalBlockSparseAttentionNaive(torch.autograd.Function):
             neighbor_idxs = block_index[i]  # shape: [block_size]
             k_neighbors = k[neighbor_idxs]  # [block_size, n_heads, c_per_head]
             v_neighbors = v[neighbor_idxs]  # [block_size, n_heads, c_per_head]
-            bias_neighbors = pair_bias[i, neighbor_idxs]  # [block_size, n_heads]
+            bias_neighbors = pair_bias[
+                i, neighbor_idxs
+            ]  # [block_size, n_heads]
 
             q_i = q[i].unsqueeze(0)  # [1, n_heads, c_per_head]
 
             # (q_i · k_neighbors) scaled by sqrt(c_per_head)
-            logits = (q_i * k_neighbors).sum(dim=-1) * (1.0 / math.sqrt(c_per_head))
+            logits = (q_i * k_neighbors).sum(dim=-1) * (
+                1.0 / math.sqrt(c_per_head)
+            )
             logits = logits + bias_neighbors  # add pairwise bias
 
             attn_weights = F.softmax(logits, dim=0)  # [block_size, n_heads]
@@ -107,7 +111,9 @@ class LocalBlockSparseAttentionNaive(torch.autograd.Function):
             # =========================
             # gradient wrt q[i] and k_neighbors
             alpha = 1.0 / math.sqrt(c_per_head)
-            dq_i = torch.sum(dlogits_.unsqueeze(-1) * (alpha * k[neighbor_idxs]), dim=0)
+            dq_i = torch.sum(
+                dlogits_.unsqueeze(-1) * (alpha * k[neighbor_idxs]), dim=0
+            )
             dq[i] += dq_i
 
             dk_neighbors = dlogits_.unsqueeze(-1) * (alpha * q[i].unsqueeze(0))
@@ -162,7 +168,9 @@ try:
         We do NOT implement the naive backward ourselves; the block_sparse_attn_func handles that.
         """
 
-        def __init__(self, nheads, block_size=128, local_window=32, causal=False):
+        def __init__(
+            self, nheads, block_size=128, local_window=32, causal=False
+        ):
             super().__init__()
             self.nheads = nheads
             self.block_size = block_size
@@ -197,14 +205,22 @@ try:
 
             # "base_blockmask" controlling which blocks are valid
             blockmask = build_local_blockmask(
-                N_atom, self.block_size, self.local_window, self.nheads, self.causal
+                N_atom,
+                self.block_size,
+                self.local_window,
+                self.nheads,
+                self.causal,
             ).to(device)
 
             # shape = [batch_size=1, nheads, nrow, ncol]
             # head_mask_type: 1 => block-sparse for all heads
-            head_mask_type = torch.ones((nheads,), dtype=torch.int32, device=device)
+            head_mask_type = torch.ones(
+                (nheads,), dtype=torch.int32, device=device
+            )
             streaming_info = None  # not streaming, just block-sparse
-            cu_seqlens = torch.tensor([0, N_atom], dtype=torch.int32, device=device)
+            cu_seqlens = torch.tensor(
+                [0, N_atom], dtype=torch.int32, device=device
+            )
             max_seqlen = N_atom
 
             # p_dropout = 0.0 for simplicity
@@ -234,13 +250,17 @@ try:
 
 except ImportError:
     # If block_sparse_attn is not installed, define a dummy fallback
-    print("block_sparse_attn not found; using only naive LocalBlockSparseAttention.")
+    print(
+        "block_sparse_attn not found; using only naive LocalBlockSparseAttention."
+    )
 
     def build_local_blockmask(*args, **kwargs):
         return None
 
     class BlockSparseAttentionOptimized(nn.Module):
-        def __init__(self, nheads, block_size=128, local_window=32, causal=False):
+        def __init__(
+            self, nheads, block_size=128, local_window=32, causal=False
+        ):
             super().__init__()
             self.nheads = nheads
             self.block_size = block_size
