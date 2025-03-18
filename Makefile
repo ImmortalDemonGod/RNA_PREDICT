@@ -29,8 +29,8 @@ fmt:              ## Format code using black & isort.
 	$(ENV_PREFIX)isort rna_predict/
 
 .PHONY: lint
-lint:             ## Run Ruff and mypy linters.
-	$(ENV_PREFIX)ruff check rna_predict/ tests/
+lint:             ## Run Ruff (with auto-fixes) and mypy linters.
+	$(ENV_PREFIX)ruff check --fix --unsafe-fixes rna_predict/ tests/
 	$(ENV_PREFIX)mypy --ignore-missing-imports rna_predict/
 
 lint-fix:         ## Run Ruff with auto-fixes
