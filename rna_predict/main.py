@@ -1,15 +1,21 @@
 import os
 import sys
-import torch
 
-# Import your existing InputFeatureEmbedder
-from rna_predict.models.encoder.input_feature_embedding import InputFeatureEmbedder
+import torch
 
 # Import the dataset streaming function
 from rna_predict.dataset.dataset_loader import stream_bprna_dataset
 
+# Import your existing InputFeatureEmbedder
+from rna_predict.models.encoder.input_feature_embedding import (
+    InputFeatureEmbedder,
+)
+
 # Optionally import torsion scripts from rna_predict/scripts
-from rna_predict.scripts.mdanalysis_torsion_example import calculate_rna_torsions_mdanalysis
+from rna_predict.scripts.mdanalysis_torsion_example import (
+    calculate_rna_torsions_mdanalysis,
+)
+
 # from rna_predict.scripts.custom_torsion_example import calculate_rna_torsions_custom
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -17,6 +23,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 ###############################################################################
 # Example Usage for Embedding
 ###############################################################################
+
 
 def demo_run_input_embedding():
     """
@@ -57,7 +64,9 @@ def demo_run_input_embedding():
     )
 
     # Forward pass.
-    single_emb = embedder(f, trunk_sing=None, trunk_pair=None, block_index=block_index)
+    single_emb = embedder(
+        f, trunk_sing=None, trunk_pair=None, block_index=block_index
+    )
     print("Output single-token embedding shape:", single_emb.shape)
     # Expected shape: [N_token, c_token]
 
@@ -90,6 +99,7 @@ def show_full_bprna_structure():
 # Demonstration: Compute Torsion Angles for bprna-spot
 ###############################################################################
 
+
 def demo_compute_torsions_for_bprna():
     """
     Example of how to iterate the bprna-spot dataset and compute RNA torsion angles
@@ -113,12 +123,16 @@ def demo_compute_torsions_for_bprna():
         pdb_file = os.path.join("pdbs", f"{rna_id}.pdb")
 
         if not os.path.exists(pdb_file):
-            print(f"[{rna_id}] No local PDB file found at {pdb_file}, skipping...")
+            print(
+                f"[{rna_id}] No local PDB file found at {pdb_file}, skipping..."
+            )
             continue
 
         # Alternatively, if you have a chain ID or other info, set chain_id here
         chain_id = "A"
-        angles = calculate_rna_torsions_mdanalysis(pdb_file, chain_id=chain_id, fallback=True)
+        angles = calculate_rna_torsions_mdanalysis(
+            pdb_file, chain_id=chain_id, fallback=True
+        )
 
         print(f"\n=== Torsion angles for {rna_id} (chain {chain_id}) ===")
         for angle_name, angle_list in angles.items():
