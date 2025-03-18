@@ -8,6 +8,11 @@ on:
 jobs:
   build-deploy:
     runs-on: ubuntu-latest
+    
+    # Add explicit permissions so we can push to gh-pages
+    permissions:
+      contents: write
+
     steps:
       - name: Check out repo
         uses: actions/checkout@v3
