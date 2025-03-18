@@ -89,7 +89,7 @@ def benchmark_decoding_latency_and_memory(
                         torch.cuda.reset_peak_memory_stats(device)
 
                     start = time.time()
-                    out = embedder(
+                    embedder(
                         f,
                         trunk_sing=None,
                         trunk_pair=None,
