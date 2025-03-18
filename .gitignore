@@ -140,3 +140,4 @@ docs/pipeline/.DS_Store
 docs/reference/.DS_Store
 .DS_Store
 .DS_Store
+mkdocs-env/*
