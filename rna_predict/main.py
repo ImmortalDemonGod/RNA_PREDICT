@@ -64,9 +64,7 @@ def demo_run_input_embedding():
     )
 
     # Forward pass.
-    single_emb = embedder(
-        f, trunk_sing=None, trunk_pair=None, block_index=block_index
-    )
+    single_emb = embedder(f, trunk_sing=None, trunk_pair=None, block_index=block_index)
     print("Output single-token embedding shape:", single_emb.shape)
     # Expected shape: [N_token, c_token]
 
@@ -123,9 +121,7 @@ def demo_compute_torsions_for_bprna():
         pdb_file = os.path.join("pdbs", f"{rna_id}.pdb")
 
         if not os.path.exists(pdb_file):
-            print(
-                f"[{rna_id}] No local PDB file found at {pdb_file}, skipping..."
-            )
+            print(f"[{rna_id}] No local PDB file found at {pdb_file}, skipping...")
             continue
 
         # Alternatively, if you have a chain ID or other info, set chain_id here
