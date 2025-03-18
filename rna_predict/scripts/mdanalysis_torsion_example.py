@@ -15,12 +15,10 @@ import sys
 import tempfile
 from io import StringIO
 
-import MDAnalysis as mda
 import numpy as np
 
 # We'll implement a real angle-difference scoring function to compare with CSV angles:
 import pandas as pd
-import snoop
 from Bio.PDB.MMCIFParser import MMCIFParser
 from Bio.PDB.PDBIO import PDBIO
 
@@ -243,15 +241,11 @@ def calculate_rna_torsions_mdanalysis(
     print("Residues:", u.residues)
 
     chain = u.select_atoms(f"(segid {chain_id}) or (chainID {chain_id})")
-    print(
-        f"Selecting chain with chain_id='{chain_id}'... Found {len(chain)} atoms."
-    )
+    print(f"Selecting chain with chain_id='{chain_id}'... Found {len(chain)} atoms.")
 
     if len(chain) == 0:
         # Attempt to autodetect among all segids found in nucleic
-        candidate_segids = set(
-            a.segment.segid for a in u.select_atoms("nucleic").atoms
-        )
+        candidate_segids = set(a.segment.segid for a in u.select_atoms("nucleic").atoms)
         print(
             f"No atoms found for chainID={chain_id}. Trying all candidate segids: {candidate_segids}"
         )
@@ -362,19 +356,11 @@ def calculate_rna_torsions_mdanalysis(
             n_new = len(alpha_new)
             n_min = min(n_csv, n_new)
             # 4) compute average absolute difference
-            diff_alpha = np.nanmean(
-                np.abs(alpha_new[:n_min] - alpha_csv[:n_min])
-            )
+            diff_alpha = np.nanmean(np.abs(alpha_new[:n_min] - alpha_csv[:n_min]))
             diff_beta = np.nanmean(np.abs(beta_new[:n_min] - beta_csv[:n_min]))
-            diff_gamma = np.nanmean(
-                np.abs(gamma_new[:n_min] - gamma_csv[:n_min])
-            )
-            diff_delta = np.nanmean(
-                np.abs(delta_new[:n_min] - delta_csv[:n_min])
-            )
-            diff_eps = np.nanmean(
-                np.abs(epsilon_new[:n_min] - epsilon_csv[:n_min])
-            )
+            diff_gamma = np.nanmean(np.abs(gamma_new[:n_min] - gamma_csv[:n_min]))
+            diff_delta = np.nanmean(np.abs(delta_new[:n_min] - delta_csv[:n_min]))
+            diff_eps = np.nanmean(np.abs(epsilon_new[:n_min] - epsilon_csv[:n_min]))
             diff_zeta = np.nanmean(np.abs(zeta_new[:n_min] - zeta_csv[:n_min]))
             diff_chi = np.nanmean(np.abs(chi_new[:n_min] - chi_csv[:n_min]))
 
@@ -404,15 +390,11 @@ def calculate_rna_torsions_mdanalysis(
                 best_chain = test_chain
 
         if best_chain is not None:
-            print(
-                f"Auto-selected chain segid='{best_seg}' with score={best_score}"
-            )
+            print(f"Auto-selected chain segid='{best_seg}' with score={best_score}")
             chain = best_chain
         else:
             if fallback:
-                print(
-                    f"All segids tested but none chosen. Falling back to all nucleic."
-                )
+                print("All segids tested but none chosen. Falling back to all nucleic.")
                 chain = u.select_atoms("nucleic")
             else:
                 raise ValueError(
@@ -484,11 +466,7 @@ def calculate_rna_torsions_mdanalysis(
         torsion_data["chi"].append(chi_val)
 
     # Clean up temporary file if used
-    if (
-        using_temp
-        and temp_pdb_path is not None
-        and os.path.exists(temp_pdb_path)
-    ):
+    if using_temp and temp_pdb_path is not None and os.path.exists(temp_pdb_path):
         os.remove(temp_pdb_path)
 
     return torsion_data
