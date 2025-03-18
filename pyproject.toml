@@ -16,8 +16,6 @@ dependencies = [
     "datasets>=3.3.2",
     "mdanalysis>=2.9.0",
     "numpy>=2.2.3",
-    "pymdownx",
-    "python-markdown-math>=0.8",
     "torch>=2.0.1, <2.6.0",
 ]
 
@@ -33,6 +31,7 @@ dev = [
     "mypy>=1.15.0",
     "pytest>=8.3.5",
     "pytest-cov>=6.0.0",
+    "pymdown-extensions",
 ]
 
 # If you want a console script:
@@ -44,3 +43,6 @@ dev = [
     "mkdocs>=1.6.1",
     "snoop>=0.6.0",
 ]
+[tool.setuptools.packages.find]
+include = ["rna_predict*"]
+exclude = ["site"]
