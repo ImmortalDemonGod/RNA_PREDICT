@@ -82,22 +82,16 @@ class AtomAttentionEncoder(nn.Module):
         token_ids = f["atom_to_token"]  # [N_atom]
 
         # (1) Build the per-atom input.
-        x_atom_in = torch.cat(
-            [pos, charge, elem, aname], dim=-1
-        )  # [N_atom, 148]
+        x_atom_in = torch.cat([pos, charge, elem, aname], dim=-1)  # [N_atom, 148]
         c_atom0 = self.atom_linear(x_atom_in)  # [N_atom, c_atom]
 
         # (2) Build pairwise features.
         N_atom = pos.size(0)
         delta = pos.unsqueeze(1) - pos.unsqueeze(0)  # [N_atom, N_atom, 3]
         same_entity = (
-            (token_ids.unsqueeze(1) == token_ids.unsqueeze(0))
-            .float()
-            .unsqueeze(-1)
+            (token_ids.unsqueeze(1) == token_ids.unsqueeze(0)).float().unsqueeze(-1)
         )
-        pair_in = torch.cat(
-            [delta, same_entity], dim=-1
-        )  # [N_atom, N_atom, 4]
+        pair_in = torch.cat([delta, same_entity], dim=-1)  # [N_atom, N_atom, 4]
         p_lm = self.pair_linear(pair_in)  # [N_atom, N_atom, c_pair]
         p_lm = self.mlp_pair(p_lm)  # [N_atom, N_atom, c_pair]
 
@@ -111,18 +105,14 @@ class AtomAttentionEncoder(nn.Module):
             p_lm = p_lm + trunk_pair_lm
 
         # (4) Run local self-attention over atoms.
-        q_atom = self.atom_transformer(
-            c_atom0, p_lm, block_index
-        )  # [N_atom, c_atom]
+        q_atom = self.atom_transformer(c_atom0, p_lm, block_index)  # [N_atom, c_atom]
 
         # (5) Project and aggregate atoms to tokens — robust approach:
         #     Use the user-supplied number of tokens from f["restype"].size(0)
         #     (or whichever per-token feature is the definitive source).
         q_proj = self.post_atom_proj(q_atom)  # [N_atom, c_token]
         N_token_supplied = f["restype"].size(0)  # e.g. guaranteed shape
-        a_token = scatter_mean(
-            q_proj, token_ids, dim_size=N_token_supplied, dim=0
-        )
+        a_token = scatter_mean(q_proj, token_ids, dim_size=N_token_supplied, dim=0)
         # a_token is now [N_token_supplied, c_token] — guaranteed to match extras later.
 
         return a_token, q_atom, c_atom0, p_lm
