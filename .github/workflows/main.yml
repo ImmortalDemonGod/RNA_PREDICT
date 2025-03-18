@@ -34,10 +34,18 @@ jobs:
 
       # Demonstrate multi-step ruff usage
       - name: Run ruff check
+        continue-on-error: true
         run: ruff check rna_predict/ tests
 
       - name: Fix auto-fixable lint issues
-        run: ruff check --fix rna_predict/ tests
+        run: |
+          ruff check --fix --unsafe-fixes rna_predict/ tests
+          git config --global user.name 'github-actions'
+          git config --global user.email 'github-actions@github.com'
+          git diff
+          git add -A
+          git commit -m "chore: ruff auto-fix" || echo "No changes to commit."
+          git push || echo "No changes to push."
 
       - name: Format code
         run: ruff format rna_predict/ tests
