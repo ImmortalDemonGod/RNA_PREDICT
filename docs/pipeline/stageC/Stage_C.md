@@ -135,8 +135,8 @@ def forward_kinematics(torsion_angles, sequence, reference_geometry, ring_pucker
 ### 🧪 Validation, Error Metrics, and Constraints
 
 - **RMSD Validation:**
-  - Build RNA structure from known torsions (PDB).
-  - Accept RMSD <0.5 Å.
+    - Build RNA structure from known torsions (PDB).
+    - Accept RMSD <0.5 Å.
 - **Geometric Checks:** Verify bond lengths/angles (use **MolProbity Suite**).
 - **Steric Clash Checks:** Validate absence of severe clashes; possibly minimize (MD engines).
 - **Ring Closure & Constraints:** Use mini inverse-kinematics for sugar ring closure.
@@ -160,11 +160,17 @@ def forward_kinematics(torsion_angles, sequence, reference_geometry, ring_pucker
 🧙🏾‍♂️ **Stage C** provides a mathematically rigorous and computationally efficient approach to converting predicted torsion angles into accurate RNA 3D structures. By leveraging rotation matrices, homogeneous transformations, and the NeRF method, FK ensures physically consistent and biologically valid atomic coordinates.
 
 ✅ **Recommended Next Steps:**
+
 - Implement and rigorously test the provided `forward_kinematics` pseudocode.
+
 - Validate against PDB structures.
+
 - Integrate the validated method into Stage B for a complete RNA structural pipeline.
 
 ✨ **Additional Enhancements:**
+
 - Include visual diagrams illustrating rotations and local reference frames.
+
 - Incorporate MkDocs admonitions (`!!! note`) for clarity.
+
 - Auto-generate Table of Contents for enhanced readability.
