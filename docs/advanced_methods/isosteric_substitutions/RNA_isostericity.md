@@ -1,4 +1,4 @@
-# RNA Isostericity Design  🧬
+# RNA Isostericity Design 🧬
 
 ---
 
@@ -6,77 +6,75 @@
 
 When an RNA 3D structure is available—experimentally determined (X-ray, cryo-EM) or reliably modeled—local geometry can be directly utilized to propose mutations preserving the overall fold. Traditionally, methods rely on multiple-sequence alignments (MSAs) for identifying co-variation. Here, RNA geometry directly informs isosteric or near-isosteric substitutions, making MSAs secondary or optional.
 
-### 🔑 Key Concepts
-- **Leontis–Westhof Classification:**
-  - Classifies RNA base pairs into 12 geometric families:
-    - `cWW, tWW, cWH, tWH, cWS, tWS, cHH, tHH, cHS, tHS, cSS, tSS`
-  - Based on hydrogen-bond edges and glycosidic bond orientations (cis/trans).
+### Key Concepts 🔑
 
-- **Isostericity & IsoDiscrepancy Index (IDI):**
-  - **Isosteric Pairs (IDI ≤ 2.0):** Overlay well, preserving backbone geometry.
-  - **Near-isosteric Pairs (2.0 < IDI ≤ 3.3):** Mildly perturb geometry, potentially affecting stability.
+-   **Leontis–Westhof Classification:**
+    -   Classifies RNA base pairs into 12 geometric families:
+        -   `cWW, tWW, cWH, tWH, cWS, tWS, cHH, tHH, cHS, tHS, cSS, tSS`
+    -   Based on hydrogen-bond edges and glycosidic bond orientations (cis/trans).
 
-- **Environmental Constraints:**
-  - Base triples/quadruples, base–phosphate contacts, stacking interactions, bridging waters, syn/anti configurations, and base–protein interactions.
+-   **Isostericity & IsoDiscrepancy Index (IDI):**
+    -   **Isosteric Pairs (IDI ≤ 2.0):** Overlay well, preserving backbone geometry.
+    -   **Near-isosteric Pairs (2.0 < IDI ≤ 3.3):** Mildly perturb geometry, potentially affecting stability.
+
+-   **Environmental Constraints:**
+    -   Base triples/quadruples, base–phosphate contacts, stacking interactions, bridging waters, syn/anti configurations, and base–protein interactions.
 
 ### Goal 🎯
 
 Develop a robust pipeline to:
 
-- Accept RNA sequence, secondary structure, and 3D coordinates.
-
-- Identify and classify base pairs and tertiary contacts directly from structure.
-
-- Generate geometry-preserving substitution sets.
-
-- Filter substitutions based on detailed environmental constraints.
-
-- Generate, score, and rank candidate RNA sequences.
+-   Accept RNA sequence, secondary structure, and 3D coordinates.
+-   Identify and classify base pairs and tertiary contacts directly from structure.
+-   Generate geometry-preserving substitution sets.
+-   Filter substitutions based on detailed environmental constraints.
+-   Generate, score, and rank candidate RNA sequences.
 
 ---
 
 ## 2. Data Structures & Inputs 📂
 
-- **RNA Sequence:** String (e.g., `"ACGUGC"`).
-- **Secondary Structure:** Base pairs (dot-bracket notation or explicit `(i,j)` pairs).
-- **3D Coordinates:** Atomic coordinates (PDB or mmCIF files).
-- **Isosteric/IDI Data:** Tables/matrices for each geometric family indicating isosteric and near-isosteric substitutions.
-- **Environment Constraints:** Optional but highly recommended (bridging waters, base–phosphate contacts, base–protein interactions, syn/anti conformations, triples, quadruples).
+-   **RNA Sequence:** String (e.g., `"ACGUGC"`).
+-   **Secondary Structure:** Base pairs (dot-bracket notation or explicit `(i,j)` pairs).
+-   **3D Coordinates:** Atomic coordinates (PDB or mmCIF files).
+-   **Isosteric/IDI Data:** Tables/matrices for each geometric family indicating isosteric and near-isosteric substitutions.
+-   **Environment Constraints:** Optional but highly recommended (bridging waters, base–phosphate contacts, base–protein interactions, syn/anti conformations, triples, quadruples).
 
 ---
 
 ## 3. High-Level Workflow 🛠️
 
-1. **Load & Parse 3D Structure:**
-    - Identify canonical/noncanonical base pairs and tertiary interactions.
+1.  **Load & Parse 3D Structure:**
+    -   Identify canonical/noncanonical base pairs and tertiary interactions.
 
-2. **Classify Base Pairs:**
-    - Apply Leontis–Westhof classification (e.g., using FR3D).
+2.  **Classify Base Pairs:**
+    -   Apply Leontis–Westhof classification (e.g., using FR3D).
 
-3. **Extract Isosteric Constraints:**
-    - Determine geometry-compatible substitutions using IDI data.
+3.  **Extract Isosteric Constraints:**
+    -   Determine geometry-compatible substitutions using IDI data.
 
-4. **Apply Environment Filters:**
-    - Exclude substitutions conflicting with bridging waters, syn/anti configurations, base–protein, base–phosphate contacts.
+4.  **Apply Environment Filters:**
+    -   Exclude substitutions conflicting with bridging waters, syn/anti configurations, base–protein, base–phosphate contacts.
 
-5. **Constraint Integration:**
-    - Merge constraints consistently across nucleotides involved in multiple interactions.
+5.  **Constraint Integration:**
+    -   Merge constraints consistently across nucleotides involved in multiple interactions.
 
-6. **Sequence Generation & Constraint Satisfaction:**
-    - Generate candidate sequences systematically using backtracking or constraint-solving algorithms.
+6.  **Sequence Generation & Constraint Satisfaction:**
+    -   Generate candidate sequences systematically using backtracking or constraint-solving algorithms.
 
-7. **Scoring & Ranking:**
-    - Evaluate and rank based on geometric accuracy, IDI penalties, substitution frequencies, and thermodynamic considerations.
-    - Optional brief 3D refinement for top sequences.
+7.  **Scoring & Ranking:**
+    -   Evaluate and rank based on geometric accuracy, IDI penalties, substitution frequencies, and thermodynamic considerations.
+    -   Optional brief 3D refinement for top sequences.
 
-8. **Output:**
-    - Clearly ranked feasible RNA sequences.
+8.  **Output:**
+    -   Clearly ranked feasible RNA sequences.
 
 ---
 
-## 3. Detailed Implementation & Pseudo-Code 🧑‍💻
+## 4. Detailed Implementation & Pseudo-Code 🧑‍💻
 
-### Detect & Classify Base Pairs 🔍
+### 4.1. Detect & Classify Base Pairs 🔍
+
 ```python
 def detect_and_classify_base_pairs(coords, sequence):
     base_pairs = []
@@ -88,13 +86,15 @@ def detect_and_classify_base_pairs(coords, sequence):
     return base_pairs
 ```
 
-### Build Isosteric Substitution Sets 📐
+### 4.2. Build Isosteric Substitution Sets 📐
+
 ```python
 def get_isosteric_substitutions(family, orig_pair, env_info, isosteric_db):
     return isosteric_db[family].get(orig_pair, set())
 ```
 
-### Environment Filtering 🌊
+### 4.3. Environment Filtering 🌊
+
 ```python
 def filter_by_env(possible_pairs, env_info):
     filtered = set()
@@ -104,7 +104,8 @@ def filter_by_env(possible_pairs, env_info):
     return filtered
 ```
 
-### Integrate Constraints 📌
+### 4.4. Integrate Constraints 📌
+
 ```python
 def build_pair_options_3D(base_pairs, isosteric_db, sequence):
     n = len(sequence)
@@ -121,7 +122,8 @@ def build_pair_options_3D(base_pairs, isosteric_db, sequence):
     return per_position_allowed, base_pair_options
 ```
 
-### Sequence Generation (Backtracking) 🔄
+### 4.5. Sequence Generation (Backtracking) 🔄
+
 ```python
 def generate_sequences(sequence, per_pos_allowed, pair_options):
     solutions, partial = [], [None]*len(sequence)
@@ -139,7 +141,8 @@ def generate_sequences(sequence, per_pos_allowed, pair_options):
     return solutions
 ```
 
-### Scoring & Ranking 📊
+### 4.6. Scoring & Ranking 📊
+
 ```python
 def rank_solutions(solutions, base_pairs, scoring_params=None):
     scored_list = []
@@ -153,11 +156,47 @@ def rank_solutions(solutions, base_pairs, scoring_params=None):
 ---
 
 ## 5. Additional Implementation Notes 📝
-- Explicit handling of triple/quadruple interactions, bridging waters.
-- Clarify partial vs. full redesign scope to manage computational complexity.
-- Address syn/anti constraints explicitly.
-- Implement heuristic strategies for computational efficiency.
-- MSAs optional for functional validation, not primary design.
+
+### 5.1. Key Implementation Considerations 📌
+
+-   Explicitly handle triple/quadruple interactions and bridging waters 💧.
+-   Clearly differentiate partial vs. full redesign scope to manage computational complexity ⚙️.
+-   Explicitly address syn/anti constraints 🔄.
+-   Apply heuristic strategies to enhance computational efficiency 🚀.
+-   MSAs are optional and intended for functional validation—not primary design 📋.
+
+### 5.2. IsoDiscrepancy Index (IDI) Thresholds and Isosteric Subsets 📐
+
+-   **Isosteric pairs (IDI ≤ 2.0):** Overlay accurately, preserving backbone geometry 🟢.
+-   **Near-isosteric pairs (2.0 < IDI ≤ 3.3):** Mildly perturb geometry; allowable selectively with caution 🟡.
+-   **Non-isosteric pairs (IDI > 3.3):** Introduce significant geometric distortions and should generally be avoided 🔴.
+
+This nuanced approach enables precise acceptance criteria during substitution selection in redesign pipelines.
+
+### 5.3. Frequency Data and Statistical Weighting 📊
+
+-   Incorporate frequency-based weighting informed by large-scale analyses (Stombaugh et al., 2009).
+-   Favor commonly observed isosteric substitutions over rare or near-isosteric alternatives, leveraging statistical prevalence to guide effective sequence design 📈.
+
+### 5.4. Bridging Water and Base–Phosphate Contacts 💦
+
+-   Ensure substitutions maintain critical hydrogen-bond donor/acceptor groups for motifs dependent on bridging waters and base–phosphate hydrogen bonds.
+-   Environment filters must penalize or discard substitutions disrupting these essential structural interactions, particularly prevalent in large rRNAs (Leontis & Westhof, 2001) 🌊.
+
+### 5.5. Handling Partial vs. Composite Motifs (FR3D Perspective) 🌳
+
+-   Leverage FR3D’s subgraph approach (Sarver et al., 2008) to flexibly accept nucleotides from disparate regions.
+-   Enable consideration of partial, composite, or tertiary motifs, beyond continuous hairpin loops, to broaden the redesign capabilities 🌐.
+
+### 5.6. MSA-Derived Conservation vs. Direct 3D Geometry 🧩
+
+-   While traditional MSA-driven methods effectively capture co-variation, direct 3D geometry significantly expands motif coverage to less frequently sampled structures.
+-   Hybrid approaches optionally combine direct geometry-based isostericity data with MSA-derived conservation to validate sequences based on natural occurrence and functional residue conservation 🔬.
+
+### 5.7. Emphasizing “Near-isosteric” as an Engineering Tolerance ⚖️
+
+-   Allow near-isosteric substitutions selectively, recognizing minor backbone distortions (IDI 2.0–3.3) as an acceptable trade-off for increased design diversity.
+-   Near-isosteric substitutions should be considered if critical functional sites remain uncompromised, enabling greater sequence variability while maintaining structural integrity 🎛️.
 
 ---
 
@@ -168,7 +207,8 @@ This comprehensive RNA redesign pipeline integrates structural geometry, isoster
 ---
 
 ## 7. References 📚
-- **Leontis–Westhof Classification:** Leontis & Westhof (RNA, 2001); Leontis, Stombaugh & Westhof (NAR, 2002).
-- **IsoDiscrepancy Index (IDI):** Stombaugh et al. (NAR, 2009).
-- **FR3D:** Sarver et al. (J. Math. Biol., 2008).
 
+-   **Leontis–Westhof Classification:** Leontis & Westhof (RNA, 2001); Leontis, Stombaugh & Westhof (NAR, 2002).
+-   **IsoDiscrepancy Index (IDI):** Stombaugh et al. (NAR, 2009).
+-   **FR3D:** Sarver et al. (J. Math. Biol., 2008).
+```
