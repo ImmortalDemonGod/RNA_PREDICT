@@ -3,7 +3,7 @@
 """
 mdanalysis_torsion_example.py
 
-Demonstrates how to calculate torsion angles (e.g. α, β, γ, δ, ε, ζ, χ) 
+Demonstrates how to calculate torsion angles (e.g. α, β, γ, δ, ε, ζ, χ)
 in an RNA structure using MDAnalysis.
 """
 
