@@ -17,18 +17,22 @@ Requires: pandas (for CSV) and MDAnalysis
 """
 
 import sys
+
+import MDAnalysis as mda
 import numpy as np
 import pandas as pd
-import MDAnalysis as mda
-from mdanalysis_torsion_example import calculate_rna_torsions_mdanalysis  # or custom_torsion_example
+from mdanalysis_torsion_example import (
+    calculate_rna_torsions_mdanalysis,
+)  # or custom_torsion_example
+
 
 def compare_torsions(csv_file, cif_file, chain_id="A"):
     """
     Compare precomputed torsion angles in csv_file with newly computed angles from cif_file.
-    
+
     CSV columns expected: 'alpha', 'beta', 'gamma', 'delta', 'epsilon', 'zeta', 'chi'
     (Plus possibly other columns.)
-    
+
     The CIF is read by MDAnalysis, then we call calculate_rna_torsions_mdanalysis
     to get angles as a dictionary of lists in residue order.
 
@@ -41,7 +45,7 @@ def compare_torsions(csv_file, cif_file, chain_id="A"):
     #
     # We'll skip any leading lines that don't start with a digit or "index_chain".
     # We'll read them as CSV with comma as separator.
-    
+
     # Option 1: Attempt to read automatically if the file has the header line.
     # If there's any weird lines, let's skip them:
     import re
@@ -52,37 +56,42 @@ def compare_torsions(csv_file, cif_file, chain_id="A"):
     with open(csv_file, "r") as f_in:
         for line in f_in:
             # skip blank lines or lines that have '===='
-            if not line.strip() or '====' in line:
+            if not line.strip() or "====" in line:
                 continue
             # if the line starts with "index_chain" or a digit, assume it's data
-            if line.startswith("index_chain") or re.match(r'^\d', line.strip()):
+            if line.startswith("index_chain") or re.match(
+                r"^\d", line.strip()
+            ):
                 lines.append(line)
 
     # Now parse them with pandas
     from io import StringIO
+
     content_str = "".join(lines)
     df = pd.read_csv(StringIO(content_str), sep=",")
     # We now have a DataFrame with a bunch of columns, including alpha,beta,gamma...
     # Convert them to numpy arrays for easy subtraction
-    alpha_csv   = df["alpha"].to_numpy(dtype=float)
-    beta_csv    = df["beta"].to_numpy(dtype=float)
-    gamma_csv   = df["gamma"].to_numpy(dtype=float)
-    delta_csv   = df["delta"].to_numpy(dtype=float)
+    alpha_csv = df["alpha"].to_numpy(dtype=float)
+    beta_csv = df["beta"].to_numpy(dtype=float)
+    gamma_csv = df["gamma"].to_numpy(dtype=float)
+    delta_csv = df["delta"].to_numpy(dtype=float)
     epsilon_csv = df["epsilon"].to_numpy(dtype=float)
-    zeta_csv    = df["zeta"].to_numpy(dtype=float)
-    chi_csv     = df["chi"].to_numpy(dtype=float)
+    zeta_csv = df["zeta"].to_numpy(dtype=float)
+    chi_csv = df["chi"].to_numpy(dtype=float)
 
     # 2) Compute angles from the CIF
     # We'll rely on the fallback approach to handle chain selection
-    angles_mdanalysis = calculate_rna_torsions_mdanalysis(cif_file, chain_id, fallback=True, csv_file=csv_file)
+    angles_mdanalysis = calculate_rna_torsions_mdanalysis(
+        cif_file, chain_id, fallback=True, csv_file=csv_file
+    )
     # angles_mdanalysis is a dict of lists: angles_mdanalysis["alpha"] -> list of floats
-    alpha_new   = np.array(angles_mdanalysis["alpha"],   dtype=float)
-    beta_new    = np.array(angles_mdanalysis["beta"],    dtype=float)
-    gamma_new   = np.array(angles_mdanalysis["gamma"],   dtype=float)
-    delta_new   = np.array(angles_mdanalysis["delta"],   dtype=float)
+    alpha_new = np.array(angles_mdanalysis["alpha"], dtype=float)
+    beta_new = np.array(angles_mdanalysis["beta"], dtype=float)
+    gamma_new = np.array(angles_mdanalysis["gamma"], dtype=float)
+    delta_new = np.array(angles_mdanalysis["delta"], dtype=float)
     epsilon_new = np.array(angles_mdanalysis["epsilon"], dtype=float)
-    zeta_new    = np.array(angles_mdanalysis["zeta"],    dtype=float)
-    chi_new     = np.array(angles_mdanalysis["chi"],     dtype=float)
+    zeta_new = np.array(angles_mdanalysis["zeta"], dtype=float)
+    chi_new = np.array(angles_mdanalysis["chi"], dtype=float)
 
     # For a valid comparison, the residue counts must match.
     # If your CSV has a different residue indexing approach,
@@ -91,27 +100,34 @@ def compare_torsions(csv_file, cif_file, chain_id="A"):
     n_new = len(alpha_new)
     n_min = min(n_csv, n_new)
     if n_csv != n_new:
-        print(f"Warning: CSV has {n_csv} residues, CIF gave {n_new} angles. Truncating to {n_min} for comparison.")
-    
+        print(
+            f"Warning: CSV has {n_csv} residues, CIF gave {n_new} angles. Truncating to {n_min} for comparison."
+        )
+
     # 3) Differences
     def print_stats(name, arr_csv, arr_new):
         # Subset to n_min
         arr_diff = arr_new[:n_min] - arr_csv[:n_min]
         mean_diff = np.nanmean(arr_diff)
-        std_diff  = np.nanstd(arr_diff)
-        print(f"{name}: mean diff={mean_diff:.2f} deg, std={std_diff:.2f}, range=({np.nanmin(arr_diff):.2f},{np.nanmax(arr_diff):.2f})")
+        std_diff = np.nanstd(arr_diff)
+        print(
+            f"{name}: mean diff={mean_diff:.2f} deg, std={std_diff:.2f}, range=({np.nanmin(arr_diff):.2f},{np.nanmax(arr_diff):.2f})"
+        )
 
-    print_stats("alpha",   alpha_csv,   alpha_new)
-    print_stats("beta",    beta_csv,    beta_new)
-    print_stats("gamma",   gamma_csv,   gamma_new)
-    print_stats("delta",   delta_csv,   delta_new)
+    print_stats("alpha", alpha_csv, alpha_new)
+    print_stats("beta", beta_csv, beta_new)
+    print_stats("gamma", gamma_csv, gamma_new)
+    print_stats("delta", delta_csv, delta_new)
     print_stats("epsilon", epsilon_csv, epsilon_new)
-    print_stats("zeta",    zeta_csv,    zeta_new)
-    print_stats("chi",     chi_csv,     chi_new)
+    print_stats("zeta", zeta_csv, zeta_new)
+    print_stats("chi", chi_csv, chi_new)
+
 
 def main():
     if len(sys.argv) < 3:
-        print("Usage: python compare_precomputed_torsions.py <my_torsions.csv> <my_structure.cif> [chainID]")
+        print(
+            "Usage: python compare_precomputed_torsions.py <my_torsions.csv> <my_structure.cif> [chainID]"
+        )
         sys.exit(1)
 
     csv_file = sys.argv[1]
@@ -119,6 +135,7 @@ def main():
     chain_id = sys.argv[3] if len(sys.argv) >= 4 else "A"
 
     compare_torsions(csv_file, cif_file, chain_id=chain_id)
+
 
 if __name__ == "__main__":
     main()
