@@ -26,10 +26,27 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install project
-        run: make install
-      - name: Run linter
-        run: make lint
+
+      - name: Install dependencies
+        run: |
+          make install
+          pip install ruff
+
+      # Demonstrate multi-step ruff usage
+      - name: Run ruff check
+        run: ruff check rna_predict/ tests
+
+      - name: Fix auto-fixable lint issues
+        run: ruff check --fix rna_predict/ tests
+
+      - name: Format code
+        run: ruff format rna_predict/ tests
+
+      - name: Fix import sorting only
+        run: ruff check --select I --fix rna_predict/ tests
+
+      - name: Format code again
+        run: ruff format rna_predict/ tests
 
   tests_linux:
     needs: linter

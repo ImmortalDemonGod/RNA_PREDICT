@@ -27,15 +27,20 @@ install:          ## Install the project in dev mode.
 .PHONY: fmt
 fmt:              ## Format code using black & isort.
 	$(ENV_PREFIX)isort rna_predict/
-	$(ENV_PREFIX)black -l 79 rna_predict/
-	$(ENV_PREFIX)black -l 79 tests/
 
 .PHONY: lint
-lint:             ## Run pep8, black, mypy linters.
-	$(ENV_PREFIX)flake8 rna_predict/
-	$(ENV_PREFIX)black -l 79 --check rna_predict/
-	$(ENV_PREFIX)black -l 79 --check tests/
+lint:             ## Run Ruff and mypy linters.
+	$(ENV_PREFIX)ruff check rna_predict/ tests/
 	$(ENV_PREFIX)mypy --ignore-missing-imports rna_predict/
+
+lint-fix:         ## Run Ruff with auto-fixes
+	$(ENV_PREFIX)ruff check --fix rna_predict/ tests/
+
+import-sort:      ## Fix only import (I) issues
+	$(ENV_PREFIX)ruff check --select I --fix rna_predict/ tests/
+
+format:           ## Format code with ruff
+	$(ENV_PREFIX)ruff format rna_predict/ tests/
 
 .PHONY: test
 test: lint        ## Run tests and generate coverage report.
