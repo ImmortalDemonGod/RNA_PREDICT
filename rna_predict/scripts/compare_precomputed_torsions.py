@@ -18,7 +18,6 @@ Requires: pandas (for CSV) and MDAnalysis
 
 import sys
 
-import MDAnalysis as mda
 import numpy as np
 import pandas as pd
 from mdanalysis_torsion_example import (
@@ -59,9 +58,7 @@ def compare_torsions(csv_file, cif_file, chain_id="A"):
             if not line.strip() or "====" in line:
                 continue
             # if the line starts with "index_chain" or a digit, assume it's data
-            if line.startswith("index_chain") or re.match(
-                r"^\d", line.strip()
-            ):
+            if line.startswith("index_chain") or re.match(r"^\d", line.strip()):
                 lines.append(line)
 
     # Now parse them with pandas
