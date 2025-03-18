@@ -86,7 +86,6 @@ class AtomAttentionEncoder(nn.Module):
         c_atom0 = self.atom_linear(x_atom_in)  # [N_atom, c_atom]
 
         # (2) Build pairwise features.
-        N_atom = pos.size(0)
         delta = pos.unsqueeze(1) - pos.unsqueeze(0)  # [N_atom, N_atom, 3]
         same_entity = (
             (token_ids.unsqueeze(1) == token_ids.unsqueeze(0)).float().unsqueeze(-1)
