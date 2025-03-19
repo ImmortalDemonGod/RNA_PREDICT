@@ -38,7 +38,7 @@ class TestBenchmarkConfigs(unittest.TestCase):
         self.assertFalse(config.use_optimized)
 
     def test_decoding_benchmark_config_custom(self):
-        config = DecodingBenchmarkConfig(
+        config = BenchmarkConfig(
             N_atom_list=[1],
             N_token_list=[2],
             block_size=3,
