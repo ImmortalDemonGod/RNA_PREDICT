@@ -122,6 +122,9 @@ def warmup_inference(
             )
             if device == "cuda":
                 torch.cuda.synchronize(device)
+ 
+# Alias for compatibility with tests
+warmup_decoding = warmup_inference
 
 
 def measure_inference_time_and_memory(
