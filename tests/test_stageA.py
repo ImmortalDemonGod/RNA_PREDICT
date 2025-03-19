@@ -6,7 +6,7 @@ import unittest
 import numpy as np
 import torch
 
-from rna_predict.pipeline.stageA import run_stageA
+from rna_predict.pipeline.run_stageA import run_stageA
 from rna_predict.pipeline.stageA_rfold import StageARFoldPredictor
 
 
