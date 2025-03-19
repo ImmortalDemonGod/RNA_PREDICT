@@ -5,7 +5,7 @@ import tempfile
 import numpy as np
 import unittest
 
-from rna_predict.stageA_rfold import StageARFoldPredictor
+from rna_predict.pipeline.stageA_rfold import StageARFoldPredictor
 from rna_predict.pipeline.stageA import run_stageA
 
 class TestStageARFoldPredictor(unittest.TestCase):
