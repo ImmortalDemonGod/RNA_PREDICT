@@ -1,7 +1,10 @@
-def run_stageA(rna_sequence, predictor):
-    """
-    Run Stage A prediction on the given RNA sequence using the provided predictor.
-    Returns the predicted adjacency matrix (N x N).
-    """
-    adjacency = predictor.predict_adjacency(rna_sequence)
-    return adjacency
+import torch
+from rna_predict.pipeline.stageA import StageARFoldPredictor
+
+config = {"num_hidden": 128, "dropout": 0.3}
+checkpoint = "./checkpoints/RNAStralign_trainset_pretrained.pth"
+device = torch.device("cuda:0")
+
+predictor = StageARFoldPredictor(config, checkpoint_path=checkpoint, device=device)
+adj = predictor.predict_adjacency("AAUGCGUCU...")
+print("Adjacency shape:", adj.shape)
