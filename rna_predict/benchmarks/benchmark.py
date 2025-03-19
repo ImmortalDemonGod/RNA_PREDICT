@@ -15,6 +15,17 @@ from rna_predict.models.encoder.input_feature_embedding import (
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+def resolve_device(device: str) -> str:
+    """
+    Utility function to check if CUDA is available.
+    If CUDA is requested ("cuda") but not available, return "cpu".
+    """
+    import torch
+    if device == "cuda" and not torch.cuda.is_available():
+        print("Warning: CUDA not available. Switching to CPU.")
+        return "cpu"
+    return device
+
 
 @dataclass
 class BenchmarkConfig:
