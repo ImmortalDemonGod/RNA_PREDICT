@@ -78,6 +78,7 @@ class AtomTransformerBlock(nn.Module):
         Returns:
           A Tensor of shape [N_atom, c_atom], updated after attention + MLP.
         """
+        from rna_predict.models.attention.block_sparse import LocalSparseInput, LocalBlockSparseAttentionNaive
         # (1) Apply LayerNorm.
         normed_embeddings = layernorm(x)
 
@@ -106,18 +107,15 @@ class AtomTransformerBlock(nn.Module):
                 # Attempt to use the optimized block-sparse kernel.
                 attention_output = self.bs_attn(q, k, v, pair_bias_heads)
             except RuntimeError as e:
-                # Print the warning only once per instance.
                 if not hasattr(self, "_optimized_warning_printed"):
                     warnings.warn(
-                        f"Optimized block-sparse attention failed: {e} "
-                        "Falling back to naive attention."
+                        f"Optimized block-sparse attention failed: {e} Falling back to naive attention."
                     )
                     self._optimized_warning_printed = True
                 lsi = LocalSparseInput(q, k, v, pair_bias_heads, block_index)
                 attention_output = LocalBlockSparseAttentionNaive.apply(lsi)
-            # Use naive version directly.
-            from rna_predict.models.attention.block_sparse import LocalSparseInput
-            lsi = LocalSparseInput(q=q, k=k, v=v, pair_bias=pair_bias_heads, block_index=block_index)
+        else:
+            lsi = LocalSparseInput(q, k, v, pair_bias_heads, block_index)
             attention_output = LocalBlockSparseAttentionNaive.apply(lsi)
 
         # (6) Merge heads.
