@@ -1,5 +1,5 @@
 import torch
-from rna_predict.pipeline.stageA import StageARFoldPredictor
+# from rna_predict.pipeline/stageA import StageARFoldPredictor
 
 config = {"num_hidden": 128, "dropout": 0.3}
 checkpoint = "./checkpoints/RNAStralign_trainset_pretrained.pth"
