@@ -30,6 +30,7 @@ class InputFeatureEmbedder(nn.Module):
     ):
         super().__init__()
         from rna_predict.models.encoder.atom_encoder import AtomEncoderConfig
+
         self.atom_encoder = AtomAttentionEncoder(
             AtomEncoderConfig(
                 c_atom=c_atom,
