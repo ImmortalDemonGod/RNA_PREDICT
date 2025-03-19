@@ -1,11 +1,13 @@
 # rna_predict/pipeline/run_stageA.py
 import os
-import subprocess
 import shutil
+import subprocess
 import urllib.request
+
 import torch
 
-from rna_predict.pipeline.stageA.rfold import StageARFoldPredictor
+from rna_predict.pipeline.stageA.rfold_predictor import StageARFoldPredictor
+
 
 def download_file(url: str, dest_path: str):
     """
@@ -17,18 +19,22 @@ def download_file(url: str, dest_path: str):
 
     if os.path.isfile(dest_path):
         # If it's a .zip file, let's verify it's valid
-        if dest_path.lower().endswith('.zip'):
+        if dest_path.lower().endswith(".zip"):
             try:
-                with zipfile.ZipFile(dest_path, 'r') as zip_ref:
+                with zipfile.ZipFile(dest_path, "r") as zip_ref:
                     bad_file_test = zip_ref.testzip()
                     if bad_file_test is not None:
                         raise zipfile.BadZipFile(f"Corrupted member: {bad_file_test}")
             except zipfile.BadZipFile:
-                print(f"[Warning] Existing .zip is invalid or corrupted. Re-downloading: {dest_path}")
+                print(
+                    f"[Warning] Existing .zip is invalid or corrupted. Re-downloading: {dest_path}"
+                )
                 os.remove(dest_path)
             else:
                 # It's a valid zip
-                print(f"[Info] File already exists and is valid zip, skipping download: {dest_path}")
+                print(
+                    f"[Info] File already exists and is valid zip, skipping download: {dest_path}"
+                )
                 return
         else:
             # For non-zip files, just skip if it exists
@@ -36,9 +42,10 @@ def download_file(url: str, dest_path: str):
             return
 
     print(f"[Download] Fetching {url}")
-    with urllib.request.urlopen(url) as r, open(dest_path, 'wb') as f:
+    with urllib.request.urlopen(url) as r, open(dest_path, "wb") as f:
         shutil.copyfileobj(r, f)
     print(f"[Download] Saved to {dest_path}")
+
 
 def unzip_file(zip_path: str, extract_dir: str):
     """
@@ -56,8 +63,9 @@ def unzip_file(zip_path: str, extract_dir: str):
     # ensure the directory exists
     os.makedirs(extract_dir, exist_ok=True)
 
-    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+    with zipfile.ZipFile(zip_path, "r") as zip_ref:
         zip_ref.extractall(extract_dir)
+
 
 def visualize_with_varna(ct_file: str, jar_path: str, output_png: str):
     """
@@ -68,24 +76,36 @@ def visualize_with_varna(ct_file: str, jar_path: str, output_png: str):
         print(f"[Warning] CT file not found: {ct_file}")
         return
     if not os.path.isfile(jar_path):
-        print(f"[Warning] VARNA JAR not found at: {jar_path} -> skipping visualization.")
+        print(
+            f"[Warning] VARNA JAR not found at: {jar_path} -> skipping visualization."
+        )
         return
 
     cmd = [
-        "java", "-cp", jar_path,
+        "java",
+        "-cp",
+        jar_path,
         "fr.orsay.lri.varna.applications.VARNAcmd",
-        "-i", ct_file,
-        "-o", output_png,
-        "-resolution", "8.0"
+        "-i",
+        ct_file,
+        "-o",
+        output_png,
+        "-resolution",
+        "8.0",
     ]
     print(f"[VARNA] Running: {' '.join(cmd)}")
-    subprocess.Popen(cmd, stderr=subprocess.STDOUT, stdout=subprocess.PIPE).communicate()[0]
+    subprocess.Popen(
+        cmd, stderr=subprocess.STDOUT, stdout=subprocess.PIPE
+    ).communicate()[0]
     print(f"[VARNA] Visualization saved to {output_png}")
+
 
 def main():
     # 1) Prepare to download/unzip checkpoints (mimicking the Colab notebook)
     os.makedirs("RFold", exist_ok=True)
-    checkpoint_zip_url = "https://www.dropbox.com/s/l04l9bf3v6z2tfd/checkpoints.zip?dl=0"
+    checkpoint_zip_url = (
+        "https://www.dropbox.com/s/l04l9bf3v6z2tfd/checkpoints.zip?dl=0"
+    )
     data_zip_url = "https://www.dropbox.com/s/wzbkd3q43haax0r/data.zip?dl=0"
 
     ckp_zip_path = "RFold/checkpoints.zip"
@@ -93,12 +113,12 @@ def main():
     ckp_folder = "RFold/checkpoints"
 
     # Download zip files
-    download_file(checkpoint_zip_url, ckp_zip_path)
-    download_file(data_zip_url, data_zip_path)
+    # download_file(checkpoint_zip_url, ckp_zip_path)
+    # download_file(data_zip_url, data_zip_path)
 
     # Unzip them
-    unzip_file(ckp_zip_path, "RFold/")
-    unzip_file(data_zip_path, "RFold/")
+    # unzip_file(ckp_zip_path, "RFold/")
+    # unzip_file(data_zip_path, "RFold/")
 
     # 2) The specific checkpoint we want to load (as in the Colab demo)
     # Make sure the checkpoint file name matches what's inside the zip
@@ -127,6 +147,7 @@ def main():
     varna_jar = "VARNAv3-93.jar"  # update if you have a different path
     output_png = "test_seq.png"
     visualize_with_varna(ct_file, varna_jar, output_png)
+
 
 if __name__ == "__main__":
     main()
