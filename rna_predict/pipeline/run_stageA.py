@@ -149,6 +149,13 @@ def main():
     visualize_with_varna(ct_file, varna_jar, output_png)
 
 
+def run_stageA(seq, predictor):
+    """
+    Simple helper function to integrate with tests.
+    Returns adjacency matrix from the given predictor.
+    """
+    return predictor.predict_adjacency(seq)
+
 if __name__ == "__main__":
     main()
 
