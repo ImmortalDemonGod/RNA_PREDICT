@@ -19,7 +19,11 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-from rna_predict.pipeline.stageA.RFold_code import RFoldModel, row_col_argmax, constraint_matrix
+from rna_predict.pipeline.stageA.RFold_code import (
+    RFoldModel,
+    constraint_matrix,
+    row_col_argmax,
+)
 
 # Global official_seq_dict for optional usage
 official_seq_dict = {"A": 0, "U": 1, "C": 2, "G": 3}
@@ -84,7 +88,7 @@ class StageARFoldPredictor:
             ckp = torch.load(checkpoint_path, map_location=self.device)
             self.model.load_state_dict(ckp)
             print("[Load] Checkpoint loaded successfully.")
-    
+
     def _get_cut_len(self, length: int, min_len=80) -> int:
         """
         Return a length that is at least 'min_len' and is a multiple of 16.
@@ -94,7 +98,7 @@ class StageARFoldPredictor:
             length = min_len
         # round up to nearest multiple of 16
         return ((length - 1) // 16 + 1) * 16
-    
+
     def predict_adjacency(self, rna_sequence: str) -> np.ndarray:
         """
         Predict adjacency [N x N] using the official RFold model + row/col argmax.
