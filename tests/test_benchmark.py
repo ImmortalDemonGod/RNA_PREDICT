@@ -16,10 +16,11 @@ from rna_predict.benchmarks.benchmark import (
     benchmark_input_embedding,
 )
 from rna_predict.models.encoder.input_feature_embedding import InputFeatureEmbedder
+import torch.nn as nn
 
 class TestBenchmarkConfigs(unittest.TestCase):
     def test_decoding_benchmark_config_defaults(self):
-        config = DecodingBenchmarkConfig()
+        config = BenchmarkConfig()
         self.assertEqual(config.N_atom_list, [128, 256, 512])
         self.assertEqual(config.N_token_list, [32, 64, 128])
         self.assertEqual(config.block_size, 16)
