@@ -10,11 +10,31 @@ from rna_predict.pipeline.stageA.rfold import StageARFoldPredictor
 def download_file(url: str, dest_path: str):
     """
     Download file from URL to a local destination path.
-    Skips download if the file already exists.
+    If the file already exists, check if it's a valid zip (when extension is .zip).
+    If invalid, remove and re-download; otherwise skip download.
     """
+    import zipfile
+
     if os.path.isfile(dest_path):
-        print(f"[Info] File already exists, skipping download: {dest_path}")
-        return
+        # If it's a .zip file, let's verify it's valid
+        if dest_path.lower().endswith('.zip'):
+            try:
+                with zipfile.ZipFile(dest_path, 'r') as zip_ref:
+                    bad_file_test = zip_ref.testzip()
+                    if bad_file_test is not None:
+                        raise zipfile.BadZipFile(f"Corrupted member: {bad_file_test}")
+            except zipfile.BadZipFile:
+                print(f"[Warning] Existing .zip is invalid or corrupted. Re-downloading: {dest_path}")
+                os.remove(dest_path)
+            else:
+                # It's a valid zip
+                print(f"[Info] File already exists and is valid zip, skipping download: {dest_path}")
+                return
+        else:
+            # For non-zip files, just skip if it exists
+            print(f"[Info] File already exists, skipping download: {dest_path}")
+            return
+
     print(f"[Download] Fetching {url}")
     with urllib.request.urlopen(url) as r, open(dest_path, 'wb') as f:
         shutil.copyfileobj(r, f)
@@ -22,14 +42,22 @@ def download_file(url: str, dest_path: str):
 
 def unzip_file(zip_path: str, extract_dir: str):
     """
-    Unzip the zip_path into extract_dir, overwriting existing files.
-    Requires 'unzip' command to be available (on Linux/macOS).
+    Unzip the zip_path into extract_dir, overwriting existing files,
+    using Python's built-in zipfile module so that 'unzip' command
+    is not required.
     """
+    import zipfile
+
     if not os.path.isfile(zip_path):
         print(f"[Warning] Zip file not found: {zip_path}")
         return
     print(f"[Unzip] Extracting {zip_path} into {extract_dir}")
-    subprocess.run(["unzip", "-o", zip_path, "-d", extract_dir], check=False)
+
+    # ensure the directory exists
+    os.makedirs(extract_dir, exist_ok=True)
+
+    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+        zip_ref.extractall(extract_dir)
 
 def visualize_with_varna(ct_file: str, jar_path: str, output_png: str):
     """
