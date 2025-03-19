@@ -7,6 +7,7 @@ import numpy as np
 import torch
 
 from rna_predict.pipeline.stageA.rfold_predictor import StageARFoldPredictor
+from rna_predict.pipeline.run_stageA import run_stageA
 
 
 class TestStageARFoldPredictor(unittest.TestCase):
