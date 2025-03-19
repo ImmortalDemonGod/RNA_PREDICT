@@ -29,13 +29,16 @@ class InputFeatureEmbedder(nn.Module):
         use_optimized=False,
     ):
         super().__init__()
+        from rna_predict.models.encoder.atom_encoder import AtomEncoderConfig
         self.atom_encoder = AtomAttentionEncoder(
-            c_atom=c_atom,
-            c_pair=c_pair,
-            c_token=c_token,
-            num_heads=num_heads,
-            num_layers=num_layers,
-            use_optimized=use_optimized,
+            AtomEncoderConfig(
+                c_atom=c_atom,
+                c_pair=c_pair,
+                c_token=c_token,
+                num_heads=num_heads,
+                num_layers=num_layers,
+                use_optimized=use_optimized,
+            )
         )
         # Linear layer to embed extra token-level features.
         # For example: restype (32) + profile (32) + deletion_mean (1) = 65.
