@@ -147,6 +147,7 @@ def main():
     varna_jar = "RFold/VARNAv3-93.jar"  # update if you have a different path
     output_png = "test_seq.png"
     visualize_with_varna(ct_file, varna_jar, output_png)
+    run_stageA = main
 
 
 if __name__ == "__main__":
