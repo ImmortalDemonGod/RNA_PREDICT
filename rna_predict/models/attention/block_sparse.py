@@ -119,6 +119,7 @@ class LocalBlockSparseAttentionNaive(torch.autograd.Function):
 _HAS_BSA = False
 try:
     from block_sparse_attn import block_sparse_attn_func
+
     _HAS_BSA = True
 except ImportError:
     print("block_sparse_attn not found; using only naive LocalBlockSparseAttention.")
@@ -181,7 +182,9 @@ class BlockSparseAttentionOptimized(nn.Module):
         Returns: [N_atom, nheads, c_per_head]
         """
         if not _HAS_BSA:
-            raise RuntimeError("block_sparse_attn not installed. No optimized path available.")
+            raise RuntimeError(
+                "block_sparse_attn not installed. No optimized path available."
+            )
 
         device = q.device
         N_atom = q.shape[0]
