@@ -3,6 +3,8 @@
 import os
 import sys
 import time
+from dataclasses import dataclass, field
+from typing import Dict, List, Tuple
 
 import torch
 import torch.nn as nn
@@ -12,6 +14,145 @@ from rna_predict.models.encoder.input_feature_embedding import (
 )
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
+@dataclass
+class BenchmarkConfig:
+    """
+    Parameter object to group common benchmarking parameters,
+    reducing argument counts and clarifying shared context.
+    """
+    N_atom_list: List[int] = field(default_factory=lambda: [128, 256, 512])
+    N_token_list: List[int] = field(default_factory=lambda: [32, 64, 128])
+    block_size: int = 16
+    device: str = "cuda"
+    num_warmup: int = 5
+    num_iters: int = 10
+    use_optimized: bool = False
+
+
+def create_embedder(
+    device: str,
+    use_optimized: bool = False,
+    c_token: int = 384,
+    restype_dim: int = 32,
+    profile_dim: int = 32,
+    c_atom: int = 128,
+    c_pair: int = 32,
+    num_heads: int = 4,
+    num_layers: int = 3
+) -> Tuple[nn.Module, str]:
+    """
+    Build an InputFeatureEmbedder on the specified device.
+    This helper centralizes embedder creation and makes the main
+    benchmark functions more concise.
+
+    Returns:
+      A tuple of (embedder, device) where device may be switched to 'cpu'
+      if CUDA is not available.
+    """
+    if device == "cuda" and not torch.cuda.is_available():
+        print("Warning: CUDA not available. Switching to CPU.")
+        device = "cpu"
+
+    embedder = InputFeatureEmbedder(
+        c_token=c_token,
+        restype_dim=restype_dim,
+        profile_dim=profile_dim,
+        c_atom=c_atom,
+        c_pair=c_pair,
+        num_heads=num_heads,
+        num_layers=num_layers,
+        use_optimized=use_optimized,
+    ).to(device)
+    embedder.eval()
+    return embedder, device
+
+
+def generate_synthetic_features(
+    N_atom: int,
+    N_token: int,
+    device: str
+) -> Dict[str, torch.Tensor]:
+    """
+    Create a dictionary of random synthetic input features,
+    used as input to the InputFeatureEmbedder in benchmarks.
+    """
+    f = {}
+    f["ref_pos"] = torch.randn(N_atom, 3, device=device)
+    f["ref_charge"] = torch.randint(-2, 3, (N_atom,), device=device).float()
+    f["ref_element"] = torch.randn(N_atom, 128, device=device)
+    f["ref_atom_name_chars"] = torch.randn(N_atom, 16, device=device)
+    f["atom_to_token"] = torch.randint(0, N_token, (N_atom,), device=device)
+
+    f["restype"] = torch.randn(N_token, 32, device=device)
+    f["profile"] = torch.randn(N_token, 32, device=device)
+    f["deletion_mean"] = torch.randn(N_token, device=device)
+    return f
+
+
+def warmup_inference(
+    embedder: nn.Module,
+    f: Dict[str, torch.Tensor],
+    block_index: torch.Tensor,
+    device: str,
+    num_warmup: int
+) -> None:
+    """
+    Run a series of warmup inferences (not timed),
+    allowing GPU kernels to initialize and caches to fill.
+    """
+    with torch.no_grad():
+        for _ in range(num_warmup):
+            _ = embedder(
+                f,
+                trunk_sing=None,
+                trunk_pair=None,
+                block_index=block_index,
+            )
+            if device == "cuda":
+                torch.cuda.synchronize(device)
+
+
+def measure_inference_time_and_memory(
+    embedder: nn.Module,
+    f: Dict[str, torch.Tensor],
+    block_index: torch.Tensor,
+    device: str,
+    num_iters: int
+) -> float:
+    """
+    Measure the forward pass (decoding) latency and peak GPU memory usage
+    over multiple timed iterations.
+
+    Returns:
+      avg_fwd: The average forward time (seconds) over num_iters runs.
+    """
+    fwd_time = 0.0
+    with torch.no_grad():
+        for _ in range(num_iters):
+            if device == "cuda":
+                torch.cuda.reset_peak_memory_stats(device)
+
+            start = time.time()
+            embedder(
+                f,
+                trunk_sing=None,
+                trunk_pair=None,
+                block_index=block_index,
+            )
+            if device == "cuda":
+                torch.cuda.synchronize(device)
+            end = time.time()
+
+            fwd_time += end - start
+
+            if device == "cuda":
+                peak_mem_bytes = torch.cuda.max_memory_allocated(device)
+                peak_mem_mb = peak_mem_bytes / (1024**2)
+                print(f"   Iter peak GPU memory usage: {peak_mem_mb:.2f} MB")
+
+    avg_fwd = fwd_time / num_iters
+    return avg_fwd
 
 
 def benchmark_decoding_latency_and_memory(
@@ -33,80 +174,37 @@ def benchmark_decoding_latency_and_memory(
       num_warmup: warmup iterations (not timed).
       num_iters: timed iterations.
     """
+    # Optionally build a config
+    config = BenchmarkConfig(
+        N_atom_list=N_atom_list,
+        N_token_list=N_token_list,
+        block_size=block_size,
+        device=device,
+        num_warmup=num_warmup,
+        num_iters=num_iters,
+        use_optimized=False  # This function uses naive path by default
+    )
 
-    if device == "cuda" and not torch.cuda.is_available():
-        print("Warning: CUDA not available. Switching to CPU.")
-        device = "cpu"
-    embedder = InputFeatureEmbedder(
-        c_token=384,
-        restype_dim=32,
-        profile_dim=32,
-        c_atom=128,
-        c_pair=32,
-        num_heads=4,
-        num_layers=3,
-    ).to(device)
+    embedder, actual_device = create_embedder(
+        config.device,
+        use_optimized=False
+    )
 
-    # Switch to eval mode and no_grad for pure inference
-    embedder.eval()
-
-    for N_atom in N_atom_list:
-        for N_token in N_token_list:
+    for N_atom in config.N_atom_list:
+        for N_token in config.N_token_list:
             print(f"\n=== Decoding Benchmark N_atom={N_atom}, N_token={N_token} ===")
 
-            # Prepare synthetic features on the specified device
-            f = {}
-            f["ref_pos"] = torch.randn(N_atom, 3, device=device)
-            f["ref_charge"] = torch.randint(-2, 3, (N_atom,), device=device).float()
-            f["ref_element"] = torch.randn(N_atom, 128, device=device)
-            f["ref_atom_name_chars"] = torch.randn(N_atom, 16, device=device)
-            f["atom_to_token"] = torch.randint(0, N_token, (N_atom,), device=device)
-
-            f["restype"] = torch.randn(N_token, 32, device=device)
-            f["profile"] = torch.randn(N_token, 32, device=device)
-            f["deletion_mean"] = torch.randn(N_token, device=device)
-
-            block_index = torch.randint(0, N_atom, (N_atom, block_size), device=device)
+            # Prepare synthetic features
+            f = generate_synthetic_features(N_atom, N_token, actual_device)
+            block_index = torch.randint(0, N_atom, (N_atom, config.block_size), device=actual_device)
 
             # Warmup (not timed)
-            with torch.no_grad():
-                for _ in range(num_warmup):
-                    _ = embedder(
-                        f,
-                        trunk_sing=None,
-                        trunk_pair=None,
-                        block_index=block_index,
-                    )
-                    torch.cuda.synchronize(device) if device == "cuda" else None
+            warmup_inference(embedder, f, block_index, actual_device, config.num_warmup)
 
             # Timed decoding + memory usage
-            fwd_time = 0.0
-
-            with torch.no_grad():
-                for _ in range(num_iters):
-                    # Reset peak GPU memory stats
-                    if device == "cuda":
-                        torch.cuda.reset_peak_memory_stats(device)
-
-                    start = time.time()
-                    embedder(
-                        f,
-                        trunk_sing=None,
-                        trunk_pair=None,
-                        block_index=block_index,
-                    )
-                    torch.cuda.synchronize(device) if device == "cuda" else None
-                    end = time.time()
-
-                    # Record forward (decoding) time
-                    fwd_time += end - start
-
-                    if device == "cuda":
-                        peak_mem_bytes = torch.cuda.max_memory_allocated(device)
-                        peak_mem_mb = peak_mem_bytes / (1024**2)
-                        print(f"   Iter peak GPU memory usage: {peak_mem_mb:.2f} MB")
-
-            avg_fwd = fwd_time / num_iters
+            avg_fwd = measure_inference_time_and_memory(
+                embedder, f, block_index, actual_device, config.num_iters
+            )
             print(f"Avg Decoding (Forward) Time: {avg_fwd:.4f} s")
 
 
@@ -131,6 +229,81 @@ def benchmark_decoding_latency_and_memory(
 ###############################################################################
 
 
+def warmup_input_embedding(
+    embedder: nn.Module,
+    f: Dict[str, torch.Tensor],
+    block_index: torch.Tensor,
+    device: str,
+    num_warmup: int,
+    criterion: nn.Module
+) -> None:
+    """
+    Run a series of warmup forward/backward passes (not timed)
+    to prepare for accurate timing of the input embedding benchmark.
+    """
+    for _ in range(num_warmup):
+        out = embedder(
+            f,
+            trunk_sing=None,
+            trunk_pair=None,
+            block_index=block_index,
+        )
+        # The shape of out is [N_token, c_token],
+        # so to match the target shape, we create a random tensor with the same shape.
+        target = torch.randn(out.size(0), out.size(1), device=device)
+        loss = criterion(out, target)
+        loss.backward()
+
+        if device == "cuda":
+            torch.cuda.synchronize(device)
+
+        embedder.zero_grad(set_to_none=True)
+
+
+def time_input_embedding(
+    embedder: nn.Module,
+    f: Dict[str, torch.Tensor],
+    block_index: torch.Tensor,
+    device: str,
+    num_iters: int,
+    criterion: nn.Module
+) -> Tuple[float, float]:
+    """
+    Measure forward/backward times for the input embedding stage,
+    returning the average forward time and backward time in seconds.
+    """
+    fwd_time = 0.0
+    bwd_time = 0.0
+
+    for _ in range(num_iters):
+        start = time.time()
+        out = embedder(
+            f,
+            trunk_sing=None,
+            trunk_pair=None,
+            block_index=block_index,
+        )
+        if device == "cuda":
+            torch.cuda.synchronize(device)
+        end = time.time()
+        fwd_time += (end - start)
+
+        target = torch.randn(out.size(0), out.size(1), device=device)
+        start = time.time()
+        loss = criterion(out, target)
+        loss.backward()
+        if device == "cuda":
+            torch.cuda.synchronize(device)
+        end = time.time()
+        bwd_time += (end - start)
+
+        embedder.zero_grad(set_to_none=True)
+
+    avg_fwd = fwd_time / num_iters
+    avg_bwd = bwd_time / num_iters
+    return avg_fwd, avg_bwd
+
+
 def benchmark_input_embedding(
     N_atom_list=[128, 256, 512],
     N_token_list=[32, 64, 128],
@@ -145,81 +318,45 @@ def benchmark_input_embedding(
     measuring forward + backward pass times.
     Toggle use_optimized = True/False to compare naive vs. block-sparse.
     """
+    config = BenchmarkConfig(
+        N_atom_list=N_atom_list,
+        N_token_list=N_token_list,
+        block_size=block_size,
+        device=device,
+        num_warmup=num_warmup,
+        num_iters=num_iters,
+        use_optimized=use_optimized
+    )
 
-    if device == "cuda" and not torch.cuda.is_available():
-        print("Warning: CUDA not available. Switching to CPU.")
-        device = "cpu"
-    embedder = InputFeatureEmbedder(
+    embedder, actual_device = create_embedder(
+        config.device,
+        use_optimized=config.use_optimized,
         c_token=384,
         restype_dim=32,
         profile_dim=32,
         c_atom=128,
         c_pair=32,
         num_heads=4,
-        num_layers=3,
-        use_optimized=use_optimized,
-    ).to(device)
+        num_layers=3
+    )
 
-    criterion = nn.MSELoss().to(device)
+    criterion = nn.MSELoss().to(actual_device)
 
-    for N_atom in N_atom_list:
-        for N_token in N_token_list:
+    for N_atom in config.N_atom_list:
+        for N_token in config.N_token_list:
             print(
-                f"\n=== Benchmarking N_atom={N_atom}, N_token={N_token}, optimized={use_optimized} ==="
+                f"\n=== Benchmarking N_atom={N_atom}, N_token={N_token}, optimized={config.use_optimized} ==="
             )
 
-            f = {}
-            f["ref_pos"] = torch.randn(N_atom, 3, device=device)
-            f["ref_charge"] = torch.randint(-2, 3, (N_atom,), device=device).float()
-            f["ref_element"] = torch.randn(N_atom, 128, device=device)
-            f["ref_atom_name_chars"] = torch.randn(N_atom, 16, device=device)
-            f["atom_to_token"] = torch.randint(0, N_token, (N_atom,), device=device)
+            # Generate synthetic features
+            f = generate_synthetic_features(N_atom, N_token, actual_device)
+            block_index = torch.randint(0, N_atom, (N_atom, config.block_size), device=actual_device)
 
-            f["restype"] = torch.randn(N_token, 32, device=device)
-            f["profile"] = torch.randn(N_token, 32, device=device)
-            f["deletion_mean"] = torch.randn(N_token, device=device)
+            # Warmup forward/backward
+            warmup_input_embedding(embedder, f, block_index, actual_device, config.num_warmup, criterion)
 
-            block_index = torch.randint(0, N_atom, (N_atom, block_size), device=device)
-
-            # Warmup
-            for _ in range(num_warmup):
-                out = embedder(
-                    f,
-                    trunk_sing=None,
-                    trunk_pair=None,
-                    block_index=block_index,
-                )
-                loss = criterion(out, torch.randn(N_token, 384, device=device))
-                loss.backward()
-
-            torch.cuda.synchronize(device) if device == "cuda" else None
-
-            fwd_time = 0.0
-            bwd_time = 0.0
-
-            for _ in range(num_iters):
-                start = time.time()
-                out = embedder(
-                    f,
-                    trunk_sing=None,
-                    trunk_pair=None,
-                    block_index=block_index,
-                )
-                torch.cuda.synchronize(device) if device == "cuda" else None
-                end = time.time()
-                fwd_time += end - start
-
-                loss = criterion(out, torch.randn(N_token, 384, device=device))
-                start = time.time()
-                loss.backward()
-                torch.cuda.synchronize(device) if device == "cuda" else None
-                end = time.time()
-                bwd_time += end - start
-
-                embedder.zero_grad(set_to_none=True)
-
-            avg_fwd = fwd_time / num_iters
-            avg_bwd = bwd_time / num_iters
+            # Timed run
+            avg_fwd, avg_bwd = time_input_embedding(embedder, f, block_index, actual_device, config.num_iters, criterion)
             print(f"Avg Forward: {avg_fwd:.4f}s,  Avg Backward: {avg_bwd:.4f}s")
 
 
