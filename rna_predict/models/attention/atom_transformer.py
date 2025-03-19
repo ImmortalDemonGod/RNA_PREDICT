@@ -1,7 +1,7 @@
 import warnings
+
 import torch
 import torch.nn as nn
-from typing import Optional
 
 from rna_predict.models.attention.block_sparse import (
     BlockSparseAttentionOptimized,
@@ -27,10 +27,7 @@ class AtomTransformerBlock(nn.Module):
     """
 
     def __init__(
-        self,
-        c_atom: int = 128,
-        num_heads: int = 4,
-        use_optimized: bool = False
+        self, c_atom: int = 128, num_heads: int = 4, use_optimized: bool = False
     ) -> None:
         super().__init__()
         self.num_heads = num_heads
@@ -64,10 +61,7 @@ class AtomTransformerBlock(nn.Module):
             )
 
     def forward(
-        self,
-        x: torch.Tensor,
-        pair_emb: torch.Tensor,
-        block_index: torch.Tensor
+        self, x: torch.Tensor, pair_emb: torch.Tensor, block_index: torch.Tensor
     ) -> torch.Tensor:
         """
         Args:
@@ -78,7 +72,6 @@ class AtomTransformerBlock(nn.Module):
         Returns:
           A Tensor of shape [N_atom, c_atom], updated after attention + MLP.
         """
-        from rna_predict.models.attention.block_sparse import LocalSparseInput, LocalBlockSparseAttentionNaive
         # (1) Apply LayerNorm.
         normed_embeddings = layernorm(x)
 
@@ -117,7 +110,9 @@ class AtomTransformerBlock(nn.Module):
         else:
             lsi = LocalSparseInput(q, k, v, pair_bias_heads, block_index)
             attention_output = LocalBlockSparseAttentionNaive.apply(
-                LocalSparseInput(q=q, k=k, v=v, pair_bias=pair_bias_heads, block_index=block_index)
+                LocalSparseInput(
+                    q=q, k=k, v=v, pair_bias=pair_bias_heads, block_index=block_index
+                )
             )
         attention_output = attention_output.reshape(N_atom, self.c_atom)
 
@@ -142,7 +137,7 @@ class AtomTransformer(nn.Module):
         c_atom: int = 128,
         num_heads: int = 4,
         num_layers: int = 3,
-        use_optimized: bool = False
+        use_optimized: bool = False,
     ) -> None:
         super().__init__()
         self.blocks = nn.ModuleList(
@@ -153,10 +148,7 @@ class AtomTransformer(nn.Module):
         )
 
     def forward(
-        self,
-        x: torch.Tensor,
-        pair_emb: torch.Tensor,
-        block_index: torch.Tensor
+        self, x: torch.Tensor, pair_emb: torch.Tensor, block_index: torch.Tensor
     ) -> torch.Tensor:
         """
         Applies a sequence of AtomTransformerBlock modules.
