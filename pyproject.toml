@@ -14,6 +14,7 @@ requires-python = ">=3.10"
 dependencies = [
     "biopython>=1.85",
     "datasets>=3.3.2",
+    "lxml>=5.3.1",
     "mdanalysis>=2.9.0",
     "numpy>=2.2.3",
     "torch>=2.0.1, <2.6.0",
