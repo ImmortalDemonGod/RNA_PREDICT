@@ -1,8 +1,30 @@
 import torch
 import torch.nn as nn
+from typing import Optional, Dict
 
 from rna_predict.models.attention.atom_transformer import AtomTransformer
 from rna_predict.utils.scatter_utils import scatter_mean
+
+class AtomEncoderConfig:
+    """
+    Configuration object for AtomAttentionEncoder, grouping parameters
+    that otherwise appear in the constructor as individual arguments.
+    """
+    def __init__(
+        self,
+        c_atom: int = 128,
+        c_pair: int = 32,
+        c_token: int = 384,
+        num_heads: int = 4,
+        num_layers: int = 3,
+        use_optimized: bool = False,
+    ):
+        self.c_atom = c_atom
+        self.c_pair = c_pair
+        self.c_token = c_token
+        self.num_heads = num_heads
+        self.num_layers = num_layers
+        self.use_optimized = use_optimized
 
 ###############################################################################
 # AtomAttentionEncoder
@@ -22,45 +44,43 @@ class AtomAttentionEncoder(nn.Module):
       5. Aggregate atoms to tokens (using a scatter–mean).
     """
 
-    def __init__(
-        self,
-        c_atom=128,
-        c_pair=32,
-        c_token=384,
-        num_heads=4,
-        num_layers=3,
-        use_optimized=False,
-    ):
+    def __init__(self, config: AtomEncoderConfig) -> None:
         super().__init__()
-        self.c_atom = c_atom
-        self.c_pair = c_pair
-        self.c_token = c_token
+        self.c_atom = config.c_atom
+        self.c_pair = config.c_pair
+        self.c_token = config.c_token
 
         # (1) Per-atom input: example input dims = pos (3) + charge (1) + element (128) + name (16)
         in_atom_dim = 3 + 1 + 128 + 16
-        self.atom_linear = nn.Linear(in_atom_dim, c_atom)
+        self.atom_linear = nn.Linear(in_atom_dim, self.c_atom)
 
         # (2) Pairwise embedding: example input dims = delta (3) + same_entity (1)
         in_pair_dim = 3 + 1
-        self.pair_linear = nn.Linear(in_pair_dim, c_pair)
+        self.pair_linear = nn.Linear(in_pair_dim, self.c_pair)
         self.mlp_pair = nn.Sequential(
-            nn.Linear(c_pair, 2 * c_pair),
+            nn.Linear(self.c_pair, 2 * self.c_pair),
             nn.ReLU(),
-            nn.Linear(2 * c_pair, c_pair),
+            nn.Linear(2 * self.c_pair, self.c_pair),
         )
 
         # (4) Atom transformer: local self-attention among atoms (naive or optimized).
         self.atom_transformer = AtomTransformer(
-            c_atom=c_atom,
-            num_heads=num_heads,
-            num_layers=num_layers,
-            use_optimized=use_optimized,
+            c_atom=self.c_atom,
+            num_heads=config.num_heads,
+            num_layers=config.num_layers,
+            use_optimized=config.use_optimized,
         )
 
         # (5) Final projection from atom embedding to token embedding.
-        self.post_atom_proj = nn.Linear(c_atom, c_token)
+        self.post_atom_proj = nn.Linear(self.c_atom, self.c_token)
 
-    def forward(self, f, trunk_sing=None, trunk_pair=None, block_index=None):
+    def forward(
+        self,
+        f: Dict[str, torch.Tensor],
+        trunk_sing: Optional[torch.Tensor] = None,
+        trunk_pair: Optional[torch.Tensor] = None,
+        block_index: Optional[torch.Tensor] = None,
+    ):
         """
         Args:
           f: dict of Tensors containing:
@@ -73,6 +93,12 @@ class AtomAttentionEncoder(nn.Module):
           trunk_sing: optional recycled token embedding [N_token, c_atom]
           trunk_pair: optional recycled pair embedding [N_token, N_token, c_pair]
           block_index: [N_atom, block_size] specifying local attention neighbors.
+
+        Returns:
+          a_token: [N_token, c_token]
+          q_atom: [N_atom, c_atom]
+          c_atom0: [N_atom, c_atom]
+          p_lm: [N_atom, N_atom, c_pair]
         """
         # Unpack per-atom features.
         pos = f["ref_pos"]  # [N_atom, 3]
