@@ -163,7 +163,7 @@ class Seq2MapAttn(nn.Module):
     def __init__(self, dim, dropout=0.1):
         super().__init__()
         self.norm = nn.LayerNorm(dim)
-        self.linear = nn.Linear(dim, dim)
+        self.to_qk = nn.Linear(dim, dim)
         self.offsetscale = OffsetScale(dim, heads=2)
         self.dropout = nn.Dropout(dropout)
 
@@ -171,7 +171,7 @@ class Seq2MapAttn(nn.Module):
         # x shape: (b,l,dim)
         b,l,d = x.shape
         x_ = self.norm(x)
-        qk = self.linear(x_)
+        qk = self.to_qk(x_)
         q, k = self.offsetscale(qk)  # each => (b,l,d)
         # sim => (b,l,l)
         sim = torch.einsum('bld,bmd->blm', q, k) / l
@@ -186,17 +186,17 @@ class Seq2Map(nn.Module):
         super().__init__()
         self.num_hidden = num_hidden
         self.dropout = nn.Dropout(dropout)
-        self.embedding = nn.Embedding(vocab_size, num_hidden)
+        self.tok_embedding = nn.Embedding(vocab_size, num_hidden)
         self.pos_embedding = nn.Embedding(max_len, num_hidden)
         self.scale = nn.Parameter(torch.sqrt(torch.tensor([float(num_hidden)])))
-        self.attn = Seq2MapAttn(num_hidden, dropout=dropout)
+        self.layer = Seq2MapAttn(num_hidden, dropout=dropout)
 
     def forward(self, seq_idx):
         # seq_idx shape: (b, L)
         b, L = seq_idx.shape
         pos_idx = torch.arange(L, device=seq_idx.device).unsqueeze(0).expand(b, L)
 
-        tok_emb = self.embedding(seq_idx) * self.scale
+        tok_emb = self.tok_embedding(seq_idx) * self.scale
         pos_emb = self.pos_embedding(pos_idx)
         x = self.dropout(tok_emb + pos_emb)  # shape (b, L, hidden)
 
@@ -289,7 +289,7 @@ class RFold_Model(nn.Module):
         """
         b, L = seq_idx.shape
         # Step A: contact map from seq2map
-        attn_map = self.seq2map(seq_idx)                # (b, L, L)
+        attn_map = self.layer(seq_idx)
         # Step B: gating => multiply by sigmoid
         gated_map = attn_map * torch.sigmoid(attn_map)  # (b, L, L)
         # Step C: feed into U-Net
