@@ -136,7 +136,7 @@ class AtomAttentionEncoder(nn.Module):
 
         # (4) Run local self-attention over atoms.
         q_atom = self.atom_transformer(c_atom0, p_lm, block_index)  # [N_atom, c_atom]
-            block_index = torch.arange(N_atom, device=c_atom0.device).unsqueeze(1)
+        block_index = torch.arange(N_atom, device=c_atom0.device).unsqueeze(1)
 
         # (4) Run local self-attention over atoms.
         q_atom = self.atom_transformer(c_atom0, p_lm, block_index)  # [N_atom, c_atom]
