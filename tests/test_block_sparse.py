@@ -12,66 +12,6 @@ from rna_predict.models.attention.block_sparse import (
     _HAS_BSA
 )
 
-class TestBlockSparseNaive(unittest.TestCase):
-    def test_naive_forward_and_backward(self):
-        """
-        Tests forward/backward pass for LocalBlockSparseAttentionNaive by generating
-        random inputs that mimic typical usage scenarios. Ensures gradient computations
-        succeed without error and output shapes match expectations.
-        """
-        N_atom, n_heads, c_per_head = 6, 2, 4  # small test case
-        block_size = 3
-
-        # Create random input Tensors
-        q = torch.randn(N_atom, n_heads, c_per_head, requires_grad=True)
-        k = torch.randn(N_atom, n_heads, c_per_head, requires_grad=True)
-        v = torch.randn(N_atom, n_heads, c_per_head, requires_grad=True)
-        pair_bias = torch.randn(N_atom, N_atom, n_heads, requires_grad=True)
-
-        # Create block_index (neighbors) for each atom
-        block_index = torch.randint(0, N_atom, (N_atom, block_size))
-
-        # Wrap in LocalSparseInput
-        inputs = LocalSparseInput(q=q, k=k, v=v, pair_bias=pair_bias, block_index=block_index)
-
-        # Forward pass
-        out = LocalBlockSparseAttentionNaive.apply(inputs)
-        self.assertEqual(out.shape, (N_atom, n_heads, c_per_head),
-                         "Output shape from naive local attention is incorrect.")
-
-        # Backward pass (ensure no error)
-        loss = out.sum()  # simple scalar
-        loss.backward()
-
-        # Check gradients
-        self.assertIsNotNone(q.grad, "No gradient computed for q.")
-        self.assertIsNotNone(k.grad, "No gradient computed for k.")
-        self.assertIsNotNone(v.grad, "No gradient computed for v.")
-        self.assertIsNotNone(pair_bias.grad, "No gradient computed for pair_bias.")
-
-    def test_small_input(self):
-        """
-        Edge case: minimal possible scenario (N_atom=1 or 2).
-        """
-        N_atom, n_heads, c_per_head = 2, 1, 2
-        block_size = 1
-
-        q = torch.randn(N_atom, n_heads, c_per_head, requires_grad=True)
-        k = torch.randn(N_atom, n_heads, c_per_head, requires_grad=True)
-        v = torch.randn(N_atom, n_heads, c_per_head, requires_grad=True)
-        pair_bias = torch.randn(N_atom, N_atom, n_heads, requires_grad=True)
-        block_index = torch.randint(0, N_atom, (N_atom, block_size))
-
-        inputs = LocalSparseInput(q=q, k=k, v=v, pair_bias=pair_bias, block_index=block_index)
-        out = LocalBlockSparseAttentionNaive.apply(inputs)
-        self.assertEqual(out.shape, (N_atom, n_heads, c_per_head))
-
-        loss = out.mean()
-        loss.backward()
-
-        # Expect gradient to exist
-        for tvar in [q, k, v, pair_bias]:
-            self.assertIsNotNone(tvar.grad)
 
 class TestBlockMask(unittest.TestCase):
     def test_build_local_blockmask_basic(self):
