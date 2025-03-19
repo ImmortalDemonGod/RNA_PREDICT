@@ -28,6 +28,7 @@ from rna_predict.pipeline.stageA.RFold_code import (
 # Global official_seq_dict for optional usage
 official_seq_dict = {"A": 0, "U": 1, "C": 2, "G": 3}
 
+
 ################################################################################
 # NEW OFFICIAL-STYLE IMPLEMENTATION
 #
@@ -56,15 +57,24 @@ class StageARFoldPredictor:
         adjacency = predictor.predict_adjacency("AUGCUAG...")
     """
 
-    def __init__(self, config: dict, checkpoint_path=None, device=None):
+    def __init__(self, config, checkpoint_path=None, device=None):
         """
         Args:
-            config: dict with entries like {"num_hidden":128, "dropout":0.3, "use_gpu":True}
+            config: can be a dict or a string path to a JSON config file
             checkpoint_path: path to the official RFold .pth checkpoint
             device: optional torch.device. If None, we auto-select GPU if available
         """
+        import json
+
+        # If 'config' is a string, interpret it as a path to a JSON config
+        if isinstance(config, str):
+            with open(config, "r") as f:
+                config = json.load(f)
+
         if device is None:
-            if config.get("use_gpu", True) and torch.cuda.is_available():
+            # We check if 'use_gpu' is set in config; fallback to True if missing
+            use_gpu = config.get("use_gpu", True) if isinstance(config, dict) else True
+            if use_gpu and torch.cuda.is_available():
                 device = torch.device("cuda")
             else:
                 device = torch.device("cpu")
@@ -86,7 +96,7 @@ class StageARFoldPredictor:
                 raise FileNotFoundError(f"Checkpoint not found: {checkpoint_path}")
             print(f"[Load] Loading checkpoint from {checkpoint_path}")
             ckp = torch.load(checkpoint_path, map_location=self.device)
-            self.model.load_state_dict(ckp)
+            self.model.load_state_dict(ckp, strict=False)
             print("[Load] Checkpoint loaded successfully.")
 
     def _get_cut_len(self, length: int, min_len=80) -> int:
@@ -105,15 +115,20 @@ class StageARFoldPredictor:
 
         Steps:
           1) Convert the RNA sequence (A/U/C/G) to numeric form
-          2) Forward pass through the model
-          3) Use row_col_argmax & constraint_matrix for final adjacency
-          4) Return adjacency as a NumPy array
+          2) (If sequence is very short, return a zero adjacency)
+          3) Forward pass through the model
+          4) Use row_col_argmax & constraint_matrix for final adjacency
+          5) Return adjacency as a NumPy array
         """
         if RFoldModel is None or official_seq_dict is None:
             # fallback approach using local
             mapping = {"A": 0, "U": 1, "C": 2, "G": 3}
         else:
             mapping = official_seq_dict
+
+        # Special case for short sequences
+        if len(rna_sequence) < 4:
+            return np.zeros((len(rna_sequence), len(rna_sequence)), dtype=np.float32)
 
         # If an unknown character appears, fallback to 'G' index 3
         seq_idxs = [mapping.get(ch, 3) for ch in rna_sequence.upper()]
@@ -172,4 +187,5 @@ def args_namespace(config_dict):
         args.batch_size = 1
     if not hasattr(args, "lr"):
         args.lr = 0.001
+
     return args
