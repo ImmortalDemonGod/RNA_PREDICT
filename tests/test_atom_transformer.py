@@ -1,9 +1,14 @@
-import pytest
-import torch
 import warnings
 from unittest.mock import patch
 
-from rna_predict.models.attention.atom_transformer import AtomTransformerBlock, AtomTransformer
+import pytest
+import torch
+
+from rna_predict.models.attention.atom_transformer import (
+    AtomTransformer,
+    AtomTransformerBlock,
+)
+
 
 @pytest.mark.parametrize("use_optimized", [False, True])
 def test_atom_transformer_block_shape(use_optimized):
@@ -23,14 +28,14 @@ def test_atom_transformer_block_shape(use_optimized):
     pair_emb = torch.randn(n_atom, n_atom, c_pair)
 
     block = AtomTransformerBlock(
-        c_atom=c_atom,
-        num_heads=num_heads,
-        use_optimized=use_optimized
+        c_atom=c_atom, num_heads=num_heads, use_optimized=use_optimized
     )
     output = block(x, pair_emb, block_index)
-    assert output.shape == (n_atom, c_atom), (
-        f"Expected output shape ({n_atom},{c_atom}), but got {output.shape}"
-    )
+    assert output.shape == (
+        n_atom,
+        c_atom,
+    ), f"Expected output shape ({n_atom},{c_atom}), but got {output.shape}"
+
 
 def test_atom_transformer_block_fallback_warning():
     """
@@ -48,15 +53,11 @@ def test_atom_transformer_block_fallback_warning():
     x = torch.randn(n_atom, c_atom)
     pair_emb = torch.randn(n_atom, n_atom, c_pair)
 
-    block = AtomTransformerBlock(
-        c_atom=c_atom,
-        num_heads=num_heads,
-        use_optimized=True
-    )
+    block = AtomTransformerBlock(c_atom=c_atom, num_heads=num_heads, use_optimized=True)
 
     # Patch the bs_attn call to raise RuntimeError
     with patch.object(
-        block.bs_attn, '__call__', side_effect=RuntimeError("Intentional error")
+        block.bs_attn, "__call__", side_effect=RuntimeError("Intentional error")
     ):
         with warnings.catch_warnings(record=True) as w:
             output = block(x, pair_emb, block_index)
@@ -65,6 +66,7 @@ def test_atom_transformer_block_fallback_warning():
             # Check a warning was issued
             assert len(w) == 1, "Expected exactly one warning when fallback occurs"
             assert "Falling back to naive attention." in str(w[0].message)
+
 
 def test_atom_transformer_full_stack():
     """
@@ -84,25 +86,21 @@ def test_atom_transformer_full_stack():
 
     # Try naive stack
     naive_transformer = AtomTransformer(
-        c_atom=c_atom,
-        num_heads=num_heads,
-        num_layers=num_layers,
-        use_optimized=False
+        c_atom=c_atom, num_heads=num_heads, num_layers=num_layers, use_optimized=False
     )
     naive_out = naive_transformer(x, pair_emb, block_index)
-    assert naive_out.shape == (n_atom, c_atom), (
-        f"Expected shape ({n_atom},{c_atom}); got {naive_out.shape}"
-    )
+    assert naive_out.shape == (
+        n_atom,
+        c_atom,
+    ), f"Expected shape ({n_atom},{c_atom}); got {naive_out.shape}"
 
     # Try optimized stack (not forcing any error)
     opt_transformer = AtomTransformer(
-        c_atom=c_atom,
-        num_heads=num_heads,
-        num_layers=num_layers,
-        use_optimized=True
+        c_atom=c_atom, num_heads=num_heads, num_layers=num_layers, use_optimized=True
     )
     opt_out = opt_transformer(x, pair_emb, block_index)
     assert opt_out.shape == (n_atom, c_atom)
+
 
 def test_minimal_atoms():
     """
@@ -119,7 +117,9 @@ def test_minimal_atoms():
     x = torch.randn(n_atom, c_atom)
     pair_emb = torch.randn(n_atom, n_atom, c_pair)
 
-    block = AtomTransformerBlock(c_atom=c_atom, num_heads=num_heads, use_optimized=False)
+    block = AtomTransformerBlock(
+        c_atom=c_atom, num_heads=num_heads, use_optimized=False
+    )
     out = block(x, pair_emb, block_index)
     assert out.shape == (n_atom, c_atom), "Single-atom test failed."
 
