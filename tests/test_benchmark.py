@@ -4,7 +4,7 @@ import time
 from unittest.mock import patch
 
 from rna_predict.benchmarks.benchmark import (
-    DecodingBenchmarkConfig,
+    BenchmarkConfig,
     EmbeddingBenchmarkConfig,
     resolve_device,
     generate_synthetic_features,
