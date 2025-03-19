@@ -19,7 +19,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-from rna_predict.pipeline.stageA.RFold_code import RFoldModel
+from rna_predict.pipeline.stageA.RFold_code import RFoldModel, row_col_argmax, constraint_matrix
 
 # Global official_seq_dict for optional usage
 official_seq_dict = {"A": 0, "U": 1, "C": 2, "G": 3}
@@ -84,7 +84,17 @@ class StageARFoldPredictor:
             ckp = torch.load(checkpoint_path, map_location=self.device)
             self.model.load_state_dict(ckp)
             print("[Load] Checkpoint loaded successfully.")
-
+    
+    def _get_cut_len(self, length: int, min_len=80) -> int:
+        """
+        Return a length that is at least 'min_len' and is a multiple of 16.
+        This mirrors official colab_utils 'get_cut_len' approach.
+        """
+        if length < min_len:
+            length = min_len
+        # round up to nearest multiple of 16
+        return ((length - 1) // 16 + 1) * 16
+    
     def predict_adjacency(self, rna_sequence: str) -> np.ndarray:
         """
         Predict adjacency [N x N] using the official RFold model + row/col argmax.
@@ -103,31 +113,33 @@ class StageARFoldPredictor:
 
         # If an unknown character appears, fallback to 'G' index 3
         seq_idxs = [mapping.get(ch, 3) for ch in rna_sequence.upper()]
-        seq_tensor = torch.tensor(
-            seq_idxs, dtype=torch.long, device=self.device
-        ).unsqueeze(0)
+        original_len = len(seq_idxs)
 
+        # 1) Determine padded length
+        padded_len = self._get_cut_len(original_len, min_len=80)
+
+        # 2) Create padded sequence tensor
+        seq_tensor = torch.tensor(seq_idxs, dtype=torch.long, device=self.device)
+        if padded_len > original_len:
+            pad_amount = padded_len - original_len
+            seq_tensor = F.pad(seq_tensor, (0, pad_amount))  # pad on the right
+        seq_tensor = seq_tensor.unsqueeze(0)  # shape (1, padded_len)
+
+        # 3) Forward pass with no grad
         with torch.no_grad():
-            raw_preds = self.model(seq_tensor)  # shape (1, L, L)
+            raw_preds = self.model(seq_tensor)  # shape (1, padded_len, padded_len)
 
-            if (
-                RFoldModel is None
-                or official_row_col_argmax is None
-                or official_constraint_matrix is None
-            ):
-                # fallback
-                discrete_map = row_col_argmax(raw_preds)
-                one_hot = F.one_hot(seq_tensor, num_classes=4).float()
-                cmask = constraint_matrix(one_hot)
-            else:
-                discrete_map = official_row_col_argmax(raw_preds)
-                one_hot = F.one_hot(seq_tensor, num_classes=4).float()
-                cmask = official_constraint_matrix(one_hot)
+            # row_col_argmax & constraint_matrix
+            # fallback if official references are missing
+            discrete_map = row_col_argmax(raw_preds)
+            one_hot = F.one_hot(seq_tensor, num_classes=4).float()
+            cmask = constraint_matrix(one_hot)
 
-            final_map = discrete_map * cmask  # shape (1, L, L)
+            final_map = discrete_map * cmask  # shape (1, padded_len, padded_len)
 
-        adjacency = final_map[0].cpu().numpy()
-        return adjacency
+        # 4) Crop back to original length
+        adjacency_cropped = final_map[0, :original_len, :original_len].cpu().numpy()
+        return adjacency_cropped
 
 
 def args_namespace(config_dict):
