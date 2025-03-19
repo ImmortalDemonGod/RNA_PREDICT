@@ -1,14 +1,15 @@
 import math
+from dataclasses import dataclass
+from typing import Optional
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from dataclasses import dataclass
-from typing import Optional
 
 ###############################################################################
 # Data classes for Parameter Objects
 ###############################################################################
+
 
 @dataclass
 class LocalBlockMaskConfig:
@@ -24,6 +25,7 @@ class LocalSparseInput:
     A container to group (q, k, v, pair_bias, block_index) for local block-sparse attention.
     Reduces argument count in LocalBlockSparseAttentionNaive.forward().
     """
+
     q: torch.Tensor
     k: torch.Tensor
     v: torch.Tensor
@@ -34,6 +36,7 @@ class LocalSparseInput:
 ###############################################################################
 # NAIVE Local Block-Sparse Attention (with Naive Backprop)
 ###############################################################################
+
 
 class LocalBlockSparseAttentionNaive(torch.autograd.Function):
     """
@@ -81,7 +84,9 @@ class LocalBlockSparseAttentionNaive(torch.autograd.Function):
             logits = logits + bias_neighbors  # add pairwise bias
 
             attn_weights = F.softmax(logits, dim=0)  # [block_size, n_heads]
-            out_i = (v_neighbors * attn_weights.unsqueeze(-1)).sum(dim=0)  # [n_heads, c_per_head]
+            out_i = (v_neighbors * attn_weights.unsqueeze(-1)).sum(
+                dim=0
+            )  # [n_heads, c_per_head]
             outputs.append(out_i)
 
             saved_neighbors.append(neighbor_idxs)
@@ -158,12 +163,15 @@ class LocalBlockSparseAttentionNaive(torch.autograd.Function):
 _HAS_BSA = False
 try:
     from block_sparse_attn import block_sparse_attn_func
+
     _HAS_BSA = True
 except ImportError:
     print("block_sparse_attn not found; using only naive LocalBlockSparseAttention.")
 
 
-def build_local_blockmask(N_atom: int, config: LocalBlockMaskConfig) -> Optional[torch.Tensor]:
+def build_local_blockmask(
+    N_atom: int, config: LocalBlockMaskConfig
+) -> Optional[torch.Tensor]:
     """
     Build a 2D blockmask for local attention. We'll produce shape:
       [batch=1, nheads, nrow, ncol]
@@ -244,7 +252,7 @@ class BlockSparseAttentionOptimized(nn.Module):
             block_size=self.block_size,
             local_window=self.local_window,
             nheads=self.nheads,
-            causal=self.causal
+            causal=self.causal,
         )
         blockmask = build_local_blockmask(N_atom, blockmask_config)
         if blockmask is not None:
