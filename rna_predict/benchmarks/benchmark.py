@@ -122,7 +122,7 @@ def warmup_inference(
             )
             if device == "cuda":
                 torch.cuda.synchronize(device)
- 
+
 # Alias for compatibility with tests
 warmup_decoding = warmup_inference
 
@@ -377,6 +377,23 @@ def benchmark_input_embedding(
                 embedder, f, block_index, actual_device, config.num_iters, criterion
             )
             print(f"Avg Forward: {avg_fwd:.4f}s,  Avg Backward: {avg_bwd:.4f}s")
+
+
+# Additional aliases for test_benchmark usage:
+warmup_embedding = warmup_input_embedding
+timed_embedding = time_input_embedding
+
+def timed_decoding(
+    embedder: nn.Module,
+    f: Dict[str, torch.Tensor],
+    block_index: torch.Tensor,
+    device: str,
+    iters: int,
+) -> float:
+    """
+    Measure decoding time by calling measure_inference_time_and_memory.
+    """
+    return measure_inference_time_and_memory(embedder, f, block_index, device, iters)
 
 
 if __name__ == "__main__":
