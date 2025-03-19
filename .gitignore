@@ -141,3 +141,5 @@ docs/reference/.DS_Store
 .DS_Store
 .DS_Store
 mkdocs-env/*
+.DS_Store
+rna_predict/.DS_Store
