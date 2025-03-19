@@ -129,9 +129,17 @@ class AtomAttentionEncoder(nn.Module):
             trunk_pair_lm = trunk_pair[i_l, i_m]  # [N_atom, N_atom, c_pair]
             p_lm = p_lm + trunk_pair_lm
 
+        # Provide a default block_index if None
+        if block_index is None:
+            N_atom = c_atom0.shape[0]
+            block_index = torch.arange(N_atom, device=c_atom0.device).unsqueeze(1)
+
         # (4) Run local self-attention over atoms.
         q_atom = self.atom_transformer(c_atom0, p_lm, block_index)  # [N_atom, c_atom]
+            block_index = torch.arange(N_atom, device=c_atom0.device).unsqueeze(1)
 
+        # (4) Run local self-attention over atoms.
+        q_atom = self.atom_transformer(c_atom0, p_lm, block_index)  # [N_atom, c_atom]
         # (5) Project and aggregate atoms to tokens — robust approach:
         #     Use the user-supplied number of tokens from f["restype"].size(0)
         #     (or whichever per-token feature is the definitive source).
