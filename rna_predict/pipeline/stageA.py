@@ -1,4 +1,4 @@
-from rna_predict.stageA_rfold import StageARFoldPredictor
+from rna_predict.pipeline.stageA_rfold import StageARFoldPredictor
 
 def run_stageA(rna_sequence, predictor):
     """
