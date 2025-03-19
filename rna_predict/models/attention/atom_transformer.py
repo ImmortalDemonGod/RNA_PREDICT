@@ -6,6 +6,7 @@ from typing import Optional
 from rna_predict.models.attention.block_sparse import (
     BlockSparseAttentionOptimized,
     LocalBlockSparseAttentionNaive,
+    LocalSparseInput,
 )
 from rna_predict.utils.scatter_utils import layernorm
 
@@ -112,14 +113,12 @@ class AtomTransformerBlock(nn.Module):
                         "Falling back to naive attention."
                     )
                     self._optimized_warning_printed = True
-                attention_output = LocalBlockSparseAttentionNaive.apply(
-                    q, k, v, pair_bias_heads, block_index
-                )
-        else:
+                lsi = LocalSparseInput(q, k, v, pair_bias_heads, block_index)
+                attention_output = LocalBlockSparseAttentionNaive.apply(lsi)
             # Use naive version directly.
-            attention_output = LocalBlockSparseAttentionNaive.apply(
-                q, k, v, pair_bias_heads, block_index
-            )
+            from rna_predict.models.attention.block_sparse import LocalSparseInput
+            lsi = LocalSparseInput(q=q, k=k, v=v, pair_bias=pair_bias_heads, block_index=block_index)
+            attention_output = LocalBlockSparseAttentionNaive.apply(lsi)
 
         # (6) Merge heads.
         attention_output = attention_output.reshape(N_atom, self.c_atom)
