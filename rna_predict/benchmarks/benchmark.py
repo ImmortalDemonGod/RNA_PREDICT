@@ -15,12 +15,14 @@ from rna_predict.models.encoder.input_feature_embedding import (
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+
 @dataclass
 class BenchmarkConfig:
     """
     Parameter object to group common benchmarking parameters,
     reducing argument counts and clarifying shared context.
     """
+
     N_atom_list: List[int] = field(default_factory=lambda: [128, 256, 512])
     N_token_list: List[int] = field(default_factory=lambda: [32, 64, 128])
     block_size: int = 16
@@ -39,7 +41,7 @@ def create_embedder(
     c_atom: int = 128,
     c_pair: int = 32,
     num_heads: int = 4,
-    num_layers: int = 3
+    num_layers: int = 3,
 ) -> Tuple[nn.Module, str]:
     """
     Build an InputFeatureEmbedder on the specified device.
@@ -69,9 +71,7 @@ def create_embedder(
 
 
 def generate_synthetic_features(
-    N_atom: int,
-    N_token: int,
-    device: str
+    N_atom: int, N_token: int, device: str
 ) -> Dict[str, torch.Tensor]:
     """
     Create a dictionary of random synthetic input features,
@@ -95,7 +95,7 @@ def warmup_inference(
     f: Dict[str, torch.Tensor],
     block_index: torch.Tensor,
     device: str,
-    num_warmup: int
+    num_warmup: int,
 ) -> None:
     """
     Run a series of warmup inferences (not timed),
@@ -118,7 +118,7 @@ def measure_inference_time_and_memory(
     f: Dict[str, torch.Tensor],
     block_index: torch.Tensor,
     device: str,
-    num_iters: int
+    num_iters: int,
 ) -> float:
     """
     Measure the forward pass (decoding) latency and peak GPU memory usage
@@ -182,13 +182,10 @@ def benchmark_decoding_latency_and_memory(
         device=device,
         num_warmup=num_warmup,
         num_iters=num_iters,
-        use_optimized=False  # This function uses naive path by default
+        use_optimized=False,  # This function uses naive path by default
     )
 
-    embedder, actual_device = create_embedder(
-        config.device,
-        use_optimized=False
-    )
+    embedder, actual_device = create_embedder(config.device, use_optimized=False)
 
     for N_atom in config.N_atom_list:
         for N_token in config.N_token_list:
@@ -196,7 +193,9 @@ def benchmark_decoding_latency_and_memory(
 
             # Prepare synthetic features
             f = generate_synthetic_features(N_atom, N_token, actual_device)
-            block_index = torch.randint(0, N_atom, (N_atom, config.block_size), device=actual_device)
+            block_index = torch.randint(
+                0, N_atom, (N_atom, config.block_size), device=actual_device
+            )
 
             # Warmup (not timed)
             warmup_inference(embedder, f, block_index, actual_device, config.num_warmup)
@@ -235,7 +234,7 @@ def warmup_input_embedding(
     block_index: torch.Tensor,
     device: str,
     num_warmup: int,
-    criterion: nn.Module
+    criterion: nn.Module,
 ) -> None:
     """
     Run a series of warmup forward/backward passes (not timed)
@@ -266,7 +265,7 @@ def time_input_embedding(
     block_index: torch.Tensor,
     device: str,
     num_iters: int,
-    criterion: nn.Module
+    criterion: nn.Module,
 ) -> Tuple[float, float]:
     """
     Measure forward/backward times for the input embedding stage,
@@ -286,7 +285,7 @@ def time_input_embedding(
         if device == "cuda":
             torch.cuda.synchronize(device)
         end = time.time()
-        fwd_time += (end - start)
+        fwd_time += end - start
 
         target = torch.randn(out.size(0), out.size(1), device=device)
         start = time.time()
@@ -295,7 +294,7 @@ def time_input_embedding(
         if device == "cuda":
             torch.cuda.synchronize(device)
         end = time.time()
-        bwd_time += (end - start)
+        bwd_time += end - start
 
         embedder.zero_grad(set_to_none=True)
 
@@ -325,7 +324,7 @@ def benchmark_input_embedding(
         device=device,
         num_warmup=num_warmup,
         num_iters=num_iters,
-        use_optimized=use_optimized
+        use_optimized=use_optimized,
     )
 
     embedder, actual_device = create_embedder(
@@ -337,7 +336,7 @@ def benchmark_input_embedding(
         c_atom=128,
         c_pair=32,
         num_heads=4,
-        num_layers=3
+        num_layers=3,
     )
 
     criterion = nn.MSELoss().to(actual_device)
@@ -350,13 +349,19 @@ def benchmark_input_embedding(
 
             # Generate synthetic features
             f = generate_synthetic_features(N_atom, N_token, actual_device)
-            block_index = torch.randint(0, N_atom, (N_atom, config.block_size), device=actual_device)
+            block_index = torch.randint(
+                0, N_atom, (N_atom, config.block_size), device=actual_device
+            )
 
             # Warmup forward/backward
-            warmup_input_embedding(embedder, f, block_index, actual_device, config.num_warmup, criterion)
+            warmup_input_embedding(
+                embedder, f, block_index, actual_device, config.num_warmup, criterion
+            )
 
             # Timed run
-            avg_fwd, avg_bwd = time_input_embedding(embedder, f, block_index, actual_device, config.num_iters, criterion)
+            avg_fwd, avg_bwd = time_input_embedding(
+                embedder, f, block_index, actual_device, config.num_iters, criterion
+            )
             print(f"Avg Forward: {avg_fwd:.4f}s,  Avg Backward: {avg_bwd:.4f}s")
 
 
