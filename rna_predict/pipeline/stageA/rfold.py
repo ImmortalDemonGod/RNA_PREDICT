@@ -7,6 +7,7 @@ Fully updated RFold pipeline code, combining:
 - StageARFoldPredictor class for easy usage
 """
 
+import os
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -331,10 +332,15 @@ class StageARFoldPredictor:
         self.model.eval()
 
         # Optionally load weights
-        if checkpoint_path is not None:
-            ckp = torch.load(checkpoint_path, map_location=device)
+        if checkpoint_path:
+            # Raise FileNotFoundError if checkpoint does not exist
+            if not os.path.isfile(checkpoint_path):
+                raise FileNotFoundError(f"[Error] Checkpoint not found: {checkpoint_path}")
+            print(f"[Load] Loading checkpoint from {checkpoint_path}")
+            # Use weights_only=True to avoid future pickle warnings
+            ckp = torch.load(checkpoint_path, map_location=device, weights_only=True)
             self.model.load_state_dict(ckp)
-            print(f"RFold model weights loaded from {checkpoint_path}")
+            print("[Load] Checkpoint loaded successfully.")
 
     def predict_adjacency(self, rna_sequence: str) -> np.ndarray:
         """
@@ -357,6 +363,7 @@ class StageARFoldPredictor:
             oh = torch.zeros((1,L,4), device=self.device)
             for i, bcode in enumerate(seq_idx):
                 oh[0,i,bcode] = 1.0
+
             # apply base-type constraints
             base_mask = constraint_matrix(oh)
             final = discrete_map * base_mask
