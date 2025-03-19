@@ -1,15 +1,13 @@
-import unittest
 import math
+import unittest
+
 import torch
-import torch.nn.functional as F
 
 from rna_predict.models.attention.block_sparse import (
-    LocalBlockSparseAttentionNaive,
-    LocalSparseInput,
-    build_local_blockmask,
-    LocalBlockMaskConfig,
+    _HAS_BSA,
     BlockSparseAttentionOptimized,
-    _HAS_BSA
+    LocalBlockMaskConfig,
+    build_local_blockmask,
 )
 
 
@@ -24,7 +22,9 @@ class TestBlockMask(unittest.TestCase):
         mask = build_local_blockmask(N_atom, config)
         # If _HAS_BSA is False, mask might be None
         if mask is None:
-            self.assertFalse(_HAS_BSA, "Mask is None but library claims to be available.")
+            self.assertFalse(
+                _HAS_BSA, "Mask is None but library claims to be available."
+            )
         else:
             # shape should be [1, config.nheads, nrow, ncol]
             nrow = math.ceil(N_atom / config.block_size)
@@ -44,6 +44,7 @@ class TestBlockMask(unittest.TestCase):
             # in block terms, this is more coarse than a direct row/col check
             pass
 
+
 class TestBlockSparseOptimized(unittest.TestCase):
     def test_optimized_forward(self):
         """
@@ -51,7 +52,9 @@ class TestBlockSparseOptimized(unittest.TestCase):
         Otherwise, we skip.
         """
         if not _HAS_BSA:
-            self.skipTest("block_sparse_attn not installed, skipping optimized attention test.")
+            self.skipTest(
+                "block_sparse_attn not installed, skipping optimized attention test."
+            )
 
         N_atom, n_heads, c_per_head = 8, 2, 8
         q = torch.randn(N_atom, n_heads, c_per_head)
@@ -63,8 +66,12 @@ class TestBlockSparseOptimized(unittest.TestCase):
             nheads=n_heads, block_size=4, local_window=4, causal=False
         )
         out = attn(q, k, v, pair_bias)
-        self.assertEqual(out.shape, (N_atom, n_heads, c_per_head),
-                         "Output shape from optimized local attention is incorrect.")
+        self.assertEqual(
+            out.shape,
+            (N_atom, n_heads, c_per_head),
+            "Output shape from optimized local attention is incorrect.",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
