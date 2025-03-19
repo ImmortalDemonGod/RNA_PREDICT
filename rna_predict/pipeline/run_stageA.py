@@ -159,4 +159,3 @@ def run_stageA(seq, predictor):
 if __name__ == "__main__":
     main()
 
-run_stageA = main
