@@ -83,8 +83,8 @@ def sequence2onehot(seq, device):
     return torch.tensor(seqs).unsqueeze(0).to(device)
 
 
-def get_cut_len(l):
-    return (((l - 1) // 16) + 1) * 16
+def get_cut_len(length):
+    return (((length - 1) // 16) + 1) * 16
 
 
 def process_seqs(seq, device):
@@ -120,8 +120,8 @@ def ct_file_output(pairs, seq, seq_name, save_result_path):
     col4 = np.append(np.delete(col1, 0), [0])
     col5 = np.zeros(len(seq), dtype=int)
 
-    for i, I in enumerate(pairs):
-        col5[I[0] - 1] = int(I[1])
+    for i, pair_item in enumerate(pairs):
+        col5[pair_item[0] - 1] = int(pair_item[1])
     col6 = np.arange(1, len(seq) + 1, 1)
     temp = np.vstack(
         (
@@ -168,6 +168,7 @@ def save_ct(predict_matrix, seq_ori, name):
     )
     seq_tmp[predict_matrix.cpu().sum(axis=1) == 0] = -1
     dot_list = seq2dot((seq_tmp + 1).squeeze())
+    print(dot_list)
     letter = "AUCG"
     seq_letter = "".join([letter[item] for item in np.nonzero(seq_ori)[:, 1]])
     seq = ((seq_tmp + 1).squeeze(), torch.arange(predict_matrix.shape[-1]).numpy() + 1)
@@ -179,20 +180,18 @@ def save_ct(predict_matrix, seq_ori, name):
 
 
 def visual_get_bases(seq):
-    a_bases, u_bases, c_bases, g_bases = [], [], [], []
+    base_map = {'A': [], 'U': [], 'C': [], 'G': []}
     for ii, s in enumerate(seq):
-        if s == "A":
-            a_bases.append(ii + 1)
-        if s == "U":
-            u_bases.append(ii + 1)
-        if s == "C":
-            c_bases.append(ii + 1)
-        if s == "G":
-            g_bases.append(ii + 1)
-    a_bases = "".join([str(s) + "," for s in a_bases])[:-1]
-    u_bases = "".join([str(s) + "," for s in u_bases])[:-1]
-    c_bases = "".join([str(s) + "," for s in c_bases])[:-1]
-    g_bases = "".join([str(s) + "," for s in g_bases])[:-1]
+        if s in base_map:
+            base_map[s].append(ii + 1)
+
+    def to_comma_str(lst):
+        return ",".join(str(x) for x in lst)
+
+    a_bases = to_comma_str(base_map['A'])
+    u_bases = to_comma_str(base_map['U'])
+    c_bases = to_comma_str(base_map['C'])
+    g_bases = to_comma_str(base_map['G'])
     return a_bases, u_bases, c_bases, g_bases
 
 
@@ -311,17 +310,18 @@ class Seq2Map(nn.Module):
         input_dim=4,
         num_hidden=128,
         dropout=0.1,
-        device=torch.device("cuda"),
-        max_length=3000,
         **kwargs,
     ):
-        super(Seq2Map, self).__init__(**kwargs)
+        device = kwargs.pop('device', torch.device("cuda"))
+        max_length = kwargs.pop('max_length', 3000)
+        super(Seq2Map, self).__init__()
         self.device = device
+        self.max_length = max_length
         self.dropout = nn.Dropout(dropout)
-        self.scale = torch.sqrt(torch.FloatTensor([num_hidden])).to(device)
+        self.scale = torch.sqrt(torch.FloatTensor([num_hidden])).to(self.device)
 
         self.tok_embedding = nn.Embedding(input_dim, num_hidden)
-        self.pos_embedding = nn.Embedding(max_length, num_hidden)
+        self.pos_embedding = nn.Embedding(self.max_length, num_hidden)
         self.layer = Attn(dim=num_hidden, query_key_dim=num_hidden, dropout=dropout)
 
     def forward(self, src):
