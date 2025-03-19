@@ -131,7 +131,7 @@ def main():
     predictor = StageARFoldPredictor(config, checkpoint_path=checkpoint, device=device)
 
     # 4) Example inference
-    sequence = "AAGUCUGGUGGACAUUGGCU"  # a short test
+    sequence = "AAGUCUGGUGGACAUUGGCGUCCUGAGGUGUUAAAACCUCUUAUUGCUGACGCCAGAAAGAGAAGAACUUCGGUUCUACUAGUCGACUAUACUACAAGCUUUGGGUGUAUAGCGGCAAGACAACCUGGAUCGGGGGAGGCUAAGGGCGCAAGCCUAUGCUAACCCCGAGCCGAGCUACUGGAGGGCAACCCCCAGAUAGCCGGUGUAGAGCGCGGAAAGGUGUCGGUCAUCCUAUCUGAUAGGUGGCUUGAGGGACGUGCCGUCUCACCCGAAAGGGUGUUUCUAAGGAGGAGCUCCCAAAGGGCAAAUCUUAGAAAAGGGUGUAUACCCUAUAAUUUAACGGCCAGCAGCC"  # a short test
     adjacency = predictor.predict_adjacency(sequence)
     print("[INFO] Adjacency shape:", adjacency.shape)
 
@@ -144,7 +144,7 @@ def main():
         f.write("2  A  1  3  0  2\n")  # etc. only placeholder data
 
     # Then call VARNA if desired:
-    varna_jar = "VARNAv3-93.jar"  # update if you have a different path
+    varna_jar = "RFold/VARNAv3-93.jar"  # update if you have a different path
     output_png = "test_seq.png"
     visualize_with_varna(ct_file, varna_jar, output_png)
 
