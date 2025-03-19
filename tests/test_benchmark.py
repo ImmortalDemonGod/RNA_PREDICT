@@ -5,7 +5,6 @@ from unittest.mock import patch
 
 from rna_predict.benchmarks.benchmark import (
     BenchmarkConfig,
-    EmbeddingBenchmarkConfig,
     resolve_device,
     generate_synthetic_features,
     warmup_decoding,
@@ -29,7 +28,7 @@ class TestBenchmarkConfigs(unittest.TestCase):
         self.assertEqual(config.num_iters, 10)
 
     def test_embedding_benchmark_config_defaults(self):
-        config = EmbeddingBenchmarkConfig()
+        config = BenchmarkConfig()
         self.assertEqual(config.N_atom_list, [128, 256, 512])
         self.assertEqual(config.N_token_list, [32, 64, 128])
         self.assertEqual(config.block_size, 16)
@@ -55,7 +54,7 @@ class TestBenchmarkConfigs(unittest.TestCase):
         self.assertEqual(config.num_iters, 1)
 
     def test_embedding_benchmark_config_custom(self):
-        config = EmbeddingBenchmarkConfig(
+        config = BenchmarkConfig(
             N_atom_list=[10, 20],
             N_token_list=[5],
             block_size=4,
