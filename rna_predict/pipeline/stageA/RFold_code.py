@@ -347,9 +347,16 @@ class RFoldModel(nn.Module):
         self.decoder = Decoder(C_lst=C_lst_dec)
         self.readout = nn.Conv2d(c_hid, c_out, kernel_size=1, stride=1, padding=0)
         # Determine device from args (and fallback if torch.cuda.is_available is False)
-        device_val = torch.device("cuda" if getattr(args, "use_gpu", True) and torch.cuda.is_available() else "cpu")
+        device_val = torch.device(
+            "cuda"
+            if getattr(args, "use_gpu", True) and torch.cuda.is_available()
+            else "cpu"
+        )
         self.seq2map = Seq2Map(
-            input_dim=4, num_hidden=args.num_hidden, dropout=args.dropout, device=device_val
+            input_dim=4,
+            num_hidden=args.num_hidden,
+            dropout=args.dropout,
+            device=device_val,
         )
 
     def forward(self, seqs):
