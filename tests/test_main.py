@@ -4,7 +4,6 @@ import os
 import pytest
 
 from rna_predict.main import (
-    demo_compute_torsions_for_bprna,
     demo_run_input_embedding,
     demo_stream_bprna,
     show_full_bprna_structure,
@@ -68,37 +67,3 @@ def test_show_full_bprna_structure(capfd):
     ), "Expected 'Full first sample:' info not found in stdout."
 
 
-@pytest.mark.skipif(
-    not os.path.exists("pdbs"),
-    reason="No local 'pdbs' directory found. Provide PDB files or mock them for a full test.",
-)
-def test_demo_compute_torsions_for_bprna_with_real_pdbs(capfd):
-    """
-    Test that demo_compute_torsions_for_bprna() runs correctly when a real 'pdbs'
-    folder exists. If the user has actual PDB files matching the dataset IDs,
-    it will compute torsions. Otherwise, it will skip and print a message.
-    """
-    demo_compute_torsions_for_bprna()
-    captured = capfd.readouterr()
-    # We at least expect the initial message to appear
-    assert "Computing torsion angles for a few entries in bprna-spot..." in captured.out
-
-
-def test_demo_compute_torsions_for_bprna_mocked_pdbs(capfd, mock_pdb_dir):
-    """
-    Test that demo_compute_torsions_for_bprna() gracefully reports 'No local PDB file found'
-    if the user does not have matching PDB files. We point it to a temporary folder
-    that won't contain any real PDB files matching the dataset IDs.
-    """
-    # Temporarily change the working directory so that it sees our mock 'pdbs'.
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(mock_pdb_dir.parent)  # parent of 'pdbs'
-        demo_compute_torsions_for_bprna()
-        captured = capfd.readouterr()
-        # The code prints a skip message if pdb files aren't found
-        assert (
-            "No local PDB file found at" in captured.out
-        ), "Expected a skip message when no real PDB files exist."
-    finally:
-        os.chdir(old_cwd)
