@@ -1,15 +1,18 @@
+from typing import Dict, Optional
+
 import torch
 import torch.nn as nn
-from typing import Optional, Dict
 
 from rna_predict.models.attention.atom_transformer import AtomTransformer
 from rna_predict.utils.scatter_utils import scatter_mean
+
 
 class AtomEncoderConfig:
     """
     Configuration object for AtomAttentionEncoder, grouping parameters
     that otherwise appear in the constructor as individual arguments.
     """
+
     def __init__(
         self,
         c_atom: int = 128,
@@ -25,6 +28,7 @@ class AtomEncoderConfig:
         self.num_heads = num_heads
         self.num_layers = num_layers
         self.use_optimized = use_optimized
+
 
 ###############################################################################
 # AtomAttentionEncoder
