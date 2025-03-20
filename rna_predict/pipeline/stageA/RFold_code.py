@@ -180,7 +180,7 @@ def save_ct(predict_matrix, seq_ori, name):
 
 
 def visual_get_bases(seq):
-    base_map = {'A': [], 'U': [], 'C': [], 'G': []}
+    base_map = {"A": [], "U": [], "C": [], "G": []}
     for ii, s in enumerate(seq):
         if s in base_map:
             base_map[s].append(ii + 1)
@@ -188,10 +188,10 @@ def visual_get_bases(seq):
     def to_comma_str(lst):
         return ",".join(str(x) for x in lst)
 
-    a_bases = to_comma_str(base_map['A'])
-    u_bases = to_comma_str(base_map['U'])
-    c_bases = to_comma_str(base_map['C'])
-    g_bases = to_comma_str(base_map['G'])
+    a_bases = to_comma_str(base_map["A"])
+    u_bases = to_comma_str(base_map["U"])
+    c_bases = to_comma_str(base_map["C"])
+    g_bases = to_comma_str(base_map["G"])
     return a_bases, u_bases, c_bases, g_bases
 
 
@@ -312,8 +312,8 @@ class Seq2Map(nn.Module):
         dropout=0.1,
         **kwargs,
     ):
-        device = kwargs.pop('device', torch.device("cuda"))
-        max_length = kwargs.pop('max_length', 3000)
+        device = kwargs.pop("device", torch.device("cuda"))
+        max_length = kwargs.pop("max_length", 3000)
         super(Seq2Map, self).__init__()
         self.device = device
         self.max_length = max_length
