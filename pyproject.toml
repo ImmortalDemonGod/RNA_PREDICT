@@ -18,6 +18,7 @@ dependencies = [
     "mdanalysis>=2.9.0",
     "numpy>=2.2.3",
     "torch>=2.0.1, <2.6.0",
+    "transformers>=4.49.0",
 ]
 
 # If you have optional (dev) dependencies:
