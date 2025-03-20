@@ -8,13 +8,14 @@ def run_pipeline(sequence: str):
     outA = stageA(sequence)
     seq = outA["sequence"]
     adjacency = outA["adjacency"]
+    print(f"[Stage A] sequence = {seq}, adjacency shape = {adjacency.shape}")
 
     # Stage B: Predict torsion angles; choose desired output mode ("sin_cos", "radians", "degrees")
     stageB = StageBTorsionBertPredictor(
         model_name_or_path="sayby/rna_torsionbert",
         device="cpu",
         angle_mode="degrees",
-        num_angles=7,
+        num_angles=16,
         max_length=512
     )
     outB = stageB(seq, adjacency)
