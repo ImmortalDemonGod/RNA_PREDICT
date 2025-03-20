@@ -46,31 +46,27 @@ class LocalBlockSparseAttentionNaive(torch.autograd.Function):
     """
 
     @staticmethod
-    def forward(ctx, inputs: LocalSparseInput):
+    def forward(ctx, q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, pair_bias: torch.Tensor, block_index: torch.Tensor):
         """
         Args:
           ctx: PyTorch autograd context (required).
-          inputs: LocalSparseInput object containing:
-            - q, k, v: [N_atom, n_heads, c_per_head]
-            - pair_bias: [N_atom, N_atom, n_heads]
-            - block_index: [N_atom, block_size]
+          q, k, v: [N_atom, n_heads, c_per_head]
+          pair_bias: [N_atom, N_atom, n_heads]
+          block_index: [N_atom, block_size]
+
         Returns:
           out: [N_atom, n_heads, c_per_head]
         """
-        q = inputs.q
-        k = inputs.k
-        v = inputs.v
-        pair_bias = inputs.pair_bias
-        block_index = inputs.block_index
+        import math
+        import torch
+        import torch.nn.functional as F
 
         N_atom, n_heads, c_per_head = q.shape
-        # We'll store intermediate results (and neighbors) for naive backward.
         saved_neighbors = []
         saved_attn_weights = []
 
         outputs = []  # We'll accumulate each atom's result here.
 
-        # Loop over each atom and perform local attention over its neighbors.
         for i in range(N_atom):
             neighbor_idxs = block_index[i]  # shape: [block_size]
             k_neighbors = k[neighbor_idxs]  # [block_size, n_heads, c_per_head]
@@ -84,9 +80,7 @@ class LocalBlockSparseAttentionNaive(torch.autograd.Function):
             logits = logits + bias_neighbors  # add pairwise bias
 
             attn_weights = F.softmax(logits, dim=0)  # [block_size, n_heads]
-            out_i = (v_neighbors * attn_weights.unsqueeze(-1)).sum(
-                dim=0
-            )  # [n_heads, c_per_head]
+            out_i = (v_neighbors * attn_weights.unsqueeze(-1)).sum(dim=0)  # [n_heads, c_per_head]
             outputs.append(out_i)
 
             saved_neighbors.append(neighbor_idxs)
@@ -105,12 +99,13 @@ class LocalBlockSparseAttentionNaive(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, grad_out):
-        """
-        Naive backward pass for demonstration.
-        """
+        import torch
+        import math
+
         q, k, v, pair_bias = ctx.saved_tensors
         saved_neighbors = ctx.saved_neighbors
         saved_attn = ctx.saved_attn
+        block_index = ctx.block_index
 
         N_atom, n_heads, c_per_head = q.shape
 
@@ -125,25 +120,19 @@ class LocalBlockSparseAttentionNaive(torch.autograd.Function):
             attn_weights = saved_attn[i]  # shape: [block_size, n_heads]
             grad_i = grad_out[i]  # shape: [n_heads, c_per_head]
 
-            # =========================
             # gradient wrt v_neighbors
             dv_neighbors = grad_i.unsqueeze(0) * attn_weights.unsqueeze(-1)
-            # [block_size, n_heads, c_per_head]
             dv[neighbor_idxs] += dv_neighbors
 
-            # =========================
             # gradient wrt attn_weights
             v_neighbors = v[neighbor_idxs]
             dlogits = torch.sum(v_neighbors * grad_i.unsqueeze(0), dim=-1)
-            # [block_size, n_heads]
             sum_d = torch.sum(attn_weights * dlogits, dim=0, keepdim=True)
             dlogits_ = attn_weights * (dlogits - sum_d)
 
-            # =========================
             # gradient wrt pair_bias
             dpbias[i, neighbor_idxs] += dlogits_
 
-            # =========================
             # gradient wrt q[i] and k_neighbors
             alpha = 1.0 / math.sqrt(c_per_head)
             dq_i = torch.sum(dlogits_.unsqueeze(-1) * (alpha * k[neighbor_idxs]), dim=0)

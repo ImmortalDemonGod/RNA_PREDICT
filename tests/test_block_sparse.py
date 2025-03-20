@@ -123,9 +123,9 @@ def test_local_block_sparse_attention_naive_forward_backward(
     Test the forward/backward pass of LocalBlockSparseAttentionNaive.
     """
     q, k, v, pair_bias = random_tensors
-    inputs = LocalSparseInput(q=q, k=k, v=v, pair_bias=pair_bias, block_index=block_index)
 
-    out = LocalBlockSparseAttentionNaive.apply(inputs)
+    # Now call the custom function directly with the separate tensors
+    out = LocalBlockSparseAttentionNaive.apply(q, k, v, pair_bias, block_index)
     assert out.shape == q.shape, "Output shape must match [N_atom, n_heads, c_per_head]."
 
     grad = torch.ones_like(out)
@@ -151,7 +151,7 @@ def test_local_block_sparse_attention_naive_zero_neighbors() -> None:
     zero_index = torch.empty((N_atom, 0), dtype=torch.long)
     inputs = LocalSparseInput(q=q, k=k, v=v, pair_bias=pair_bias, block_index=zero_index)
 
-    out = LocalBlockSparseAttentionNaive.apply(inputs)
+    out = LocalBlockSparseAttentionNaive.apply(inputs.q, inputs.k, inputs.v, inputs.pair_bias, inputs.block_index)
     assert torch.allclose(out, torch.zeros_like(out), atol=1e-7)
 
     grad = torch.ones_like(out)
