@@ -100,8 +100,16 @@ def visualize_with_varna(ct_file: str, jar_path: str, output_png: str):
     print(f"[VARNA] Visualization saved to {output_png}")
 
 
-def main():
-    # 1) Prepare to download/unzip checkpoints (mimicking the Colab notebook)
+def build_predictor(checkpoint_folder: str, config: dict, device: torch.device) -> StageARFoldPredictor:
+    """
+    Create and return the StageARFoldPredictor from a checkpoint folder path.
+    """
+    checkpoint_path = os.path.join(checkpoint_folder, "RNAStralign_trainset_pretrained.pth")
+    predictor = StageARFoldPredictor(config, checkpoint_path=checkpoint_path, device=device)
+    return predictor
+
+def main() -> None:
+    # 1) Prepare environment
     os.makedirs("RFold", exist_ok=True)
     checkpoint_zip_url = (
         "https://www.dropbox.com/s/l04l9bf3v6z2tfd/checkpoints.zip?dl=0"
@@ -112,17 +120,10 @@ def main():
     data_zip_path = "RFold/data.zip"
     ckp_folder = "RFold/checkpoints"
 
-    # Download zip files
-    # download_file(checkpoint_zip_url, ckp_zip_path)
-    # download_file(data_zip_url, data_zip_path)
-
-    # Unzip them
-    # unzip_file(ckp_zip_path, "RFold/")
-    # unzip_file(data_zip_path, "RFold/")
-
-    # 2) The specific checkpoint we want to load (as in the Colab demo)
-    # Make sure the checkpoint file name matches what's inside the zip
-    checkpoint = os.path.join(ckp_folder, "RNAStralign_trainset_pretrained.pth")
+    # 2) Build the predictor
+    config = {"num_hidden": 128, "dropout": 0.3}
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    predictor = build_predictor(ckp_folder, config, device)
 
     # 3) Build the predictor
     config = {"num_hidden": 128, "dropout": 0.3}
@@ -137,16 +138,15 @@ def main():
 
     # 5) (Optional) If we want to convert adjacency to CT and visualize:
     # For demo, let's mock writing a .ct file:
-    ct_file = "test_seq.ct"
-    with open(ct_file, "w") as f:
+    mock_ct_file = "test_seq.ct"
+    with open(mock_ct_file, "w") as f:
         f.write(">TestSeq\n")
-        f.write("1  A  0  2  0  1\n")  # minimal lines
-        f.write("2  A  1  3  0  2\n")  # etc. only placeholder data
+        f.write("1  A  0  2  0  1\n")
+        f.write("2  A  1  3  0  2\n")
 
-    # Then call VARNA if desired:
-    varna_jar = "RFold/VARNAv3-93.jar"  # update if you have a different path
-    output_png = "test_seq.png"
-    visualize_with_varna(ct_file, varna_jar, output_png)
+    varna_jar_path = "RFold/VARNAv3-93.jar"
+    output_image_path = "test_seq.png"
+    visualize_with_varna(mock_ct_file, varna_jar_path, output_image_path)
 
 
 def run_stageA(seq, predictor):
@@ -158,4 +158,3 @@ def run_stageA(seq, predictor):
 
 if __name__ == "__main__":
     main()
-
