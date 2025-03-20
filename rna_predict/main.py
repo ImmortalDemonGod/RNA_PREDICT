@@ -12,9 +12,9 @@ from rna_predict.models.encoder.input_feature_embedding import (
 )
 
 # Optionally import torsion scripts from rna_predict/scripts
-#from rna_predict.scripts.mdanalysis_torsion_example import (
+# from rna_predict.scripts.mdanalysis_torsion_example import (
 #    calculate_rna_torsions_mdanalysis,
-#)
+# )
 
 # from rna_predict.scripts.custom_torsion_example import calculate_rna_torsions_custom
 
@@ -149,5 +149,5 @@ if __name__ == "__main__":
     print("\nShowing the full dataset structure for the first row...")
     show_full_bprna_structure()
 
-    #print("\nAttempting to compute torsions for a few dataset entries...")
-    #demo_compute_torsions_for_bprna()
+    # print("\nAttempting to compute torsions for a few dataset entries...")
+    # demo_compute_torsions_for_bprna()
