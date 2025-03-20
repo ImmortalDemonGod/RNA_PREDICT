@@ -1,13 +1,16 @@
 import os
+
 import pytest
 import torch
+
 from rna_predict.pipeline.run_stageA import (
     build_predictor,
     main,
     run_stageA,
-    visualize_with_varna
+    visualize_with_varna,
 )
 from rna_predict.pipeline.stageA.rfold_predictor import StageARFoldPredictor
+
 
 @pytest.fixture
 def temp_checkpoint_folder(tmp_path) -> str:
@@ -20,6 +23,7 @@ def temp_checkpoint_folder(tmp_path) -> str:
     torch.save(dummy_state, str(folder / "RNAStralign_trainset_pretrained.pth"))
     return str(folder)
 
+
 def test_build_predictor_valid(temp_checkpoint_folder: str):
     """
     Test that build_predictor returns a StageARFoldPredictor instance for a valid checkpoint folder.
@@ -31,6 +35,7 @@ def test_build_predictor_valid(temp_checkpoint_folder: str):
     # Basic smoke test calling predict_adjacency
     adj = predictor.predict_adjacency("ACGU")
     assert adj.shape == (4, 4)
+
 
 def test_run_stageA(temp_checkpoint_folder: str):
     """
@@ -46,6 +51,7 @@ def test_run_stageA(temp_checkpoint_folder: str):
     # Check that it's presumably 0 or 1. Implementation might vary, so we do a sanity check.
     assert (adjacency >= 0).all() and (adjacency <= 1).all()
 
+
 @pytest.mark.parametrize("seq", ["A", "ACG", "ACGUACGUA"])
 def test_predictor_different_sequences(temp_checkpoint_folder: str, seq: str):
     """
@@ -56,6 +62,7 @@ def test_predictor_different_sequences(temp_checkpoint_folder: str, seq: str):
     predictor = build_predictor(temp_checkpoint_folder, config, device)
     adjacency = run_stageA(seq, predictor)
     assert adjacency.shape == (len(seq), len(seq))
+
 
 def test_visualize_with_varna_missing_files(tmp_path):
     """
@@ -68,6 +75,7 @@ def test_visualize_with_varna_missing_files(tmp_path):
     # We expect the function to not raise an error but warn and return
     visualize_with_varna(ct_file, jar_path, out_png)
     assert not os.path.exists(out_png), "No output image should be generated"
+
 
 def test_main_end_to_end(temp_checkpoint_folder, monkeypatch):
     """
