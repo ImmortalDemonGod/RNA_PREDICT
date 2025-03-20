@@ -6,7 +6,7 @@ import urllib.request
 
 import torch
 
-from rna_predict.pipeline.stageA.rfold_predictor import StageARFoldPredictor
+from rna_predict.pipeline.stageA.stage_a_predictor import StageAPredictor
 
 
 def download_file(url: str, dest_path: str):
