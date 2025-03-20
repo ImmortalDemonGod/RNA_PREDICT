@@ -15,12 +15,14 @@ from rna_predict.models.encoder.input_feature_embedding import (
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+
 def resolve_device(device: str) -> str:
     """
     Utility function to check if CUDA is available.
     If CUDA is requested ("cuda") but not available, return "cpu".
     """
     import torch
+
     if device == "cuda" and not torch.cuda.is_available():
         print("Warning: CUDA not available. Switching to CPU.")
         return "cpu"
@@ -122,6 +124,7 @@ def warmup_inference(
             )
             if device == "cuda":
                 torch.cuda.synchronize(device)
+
 
 # Alias for compatibility with tests
 warmup_decoding = warmup_inference
@@ -382,6 +385,7 @@ def benchmark_input_embedding(
 # Additional aliases for test_benchmark usage:
 warmup_embedding = warmup_input_embedding
 timed_embedding = time_input_embedding
+
 
 def timed_decoding(
     embedder: nn.Module,
