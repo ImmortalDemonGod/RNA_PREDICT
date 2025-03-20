@@ -16,7 +16,8 @@ def temp_checkpoint_folder(tmp_path) -> str:
     """
     folder = tmp_path / "checkpoints"
     folder.mkdir(parents=True, exist_ok=True)
-    (folder / "RNAStralign_trainset_pretrained.pth").touch()  # empty checkpoint file
+    dummy_state = {}
+    torch.save(dummy_state, str(folder / "RNAStralign_trainset_pretrained.pth"))
     return str(folder)
 
 def test_build_predictor_valid(temp_checkpoint_folder: str):
