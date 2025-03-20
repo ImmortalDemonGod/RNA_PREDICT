@@ -125,11 +125,7 @@ def main() -> None:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     predictor = build_predictor(ckp_folder, config, device)
 
-    # 3) Build the predictor
-    config = {"num_hidden": 128, "dropout": 0.3}
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    predictor = StageARFoldPredictor(config, checkpoint_path=checkpoint, device=device)
 
     # 4) Example inference
     sequence = "AAGUCUGGUGGACAUUGGCGUCCUGAGGUGUUAAAACCUCUUAUUGCUGACGCCAGAAAGAGAAGAACUUCGGUUCUACUAGUCGACUAUACUACAAGCUUUGGGUGUAUAGCGGCAAGACAACCUGGAUCGGGGGAGGCUAAGGGCGCAAGCCUAUGCUAACCCCGAGCCGAGCUACUGGAGGGCAACCCCCAGAUAGCCGGUGUAGAGCGCGGAAAGGUGUCGGUCAUCCUAUCUGAUAGGUGGCUUGAGGGACGUGCCGUCUCACCCGAAAGGGUGUUUCUAAGGAGGAGCUCCCAAAGGGCAAAUCUUAGAAAAGGGUGUAUACCCUAUAAUUUAACGGCCAGCAGCC"  # a short test
