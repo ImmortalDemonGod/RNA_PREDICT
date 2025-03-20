@@ -4,10 +4,9 @@ from rna_predict.pipeline.stageC.stage_c_reconstruction import StageCReconstruct
 
 def run_pipeline(sequence: str):
     # Stage A: Obtain sequence and dummy adjacency matrix
-    stageA = StageARFoldPredictor()
-    outA = stageA(sequence)
-    seq = outA["sequence"]
-    adjacency = outA["adjacency"]
+    stageA = StageARFoldPredictor(config={})
+    adjacency = stageA.predict_adjacency(sequence)
+    seq = sequence
     print(f"[Stage A] sequence = {seq}, adjacency shape = {adjacency.shape}")
 
     # Stage B: Predict torsion angles; choose desired output mode ("sin_cos", "radians", "degrees")
