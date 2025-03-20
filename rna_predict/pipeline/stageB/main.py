@@ -1,10 +1,10 @@
-from rna_predict.pipeline.stageA.stage_a_predictor import StageAPredictor
+from rna_predict.pipeline.stageA.rfold_predictor import StageARFoldPredictor
 from rna_predict.pipeline.stageB.torsion_bert_predictor import StageBTorsionBertPredictor
 from rna_predict.pipeline.stageC.stage_c_reconstruction import StageCReconstruction
 
 def run_pipeline(sequence: str):
     # Stage A: Obtain sequence and dummy adjacency matrix
-    stageA = StageAPredictor()
+    stageA = StageARFoldPredictor()
     outA = stageA(sequence)
     seq = outA["sequence"]
     adjacency = outA["adjacency"]
