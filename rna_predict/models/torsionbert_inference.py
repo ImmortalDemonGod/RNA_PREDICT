@@ -70,12 +70,25 @@ class TorsionBertModel(nn.Module):
             inputs[k] = v.to(self.device)
 
         # Model inference: output either 'logits' or last_hidden_state
-        with torch.no_grad():
-            outputs = self.model(**inputs)
-            raw_sincos = outputs["logits"] if "logits" in outputs else outputs.last_hidden_state
-        raw_sincos = raw_sincos[0]  # remove batch dimension
+        # Call the model with positional arguments instead of **inputs
+        # so we don't pass 'input_ids' as a named argument:
+        if "token_type_ids" in inputs:
+            outputs = self.model(
+                input_ids=inputs["input_ids"],
+                attention_mask=inputs["attention_mask"],
+                token_type_ids=inputs["token_type_ids"]
+            )
+        else:
+            outputs = self.model(
+                input_ids=inputs["input_ids"],
+                attention_mask=inputs["attention_mask"]
+            )
 
-        T = raw_sincos.size(0)
+        # By convention, TorsionBERT might store predictions in outputs["logits"]
+        if "logits" in outputs:
+            raw_sincos = outputs["logits"]  # shape [1, T, 2*num_angles]
+        else:
+            raw_sincos = outputs.last_hidden_state  # e.g. shape [1, T, 2*num_angles]
         # Map each 3-mer token to the middle residue: token i => residue (i+1)
         result = torch.zeros((seq_len, 2 * self.num_angles), device=self.device)
         for i in range(T):
