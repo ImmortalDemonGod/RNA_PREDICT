@@ -106,13 +106,13 @@ class AtomTransformerBlock(nn.Module):
                     )
                     self._optimized_warning_printed = True
                 lsi = LocalSparseInput(q, k, v, pair_bias_heads, block_index)
-                attention_output = LocalBlockSparseAttentionNaive.apply(lsi)
+                attention_output = LocalBlockSparseAttentionNaive.apply(
+                    lsi.q, lsi.k, lsi.v, lsi.pair_bias, lsi.block_index
+                )
         else:
             lsi = LocalSparseInput(q, k, v, pair_bias_heads, block_index)
             attention_output = LocalBlockSparseAttentionNaive.apply(
-                LocalSparseInput(
-                    q=q, k=k, v=v, pair_bias=pair_bias_heads, block_index=block_index
-                )
+                lsi.q, lsi.k, lsi.v, lsi.pair_bias, lsi.block_index
             )
         attention_output = attention_output.reshape(N_atom, self.c_atom)
 
