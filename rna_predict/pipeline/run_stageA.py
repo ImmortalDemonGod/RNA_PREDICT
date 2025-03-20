@@ -102,9 +102,9 @@ def visualize_with_varna(ct_file: str, jar_path: str, output_png: str):
 
 def build_predictor(
     checkpoint_folder: str, config: dict, device: torch.device
-) -> StageARFoldPredictor:
+) -> StageAPredictor:
     """
-    Create and return the StageARFoldPredictor from a checkpoint folder path.
+    Create and return the StageAPredictor from a checkpoint folder path.
     """
     checkpoint_path = os.path.join(
         checkpoint_folder, "RNAStralign_trainset_pretrained.pth"
