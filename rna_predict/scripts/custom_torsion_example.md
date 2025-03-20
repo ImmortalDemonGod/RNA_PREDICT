@@ -298,3 +298,12 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+    """(
+  uv run /Users/tomriddle1/RNA_PREDICT/rna_predict/scripts/custom_torsion_example.py \
+         /Users/tomriddle1/RNA_PREDICT/rna_predict/dataset/examples/synthetic_cppc_0000001.pdb B
+
+  uv run /Users/tomriddle1/RNA_PREDICT/rna_predict/scripts/mdanalysis_torsion_example.py \
+         /Users/tomriddle1/RNA_PREDICT/rna_predict/dataset/examples/synthetic_cppc_0000001.pdb B
+) > torsion_results.txt 2>&1
+    """

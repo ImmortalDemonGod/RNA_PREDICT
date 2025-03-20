@@ -1,8 +1,12 @@
+import warnings
+
+import torch
 import torch.nn as nn
 
 from rna_predict.models.attention.block_sparse import (
     BlockSparseAttentionOptimized,
     LocalBlockSparseAttentionNaive,
+    LocalSparseInput,
 )
 from rna_predict.utils.scatter_utils import layernorm
 
@@ -15,14 +19,16 @@ class AtomTransformerBlock(nn.Module):
     """
     One transformer block consisting of local multi-head self-attention and an MLP.
 
-    Now we have two possible local-attention paths:
+    There are two possible local-attention paths:
       (1) A naive loop-based approach (LocalBlockSparseAttentionNaive)
       (2) An optimized approach using block_sparse_attn.
 
     You can toggle use_optimized = True/False.
     """
 
-    def __init__(self, c_atom=128, num_heads=4, use_optimized=False):
+    def __init__(
+        self, c_atom: int = 128, num_heads: int = 4, use_optimized: bool = False
+    ) -> None:
         super().__init__()
         self.num_heads = num_heads
         self.c_atom = c_atom
@@ -54,19 +60,25 @@ class AtomTransformerBlock(nn.Module):
                 num_heads, block_size=128, local_window=32, causal=False
             )
 
-    def forward(self, x, pair_emb, block_index):
+    def forward(
+        self, x: torch.Tensor, pair_emb: torch.Tensor, block_index: torch.Tensor
+    ) -> torch.Tensor:
         """
         Args:
           x: [N_atom, c_atom] – per-atom embeddings
-          pair_emb: [N_atom, N_atom, c_pair] – pair embeddings (can be a lower dim than c_atom)
+          pair_emb: [N_atom, N_atom, c_pair] – pairwise embeddings
           block_index: [N_atom, block_size] – indices for local attention
+
+        Returns:
+          A Tensor of shape [N_atom, c_atom], updated after attention + MLP.
         """
         # (1) Apply LayerNorm.
-        x_ln = layernorm(x)
+        normed_embeddings = layernorm(x)
+
         # (2) Compute query, key, and value projections.
-        q = self.W_q(x_ln)
-        k = self.W_k(x_ln)
-        v = self.W_v(x_ln)
+        q = self.W_q(normed_embeddings)
+        k = self.W_k(normed_embeddings)
+        v = self.W_v(normed_embeddings)
 
         # (3) Reshape for multi-head attention.
         c_per_head = self.c_atom // self.num_heads
@@ -86,34 +98,30 @@ class AtomTransformerBlock(nn.Module):
         if self.use_optimized:
             try:
                 # Attempt to use the optimized block-sparse kernel.
-                attn_out = self.bs_attn(q, k, v, pair_bias_heads)
+                attention_output = self.bs_attn(q, k, v, pair_bias_heads)
             except RuntimeError as e:
-                # Print the warning only once per instance.
                 if not hasattr(self, "_optimized_warning_printed"):
-                    print(
-                        "Warning: optimized block-sparse attention failed:",
-                        e,
-                        "Falling back to naive attention.",
+                    warnings.warn(
+                        f"Optimized block-sparse attention failed: {e} Falling back to naive attention."
                     )
                     self._optimized_warning_printed = True
-                attn_out = LocalBlockSparseAttentionNaive.apply(
-                    q, k, v, pair_bias_heads, block_index
+                lsi = LocalSparseInput(q, k, v, pair_bias_heads, block_index)
+                attention_output = LocalBlockSparseAttentionNaive.apply(
+                    lsi.q, lsi.k, lsi.v, lsi.pair_bias, lsi.block_index
                 )
         else:
-            # Use naive version directly.
-            attn_out = LocalBlockSparseAttentionNaive.apply(
-                q, k, v, pair_bias_heads, block_index
+            lsi = LocalSparseInput(q, k, v, pair_bias_heads, block_index)
+            attention_output = LocalBlockSparseAttentionNaive.apply(
+                lsi.q, lsi.k, lsi.v, lsi.pair_bias, lsi.block_index
             )
-
-        # (6) Merge heads.
-        attn_out = attn_out.reshape(N_atom, self.c_atom)
+        attention_output = attention_output.reshape(N_atom, self.c_atom)
 
         # (7) Add the residual connection.
-        x = x + self.W_out(attn_out)
+        x = x + self.W_out(attention_output)
 
         # (8) Apply a second residual branch with an MLP.
-        x_ln2 = layernorm(x)
-        mlp_out = self.mlp(x_ln2)
+        normed_post_residual = layernorm(x)
+        mlp_out = self.mlp(normed_post_residual)
         x = x + mlp_out
 
         return x
@@ -124,7 +132,13 @@ class AtomTransformer(nn.Module):
     A stack of AtomTransformerBlock layers.
     """
 
-    def __init__(self, c_atom=128, num_heads=4, num_layers=3, use_optimized=False):
+    def __init__(
+        self,
+        c_atom: int = 128,
+        num_heads: int = 4,
+        num_layers: int = 3,
+        use_optimized: bool = False,
+    ) -> None:
         super().__init__()
         self.blocks = nn.ModuleList(
             [
@@ -133,7 +147,20 @@ class AtomTransformer(nn.Module):
             ]
         )
 
-    def forward(self, x, pair_emb, block_index):
+    def forward(
+        self, x: torch.Tensor, pair_emb: torch.Tensor, block_index: torch.Tensor
+    ) -> torch.Tensor:
+        """
+        Applies a sequence of AtomTransformerBlock modules.
+
+        Args:
+          x: [N_atom, c_atom]
+          pair_emb: [N_atom, N_atom, c_pair]
+          block_index: [N_atom, block_size]
+
+        Returns:
+          A Tensor of shape [N_atom, c_atom] after the final block.
+        """
         for block in self.blocks:
             x = block(x, pair_emb, block_index)
         return x
