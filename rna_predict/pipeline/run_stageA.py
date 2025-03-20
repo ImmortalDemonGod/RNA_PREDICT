@@ -100,32 +100,31 @@ def visualize_with_varna(ct_file: str, jar_path: str, output_png: str):
     print(f"[VARNA] Visualization saved to {output_png}")
 
 
-def build_predictor(checkpoint_folder: str, config: dict, device: torch.device) -> StageARFoldPredictor:
+def build_predictor(
+    checkpoint_folder: str, config: dict, device: torch.device
+) -> StageARFoldPredictor:
     """
     Create and return the StageARFoldPredictor from a checkpoint folder path.
     """
-    checkpoint_path = os.path.join(checkpoint_folder, "RNAStralign_trainset_pretrained.pth")
-    predictor = StageARFoldPredictor(config, checkpoint_path=checkpoint_path, device=device)
+    checkpoint_path = os.path.join(
+        checkpoint_folder, "RNAStralign_trainset_pretrained.pth"
+    )
+    predictor = StageARFoldPredictor(
+        config, checkpoint_path=checkpoint_path, device=device
+    )
     return predictor
+
 
 def main() -> None:
     # 1) Prepare environment
     os.makedirs("RFold", exist_ok=True)
-    checkpoint_zip_url = (
-        "https://www.dropbox.com/s/l04l9bf3v6z2tfd/checkpoints.zip?dl=0"
-    )
-    data_zip_url = "https://www.dropbox.com/s/wzbkd3q43haax0r/data.zip?dl=0"
 
-    ckp_zip_path = "RFold/checkpoints.zip"
-    data_zip_path = "RFold/data.zip"
     ckp_folder = "RFold/checkpoints"
 
     # 2) Build the predictor
     config = {"num_hidden": 128, "dropout": 0.3}
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     predictor = build_predictor(ckp_folder, config, device)
-
-
 
     # 4) Example inference
     sequence = "AAGUCUGGUGGACAUUGGCGUCCUGAGGUGUUAAAACCUCUUAUUGCUGACGCCAGAAAGAGAAGAACUUCGGUUCUACUAGUCGACUAUACUACAAGCUUUGGGUGUAUAGCGGCAAGACAACCUGGAUCGGGGGAGGCUAAGGGCGCAAGCCUAUGCUAACCCCGAGCCGAGCUACUGGAGGGCAACCCCCAGAUAGCCGGUGUAGAGCGCGGAAAGGUGUCGGUCAUCCUAUCUGAUAGGUGGCUUGAGGGACGUGCCGUCUCACCCGAAAGGGUGUUUCUAAGGAGGAGCUCCCAAAGGGCAAAUCUUAGAAAAGGGUGUAUACCCUAUAAUUUAACGGCCAGCAGCC"  # a short test
@@ -151,6 +150,7 @@ def run_stageA(seq, predictor):
     Returns adjacency matrix from the given predictor.
     """
     return predictor.predict_adjacency(seq)
+
 
 if __name__ == "__main__":
     main()
