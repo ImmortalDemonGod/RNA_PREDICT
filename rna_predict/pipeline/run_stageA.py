@@ -109,9 +109,7 @@ def build_predictor(
     checkpoint_path = os.path.join(
         checkpoint_folder, "RNAStralign_trainset_pretrained.pth"
     )
-    predictor = StageARFoldPredictor(
-        config, checkpoint_path=checkpoint_path, device=device
-    )
+    predictor = StageAPredictor()
     return predictor
 
 
