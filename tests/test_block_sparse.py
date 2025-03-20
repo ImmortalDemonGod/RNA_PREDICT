@@ -1,17 +1,17 @@
 import math
+import sys
 import unittest
+from typing import Tuple
+
 import pytest
 import torch
-import torch.nn.functional as F
-import sys
-from typing import Tuple
 
 from rna_predict.models.attention.block_sparse import (
     _HAS_BSA,
     BlockSparseAttentionOptimized,
     LocalBlockMaskConfig,
-    LocalSparseInput,
     LocalBlockSparseAttentionNaive,
+    LocalSparseInput,
     build_local_blockmask,
 )
 
@@ -104,20 +104,23 @@ def block_index() -> torch.Tensor:
     Fixture that generates a block_index for local attention.
     Each row in block_index is a set of neighbor indices for the corresponding atom.
     """
-    idx = torch.tensor([
-        [0, 1, 2],
-        [1, 2, 0],
-        [2, 3, 4],
-        [3, 4, 5],
-        [4, 3, 2],
-        [5, 4, 1],
-    ], dtype=torch.long)
+    idx = torch.tensor(
+        [
+            [0, 1, 2],
+            [1, 2, 0],
+            [2, 3, 4],
+            [3, 4, 5],
+            [4, 3, 2],
+            [5, 4, 1],
+        ],
+        dtype=torch.long,
+    )
     return idx
 
 
 def test_local_block_sparse_attention_naive_forward_backward(
     random_tensors: Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor],
-    block_index: torch.Tensor
+    block_index: torch.Tensor,
 ) -> None:
     """
     Test the forward/backward pass of LocalBlockSparseAttentionNaive.
@@ -126,7 +129,9 @@ def test_local_block_sparse_attention_naive_forward_backward(
 
     # Now call the custom function directly with the separate tensors
     out = LocalBlockSparseAttentionNaive.apply(q, k, v, pair_bias, block_index)
-    assert out.shape == q.shape, "Output shape must match [N_atom, n_heads, c_per_head]."
+    assert (
+        out.shape == q.shape
+    ), "Output shape must match [N_atom, n_heads, c_per_head]."
 
     grad = torch.ones_like(out)
     out.backward(grad, retain_graph=True)
@@ -149,9 +154,13 @@ def test_local_block_sparse_attention_naive_zero_neighbors() -> None:
     pair_bias = torch.randn(N_atom, N_atom, n_heads, requires_grad=True)
 
     zero_index = torch.empty((N_atom, 0), dtype=torch.long)
-    inputs = LocalSparseInput(q=q, k=k, v=v, pair_bias=pair_bias, block_index=zero_index)
+    inputs = LocalSparseInput(
+        q=q, k=k, v=v, pair_bias=pair_bias, block_index=zero_index
+    )
 
-    out = LocalBlockSparseAttentionNaive.apply(inputs.q, inputs.k, inputs.v, inputs.pair_bias, inputs.block_index)
+    out = LocalBlockSparseAttentionNaive.apply(
+        inputs.q, inputs.k, inputs.v, inputs.pair_bias, inputs.block_index
+    )
     assert torch.allclose(out, torch.zeros_like(out), atol=1e-7)
 
     grad = torch.ones_like(out)
@@ -168,10 +177,7 @@ def test_build_local_blockmask(causal_setting: bool) -> None:
     """
     N_atom = 32
     config = LocalBlockMaskConfig(
-        block_size=8,
-        local_window=8,
-        nheads=2,
-        causal=causal_setting
+        block_size=8, local_window=8, nheads=2, causal=causal_setting
     )
 
     mask = build_local_blockmask(N_atom, config)
@@ -188,27 +194,26 @@ def test_build_local_blockmask(causal_setting: bool) -> None:
             # Ensure columns > row_idx are false
             for row_idx in range(nrow):
                 if row_idx + 1 < ncol:
-                    region = mask[0, :, row_idx, row_idx + 1:]
+                    region = mask[0, :, row_idx, row_idx + 1 :]
                     assert not torch.any(region)
         else:
             assert torch.any(mask), "Non-causal mask must have True values."
 
 
 def test_block_sparse_attention_optimized_no_bsa(
-    random_tensors: Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]
+    random_tensors: Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor],
 ) -> None:
     """
     If _HAS_BSA is False, verify that we raise a RuntimeError.
     """
     if _HAS_BSA:
-        pytest.skip("Skipping because block_sparse_attn is installed. This test is for fallback.")
+        pytest.skip(
+            "Skipping because block_sparse_attn is installed. This test is for fallback."
+        )
 
     q, k, v, pair_bias = random_tensors
     attn_module = BlockSparseAttentionOptimized(
-        nheads=2,
-        block_size=4,
-        local_window=4,
-        causal=False
+        nheads=2, block_size=4, local_window=4, causal=False
     )
 
     with pytest.raises(RuntimeError, match="block_sparse_attn not installed"):
@@ -217,7 +222,7 @@ def test_block_sparse_attention_optimized_no_bsa(
 
 @pytest.mark.skipif(not _HAS_BSA, reason="Requires block_sparse_attn to be installed.")
 def test_block_sparse_attention_optimized_yes_bsa(
-    random_tensors: Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]
+    random_tensors: Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor],
 ) -> None:
     """
     If _HAS_BSA is True, ensure the optimized path runs without error.
@@ -225,10 +230,7 @@ def test_block_sparse_attention_optimized_yes_bsa(
     q, k, v, pair_bias = random_tensors
 
     attn_module = BlockSparseAttentionOptimized(
-        nheads=2,
-        block_size=4,
-        local_window=4,
-        causal=False
+        nheads=2, block_size=4, local_window=4, causal=False
     )
     out = attn_module(q, k, v, pair_bias)
     assert out.shape == q.shape
