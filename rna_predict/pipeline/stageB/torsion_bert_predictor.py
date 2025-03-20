@@ -48,7 +48,7 @@ class StageBTorsionBertPredictor:
             }
         """
         # 1) Forward pass to get sin/cos predictions
-        sincos = self.model(sequence)
+        sincos = self.model.predict_angles_from_sequence(sequence)
         N = sincos.size(0)
         _ = adjacency  # currently unused
 
