@@ -99,7 +99,7 @@ class TestBenchmarkHelpers(unittest.TestCase):
         embedder.to(device)
         f = generate_synthetic_features(2, 1, device)
         block_index = torch.randint(0, 2, (2, 1), device=device)
-        warmup_decoding(embedder, f, block_index, device, warmup_iters=1)
+        warmup_decoding(embedder, f, block_index, device, num_warmup=1)
         # If no error, we pass.
 
     def test_timed_decoding(self):
@@ -118,7 +118,7 @@ class TestBenchmarkHelpers(unittest.TestCase):
         f = generate_synthetic_features(2, 1, device)
         block_index = torch.randint(0, 2, (2, 1), device=device)
         criterion = nn.MSELoss()
-        warmup_embedding(embedder, f, block_index, device, warmup_iters=1, criterion=criterion, n_token=1)
+        warmup_embedding(embedder, f, block_index, device, num_warmup=1, criterion=criterion)
         # Check no errors
 
     def test_timed_embedding(self):
@@ -128,7 +128,7 @@ class TestBenchmarkHelpers(unittest.TestCase):
         f = generate_synthetic_features(2, 1, device)
         block_index = torch.randint(0, 2, (2, 1), device=device)
         criterion = nn.MSELoss()
-        avg_fwd, avg_bwd = timed_embedding(embedder, f, block_index, device, iters=1, criterion=criterion, n_token=1)
+        avg_fwd, avg_bwd = timed_embedding(embedder, f, block_index, device, iters=1, criterion=criterion)
         self.assertIsInstance(avg_fwd, float)
         self.assertIsInstance(avg_bwd, float)
 
