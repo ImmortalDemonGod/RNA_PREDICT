@@ -1,13 +1,15 @@
 # tests/test_main.py
 import os
+
 import pytest
-import torch
+
 from rna_predict.main import (
+    demo_compute_torsions_for_bprna,
     demo_run_input_embedding,
     demo_stream_bprna,
     show_full_bprna_structure,
-    demo_compute_torsions_for_bprna,
 )
+
 
 @pytest.fixture
 def mock_pdb_dir(tmp_path):
@@ -20,6 +22,7 @@ def mock_pdb_dir(tmp_path):
     # Optionally, you could populate it with small dummy files if needed
     return pdb_dir
 
+
 def test_demo_run_input_embedding(capfd):
     """
     Test that demo_run_input_embedding() runs without error and prints
@@ -28,9 +31,10 @@ def test_demo_run_input_embedding(capfd):
     demo_run_input_embedding()
     captured = capfd.readouterr()
     # Check some known substring in the print
-    assert "Output single-token embedding shape:" in captured.out, (
-        "Expected output shape info not found in stdout."
-    )
+    assert (
+        "Output single-token embedding shape:" in captured.out
+    ), "Expected output shape info not found in stdout."
+
 
 def test_demo_stream_bprna(capfd):
     """
@@ -46,6 +50,7 @@ def test_demo_stream_bprna(capfd):
         "Make sure streaming printed something."
     )
 
+
 def test_show_full_bprna_structure(capfd):
     """
     Test that show_full_bprna_structure() prints column names and
@@ -54,17 +59,18 @@ def test_show_full_bprna_structure(capfd):
     show_full_bprna_structure()
     captured = capfd.readouterr()
     # Check for mention of 'Column names:' and a non-empty set of keys
-    assert "Column names:" in captured.out, (
-        "Expected 'Column names:' info not found in stdout."
-    )
+    assert (
+        "Column names:" in captured.out
+    ), "Expected 'Column names:' info not found in stdout."
     # We expect some sample data after that
-    assert "Full first sample:" in captured.out, (
-        "Expected 'Full first sample:' info not found in stdout."
-    )
+    assert (
+        "Full first sample:" in captured.out
+    ), "Expected 'Full first sample:' info not found in stdout."
+
 
 @pytest.mark.skipif(
     not os.path.exists("pdbs"),
-    reason="No local 'pdbs' directory found. Provide PDB files or mock them for a full test."
+    reason="No local 'pdbs' directory found. Provide PDB files or mock them for a full test.",
 )
 def test_demo_compute_torsions_for_bprna_with_real_pdbs(capfd):
     """
@@ -76,6 +82,7 @@ def test_demo_compute_torsions_for_bprna_with_real_pdbs(capfd):
     captured = capfd.readouterr()
     # We at least expect the initial message to appear
     assert "Computing torsion angles for a few entries in bprna-spot..." in captured.out
+
 
 def test_demo_compute_torsions_for_bprna_mocked_pdbs(capfd, mock_pdb_dir):
     """
@@ -90,8 +97,8 @@ def test_demo_compute_torsions_for_bprna_mocked_pdbs(capfd, mock_pdb_dir):
         demo_compute_torsions_for_bprna()
         captured = capfd.readouterr()
         # The code prints a skip message if pdb files aren't found
-        assert "No local PDB file found at" in captured.out, (
-            "Expected a skip message when no real PDB files exist."
-        )
+        assert (
+            "No local PDB file found at" in captured.out
+        ), "Expected a skip message when no real PDB files exist."
     finally:
         os.chdir(old_cwd)
