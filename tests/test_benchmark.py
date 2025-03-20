@@ -1,21 +1,22 @@
 import unittest
-import torch
-import time
 from unittest.mock import patch
+
+import torch
+import torch.nn as nn
 
 from rna_predict.benchmarks.benchmark import (
     BenchmarkConfig,
-    resolve_device,
-    generate_synthetic_features,
-    warmup_decoding,
-    timed_decoding,
-    warmup_embedding,
-    timed_embedding,
     benchmark_decoding_latency_and_memory,
     benchmark_input_embedding,
+    generate_synthetic_features,
+    resolve_device,
+    timed_decoding,
+    timed_embedding,
+    warmup_decoding,
+    warmup_embedding,
 )
 from rna_predict.models.encoder.input_feature_embedding import InputFeatureEmbedder
-import torch.nn as nn
+
 
 class TestBenchmarkConfigs(unittest.TestCase):
     def test_decoding_benchmark_config_defaults(self):
@@ -44,7 +45,7 @@ class TestBenchmarkConfigs(unittest.TestCase):
             block_size=3,
             device="cpu",
             num_warmup=0,
-            num_iters=1
+            num_iters=1,
         )
         self.assertEqual(config.N_atom_list, [1])
         self.assertEqual(config.N_token_list, [2])
@@ -61,7 +62,7 @@ class TestBenchmarkConfigs(unittest.TestCase):
             device="cpu",
             num_warmup=2,
             num_iters=2,
-            use_optimized=True
+            use_optimized=True,
         )
         self.assertEqual(config.N_atom_list, [10, 20])
         self.assertEqual(config.N_token_list, [5])
@@ -70,6 +71,7 @@ class TestBenchmarkConfigs(unittest.TestCase):
         self.assertEqual(config.num_warmup, 2)
         self.assertEqual(config.num_iters, 2)
         self.assertTrue(config.use_optimized)
+
 
 class TestBenchmarkHelpers(unittest.TestCase):
     def test_resolve_device_cpu(self):
@@ -118,7 +120,9 @@ class TestBenchmarkHelpers(unittest.TestCase):
         f = generate_synthetic_features(2, 1, device)
         block_index = torch.randint(0, 2, (2, 1), device=device)
         criterion = nn.MSELoss()
-        warmup_embedding(embedder, f, block_index, device, num_warmup=1, criterion=criterion)
+        warmup_embedding(
+            embedder, f, block_index, device, num_warmup=1, criterion=criterion
+        )
         # Check no errors
 
     def test_timed_embedding(self):
@@ -128,9 +132,12 @@ class TestBenchmarkHelpers(unittest.TestCase):
         f = generate_synthetic_features(2, 1, device)
         block_index = torch.randint(0, 2, (2, 1), device=device)
         criterion = nn.MSELoss()
-        avg_fwd, avg_bwd = timed_embedding(embedder, f, block_index, device, num_iters=1, criterion=criterion)
+        avg_fwd, avg_bwd = timed_embedding(
+            embedder, f, block_index, device, num_iters=1, criterion=criterion
+        )
         self.assertIsInstance(avg_fwd, float)
         self.assertIsInstance(avg_bwd, float)
+
 
 class TestBenchmarkEntryPoints(unittest.TestCase):
     def test_benchmark_decoding_latency_and_memory_small(self):
@@ -144,7 +151,7 @@ class TestBenchmarkEntryPoints(unittest.TestCase):
             block_size=1,
             device="cpu",
             num_warmup=1,
-            num_iters=1
+            num_iters=1,
         )
         # If we reach here without error, it's a pass.
 
@@ -159,7 +166,7 @@ class TestBenchmarkEntryPoints(unittest.TestCase):
             device="cpu",
             num_warmup=1,
             num_iters=1,
-            use_optimized=False
+            use_optimized=False,
         )
         # If no error, we pass.
 
@@ -174,8 +181,9 @@ class TestBenchmarkEntryPoints(unittest.TestCase):
             device="cpu",
             num_warmup=1,
             num_iters=1,
-            use_optimized=True
+            use_optimized=True,
         )
+
 
 if __name__ == "__main__":
     unittest.main()
