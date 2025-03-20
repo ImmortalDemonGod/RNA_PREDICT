@@ -93,48 +93,6 @@ def show_full_bprna_structure():
         print(f"{key}: {value}")
 
 
-###############################################################################
-# Demonstration: Compute Torsion Angles for bprna-spot
-###############################################################################
-
-
-def demo_compute_torsions_for_bprna():
-    """
-    Example of how to iterate the bprna-spot dataset and compute RNA torsion angles
-    using MDAnalysis for each PDB file, if present locally. Adjust PDB paths as needed.
-    """
-    print("Computing torsion angles for a few entries in bprna-spot...")
-
-    # Stream the dataset from Hugging Face
-    dataset = stream_bprna_dataset(split="train")
-
-    # For demo, only process the first few
-    max_examples = 3
-    count = 0
-
-    for row in dataset:
-        if count >= max_examples:
-            break
-
-        rna_id = row["id"]  # e.g., 'bpRNA_CRW_2852'
-        # Example: assume you have local PDB files named like "bpRNA_CRW_2852.pdb" under "./pdbs"
-        pdb_file = os.path.join("pdbs", f"{rna_id}.pdb")
-
-        if not os.path.exists(pdb_file):
-            print(f"[{rna_id}] No local PDB file found at {pdb_file}, skipping...")
-            continue
-
-        # Alternatively, if you have a chain ID or other info, set chain_id here
-        chain_id = "A"
-        angles = calculate_rna_torsions_mdanalysis(
-            pdb_file, chain_id=chain_id, fallback=True
-        )
-
-        print(f"\n=== Torsion angles for {rna_id} (chain {chain_id}) ===")
-        for angle_name, angle_list in angles.items():
-            print(f"{angle_name}:", angle_list)
-
-        count += 1
 
 
 ###############################################################################
