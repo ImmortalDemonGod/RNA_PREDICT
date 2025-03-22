@@ -1,7 +1,11 @@
 import torch
+
 from rna_predict.pipeline.stageA.rfold_predictor import StageARFoldPredictor
-from rna_predict.pipeline.stageB.torsion_bert_predictor import StageBTorsionBertPredictor
+from rna_predict.pipeline.stageB.torsion_bert_predictor import (
+    StageBTorsionBertPredictor,
+)
 from rna_predict.pipeline.stageC.stage_c_reconstruction import StageCReconstruction
+
 
 def run_pipeline(sequence: str):
     # Stage A: Obtain sequence and dummy adjacency matrix
@@ -17,7 +21,7 @@ def run_pipeline(sequence: str):
         device="cpu",
         angle_mode="degrees",
         num_angles=16,
-        max_length=512
+        max_length=512,
     )
     outB = stageB(seq, adjacency)
     torsion_angles = outB["torsion_angles"]
@@ -29,9 +33,11 @@ def run_pipeline(sequence: str):
     coords = outC["coords"]
     print(f"[Stage C] coords shape = {coords.shape}, #atoms = {outC['atom_count']}")
 
+
 def main():
     sample_seq = "ACGUAACGU"
     run_pipeline(sample_seq)
+
 
 if __name__ == "__main__":
     main()
