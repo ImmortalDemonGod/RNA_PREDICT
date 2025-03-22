@@ -102,9 +102,6 @@ def visualize_with_varna(ct_file: str, jar_path: str, output_png: str):
 
 def build_predictor(
     checkpoint_folder: str, config: dict, device: torch.device
-) -> StageAPredictor:
-    def build_predictor(
-    checkpoint_folder: str, config: dict, device: torch.device
 ) -> StageARFoldPredictor:
     ckp_file = os.path.join(checkpoint_folder, "RNAStralign_trainset_pretrained.pth")
     predictor = StageARFoldPredictor(config, checkpoint_path=ckp_file, device=device)
