@@ -1,3 +1,4 @@
+import torch
 from rna_predict.pipeline.stageA.rfold_predictor import StageARFoldPredictor
 from rna_predict.pipeline.stageB.torsion_bert_predictor import StageBTorsionBertPredictor
 from rna_predict.pipeline.stageC.stage_c_reconstruction import StageCReconstruction
@@ -6,6 +7,7 @@ def run_pipeline(sequence: str):
     # Stage A: Obtain sequence and dummy adjacency matrix
     stageA = StageARFoldPredictor(config={})
     adjacency = stageA.predict_adjacency(sequence)
+    adjacency = torch.from_numpy(adjacency).float()
     seq = sequence
     print(f"[Stage A] sequence = {seq}, adjacency shape = {adjacency.shape}")
 
