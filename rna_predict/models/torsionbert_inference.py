@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 from transformers import AutoTokenizer, AutoModel
-from typing import Optional
 
 class TorsionBertModel(nn.Module):
     """
