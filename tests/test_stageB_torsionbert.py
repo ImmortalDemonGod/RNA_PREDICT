@@ -1,5 +1,9 @@
 import pytest
-from rna_predict.pipeline.stageB.torsion_bert_predictor import StageBTorsionBertPredictor
+
+from rna_predict.pipeline.stageB.torsion_bert_predictor import (
+    StageBTorsionBertPredictor,
+)
+
 
 @pytest.fixture
 def stageB_predictor():
@@ -11,8 +15,9 @@ def stageB_predictor():
         model_name_or_path="sayby/rna_torsionbert",
         device="cpu",
         angle_mode="degrees",
-        num_angles=16
+        num_angles=16,
     )
+
 
 def test_short_seq(stageB_predictor):
     """
@@ -24,6 +29,7 @@ def test_short_seq(stageB_predictor):
     assert angles.shape[0] == 2
     # 16 angles in degrees mode
     assert angles.shape[1] == 16
+
 
 def test_normal_seq(stageB_predictor):
     """
