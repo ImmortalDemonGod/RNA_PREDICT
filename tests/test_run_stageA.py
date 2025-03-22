@@ -3,7 +3,7 @@ import os
 import pytest
 import torch
 
-from rna_predict.pipeline.run_stageA import (
+from rna_predict.pipeline.stageA.run_stageA import (
     build_predictor,
     main,
     run_stageA,
