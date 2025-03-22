@@ -6,7 +6,7 @@ import urllib.request
 
 import torch
 
-from rna_predict.pipeline.stageA.stage_a_predictor import StageAPredictor
+from rna_predict.pipeline.stageA.rfold_predictor import StageARFoldPredictor
 
 
 def download_file(url: str, dest_path: str):
@@ -103,13 +103,11 @@ def visualize_with_varna(ct_file: str, jar_path: str, output_png: str):
 def build_predictor(
     checkpoint_folder: str, config: dict, device: torch.device
 ) -> StageAPredictor:
-    """
-    Create and return the StageAPredictor from a checkpoint folder path.
-    """
-    checkpoint_path = os.path.join(
-        checkpoint_folder, "RNAStralign_trainset_pretrained.pth"
-    )
-    predictor = StageAPredictor()
+    def build_predictor(
+    checkpoint_folder: str, config: dict, device: torch.device
+) -> StageARFoldPredictor:
+    ckp_file = os.path.join(checkpoint_folder, "RNAStralign_trainset_pretrained.pth")
+    predictor = StageARFoldPredictor(config, checkpoint_path=ckp_file, device=device)
     return predictor
 
 
