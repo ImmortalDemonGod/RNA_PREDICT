@@ -1,5 +1,4 @@
 import pytest
-import torch
 from rna_predict.pipeline.stageB.torsion_bert_predictor import StageBTorsionBertPredictor
 
 @pytest.fixture
