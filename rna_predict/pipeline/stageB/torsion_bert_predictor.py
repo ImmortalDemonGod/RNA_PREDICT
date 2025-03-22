@@ -1,19 +1,23 @@
-import torch
 import math
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
+
+import torch
+
 from rna_predict.models.torsionbert_inference import TorsionBertModel
+
 
 class StageBTorsionBertPredictor:
     """
     Stage B: predict RNA torsion angles using TorsionBERT.
     """
+
     def __init__(
         self,
         model_name_or_path: str = "sayby/rna_torsionbert",
         device: str = "cpu",
         angle_mode: str = "sin_cos",
         num_angles: int = 7,
-        max_length: int = 512
+        max_length: int = 512,
     ):
         """
         Args:
@@ -31,13 +35,11 @@ class StageBTorsionBertPredictor:
             model_name_or_path=model_name_or_path,
             device=self.device,
             num_angles=self.num_angles,
-            max_length=max_length
+            max_length=max_length,
         )
 
     def __call__(
-        self,
-        sequence: str,
-        adjacency: Optional[torch.Tensor] = None
+        self, sequence: str, adjacency: Optional[torch.Tensor] = None
     ) -> Dict[str, Any]:
         """
         Pipeline interface: (sequence, adjacency) -> torsion angles.
@@ -61,10 +63,7 @@ class StageBTorsionBertPredictor:
                 angles_out = angles_out * (180.0 / math.pi)
             elif self.angle_mode != "radians":
                 raise ValueError(f"Unknown angle_mode: {self.angle_mode}")
-        return {
-            "torsion_angles": angles_out,
-            "residue_count": N
-        }
+        return {"torsion_angles": angles_out, "residue_count": N}
 
     def _convert_sincos_to_angles(self, sincos: torch.Tensor) -> torch.Tensor:
         """
