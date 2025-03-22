@@ -64,5 +64,3 @@ def test_show_full_bprna_structure(capfd):
     assert (
         "Full first sample:" in captured.out
     ), "Expected 'Full first sample:' info not found in stdout."
-
-
