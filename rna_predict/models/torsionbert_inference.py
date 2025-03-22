@@ -1,18 +1,20 @@
 import torch
 import torch.nn as nn
-from transformers import AutoTokenizer, AutoModel
+from transformers import AutoModel, AutoTokenizer
+
 
 class TorsionBertModel(nn.Module):
     """
     A wrapper around a pre-trained TorsionBERT model that outputs
     backbone torsion angles (commonly as sin/cos pairs).
     """
+
     def __init__(
         self,
         model_name_or_path: str,
         device: torch.device,
         num_angles: int = 7,
-        max_length: int = 512
+        max_length: int = 512,
     ):
         """
         Args:
@@ -69,7 +71,7 @@ class TorsionBertModel(nn.Module):
             return_tensors="pt",
             padding="max_length",
             max_length=self.max_length,
-            truncation=True
+            truncation=True,
         )
         # Move tokenizer outputs to the appropriate device
         for key_, val_ in inputs.items():
