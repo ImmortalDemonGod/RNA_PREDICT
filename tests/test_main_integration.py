@@ -1,7 +1,9 @@
 # tests/test_main_integration.py
 import subprocess
 import sys
+
 import pytest
+
 
 @pytest.mark.integration
 def test_main_py_subprocess_execution() -> None:
@@ -14,9 +16,7 @@ def test_main_py_subprocess_execution() -> None:
     """
     # Execute main.py in a separate process, capturing stdout/stderr
     result = subprocess.run(
-        [sys.executable, "rna_predict/main.py"],
-        capture_output=True,
-        text=True
+        [sys.executable, "rna_predict/main.py"], capture_output=True, text=True
     )
     # The script should exit with a success code (0)
     assert result.returncode == 0, (
