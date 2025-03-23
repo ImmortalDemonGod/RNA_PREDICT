@@ -32,14 +32,9 @@ class ProtenixIntegration:
         self.device = device
 
         self.input_embedder = ProtenixInputEmbedder(
-            c_token=c_token,
-            restype_dim=restype_dim,
-            profile_dim=profile_dim,
             c_atom=c_atom,
-            c_pair=c_pair,
-            num_heads=num_heads,
-            num_layers=num_layers,
-            use_optimized=use_optimized
+            c_atompair=c_pair,
+            c_token=c_token
         ).to(device)
 
         # Relative position encoding to initialize pair embeddings
@@ -50,6 +45,9 @@ class ProtenixIntegration:
         ).to(device)
 
     def build_embeddings(self, input_features: dict) -> dict:
+        # Ensure the required key "atom_to_token_idx" is present
+        if "atom_to_token_idx" not in input_features and "atom_to_token" in input_features:
+            input_features["atom_to_token_idx"] = input_features["atom_to_token"]
         """
         Given a dict of raw features, produce:
           - s_inputs: [N_token, c_token]
@@ -61,8 +59,14 @@ class ProtenixIntegration:
          Optionally 'residue_index'
         """
         # 1) single embedding from Protenix’s InputFeatureEmbedder
-        s_inputs = self.input_embedder(input_features)
+        # Ensure ref_mask exists
+        if "ref_mask" not in input_features:
+            # Here we assume all atoms are present. Adjust if you have actual mask logic.
+            n_atom = input_features["ref_pos"].shape[0]
+            input_features["ref_mask"] = torch.ones(n_atom, dtype=torch.bool, device=input_features["ref_pos"].device)
 
+        s_inputs = self.input_embedder(input_features)
+        # Example: pass token embeddings to trunk
         # 2) pair embedding from relative positions
         if "residue_index" in input_features:
             res_idx = input_features["residue_index"].to(self.device)
