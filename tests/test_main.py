@@ -29,9 +29,9 @@ def test_demo_run_input_embedding(capfd):
     demo_run_input_embedding()
     captured = capfd.readouterr()
     # Check some known substring in the print
-    assert (
-        "Output single-token embedding shape:" in captured.out
-    ), "Expected output shape info not found in stdout."
+    assert "Output single-token embedding shape:" in captured.out, (
+        "Expected output shape info not found in stdout."
+    )
 
 
 def test_demo_stream_bprna(capfd):
@@ -57,10 +57,10 @@ def test_show_full_bprna_structure(capfd):
     show_full_bprna_structure()
     captured = capfd.readouterr()
     # Check for mention of 'Column names:' and a non-empty set of keys
-    assert (
-        "Column names:" in captured.out
-    ), "Expected 'Column names:' info not found in stdout."
+    assert "Column names:" in captured.out, (
+        "Expected 'Column names:' info not found in stdout."
+    )
     # We expect some sample data after that
-    assert (
-        "Full first sample:" in captured.out
-    ), "Expected 'Full first sample:' info not found in stdout."
+    assert "Full first sample:" in captured.out, (
+        "Expected 'Full first sample:' info not found in stdout."
+    )
