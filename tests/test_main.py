@@ -2,7 +2,7 @@
 
 import pytest
 
-from rna_predict.main import (
+from rna_predict.pipeline.stageB.pairwise.main import (
     demo_run_input_embedding,
     demo_stream_bprna,
     show_full_bprna_structure,
