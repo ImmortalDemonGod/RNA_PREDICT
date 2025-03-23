@@ -3,7 +3,7 @@ import os
 import pytest
 import torch
 
-from rna_predict.pipeline.stageA.rfold_predictor import StageARFoldPredictor
+from rna_predict.pipeline.stageA.adjacency.rfold_predictor import StageARFoldPredictor
 from rna_predict.pipeline.stageA.run_stageA import (
     build_predictor,
     main,
