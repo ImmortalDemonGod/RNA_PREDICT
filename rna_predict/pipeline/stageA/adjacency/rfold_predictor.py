@@ -19,7 +19,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-from rna_predict.pipeline.stageA.RFold_code import (
+from rna_predict.pipeline.stageA.adjacency.RFold_code import (
     RFoldModel,
     constraint_matrix,
     row_col_argmax,
