@@ -1,24 +1,36 @@
 import torch
+import math
 from .kb_rna import RNA_BUILD_INFO
 from .massive_pnerf import mp_nerf_torch
 
-def build_scaffolds_rna_from_torsions(
-    seq: str,
-    torsions: torch.Tensor,
-    device: str = "cpu"
-):
+def compute_max_rna_atoms():
     """
-    Convert predicted torsions (alpha..zeta, chi, and optionally ring angles) for an RNA sequence
-    into the scaffold arrays used by mp_nerf for 3D building.
-
-    Now we have 10 backbone atoms per residue:
-      0->P, 1->O5', 2->C5', 3->C4', 4->O4', 5->C3', 6->O3', 7->C2', 8->O2', 9->C1'.
-
-    We'll reference the previous residue's O3' (index 6) to place the new residue's P (index 0).
+    Compute the maximum total atoms for a single RNA residue
+    (backbone + base). We assume 'RNA_BUILD_INFO' has keys for
+    'A','U','G','C' etc., each with 'backbone_atoms' and 'base_atoms'.
     """
+    from .kb_rna import RNA_BUILD_INFO
 
+    max_count = 0
+    for base in ["A","U","G","C"]:
+        info = RNA_BUILD_INFO.get(base, RNA_BUILD_INFO["A"])
+        backbone_count = len(info["backbone_atoms"])
+        base_count = len(info.get("base_atoms", []))
+        count = backbone_count + base_count
+        if count > max_count:
+            max_count = count
+    return max_count
+
+def build_scaffolds_rna_from_torsions(seq: str,
+                                      torsions: torch.Tensor,
+                                      device: str = "cpu"):
+    """
+    Convert predicted torsions (alpha..zeta, chi) into scaffolding arrays:
+    bond_mask, angles_mask, point_ref_mask, cloud_mask for each residue.
+    Also sets bridging references from O3'(i-1) to P(i).
+    """
     L = len(seq)
-    max_atoms = 10  # expanded from 7 to 10
+    max_atoms = 10  # backbone only, P..C1'
 
     bond_mask = torch.zeros((L, max_atoms), dtype=torch.float32, device=device)
     angles_mask = torch.zeros((2, L, max_atoms), dtype=torch.float32, device=device)
@@ -26,147 +38,172 @@ def build_scaffolds_rna_from_torsions(
     cloud_mask = torch.ones((L, max_atoms), dtype=torch.bool, device=device)
 
     for i, base_type in enumerate(seq):
-        # 1) Attempt to retrieve geometry dictionary
-        if base_type in RNA_BUILD_INFO:
-            info = RNA_BUILD_INFO[base_type]
-        else:
-            # fallback to "A"
-            info = RNA_BUILD_INFO["A"]
+        info = RNA_BUILD_INFO.get(base_type, RNA_BUILD_INFO["A"])
+        index_map = { name: idx for idx, name in enumerate(info["backbone_atoms"]) }
 
-        # 2) Fill bond_mask from "bond_lengths"
-        # We'll create an index_map to help find numeric indices for each backbone atom
-        index_map = {}
-        for idx, atom_name in enumerate(info["backbone_atoms"]):
-            index_map[atom_name] = idx
-
+        # 1) Fill bond lengths in bond_mask
         for (a1, a2), val in info["bond_lengths"].items():
             if a1 in index_map and a2 in index_map:
-                idx1 = index_map[a1]
-                idx2 = index_map[a2]
-                # We store the bond length at the "child" index (idx2)
-                bond_mask[i, idx2] = val
+                c_idx = index_map[a2]
+                bond_mask[i, c_idx] = val
 
-        # 3) Fill angles_mask for bond angles (angles_mask[0])
-        # Convert to radians
-        for triple, ang_deg in info["bond_angles"].items():
-            x1, x2, x3 = triple
+        # 2) Fill bond angles in angles_mask[0], converting deg->rad
+        for (x1, x2, x3), ang_deg in info["bond_angles"].items():
             if x1 in index_map and x2 in index_map and x3 in index_map:
-                i1 = index_map[x1]
-                i2 = index_map[x2]
-                i3 = index_map[x3]
-                # We'll place it at the child index i3 for convenience
-                angles_mask[0, i, i3] = ang_deg * (3.14159 / 180.0)
+                c_idx = index_map[x3]
+                angles_mask[0, i, c_idx] = ang_deg * (math.pi / 180.0)
 
-        # 4) Overwrite dihedrals from 'torsions' array in angles_mask[1]
-        # Suppose torsions shape [L, 7] => alpha..zeta + chi
-        if torsions.shape[1] >= 7:
-            alpha_val = torsions[i, 0]
-            beta_val  = torsions[i, 1]
-            gamma_val = torsions[i, 2]
-            delta_val = torsions[i, 3]
-            epsilon_val = torsions[i, 4]
-            zeta_val = torsions[i, 5]
-            chi_val  = torsions[i, 6]
+        # 3) Fill dihedral angles from 'torsions' input
+        # Expect shape [L, 7], each row is alpha..zeta, chi
+        if torsions.size(1) >= 7:
+            alpha, beta, gamma, delta, eps, zeta, chi = torsions[i]
+            # Map to indices: O5'(1)->alpha, C5'(2)->beta, C4'(3)->gamma,
+            # O4'(4)->delta, C3'(5)->epsilon, O3'(6)->zeta, C1'(9)->chi
+            angles_mask[1, i, 1] = alpha
+            angles_mask[1, i, 2] = beta
+            angles_mask[1, i, 3] = gamma
+            angles_mask[1, i, 4] = delta
+            angles_mask[1, i, 5] = eps
+            angles_mask[1, i, 6] = zeta
+            angles_mask[1, i, 9] = chi
 
-            # We assign dihedrals to these atom indices, as an example:
-            # alpha -> index 1 (O5')
-            # beta -> index 2 (C5')
-            # gamma -> index 3 (C4')
-            # delta -> index 4 (O4')
-            # epsilon -> index 5 (C3')
-            # zeta -> index 6 (O3')
-            # chi -> index 9 (C1')
-            angles_mask[1, i, 1] = alpha_val
-            angles_mask[1, i, 2] = beta_val
-            angles_mask[1, i, 3] = gamma_val
-            angles_mask[1, i, 4] = delta_val
-            angles_mask[1, i, 5] = epsilon_val
-            angles_mask[1, i, 6] = zeta_val
-            angles_mask[1, i, 9] = chi_val
-
-        # 5) Bridging references for the P atom (index 0)
+        # 4) Bridging reference for P(0)
         if i == 0:
-            # For the very first residue, reference is dummy for P
-            point_ref_mask[0,i,0] = 0
-            point_ref_mask[1,i,0] = 0
-            point_ref_mask[2,i,0] = 0
+            # For the very first residue, reference itself
+            point_ref_mask[0, i, 0] = i*max_atoms
+            point_ref_mask[1, i, 0] = i*max_atoms
+            point_ref_mask[2, i, 0] = i*max_atoms
         else:
-            # Link residue i's P to residue (i-1)'s O3' (index 6)
-            # We'll flatten the index as (i-1)*max_atoms + 6
-            prev_O3_global = (i-1)*max_atoms + 6
-            point_ref_mask[0,i,0] = prev_O3_global
-            point_ref_mask[1,i,0] = prev_O3_global
-            point_ref_mask[2,i,0] = prev_O3_global
+            # previous residue's O3' is index 6
+            prev_o3_global = (i-1)*max_atoms + 6
+            point_ref_mask[0, i, 0] = prev_o3_global
+            point_ref_mask[1, i, 0] = prev_o3_global
+            point_ref_mask[2, i, 0] = prev_o3_global
 
-        # 6) For the other backbone atoms, define references relative to the same residue
-        # We'll do a simple scheme: each child's references are the previous one repeated
-        # In practice, you might want more precise local frames referencing the prior 3 atoms
+        # 5) For local references, each child references the previous local index
         for j in range(1, max_atoms):
-            if j == 1 and i == 0:
-                # O5' referencing P,P,P for residue 0
-                point_ref_mask[0,i,1] = 0
-                point_ref_mask[1,i,1] = 0
-                point_ref_mask[2,i,1] = 0
-            else:
-                # For subsequent atoms, reference the previous local index
-                ref_global = i*max_atoms + (j-1)
-                point_ref_mask[0,i,j] = ref_global
-                point_ref_mask[1,i,j] = ref_global
-                point_ref_mask[2,i,j] = ref_global
+            point_ref_mask[0, i, j] = i*max_atoms + (j-1)
+            point_ref_mask[1, i, j] = i*max_atoms + (j-1)
+            point_ref_mask[2, i, j] = i*max_atoms + (j-1)
 
-    scaffolds = {
+    return {
         "bond_mask": bond_mask,
         "angles_mask": angles_mask,
         "point_ref_mask": point_ref_mask,
         "cloud_mask": cloud_mask
     }
-    return scaffolds
 
-
-def rna_fold(scaffolds: dict, device: str = "cpu"):
+def rna_fold(scaffolds: dict, device="cpu", do_ring_closure=False):
     """
-    Construct the 3D RNA backbone + sugar ring in a single pass using mp_nerf_torch.
-    We have L residues, max_atoms=10 each. We'll place them carefully so that
-    for residue i>0, the P references residue (i-1)'s O3'.
+    Build backbone coords from scaffolds using mp_nerf_torch. Optionally do ring closure.
+    Returns shape [L, max_atoms, 3].
     """
-
-    bond_mask     = scaffolds["bond_mask"]
-    angles_mask   = scaffolds["angles_mask"]
-    point_ref     = scaffolds["point_ref_mask"]
-    cloud_mask    = scaffolds["cloud_mask"]
+    bond_mask = scaffolds["bond_mask"]
+    angles_mask = scaffolds["angles_mask"]
+    point_ref = scaffolds["point_ref_mask"]
+    cloud_mask = scaffolds["cloud_mask"]
 
     L, max_atoms = bond_mask.shape
     coords = torch.zeros((L, max_atoms, 3), dtype=torch.float32, device=device)
+    coords_flat = coords.view(-1, 3)
+    total = L*max_atoms
 
-    # We'll do a nested loop; for each residue & each atom, place them via mp_nerf
     for i in range(L):
         for j in range(max_atoms):
-            if not cloud_mask[i,j]:
+            if not cloud_mask[i, j]:
                 continue
+            refA = point_ref[0, i, j].item()
+            refB = point_ref[1, i, j].item()
+            refC = point_ref[2, i, j].item()
 
-            # gather references
-            refA = point_ref[0,i,j].item()
-            refB = point_ref[1,i,j].item()
-            refC = point_ref[2,i,j].item()
+            a_xyz = coords_flat[refA] if (0 <= refA < total) else torch.zeros(3, device=device)
+            b_xyz = coords_flat[refB] if (0 <= refB < total) else torch.zeros(3, device=device)
+            c_xyz = coords_flat[refC] if (0 <= refC < total) else torch.zeros(3, device=device)
 
-            # flatten to handle bridging indices
-            a_coords = coords.view(-1,3)[refA] if refA < L*max_atoms else torch.zeros(3, device=device)
-            b_coords = coords.view(-1,3)[refB] if refB < L*max_atoms else torch.zeros(3, device=device)
-            c_coords = coords.view(-1,3)[refC] if refC < L*max_atoms else torch.zeros(3, device=device)
+            l_val = bond_mask[i, j]
+            theta = angles_mask[0, i, j]
+            phi   = angles_mask[1, i, j]
 
-            l_val = bond_mask[i,j]
-            theta = angles_mask[0,i,j]
-            phi   = angles_mask[1,i,j]
+            coords[i, j] = mp_nerf_torch(a_xyz, b_xyz, c_xyz, l_val, theta, phi)
 
-            coords[i,j] = mp_nerf_torch(a_coords, b_coords, c_coords, l_val, theta, phi)
-
+    if do_ring_closure:
+        coords = ring_closure_refinement(coords)
     return coords
 
+def ring_closure_refinement(coords: torch.Tensor) -> torch.Tensor:
+    """
+    Placeholder function to fix ring closure if flexible pucker is used.
+    For now, return coords as-is, or add a small iterative correction.
+    """
+    return coords
 
-def build_and_fold_rna(seq, torsions, device="cpu"):
+def skip_missing_atoms(seq: str, scaffolds: dict) -> dict:
     """
-    Convenience function to do both steps in one call.
+    Potentially skip certain atoms if your pipeline knows they're missing.
+    This function can manipulate scaffolds["cloud_mask"] accordingly.
     """
-    scaffolds = build_scaffolds_rna_from_torsions(seq, torsions, device=device)
-    coords = rna_fold(scaffolds, device=device)
+    # Example usage:
+    # if some condition: scaffolds["cloud_mask"][i,8] = False
+    return scaffolds
+
+def handle_mods(seq: str, scaffolds: dict) -> dict:
+    """
+    If you detect modified bases (m5C, PSU, etc.), either update bond lengths/angles or skip them.
+    """
+    return scaffolds
+
+def place_rna_bases(backbone_coords: torch.Tensor,
+                    seq: str,
+                    angles_mask: torch.Tensor,
+                    device="cpu"):
+    """
+    For each residue i, we have the backbone coords shape [L, backbone_count, 3].
+    We attach base atoms, which may vary (purines vs. pyrimidines).
+    To avoid shape mismatch when concatenating, we zero-pad each residue 
+    to [max_atoms_per_residue, 3]. Then stack them into [L, max_atoms_per_residue, 3].
+    """
+    from .kb_rna import RNA_BUILD_INFO
+    L, backbone_count, _ = backbone_coords.shape
+
+    # 1) compute max
+    max_atoms = compute_max_rna_atoms()
+
+    new_coords_list = []
+    for i in range(L):
+        base_type = seq[i]
+        info = RNA_BUILD_INFO.get(base_type, RNA_BUILD_INFO["A"])
+        base_atoms = info.get("base_atoms", [])
+
+        # backbone slice => shape [backbone_count, 3]
+        bcoords = backbone_coords[i]
+
+        # 2) Optionally build base coords
+        # Right now, we just create a dummy zero for demonstration
+        # or you can do an actual mini-NeRF approach using angles_mask if desired.
+        base_coords = torch.zeros((len(base_atoms), 3), dtype=torch.float32, device=device)
+        # e.g. placeholder; in production, place the base with a mini nerf or so.
+
+        combined = torch.cat([bcoords, base_coords], dim=0)  # shape [(Bk+Bs), 3]
+        # 3) zero-pad to max_atoms
+        padded = torch.zeros((max_atoms, 3), dtype=torch.float32, device=device)
+        count = combined.size(0)
+        padded[:count] = combined
+
+        new_coords_list.append(padded.unsqueeze(0))  # shape [1, max_atoms, 3]
+
+    # 4) cat along residues dimension => [L, max_atoms, 3]
+    final_coords = torch.cat(new_coords_list, dim=0)
+    return final_coords
+
+def validate_rna_geometry(coords: torch.Tensor):
+    """
+    Optionally measure bond lengths/angles and compare with references,
+    raising warnings for major deviations.
+    """
+    pass
+
+def mini_refinement(coords: torch.Tensor, method="none"):
+    """
+    Stub for local MD or gradient-based refinement if needed.
+    """
     return coords
