@@ -1,7 +1,7 @@
 import torch
 
-from rna_predict.pipeline.stageA.rfold_predictor import StageARFoldPredictor
-from rna_predict.pipeline.stageB.torsion_bert_predictor import (
+from rna_predict.pipeline.stageA.adjacency.rfold_predictor import StageARFoldPredictor
+from rna_predict.pipeline.stageB.internal_coordinates.torsion_bert_predictor import (
     StageBTorsionBertPredictor,
 )
 from rna_predict.pipeline.stageC.stage_c_reconstruction import StageCReconstruction
