@@ -1,34 +1,41 @@
 import torch
 
+
 class StageCReconstruction:
     """
     Original fallback approach for Stage C (legacy).
     You can keep it if you want a backup method.
     """
+
     def __call__(self, torsion_angles: torch.Tensor):
         N = torsion_angles.size(0)
         coords = torch.zeros((N * 3, 3))
         return {"coords": coords, "atom_count": coords.size(0)}
 
-def run_stageC_rna_mpnerf(sequence: str,
-                          predicted_torsions: torch.Tensor,
-                          device="cpu",
-                          do_ring_closure=False,
-                          place_bases=True):
+
+def run_stageC_rna_mpnerf(
+    sequence: str,
+    predicted_torsions: torch.Tensor,
+    device="cpu",
+    do_ring_closure=False,
+    place_bases=True,
+):
     """
     Main RNA Stage C function that calls mp-nerf-based methods to build
     backbone + optional ring closure + base placement. Returns a coords dict.
     """
     from rna_predict.pipeline.stageC.mp_nerf.rna import (
         build_scaffolds_rna_from_torsions,
-        skip_missing_atoms,
         handle_mods,
+        place_rna_bases,
         rna_fold,
-        place_rna_bases
+        skip_missing_atoms,
     )
 
     # 1) Build scaffolds from torsions
-    scaffolds = build_scaffolds_rna_from_torsions(sequence, predicted_torsions, device=device)
+    scaffolds = build_scaffolds_rna_from_torsions(
+        sequence, predicted_torsions, device=device
+    )
 
     # 2) Optionally handle partial/missing data
     scaffolds = skip_missing_atoms(sequence, scaffolds)
@@ -39,7 +46,9 @@ def run_stageC_rna_mpnerf(sequence: str,
 
     # 4) Place bases if desired
     if place_bases:
-        coords_full = place_rna_bases(coords_bb, sequence, scaffolds["angles_mask"], device=device)
+        coords_full = place_rna_bases(
+            coords_bb, sequence, scaffolds["angles_mask"], device=device
+        )
     else:
         coords_full = coords_bb
 
@@ -47,10 +56,9 @@ def run_stageC_rna_mpnerf(sequence: str,
     return {"coords": coords_full, "atom_count": total_atoms}
 
 
-def run_stageC(sequence: str,
-               torsion_angles: torch.Tensor,
-               method="mp_nerf",
-               device="cpu"):
+def run_stageC(
+    sequence: str, torsion_angles: torch.Tensor, method="mp_nerf", device="cpu"
+):
     """
     Unified entry point for Stage C. If method="mp_nerf", we call run_stageC_rna_mpnerf.
     Otherwise, fallback to the old StageCReconstruction.
