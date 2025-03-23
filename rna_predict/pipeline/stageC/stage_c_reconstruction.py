@@ -45,3 +45,13 @@ def run_stageC(sequence, torsion_angles, method="mp_nerf", device="cpu"):
         # fallback or legacy approach using the StageCReconstruction class
         stageC = StageCReconstruction()
         return stageC(torsion_angles)
+    
+
+if __name__ == "__main__":
+    # Example usage of the unified Stage C function
+    seq = "ACGU"
+    torsions = torch.rand((len(seq), 7))
+    out = run_stageC(sequence=seq, torsion_angles=torsions, method="mp_nerf")
+    print(out["coords"].shape, out["atom_count"])
+    # Expected output: torch.Size([40, 3]) 40
+    # This is a dummy output; real output would be 3D coordinates of the RNA backbone.
