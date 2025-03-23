@@ -1,18 +1,13 @@
 """
 kb_rna.py
 
-Holds standard RNA geometry references (backbone + base).
-Optionally references final_kb_rna.py or a bridging file if numeric data is large.
+Holds standard RNA geometry references (backbone + base). This is analogous
+to kb_proteins.py but adapted for RNA, with typical bond lengths, angles,
+and torsion naming (alpha..zeta, chi).
 """
 
-from typing import Dict, Any
-
-# A minimal dictionary demonstrating how to store geometry data for each base type,
-# now expanded to include the sugar ring (C2', O2', C1') in the backbone_atoms.
-
-RNA_BUILD_INFO: Dict[str, Any] = {
+RNA_BUILD_INFO = {
     "A": {
-        # 10 backbone atoms: P, O5', C5', C4', O4', C3', O3', C2', O2', C1'
         "backbone_atoms": ["P","O5'","C5'","C4'","O4'","C3'","O3'","C2'","O2'","C1'"],
         "bond_lengths": {
             ("P","O5'"): 1.59,
@@ -24,25 +19,21 @@ RNA_BUILD_INFO: Dict[str, Any] = {
             ("C3'","C2'"): 1.52,
             ("C2'","O2'"): 1.41,
             ("C1'","C2'"): 1.53,
-            # If needed, you can define additional ring bonds (e.g. O4'-C1') explicitly
+            ("O4'","C1'"): 1.41
         },
-        # Some standard angles, mostly placeholders or typical A-form references
         "bond_angles": {
             ("P","O5'","C5'"): 105.0,
             ("O5'","C5'","C4'"): 115.0,
             ("C5'","C4'","O4'"): 106.0,
             ("C5'","C4'","C3'"): 102.0,
             ("C4'","C3'","O3'"): 118.0,
-
             ("C4'","C3'","C2'"): 110.0,
             ("C3'","C2'","O2'"): 109.0,
             ("C1'","C2'","C3'"): 101.0,
             ("C1'","C2'","O2'"): 110.0,
-
-            # bridging angles for reference:
-            ("O3'","P","O5'"): 105.0
+            ("O3'","P","O5'"): 105.0,
+            ("O4'","C1'","C2'"): 106.0
         },
-        # Torsions might map alpha..zeta + chi, plus ring torsions if flexible
         "torsions": ["alpha","beta","gamma","delta","epsilon","zeta","chi"],
         "default_torsion_degs": {
             "alpha": 300.0,
@@ -53,10 +44,24 @@ RNA_BUILD_INFO: Dict[str, Any] = {
             "zeta": 290.0,
             "chi": 210.0
         },
-        # We can keep base_atoms for future expansions
-        "base_atoms": ["N9","C8","N7","C5","C6","N6","C4","N3","C2"]
+        "base_atoms": ["N9","C8","N7","C5","C6","N6","N1","C2","N3","C4"],
+        "base_bond_lengths": {
+            ("N9","C8"): 1.375,
+            ("C8","N7"): 1.380,
+            ("N7","C5"): 1.385,
+            ("C5","C6"): 1.406,
+            ("N6","C6"): 1.335,
+            ("N1","C2"): 1.339,
+            ("N3","C4"): 1.344
+        },
+        "base_bond_angles": {
+            ("C8","N9","C4"): 105.8,
+            ("N9","C8","N7"): 105.0,
+            ("C8","N7","C5"): 108.0,
+            ("N7","C5","C6"): 117.0,
+            ("C5","C6","N6"): 123.5
+        }
     },
-
     "U": {
         "backbone_atoms": ["P","O5'","C5'","C4'","O4'","C3'","O3'","C2'","O2'","C1'"],
         "bond_lengths": {
@@ -69,6 +74,7 @@ RNA_BUILD_INFO: Dict[str, Any] = {
             ("C3'","C2'"): 1.52,
             ("C2'","O2'"): 1.41,
             ("C1'","C2'"): 1.53,
+            ("O4'","C1'"): 1.41
         },
         "bond_angles": {
             ("P","O5'","C5'"): 105.0,
@@ -76,13 +82,12 @@ RNA_BUILD_INFO: Dict[str, Any] = {
             ("C5'","C4'","O4'"): 106.0,
             ("C5'","C4'","C3'"): 102.0,
             ("C4'","C3'","O3'"): 118.0,
-
             ("C4'","C3'","C2'"): 110.0,
             ("C3'","C2'","O2'"): 109.0,
             ("C1'","C2'","C3'"): 101.0,
             ("C1'","C2'","O2'"): 110.0,
-
-            ("O3'","P","O5'"): 105.0
+            ("O3'","P","O5'"): 105.0,
+            ("O4'","C1'","C2'"): 106.0
         },
         "torsions": ["alpha","beta","gamma","delta","epsilon","zeta","chi"],
         "default_torsion_degs": {
@@ -94,9 +99,20 @@ RNA_BUILD_INFO: Dict[str, Any] = {
             "zeta": 290.0,
             "chi": 210.0
         },
-        "base_atoms": ["N1","C2","N3","C4","C5","C6","O2","O4"]
+        "base_atoms": ["N1","C2","N3","C4","C5","C6","O2","O4"],
+        "base_bond_lengths": {
+            ("N1","C2"): 1.381,
+            ("C2","N3"): 1.373,
+            ("N3","C4"): 1.380,
+            ("C4","C5"): 1.431,
+            ("C5","C6"): 1.337
+        },
+        "base_bond_angles": {
+            ("C6","N1","C2"): 121.0,
+            ("N1","C2","N3"): 115.0,
+            ("C2","N3","C4"): 118.0
+        }
     },
-
     "G": {
         "backbone_atoms": ["P","O5'","C5'","C4'","O4'","C3'","O3'","C2'","O2'","C1'"],
         "bond_lengths": {
@@ -109,6 +125,7 @@ RNA_BUILD_INFO: Dict[str, Any] = {
             ("C3'","C2'"): 1.52,
             ("C2'","O2'"): 1.41,
             ("C1'","C2'"): 1.53,
+            ("O4'","C1'"): 1.41
         },
         "bond_angles": {
             ("P","O5'","C5'"): 105.0,
@@ -116,13 +133,12 @@ RNA_BUILD_INFO: Dict[str, Any] = {
             ("C5'","C4'","O4'"): 106.0,
             ("C5'","C4'","C3'"): 102.0,
             ("C4'","C3'","O3'"): 118.0,
-
             ("C4'","C3'","C2'"): 110.0,
             ("C3'","C2'","O2'"): 109.0,
             ("C1'","C2'","C3'"): 101.0,
             ("C1'","C2'","O2'"): 110.0,
-
-            ("O3'","P","O5'"): 105.0
+            ("O3'","P","O5'"): 105.0,
+            ("O4'","C1'","C2'"): 106.0
         },
         "torsions": ["alpha","beta","gamma","delta","epsilon","zeta","chi"],
         "default_torsion_degs": {
@@ -134,9 +150,17 @@ RNA_BUILD_INFO: Dict[str, Any] = {
             "zeta": 290.0,
             "chi": 210.0
         },
-        "base_atoms": ["N9","C8","N7","C5","C6","O6","N1","C2","N2","N3","C4"]
+        "base_atoms": ["N9","C8","N7","C5","C6","O6","N1","C2","N2","N3","C4"],
+        "base_bond_lengths": {
+            ("N9","C8"): 1.375,
+            ("C8","N7"): 1.379,
+            ("N7","C5"): 1.385
+        },
+        "base_bond_angles": {
+            ("C8","N9","C4"): 105.8
+            # etc, can expand
+        }
     },
-
     "C": {
         "backbone_atoms": ["P","O5'","C5'","C4'","O4'","C3'","O3'","C2'","O2'","C1'"],
         "bond_lengths": {
@@ -149,6 +173,7 @@ RNA_BUILD_INFO: Dict[str, Any] = {
             ("C3'","C2'"): 1.52,
             ("C2'","O2'"): 1.41,
             ("C1'","C2'"): 1.53,
+            ("O4'","C1'"): 1.41
         },
         "bond_angles": {
             ("P","O5'","C5'"): 105.0,
@@ -156,13 +181,12 @@ RNA_BUILD_INFO: Dict[str, Any] = {
             ("C5'","C4'","O4'"): 106.0,
             ("C5'","C4'","C3'"): 102.0,
             ("C4'","C3'","O3'"): 118.0,
-
             ("C4'","C3'","C2'"): 110.0,
             ("C3'","C2'","O2'"): 109.0,
             ("C1'","C2'","C3'"): 101.0,
             ("C1'","C2'","O2'"): 110.0,
-
-            ("O3'","P","O5'"): 105.0
+            ("O3'","P","O5'"): 105.0,
+            ("O4'","C1'","C2'"): 106.0
         },
         "torsions": ["alpha","beta","gamma","delta","epsilon","zeta","chi"],
         "default_torsion_degs": {
@@ -174,15 +198,14 @@ RNA_BUILD_INFO: Dict[str, Any] = {
             "zeta": 290.0,
             "chi": 210.0
         },
-        "base_atoms": ["N1","C2","O2","N3","C4","N4","C5","C6"]
-    },
-
-    # Example extension for a hypothetical modified base "m5C" or pseudouridine "PSU"
-    # "m5C": {
-    #     "backbone_atoms": [...],
-    #     "bond_lengths": {...},
-    #     "bond_angles": {...},
-    #     ...
-    # }
-
+        "base_atoms": ["N1","C2","O2","N3","C4","N4","C5","C6"],
+        "base_bond_lengths": {
+            ("N1","C2"): 1.397,
+            ("C2","N3"): 1.353
+        },
+        "base_bond_angles": {
+            ("C6","N1","C2"): 120.3
+            # expand as needed
+        }
+    }
 }
