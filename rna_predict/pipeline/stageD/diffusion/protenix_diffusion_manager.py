@@ -35,10 +35,9 @@ class ProtenixDiffusionManager:
         diffusion_chunk_size: int | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
-        Fix to pass all required arguments to sample_diffusion_training.
-        We create the noise_sampler from sampler_params and treat self.diffusion_module
-        as the denoise_net. Then we call sample_diffusion_training with the correct signature.
-        Returns x_gt_augment, x_denoised, sigma.
+        Pass all required arguments to sample_diffusion_training.
+        Creates a noise sampler from sampler_params and uses self.diffusion_module as the denoise_net.
+        Returns: x_gt_augment, x_denoised, sigma.
         """
 
         noise_sampler = TrainingNoiseSampler(
@@ -58,14 +57,18 @@ class ProtenixDiffusionManager:
             diffusion_chunk_size=diffusion_chunk_size,
         )
         return x_gt_augment, x_denoised, sigma
-    
+
     @snoop
-    def multi_step_inference(self, coords_init: torch.Tensor, trunk_embeddings: dict, inference_params: dict):
+    def multi_step_inference(
+        self,
+        coords_init: torch.Tensor,
+        trunk_embeddings: dict,
+        inference_params: dict,
+        override_input_features: dict = None
+    ):
         """
-        Adjust this method so we pass valid arguments to sample_diffusion.
-        We do not currently use coords_init as the initial coordinate inside sample_diffusion,
-        because sample_diffusion starts from random noise. If you want to incorporate
-        coords_init as a real starting point, you'd need to modify sample_diffusion's logic.
+        If override_input_features is provided, use that dictionary instead of a dummy one.
+        This prevents the 'index out of bounds' error when using an empty input_feature_dict.
         """
         device = self.device
         coords_init = coords_init.to(device)
@@ -79,26 +82,21 @@ class ProtenixDiffusionManager:
             available = {k: (v.shape if isinstance(v, torch.Tensor) else v) for k, v in trunk_embeddings.items()}
             raise ValueError(f"StageD diffusion requires a non-empty 's_trunk' in trunk_embeddings, but it was not found. Available keys: {available}")
 
-        # Construct a minimal input_feature_dict for sample_diffusion
-        input_feature_dict = {
-            "atom_to_token_idx": torch.zeros((1, 0), device=device),
-            # Additional fields or real token mapping can be placed here
-        }
+        # Use the provided input_feature_dict if available; otherwise fallback to a dummy dict
+        if override_input_features is not None:
+            input_feature_dict = override_input_features
+        else:
+            input_feature_dict = {
+                "atom_to_token_idx": torch.zeros((1, 0), device=device)
+            }
 
-        # For demonstration, pick s_inputs, s_trunk, and z_trunk from trunk_embeddings
-        s_inputs = trunk_embeddings.get("sing", torch.empty((1, 0), device=device))
-        s_trunk = trunk_embeddings.get("s_trunk", torch.empty((1, 0), device=device))
-        z_trunk = trunk_embeddings.get("pair", torch.empty((1, 1, 0), device=device))
+        s_inputs = trunk_embeddings.get("sing", trunk_embeddings.get("s_inputs", None))
+        s_trunk = trunk_embeddings["s_trunk"]
+        z_trunk = trunk_embeddings.get("pair", None)
 
-        # Diagnostic: Check if s_trunk is empty and report available keys
-        if s_trunk.size(1) == 0:
-            available = {k: (v.shape if isinstance(v, torch.Tensor) else v) for k, v in trunk_embeddings.items()}
-            raise ValueError(f"StageD diffusion requires a non-empty 's_trunk' in trunk_embeddings. Received s_trunk with shape: {s_trunk.shape}. Available keys: {available}")
-
-        # Create a simple linear noise schedule or pull from InferenceNoiseScheduler
+        # Create a simple noise schedule
         num_steps = inference_params.get("num_steps", 20)
-        noise_schedule = torch.linspace(1.0, 0.0, steps=num_steps+1, device=device)
-
+        noise_schedule = torch.linspace(1.0, 0.0, steps=num_steps + 1, device=device)
         N_sample = inference_params.get("N_sample", 1)
 
         coords_final = sample_diffusion(
@@ -116,7 +114,7 @@ class ProtenixDiffusionManager:
 
     def custom_manual_loop(self, x_gt: torch.Tensor, trunk_embeddings: dict, sigma: float):
         """
-        Optional manual approach: user controls noise, calls diffusion_module forward
+        Optional manual approach: user controls noise and calls diffusion_module forward.
         """
         x_gt = x_gt.to(self.device)
         x_noisy = x_gt + torch.randn_like(x_gt) * sigma
