@@ -5,6 +5,7 @@ from protenix.model.generator import (  # type: ignore
     sample_diffusion,
     TrainingNoiseSampler
 )
+import snoop
 
 class ProtenixDiffusionManager:
     """
@@ -12,10 +13,16 @@ class ProtenixDiffusionManager:
     multi-step (inference) bridging for Stage D in the pipeline.
     """
 
+    @snoop
     def __init__(self, diffusion_config: dict, device: str = "cpu"):
+        # Ensure "initialization" is never None
+        if "initialization" not in diffusion_config or diffusion_config["initialization"] is None:
+            diffusion_config["initialization"] = {}
+
         self.device = torch.device(device)
         self.diffusion_module = DiffusionModule(**diffusion_config).to(self.device)
 
+    @snoop
     def train_diffusion_step(
         self,
         label_dict: dict,
@@ -52,28 +59,51 @@ class ProtenixDiffusionManager:
         )
         return x_gt_augment, x_denoised, sigma
     
+    @snoop
     def multi_step_inference(self, coords_init: torch.Tensor, trunk_embeddings: dict, inference_params: dict):
-        """
-        multi-step inference using sample_diffusion.
-        coords_init: [B, N, 3]
-        trunk_embeddings: e.g. {"sing": [B,N,c_token], "pair": [B,N,N,c_pair]}
-        inference_params: e.g. {"num_steps":20,"sigma_max":1.0}
+            """
+            Adjust this method so we pass valid arguments to sample_diffusion.
+            We do not currently use coords_init as the initial coordinate inside sample_diffusion,
+            because sample_diffusion starts from random noise. If you want to incorporate
+            coords_init as a real starting point, you'd need to modify sample_diffusion's logic.
+            """
 
-        Returns final denoised coords: [B, N, 3]
-        """
-        coords_init = coords_init.to(self.device)
-        for k, v in trunk_embeddings.items():
-            trunk_embeddings[k] = v.to(self.device) if v is not None else None
+            device = self.device
+            coords_init = coords_init.to(device)
 
-        coords_final = sample_diffusion(
-            x_init=coords_init,
-            trunk_sing=trunk_embeddings.get("sing", None),
-            trunk_pair=trunk_embeddings.get("pair", None),
-            diffusion_module=self.diffusion_module,
-            device=self.device,
-            **inference_params
-        )
-        return coords_final
+            # Move trunk embeddings to the correct device
+            for k, v in trunk_embeddings.items():
+                trunk_embeddings[k] = v.to(device) if v is not None else None
+
+            # Construct a minimal input_feature_dict for sample_diffusion
+            input_feature_dict = {
+                "atom_to_token_idx": torch.zeros((1, 0), device=device),
+                # Additional fields or real token mapping can be placed here
+            }
+
+            # For demonstration, let's pick s_inputs, s_trunk, and z_trunk from trunk_embeddings
+            s_inputs = trunk_embeddings.get("sing", torch.empty((1,0), device=device))
+            s_trunk = trunk_embeddings.get("s_trunk", torch.empty((1,0), device=device))
+            z_trunk = trunk_embeddings.get("pair", torch.empty((1,1,0), device=device))
+
+            # Create a simple linear noise schedule or pull from InferenceNoiseScheduler
+            num_steps = inference_params.get("num_steps", 20)
+            noise_schedule = torch.linspace(1.0, 0.0, steps=num_steps+1, device=device)
+
+            N_sample = inference_params.get("N_sample", 1)
+
+            coords_final = sample_diffusion(
+                denoise_net=self.diffusion_module,
+                input_feature_dict=input_feature_dict,
+                s_inputs=s_inputs,
+                s_trunk=s_trunk,
+                z_trunk=z_trunk,
+                noise_schedule=noise_schedule,
+                N_sample=N_sample
+                # Optionally pass other advanced arguments if needed
+            )
+
+            return coords_final
 
     def custom_manual_loop(self, x_gt: torch.Tensor, trunk_embeddings: dict, sigma: float):
         """
