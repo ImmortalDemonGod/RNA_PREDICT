@@ -61,49 +61,52 @@ class ProtenixDiffusionManager:
     
     @snoop
     def multi_step_inference(self, coords_init: torch.Tensor, trunk_embeddings: dict, inference_params: dict):
-            """
-            Adjust this method so we pass valid arguments to sample_diffusion.
-            We do not currently use coords_init as the initial coordinate inside sample_diffusion,
-            because sample_diffusion starts from random noise. If you want to incorporate
-            coords_init as a real starting point, you'd need to modify sample_diffusion's logic.
-            """
+        """
+        Adjust this method so we pass valid arguments to sample_diffusion.
+        We do not currently use coords_init as the initial coordinate inside sample_diffusion,
+        because sample_diffusion starts from random noise. If you want to incorporate
+        coords_init as a real starting point, you'd need to modify sample_diffusion's logic.
+        """
+        device = self.device
+        coords_init = coords_init.to(device)
 
-            device = self.device
-            coords_init = coords_init.to(device)
+        # Move trunk embeddings to the correct device
+        for k, v in trunk_embeddings.items():
+            trunk_embeddings[k] = v.to(device) if v is not None else None
 
-            # Move trunk embeddings to the correct device
-            for k, v in trunk_embeddings.items():
-                trunk_embeddings[k] = v.to(device) if v is not None else None
+        # Construct a minimal input_feature_dict for sample_diffusion
+        input_feature_dict = {
+            "atom_to_token_idx": torch.zeros((1, 0), device=device),
+            # Additional fields or real token mapping can be placed here
+        }
 
-            # Construct a minimal input_feature_dict for sample_diffusion
-            input_feature_dict = {
-                "atom_to_token_idx": torch.zeros((1, 0), device=device),
-                # Additional fields or real token mapping can be placed here
-            }
+        # For demonstration, pick s_inputs, s_trunk, and z_trunk from trunk_embeddings
+        s_inputs = trunk_embeddings.get("sing", torch.empty((1, 0), device=device))
+        s_trunk = trunk_embeddings.get("s_trunk", torch.empty((1, 0), device=device))
+        z_trunk = trunk_embeddings.get("pair", torch.empty((1, 1, 0), device=device))
 
-            # For demonstration, let's pick s_inputs, s_trunk, and z_trunk from trunk_embeddings
-            s_inputs = trunk_embeddings.get("sing", torch.empty((1,0), device=device))
-            s_trunk = trunk_embeddings.get("s_trunk", torch.empty((1,0), device=device))
-            z_trunk = trunk_embeddings.get("pair", torch.empty((1,1,0), device=device))
+        # Add check for empty s_trunk dimension
+        if s_trunk.size(1) == 0:
+            raise ValueError(f"StageD diffusion requires a non-empty 's_trunk' in trunk_embeddings. Received s_trunk with shape: {s_trunk.shape}")
 
-            # Create a simple linear noise schedule or pull from InferenceNoiseScheduler
-            num_steps = inference_params.get("num_steps", 20)
-            noise_schedule = torch.linspace(1.0, 0.0, steps=num_steps+1, device=device)
+        # Create a simple linear noise schedule or pull from InferenceNoiseScheduler
+        num_steps = inference_params.get("num_steps", 20)
+        noise_schedule = torch.linspace(1.0, 0.0, steps=num_steps+1, device=device)
 
-            N_sample = inference_params.get("N_sample", 1)
+        N_sample = inference_params.get("N_sample", 1)
 
-            coords_final = sample_diffusion(
-                denoise_net=self.diffusion_module,
-                input_feature_dict=input_feature_dict,
-                s_inputs=s_inputs,
-                s_trunk=s_trunk,
-                z_trunk=z_trunk,
-                noise_schedule=noise_schedule,
-                N_sample=N_sample
-                # Optionally pass other advanced arguments if needed
-            )
+        coords_final = sample_diffusion(
+            denoise_net=self.diffusion_module,
+            input_feature_dict=input_feature_dict,
+            s_inputs=s_inputs,
+            s_trunk=s_trunk,
+            z_trunk=z_trunk,
+            noise_schedule=noise_schedule,
+            N_sample=N_sample
+            # Optionally pass other advanced arguments if needed
+        )
 
-            return coords_final
+        return coords_final
 
     def custom_manual_loop(self, x_gt: torch.Tensor, trunk_embeddings: dict, sigma: float):
         """
