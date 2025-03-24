@@ -115,15 +115,28 @@ def load_rna_data_and_features(rna_filepath: str, device="cpu"):
     atom_to_tok = atom_to_tok.unsqueeze(0)  # shape [batch=1, N_atom]
     
     # Construct the input feature dictionary
+    # Add zeros or random placeholders for the features expected by AtomAttentionEncoder:
+    #   "ref_charge": shape [batch, N_atom, 1]
+    #   "ref_mask": shape [batch, N_atom, 1]
+    #   "ref_element": shape [batch, N_atom, 128]
+    #   "ref_atom_name_chars": shape [batch, N_atom, 256]
+    # For demonstration, we set them to zeros.
+
     input_feature_dict = {
         "atom_to_token_idx": atom_to_tok,
         "ref_pos": coords,              # shape [1, 40, 3]
         "ref_space_uid": ref_space_uid, # shape [1, 40]
-        "asym_id": token_meta["asym_id"].unsqueeze(0),  # shape [1, 10]
+        "asym_id": token_meta["asym_id"].unsqueeze(0),
         "residue_index": token_meta["residue_index"].unsqueeze(0),
         "entity_id": token_meta["entity_id"].unsqueeze(0),
         "sym_id": token_meta["sym_id"].unsqueeze(0),
         "token_index": token_meta["token_index"].unsqueeze(0),
+
+        # Provide placeholders for required fields by AtomAttentionEncoder.input_feature
+        "ref_charge": torch.zeros((1, num_atoms, 1), device=device),
+        "ref_mask": torch.ones((1, num_atoms, 1), device=device),  # can use ones to mark valid
+        "ref_element": torch.zeros((1, num_atoms, 128), device=device),
+        "ref_atom_name_chars": torch.zeros((1, num_atoms, 256), device=device),
     }
     
     validate_input_features(input_feature_dict)
