@@ -3,7 +3,6 @@ import math
 from datasets import load_dataset
 from datasets.iterable_dataset import IterableDataset
 
-
 def stream_bprna_dataset(split: str = "train") -> IterableDataset:
     """
     Stream the bprna-spot dataset from the HF Hub.
@@ -16,7 +15,6 @@ def stream_bprna_dataset(split: str = "train") -> IterableDataset:
     """
     ds_iter = load_dataset("multimolecule/bprna-spot", split=split, streaming=True)
     return ds_iter
-
 
 def build_rna_token_metadata(num_tokens: int, device="cpu"):
     """
@@ -50,7 +48,6 @@ def build_rna_token_metadata(num_tokens: int, device="cpu"):
         "sym_id": sym_id,
         "token_index": token_index
     }
-
 
 def build_atom_to_token_idx(num_atoms: int, num_tokens: int, device="cpu"):
     """
@@ -110,11 +107,9 @@ def load_rna_data_and_features(rna_filepath: str, device="cpu", override_num_ato
     default_num_atoms = 40
     num_atoms = override_num_atoms if override_num_atoms is not None else default_num_atoms
     
-    # For demonstration, let's also fix num_tokens accordingly
-    # If the pipeline expects 1 residue per 4 atoms, you can adjust logic below:
-    # Or you can just keep 10 tokens for simplicity
+    # For demonstration, we keep a fixed number of tokens.
     num_tokens = 10  
-
+    
     coords = torch.randn((1, num_atoms, 3), device=device)  # [batch=1, num_atoms, 3]
     # Unique ID for each atom
     ref_space_uid = torch.arange(num_atoms, device=device)[None, :]
@@ -137,7 +132,7 @@ def load_rna_data_and_features(rna_filepath: str, device="cpu", override_num_ato
     input_feature_dict = {
         "atom_to_token_idx": atom_to_tok,     # [1, num_atoms]
         "ref_pos": coords,                    # [1, num_atoms, 3]
-        "ref_space_uid": ref_space_uid,         # [1, num_atoms]
+        "ref_space_uid": ref_space_uid,       # [1, num_atoms]
         "asym_id": token_meta["asym_id"].unsqueeze(0),             # [1, num_tokens]
         "residue_index": token_meta["residue_index"].unsqueeze(0), # [1, num_tokens]
         "entity_id": token_meta["entity_id"].unsqueeze(0),         # [1, num_tokens]
@@ -150,6 +145,24 @@ def load_rna_data_and_features(rna_filepath: str, device="cpu", override_num_ato
         "ref_element": torch.zeros((1, num_atoms, 128), device=device),
         "ref_atom_name_chars": torch.zeros((1, num_atoms, 256), device=device),
     }
+    
+    # ---------------------------
+    # NEW: Add the token-level features required by InputFeatureEmbedder
+    # These shapes must match the dimension usage in the embedder:
+    #   restype:        [1, num_tokens, 32]
+    #   profile:        [1, num_tokens, 32]
+    #   deletion_mean:  [1, num_tokens,  1]
+    # 
+    # If real data is available, parse them accordingly. For demonstration,
+    # we simply create zeroed placeholders with the correct shape.
+    # ---------------------------
+    token_level_features = {
+        "restype":        torch.zeros((1, num_tokens, 32), device=device),
+        "profile":        torch.zeros((1, num_tokens, 32), device=device),
+        "deletion_mean":  torch.zeros((1, num_tokens, 1),  device=device),
+    }
+    input_feature_dict.update(token_level_features)
+    # ---------------------------
     
     validate_input_features(input_feature_dict)
     return input_feature_dict
