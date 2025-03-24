@@ -51,16 +51,60 @@ def demo_run_diffusion():
     """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+    # Example revised config ensuring c_token is a multiple of n_heads
+    # so that c_a % n_heads == 0 is satisfied:
+    diffusion_config = {
+        "c_atom": 128,
+        "c_s": 384,
+        "c_z": 32,
+        "c_token": 768,  # 768 is divisible by n_heads=16
+        "transformer": {
+            "n_blocks": 4,
+            "n_heads": 16
+        }
+    }
+
+    # OPTIONAL: Provide a quick check for config validity
+    if "transformer" in diffusion_config:
+        n_heads = diffusion_config["transformer"].get("n_heads", 16)
+        c_token = diffusion_config.get("c_token", 768)
+        if c_token % n_heads != 0:
+            raise ValueError(f"Invalid config: c_token={c_token} not divisible by "
+                             f"n_heads={n_heads}, must satisfy c_token % n_heads == 0.")
+
     # Suppose partial_coords is from Stage C, or random
     partial_coords = torch.randn(1, 10, 3, device=device)
     trunk_embeddings = {
         "sing": torch.randn(1, 10, 384, device=device),
         "pair": torch.randn(1, 10, 10, 32, device=device)
     }
+
+    from rna_predict.pipeline.stageD.run_stageD import run_stageD_diffusion
+    coords_final = run_stageD_diffusion(
+        partial_coords,
+        trunk_embeddings,
+        diffusion_config,
+        mode="inference",
+        device=device
+    )
+
+    print("[Diffusion Demo] coords_final shape:", coords_final.shape)
+
+    # Suppose partial_coords is from Stage C, or random
+    partial_coords = torch.randn(1, 10, 3, device=device)
+    trunk_embeddings = {
+        "sing": torch.randn(1, 10, 384, device=device),
+        "pair": torch.randn(1, 10, 10, 32, device=device)
+    }
+    
     diffusion_config = {
-        "c_s": 384,    # single embedding dimension
-        "c_z": 32,     # pair embedding dimension
-        "num_layers": 4
+        "c_atom": 128,  # embed dimension for atom features (must be multiple of n_heads=16)
+        "c_s": 384,     # single embedding dimension
+        "c_z": 32,      # pair embedding dimension
+        "transformer": {
+            "n_blocks": 4,
+            "n_heads": 16
+        }
     }
 
     # 1) Inference mode
@@ -87,8 +131,3 @@ def demo_run_diffusion():
 
 if __name__ == "__main__":
     demo_run_diffusion()
-# Expected output:
-# [Diffusion Demo] coords_final shape: torch.Size([1, 10, 3])
-# [Diffusion Demo] x_denoised shape: torch.Size([1, 10, 3])
-# [Diffusion Demo] loss: 1.0
-# [Diffusion Demo] sigma: 1.0
