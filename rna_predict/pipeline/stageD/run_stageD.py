@@ -1,5 +1,7 @@
 import torch
 from rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager import ProtenixDiffusionManager
+# Import the loader utility for RNA features
+from rna_predict.dataset.dataset_loader import load_rna_data_and_features
 
 def run_stageD_diffusion(
     partial_coords: torch.Tensor,
@@ -10,37 +12,59 @@ def run_stageD_diffusion(
 ):
     """
     Stage D entry:
-      - partial_coords: [B, N, 3]
-      - trunk_embeddings: dict with "sing",[B,N,c_token], "pair",[B,N,N,c_pair], etc.
-      - diffusion_config: e.g. { "c_x":3, "c_s":384, "c_z":128, "num_layers":4 }
+      - partial_coords: [B, N_atom, 3]
+      - trunk_embeddings: dict with "sing" [B,N_token,c_s], "pair" [B,N_token,N_token,c_z], etc.
+      - diffusion_config: diffusion hyperparameters.
       - mode: "inference" or "train"
       - device: "cpu" or "cuda"
 
-    If inference => returns final coords
-    If train => returns (x_denoised, loss, sigma)
+    Returns:
+      if inference => final coordinates,
+      if train => (x_denoised, loss, sigma)
     """
     manager = ProtenixDiffusionManager(diffusion_config, device=device)
+    
+    # Load a real input feature dictionary.
+    # In a full pipeline, you would pass consistent features across stages.
+    input_feature_dict = load_rna_data_and_features("demo_rna_file.cif", device=device)
+    # Overwrite ref_pos with the provided partial coordinates
+    input_feature_dict["ref_pos"] = partial_coords
 
-    # Ensure trunk_embeddings has key "s_trunk" required by multi_step_inference.
-    # Use "sing" as a fallback if "s_trunk" is missing.
+    # Ensure trunk_embeddings has the key "s_trunk" required by multi_step_inference.
     if "s_trunk" not in trunk_embeddings or trunk_embeddings["s_trunk"] is None:
         trunk_embeddings["s_trunk"] = trunk_embeddings.get("sing")
 
     if mode == "inference":
-        inference_params = {"num_steps": 20, "sigma_max": 1.0}
+        inference_params = {"num_steps": 20, "sigma_max": 1.0, "N_sample": 1}
         coords_final = manager.multi_step_inference(
             coords_init=partial_coords,
             trunk_embeddings=trunk_embeddings,
-            inference_params=inference_params
+            inference_params=inference_params,
+            override_input_features=input_feature_dict
         )
         return coords_final
 
     elif mode == "train":
-        sampler_params = {"p_mean": -1.2, "p_std": 1.0}
+        sampler_params = {"p_mean": -1.2, "p_std": 1.0, "sigma_data": 16.0}
+        
+        # Build label dictionary for training
+        label_dict = {
+            "coordinate": partial_coords,
+            "coordinate_mask": torch.ones_like(partial_coords[..., 0])  # No mask applied
+        }
+        
+        s_inputs = trunk_embeddings.get("s_inputs", trunk_embeddings.get("sing"))
+        s_trunk = trunk_embeddings.get("s_trunk")
+        z_trunk = trunk_embeddings.get("pair")
+        
         x_gt_out, x_denoised, sigma = manager.train_diffusion_step(
-            x_gt=partial_coords,
-            trunk_embeddings=trunk_embeddings,
-            sampler_params=sampler_params
+            label_dict=label_dict,
+            input_feature_dict=input_feature_dict,
+            s_inputs=s_inputs,
+            s_trunk=s_trunk,
+            z_trunk=z_trunk,
+            sampler_params=sampler_params,
+            N_sample=1
         )
         loss = (x_denoised - x_gt_out).pow(2).mean()
         return x_denoised, loss, sigma
@@ -51,13 +75,12 @@ def run_stageD_diffusion(
 
 def demo_run_diffusion():
     """
-    Demonstrates Stage D diffusion usage with partial coords and trunk embeddings
+    Demonstrates Stage D diffusion usage with partial coordinates and trunk embeddings
     for global refinement.
     """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Example revised config ensuring c_token is a multiple of n_heads
-    # so that c_a % n_heads == 0 is satisfied:
     diffusion_config = {
         "c_atom": 128,
         "c_s": 384,
@@ -69,50 +92,20 @@ def demo_run_diffusion():
         }
     }
 
-    # OPTIONAL: Provide a quick check for config validity
+    # OPTIONAL: Quick check for config validity
     if "transformer" in diffusion_config:
         n_heads = diffusion_config["transformer"].get("n_heads", 16)
         c_token = diffusion_config.get("c_token", 768)
         if c_token % n_heads != 0:
-            raise ValueError(f"Invalid config: c_token={c_token} not divisible by "
-                             f"n_heads={n_heads}, must satisfy c_token % n_heads == 0.")
+            raise ValueError(f"Invalid config: c_token={c_token} not divisible by n_heads={n_heads}.")
 
-    # Suppose partial_coords is from Stage C, or random
+    # Suppose partial_coords is from Stage C or generated randomly
     partial_coords = torch.randn(1, 10, 3, device=device)
     trunk_embeddings = {
         "sing": torch.randn(1, 10, 384, device=device),
         "pair": torch.randn(1, 10, 10, 32, device=device)
     }
 
-    from rna_predict.pipeline.stageD.run_stageD import run_stageD_diffusion
-    coords_final = run_stageD_diffusion(
-        partial_coords,
-        trunk_embeddings,
-        diffusion_config,
-        mode="inference",
-        device=device
-    )
-
-    print("[Diffusion Demo] coords_final shape:", coords_final.shape)
-
-    # Suppose partial_coords is from Stage C, or random
-    partial_coords = torch.randn(1, 10, 3, device=device)
-    trunk_embeddings = {
-        "sing": torch.randn(1, 10, 384, device=device),
-        "pair": torch.randn(1, 10, 10, 32, device=device)
-    }
-    
-    diffusion_config = {
-        "c_atom": 128,  # embed dimension for atom features (must be multiple of n_heads=16)
-        "c_s": 384,     # single embedding dimension
-        "c_z": 32,      # pair embedding dimension
-        "transformer": {
-            "n_blocks": 4,
-            "n_heads": 16
-        }
-    }
-
-    # 1) Inference mode
     coords_final = run_stageD_diffusion(
         partial_coords,
         trunk_embeddings,
@@ -122,7 +115,7 @@ def demo_run_diffusion():
     )
     print("[Diffusion Demo] coords_final shape:", coords_final.shape)
 
-    # 2) Training mode
+    # Training mode demonstration
     x_denoised, loss, sigma = run_stageD_diffusion(
         partial_coords,
         trunk_embeddings,
