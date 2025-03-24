@@ -64,9 +64,14 @@ class ProtenixIntegration:
         # 1) single embedding from Protenix’s InputFeatureEmbedder
         # Ensure ref_mask exists
         if "ref_mask" not in input_features:
-            # Here we assume all atoms are present. Adjust if you have actual mask logic.
             n_atom = input_features["ref_pos"].shape[0]
             input_features["ref_mask"] = torch.ones(n_atom, dtype=torch.bool, device=input_features["ref_pos"].device)
+
+        # Ensure 'ref_space_uid' is present. If not, create zeros with shape [..., N_atom].
+        if "ref_space_uid" not in input_features:
+            # Match leading dims of ref_pos and flatten last dimension from 3 to 1:
+            shape_uid = input_features["ref_pos"].shape[:-1]  # same as [n_atom, 3], so shape_uid is [n_atom]
+            input_features["ref_space_uid"] = torch.zeros(shape_uid, dtype=torch.long, device=input_features["ref_pos"].device)
 
         # Before reshaping each feature, ensure it has at least 2 dims:
         for key in input_features.keys():
