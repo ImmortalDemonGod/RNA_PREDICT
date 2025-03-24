@@ -21,8 +21,13 @@ def run_stageD_diffusion(
     """
     manager = ProtenixDiffusionManager(diffusion_config, device=device)
 
+    # Ensure trunk_embeddings has key "s_trunk" required by multi_step_inference.
+    # Use "sing" as a fallback if "s_trunk" is missing.
+    if "s_trunk" not in trunk_embeddings or trunk_embeddings["s_trunk"] is None:
+        trunk_embeddings["s_trunk"] = trunk_embeddings.get("sing")
+
     if mode == "inference":
-        inference_params = {"num_steps":20, "sigma_max":1.0}
+        inference_params = {"num_steps": 20, "sigma_max": 1.0}
         coords_final = manager.multi_step_inference(
             coords_init=partial_coords,
             trunk_embeddings=trunk_embeddings,

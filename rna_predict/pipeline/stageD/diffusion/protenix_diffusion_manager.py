@@ -74,6 +74,11 @@ class ProtenixDiffusionManager:
         for k, v in trunk_embeddings.items():
             trunk_embeddings[k] = v.to(device) if v is not None else None
 
+        # Diagnostic: Check that 's_trunk' exists and is non-empty
+        if "s_trunk" not in trunk_embeddings or trunk_embeddings["s_trunk"] is None:
+            available = {k: (v.shape if isinstance(v, torch.Tensor) else v) for k, v in trunk_embeddings.items()}
+            raise ValueError(f"StageD diffusion requires a non-empty 's_trunk' in trunk_embeddings, but it was not found. Available keys: {available}")
+
         # Construct a minimal input_feature_dict for sample_diffusion
         input_feature_dict = {
             "atom_to_token_idx": torch.zeros((1, 0), device=device),
@@ -85,9 +90,10 @@ class ProtenixDiffusionManager:
         s_trunk = trunk_embeddings.get("s_trunk", torch.empty((1, 0), device=device))
         z_trunk = trunk_embeddings.get("pair", torch.empty((1, 1, 0), device=device))
 
-        # Add check for empty s_trunk dimension
+        # Diagnostic: Check if s_trunk is empty and report available keys
         if s_trunk.size(1) == 0:
-            raise ValueError(f"StageD diffusion requires a non-empty 's_trunk' in trunk_embeddings. Received s_trunk with shape: {s_trunk.shape}")
+            available = {k: (v.shape if isinstance(v, torch.Tensor) else v) for k, v in trunk_embeddings.items()}
+            raise ValueError(f"StageD diffusion requires a non-empty 's_trunk' in trunk_embeddings. Received s_trunk with shape: {s_trunk.shape}. Available keys: {available}")
 
         # Create a simple linear noise schedule or pull from InferenceNoiseScheduler
         num_steps = inference_params.get("num_steps", 20)
