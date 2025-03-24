@@ -4,6 +4,10 @@ from protenix.model.modules.embedders import RelativePositionEncoding
 import snoop
 import torch.nn.functional as F
 
+# This file defines the ProtenixIntegration class, which integrates Protenix input embedding components 
+# for Stage B/C synergy by building single-token and pair embeddings from raw features.
+
+
 class ProtenixIntegration:
     """
     Integrates Protenix input embedding components for Stage B/C synergy.
@@ -23,65 +27,71 @@ class ProtenixIntegration:
         device=torch.device("cpu")
     ):
         """
+        Initialize the ProtenixIntegration class with embedding and attention configuration.
+
         Args:
           c_token: dimension for single-token embedding
-          restype_dim, profile_dim: dims for per-token features
-          c_atom, c_pair: channels for atom/pair embeddings
-          num_heads, num_layers: attention config
-          use_optimized: whether to use optimized logic
-          device: torch device
+          restype_dim, profile_dim: dimensions for per-token features (not directly used here)
+          c_atom, c_pair: channels for atom and pair embeddings
+          num_heads, num_layers: configuration for attention mechanism (not directly used here)
+          use_optimized: flag to determine whether to use optimized logic (not directly used here)
+          device: torch device to perform computations
         """
+        # Store the computation device
         self.device = device
 
+        # Initialize the input embedder using Protenix's InputFeatureEmbedder
         self.input_embedder = ProtenixInputEmbedder(
             c_atom=c_atom,
             c_atompair=c_pair,
             c_token=c_token
         ).to(device)
 
-        # Relative position encoding to initialize pair embeddings
+        # Initialize the relative position encoding module to create pair embeddings.
         self.rel_pos_encoding = RelativePositionEncoding(
             r_max=32,
             s_max=2,
-            c_z=c_token  # using c_token for pair embedding dimension
+            c_z=c_token  # using c_token as the dimension for pair embeddings
         ).to(device)
 
     @snoop
     def build_embeddings(self, input_features: dict) -> dict:
         """
-        Given a dict of raw features, produce:
-          - s_inputs: [N_token, c_token]
-          - z_init: [N_token, N_token, c_token]
+        Given a dictionary of raw features, produce the following embeddings:
+          - s_inputs: Single-token embeddings of shape [N_token, c_token]
+          - z_init: Pair embeddings of shape [N_token, N_token, c_token]
 
-        input_features must include:
-         'ref_pos', 'ref_charge', 'ref_element', 'ref_atom_name_chars', 'atom_to_token'
+        The input_features dictionary must include keys:
+         'ref_pos', 'ref_charge', 'ref_element', 'ref_atom_name_chars', 'atom_to_token',
          'restype', 'profile', 'deletion_mean'
-         Optionally 'residue_index'
+         Optionally, 'residue_index' can be provided.
         """
-        # Ensure the required key "atom_to_token_idx" is present
+        # Ensure the key "atom_to_token_idx" exists; if missing, set it equal to "atom_to_token"
         if "atom_to_token_idx" not in input_features and "atom_to_token" in input_features:
             input_features["atom_to_token_idx"] = input_features["atom_to_token"]
-        # 1) single embedding from Protenix’s InputFeatureEmbedder
-        # Ensure ref_mask exists
+        
+        # Step 1: Generate single-token embeddings using Protenix’s InputFeatureEmbedder.
+        
+        # Ensure 'ref_mask' exists; if not, create a default mask with ones.
         if "ref_mask" not in input_features:
             n_atom = input_features["ref_pos"].shape[0]
             input_features["ref_mask"] = torch.ones(n_atom, dtype=torch.bool, device=input_features["ref_pos"].device)
 
-        # Ensure 'ref_space_uid' is present. If not, create zeros with shape [..., N_atom].
+        # Ensure 'ref_space_uid' exists; if missing, create a tensor of zeros matching the shape of ref_pos (excluding the last dimension).
         if "ref_space_uid" not in input_features:
-            # Match leading dims of ref_pos and flatten last dimension from 3 to 1:
-            shape_uid = input_features["ref_pos"].shape[:-1]  # same as [n_atom, 3], so shape_uid is [n_atom]
+            shape_uid = input_features["ref_pos"].shape[:-1]  # Exclude the coordinate dimension
             input_features["ref_space_uid"] = torch.zeros(shape_uid, dtype=torch.long, device=input_features["ref_pos"].device)
 
-        # Before reshaping each feature, ensure it has at least 2 dims:
+        # Iterate through each key in input_features to ensure proper dimensions for each feature.
         for key in input_features.keys():
             val = input_features[key]
+            # If the feature is 1D, unsqueeze to add a second dimension.
             if val.dim() == 1:
                 val = val.unsqueeze(-1)
                 input_features[key] = val
     
+            # Special handling for 'ref_atom_name_chars': ensure it has a fixed length of 256.
             if key == "ref_atom_name_chars":
-                # Ensure shape is [N_atom, 256] by padding if needed
                 if val.size(1) < 256:
                     pad_len = 256 - val.size(1)
                     val = F.pad(val, (0, pad_len), "constant", 0)
@@ -91,37 +101,42 @@ class ProtenixIntegration:
                     )
                 input_features[key] = val
     
+            # Verify that each feature has exactly 2 dimensions.
             if val.dim() != 2:
                 raise ValueError(
                     f"Expected feature '{key}' to have 2D shape [batch, feat_dim], "
                     f"but got {val.shape}."
                 )
 
-        # Now generate the single-token embedding (s_inputs)
+        # Generate the single-token embedding (s_inputs) from the processed input features.
         s_inputs = self.input_embedder(input_feature_dict=input_features)
-        # Suppose s_inputs is [B, N_token, c_token]. If always B=1, we can squeeze:
+        # If s_inputs has a batch dimension of 1, remove it to get shape [N_token, c_token].
         if s_inputs.dim() == 3 and s_inputs.size(0) == 1:
             s_inputs = s_inputs.squeeze(0)
 
-        # 2) pair embedding from relative positions
+        # Step 2: Generate pair embeddings using relative positional encoding.
+        # Determine residue indices: use provided 'residue_index' if available, otherwise create a default range.
         if "residue_index" in input_features:
             res_idx = input_features["residue_index"].to(self.device)
         else:
-            # fallback: just arange
             N_token = s_inputs.shape[0]
             res_idx = torch.arange(N_token, device=self.device)
 
+        # Create pair input by expanding residue indices to form a matrix (for potential further use).
         N_token = res_idx.size(0)
-        pair_input = res_idx.unsqueeze(0).expand(N_token, -1)  # [N_token, N_token]
+        pair_input = res_idx.unsqueeze(0).expand(N_token, -1)  # This creates a [N_token, N_token] matrix.
+
+        # Compute the initial pair embedding (z_init) using the relative position encoding module.
         z_init = self.rel_pos_encoding(
             {
-                "asym_id":    torch.zeros(N_token, dtype=torch.long, device=self.device),
+                "asym_id": torch.zeros(N_token, dtype=torch.long, device=self.device),
                 "residue_index": res_idx,
-                "entity_id":  torch.zeros(N_token, dtype=torch.long, device=self.device),
-                "sym_id":     torch.zeros(N_token, dtype=torch.long, device=self.device),
+                "entity_id": torch.zeros(N_token, dtype=torch.long, device=self.device),
+                "sym_id": torch.zeros(N_token, dtype=torch.long, device=self.device),
                 "token_index": res_idx,
             }
         )
-        # The above line is a placeholder example. Adjust your dict keys to match real usage.
+        # Note: Adjust the dictionary keys above as needed for real usage.
 
+        # Return the computed single-token and pair embeddings.
         return {"s_inputs": s_inputs, "z_init": z_init}
