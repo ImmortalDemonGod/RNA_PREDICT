@@ -1,6 +1,8 @@
 import torch
 from protenix.model.modules.embedders import InputFeatureEmbedder as ProtenixInputEmbedder
 from protenix.model.modules.embedders import RelativePositionEncoding
+import snoop
+import torch.nn.functional as F
 
 class ProtenixIntegration:
     """
@@ -44,6 +46,7 @@ class ProtenixIntegration:
             c_z=c_token  # using c_token for pair embedding dimension
         ).to(device)
 
+    @snoop
     def build_embeddings(self, input_features: dict) -> dict:
         """
         Given a dict of raw features, produce:
@@ -71,7 +74,18 @@ class ProtenixIntegration:
             if val.dim() == 1:
                 val = val.unsqueeze(-1)
                 input_features[key] = val
-
+    
+            if key == "ref_atom_name_chars":
+                # Ensure shape is [N_atom, 256] by padding if needed
+                if val.size(1) < 256:
+                    pad_len = 256 - val.size(1)
+                    val = F.pad(val, (0, pad_len), "constant", 0)
+                elif val.size(1) > 256:
+                    raise ValueError(
+                        f"ref_atom_name_chars feature has dimension {val.size(1)}, expected <= 256"
+                    )
+                input_features[key] = val
+    
             if val.dim() != 2:
                 raise ValueError(
                     f"Expected feature '{key}' to have 2D shape [batch, feat_dim], "
