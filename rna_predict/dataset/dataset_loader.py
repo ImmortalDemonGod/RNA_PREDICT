@@ -2,6 +2,7 @@ import torch
 import math
 from datasets import load_dataset
 from datasets.iterable_dataset import IterableDataset
+import snoop
 
 def stream_bprna_dataset(split: str = "train") -> IterableDataset:
     """
@@ -76,7 +77,6 @@ def build_atom_to_token_idx(num_atoms: int, num_tokens: int, device="cpu"):
         start = end
     return atom_to_token
 
-
 def validate_input_features(input_feature_dict: dict):
     """
     Optional checker ensuring required keys exist and have non-empty shapes.
@@ -94,14 +94,17 @@ def validate_input_features(input_feature_dict: dict):
     # Additional shape and content checks can be added here if needed.
     return True
 
-
+@snoop
 def load_rna_data_and_features(rna_filepath: str, device="cpu", override_num_atoms: int | None = None):
     """
     Example "high-level" routine that loads an RNA structure,
-    builds the input_feature_dict, and returns it for the pipeline.
+    builds the input feature dictionaries, and returns them for the pipeline.
     This is a placeholder — in real code, parse PDB/CIF properly.
 
     override_num_atoms (int | None): If provided, force the number of atoms to match partial_coords.
+    
+    Returns:
+        tuple: (atom_feature_dict, token_feature_dict)
     """
     # Suppose we parse the file and determine we have 40 atoms by default:
     default_num_atoms = 40
@@ -121,48 +124,29 @@ def load_rna_data_and_features(rna_filepath: str, device="cpu", override_num_ato
     atom_to_tok = build_atom_to_token_idx(num_atoms, num_tokens, device=device)
     atom_to_tok = atom_to_tok.unsqueeze(0)  # shape [batch=1, num_atoms]
     
-    # Construct the input feature dictionary
-    # Add zeros or random placeholders for the features expected by AtomAttentionEncoder:
-    #   "ref_charge": shape [batch, N_atom, 1]
-    #   "ref_mask": shape [batch, N_atom, 1]
-    #   "ref_element": shape [batch, N_atom, 128]
-    #   "ref_atom_name_chars": shape [batch, N_atom, 256]
-    # For demonstration, we set them to zeros.
-
-    input_feature_dict = {
+    # Build the atom-level feature dictionary (only features that should be processed by the atom-level encoder)
+    atom_feature_dict = {
         "atom_to_token_idx": atom_to_tok,     # [1, num_atoms]
         "ref_pos": coords,                    # [1, num_atoms, 3]
         "ref_space_uid": ref_space_uid,       # [1, num_atoms]
-        "asym_id": token_meta["asym_id"].unsqueeze(0),             # [1, num_tokens]
-        "residue_index": token_meta["residue_index"].unsqueeze(0), # [1, num_tokens]
-        "entity_id": token_meta["entity_id"].unsqueeze(0),         # [1, num_tokens]
-        "sym_id": token_meta["sym_id"].unsqueeze(0),               # [1, num_tokens]
-        "token_index": token_meta["token_index"].unsqueeze(0),     # [1, num_tokens]
-
-        # Required atom features (all sized [1, num_atoms, X]):
         "ref_charge": torch.zeros((1, num_atoms, 1), device=device),
         "ref_mask": torch.ones((1, num_atoms, 1), device=device),
         "ref_element": torch.zeros((1, num_atoms, 128), device=device),
         "ref_atom_name_chars": torch.zeros((1, num_atoms, 256), device=device),
     }
     
-    # ---------------------------
-    # NEW: Add the token-level features required by InputFeatureEmbedder
-    # These shapes must match the dimension usage in the embedder:
-    #   restype:        [1, num_tokens, 32]
-    #   profile:        [1, num_tokens, 32]
-    #   deletion_mean:  [1, num_tokens,  1]
-    # 
-    # If real data is available, parse them accordingly. For demonstration,
-    # we simply create zeroed placeholders with the correct shape.
-    # ---------------------------
-    token_level_features = {
-        "restype":        torch.zeros((1, num_tokens, 32), device=device),
-        "profile":        torch.zeros((1, num_tokens, 32), device=device),
-        "deletion_mean":  torch.zeros((1, num_tokens, 1),  device=device),
-    }
-    input_feature_dict.update(token_level_features)
-    # ---------------------------
+    # Insert token-level metadata (IDs, etc.) as metadata in the atom dictionary.
+    atom_feature_dict["asym_id"] = token_meta["asym_id"].unsqueeze(0)
+    atom_feature_dict["residue_index"] = token_meta["residue_index"].unsqueeze(0)
+    atom_feature_dict["entity_id"] = token_meta["entity_id"].unsqueeze(0)
+    atom_feature_dict["sym_id"] = token_meta["sym_id"].unsqueeze(0)
+    atom_feature_dict["token_index"] = token_meta["token_index"].unsqueeze(0)
     
-    validate_input_features(input_feature_dict)
-    return input_feature_dict
+    # Build a separate dictionary for token-level features that should be concatenated after the atom-level encoding.
+    token_feature_dict = {
+        "restype": torch.zeros((1, num_tokens, 32), device=device),
+        "profile": torch.zeros((1, num_tokens, 32), device=device),
+        "deletion_mean": torch.zeros((1, num_tokens, 1), device=device),
+    }
+    
+    return atom_feature_dict, token_feature_dict
