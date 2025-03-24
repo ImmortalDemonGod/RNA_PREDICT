@@ -26,11 +26,10 @@ def run_stageD_diffusion(
     """
     manager = ProtenixDiffusionManager(diffusion_config, device=device)
     
-    # Load a real input feature dictionary.
-    # In a full pipeline, you would pass consistent features across stages.
-    input_feature_dict = load_rna_data_and_features("demo_rna_file.cif", device=device)
-    # Overwrite ref_pos with the provided partial coordinates
-    input_feature_dict["ref_pos"] = partial_coords
+    # Load real input feature dictionaries: atom-level and token-level features.
+    atom_feature_dict, token_feature_dict = load_rna_data_and_features("demo_rna_file.cif", device=device)
+    # Overwrite ref_pos in the atom_feature_dict with the provided partial coordinates
+    atom_feature_dict["ref_pos"] = partial_coords
 
     # Ensure trunk_embeddings has the key "s_trunk" required by multi_step_inference.
     if "s_trunk" not in trunk_embeddings or trunk_embeddings["s_trunk"] is None:
@@ -38,8 +37,20 @@ def run_stageD_diffusion(
 
     # Instantiate the InputFeatureEmbedder to compute s_inputs with correct dimension (449)
     embedder = InputFeatureEmbedder(c_atom=128, c_atompair=16, c_token=384)
-    # Compute s_inputs from the real input_feature_dict
-    s_inputs = embedder(input_feature_dict, inplace_safe=False, chunk_size=None)
+    # Call the modified forward method that only processes atom-level features.
+    a = embedder.forward_atom_only(atom_feature_dict, inplace_safe=False)
+    
+    # Now manually concatenate the separate token-level features to form the final s_inputs.
+    # Expected shapes:
+    # a: [1, N_token, 384]
+    # restype: [1, N_token, 32]
+    # profile: [1, N_token, 32]
+    # deletion_mean: [1, N_token, 1]
+    s_inputs = torch.cat(
+        [a, token_feature_dict["restype"], token_feature_dict["profile"], token_feature_dict["deletion_mean"]],
+        dim=-1
+    )
+    
     s_trunk = trunk_embeddings["s_trunk"]
     z_trunk = trunk_embeddings.get("pair", None)
 
@@ -52,7 +63,7 @@ def run_stageD_diffusion(
                 "pair": z_trunk
             },
             inference_params=inference_params,
-            override_input_features=input_feature_dict
+            override_input_features=atom_feature_dict  # Pass only atom-level features
         )
         return coords_final
 
@@ -67,8 +78,8 @@ def run_stageD_diffusion(
         
         x_gt_out, x_denoised, sigma = manager.train_diffusion_step(
             label_dict=label_dict,
-            input_feature_dict=input_feature_dict,
-            s_inputs=s_inputs,      # Now the dimension is 449
+            input_feature_dict=atom_feature_dict,  # Pass only atom-level features
+            s_inputs=s_inputs,      # Now the dimension is 449 after concatenation
             s_trunk=s_trunk,        # dimension 384
             z_trunk=z_trunk,
             sampler_params=sampler_params,
