@@ -2,6 +2,8 @@ import torch
 from rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager import ProtenixDiffusionManager
 # Import the loader utility for RNA features
 from rna_predict.dataset.dataset_loader import load_rna_data_and_features
+# Import the Protenix InputFeatureEmbedder for computing s_inputs with dimension 449
+from protenix.model.modules.embedders import InputFeatureEmbedder
 
 def run_stageD_diffusion(
     partial_coords: torch.Tensor,
@@ -34,11 +36,21 @@ def run_stageD_diffusion(
     if "s_trunk" not in trunk_embeddings or trunk_embeddings["s_trunk"] is None:
         trunk_embeddings["s_trunk"] = trunk_embeddings.get("sing")
 
+    # Instantiate the InputFeatureEmbedder to compute s_inputs with correct dimension (449)
+    embedder = InputFeatureEmbedder(c_atom=128, c_atompair=16, c_token=384)
+    # Compute s_inputs from the real input_feature_dict
+    s_inputs = embedder(input_feature_dict, inplace_safe=False, chunk_size=None)
+    s_trunk = trunk_embeddings["s_trunk"]
+    z_trunk = trunk_embeddings.get("pair", None)
+
     if mode == "inference":
         inference_params = {"num_steps": 20, "sigma_max": 1.0, "N_sample": 1}
         coords_final = manager.multi_step_inference(
             coords_init=partial_coords,
-            trunk_embeddings=trunk_embeddings,
+            trunk_embeddings={
+                "s_trunk": s_trunk,
+                "pair": z_trunk
+            },
             inference_params=inference_params,
             override_input_features=input_feature_dict
         )
@@ -53,15 +65,11 @@ def run_stageD_diffusion(
             "coordinate_mask": torch.ones_like(partial_coords[..., 0])  # No mask applied
         }
         
-        s_inputs = trunk_embeddings.get("s_inputs", trunk_embeddings.get("sing"))
-        s_trunk = trunk_embeddings.get("s_trunk")
-        z_trunk = trunk_embeddings.get("pair")
-        
         x_gt_out, x_denoised, sigma = manager.train_diffusion_step(
             label_dict=label_dict,
             input_feature_dict=input_feature_dict,
-            s_inputs=s_inputs,
-            s_trunk=s_trunk,
+            s_inputs=s_inputs,      # Now the dimension is 449
+            s_trunk=s_trunk,        # dimension 384
             z_trunk=z_trunk,
             sampler_params=sampler_params,
             N_sample=1
