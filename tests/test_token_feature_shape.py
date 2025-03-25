@@ -1,7 +1,7 @@
 # tests/test_token_feature_shape.py
 import torch
 import pytest
-from protenix.model.modules.embedders import InputFeatureEmbedder
+from rna_predict.pipeline.stageA.input_embedding.current.embedders import InputFeatureEmbedder
 
 def test_input_feature_embedder_deletion_mean_shape():
     """
