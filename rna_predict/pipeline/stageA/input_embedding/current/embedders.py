@@ -21,13 +21,14 @@ import torch.nn.functional as F
 
 from rna_predict.pipeline.stageA.input_embedding.current.primitives import LinearNoBias
 from rna_predict.pipeline.stageA.input_embedding.current.transformer import AtomAttentionEncoder
-
+import snoop
 
 class InputFeatureEmbedder(nn.Module):
     """
     Implements Algorithm 2 in AF3
     """
 
+    @snoop
     def __init__(
         self,
         c_atom: int = 128,
@@ -52,7 +53,8 @@ class InputFeatureEmbedder(nn.Module):
         )
         # Line2
         self.input_feature = {"restype": 32, "profile": 32, "deletion_mean": 1}
-
+    
+    @snoop
     def forward(
         self,
         input_feature_dict: dict[str, Any],
