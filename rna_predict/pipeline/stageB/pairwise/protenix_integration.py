@@ -1,6 +1,5 @@
 import torch
-from protenix.model.modules.embedders import InputFeatureEmbedder as ProtenixInputEmbedder
-from protenix.model.modules.embedders import RelativePositionEncoding
+from rna_predict.pipeline.stageA.input_embedding.current.embedders import InputFeatureEmbedder as ProtenixInputEmbedder, RelativePositionEncoding
 import snoop
 import torch.nn.functional as F
 
