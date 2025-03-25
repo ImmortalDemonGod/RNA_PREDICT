@@ -73,7 +73,11 @@ def run_stageD_diffusion(
  
     # Instantiate the standard InputFeatureEmbedder to produce a 449-dim output
     embedder = InputFeatureEmbedder(c_atom=128, c_atompair=16, c_token=384)
-    # Directly call the default forward method
+    s_inputs = embedder(atom_feature_dict, inplace_safe=False, chunk_size=None)
+
+    # Store the 449-dim s_inputs in trunk_embeddings so that multi_step_inference
+    # does not fall back to s_trunk (which is only 384).
+    trunk_embeddings["s_inputs"] = s_inputs
     s_inputs = embedder(atom_feature_dict, inplace_safe=False, chunk_size=None)
     
     s_trunk = trunk_embeddings["s_trunk"]
@@ -88,7 +92,8 @@ def run_stageD_diffusion(
                 "pair": z_trunk
             },
             inference_params=inference_params,
-            override_input_features=atom_feature_dict  # Pass only atom-level features
+            override_input_features=atom_feature_dict,  # Pass only atom-level features
+            debug_logging=True
         )
         return coords_final
 
