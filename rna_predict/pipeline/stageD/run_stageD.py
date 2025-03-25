@@ -31,25 +31,19 @@ def run_stageD_diffusion(
     # Overwrite ref_pos in the atom_feature_dict with the provided partial coordinates
     atom_feature_dict["ref_pos"] = partial_coords
 
+    # Also merge the token-level features into the atom dict, so the embedder's default forward can produce 449-dim
+    atom_feature_dict["restype"] = token_feature_dict["restype"]
+    atom_feature_dict["profile"] = token_feature_dict["profile"]
+    atom_feature_dict["deletion_mean"] = token_feature_dict["deletion_mean"]
+ 
     # Ensure trunk_embeddings has the key "s_trunk" required by multi_step_inference.
     if "s_trunk" not in trunk_embeddings or trunk_embeddings["s_trunk"] is None:
         trunk_embeddings["s_trunk"] = trunk_embeddings.get("sing")
-
-    # Instantiate the InputFeatureEmbedder to compute s_inputs with correct dimension (449)
+ 
+    # Instantiate the standard InputFeatureEmbedder to produce 449-dim
     embedder = InputFeatureEmbedder(c_atom=128, c_atompair=16, c_token=384)
-    # Call the modified forward method that only processes atom-level features.
-    a = embedder.forward_atom_only(atom_feature_dict, inplace_safe=False)
-    
-    # Now manually concatenate the separate token-level features to form the final s_inputs.
-    # Expected shapes:
-    # a: [1, N_token, 384]
-    # restype: [1, N_token, 32]
-    # profile: [1, N_token, 32]
-    # deletion_mean: [1, N_token, 1]
-    s_inputs = torch.cat(
-        [a, token_feature_dict["restype"], token_feature_dict["profile"], token_feature_dict["deletion_mean"]],
-        dim=-1
-    )
+    # Directly call the default forward method
+    s_inputs = embedder(atom_feature_dict, inplace_safe=False, chunk_size=None)
     
     s_trunk = trunk_embeddings["s_trunk"]
     z_trunk = trunk_embeddings.get("pair", None)
