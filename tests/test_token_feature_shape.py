@@ -2,7 +2,9 @@
 import torch
 import pytest
 from rna_predict.pipeline.stageA.input_embedding.current.embedders import InputFeatureEmbedder
+import snoop
 
+@snoop
 def test_input_feature_embedder_deletion_mean_shape():
     """
     Test that InputFeatureEmbedder properly handles 'deletion_mean'.
@@ -54,6 +56,7 @@ def test_input_feature_embedder_deletion_mean_shape():
     try:
         out = embedder(input_feature_dict)
     except RuntimeError as e:
+        print(f"Caught expected RuntimeError: {e}")
         pytest.xfail("Bug not fixed: invalid deletion_mean shape raises RuntimeError")
     else:
         # When the bug is fixed, the output should have shape (batch, num_tokens, 449)
