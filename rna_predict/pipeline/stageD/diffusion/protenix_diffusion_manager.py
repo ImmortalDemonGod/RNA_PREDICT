@@ -1,6 +1,6 @@
 import torch
-from protenix.model.modules.diffusion import DiffusionModule  # type: ignore
-from protenix.model.generator import (  # type: ignore
+from rna_predict.pipeline.stageD.diffusion.diffusion import DiffusionModule  # type: ignore
+from rna_predict.pipeline.stageD.diffusion.generator import (  # type: ignore
     sample_diffusion_training,
     sample_diffusion,
     TrainingNoiseSampler
@@ -20,7 +20,16 @@ class ProtenixDiffusionManager:
             diffusion_config["initialization"] = {}
 
         self.device = torch.device(device)
+        # Check c_token
+        if diffusion_config.get("c_token", 0) not in [832, 833]:
+            raise ValueError("c_token must be 832 or 833 to match the final single-embedding dimension.")
+        self.c_token = diffusion_config["c_token"]
+
+        # Build the diffusion module
         self.diffusion_module = DiffusionModule(**diffusion_config).to(self.device)
+
+        # Prepare bridging layer placeholder (None initially)
+        self.trunk_bridge = None
 
     @snoop
     def train_diffusion_step(
@@ -66,23 +75,19 @@ class ProtenixDiffusionManager:
         inference_params: dict,
         override_input_features: dict = None
     ):
-        """
-        If override_input_features is provided, use that dictionary instead of a dummy one.
-        This prevents the 'index out of bounds' error when using an empty input_feature_dict.
-        """
         device = self.device
         coords_init = coords_init.to(device)
 
-        # Move trunk embeddings to the correct device
+        # Move trunk embeddings to this device
         for k, v in trunk_embeddings.items():
             trunk_embeddings[k] = v.to(device) if v is not None else None
 
-        # Diagnostic: Check that 's_trunk' exists and is non-empty
+        # Must have a valid s_trunk
         if "s_trunk" not in trunk_embeddings or trunk_embeddings["s_trunk"] is None:
             available = {k: (v.shape if isinstance(v, torch.Tensor) else v) for k, v in trunk_embeddings.items()}
             raise ValueError(f"StageD diffusion requires a non-empty 's_trunk' in trunk_embeddings, but it was not found. Available keys: {available}")
 
-        # Use the provided input_feature_dict if available; otherwise fallback to a dummy dict
+        # Decide input features for the diffusion call
         if override_input_features is not None:
             input_feature_dict = override_input_features
         else:
@@ -94,11 +99,29 @@ class ProtenixDiffusionManager:
         s_trunk = trunk_embeddings["s_trunk"]
         z_trunk = trunk_embeddings.get("pair", None)
 
-        # Create a simple noise schedule
+        # If s_inputs is None, fallback to s_trunk
+        if s_inputs is None:
+            s_inputs = s_trunk
+
+        # Bridge dimension if mismatch
+        def bridge_dim(x: torch.Tensor) -> torch.Tensor:
+            if x.shape[-1] != self.c_token:
+                old_dim = x.shape[-1]
+                if self.trunk_bridge is None:
+                    from torch import nn
+                    self.trunk_bridge = nn.Linear(old_dim, self.c_token, bias=True).to(self.device)
+                return self.trunk_bridge(x)
+            return x
+
+        s_trunk = bridge_dim(s_trunk)
+        s_inputs = bridge_dim(s_inputs)
+
+        # Create a noise schedule
         num_steps = inference_params.get("num_steps", 20)
         noise_schedule = torch.linspace(1.0, 0.0, steps=num_steps + 1, device=device)
         N_sample = inference_params.get("N_sample", 1)
 
+        # Actually run the diffusion sampling
         coords_final = sample_diffusion(
             denoise_net=self.diffusion_module,
             input_feature_dict=input_feature_dict,
@@ -107,7 +130,6 @@ class ProtenixDiffusionManager:
             z_trunk=z_trunk,
             noise_schedule=noise_schedule,
             N_sample=N_sample
-            # Optionally pass other advanced arguments if needed
         )
 
         return coords_final
