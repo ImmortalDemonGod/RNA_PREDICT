@@ -15,7 +15,7 @@
 
 from functools import partial
 from typing import Optional, Union
-
+import snoop
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -677,7 +677,8 @@ class AtomAttentionEncoder(nn.Module):
             nn.init.kaiming_normal_(
                 self.linear_no_bias_q.weight, a=0, mode="fan_in", nonlinearity="relu"
             )
-
+    
+    @snoop
     def forward(
         self,
         input_feature_dict: dict[str, Union[torch.Tensor, int, float, dict]],
@@ -839,13 +840,16 @@ class AtomAttentionEncoder(nn.Module):
             q_l, c_l, p_lm, chunk_size=chunk_size
         )  # [..., (N_sample), N_atom, c_atom]
 
-        # Aggregate per-atom representation to per-token representation
+        # aggregator fix
+        batch_size = input_feature_dict["restype"].shape[0]
+        num_tokens = input_feature_dict["restype"].shape[1]
+
         a = aggregate_atom_to_token(
             x_atom=F.relu(self.linear_no_bias_q(q_l)),
             atom_to_token_idx=atom_to_token_idx,
-            n_token=n_token,
+            n_token=num_tokens,
             reduce="mean",
-        )  # [..., (N_sample), N_token, c_token]
+        )  # => shape [batch, num_tokens, c_token]
         if (not self.training) and (a.shape[-2] > 2000 or q_l.shape[-2] > 20000):
             torch.cuda.empty_cache()
         return a, q_l, c_l, p_lm
