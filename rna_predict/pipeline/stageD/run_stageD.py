@@ -1,8 +1,6 @@
 import torch
 from rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager import ProtenixDiffusionManager
-# Import the loader utility for RNA features
 from rna_predict.dataset.dataset_loader import load_rna_data_and_features
-# Import the Protenix InputFeatureEmbedder for computing s_inputs with dimension 449
 from rna_predict.pipeline.stageA.input_embedding.current.embedders import InputFeatureEmbedder
 import snoop
 
@@ -15,102 +13,90 @@ def run_stageD_diffusion(
     device: str = "cpu"
 ):
     """
-    Stage D entry:
-      - partial_coords: [B, N_atom, 3]
-      - trunk_embeddings: dict with "sing" [B,N_token,c_s], "pair" [B,N_token,N_token,c_z], etc.
-      - diffusion_config: diffusion hyperparameters.
-      - mode: "inference" or "train"
-      - device: "cpu" or "cuda"
+    Stage D entry function that orchestrates the final diffusion-based refinement.
+
+    Args:
+        partial_coords (torch.Tensor): [B, N_atom, 3], partial or initial coordinates
+        trunk_embeddings (dict): dictionary typically containing
+           - "sing" or "s_trunk": shape [B, N_token, 384]
+           - "pair": [B, N_token, N_token, c_z]
+           - optionally "s_inputs": [B, N_token, 449]
+        diffusion_config (dict): hyperparameters for building the diffusion module
+        mode (str): "inference" or "train"
+        device (str): "cpu" or "cuda" device
 
     Returns:
-      if inference => final coordinates,
-      if train => (x_denoised, loss, sigma)
+        If mode=="inference": A tensor of final coordinates.
+        If mode=="train": (x_denoised, loss, sigma).
     """
+
+    # 1) Build the diffusion manager
     manager = ProtenixDiffusionManager(diffusion_config, device=device)
     
-    # Load real input feature dictionaries: atom-level and token-level features.
+    # 2) Build or load the atom-level + token-level features
     atom_feature_dict, token_feature_dict = load_rna_data_and_features(
         "demo_rna_file.cif",
         device=device,
         override_num_atoms=partial_coords.shape[1]
     )
 
-    # Check or fix shape of deletion_mean
+    # 3) Fix shape for "deletion_mean" if needed
     if "deletion_mean" in token_feature_dict:
         deletion = token_feature_dict["deletion_mean"]
         expected_tokens = token_feature_dict["restype"].shape[1]
+        if deletion.ndim == 2:
+            deletion = deletion.unsqueeze(-1)
         if deletion.shape[1] != expected_tokens:
-            raise ValueError(f"deletion_mean middle dimension {deletion.shape[1]} != {expected_tokens}")
-        # If deletion_mean is not the correct shape, fix or skip it
-        if deletion.shape[1] == expected_tokens:
-            # If deletion_mean is not the correct shape, fix or skip it
-            if deletion.shape[1] == expected_tokens:
-                atom_feature_dict["deletion_mean"] = deletion
-            else:
-                print("[WARN] skipping 'deletion_mean' because shape is", deletion.shape, "expected", (deletion.shape[0], expected_tokens, 1))
-        else:
-            print("[WARN] skipping 'deletion_mean' because shape is", deletion.shape, "expected", (deletion.shape[0], expected_tokens, 1))
+            deletion = deletion[:, :expected_tokens, :]
+        atom_feature_dict["deletion_mean"] = deletion
 
-    # Overwrite ref_pos in the atom_feature_dict with the provided partial coordinates
+    # 4) Overwrite default coords with partial_coords
     atom_feature_dict["ref_pos"] = partial_coords
 
-    # Merge token-level features into atom_feature_dict so that the embedder can produce a 449-dim output.
+    # 5) Merge token-level features so embedder can produce 449-dim
     atom_feature_dict["restype"] = token_feature_dict["restype"]
     atom_feature_dict["profile"] = token_feature_dict["profile"]
-    
-    # Force deletion_mean to have shape (batch, num_tokens, 1)
-    deletion = token_feature_dict["deletion_mean"]
-    expected_tokens = token_feature_dict["restype"].shape[1]  # expected token count
-    if deletion.ndim == 2:
-        deletion = deletion.unsqueeze(-1)
-    if deletion.shape[1] != expected_tokens:
-        deletion = deletion[:, :expected_tokens, :]
-    atom_feature_dict["deletion_mean"] = deletion
- 
-    # Ensure trunk_embeddings has the key "s_trunk" required by multi_step_inference.
+
+    # 6) If trunk_embeddings lacks "s_trunk", fallback to "sing"
     if "s_trunk" not in trunk_embeddings or trunk_embeddings["s_trunk"] is None:
         trunk_embeddings["s_trunk"] = trunk_embeddings.get("sing")
- 
-    # Instantiate the standard InputFeatureEmbedder to produce a 449-dim output
+
+    # 7) Use InputFeatureEmbedder to produce 449-dim single embedding
     embedder = InputFeatureEmbedder(c_atom=128, c_atompair=16, c_token=384)
     s_inputs = embedder(atom_feature_dict, inplace_safe=False, chunk_size=None)
 
-    # Store the 449-dim s_inputs in trunk_embeddings so that multi_step_inference
-    # does not fall back to s_trunk (which is only 384).
+    # 8) Store it in trunk_embeddings so multi_step_inference can find "s_inputs"
     trunk_embeddings["s_inputs"] = s_inputs
-    s_inputs = embedder(atom_feature_dict, inplace_safe=False, chunk_size=None)
-    
-    s_trunk = trunk_embeddings["s_trunk"]
-    z_trunk = trunk_embeddings.get("pair", None)
 
+    # 9) Handle inference vs. train
     if mode == "inference":
         inference_params = {"num_steps": 20, "sigma_max": 1.0, "N_sample": 1}
         coords_final = manager.multi_step_inference(
             coords_init=partial_coords,
-            trunk_embeddings={
-                "s_trunk": s_trunk,
-                "pair": z_trunk
-            },
+            trunk_embeddings=trunk_embeddings,  # includes "s_inputs"
             inference_params=inference_params,
-            override_input_features=atom_feature_dict,  # Pass only atom-level features
+            override_input_features=atom_feature_dict,
             debug_logging=True
         )
         return coords_final
 
     elif mode == "train":
-        sampler_params = {"p_mean": -1.2, "p_std": 1.0, "sigma_data": 16.0}
-        
-        # Build label dictionary for training
+        # Create label_dict for single-step diffusion training
         label_dict = {
-            "coordinate": partial_coords,
-            "coordinate_mask": torch.ones_like(partial_coords[..., 0])  # No mask applied
+            "coordinate": partial_coords,  # ground truth
+            "coordinate_mask": torch.ones_like(partial_coords[..., 0])  # no mask
         }
-        
+        sampler_params = {"p_mean": -1.2, "p_std": 1.0, "sigma_data": 16.0}
+
+        # Grab trunk embeddings
+        s_trunk = trunk_embeddings["s_trunk"]
+        z_trunk = trunk_embeddings.get("pair", None)
+
         x_gt_out, x_denoised, sigma = manager.train_diffusion_step(
             label_dict=label_dict,
-            input_feature_dict=atom_feature_dict,  # Pass only atom-level features
-            s_inputs=s_inputs,      # Now the dimension is 449 after concatenation
-            s_trunk=s_trunk,        # dimension 384
+            input_feature_dict=atom_feature_dict,
+            s_inputs=s_inputs,      # shape (batch, num_tokens, 449)
+            s_trunk=s_trunk,        # shape (batch, num_tokens, 384)
             z_trunk=z_trunk,
             sampler_params=sampler_params,
             N_sample=1
@@ -120,21 +106,19 @@ def run_stageD_diffusion(
 
     else:
         raise ValueError(f"Unsupported mode: {mode}")
-    
+
 
 def demo_run_diffusion():
     """
-    Demonstrates Stage D diffusion usage with partial coordinates and trunk embeddings
-    for global refinement.
+    Demonstrates Stage D usage with partial coordinates and trunk embeddings
+    for a final global refinement pass.
     """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # Example revised config ensuring c_token is a multiple of n_heads
     diffusion_config = {
         "c_atom": 128,
         "c_s": 384,
         "c_z": 32,
-        # Now we unify shape to 832 (divisible by 16)
         "c_token": 832,
         "transformer": {
             "n_blocks": 4,
@@ -142,34 +126,28 @@ def demo_run_diffusion():
         }
     }
 
-    # OPTIONAL: Quick check for config validity
-    if "transformer" in diffusion_config:
-        n_heads = diffusion_config["transformer"].get("n_heads", 16)
-        c_token = diffusion_config.get("c_token", 768)
-        if c_token % n_heads != 0:
-            raise ValueError(f"Invalid config: c_token={c_token} not divisible by n_heads={n_heads}.")
-
-    # Suppose partial_coords is from Stage C or generated randomly
+    # Suppose partial_coords is from StageC
     partial_coords = torch.randn(1, 10, 3, device=device)
     trunk_embeddings = {
         "sing": torch.randn(1, 10, 384, device=device),
         "pair": torch.randn(1, 10, 10, 32, device=device)
     }
 
+    # Inference
     coords_final = run_stageD_diffusion(
-        partial_coords,
-        trunk_embeddings,
-        diffusion_config,
+        partial_coords=partial_coords,
+        trunk_embeddings=trunk_embeddings,
+        diffusion_config=diffusion_config,
         mode="inference",
         device=device
     )
     print("[Diffusion Demo] coords_final shape:", coords_final.shape)
 
-    # Training mode demonstration
+    # Training
     x_denoised, loss, sigma = run_stageD_diffusion(
-        partial_coords,
-        trunk_embeddings,
-        diffusion_config,
+        partial_coords=partial_coords,
+        trunk_embeddings=trunk_embeddings,
+        diffusion_config=diffusion_config,
         mode="train",
         device=device
     )
