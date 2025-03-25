@@ -19,14 +19,14 @@ import torch
 import torch.nn as nn
 
 from rna_predict.pipeline.stageA.input_embedding.current.embedders import FourierEmbedding, RelativePositionEncoding
-from rna_predict.pipeline.stageA.input_embedding.current.primitives import LinearNoBias, Transition
+from rna_predict.pipeline.stageA.input_embedding.current.primitives import LinearNoBias, Transition, LayerNorm
 from rna_predict.pipeline.stageA.input_embedding.current.transformer import (
     AtomAttentionDecoder,
     AtomAttentionEncoder,
     DiffusionTransformer,
 )
 from protenix.model.utils import expand_at_dim
-from protenix.openfold_local.model.primitives import LayerNorm
+#from protenix.openfold_local.model.primitives import LayerNorm
 from rna_predict.pipeline.stageA.input_embedding.current.checkpointing import get_checkpoint_fn
 
 
