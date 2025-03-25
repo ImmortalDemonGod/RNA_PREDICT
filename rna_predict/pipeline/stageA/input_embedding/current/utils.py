@@ -218,34 +218,45 @@ def batched_gather(
 
 
 def broadcast_token_to_atom(
-    x_token: torch.Tensor, atom_to_token_idx: torch.Tensor
+    x_token: torch.Tensor,
+    atom_to_token_idx: torch.Tensor
 ) -> torch.Tensor:
-    """Broadcast token-level embeddings to atom-level embeddings
+    """
+    Broadcast token-level embeddings to atom-level embeddings.
 
-    Args:
-        x_token (torch.Tensor): token embedding
-            [..., N_token, d]
-        atom_to_token_idx (torch.Tensor): map atom idx to token idx
-            [..., N_atom] or [N_atom]
-
-    Returns:
-        torch.Tensor: atom embedding
-            [..., N_atom, d]
+    This handles cases where:
+      1) atom_to_token_idx is purely 1D -> we unsqueeze to [1, N_atom].
+      2) x_token may have one more batch dim than atom_to_token_idx, so we unsqueeze one dim in the index as well.
     """
 
-    if len(atom_to_token_idx.shape) == 1:
-        # shape = [N_atom], easy index
-        return x_token[..., atom_to_token_idx, :]
-    else:
-        assert atom_to_token_idx.shape[:-1] == x_token.shape[:-2]
+    # Step 1: If purely 1D => unsqueeze to add a batch dimension
+    if atom_to_token_idx.ndim == 1:
+        atom_to_token_idx = atom_to_token_idx.unsqueeze(0)
 
+    # Step 2: If x_token has exactly one more dimension than atom_to_token_idx,
+    # unsqueeze in the second-last dimension to match the shape logic.
+    if len(x_token.shape) == len(atom_to_token_idx.shape) + 1:
+        # e.g. x_token is [B, S, N_token, d], atom_to_token_idx is [B, N_atom], so we do:
+        atom_to_token_idx = atom_to_token_idx.unsqueeze(-2)
+
+    # Final shape check
+    assert atom_to_token_idx.shape[:-1] == x_token.shape[:-2], (
+        f"Shape mismatch in broadcast_token_to_atom: "
+        f"atom_to_token_idx.shape[:-1]={atom_to_token_idx.shape[:-1]} vs. "
+        f"x_token.shape[:-2]={x_token.shape[:-2]}"
+    )
+
+    # If still exactly 1D after expansions, do direct indexing
+    if atom_to_token_idx.ndim == 1:
+        return x_token[..., atom_to_token_idx, :]
+
+    # Otherwise, fall back to batched gather
     return batched_gather(
         data=x_token,
         inds=atom_to_token_idx,
         dim=-2,
         no_batch_dims=len(x_token.shape[:-2]),
     )
-
 
 def aggregate_atom_to_token(
     x_atom: torch.Tensor,

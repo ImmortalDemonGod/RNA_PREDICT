@@ -136,10 +136,21 @@ class ProtenixDiffusionManager:
             # minimal fallback if none provided
             input_feature_dict = {"atom_to_token_idx": torch.zeros((1, 0), device=device)}
 
+        # Attempt to expand atom_to_token_idx if multi-sample is used
+        N_sample = inference_params.get("N_sample", 1)
+        if "atom_to_token_idx" in input_feature_dict:
+            atom_idx = input_feature_dict["atom_to_token_idx"]
+            # If purely 1D, unsqueeze to [1, N_atom]
+            if atom_idx.dim() == 1:
+                atom_idx = atom_idx.unsqueeze(0)
+            # If multi-sample requested and shape is [B, N_atom], expand to [N_sample, B, N_atom]
+            if N_sample > 1 and atom_idx.dim() == 2:
+                atom_idx = atom_idx.unsqueeze(0).expand(N_sample, *atom_idx.shape)
+            input_feature_dict["atom_to_token_idx"] = atom_idx
+
         # Build a linear noise schedule from 1.0 to 0.0
         num_steps = inference_params.get("num_steps", 20)
         noise_schedule = torch.linspace(1.0, 0.0, steps=num_steps + 1, device=device)
-        N_sample = inference_params.get("N_sample", 1)
 
         coords_final = sample_diffusion(
             denoise_net=self.diffusion_module,
@@ -150,8 +161,8 @@ class ProtenixDiffusionManager:
             noise_schedule=noise_schedule,
             N_sample=N_sample,
         )
-        return coords_final
 
+        return coords_final
     def custom_manual_loop(self, x_gt: torch.Tensor, trunk_embeddings: dict, sigma: float):
         """
         Optional direct usage demonstration: single forward pass
