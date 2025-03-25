@@ -13,28 +13,23 @@ from rna_predict.pipeline.stageD.diffusion.generator import (
 
 class ProtenixDiffusionManager:
     """
-    Updated manager that no longer uses bridging layers;
-    s_trunk and s_inputs must have correct dimensions upstream.
+    Manager that handles training steps or multi-step inference for diffusion.
+    Expects trunk_embeddings to contain:
+      - "s_trunk": main trunk single embedding (c_s=384)
+      - "pair": (optional) trunk pair embedding (c_z)
+      - "s_inputs": the 449-dim single embedding from InputFeatureEmbedder
+        If not found, multi_step_inference tries fallback with override_input_features.
     """
 
     @snoop
     def __init__(self, diffusion_config: dict, device: str = "cpu"):
-        # Ensure "initialization" is never None
+        # Ensure we have an "initialization" key
         if "initialization" not in diffusion_config or diffusion_config["initialization"] is None:
             diffusion_config["initialization"] = {}
 
         self.device = torch.device(device)
-
-        # No more forced check for c_token in [832, 833].
-        # If needed, we can store c_token from config, but do not enforce dimension.
-        # e.g. self.c_token = diffusion_config.get("c_token", 768)
-
-        # Build the diffusion module
+        # Instantiate the diffusion module
         self.diffusion_module = DiffusionModule(**diffusion_config).to(self.device)
-
-        # Remove bridging layers entirely
-        # self.trunk_bridge_s = None
-        # self.trunk_bridge_i = None
 
     @snoop
     def train_diffusion_step(
@@ -49,13 +44,15 @@ class ProtenixDiffusionManager:
         diffusion_chunk_size: int | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
-        Single-step diffusion used in training mode.
+        Performs a single-step training pass with random noise injection.
         """
+
         noise_sampler = TrainingNoiseSampler(
             p_mean=sampler_params.get("p_mean", -1.2),
             p_std=sampler_params.get("p_std", 1.5),
             sigma_data=sampler_params.get("sigma_data", 16.0),
         )
+
         x_gt_augment, x_denoised, sigma = sample_diffusion_training(
             noise_sampler=noise_sampler,
             denoise_net=self.diffusion_module,
@@ -79,53 +76,67 @@ class ProtenixDiffusionManager:
         debug_logging: bool = False,
     ):
         """
-        Multi-step diffusion sampling with no bridging.
-        We rely on s_trunk.shape[-1] + s_inputs.shape[-1]
-        matching the sum of c_s and c_s_inputs in the diffusion code (e.g. 384 + 449 = 833).
+        Multi-step diffusion-based inference with fallback logic for s_inputs.
+
+        Args:
+            coords_init (torch.Tensor): [B, N_atom, 3], initial coords
+            trunk_embeddings (dict): Must contain "s_trunk" and optionally "s_inputs".
+            inference_params (dict): e.g. {"num_steps": 20, "N_sample": 1}, etc.
+            override_input_features (dict): If "s_inputs" is missing, we build it from these raw features.
+            debug_logging (bool): If True, we log shapes.
+
+        Returns:
+            torch.Tensor: final coordinates, shape [B, N_atom, 3]
         """
         device = self.device
         coords_init = coords_init.to(device)
 
-        # Move trunk embeddings to device
+        # Ensure trunk embeddings are on device
         for k, v in trunk_embeddings.items():
-            if v is not None:
+            if isinstance(v, torch.Tensor):
                 trunk_embeddings[k] = v.to(device)
 
-        # Must have valid s_trunk
+        # We require "s_trunk" for multi_step_inference
         if "s_trunk" not in trunk_embeddings or trunk_embeddings["s_trunk"] is None:
-            available = {
-                k: (v.shape if isinstance(v, torch.Tensor) else v)
-                for k, v in trunk_embeddings.items()
-            }
+            available = {k: (v.shape if isinstance(v, torch.Tensor) else v)
+                         for k, v in trunk_embeddings.items()}
             raise ValueError(
-                f"StageD diffusion requires a non-empty 's_trunk'. Found only: {available}"
+                f"StageD multi_step_inference requires a valid 's_trunk'. Found: {available}"
             )
 
-        # Possibly override
+        # Attempt to get s_inputs
+        s_inputs = trunk_embeddings.get("s_inputs", trunk_embeddings.get("sing"))
+        if not isinstance(s_inputs, torch.Tensor):
+            # Fallback if override_input_features is provided
+            if override_input_features is not None:
+                from rna_predict.pipeline.stageA.input_embedding.current.embedders import InputFeatureEmbedder
+                embedder = InputFeatureEmbedder(c_atom=128, c_atompair=16, c_token=384)
+                s_inputs = embedder(override_input_features, inplace_safe=False, chunk_size=None)
+            else:
+                raise ValueError(
+                    "No valid 's_inputs' found in trunk_embeddings. "
+                    "Please supply the 449-dim InputFeatureEmbedder output under 's_inputs' or 'sing', "
+                    "or provide override_input_features so we can build it."
+                )
+
+        z_trunk = trunk_embeddings.get("pair", None)
+
+        if debug_logging:
+            print(f"[DEBUG] s_trunk shape: {trunk_embeddings['s_trunk'].shape}")
+            if isinstance(s_inputs, torch.Tensor):
+                print(f"[DEBUG] s_inputs shape: {s_inputs.shape}")
+            else:
+                print("[DEBUG] s_inputs is invalid or None!")
+            if z_trunk is not None:
+                print(f"[DEBUG] z_trunk shape: {z_trunk.shape}")
+
         if override_input_features is not None:
             input_feature_dict = override_input_features
         else:
-            input_feature_dict = {
-                "atom_to_token_idx": torch.zeros((1, 0), device=device)
-            }
-        # Instead of falling back to s_trunk, we now require a valid 's_inputs' tensor:
-        s_inputs = trunk_embeddings.get("s_inputs", trunk_embeddings.get("sing"))
-        if not isinstance(s_inputs, torch.Tensor):
-            raise ValueError(
-                "No valid 's_inputs' found in trunk_embeddings. "
-                "Please supply the 449-dim InputFeatureEmbedder output under 's_inputs' or 'sing'."
-            )
-        z_trunk = trunk_embeddings.get("pair", None)
+            # minimal fallback if none provided
+            input_feature_dict = {"atom_to_token_idx": torch.zeros((1, 0), device=device)}
 
-        # If no separate s_inputs, fallback to s_trunk
-        if s_inputs is None:
-            s_inputs = s_trunk
-
-        if debug_logging:
-            print(f"[DEBUG] s_trunk shape: {s_trunk.shape}")
-            print(f"[DEBUG] s_inputs shape: {s_inputs.shape}")
-
-        # Create noise schedule
+        # Build a linear noise schedule from 1.0 to 0.0
         num_steps = inference_params.get("num_steps", 20)
         noise_schedule = torch.linspace(1.0, 0.0, steps=num_steps + 1, device=device)
         N_sample = inference_params.get("N_sample", 1)
@@ -134,24 +145,26 @@ class ProtenixDiffusionManager:
             denoise_net=self.diffusion_module,
             input_feature_dict=input_feature_dict,
             s_inputs=s_inputs,
-            s_trunk=s_trunk,
+            s_trunk=trunk_embeddings["s_trunk"],
             z_trunk=z_trunk,
             noise_schedule=noise_schedule,
             N_sample=N_sample,
         )
-
         return coords_final
 
     def custom_manual_loop(self, x_gt: torch.Tensor, trunk_embeddings: dict, sigma: float):
         """
-        Optional function showing manual usage of the diffusion module directly.
+        Optional direct usage demonstration: single forward pass
+        (not the multi-step sampler).
         """
         x_gt = x_gt.to(self.device)
         x_noisy = x_gt + torch.randn_like(x_gt) * sigma
         x_denoised = self.diffusion_module(
-            x_noisy,
-            sigma=sigma,
-            trunk_sing=trunk_embeddings.get("sing", None),
-            trunk_pair=trunk_embeddings.get("pair", None),
+            x_noisy=x_noisy,
+            t_hat_noise_level=torch.tensor([sigma], device=self.device),
+            input_feature_dict={},
+            s_inputs=trunk_embeddings.get("s_inputs"),
+            s_trunk=trunk_embeddings.get("s_trunk"),
+            z_trunk=trunk_embeddings.get("pair"),
         )
         return x_noisy, x_denoised
