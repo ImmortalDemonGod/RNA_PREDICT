@@ -4,7 +4,9 @@ from rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager import Pro
 from rna_predict.dataset.dataset_loader import load_rna_data_and_features
 # Import the Protenix InputFeatureEmbedder for computing s_inputs with dimension 449
 from rna_predict.pipeline.stageA.input_embedding.current.embedders import InputFeatureEmbedder
+import snoop
 
+@snoop
 def run_stageD_diffusion(
     partial_coords: torch.Tensor,
     trunk_embeddings: dict,
@@ -27,7 +29,28 @@ def run_stageD_diffusion(
     manager = ProtenixDiffusionManager(diffusion_config, device=device)
     
     # Load real input feature dictionaries: atom-level and token-level features.
-    atom_feature_dict, token_feature_dict = load_rna_data_and_features("demo_rna_file.cif", device=device)
+    atom_feature_dict, token_feature_dict = load_rna_data_and_features(
+        "demo_rna_file.cif",
+        device=device,
+        override_num_atoms=partial_coords.shape[1]
+    )
+
+    # Check or fix shape of deletion_mean
+    if "deletion_mean" in token_feature_dict:
+        deletion = token_feature_dict["deletion_mean"]
+        expected_tokens = token_feature_dict["restype"].shape[1]
+        if deletion.shape[1] != expected_tokens:
+            raise ValueError(f"deletion_mean middle dimension {deletion.shape[1]} != {expected_tokens}")
+        # If deletion_mean is not the correct shape, fix or skip it
+        if deletion.shape[1] == expected_tokens:
+            # If deletion_mean is not the correct shape, fix or skip it
+            if deletion.shape[1] == expected_tokens:
+                atom_feature_dict["deletion_mean"] = deletion
+            else:
+                print("[WARN] skipping 'deletion_mean' because shape is", deletion.shape, "expected", (deletion.shape[0], expected_tokens, 1))
+        else:
+            print("[WARN] skipping 'deletion_mean' because shape is", deletion.shape, "expected", (deletion.shape[0], expected_tokens, 1))
+
     # Overwrite ref_pos in the atom_feature_dict with the provided partial coordinates
     atom_feature_dict["ref_pos"] = partial_coords
 
@@ -106,7 +129,8 @@ def demo_run_diffusion():
         "c_atom": 128,
         "c_s": 384,
         "c_z": 32,
-        "c_token": 768,  # 768 is divisible by n_heads=16
+        # Now we unify shape to 832 (divisible by 16)
+        "c_token": 832,
         "transformer": {
             "n_blocks": 4,
             "n_heads": 16
