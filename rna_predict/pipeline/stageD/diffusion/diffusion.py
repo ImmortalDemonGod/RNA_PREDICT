@@ -28,13 +28,13 @@ from rna_predict.pipeline.stageA.input_embedding.current.transformer import (
 from protenix.model.utils import expand_at_dim
 #from protenix.openfold_local.model.primitives import LayerNorm
 from rna_predict.pipeline.stageA.input_embedding.current.checkpointing import get_checkpoint_fn
-
+import snoop
 
 class DiffusionConditioning(nn.Module):
     """
     Implements Algorithm 21 in AF3
     """
-
+    @snoop
     def __init__(
         self,
         sigma_data: float = 16.0,
@@ -66,7 +66,7 @@ class DiffusionConditioning(nn.Module):
         self.transition_z1 = Transition(c_in=self.c_z, n=2)
         self.transition_z2 = Transition(c_in=self.c_z, n=2)
 
-        # Line6-Line7
+        # Line6-Line7: We expect to combine (by concatenation) an embedding of dimension c_s and one of dimension c_s_inputs.
         self.layernorm_s = LayerNorm(self.c_s + self.c_s_inputs)
         self.linear_no_bias_s = LinearNoBias(
             in_features=self.c_s + self.c_s_inputs, out_features=self.c_s
@@ -82,6 +82,7 @@ class DiffusionConditioning(nn.Module):
         self.transition_s2 = Transition(c_in=self.c_s, n=2)
         print(f"Diffusion Module has {self.sigma_data}")
 
+    @snoop
     def forward(
         self,
         t_hat_noise_level: torch.Tensor,
@@ -119,11 +120,25 @@ class DiffusionConditioning(nn.Module):
         else:
             pair_z = pair_z + self.transition_z1(pair_z)
             pair_z = pair_z + self.transition_z2(pair_z)
-        # Single conditioning
+
+        # Single conditioning: we expect s_trunk to have shape [..., N_tokens, c_s]
+        # and s_inputs to have shape [..., N_tokens, c_s_inputs].
+        # Log their shapes first:
+        print(f"[DEBUG] s_trunk shape before combining: {s_trunk.shape} (expected last dim: {self.c_s})")
+        print(f"[DEBUG] s_inputs shape before combining: {s_inputs.shape} (expected last dim: {self.c_s_inputs})")
+
+        # Here, we concatenate along the last dimension:
         single_s = torch.cat(
             tensors=[s_trunk, s_inputs], dim=-1
-        )  # [..., N_tokens, c_s + c_s_inputs]
+        )  # Expected shape: [..., N_tokens, c_s + c_s_inputs]
+        print(f"[DEBUG] single_s shape after concatenation: {single_s.shape} (expected: [..., N_tokens, {self.c_s + self.c_s_inputs}])")
+
+        # Apply layer norm and projection:
+        # The layer norm expects the last dimension to match self.layernorm_s.normalized_shape (which should be (c_s + c_s_inputs,))
         single_s = self.linear_no_bias_s(self.layernorm_s(single_s))
+        print(f"[DEBUG] single_s shape after layer_norm and projection: {single_s.shape} (expected last dim: {self.c_s})")
+
+        # Add noise conditioning:
         noise_n = self.fourier_embedding(
             t_hat_noise_level=torch.log(input=t_hat_noise_level / self.sigma_data) / 4
         ).to(
