@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from protenix.model.modules.pairformer import PairformerStack
+from rna_predict.pipeline.stageB.pairwise.pairformer import PairformerStack
 
 class PairformerWrapper(nn.Module):
     """
