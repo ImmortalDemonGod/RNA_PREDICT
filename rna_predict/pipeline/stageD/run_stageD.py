@@ -3,7 +3,7 @@ from rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager import Pro
 # Import the loader utility for RNA features
 from rna_predict.dataset.dataset_loader import load_rna_data_and_features
 # Import the Protenix InputFeatureEmbedder for computing s_inputs with dimension 449
-from protenix.model.modules.embedders import InputFeatureEmbedder
+from rna_predict.pipeline.stageA.input_embedding.current.embedders import InputFeatureEmbedder
 
 def run_stageD_diffusion(
     partial_coords: torch.Tensor,
@@ -31,16 +31,24 @@ def run_stageD_diffusion(
     # Overwrite ref_pos in the atom_feature_dict with the provided partial coordinates
     atom_feature_dict["ref_pos"] = partial_coords
 
-    # Also merge the token-level features into the atom dict, so the embedder's default forward can produce 449-dim
+    # Merge token-level features into atom_feature_dict so that the embedder can produce a 449-dim output.
     atom_feature_dict["restype"] = token_feature_dict["restype"]
     atom_feature_dict["profile"] = token_feature_dict["profile"]
-    atom_feature_dict["deletion_mean"] = token_feature_dict["deletion_mean"]
+    
+    # Force deletion_mean to have shape (batch, num_tokens, 1)
+    deletion = token_feature_dict["deletion_mean"]
+    expected_tokens = token_feature_dict["restype"].shape[1]  # expected token count
+    if deletion.ndim == 2:
+        deletion = deletion.unsqueeze(-1)
+    if deletion.shape[1] != expected_tokens:
+        deletion = deletion[:, :expected_tokens, :]
+    atom_feature_dict["deletion_mean"] = deletion
  
     # Ensure trunk_embeddings has the key "s_trunk" required by multi_step_inference.
     if "s_trunk" not in trunk_embeddings or trunk_embeddings["s_trunk"] is None:
         trunk_embeddings["s_trunk"] = trunk_embeddings.get("sing")
  
-    # Instantiate the standard InputFeatureEmbedder to produce 449-dim
+    # Instantiate the standard InputFeatureEmbedder to produce a 449-dim output
     embedder = InputFeatureEmbedder(c_atom=128, c_atompair=16, c_token=384)
     # Directly call the default forward method
     s_inputs = embedder(atom_feature_dict, inplace_safe=False, chunk_size=None)
