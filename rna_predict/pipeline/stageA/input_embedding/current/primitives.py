@@ -30,7 +30,7 @@ from protenix.model.utils import (
 )
 from protenix.openfold_local.model.primitives import LayerNorm
 from protenix.openfold_local.utils.chunk_utils import chunk_layer
-
+import snoop
 LinearNoBias = partial(Linear, bias=False)
 
 
@@ -218,7 +218,7 @@ def _attention(
 
     return attn_output
 
-
+@snoop
 def rearrange_qk_to_dense_trunk(
     q: Union[torch.Tensor, list[torch.Tensor]],
     k: Union[torch.Tensor, list[torch.Tensor]],
@@ -846,7 +846,7 @@ def gather_pair_embedding_in_dense_trunk(
 
     return y
 
-
+@snoop
 def broadcast_token_to_local_atom_pair(
     z_token: torch.Tensor,
     atom_to_token_idx: torch.Tensor,
