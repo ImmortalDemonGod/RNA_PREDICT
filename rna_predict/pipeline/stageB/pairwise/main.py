@@ -62,10 +62,13 @@ def demo_run_diffusion():
         "pair": torch.randn(1, 10, 10, 32, device=device)
     }
     diffusion_config = {
-        "c_x": 3,      # input coords dimension
-        "c_s": 384,    # single embedding dimension
-        "c_z": 32,     # pair embedding dimension
-        "num_layers": 4
+        "c_atom": 128,
+        "c_s": 384,
+        "c_z": 32,
+        "transformer": {
+            "n_blocks": 4,
+            "n_heads": 16
+        }
     }
 
     # 1) Inference mode
