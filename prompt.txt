@@ -1,3 +1,5 @@
+Systematically and critically analyze different versions to come up with strengths and weaknesses for each so that we can have a comprehensive understanding of the different versions.
+====
 V1:
 ====
 V2:
