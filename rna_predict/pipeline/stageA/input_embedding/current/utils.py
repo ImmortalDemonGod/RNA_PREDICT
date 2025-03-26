@@ -19,7 +19,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from scipy.spatial.transform import Rotation
-
+import snoop
 from protenix.utils.scatter_utils import scatter
 
 
@@ -216,7 +216,7 @@ def batched_gather(
     ranges.extend(remaining_dims)
     return data[ranges]
 
-
+@snoop
 def broadcast_token_to_atom(
     x_token: torch.Tensor,
     atom_to_token_idx: torch.Tensor
