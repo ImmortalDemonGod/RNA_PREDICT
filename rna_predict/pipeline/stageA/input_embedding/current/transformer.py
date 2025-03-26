@@ -788,13 +788,13 @@ class AtomAttentionEncoder(nn.Module):
 
             # Broadcast the single and pair embedding from the trunk
             n_token = s.size(-2)
-            c_l = c_l.unsqueeze(dim=-3) + self.linear_no_bias_s(
+            c_l = c_l + self.linear_no_bias_s(
                 self.layernorm_s(
                     broadcast_token_to_atom(
                         x_token=s, atom_to_token_idx=atom_to_token_idx
                     )
                 )
-            )  # [..., N_sample, N_atom, c_atom]
+            )
             z_local_pairs, _ = broadcast_token_to_local_atom_pair(
                 z_token=z,
                 atom_to_token_idx=atom_to_token_idx,
@@ -807,9 +807,9 @@ class AtomAttentionEncoder(nn.Module):
             )  # [..., N_sample, n_blocks, n_queries, n_keys, c_atompair]
 
             # Add the noisy positions
-            q_l = q_l.unsqueeze(dim=-3) + self.linear_no_bias_r(
+            q_l = q_l + self.linear_no_bias_r(
                 r_l
-            )  # [..., N_sample, N_atom, c_atom]
+            )
 
         # Add the combined single conditioning to the pair representation
         c_l_q, c_l_k, _ = rearrange_qk_to_dense_trunk(
