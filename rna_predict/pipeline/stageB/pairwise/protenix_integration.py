@@ -117,13 +117,17 @@ class ProtenixIntegration:
         # Determine residue indices: use provided 'residue_index' if available, otherwise create a default range.
         if "residue_index" in input_features:
             res_idx = input_features["residue_index"].to(self.device)
+            # Squeeze out the trailing dimension if it's [N_token, 1]
+            if res_idx.dim() == 2 and res_idx.shape[1] == 1:
+                res_idx = res_idx.squeeze(-1)
         else:
             N_token = s_inputs.shape[0]
             res_idx = torch.arange(N_token, device=self.device)
 
-        # Create pair input by expanding residue indices to form a matrix (for potential further use).
         N_token = res_idx.size(0)
-        pair_input = res_idx.unsqueeze(0).expand(N_token, -1)  # This creates a [N_token, N_token] matrix.
+
+        # Now we can safely expand to a [N_token, N_token] matrix
+        pair_input = res_idx.unsqueeze(0).expand(N_token, N_token)
 
         # Compute the initial pair embedding (z_init) using the relative position encoding module.
         z_init = self.rel_pos_encoding(
