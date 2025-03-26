@@ -19,7 +19,11 @@ import snoop
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
+from rna_predict.pipeline.stageA.input_embedding.current.primitives import (
+    rearrange_qk_to_dense_trunk
+)
+import math
+import math
 from rna_predict.pipeline.stageA.input_embedding.current.primitives import (
     AdaptiveLayerNorm,
     Attention,
@@ -741,12 +745,15 @@ class AtomAttentionEncoder(nn.Module):
                 reduce="mean",
             )
             return a, q_l, c_l, None
+        
+        # [PATCH] Ensure ref_space_uid is 3D if has_coords (to match ref_pos for trunk-based logic)
+        if "ref_space_uid" in input_feature_dict:
+            uid = input_feature_dict["ref_space_uid"]
+            if uid.ndim == 2:  # shape was [B, N_atom]
+                uid = uid.unsqueeze(-1)  # becomes [B, N_atom, 1]
+                input_feature_dict["ref_space_uid"] = uid
+        
 
-        # Else, has_coords=True -> trunk logic
-        from rna_predict.pipeline.stageA.input_embedding.current.primitives import (
-            rearrange_qk_to_dense_trunk
-        )
-        import math
 
         q_trunked_list, k_trunked_list, pad_info = rearrange_qk_to_dense_trunk(
             q=[input_feature_dict["ref_pos"], input_feature_dict["ref_space_uid"]],
