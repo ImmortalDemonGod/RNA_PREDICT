@@ -682,45 +682,41 @@ class AtomAttentionEncoder(nn.Module):
     def forward(
         self,
         input_feature_dict: dict[str, Union[torch.Tensor, int, float, dict]],
-        r_l: torch.Tensor = None,
-        s: torch.Tensor = None,
-        z: torch.Tensor = None,
+        r_l: Optional[torch.Tensor] = None,
+        s: Optional[torch.Tensor] = None,
+        z: Optional[torch.Tensor] = None,
         inplace_safe: bool = False,
         chunk_size: Optional[int] = None,
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, Optional[torch.Tensor]]:
         """
+        Revised forward method that:
+         - Skips trunk logic entirely if has_coords=False, preventing dimension mismatches.
+         - If has_coords=True, unifies trunk dimension for (ref_pos, ref_space_uid) along -2.
+        
         Args:
-            input_feature_dict (dict[str, Union[torch.Tensor, int, float, dict]]): input meta feature dict
-            r_l (torch.Tensor, optional): noisy position.
-                [..., N_sample, N_atom, 3] if has_coords else None.
-            s (torch.Tensor, optional): single embedding.
-                [..., N_sample, N_token, c_s] if has_coords else None.
-            z (torch.Tensor, optional): pair embedding
-                [..., N_sample, N_token, N_token, c_z] if has_coords else None.
-
+            input_feature_dict: Contains per-atom features, plus reference to token-level data.
+            r_l: Noisy position if has_coords=True. shape [..., N_atom, 3].
+            s: Single embedding if has_coords=True. shape [..., N_token, c_s].
+            z: Pair embedding if has_coords=True. shape [..., N_token, N_token, c_z].
+            inplace_safe: Whether to do some ops in-place for memory efficiency.
+            chunk_size: If set, break computations into smaller chunks to reduce memory usage.
+        
         Returns:
-            tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]: the output of AtomAttentionEncoder
-            a:
-                [..., (N_sample), N_token, c_token]
-            q_l:
-                [..., (N_sample), N_atom, c_atom]
-            c_l:
-                [..., (N_sample), N_atom, c_atom]
-            p_lm:
-                [..., (N_sample), N_atom, N_atom, c_atompair]
-
+            a:    Final token-level embedding, shape [..., N_token, c_token]
+            q_l:  Atom-level embedding, shape [..., N_atom, c_atom]
+            c_l:  Another atom-level embedding, shape [..., N_atom, c_atom]
+            p_lm: The trunk-based pair embedding, or None if trunk is skipped.
         """
-
-        if self.has_coords:
-            assert r_l is not None
-            assert s is not None
-            assert z is not None
+        from rna_predict.pipeline.stageA.input_embedding.current.utils import (
+            broadcast_token_to_atom, aggregate_atom_to_token
+        )
+        import torch.nn.functional as F
 
         atom_to_token_idx = input_feature_dict["atom_to_token_idx"]
-        # Create the atom single conditioning: Embed per-atom meta data
-        # [..., N_atom, C_atom]
         batch_shape = input_feature_dict["ref_pos"].shape[:-2]
         N_atom = input_feature_dict["ref_pos"].shape[-2]
+
+        # Combine the relevant per-atom features into one embedding c_l
         c_l = self.linear_no_bias_f(
             torch.cat(
                 [
@@ -731,69 +727,72 @@ class AtomAttentionEncoder(nn.Module):
                 ],
                 dim=-1,
             )
+        )  # => [..., N_atom, c_atom]
+
+        # If has_coords = False -> Skip trunk logic, return minimal aggregator
+        if not self.has_coords:
+            q_l = c_l
+            a_atom = F.relu(self.linear_no_bias_q(q_l))
+            num_tokens = input_feature_dict["restype"].shape[-2]
+            a = aggregate_atom_to_token(
+                x_atom=a_atom,
+                atom_to_token_idx=atom_to_token_idx,
+                n_token=num_tokens,
+                reduce="mean",
+            )
+            return a, q_l, c_l, None
+
+        # Else, has_coords=True -> trunk logic
+        from rna_predict.pipeline.stageA.input_embedding.current.primitives import (
+            rearrange_qk_to_dense_trunk
         )
+        import math
 
-        # Line2-Line4: Embed offsets between atom reference positions
-
-        # Prepare tensors in dense trunks for local operations
         q_trunked_list, k_trunked_list, pad_info = rearrange_qk_to_dense_trunk(
             q=[input_feature_dict["ref_pos"], input_feature_dict["ref_space_uid"]],
             k=[input_feature_dict["ref_pos"], input_feature_dict["ref_space_uid"]],
-            dim_q=[-2, -1],
-            dim_k=[-2, -1],
+            # unifying both along -2 to avoid dimension mismatch
+            dim_q=[-2, -2],
+            dim_k=[-2, -2],
             n_queries=self.n_queries,
             n_keys=self.n_keys,
             compute_mask=True,
         )
 
-        # Compute atom pair feature
         d_lm = (
-            q_trunked_list[0][..., None, :] - k_trunked_list[0][..., None, :, :]
-        )  # [..., n_blocks, n_queries, n_keys, 3]
-        v_lm = (
-            q_trunked_list[1][..., None].int() == k_trunked_list[1][..., None, :].int()
-        ).unsqueeze(
-            dim=-1
-        )  # [..., n_blocks, n_queries, n_keys, 1]
-        p_lm = (self.linear_no_bias_d(d_lm) * v_lm) * pad_info[
-            "mask_trunked"
-        ].unsqueeze(
-            dim=-1
-        )  # [..., n_blocks, n_queries, n_keys, C_atompair]
+            q_trunked_list[0].unsqueeze(-2)
+            - k_trunked_list[0].unsqueeze(-3)
+        )  # => [..., n_trunks, n_queries, n_keys, 3]
 
-        # Line5-Line6: Embed pairwise inverse squared distances, and the valid mask
+        v_lm = (
+            (q_trunked_list[1].unsqueeze(-2).int() == k_trunked_list[1].unsqueeze(-3).int())
+        ).unsqueeze(-1)  # => [..., n_trunks, n_queries, n_keys, 1]
+
+        p_lm = (self.linear_no_bias_d(d_lm) * v_lm) * pad_info["mask_trunked"].unsqueeze(dim=-1)
         if inplace_safe:
-            p_lm += (
-                self.linear_no_bias_invd(1 / (1 + (d_lm**2).sum(dim=-1, keepdim=True)))
-                * v_lm
-            )
+            p_lm += self.linear_no_bias_invd(
+                1.0 / (1.0 + (d_lm**2).sum(dim=-1, keepdim=True))
+            ) * v_lm
             p_lm += self.linear_no_bias_v(v_lm.to(dtype=p_lm.dtype)) * v_lm
         else:
-            p_lm = (
-                p_lm
-                + self.linear_no_bias_invd(
-                    1 / (1 + (d_lm**2).sum(dim=-1, keepdim=True))
-                )
-                * v_lm
-            )
+            p_lm = p_lm + self.linear_no_bias_invd(
+                1.0 / (1.0 + (d_lm**2).sum(dim=-1, keepdim=True))
+            ) * v_lm
             p_lm = p_lm + self.linear_no_bias_v(v_lm.to(dtype=p_lm.dtype)) * v_lm
 
-        # Line7: Initialise the atom single representation as the single conditioning
-        q_l = c_l.clone()
-
-        # If provided, add trunk embeddings and noisy positions
-        n_token = None
+        # Build final local embeddings
+        q_l = c_l
         if r_l is not None:
-            N_sample = r_l.size(-3)
-
-            # Broadcast the single and pair embedding from the trunk
-            n_token = s.size(-2)
+            q_l = q_l + self.linear_no_bias_r(r_l)
+        if s is not None:
             c_l = c_l + self.linear_no_bias_s(
                 self.layernorm_s(
-                    broadcast_token_to_atom(
-                        x_token=s, atom_to_token_idx=atom_to_token_idx
-                    )
+                    broadcast_token_to_atom(s, atom_to_token_idx)
                 )
+            )
+        if z is not None:
+            from rna_predict.pipeline.stageA.input_embedding.current.primitives import (
+                broadcast_token_to_local_atom_pair
             )
             z_local_pairs, _ = broadcast_token_to_local_atom_pair(
                 z_token=z,
@@ -801,57 +800,44 @@ class AtomAttentionEncoder(nn.Module):
                 n_queries=self.n_queries,
                 n_keys=self.n_keys,
                 compute_mask=False,
-            )  # [..., N_sample, n_blocks, n_queries, n_keys, c_z]
-            p_lm = p_lm.unsqueeze(dim=-5) + self.linear_no_bias_z(
-                self.layernorm_z(z_local_pairs)
-            )  # [..., N_sample, n_blocks, n_queries, n_keys, c_atompair]
-
-            # Add the noisy positions
-            q_l = q_l + self.linear_no_bias_r(
-                r_l
             )
+            p_lm = p_lm.unsqueeze(-5) + self.linear_no_bias_z(self.layernorm_z(z_local_pairs))
 
-        # Add the combined single conditioning to the pair representation
         c_l_q, c_l_k, _ = rearrange_qk_to_dense_trunk(
             q=c_l,
             k=c_l,
-            dim_q=-2,
-            dim_k=-2,
+            dim_q=[-2],
+            dim_k=[-2],
             n_queries=self.n_queries,
             n_keys=self.n_keys,
             compute_mask=False,
         )
+
         if inplace_safe:
-            p_lm += self.linear_no_bias_cl(F.relu(c_l_q[..., None, :]))
-            p_lm += self.linear_no_bias_cm(F.relu(c_l_k[..., None, :, :]))
+            p_lm += self.linear_no_bias_cl(F.relu(c_l_q.unsqueeze(-2)))
+            p_lm += self.linear_no_bias_cm(F.relu(c_l_k.unsqueeze(-3)))
             p_lm += self.small_mlp(p_lm)
         else:
             p_lm = (
                 p_lm
-                + self.linear_no_bias_cl(F.relu(c_l_q[..., None, :]))
-                + self.linear_no_bias_cm(F.relu(c_l_k[..., None, :, :]))
-            )  # [..., (N_sample), n_blocks, n_queries, n_keys, c_atompair]
-
-            # Run a small MLP on the pair activations
+                + self.linear_no_bias_cl(F.relu(c_l_q.unsqueeze(-2)))
+                + self.linear_no_bias_cm(F.relu(c_l_k.unsqueeze(-3)))
+            )
             p_lm = p_lm + self.small_mlp(p_lm)
 
-        # Cross attention transformer
-        q_l = self.atom_transformer(
-            q_l, c_l, p_lm, chunk_size=chunk_size
-        )  # [..., (N_sample), N_atom, c_atom]
+        # Finally run the local atom transformer
+        q_l = self.atom_transformer(q_l, c_l, p_lm, chunk_size=chunk_size)
 
-        # aggregator fix
-        batch_size = input_feature_dict["restype"].shape[0]
-        num_tokens = input_feature_dict["restype"].shape[1]
-
+        # Aggregate to token-level
+        a_atom = F.relu(self.linear_no_bias_q(q_l))
+        num_tokens = input_feature_dict["restype"].shape[-2]
         a = aggregate_atom_to_token(
-            x_atom=F.relu(self.linear_no_bias_q(q_l)),
+            x_atom=a_atom,
             atom_to_token_idx=atom_to_token_idx,
             n_token=num_tokens,
             reduce="mean",
-        )  # => shape [batch, num_tokens, c_token]
-        if (not self.training) and (a.shape[-2] > 2000 or q_l.shape[-2] > 20000):
-            torch.cuda.empty_cache()
+        )
+
         return a, q_l, c_l, p_lm
 
 
