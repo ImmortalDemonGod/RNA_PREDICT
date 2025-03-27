@@ -753,29 +753,30 @@ class AtomAttentionEncoder(nn.Module):
                 uid = uid.unsqueeze(-1)  # becomes [B, N_atom, 1]
                 input_feature_dict["ref_space_uid"] = uid
         
-
+        # Clamp local trunk sizes if N_atom < n_queries or n_keys
+        N_atom = input_feature_dict["ref_pos"].shape[-2]
+        local_nq = min(self.n_queries, N_atom)
+        local_nk = min(self.n_keys, N_atom)
 
         q_trunked_list, k_trunked_list, pad_info = rearrange_qk_to_dense_trunk(
             q=[input_feature_dict["ref_pos"], input_feature_dict["ref_space_uid"]],
             k=[input_feature_dict["ref_pos"], input_feature_dict["ref_space_uid"]],
-            # unifying both along -2 to avoid dimension mismatch
             dim_q=[-2, -2],
             dim_k=[-2, -2],
-            n_queries=self.n_queries,
-            n_keys=self.n_keys,
+            n_queries=local_nq,
+            n_keys=local_nk,
             compute_mask=True,
         )
 
         d_lm = (
             q_trunked_list[0].unsqueeze(-2)
             - k_trunked_list[0].unsqueeze(-3)
-        )  # => [..., n_trunks, n_queries, n_keys, 3]
-
+        )
+        # Remove extra unsqueeze; keep just one trailing dim for broadcast
         v_lm = (
-            (q_trunked_list[1].unsqueeze(-2).int() == k_trunked_list[1].unsqueeze(-3).int())
-        ).unsqueeze(-1)  # => [..., n_trunks, n_queries, n_keys, 1]
-
-        p_lm = (self.linear_no_bias_d(d_lm) * v_lm) * pad_info["mask_trunked"].unsqueeze(dim=-1)
+            q_trunked_list[1].unsqueeze(-2).int() == k_trunked_list[1].unsqueeze(-3).int()
+        )  # => shape [B, n_trunks, local_nq, local_nk]
+        p_lm = (self.linear_no_bias_d(d_lm) * v_lm.unsqueeze(-1)) * pad_info["mask_trunked"].unsqueeze(dim=-1)
         if inplace_safe:
             p_lm += self.linear_no_bias_invd(
                 1.0 / (1.0 + (d_lm**2).sum(dim=-1, keepdim=True))
