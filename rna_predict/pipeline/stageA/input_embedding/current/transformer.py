@@ -733,18 +733,46 @@ class AtomAttentionEncoder(nn.Module):
             )
         )  # => [..., N_atom, c_atom]
 
-        # If has_coords = False -> Skip trunk logic, return minimal aggregator
+        # 2) If has_coords=False, skip trunk logic, do minimal aggregator
         if not self.has_coords:
             q_l = c_l
-            a_atom = F.relu(self.linear_no_bias_q(q_l))
-            num_tokens = input_feature_dict["restype"].shape[-2]
-            a = aggregate_atom_to_token(
+            # Example: map per-atom c_l => a_atom in c_token dimension
+            a_atom = torch.relu(self.linear_no_bias_q(q_l))
+
+            # We'll define n_token from max(atom_to_token_idx) + 1
+            atom_to_token_idx = input_feature_dict["atom_to_token_idx"]
+            if atom_to_token_idx.dim() == 2:
+                # shape e.g. [B, N_atom]
+                max_idx = int(atom_to_token_idx.max().item())
+                n_token = max_idx + 1
+            else:
+                # shape e.g. [N_atom], simpler
+                max_idx = int(atom_to_token_idx.max().item())
+                n_token = max_idx + 1
+
+            # (Optional) cross-check with restype
+            if "restype" in input_feature_dict:
+                import warnings
+                n_restype = input_feature_dict["restype"].shape[-2]
+                if n_restype < n_token:
+                    warnings.warn(
+                        f"[AtomAttentionEncoder] restype tokens={{n_restype}} < aggregator tokens={{n_token}}. "
+                        "This mismatch may be unintended."
+                    )
+                elif n_restype > n_token:
+                    warnings.warn(
+                        f"[AtomAttentionEncoder] restype tokens={{n_restype}} > aggregator tokens={{n_token}}. "
+                        f"We'll produce only {{n_token}} aggregator tokens, ignoring the extras."
+                    )
+
+            # aggregator
+            aggregated = aggregate_atom_to_token(
                 x_atom=a_atom,
                 atom_to_token_idx=atom_to_token_idx,
-                n_token=num_tokens,
+                n_token=n_token,
                 reduce="mean",
             )
-            return a, q_l, c_l, None
+            return aggregated, q_l, c_l, None
         
         # [PATCH] Ensure ref_space_uid is 3D if has_coords (to match ref_pos for trunk-based logic)
         if "ref_space_uid" in input_feature_dict:
