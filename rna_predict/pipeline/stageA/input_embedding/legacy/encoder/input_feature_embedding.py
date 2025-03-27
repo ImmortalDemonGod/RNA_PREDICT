@@ -27,14 +27,19 @@ class InputFeatureEmbedder(nn.Module):
         num_heads=4,
         num_layers=3,
         use_optimized=False,
-        pairformer_blocks=48
+        pairformer_blocks=48,
     ):
         super().__init__()
         import torch.nn as nn
-        from rna_predict.models.encoder.atom_encoder import AtomEncoderConfig
-        from rna_predict.pipeline.stageB.pairwise.pairformer_wrapper import PairformerWrapper
+
         # We'll get our AtomAttentionEncoder from the same module
-        from rna_predict.models.encoder.atom_encoder import AtomAttentionEncoder
+        from rna_predict.models.encoder.atom_encoder import (
+            AtomAttentionEncoder,
+            AtomEncoderConfig,
+        )
+        from rna_predict.pipeline.stageB.pairwise.pairformer_wrapper import (
+            PairformerWrapper,
+        )
 
         self.c_token = c_token
         self.c_pair = c_pair
@@ -57,10 +62,7 @@ class InputFeatureEmbedder(nn.Module):
 
         # Pairformer for optional trunk_pair usage
         self.pairformer = PairformerWrapper(
-            n_blocks=pairformer_blocks,
-            c_z=c_pair,
-            c_s=c_token,
-            use_checkpoint=False
+            n_blocks=pairformer_blocks, c_z=c_pair, c_s=c_token, use_checkpoint=False
         )
 
     def forward(self, f, trunk_sing=None, trunk_pair=None, block_index=None):
@@ -86,7 +88,9 @@ class InputFeatureEmbedder(nn.Module):
         restype = f["restype"]
         profile = f["profile"]
         deletion_mean = f["deletion_mean"].unsqueeze(-1)  # [N_token,1]
-        extras = torch.cat([restype, profile, deletion_mean], dim=-1)  # [N_token,in_extras]
+        extras = torch.cat(
+            [restype, profile, deletion_mean], dim=-1
+        )  # [N_token,in_extras]
         extras_emb = self.extra_linear(extras)  # [N_token,c_token]
 
         single_emb = a_token + extras_emb
@@ -102,8 +106,8 @@ class InputFeatureEmbedder(nn.Module):
                 # We won't do advanced block logic; just unify shape
                 pair_mask = torch.ones((1, N, N), device=device)
 
-            s_in = single_emb.unsqueeze(0)   # [1, N, c_token]
-            z_in = trunk_pair.unsqueeze(0)   # [1, N, N, c_pair]
+            s_in = single_emb.unsqueeze(0)  # [1, N, c_token]
+            z_in = trunk_pair.unsqueeze(0)  # [1, N, N, c_pair]
             s_out, z_out = self.pairformer(s_in, z_in, pair_mask)
             single_emb = s_out.squeeze(0)
 
