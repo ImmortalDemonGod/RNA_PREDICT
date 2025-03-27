@@ -14,11 +14,10 @@
 
 # pylint: disable=C0114
 from functools import partial
-from typing import Any, Optional, Union
+from typing import Any, Optional
 
 import torch
 import torch.nn as nn
-
 from protenix.model.modules.primitives import LinearNoBias, Transition
 from protenix.model.modules.transformer import AttentionPairBias
 from protenix.model.utils import sample_msa_feature_dict_random_without_replacement
@@ -30,8 +29,6 @@ from protenix.openfold_local.model.primitives import LayerNorm
 from protenix.openfold_local.model.triangular_attention import TriangleAttention
 from protenix.openfold_local.model.triangular_multiplicative_update import (
     TriangleMultiplicationIncoming,  # Alg 13 in AF3
-)
-from protenix.openfold_local.model.triangular_multiplicative_update import (
     TriangleMultiplicationOutgoing,  # Alg 12 in AF3
 )
 from protenix.openfold_local.utils.checkpointing import checkpoint_blocks
