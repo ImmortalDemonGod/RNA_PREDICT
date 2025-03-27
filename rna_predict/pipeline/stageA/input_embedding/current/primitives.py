@@ -17,11 +17,10 @@ import math
 from functools import partial
 from typing import Optional, Union
 
+import snoop
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.nn import Linear
-
 from protenix.model.utils import (
     flatten_final_dims,
     move_final_dim_to_dim,
@@ -30,7 +29,8 @@ from protenix.model.utils import (
 )
 from protenix.openfold_local.model.primitives import LayerNorm
 from protenix.openfold_local.utils.chunk_utils import chunk_layer
-import snoop
+from torch.nn import Linear
+
 LinearNoBias = partial(Linear, bias=False)
 
 
@@ -217,6 +217,7 @@ def _attention(
     attn_output = attn_weights @ v
 
     return attn_output
+
 
 @snoop
 def rearrange_qk_to_dense_trunk(
@@ -845,6 +846,7 @@ def gather_pair_embedding_in_dense_trunk(
     y = x[..., idx_q_expanded, idx_k_expanded, :]
 
     return y
+
 
 @snoop
 def broadcast_token_to_local_atom_pair(
