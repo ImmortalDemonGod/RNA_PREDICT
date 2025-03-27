@@ -21,6 +21,19 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# We'll assume the prompt_template.md is in the same directory as this script
+PROMPT_TEMPLATE_FILE = Path(__file__).parent / "prompt_template.md"
+
+def load_text_prompt_template() -> str:
+    """
+    Load the text prompt template from the prompt_template.md file.
+    """
+    try:
+        return PROMPT_TEMPLATE_FILE.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        logger.error("prompt_template.md not found. Please ensure it is in the same directory.")
+        return ""
+
 # Configure snoop to write to a separate debug log
 snoop.install(out=Path("snoop_debug.log"))
 
@@ -254,6 +267,17 @@ def fix_duplicate_self(test_content: str) -> Optional[str]:
 
 class TestGenerator:
     """Manages generation of Hypothesis tests for Python modules"""
+
+    def wrap_with_prompt(self, combined_test_code: str, original_source_code: str) -> str:
+        """
+        Wrap the combined test code and original source code in the custom text prompt
+        read from 'prompt_template.md'.
+        """
+        prompt_template = load_text_prompt_template()
+        return prompt_template.format(
+            TEST_CODE=combined_test_code,
+            FULL_SRC_CODE=original_source_code
+        )
 
     def __init__(self, output_dir: Path = Path("generated_tests")):
         self.output_dir = output_dir
@@ -679,6 +703,13 @@ class TestGenerator:
 
         # Step 4: Write the combined content to the new file
         combined_filepath.write_text(combined_content)
+
+        # New wrapping step
+        original_source_code = file_path.read_text()
+        final_wrapped_content = self.wrap_with_prompt(combined_content, original_source_code)
+        final_wrapped_file = self.output_dir / f"test_wrapped_{original_stem}.md"
+        final_wrapped_file.write_text(final_wrapped_content)
+        logger.info(f"Final wrapped test file created at {final_wrapped_file}")
 
         # Optional: verify the combined file
         if not combined_filepath.exists() or len(combined_filepath.read_text()) < 50:
