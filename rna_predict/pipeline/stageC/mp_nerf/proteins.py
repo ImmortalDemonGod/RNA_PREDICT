@@ -4,11 +4,11 @@ import numpy as np
 # diff / ml
 import torch
 from einops import repeat
-from mp_nerf.kb_proteins import *
+from rna_predict.pipeline.stageC.mp_nerf.kb_proteins import *
 
 # module
-from mp_nerf.massive_pnerf import *
-from mp_nerf.utils import *
+from rna_predict.pipeline.stageC.mp_nerf.massive_pnerf import *
+from rna_predict.pipeline.stageC.mp_nerf.utils import *
 
 
 def scn_cloud_mask(seq, coords=None, strict=False):
