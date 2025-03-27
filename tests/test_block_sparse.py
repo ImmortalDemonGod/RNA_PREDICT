@@ -6,7 +6,7 @@ from typing import Tuple
 import pytest
 import torch
 
-from rna_predict.models.attention.block_sparse import (
+from rna_predict.pipeline.stageA.input_embedding.legacy.attention.block_sparse import ( # IS USING LEGACY
     _HAS_BSA,
     BlockSparseAttentionOptimized,
     LocalBlockMaskConfig,
