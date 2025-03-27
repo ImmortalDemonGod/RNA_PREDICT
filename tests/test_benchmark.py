@@ -12,10 +12,11 @@ from rna_predict.benchmarks.benchmark import (
     resolve_device,
     timed_decoding,
     timed_embedding,
-    warmup_decoding,
-    warmup_embedding,
 )
-from rna_predict.models.encoder.input_feature_embedding import InputFeatureEmbedder
+from rna_predict.pipeline.stageA.input_embedding.current.embedders import (
+    InputFeatureEmbedder,
+)
+from rna_predict.pipeline.stageA.input_embedding.current.embedders import InputFeatureEmbedder
 
 
 class TestBenchmarkConfigs(unittest.TestCase):
