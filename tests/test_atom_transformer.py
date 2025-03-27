@@ -4,11 +4,8 @@ from unittest.mock import patch
 import pytest
 import torch
 
-from rna_predict.models.attention.atom_transformer import (
-    AtomTransformer,
-    AtomTransformerBlock,
-)
-
+from rna_predict.pipeline.stageA.input_embedding.current.transformer import AtomTransformer
+from rna_predict.pipeline.stageA.input_embedding.legacy.attention.atom_transformer import AtomTransformerBlock # IS USING LEGACY 
 
 @pytest.mark.parametrize("use_optimized", [False, True])
 def test_atom_transformer_block_shape(use_optimized):
