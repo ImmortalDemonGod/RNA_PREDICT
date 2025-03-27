@@ -6,7 +6,7 @@ from einops import rearrange, repeat
 from rna_predict.pipeline.stageC.mp_nerf.massive_pnerf import *
 from rna_predict.pipeline.stageC.mp_nerf.kb_proteins import *
 from rna_predict.pipeline.stageC.mp_nerf.utils import *
-
+from rna_predict.pipeline.stageC.mp_nerf.proteins import *
 
 def scn_atom_embedd(seq_list):
     """Returns the token for each atom in the aa seq.
@@ -136,7 +136,7 @@ def fape_torch(
     * true_coords: (B, L, C, 3) ground truth coordinates.
     * max_val: maximum value (it's also the radius due to L1 usage)
     * l_func: function. allow for options other than l1 (consider dRMSD)
-    * c_alpha: bool. whether to only calculate frames and loss from c_alphas
+    * c_alpha: bool. whether to only calculate frames and loss from c_alphas
     * seq_list: list of strs (FASTA sequences). to calculate rigid bodies' indexs.
                 Defaults to C-alpha if not passed.
     * rot_mats_g: optional. List of n_seqs x (N_frames, 3, 3) rotation matrices.
@@ -165,6 +165,7 @@ def fape_torch(
         mask_center = rearrange(cloud_mask, "l c -> (l c)")
         # get frames and conversions - same scheme as in mp_nerf proteins' concat of monomers
         if rot_mats_g is None:
+            # OLD: scn_rigid_index_mask => NameError
             rigid_idxs = scn_rigid_index_mask(seq_list[s], c_alpha=c_alpha)
             true_frames = get_axis_matrix(*true_center[rigid_idxs].detach(), norm=True)
             pred_frames = get_axis_matrix(*pred_center[rigid_idxs].detach(), norm=True)
@@ -178,17 +179,24 @@ def fape_torch(
             mask_center[rigid_idxs[1]] = True
 
         # measure errors - for residue
-        for i, rot_mat in enumerate(rot_mats):
+        if rot_mats.dim() == 2:
+            # single frame
             fape_store[s] += l_func(
-                pred_center[s][mask_center[s]] @ rot_mat, true_center[s][mask_center[s]]
+                torch.matmul(pred_center[mask_center], rot_mats),
+                true_center[mask_center],
             ).clamp(0, max_val)
-        fape_store[s] /= rot_mats.shape[0]
+        else:
+            # multiple frames
+            for i, rot_mat in enumerate(rot_mats):
+                fape_store[s] += l_func(
+                    pred_center[mask_center] @ rot_mat, true_center[mask_center]
+                ).clamp(0, max_val)
+            fape_store[s] /= rot_mats.shape[0]
 
-    # stack and average
     return (1 / max_val) * torch.stack(fape_store, dim=0)
 
 
-# custom
+
 
 
 def atom_selector(scn_seq, x, option=None, discard_absent=True):
