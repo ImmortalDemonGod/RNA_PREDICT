@@ -13,15 +13,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Optional, Union
+from typing import Any, Optional
 
+import snoop
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 from rna_predict.pipeline.stageA.input_embedding.current.primitives import LinearNoBias
-from rna_predict.pipeline.stageA.input_embedding.current.transformer import AtomAttentionEncoder
-import snoop
+from rna_predict.pipeline.stageA.input_embedding.current.transformer import (
+    AtomAttentionEncoder,
+)
+
 
 class InputFeatureEmbedder(nn.Module):
     """
@@ -53,7 +56,7 @@ class InputFeatureEmbedder(nn.Module):
         )
         # Line2
         self.input_feature = {"restype": 32, "profile": 32, "deletion_mean": 1}
-    
+
     @snoop
     def forward(
         self,
