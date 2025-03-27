@@ -3,8 +3,7 @@ from typing import Any, Dict, Optional
 
 import torch
 
-from rna_predict.pipeline.stageB.internal_coordinates.torsionbert_inference import TorsionBertModel
-
+# (Removed this line to avoid circular import)
 
 class StageBTorsionBertPredictor:
     """
