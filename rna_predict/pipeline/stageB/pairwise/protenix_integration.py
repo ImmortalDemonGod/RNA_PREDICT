@@ -1,9 +1,15 @@
-import torch
-from rna_predict.pipeline.stageA.input_embedding.current.embedders import InputFeatureEmbedder as ProtenixInputEmbedder, RelativePositionEncoding
 import snoop
+import torch
 import torch.nn.functional as F
 
-# This file defines the ProtenixIntegration class, which integrates Protenix input embedding components 
+from rna_predict.pipeline.stageA.input_embedding.current.embedders import (
+    InputFeatureEmbedder as ProtenixInputEmbedder,
+)
+from rna_predict.pipeline.stageA.input_embedding.current.embedders import (
+    RelativePositionEncoding,
+)
+
+# This file defines the ProtenixIntegration class, which integrates Protenix input embedding components
 # for Stage B/C synergy by building single-token and pair embeddings from raw features.
 
 
@@ -23,7 +29,7 @@ class ProtenixIntegration:
         num_heads=4,
         num_layers=3,
         use_optimized=False,
-        device=torch.device("cpu")
+        device=torch.device("cpu"),
     ):
         """
         Initialize the ProtenixIntegration class with embedding and attention configuration.
@@ -41,16 +47,14 @@ class ProtenixIntegration:
 
         # Initialize the input embedder using Protenix's InputFeatureEmbedder
         self.input_embedder = ProtenixInputEmbedder(
-            c_atom=c_atom,
-            c_atompair=c_pair,
-            c_token=c_token
+            c_atom=c_atom, c_atompair=c_pair, c_token=c_token
         ).to(device)
 
         # Initialize the relative position encoding module to create pair embeddings.
         self.rel_pos_encoding = RelativePositionEncoding(
             r_max=32,
             s_max=2,
-            c_z=c_token  # using c_token as the dimension for pair embeddings
+            c_z=c_token,  # using c_token as the dimension for pair embeddings
         ).to(device)
 
     @snoop
@@ -66,20 +70,29 @@ class ProtenixIntegration:
          Optionally, 'residue_index' can be provided.
         """
         # Ensure the key "atom_to_token_idx" exists; if missing, set it equal to "atom_to_token"
-        if "atom_to_token_idx" not in input_features and "atom_to_token" in input_features:
+        if (
+            "atom_to_token_idx" not in input_features
+            and "atom_to_token" in input_features
+        ):
             input_features["atom_to_token_idx"] = input_features["atom_to_token"]
-        
+
         # Step 1: Generate single-token embeddings using Protenix’s InputFeatureEmbedder.
-        
+
         # Ensure 'ref_mask' exists; if not, create a default mask with ones.
         if "ref_mask" not in input_features:
             n_atom = input_features["ref_pos"].shape[0]
-            input_features["ref_mask"] = torch.ones(n_atom, dtype=torch.bool, device=input_features["ref_pos"].device)
+            input_features["ref_mask"] = torch.ones(
+                n_atom, dtype=torch.bool, device=input_features["ref_pos"].device
+            )
 
         # Ensure 'ref_space_uid' exists; if missing, create a tensor of zeros matching the shape of ref_pos (excluding the last dimension).
         if "ref_space_uid" not in input_features:
-            shape_uid = input_features["ref_pos"].shape[:-1]  # Exclude the coordinate dimension
-            input_features["ref_space_uid"] = torch.zeros(shape_uid, dtype=torch.long, device=input_features["ref_pos"].device)
+            shape_uid = input_features["ref_pos"].shape[
+                :-1
+            ]  # Exclude the coordinate dimension
+            input_features["ref_space_uid"] = torch.zeros(
+                shape_uid, dtype=torch.long, device=input_features["ref_pos"].device
+            )
 
         # Iterate through each key in input_features to ensure proper dimensions for each feature.
         for key in input_features.keys():
@@ -88,7 +101,7 @@ class ProtenixIntegration:
             if val.dim() == 1:
                 val = val.unsqueeze(-1)
                 input_features[key] = val
-    
+
             # Special handling for 'ref_atom_name_chars': ensure it has a fixed length of 256.
             if key == "ref_atom_name_chars":
                 if val.size(1) < 256:
@@ -99,7 +112,7 @@ class ProtenixIntegration:
                         f"ref_atom_name_chars feature has dimension {val.size(1)}, expected <= 256"
                     )
                 input_features[key] = val
-    
+
             # Verify that each feature has exactly 2 dimensions.
             if val.dim() != 2:
                 raise ValueError(
