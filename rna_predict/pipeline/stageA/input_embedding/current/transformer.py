@@ -15,21 +15,21 @@
 
 from functools import partial
 from typing import Optional, Union
+
 import snoop
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from rna_predict.pipeline.stageA.input_embedding.current.primitives import (
-    rearrange_qk_to_dense_trunk
+
+from rna_predict.pipeline.stageA.input_embedding.current.checkpointing import (
+    checkpoint_blocks,
 )
-import math
-import math
 from rna_predict.pipeline.stageA.input_embedding.current.primitives import (
     AdaptiveLayerNorm,
     Attention,
     BiasInitLinear,
+    LayerNorm,
     LinearNoBias,
-    broadcast_token_to_local_atom_pair,
     rearrange_qk_to_dense_trunk,
 )
 from rna_predict.pipeline.stageA.input_embedding.current.utils import (
@@ -37,8 +37,6 @@ from rna_predict.pipeline.stageA.input_embedding.current.utils import (
     broadcast_token_to_atom,
     permute_final_dims,
 )
-from rna_predict.pipeline.stageA.input_embedding.current.primitives import LayerNorm
-from rna_predict.pipeline.stageA.input_embedding.current.checkpointing import checkpoint_blocks
 
 
 class AttentionPairBias(nn.Module):
@@ -459,6 +457,7 @@ class AtomTransformer(nn.Module):
             blocks_per_ckpt=blocks_per_ckpt,
         )
 
+    @snoop
     def forward(
         self,
         q: torch.Tensor,
@@ -468,31 +467,55 @@ class AtomTransformer(nn.Module):
         chunk_size: Optional[int] = None,
     ) -> torch.Tensor:
         """
-        Args:
-            q (torch.Tensor): atom single embedding
-                [..., N_atom, c_atom]
-            c (torch.Tensor): atom single embedding
-                [..., N_atom, c_atom]
-            p (torch.Tensor): atompair embedding in dense block shape.
-                [..., n_blocks, n_queries, n_keys, c_atompair]
+        If p.dim()==5 => old trunk usage (identical logic):
+            p: [..., n_blocks, n_queries, n_keys, c_atompair]
+            Asserts that n_queries == self.n_queries, etc.
+        If p.dim()==3 => fallback "global" usage (no chunking).
+        Otherwise => error.
 
         Returns:
-            torch.Tensor: the output of AtomTransformer
-                [..., N_atom, c_atom]
+            The updated per-atom embedding of shape [..., N_atom, c_atom].
         """
-        n_blocks, n_queries, n_keys = p.shape[-4:-1]
+        # -- 5D trunk case (same as old logic):
+        if p.dim() == 5:
+            n_blocks, n_queries, n_keys = p.shape[-4:-1]
 
-        assert n_queries == self.n_queries
-        assert n_keys == self.n_keys
-        return self.diffusion_transformer(
-            a=q,
-            s=c,
-            z=p,
-            n_queries=self.n_queries,
-            n_keys=self.n_keys,
-            inplace_safe=inplace_safe,
-            chunk_size=chunk_size,
-        )
+            # Exactly as in old code:
+            assert (
+                n_queries == self.n_queries
+            ), f"Expected n_queries={self.n_queries}, got {n_queries}"
+            assert n_keys == self.n_keys, f"Expected n_keys={self.n_keys}, got {n_keys}"
+
+            return self.diffusion_transformer(
+                a=q,
+                s=c,
+                z=p,
+                n_queries=self.n_queries,
+                n_keys=self.n_keys,
+                inplace_safe=inplace_safe,
+                chunk_size=chunk_size,
+            )
+
+        # -- 3D fallback case:
+        elif p.dim() == 3:
+            # e.g. p: [..., N_atom, N_atom, c_atompair]
+            # We skip local-trunk chunking. In 'DiffusionTransformer', that can
+            # be interpreted as "global attention" or some simpler path.
+            return self.diffusion_transformer(
+                a=q,
+                s=c,
+                z=p,
+                n_queries=None,  # signals fallback usage
+                n_keys=None,
+                inplace_safe=inplace_safe,
+                chunk_size=chunk_size,
+            )
+
+        # -- Otherwise => raise:
+        else:
+            raise ValueError(
+                f"AtomTransformer: 'p' must be 3D or 5D. Got shape={p.shape}, dim={p.dim()}."
+            )
 
 
 class ConditionedTransitionBlock(nn.Module):
@@ -681,7 +704,7 @@ class AtomAttentionEncoder(nn.Module):
             nn.init.kaiming_normal_(
                 self.linear_no_bias_q.weight, a=0, mode="fan_in", nonlinearity="relu"
             )
-    
+
     @snoop
     def forward(
         self,
@@ -696,7 +719,7 @@ class AtomAttentionEncoder(nn.Module):
         Revised forward method that:
          - Skips trunk logic entirely if has_coords=False, preventing dimension mismatches.
          - If has_coords=True, unifies trunk dimension for (ref_pos, ref_space_uid) along -2.
-        
+
         Args:
             input_feature_dict: Contains per-atom features, plus reference to token-level data.
             r_l: Noisy position if has_coords=True. shape [..., N_atom, 3].
@@ -704,17 +727,18 @@ class AtomAttentionEncoder(nn.Module):
             z: Pair embedding if has_coords=True. shape [..., N_token, N_token, c_z].
             inplace_safe: Whether to do some ops in-place for memory efficiency.
             chunk_size: If set, break computations into smaller chunks to reduce memory usage.
-        
+
         Returns:
             a:    Final token-level embedding, shape [..., N_token, c_token]
             q_l:  Atom-level embedding, shape [..., N_atom, c_atom]
             c_l:  Another atom-level embedding, shape [..., N_atom, c_atom]
             p_lm: The trunk-based pair embedding, or None if trunk is skipped.
         """
-        from rna_predict.pipeline.stageA.input_embedding.current.utils import (
-            broadcast_token_to_atom, aggregate_atom_to_token
-        )
         import torch.nn.functional as F
+
+        from rna_predict.pipeline.stageA.input_embedding.current.utils import (
+            broadcast_token_to_atom,
+        )
 
         atom_to_token_idx = input_feature_dict["atom_to_token_idx"]
         batch_shape = input_feature_dict["ref_pos"].shape[:-2]
@@ -753,16 +777,17 @@ class AtomAttentionEncoder(nn.Module):
             # (Optional) cross-check with restype
             if "restype" in input_feature_dict:
                 import warnings
+
                 n_restype = input_feature_dict["restype"].shape[-2]
                 if n_restype < n_token:
                     warnings.warn(
-                        f"[AtomAttentionEncoder] restype tokens={{n_restype}} < aggregator tokens={{n_token}}. "
+                        "[AtomAttentionEncoder] restype tokens={n_restype} < aggregator tokens={n_token}. "
                         "This mismatch may be unintended."
                     )
                 elif n_restype > n_token:
                     warnings.warn(
-                        f"[AtomAttentionEncoder] restype tokens={{n_restype}} > aggregator tokens={{n_token}}. "
-                        f"We'll produce only {{n_token}} aggregator tokens, ignoring the extras."
+                        "[AtomAttentionEncoder] restype tokens={n_restype} > aggregator tokens={n_token}. "
+                        "We'll produce only {n_token} aggregator tokens, ignoring the extras."
                     )
 
             # aggregator
@@ -773,14 +798,14 @@ class AtomAttentionEncoder(nn.Module):
                 reduce="mean",
             )
             return aggregated, q_l, c_l, None
-        
+
         # [PATCH] Ensure ref_space_uid is 3D if has_coords (to match ref_pos for trunk-based logic)
         if "ref_space_uid" in input_feature_dict:
             uid = input_feature_dict["ref_space_uid"]
             if uid.ndim == 2:  # shape was [B, N_atom]
                 uid = uid.unsqueeze(-1)  # becomes [B, N_atom, 1]
                 input_feature_dict["ref_space_uid"] = uid
-        
+
         # Clamp local trunk sizes if N_atom < n_queries or n_keys
         N_atom = input_feature_dict["ref_pos"].shape[-2]
         local_nq = min(self.n_queries, N_atom)
@@ -796,24 +821,31 @@ class AtomAttentionEncoder(nn.Module):
             compute_mask=True,
         )
 
-        d_lm = (
-            q_trunked_list[0].unsqueeze(-2)
-            - k_trunked_list[0].unsqueeze(-3)
-        )
+        d_lm = q_trunked_list[0].unsqueeze(-2) - k_trunked_list[0].unsqueeze(-3)
         # Remove extra unsqueeze; keep just one trailing dim for broadcast
         v_lm = (
-            q_trunked_list[1].unsqueeze(-2).int() == k_trunked_list[1].unsqueeze(-3).int()
+            q_trunked_list[1].unsqueeze(-2).int()
+            == k_trunked_list[1].unsqueeze(-3).int()
         )  # => shape [B, n_trunks, local_nq, local_nk]
-        p_lm = (self.linear_no_bias_d(d_lm) * v_lm.unsqueeze(-1)) * pad_info["mask_trunked"].unsqueeze(dim=-1)
+        p_lm = (self.linear_no_bias_d(d_lm) * v_lm.unsqueeze(-1)) * pad_info[
+            "mask_trunked"
+        ].unsqueeze(dim=-1)
         if inplace_safe:
-            p_lm += self.linear_no_bias_invd(
-                1.0 / (1.0 + (d_lm**2).sum(dim=-1, keepdim=True))
-            ) * v_lm
+            p_lm += (
+                self.linear_no_bias_invd(
+                    1.0 / (1.0 + (d_lm**2).sum(dim=-1, keepdim=True))
+                )
+                * v_lm
+            )
             p_lm += self.linear_no_bias_v(v_lm.to(dtype=p_lm.dtype)) * v_lm
         else:
-            p_lm = p_lm + self.linear_no_bias_invd(
-                1.0 / (1.0 + (d_lm**2).sum(dim=-1, keepdim=True))
-            ) * v_lm
+            p_lm = (
+                p_lm
+                + self.linear_no_bias_invd(
+                    1.0 / (1.0 + (d_lm**2).sum(dim=-1, keepdim=True))
+                )
+                * v_lm
+            )
             p_lm = p_lm + self.linear_no_bias_v(v_lm.to(dtype=p_lm.dtype)) * v_lm
 
         # Build final local embeddings
@@ -822,14 +854,13 @@ class AtomAttentionEncoder(nn.Module):
             q_l = q_l + self.linear_no_bias_r(r_l)
         if s is not None:
             c_l = c_l + self.linear_no_bias_s(
-                self.layernorm_s(
-                    broadcast_token_to_atom(s, atom_to_token_idx)
-                )
+                self.layernorm_s(broadcast_token_to_atom(s, atom_to_token_idx))
             )
         if z is not None:
             from rna_predict.pipeline.stageA.input_embedding.current.primitives import (
-                broadcast_token_to_local_atom_pair
+                broadcast_token_to_local_atom_pair,
             )
+
             z_local_pairs, _ = broadcast_token_to_local_atom_pair(
                 z_token=z,
                 atom_to_token_idx=atom_to_token_idx,
@@ -837,7 +868,9 @@ class AtomAttentionEncoder(nn.Module):
                 n_keys=self.n_keys,
                 compute_mask=False,
             )
-            p_lm = p_lm.unsqueeze(-5) + self.linear_no_bias_z(self.layernorm_z(z_local_pairs))
+            p_lm = p_lm.unsqueeze(-5) + self.linear_no_bias_z(
+                self.layernorm_z(z_local_pairs)
+            )
 
         c_l_q, c_l_k, _ = rearrange_qk_to_dense_trunk(
             q=c_l,
