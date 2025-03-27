@@ -36,6 +36,27 @@ def fix_leading_zeros(test_code: str) -> str:
     fixed_code = re.sub(r'(?<!\d)(-?)0+(\d+)(?!\d)', lambda m: m.group(1) + str(int(m.group(2))), test_code)
     return fixed_code
 
+def remove_logger_lines(text: str) -> str:
+    """
+    Remove extraneous logging lines from the generated test content.
+    This function filters out:
+      - Lines starting with a bracketed or non-bracketed timestamp (e.g. "[2025-3-27 14:55:48,330] ..." or "2025-03-27 14:55:48,330 - ...").
+      - Lines containing known noisy substrings such as 'real_accelerator.py:' or 'Setting ds_accelerator to'.
+    """
+    import re
+    lines = text.splitlines()
+    filtered = []
+    timestamp_pattern = re.compile(r'^\[?\d{4}-\d{1,2}-\d{1,2}')
+    for line in lines:
+        # Skip lines matching a leading timestamp
+        if timestamp_pattern.match(line):
+            continue
+        # Skip lines containing known noisy substrings
+        if 'real_accelerator.py:' in line or 'Setting ds_accelerator to' in line:
+            continue
+        filtered.append(line)
+    return "\n".join(filtered).strip()
+
 @dataclass
 class TestableEntity:
     """Represents a class, method, or function that can be tested"""
@@ -285,10 +306,14 @@ class TestGenerator:
         """Process the result of the hypothesis command"""
         if result.returncode == 0 and result.stdout:
             content = result.stdout.strip()
+        
+            # Remove extraneous logging lines first
+            content = remove_logger_lines(content)
+        
             if not content or len(content) < 50:
                 logger.warning("Hypothesis generated insufficient content")
                 return None
-
+        
             # Process and fix the test content using post_process_test_content
             fixed_content = self.post_process_test_content(content)
             if fixed_content is None:
@@ -305,6 +330,9 @@ class TestGenerator:
     def post_process_test_content(self, content: str) -> Optional[str]:
         """Post-process generated test content"""
         try:
+            # Also remove extraneous logger lines (defensive)
+            content = remove_logger_lines(content)
+    
             # First, fix any leading zeros in integer literals
             content = fix_leading_zeros(content)
             # Then, fix duplicate self parameters
