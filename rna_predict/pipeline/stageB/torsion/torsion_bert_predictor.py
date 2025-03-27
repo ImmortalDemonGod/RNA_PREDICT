@@ -5,6 +5,7 @@ import torch
 
 from rna_predict.pipeline.stageB.torsion.torsionbert_inference import TorsionBertModel
 
+
 class StageBTorsionBertPredictor:
     """
     Stage B: predict RNA torsion angles using TorsionBERT.
