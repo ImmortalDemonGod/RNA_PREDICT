@@ -74,6 +74,10 @@ class ProtenixDiffusionManager:
         """
         Multi-step diffusion-based inference with fallback logic for s_inputs
         and dimension expansion for multi-sample.
+
+        This revised version expands atom_to_token_idx, s_trunk, s_inputs, z_trunk,
+        and coords_init as needed, ensuring that broadcast_token_to_atom sees
+        matching batch dimensions.
         """
         device = self.device
         coords_init = coords_init.to(device)
@@ -124,36 +128,45 @@ class ProtenixDiffusionManager:
             input_feature_dict = {"atom_to_token_idx": torch.zeros((1, 0), device=device)}
 
         N_sample = inference_params.get("N_sample", 1)
-        # Expand shape logic
+
+        # Expand atom_to_token_idx if we introduced an N_sample dimension
         if "atom_to_token_idx" in input_feature_dict:
             atom_idx = input_feature_dict["atom_to_token_idx"]
-            # If shape is [B, N_atom], we want [B, N_sample, N_atom] if multi-sample > 1
+            # If shape is [B, N_atom], we want [B, N_sample, N_atom] for multi-sample > 1
             if atom_idx.dim() == 1:
-                atom_idx = atom_idx.unsqueeze(0)
-            B = atom_idx.shape[0]
-            if atom_idx.dim() == 2 and N_sample > 1:
-                atom_idx = atom_idx.unsqueeze(1).expand(B, N_sample, atom_idx.shape[-1])
+                atom_idx = atom_idx.unsqueeze(0)  # [B=1, N_atom]
+            if atom_idx.dim() == 2:
+                # e.g. [B, N_atom]
+                B, N_atom = atom_idx.shape
+                if N_sample > 1:
+                    atom_idx = atom_idx.unsqueeze(1).expand(B, N_sample, N_atom)
+                else:
+                    # If N_sample==1 but s_inputs is e.g. [B,1,N_token,c_s],
+                    # unify shape by unsqueezing [B,1,N_atom]
+                    if s_inputs is not None and s_inputs.dim() == 4 and s_inputs.shape[1] == 1:
+                        atom_idx = atom_idx.unsqueeze(1)
             input_feature_dict["atom_to_token_idx"] = atom_idx
 
+        # For multi-sample expansions
         if N_sample > 1:
-            # s_trunk => [B, N_token, c_s] -> [B, N_sample, N_token, c_s]
-            if trunk_embeddings["s_trunk"].dim() == 3:
-                trunk_embeddings["s_trunk"] = trunk_embeddings["s_trunk"].unsqueeze(1)\
-                                              .expand(-1, N_sample, -1, -1)
+            st = trunk_embeddings["s_trunk"]
+            # s_trunk => [B,N_sample,N_token,c_s]
+            if st.dim() == 3:
+                trunk_embeddings["s_trunk"] = st.unsqueeze(1).expand(-1, N_sample, -1, -1)
 
-            # s_inputs => [B, N_token, 449] -> [B, N_sample, N_token, 449]
+            # s_inputs => [B,N_sample,N_token,449]
             if isinstance(s_inputs, torch.Tensor) and s_inputs.dim() == 3:
                 s_inputs = s_inputs.unsqueeze(1).expand(-1, N_sample, -1, -1)
 
-            # z_trunk => [B, N_token, N_token, c_z] -> [B, N_sample, N_token, N_token, c_z]
+            # z_trunk => [B,N_sample,N_token,N_token,c_z]
             if z_trunk is not None and z_trunk.dim() == 4:
                 z_trunk = z_trunk.unsqueeze(1).expand(-1, N_sample, -1, -1, -1)
 
-            # coords_init => [B, N_atom, 3] -> [B, N_sample, N_atom, 3]
+            # coords_init => [B,N_sample,N_atom,3]
             if coords_init.dim() == 3:
                 coords_init = coords_init.unsqueeze(1).expand(-1, N_sample, -1, -1)
 
-            # Also expand ref_pos in input_feature_dict if shape [B, N_atom, 3]
+            # Also expand ref_pos => [B,N_sample,N_atom,3] if present
             if "ref_pos" in input_feature_dict:
                 rp = input_feature_dict["ref_pos"]
                 if rp.dim() == 3:
