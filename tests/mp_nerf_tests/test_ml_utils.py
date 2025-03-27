@@ -1,9 +1,6 @@
 import torch
-from mp_nerf import *
-from mp_nerf.kb_proteins import *
-from mp_nerf.ml_utils import *
-from mp_nerf.proteins import *
-from mp_nerf.utils import *
+from rna_predict.pipeline.stageC.mp_nerf.ml_utils import scn_atom_embedd, chain2atoms, rename_symmetric_atoms, torsion_angle_loss, fape_torch
+from rna_predict.pipeline.stageC.mp_nerf.proteins import scn_cloud_mask
 
 
 # test ML utils
