@@ -1,6 +1,6 @@
 import pytest
 
-from rna_predict.pipeline.stageB.internal_coordinates.torsion_bert_predictor import (
+from rna_predict.pipeline.stageB.torsion.torsion_bert_predictor import (
     StageBTorsionBertPredictor,
 )
 
