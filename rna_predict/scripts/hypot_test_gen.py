@@ -509,6 +509,7 @@ class TestGenerator:
             total_variants = sum(len(self.generate_test_variants(e)) for e in entities)
             self.process_entities(entities, total_variants, module_path)
             print()
+            self.combine_and_cleanup_tests(file_path)
         except Exception:
             logger.error("Test generation failed", exc_info=True)
             raise
@@ -649,6 +650,69 @@ class TestGenerator:
             "type": variant_type,
             "cmd": cmd.strip()  # Ensure no extra whitespace in command
         }
+
+    def combine_and_cleanup_tests(self, file_path: Path) -> None:
+        """
+        Combines individual test files into a single file and deletes the originals.
+
+        Args:
+            file_path (Path): The original Python file used for test generation.
+        """
+        # Step 1: Derive the combined file name from the original file
+        original_stem = file_path.stem  # e.g., "my_module"
+        combined_filename = f"test_hyp_{original_stem}.py"
+        combined_filepath = self.output_dir / combined_filename
+
+        # Step 2: Collect all generated test files in the output directory
+        # Assuming test files follow the pattern "test_*.py"
+        test_files = list(self.output_dir.glob("test_*.py"))
+
+        # Optional: Filter test_files if needed
+        # test_files = [f for f in test_files if original_stem in f.name]
+
+        # Step 3: Combine contents of each test file into a single string
+        combined_content = ""
+        for test_file in test_files:
+            content = test_file.read_text()
+            separator = f"\n# ----- {test_file.name} -----\n"
+            combined_content += separator + content + "\n"
+
+        # Step 4: Write the combined content to the new file
+        combined_filepath.write_text(combined_content)
+
+        # Optional: verify the combined file
+        if not combined_filepath.exists() or len(combined_filepath.read_text()) < 50:
+            logger.error(f"Combined test file {combined_filepath} appears to be incomplete.")
+            return
+
+        # Step 5: Cleanup - delete individual test files
+        for test_file in test_files:
+            try:
+                test_file.unlink()
+                logger.debug(f"Deleted individual test file: {test_file.name}")
+            except Exception as e:
+                logger.error(f"Failed to delete {test_file.name}: {e}")
+
+        # Step 6: Logging and feedback
+        logger.info(f"Combined {len(test_files)} test files into {combined_filename} and removed originals.")
+
+        # Step 7: Apply Ruff cleaning commands to the combined file
+        cmds = [
+            f"ruff check {combined_filepath}",
+            f"ruff check --fix {combined_filepath}",
+            f"ruff format {combined_filepath}",
+            f"ruff check --select I --fix {combined_filepath}",
+            f"ruff format {combined_filepath}"
+        ]
+        for cmd in cmds:
+            try:
+                result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+                if result.returncode != 0:
+                    logger.error(f"Ruff command '{cmd}' failed: {result.stderr}")
+                else:
+                    logger.info(f"Ruff command '{cmd}' succeeded: {result.stdout}")
+            except Exception as e:
+                logger.error(f"Failed to run ruff command '{cmd}': {e}")
 
 
 def parse_args(args: Optional[list] = None) -> Path:
