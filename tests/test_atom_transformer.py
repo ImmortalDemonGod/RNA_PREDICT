@@ -81,10 +81,10 @@ def test_atom_transformer_full_stack():
     x = torch.randn(n_atom, c_atom)
     pair_emb = torch.randn(n_atom, n_atom, c_pair)
 
-    # Try naive stack
+    # Try naive stack with corrected parameters
     naive_transformer = AtomTransformer(
-        c_atom=c_atom, num_heads=num_heads, num_layers=num_layers, use_optimized=False
-    )
+            c_atom=c_atom, c_atompair=c_pair, n_blocks=num_layers, n_heads=num_heads
+        )
     naive_out = naive_transformer(x, pair_emb, block_index)
     assert naive_out.shape == (
         n_atom,
