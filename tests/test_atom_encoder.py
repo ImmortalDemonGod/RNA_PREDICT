@@ -5,8 +5,7 @@ from rna_predict.pipeline.stageA.input_embedding.current.embedders import InputF
 
 
 def test_atom_encoder_smoke():
-    config = AtomEncoderConfig()
-    model = AtomAttentionEncoder(config)
+    model = AtomAttentionEncoder(has_coords=False, c_token=384)
     # Create a minimal dict f
     f = {
         "ref_pos": torch.randn(5, 3),
@@ -14,7 +13,7 @@ def test_atom_encoder_smoke():
         "ref_mask": torch.ones(5, 1, dtype=torch.bool),
         "ref_element": torch.zeros(5, 128),
         "ref_atom_name_chars": torch.zeros(5, 256),
-        "atom_to_token": torch.tensor([0, 0, 1, 1, 0]),
+        "atom_to_token_idx": torch.tensor([0, 0, 1, 1, 0]),
         "restype": torch.zeros(1, 12, 32),    # batch=1, 12 tokens
         "block_index": torch.randint(0, 5, (5, 2)),
     }
