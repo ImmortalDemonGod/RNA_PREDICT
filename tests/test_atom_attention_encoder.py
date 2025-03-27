@@ -33,6 +33,7 @@ def test_atom_encoder_no_coords_original_fail():
     # This call triggers the out-of-bounds error
     a, q_l, c_l, p_lm = encoder(input_feature_dict)
     # We won't reach here if the aggregator does scatter_add_ with index >= 12
+    
 
 def test_atom_encoder_no_coords_fixed():
     """
