@@ -17,9 +17,11 @@ dependencies = [
     "datasets>=3.3.2",
     "einops>=0.8.1",
     "hypothesis[cli]>=6.130.4",
+    "isort>=6.0.1",
     "lxml>=5.3.1",
     "mdanalysis>=2.9.0",
     "protenix>=0.4.4",
+    "ruff>=0.11.2",
     "torch>=2.0.1, <2.6.0",
     "transformers>=4.49.0",
 ]
