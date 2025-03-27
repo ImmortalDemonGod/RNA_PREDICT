@@ -1,6 +1,7 @@
-import torch
 import torch.nn as nn
+
 from rna_predict.pipeline.stageB.pairwise.pairformer import PairformerStack
+
 
 class PairformerWrapper(nn.Module):
     """
@@ -14,10 +15,7 @@ class PairformerWrapper(nn.Module):
         self.c_s = c_s
         self.use_checkpoint = use_checkpoint
         self.stack = PairformerStack(
-            n_blocks=n_blocks,
-            c_z=c_z,
-            c_s=c_s,
-            use_checkpoint=use_checkpoint
+            n_blocks=n_blocks, c_z=c_z, c_s=c_s, use_checkpoint=use_checkpoint
         )
 
     def forward(self, s, z, pair_mask):
