@@ -1,8 +1,14 @@
-import torch
-from rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager import ProtenixDiffusionManager
-from rna_predict.dataset.dataset_loader import load_rna_data_and_features
-from rna_predict.pipeline.stageA.input_embedding.current.embedders import InputFeatureEmbedder
 import snoop
+import torch
+
+from rna_predict.dataset.dataset_loader import load_rna_data_and_features
+from rna_predict.pipeline.stageA.input_embedding.current.embedders import (
+    InputFeatureEmbedder,
+)
+from rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager import (
+    ProtenixDiffusionManager,
+)
+
 
 @snoop
 def run_stageD_diffusion(
@@ -10,7 +16,7 @@ def run_stageD_diffusion(
     trunk_embeddings: dict,
     diffusion_config: dict,
     mode: str = "inference",
-    device: str = "cpu"
+    device: str = "cpu",
 ):
     """
     Stage D entry function that orchestrates the final diffusion-based refinement.
@@ -32,12 +38,10 @@ def run_stageD_diffusion(
 
     # 1) Build the diffusion manager
     manager = ProtenixDiffusionManager(diffusion_config, device=device)
-    
+
     # 2) Build or load the atom-level + token-level features
     atom_feature_dict, token_feature_dict = load_rna_data_and_features(
-        "demo_rna_file.cif",
-        device=device,
-        override_num_atoms=partial_coords.shape[1]
+        "demo_rna_file.cif", device=device, override_num_atoms=partial_coords.shape[1]
     )
 
     # 3) Fix shape for "deletion_mean" if needed
@@ -76,7 +80,7 @@ def run_stageD_diffusion(
             trunk_embeddings=trunk_embeddings,  # includes "s_inputs"
             inference_params=inference_params,
             override_input_features=atom_feature_dict,
-            debug_logging=True
+            debug_logging=True,
         )
         return coords_final
 
@@ -84,7 +88,7 @@ def run_stageD_diffusion(
         # Create label_dict for single-step diffusion training
         label_dict = {
             "coordinate": partial_coords,  # ground truth
-            "coordinate_mask": torch.ones_like(partial_coords[..., 0])  # no mask
+            "coordinate_mask": torch.ones_like(partial_coords[..., 0]),  # no mask
         }
         sampler_params = {"p_mean": -1.2, "p_std": 1.0, "sigma_data": 16.0}
 
@@ -95,11 +99,11 @@ def run_stageD_diffusion(
         x_gt_out, x_denoised, sigma = manager.train_diffusion_step(
             label_dict=label_dict,
             input_feature_dict=atom_feature_dict,
-            s_inputs=s_inputs,      # shape (batch, num_tokens, 449)
-            s_trunk=s_trunk,        # shape (batch, num_tokens, 384)
+            s_inputs=s_inputs,  # shape (batch, num_tokens, 449)
+            s_trunk=s_trunk,  # shape (batch, num_tokens, 384)
             z_trunk=z_trunk,
             sampler_params=sampler_params,
-            N_sample=1
+            N_sample=1,
         )
         loss = (x_denoised - x_gt_out).pow(2).mean()
         return x_denoised, loss, sigma
@@ -120,17 +124,14 @@ def demo_run_diffusion():
         "c_s": 384,
         "c_z": 32,
         "c_token": 832,
-        "transformer": {
-            "n_blocks": 4,
-            "n_heads": 16
-        }
+        "transformer": {"n_blocks": 4, "n_heads": 16},
     }
 
     # Suppose partial_coords is from StageC
     partial_coords = torch.randn(1, 10, 3, device=device)
     trunk_embeddings = {
         "sing": torch.randn(1, 10, 384, device=device),
-        "pair": torch.randn(1, 10, 10, 32, device=device)
+        "pair": torch.randn(1, 10, 10, 32, device=device),
     }
 
     # Inference
@@ -139,7 +140,7 @@ def demo_run_diffusion():
         trunk_embeddings=trunk_embeddings,
         diffusion_config=diffusion_config,
         mode="inference",
-        device=device
+        device=device,
     )
     print("[Diffusion Demo] coords_final shape:", coords_final.shape)
 
@@ -149,11 +150,12 @@ def demo_run_diffusion():
         trunk_embeddings=trunk_embeddings,
         diffusion_config=diffusion_config,
         mode="train",
-        device=device
+        device=device,
     )
     print("[Diffusion Demo] x_denoised shape:", x_denoised.shape)
     print("[Diffusion Demo] loss:", loss.item())
     print("[Diffusion Demo] sigma:", sigma.item())
+
 
 if __name__ == "__main__":
     demo_run_diffusion()
