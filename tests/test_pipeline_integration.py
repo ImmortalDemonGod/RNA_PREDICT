@@ -21,7 +21,7 @@ def stageC_mock(stageB_out):
     coords = torch.randn(1, 10, 3)
     return coords
 
-@pytest.mark.integration
+# @pytest.mark.integration
 def test_end_to_end_stageA_to_D():
     """
     A scenario hooking mock stageA->B->C->D.
