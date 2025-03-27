@@ -5,7 +5,7 @@ import sys
 import pytest
 
 
-@pytest.mark.integration
+# @pytest.mark.integration
 def test_main_py_subprocess_execution() -> None:
     """
     Test that running rna_predict/main.py as a subprocess covers the
