@@ -16,11 +16,11 @@
 from typing import Optional, Union
 
 import numpy as np
+import snoop
 import torch
 import torch.nn as nn
-from scipy.spatial.transform import Rotation
-import snoop
 from protenix.utils.scatter_utils import scatter
+from scipy.spatial.transform import Rotation
 
 
 def centre_random_augmentation(
@@ -216,10 +216,10 @@ def batched_gather(
     ranges.extend(remaining_dims)
     return data[ranges]
 
+
 @snoop
 def broadcast_token_to_atom(
-    x_token: torch.Tensor,
-    atom_to_token_idx: torch.Tensor
+    x_token: torch.Tensor, atom_to_token_idx: torch.Tensor
 ) -> torch.Tensor:
     """
     Broadcast token-level embeddings to atom-level embeddings.
@@ -257,6 +257,7 @@ def broadcast_token_to_atom(
         dim=-2,
         no_batch_dims=len(x_token.shape[:-2]),
     )
+
 
 def aggregate_atom_to_token(
     x_atom: torch.Tensor,
