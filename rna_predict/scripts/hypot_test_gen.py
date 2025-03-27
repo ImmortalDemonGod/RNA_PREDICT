@@ -27,11 +27,13 @@ snoop.install(out=Path("snoop_debug.log"))
 def fix_leading_zeros(test_code: str) -> str:
     """
     Replace decimal integers with leading zeros (except a standalone "0") with their corrected form.
-    For example, "007" becomes "7".
+    For example, "007" becomes "7" and "-0123" becomes "-123".
     """
     import re
-    # This regex finds numbers with leading zeros and converts them to int to remove the zeros.
-    fixed_code = re.sub(r'\b0+(\d+)\b', lambda m: str(int(m.group(0))), test_code)
+    # Use a regex with negative lookbehind and lookahead to match numbers that start with one or more zeros.
+    # The pattern (?<!\d)(-?)0+(\d+)(?!\d) ensures that a minus sign is captured if present,
+    # and that only isolated numbers are matched.
+    fixed_code = re.sub(r'(?<!\d)(-?)0+(\d+)(?!\d)', lambda m: m.group(1) + str(int(m.group(2))), test_code)
     return fixed_code
 
 @dataclass
@@ -303,13 +305,13 @@ class TestGenerator:
     def post_process_test_content(self, content: str) -> Optional[str]:
         """Post-process generated test content"""
         try:
-            # First, fix duplicate self parameters
+            # First, fix any leading zeros in integer literals
+            content = fix_leading_zeros(content)
+            # Then, fix duplicate self parameters
             fixed_content = fix_duplicate_self(content)
             if fixed_content is None:
                 logger.warning("Failed to fix duplicate self parameters.")
-                return None
-            # Then, fix any leading zeros in integer literals
-            fixed_content = fix_leading_zeros(fixed_content)
+                return content
             return fixed_content
         except Exception as e:
             logger.error(f"Error processing test content: {e}", exc_info=True)
