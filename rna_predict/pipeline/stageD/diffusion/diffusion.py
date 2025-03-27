@@ -15,25 +15,36 @@
 
 from typing import Optional, Union
 
+import snoop
 import torch
 import torch.nn as nn
+from protenix.model.utils import expand_at_dim
 
-from rna_predict.pipeline.stageA.input_embedding.current.embedders import FourierEmbedding, RelativePositionEncoding
-from rna_predict.pipeline.stageA.input_embedding.current.primitives import LinearNoBias, Transition, LayerNorm
+# from protenix.openfold_local.model.primitives import LayerNorm
+from rna_predict.pipeline.stageA.input_embedding.current.checkpointing import (
+    get_checkpoint_fn,
+)
+from rna_predict.pipeline.stageA.input_embedding.current.embedders import (
+    FourierEmbedding,
+    RelativePositionEncoding,
+)
+from rna_predict.pipeline.stageA.input_embedding.current.primitives import (
+    LayerNorm,
+    LinearNoBias,
+    Transition,
+)
 from rna_predict.pipeline.stageA.input_embedding.current.transformer import (
     AtomAttentionDecoder,
     AtomAttentionEncoder,
     DiffusionTransformer,
 )
-from protenix.model.utils import expand_at_dim
-#from protenix.openfold_local.model.primitives import LayerNorm
-from rna_predict.pipeline.stageA.input_embedding.current.checkpointing import get_checkpoint_fn
-import snoop
+
 
 class DiffusionConditioning(nn.Module):
     """
     Implements Algorithm 21 in AF3
     """
+
     @snoop
     def __init__(
         self,
@@ -124,31 +135,35 @@ class DiffusionConditioning(nn.Module):
         # Single conditioning: we expect s_trunk to have shape [..., N_tokens, c_s]
         # and s_inputs to have shape [..., N_tokens, c_s_inputs].
         # Log their shapes first:
-        print(f"[DEBUG] s_trunk shape before combining: {s_trunk.shape} (expected last dim: {self.c_s})")
-        print(f"[DEBUG] s_inputs shape before combining: {s_inputs.shape} (expected last dim: {self.c_s_inputs})")
+        print(
+            f"[DEBUG] s_trunk shape before combining: {s_trunk.shape} (expected last dim: {self.c_s})"
+        )
+        print(
+            f"[DEBUG] s_inputs shape before combining: {s_inputs.shape} (expected last dim: {self.c_s_inputs})"
+        )
 
         # Here, we concatenate along the last dimension:
         single_s = torch.cat(
             tensors=[s_trunk, s_inputs], dim=-1
         )  # Expected shape: [..., N_tokens, c_s + c_s_inputs]
-        print(f"[DEBUG] single_s shape after concatenation: {single_s.shape} (expected: [..., N_tokens, {self.c_s + self.c_s_inputs}])")
+        print(
+            f"[DEBUG] single_s shape after concatenation: {single_s.shape} (expected: [..., N_tokens, {self.c_s + self.c_s_inputs}])"
+        )
 
         # Apply layer norm and projection:
         # The layer norm expects the last dimension to match self.layernorm_s.normalized_shape (which should be (c_s + c_s_inputs,))
         single_s = self.linear_no_bias_s(self.layernorm_s(single_s))
-        print(f"[DEBUG] single_s shape after layer_norm and projection: {single_s.shape} (expected last dim: {self.c_s})")
+        print(
+            f"[DEBUG] single_s shape after layer_norm and projection: {single_s.shape} (expected last dim: {self.c_s})"
+        )
 
         # Add noise conditioning:
         noise_n = self.fourier_embedding(
             t_hat_noise_level=torch.log(input=t_hat_noise_level / self.sigma_data) / 4
-        ).to(
-            single_s.dtype
-        )  # [..., N_sample, c_in]
+        ).to(single_s.dtype)  # [..., N_sample, c_in]
         single_s = single_s.unsqueeze(dim=-3) + self.linear_no_bias_n(
             self.layernorm_n(noise_n)
-        ).unsqueeze(
-            dim=-2
-        )  # [..., N_sample, N_tokens, c_s]
+        ).unsqueeze(dim=-2)  # [..., N_sample, N_tokens, c_s]
         if inplace_safe:
             single_s += self.transition_s1(single_s)
             single_s += self.transition_s2(single_s)
@@ -321,11 +336,7 @@ class DiffusionModule(nn.Module):
         )
 
         if initialization.get("glorot_init_self_attention", False):
-            for (
-                block
-            ) in (
-                self.atom_attention_encoder.atom_transformer.diffusion_transformer.blocks
-            ):
+            for block in self.atom_attention_encoder.atom_transformer.diffusion_transformer.blocks:
                 block.attention_pair_bias.glorot_init()
 
         for block in self.diffusion_transformer.blocks:
