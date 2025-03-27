@@ -3,12 +3,9 @@
 import numpy as np
 import torch
 from einops import rearrange, repeat
-from mp_nerf.kb_proteins import *
-
-# module
-from mp_nerf.massive_pnerf import *
-from mp_nerf.proteins import *
-from mp_nerf.utils import *
+from rna_predict.pipeline.stageC.mp_nerf.massive_pnerf import *
+from rna_predict.pipeline.stageC.mp_nerf.kb_proteins import *
+from rna_predict.pipeline.stageC.mp_nerf.utils import *
 
 
 def scn_atom_embedd(seq_list):
