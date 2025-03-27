@@ -278,7 +278,7 @@ from hypothesis import strategies as st, composite
 def user_records(draw):
     name = draw(st.text(min_size=1))
     age = draw(st.integers(min_value=0))
-    return {"name": name, "age": age}
+    return "name": name, "age": age
 
 4.4 Using @composite Functions
 
