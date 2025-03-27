@@ -68,47 +68,36 @@ class ProtenixDiffusionManager:
         coords_init: torch.Tensor,
         trunk_embeddings: dict,
         inference_params: dict,
-        override_input_features: dict = None,
+        override_input_features: dict | None = None,
         debug_logging: bool = False,
-    ):
+    ) -> torch.Tensor:
         """
-        Multi-step diffusion-based inference with fallback logic for s_inputs
-        and dimension expansion for multi-sample.
+        Multi-step diffusion-based inference. Handles shape expansions for single or multiple samples.
 
-        This revised version expands atom_to_token_idx, s_trunk, s_inputs, z_trunk,
-        and coords_init as needed, ensuring that broadcast_token_to_atom sees
-        matching batch dimensions.
+        Typical usage:
+        - coords_init: [B, N_atom, 3] or [B, 1, N_atom, 3]
+        - trunk_embeddings: must contain 's_trunk'. 
+          optional: 's_inputs' (else fallback to 'sing') 
+                    'pair' 
+        - override_input_features: if needed to build or unify shape for multi-sample expansions
+        - inference_params: includes "N_sample" (# samples) and "num_steps" for noise schedule
         """
         device = self.device
         coords_init = coords_init.to(device)
 
-        # Ensure trunk embeddings are on device
+        # Move trunk embeddings to device
         for k, v in trunk_embeddings.items():
             if isinstance(v, torch.Tensor):
                 trunk_embeddings[k] = v.to(device)
 
-        # We require "s_trunk"
+        # Must have s_trunk
         if "s_trunk" not in trunk_embeddings or trunk_embeddings["s_trunk"] is None:
-            available = {k: (v.shape if isinstance(v, torch.Tensor) else v)
-                         for k, v in trunk_embeddings.items()}
             raise ValueError(
-                f"StageD multi_step_inference requires a valid 's_trunk'. Found: {available}"
+                "StageD multi_step_inference requires a valid 's_trunk' in trunk_embeddings."
             )
 
-        # Attempt to get s_inputs
+        # Attempt to get s_inputs or fallback
         s_inputs = trunk_embeddings.get("s_inputs", trunk_embeddings.get("sing"))
-        if not isinstance(s_inputs, torch.Tensor):
-            if override_input_features is not None:
-                from rna_predict.pipeline.stageA.input_embedding.current.embedders import InputFeatureEmbedder
-                embedder = InputFeatureEmbedder(c_atom=128, c_atompair=16, c_token=384)
-                s_inputs = embedder(override_input_features, inplace_safe=False, chunk_size=None)
-            else:
-                raise ValueError(
-                    "No valid 's_inputs' found in trunk_embeddings. "
-                    "Please supply the 449-dim InputFeatureEmbedder output under 's_inputs' or 'sing', "
-                    "or provide override_input_features so we can build it."
-                )
-
         z_trunk = trunk_embeddings.get("pair", None)
 
         if debug_logging:
@@ -120,63 +109,63 @@ class ProtenixDiffusionManager:
             if z_trunk is not None:
                 print(f"[DEBUG] z_trunk shape: {z_trunk.shape}")
 
-        # Prepare the input features
+        # Prepare the input features (atom_to_token_idx, ref_pos, etc.)
         if override_input_features is not None:
             input_feature_dict = override_input_features
         else:
             # minimal fallback if none provided
             input_feature_dict = {"atom_to_token_idx": torch.zeros((1, 0), device=device)}
 
+        # Determine how many samples we want
         N_sample = inference_params.get("N_sample", 1)
 
-        # Expand atom_to_token_idx if we introduced an N_sample dimension
+        # Possibly unify shapes in atom_to_token_idx if we forcibly unsqueeze s_trunk for single-sample
+        # e.g. if s_trunk is [B,1,N_token,c_s], we want atom_idx => [B,1,N_atom]
         if "atom_to_token_idx" in input_feature_dict:
             atom_idx = input_feature_dict["atom_to_token_idx"]
-            # If shape is [B, N_atom], we want [B, N_sample, N_atom] for multi-sample > 1
-            if atom_idx.dim() == 1:
-                atom_idx = atom_idx.unsqueeze(0)  # [B=1, N_atom]
-            if atom_idx.dim() == 2:
-                # e.g. [B, N_atom]
-                B, N_atom = atom_idx.shape
-                if N_sample > 1:
-                    atom_idx = atom_idx.unsqueeze(1).expand(B, N_sample, N_atom)
-                else:
-                    # If N_sample==1 but s_inputs is e.g. [B,1,N_token,c_s],
-                    # unify shape by unsqueezing [B,1,N_atom]
-                    if s_inputs is not None and s_inputs.dim() == 4 and s_inputs.shape[1] == 1:
-                        atom_idx = atom_idx.unsqueeze(1)
+            # example check: if trunk is 4D with trunk_embeddings["s_trunk"].shape[1] == 1
+            # then unify shape of atom_idx accordingly
+            if (
+                atom_idx.dim() == 2
+                and trunk_embeddings["s_trunk"].dim() == 4
+                and trunk_embeddings["s_trunk"].shape[1] == 1
+            ):
+                atom_idx = atom_idx.unsqueeze(1)  # => [B,1,N_atom]
+
+            elif (
+                atom_idx.dim() == 2
+                and s_inputs is not None
+                and s_inputs.dim() == 4
+                and s_inputs.shape[1] == 1
+            ):
+                atom_idx = atom_idx.unsqueeze(1)
+
             input_feature_dict["atom_to_token_idx"] = atom_idx
 
-        # For multi-sample expansions
+        # If we truly want multiple samples (N_sample>1), expand shapes further
         if N_sample > 1:
+            # Expand s_trunk => [B,N_sample,N_token,c_s]
             st = trunk_embeddings["s_trunk"]
-            # s_trunk => [B,N_sample,N_token,c_s]
             if st.dim() == 3:
                 trunk_embeddings["s_trunk"] = st.unsqueeze(1).expand(-1, N_sample, -1, -1)
 
-            # s_inputs => [B,N_sample,N_token,449]
+            # Expand s_inputs => [B,N_sample,N_token,449]
             if isinstance(s_inputs, torch.Tensor) and s_inputs.dim() == 3:
                 s_inputs = s_inputs.unsqueeze(1).expand(-1, N_sample, -1, -1)
 
-            # z_trunk => [B,N_sample,N_token,N_token,c_z]
+            # Expand pair => [B,N_sample,N_token,N_token,c_z]
             if z_trunk is not None and z_trunk.dim() == 4:
                 z_trunk = z_trunk.unsqueeze(1).expand(-1, N_sample, -1, -1, -1)
 
-            # coords_init => [B,N_sample,N_atom,3]
+            # Expand coords_init => [B,N_sample,N_atom,3]
             if coords_init.dim() == 3:
                 coords_init = coords_init.unsqueeze(1).expand(-1, N_sample, -1, -1)
-
-            # Also expand ref_pos => [B,N_sample,N_atom,3] if present
-            if "ref_pos" in input_feature_dict:
-                rp = input_feature_dict["ref_pos"]
-                if rp.dim() == 3:
-                    input_feature_dict["ref_pos"] = rp.unsqueeze(1).expand(-1, N_sample, -1, -1)
 
         # Overwrite updated references
         trunk_embeddings["s_inputs"] = s_inputs
         trunk_embeddings["pair"] = z_trunk
 
-        # Build a linear noise schedule
+        # Build a simple linear noise schedule from 1.0 down to 0.0
         num_steps = inference_params.get("num_steps", 20)
         noise_schedule = torch.linspace(1.0, 0.0, steps=num_steps + 1, device=device)
 
@@ -188,6 +177,8 @@ class ProtenixDiffusionManager:
             z_trunk=z_trunk,
             noise_schedule=noise_schedule,
             N_sample=N_sample,
+            inplace_safe=False,   # or True if memory is tight
+            attn_chunk_size=None, # you can set chunk sizes if needed
         )
 
         return coords_final
