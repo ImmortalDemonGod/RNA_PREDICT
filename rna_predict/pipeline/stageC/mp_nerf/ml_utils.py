@@ -3,10 +3,12 @@
 import numpy as np
 import torch
 from einops import rearrange, repeat
-from rna_predict.pipeline.stageC.mp_nerf.massive_pnerf import *
+
 from rna_predict.pipeline.stageC.mp_nerf.kb_proteins import *
-from rna_predict.pipeline.stageC.mp_nerf.utils import *
+from rna_predict.pipeline.stageC.mp_nerf.massive_pnerf import *
 from rna_predict.pipeline.stageC.mp_nerf.proteins import *
+from rna_predict.pipeline.stageC.mp_nerf.utils import *
+
 
 def scn_atom_embedd(seq_list):
     """Returns the token for each atom in the aa seq.
@@ -196,9 +198,6 @@ def fape_torch(
     return (1 / max_val) * torch.stack(fape_store, dim=0)
 
 
-
-
-
 def atom_selector(scn_seq, x, option=None, discard_absent=True):
     """Returns a selection of the atoms in a protein.
     Inputs:
@@ -268,9 +267,9 @@ def noise_internals(
     * chain (l, c, d)
     * cloud_mask (l, c)
     """
-    assert angles is not None or coords is not None, (
-        "You must pass either angles or coordinates"
-    )
+    assert (
+        angles is not None or coords is not None
+    ), "You must pass either angles or coordinates"
     # get scaffolds
     if angles is None:
         angles = torch.randn(coords.shape[0], 12).to(coords.device)
@@ -339,9 +338,9 @@ def combine_noise(
     Outputs: (B, N, D) coords and (B, N) boolean mask
     """
     # get seqs right
-    assert int_seq is not None or seq is not None, (
-        "Either int_seq or seq must be passed"
-    )
+    assert (
+        int_seq is not None or seq is not None
+    ), "Either int_seq or seq must be passed"
     if int_seq is not None and seq is None:
         seq = "".join([INDEX2AAS[x] for x in int_seq.cpu().detach().tolist()])
     elif int_seq is None and seq is not None:
@@ -353,10 +352,10 @@ def combine_noise(
     naive_cloud_mask = scn_cloud_mask(seq).bool()
 
     if NOISE_INTERNALS:
-        assert cloud_mask_flat.sum().item() == naive_cloud_mask.sum().item(), (
-            "atoms missing: {0}".format(
-                naive_cloud_mask.sum().item() - cloud_mask_flat.sum().item()
-            )
+        assert (
+            cloud_mask_flat.sum().item() == naive_cloud_mask.sum().item()
+        ), "atoms missing: {0}".format(
+            naive_cloud_mask.sum().item() - cloud_mask_flat.sum().item()
         )
     # expand to batch dim if needed
     if len(true_coords.shape) < 3:
