@@ -4,7 +4,7 @@ import time
 
 from rna_predict.pipeline.stageD.run_stageD import run_stageD_diffusion
 
-@pytest.mark.performance
+# @pytest.mark.performance
 def test_diffusion_single_embed_caching():
     """
     Quick check that calling run_stageD_diffusion multiple times
