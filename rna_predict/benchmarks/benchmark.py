@@ -9,7 +9,7 @@ from typing import Dict, List, Tuple
 import torch
 import torch.nn as nn
 
-from rna_predict.models.encoder.input_feature_embedding import (
+from rna_predict.pipeline.stageA.input_embedding.current.embedders import (
     InputFeatureEmbedder,
 )
 
