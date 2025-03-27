@@ -17,7 +17,9 @@ from typing import Any, Callable, Optional
 
 import torch
 
-from rna_predict.pipeline.stageA.input_embedding.current.utils import centre_random_augmentation
+from rna_predict.pipeline.stageA.input_embedding.current.utils import (
+    centre_random_augmentation,
+)
 
 
 class TrainingNoiseSampler:
@@ -287,9 +289,7 @@ def sample_diffusion_training(
         x_input_coords=label_dict["coordinate"],
         N_sample=N_sample,
         mask=label_dict["coordinate_mask"],
-    ).to(
-        dtype
-    )  # [..., N_sample, N_atom, 3]
+    ).to(dtype)  # [..., N_sample, N_atom, 3]
 
     # Add independent noise to each structure
     # sigma: independent noise-level [..., N_sample]
