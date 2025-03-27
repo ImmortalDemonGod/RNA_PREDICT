@@ -1,9 +1,7 @@
 import torch
 
-from rna_predict.models.encoder.atom_encoder import (
-    AtomAttentionEncoder,
-    AtomEncoderConfig,
-)
+from rna_predict.pipeline.stageA.input_embedding.current.transformer import AtomAttentionEncoder
+from rna_predict.pipeline.stageA.input_embedding.current.embedders import InputFeatureEmbedder as AtomEncoderConfig
 
 
 def test_atom_encoder_smoke():
