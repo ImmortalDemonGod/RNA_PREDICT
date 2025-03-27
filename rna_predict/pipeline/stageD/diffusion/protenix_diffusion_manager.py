@@ -1,14 +1,15 @@
-import torch
-import torch.nn as nn
-from typing import Optional, Dict
+from typing import Dict, Optional
+
 import snoop
+import torch
 
 from rna_predict.pipeline.stageD.diffusion.diffusion import DiffusionModule
 from rna_predict.pipeline.stageD.diffusion.generator import (
-    sample_diffusion_training,
-    sample_diffusion,
     TrainingNoiseSampler,
+    sample_diffusion,
+    sample_diffusion_training,
 )
+
 
 class ProtenixDiffusionManager:
     """
@@ -22,7 +23,10 @@ class ProtenixDiffusionManager:
     @snoop
     def __init__(self, diffusion_config: dict, device: str = "cpu"):
         # Ensure we have an "initialization" key
-        if "initialization" not in diffusion_config or diffusion_config["initialization"] is None:
+        if (
+            "initialization" not in diffusion_config
+            or diffusion_config["initialization"] is None
+        ):
             diffusion_config["initialization"] = {}
 
         self.device = torch.device(device)
@@ -76,9 +80,9 @@ class ProtenixDiffusionManager:
 
         Typical usage:
         - coords_init: [B, N_atom, 3] or [B, 1, N_atom, 3]
-        - trunk_embeddings: must contain 's_trunk'. 
-          optional: 's_inputs' (else fallback to 'sing') 
-                    'pair' 
+        - trunk_embeddings: must contain 's_trunk'.
+          optional: 's_inputs' (else fallback to 'sing')
+                    'pair'
         - override_input_features: if needed to build or unify shape for multi-sample expansions
         - inference_params: includes "N_sample" (# samples) and "num_steps" for noise schedule
         """
@@ -114,7 +118,9 @@ class ProtenixDiffusionManager:
             input_feature_dict = override_input_features
         else:
             # minimal fallback if none provided
-            input_feature_dict = {"atom_to_token_idx": torch.zeros((1, 0), device=device)}
+            input_feature_dict = {
+                "atom_to_token_idx": torch.zeros((1, 0), device=device)
+            }
 
         # Determine how many samples we want
         N_sample = inference_params.get("N_sample", 1)
@@ -147,7 +153,9 @@ class ProtenixDiffusionManager:
             # Expand s_trunk => [B,N_sample,N_token,c_s]
             st = trunk_embeddings["s_trunk"]
             if st.dim() == 3:
-                trunk_embeddings["s_trunk"] = st.unsqueeze(1).expand(-1, N_sample, -1, -1)
+                trunk_embeddings["s_trunk"] = st.unsqueeze(1).expand(
+                    -1, N_sample, -1, -1
+                )
 
             # Expand s_inputs => [B,N_sample,N_token,449]
             if isinstance(s_inputs, torch.Tensor) and s_inputs.dim() == 3:
@@ -177,13 +185,15 @@ class ProtenixDiffusionManager:
             z_trunk=z_trunk,
             noise_schedule=noise_schedule,
             N_sample=N_sample,
-            inplace_safe=False,   # or True if memory is tight
-            attn_chunk_size=None, # you can set chunk sizes if needed
+            inplace_safe=False,  # or True if memory is tight
+            attn_chunk_size=None,  # you can set chunk sizes if needed
         )
 
         return coords_final
 
-    def custom_manual_loop(self, x_gt: torch.Tensor, trunk_embeddings: dict, sigma: float):
+    def custom_manual_loop(
+        self, x_gt: torch.Tensor, trunk_embeddings: dict, sigma: float
+    ):
         """
         Optional direct usage demonstration: single forward pass
         """
