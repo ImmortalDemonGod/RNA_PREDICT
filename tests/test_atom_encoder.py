@@ -10,11 +10,12 @@ def test_atom_encoder_smoke():
     # Create a minimal dict f
     f = {
         "ref_pos": torch.randn(5, 3),
-        "ref_charge": torch.zeros(5),
-        "ref_element": torch.randn(5, 128),
-        "ref_atom_name_chars": torch.randn(5, 16),
+        "ref_charge": torch.zeros(5, 1),
+        "ref_mask": torch.ones(5, 1, dtype=torch.bool),
+        "ref_element": torch.zeros(5, 128),
+        "ref_atom_name_chars": torch.zeros(5, 256),
         "atom_to_token": torch.tensor([0, 0, 1, 1, 0]),
-        "restype": torch.randn(2, 32),  # minimal token dimension
+        "restype": torch.zeros(1, 12, 32),    # batch=1, 12 tokens
         "block_index": torch.randint(0, 5, (5, 2)),
     }
     out = model(f)
