@@ -13,8 +13,10 @@ requires-python = ">=3.10"
 # Core dependencies
 dependencies = [
     "biopython>=1.83",
+    "black>=25.1.0",
     "datasets>=3.3.2",
     "einops>=0.8.1",
+    "hypothesis[cli]>=6.130.4",
     "lxml>=5.3.1",
     "mdanalysis>=2.9.0",
     "protenix>=0.4.4",
