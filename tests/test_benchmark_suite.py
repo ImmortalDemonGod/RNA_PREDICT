@@ -3,7 +3,7 @@ from unittest.mock import patch
 from typing import List, Dict
 import torch
 import torch.nn as nn
-
+import pytest
 # Hypothesis imports
 from hypothesis import given, strategies as st, settings, example, HealthCheck
 from hypothesis.strategies import integers, lists, booleans
@@ -139,10 +139,15 @@ class TestCreateEmbedder(unittest.TestCase):
         self.assertIsInstance(embedder, nn.Module)
         self.assertEqual(dev, "cpu")
 
+    @pytest.mark.skipif(
+        torch.version.cuda is None,
+        reason="Torch not compiled with CUDA; cannot run CUDA test."
+    )
     @patch("torch.cuda.is_available", return_value=True)
     def test_create_embedder_cuda_available(self, mock_cuda):
         """
         If CUDA is available, creating with device='cuda' should keep device='cuda'.
+        We skip if there's no actual CUDA build.
         """
         args = dict(self.default_args)
         args["device"] = "cuda"
