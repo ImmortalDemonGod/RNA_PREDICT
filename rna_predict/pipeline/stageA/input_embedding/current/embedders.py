@@ -28,7 +28,17 @@ from rna_predict.pipeline.stageA.input_embedding.current.transformer import (
 
 class InputFeatureEmbedder(nn.Module):
     """
-    Implements Algorithm 2 in AF3
+    Implements Algorithm 2 in AF3.
+
+    By default:
+      c_atom=128, c_atompair=16, c_token=384
+    now also accepts:
+      restype_dim, profile_dim, c_pair, num_heads, num_layers, and use_optimized
+
+    The forward pass concatenates:
+      1) Atom-attention output
+      2) Extra token features (restype, profile, deletion_mean)
+    and returns a final tensor of shape [..., N_token, c_token].
     """
 
     @snoop
@@ -37,25 +47,58 @@ class InputFeatureEmbedder(nn.Module):
         c_atom: int = 128,
         c_atompair: int = 16,
         c_token: int = 384,
+        restype_dim: int = 32,
+        profile_dim: int = 32,
+        c_pair: int = 16,     # Overlaps with c_atompair or can remain separate
+        num_heads: int = 4,
+        num_layers: int = 3,
+        use_optimized: bool = False,
     ) -> None:
         """
         Args:
             c_atom (int, optional): atom embedding dim. Defaults to 128.
             c_atompair (int, optional): atom pair embedding dim. Defaults to 16.
             c_token (int, optional): token embedding dim. Defaults to 384.
+            restype_dim (int, optional): dimension of restype input. Defaults to 32.
+            profile_dim (int, optional): dimension of profile input. Defaults to 32.
+            c_pair (int, optional): pair embedding dimension (if needed). Defaults to 16.
+            num_heads (int, optional): # heads for any internal attention. Defaults to 4.
+            num_layers (int, optional): # layers for potential stack. Defaults to 3.
+            use_optimized (bool, optional): whether to use an optimized path. Defaults to False.
         """
         super(InputFeatureEmbedder, self).__init__()
         self.c_atom = c_atom
         self.c_atompair = c_atompair
         self.c_token = c_token
+
+        self.restype_dim = restype_dim
+        self.profile_dim = profile_dim
+        self.c_pair = c_pair
+        self.num_heads = num_heads
+        self.num_layers = num_layers
+        self.use_optimized = use_optimized
+
         self.atom_attention_encoder = AtomAttentionEncoder(
-            c_atom=c_atom,
-            c_atompair=c_atompair,
-            c_token=c_token,
+            c_atom=self.c_atom,
+            c_atompair=self.c_atompair,  # or self.c_pair if needed
+            c_token=self.c_token,
             has_coords=False,
         )
-        # Line2
-        self.input_feature = {"restype": 32, "profile": 32, "deletion_mean": 1}
+        # Existing line2 comment
+        #
+        # We'll store these so we know how many dims to expect for restype, profile, etc.
+        self.input_feature = {
+            "restype": self.restype_dim,
+            "profile": self.profile_dim,
+            "deletion_mean": 1,
+        }
+
+        # Linear layer to project the concatenated extra token features into c_token
+        extras_in_dim = self.restype_dim + self.profile_dim + 1
+        self.extras_linear = nn.Linear(extras_in_dim, self.c_token, bias=True)
+
+        # Optionally, place a final layer norm after summing
+        self.final_ln = nn.LayerNorm(self.c_token)
 
     @snoop
     def forward(
@@ -71,26 +114,37 @@ class InputFeatureEmbedder(nn.Module):
             chunk_size (Optional[int]): Chunk size for memory-efficient operations. Defaults to None.
 
         Returns:
-            torch.Tensor: token embedding
-                [..., N_token, 384 (c_token) + 32 + 32 + 1 :=449]
+            torch.Tensor: token embedding with shape [..., N_token, c_token]
         """
-        # Embed per-atom features.
+        # 1) Embed per-atom features with the AtomAttentionEncoder.
+        #    a => [..., N_token, c_token]
         a, _, _, _ = self.atom_attention_encoder(
             input_feature_dict=input_feature_dict,
             inplace_safe=inplace_safe,
             chunk_size=chunk_size,
-        )  # [..., N_token, c_token]
-        # Concatenate the per-token features.
-        batch_shape = input_feature_dict["restype"].shape[:-1]
-        s_inputs = torch.cat(
-            [a]
-            + [
-                input_feature_dict[name].reshape(*batch_shape, d)
-                for name, d in self.input_feature.items()
-            ],
-            dim=-1,
         )
-        return s_inputs
+
+        # 2) Gather the extra token-level features
+        #    restype, profile, deletion_mean => shape [..., N_token, respective_dim]
+        #    Then project to [N_token, c_token] via a linear layer.
+
+        batch_shape = input_feature_dict["restype"].shape[:-1]  # e.g. [...]
+        extras_list = []
+        for name, dim_size in self.input_feature.items():
+            # shape => [..., N_token, dim_size]
+            val = input_feature_dict[name].reshape(*batch_shape, dim_size)
+            extras_list.append(val)
+        token_extras = torch.cat(extras_list, dim=-1)  # => [..., N_token, sum_of_dims]
+        extras_emb = self.extras_linear(token_extras)   # => [..., N_token, c_token]
+
+        # 3) Merge atom output with these extra features
+        #    Summation is a simple choice that yields a final [N_token, c_token].
+        s_inputs = a + extras_emb
+
+        # 4) Optional final layer norm
+        out = self.final_ln(s_inputs)  # => [..., N_token, c_token]
+
+        return out
 
 
 class RelativePositionEncoding(nn.Module):
@@ -179,7 +233,7 @@ class RelativePositionEncoding(nn.Module):
                     [a_rel_pos, a_rel_token, b_same_entity[..., None], a_rel_chain],
                     dim=-1,
                 ).float()
-            )  # [..., N_token, N_token, 2 * (self.r_max + 1)+ 2 * (self.r_max + 1)+ 1 + 2 * (self.s_max + 1)] -> [..., N_token, N_token, c_z]
+            )  # [..., N_token, N_token, c_z]
             return p
         else:
             del d_chain, d_token, d_residue, b_same_chain, b_same_residue

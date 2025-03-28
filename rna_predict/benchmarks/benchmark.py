@@ -18,11 +18,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 def resolve_device(device: str) -> str:
     """
-    Utility function to check if CUDA is available.
-    If CUDA is requested ("cuda") but not available, return "cpu".
+    Checks if CUDA is available. If 'cuda' is requested but not available,
+    fallback to 'cpu'.
     """
-    import torch
-
     if device == "cuda" and not torch.cuda.is_available():
         print("Warning: CUDA not available. Switching to CPU.")
         return "cpu"
@@ -58,27 +56,24 @@ def create_embedder(
 ) -> Tuple[nn.Module, str]:
     """
     Build an InputFeatureEmbedder on the specified device.
-    This helper centralizes embedder creation and makes the main
-    benchmark functions more concise.
-
     Returns:
-      A tuple of (embedder, device) where device may be switched to 'cpu'
+      (embedder, actual_device) where device may be switched to 'cpu'
       if CUDA is not available.
     """
-    if device == "cuda" and not torch.cuda.is_available():
-        print("Warning: CUDA not available. Switching to CPU.")
-        device = "cpu"
+    device = resolve_device(device)
 
     embedder = InputFeatureEmbedder(
-        c_token=c_token,
-        restype_dim=restype_dim,
-        profile_dim=profile_dim,
-        c_atom=c_atom,
-        c_pair=c_pair,
-        num_heads=num_heads,
-        num_layers=num_layers,
-        use_optimized=use_optimized,
-    ).to(device)
+        c_token      = c_token,
+        restype_dim  = restype_dim,
+        profile_dim  = profile_dim,
+        c_atom       = c_atom,
+        c_pair       = c_pair,
+        num_heads    = num_heads,
+        num_layers   = num_layers,
+        use_optimized= use_optimized,
+    )
+    # Place on CPU/CUDA
+    embedder.to(device)
     embedder.eval()
     return embedder, device
 
@@ -125,10 +120,8 @@ def warmup_inference(
             if device == "cuda":
                 torch.cuda.synchronize(device)
 
-
-# Alias for compatibility with tests
+# Alias for compatibility
 warmup_decoding = warmup_inference
-
 
 def measure_inference_time_and_memory(
     embedder: nn.Module,
@@ -138,11 +131,8 @@ def measure_inference_time_and_memory(
     num_iters: int,
 ) -> float:
     """
-    Measure the forward pass (decoding) latency and peak GPU memory usage
+    Measure the forward pass latency and peak GPU memory usage
     over multiple timed iterations.
-
-    Returns:
-      avg_fwd: The average forward time (seconds) over num_iters runs.
     """
     fwd_time = 0.0
     with torch.no_grad():
@@ -151,16 +141,10 @@ def measure_inference_time_and_memory(
                 torch.cuda.reset_peak_memory_stats(device)
 
             start = time.time()
-            embedder(
-                f,
-                trunk_sing=None,
-                trunk_pair=None,
-                block_index=block_index,
-            )
+            embedder(f, trunk_sing=None, trunk_pair=None, block_index=block_index)
             if device == "cuda":
                 torch.cuda.synchronize(device)
             end = time.time()
-
             fwd_time += end - start
 
             if device == "cuda":
@@ -168,9 +152,7 @@ def measure_inference_time_and_memory(
                 peak_mem_mb = peak_mem_bytes / (1024**2)
                 print(f"   Iter peak GPU memory usage: {peak_mem_mb:.2f} MB")
 
-    avg_fwd = fwd_time / num_iters
-    return avg_fwd
-
+    return fwd_time / num_iters
 
 def benchmark_decoding_latency_and_memory(
     N_atom_list=[128, 256, 512],
@@ -181,17 +163,9 @@ def benchmark_decoding_latency_and_memory(
     num_iters=10,
 ):
     """
-    Measures the forward-pass ("decoding") latency and peak GPU memory usage.
-
-    Args:
-      N_atom_list: list of N_atom sizes to benchmark.
-      N_token_list: list of N_token sizes to benchmark.
-      block_size: local attention block size.
-      device: "cuda" or "cpu".
-      num_warmup: warmup iterations (not timed).
-      num_iters: timed iterations.
+    Measures the forward-pass ("decoding") latency and peak GPU memory usage
+    for multiple (N_atom, N_token) combos.
     """
-    # Optionally build a config
     config = BenchmarkConfig(
         N_atom_list=N_atom_list,
         N_token_list=N_token_list,
@@ -199,7 +173,7 @@ def benchmark_decoding_latency_and_memory(
         device=device,
         num_warmup=num_warmup,
         num_iters=num_iters,
-        use_optimized=False,  # This function uses naive path by default
+        use_optimized=False,
     )
 
     embedder, actual_device = create_embedder(config.device, use_optimized=False)
@@ -254,8 +228,8 @@ def warmup_input_embedding(
     criterion: nn.Module,
 ) -> None:
     """
-    Run a series of warmup forward/backward passes (not timed)
-    to prepare for accurate timing of the input embedding benchmark.
+    Run a series of warmup forward/backward passes (not timed),
+    letting caches warm up for accurate timing.
     """
     for _ in range(num_warmup):
         out = embedder(
@@ -264,8 +238,7 @@ def warmup_input_embedding(
             trunk_pair=None,
             block_index=block_index,
         )
-        # The shape of out is [N_token, c_token],
-        # so to match the target shape, we create a random tensor with the same shape.
+        # The shape of out is [N_token, c_token].
         target = torch.randn(out.size(0), out.size(1), device=device)
         loss = criterion(out, target)
         loss.backward()
@@ -315,10 +288,7 @@ def time_input_embedding(
 
         embedder.zero_grad(set_to_none=True)
 
-    avg_fwd = fwd_time / num_iters
-    avg_bwd = bwd_time / num_iters
-    return avg_fwd, avg_bwd
-
+    return fwd_time / num_iters, bwd_time / num_iters
 
 def benchmark_input_embedding(
     N_atom_list=[128, 256, 512],
@@ -332,7 +302,6 @@ def benchmark_input_embedding(
     """
     Benchmarks the InputFeatureEmbedder on random synthetic data,
     measuring forward + backward pass times.
-    Toggle use_optimized = True/False to compare naive vs. block-sparse.
     """
     config = BenchmarkConfig(
         N_atom_list=N_atom_list,
@@ -360,9 +329,7 @@ def benchmark_input_embedding(
 
     for N_atom in config.N_atom_list:
         for N_token in config.N_token_list:
-            print(
-                f"\n=== Benchmarking N_atom={N_atom}, N_token={N_token}, optimized={config.use_optimized} ==="
-            )
+            print(f"\n=== Benchmarking N_atom={N_atom}, N_token={N_token}, optimized={config.use_optimized} ===")
 
             # Generate synthetic features
             f = generate_synthetic_features(N_atom, N_token, actual_device)
@@ -381,12 +348,6 @@ def benchmark_input_embedding(
             )
             print(f"Avg Forward: {avg_fwd:.4f}s,  Avg Backward: {avg_bwd:.4f}s")
 
-
-# Additional aliases for test_benchmark usage:
-warmup_embedding = warmup_input_embedding
-timed_embedding = time_input_embedding
-
-
 def timed_decoding(
     embedder: nn.Module,
     f: Dict[str, torch.Tensor],
@@ -398,7 +359,6 @@ def timed_decoding(
     Measure decoding time by calling measure_inference_time_and_memory.
     """
     return measure_inference_time_and_memory(embedder, f, block_index, device, iters)
-
 
 if __name__ == "__main__":
     # Example usage: compare naive vs. optimized side by side
