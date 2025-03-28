@@ -347,6 +347,9 @@ def benchmark_input_embedding(
                 embedder, f, block_index, actual_device, config.num_iters, criterion
             )
             print(f"Avg Forward: {avg_fwd:.4f}s,  Avg Backward: {avg_bwd:.4f}s")
+# Additional aliases for test_benchmark usage:
+warmup_embedding = warmup_input_embedding
+timed_embedding = time_input_embedding
 
 def timed_decoding(
     embedder: nn.Module,
