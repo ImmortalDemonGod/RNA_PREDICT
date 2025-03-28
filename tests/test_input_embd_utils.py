@@ -1,3 +1,4 @@
+# tests/test_input_embd_utils.py
 """
 ===============================================================================
  Comprehensive Test Suite for `utils.py`
@@ -53,12 +54,23 @@ import torch.nn as nn
 
 # Hypothesis & related imports
 from hypothesis import given, strategies as st, example
-from hypothesis.strategies import floats, integers
+from hypothesis.strategies import integers
 from hypothesis.extra.numpy import arrays
-
-# NOTE: Adjust this import if needed, e.g.:
+# Import from the actual path
 from rna_predict.pipeline.stageA.input_embedding.current import utils
-#import utils
+# import utils  # If you used local module directly
+
+# Hypothesis strategy for generating float32 values
+# We adjust floats strategy to ensure float32 coverage & no subnormals
+float32_floats = st.floats(
+    min_value=-100,
+    max_value=100,
+    allow_nan=False,
+    allow_infinity=False,
+    allow_subnormal=False,
+    width=32
+)
+
 
 
 class BaseUtilsTest(unittest.TestCase):
@@ -142,7 +154,7 @@ class TestCentreRandomAugmentation(BaseUtilsTest):
                                  [ 3.,  3.,  3.]])
         self.assertTrue(torch.allclose(out[0], expected, atol=1e-5))
 
-    @given(coords=arrays(dtype=np.float32, shape=(5, 3), elements=floats(-100, 100)))
+    @given(coords=arrays(dtype=np.float32, shape=(5, 3), elements=float32_floats))
     @example(coords=np.array([[0,0,0],[1,1,1],[5,5,5],[5,5,5],[2,2,2]], dtype=np.float32))
     def test_random_augmentation_hypothesis(self, coords):
         """
@@ -183,7 +195,7 @@ class TestUniformRandomRotation(BaseUtilsTest):
             det = torch.det(R)
             self.assertAlmostEqual(det.item(), 1.0, places=4)
 
-    @patch("utils.Rotation.random")
+    @patch("rna_predict.pipeline.stageA.input_embedding.current.utils.Rotation.random")
     def test_mock_rotation_call(self, mock_rotation):
         """
         Mock the underlying call to Rotation.random(num=N_sample) to test 
@@ -193,10 +205,7 @@ class TestUniformRandomRotation(BaseUtilsTest):
             def as_matrix(self):
                 return np.array([[[1.,0.,0.],
                                   [0.,1.,0.],
-                                  [0.,0.,1.]
-                                  ]
-                                ]
-                ).astype(np.float32)
+                                  [0.,0.,1.]]], dtype=np.float32)
 
         mock_rotation.return_value = FakeRotation()
         out = utils.uniform_random_rotation(N_sample=1)
