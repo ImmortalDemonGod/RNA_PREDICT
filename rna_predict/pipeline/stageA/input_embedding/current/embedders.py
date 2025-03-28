@@ -104,6 +104,9 @@ class InputFeatureEmbedder(nn.Module):
     def forward(
         self,
         input_feature_dict: dict[str, Any],
+        trunk_sing: Optional[torch.Tensor] = None,
+        trunk_pair: Optional[torch.Tensor] = None,
+        block_index: Optional[torch.Tensor] = None,
         inplace_safe: bool = False,
         chunk_size: Optional[int] = None,
     ) -> torch.Tensor:
@@ -125,11 +128,20 @@ class InputFeatureEmbedder(nn.Module):
         )
 
         # 2) Gather the extra token-level features
-        #    restype, profile, deletion_mean => shape [..., N_token, respective_dim]
+        #    restype, profile, deletion_mean => shape [..., N_token, sum_of_dims]
         #    Then project to [N_token, c_token] via a linear layer.
 
-        batch_shape = input_feature_dict["restype"].shape[:-1]  # e.g. [...]
+        batch_shape = input_feature_dict["restype"].shape[:-1]
         extras_list = []
+
+        # Handle optional trunk_sing / trunk_pair / block_index
+        # (Currently no-op except for verifying presence)
+        if trunk_sing is not None:
+            pass  # Possibly incorporate trunk_sing into the pipeline
+        if trunk_pair is not None:
+            pass  # Possibly incorporate trunk_pair into the pipeline
+        if block_index is not None:
+            pass  # Possibly use block_index for local attention
         for name, dim_size in self.input_feature.items():
             # shape => [..., N_token, dim_size]
             val = input_feature_dict[name].reshape(*batch_shape, dim_size)
