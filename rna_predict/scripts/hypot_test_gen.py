@@ -267,7 +267,6 @@ def fix_duplicate_self(test_content: str) -> Optional[str]:
 
 class TestGenerator:
     """Manages generation of Hypothesis tests for Python modules"""
-
     def wrap_with_prompt(self, combined_test_code: str, original_source_code: str) -> str:
         """
         Wrap the combined test code and original source code in the custom text prompt
@@ -278,6 +277,19 @@ class TestGenerator:
             TEST_CODE=combined_test_code,
             FULL_SRC_CODE=original_source_code
         )
+
+    def pre_run_cleanup(self) -> None:
+        """
+        Remove any leftover combined test files (matching 'test_hyp_*.py') from previous runs.
+        This ensures we don't mix old combined files with new runs.
+        """
+        leftover_files = list(self.output_dir.glob("test_hyp_*.py"))
+        for leftover in leftover_files:
+            try:
+                leftover.unlink()
+                logger.debug(f"Removed leftover combined file: {leftover.name}")
+            except Exception as e:
+                logger.error(f"Failed to delete leftover file {leftover.name}: {e}")
 
     def __init__(self, output_dir: Path = Path("generated_tests")):
         self.output_dir = output_dir
@@ -677,7 +689,8 @@ class TestGenerator:
 
     def combine_and_cleanup_tests(self, file_path: Path) -> None:
         """
-        Combines individual test files into a single file and deletes the originals.
+        Combines individual test files into a single file and deletes the originals,
+        then removes the combined .py file so only the final markdown remains.
 
         Args:
             file_path (Path): The original Python file used for test generation.
@@ -688,11 +701,8 @@ class TestGenerator:
         combined_filepath = self.output_dir / combined_filename
 
         # Step 2: Collect all generated test files in the output directory
-        # Assuming test files follow the pattern "test_*.py"
+        # Using "test_*.py" so that it naturally ignores any leftover .md files
         test_files = list(self.output_dir.glob("test_*.py"))
-
-        # Optional: Filter test_files if needed
-        # test_files = [f for f in test_files if original_stem in f.name]
 
         # Step 3: Combine contents of each test file into a single string
         combined_content = ""
@@ -704,7 +714,7 @@ class TestGenerator:
         # Step 4: Write the combined content to the new file
         combined_filepath.write_text(combined_content)
 
-        # New wrapping step
+        # Step 5: Wrap the combined test code with the prompt to produce the final Markdown
         original_source_code = file_path.read_text()
         final_wrapped_content = self.wrap_with_prompt(combined_content, original_source_code)
         final_wrapped_file = self.output_dir / f"test_wrapped_{original_stem}.md"
@@ -716,7 +726,7 @@ class TestGenerator:
             logger.error(f"Combined test file {combined_filepath} appears to be incomplete.")
             return
 
-        # Step 5: Cleanup - delete individual test files
+        # Step 6: Cleanup - delete individual test files
         for test_file in test_files:
             try:
                 test_file.unlink()
@@ -724,10 +734,10 @@ class TestGenerator:
             except Exception as e:
                 logger.error(f"Failed to delete {test_file.name}: {e}")
 
-        # Step 6: Logging and feedback
+        # Step 7: Logging and feedback
         logger.info(f"Combined {len(test_files)} test files into {combined_filename} and removed originals.")
 
-        # Step 7: Apply Ruff cleaning commands to the combined file
+        # Step 8: Apply Ruff cleaning commands to the combined file
         cmds = [
             f"ruff check {combined_filepath}",
             f"ruff check --fix {combined_filepath}",
@@ -744,6 +754,11 @@ class TestGenerator:
                     logger.info(f"Ruff command '{cmd}' succeeded: {result.stdout}")
             except Exception as e:
                 logger.error(f"Failed to run ruff command '{cmd}': {e}")
+
+        # Finally, remove the combined .py file so only the markdown remains
+        if combined_filepath.exists():
+            combined_filepath.unlink()
+            logger.info(f"Deleted the combined file {combined_filepath} so that only the Markdown file remains.")
 
 
 def parse_args(args: Optional[list] = None) -> Path:
@@ -775,6 +790,7 @@ def parse_args(args: Optional[list] = None) -> Path:
 def run_test_generation(file_path: Union[str, Path]) -> bool:
     """
     Run the test generation process for a given file.
+    Now also calls pre_run_cleanup before generate_all_tests.
 
     Args:
         file_path: Path to the Python file to generate tests for
@@ -791,6 +807,11 @@ def run_test_generation(file_path: Union[str, Path]) -> bool:
 
         logger.info(f"Starting test generator for {file_path}")
         generator = TestGenerator()
+
+        # Clean up any leftover combined files from prior runs
+        generator.pre_run_cleanup()
+
+        # Proceed with the standard generation workflow
         generator.generate_all_tests(file_path)
         return True
 
