@@ -12,15 +12,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import math
 from typing import Optional, Union
 
-import numpy as np
 import snoop
 import torch
 import torch.nn as nn
-from protenix.utils.scatter_utils import scatter
+import numpy as np
 from scipy.spatial.transform import Rotation
+
+from protenix.utils.scatter_utils import scatter
 
 
 def centre_random_augmentation(
@@ -228,23 +229,23 @@ def broadcast_token_to_atom(
       1) atom_to_token_idx is purely 1D -> we unsqueeze to [1, N_atom].
       2) x_token may have one more batch dim than atom_to_token_idx, so we unsqueeze one dim in the index as well.
     """
-
-    # Step 1: If purely 1D => unsqueeze to add a batch dimension
     if atom_to_token_idx.ndim == 1:
         atom_to_token_idx = atom_to_token_idx.unsqueeze(0)
 
-    # Step 2: If x_token has exactly one more dimension than atom_to_token_idx,
-    # unsqueeze in the second-last dimension to match the shape logic.
-    if len(x_token.shape) == len(atom_to_token_idx.shape) + 1:
-        # e.g. x_token is [B, S, N_token, d], atom_to_token_idx is [B, N_atom], so we do:
+    # If shapes differ by exactly 1 dimension, and we need an extra unsqueeze:
+    if (
+        x_token.ndim == atom_to_token_idx.ndim + 1
+        and x_token.shape[-2] != atom_to_token_idx.shape[-1]
+    ):
         atom_to_token_idx = atom_to_token_idx.unsqueeze(-2)
 
     # Final shape check
-    assert atom_to_token_idx.shape[:-1] == x_token.shape[:-2], (
-        f"Shape mismatch in broadcast_token_to_atom: "
-        f"atom_to_token_idx.shape[:-1]={atom_to_token_idx.shape[:-1]} vs. "
-        f"x_token.shape[:-2]={x_token.shape[:-2]}"
-    )
+    if atom_to_token_idx.shape[:-1] != x_token.shape[:-2]:
+        raise ValueError(
+            f"Shape mismatch in broadcast_token_to_atom: "
+            f"atom_to_token_idx.shape[:-1]={atom_to_token_idx.shape[:-1]} vs. "
+            f"x_token.shape[:-2]={x_token.shape[:-2]}"
+        )
 
     # If still exactly 1D after expansions, do direct indexing
     if atom_to_token_idx.ndim == 1:
@@ -279,7 +280,6 @@ def aggregate_atom_to_token(
         torch.Tensor: token-level embedding
             [..., N_token, d]
     """
-
     # Broadcasting in the given dim.
     out = scatter(
         src=x_atom, index=atom_to_token_idx, dim=-2, dim_size=n_token, reduce=reduce
@@ -304,7 +304,7 @@ def sample_indices(
         torch.Tensor: the sampled indices k
     """
     assert strategy in ["random", "topk"]
-    sample_size = torch.randint(low=min(lower_bound, n), high=n + 1, size=(1,)).item()
+    sample_size = torch.randint(low=min(lower_bound, n), high=n + 1, size=(1,), device=device).item()
     if strategy == "random":
         indices = torch.randperm(n=n, device=device)[:sample_size]
     if strategy == "topk":
@@ -402,25 +402,50 @@ def pad_at_dim(
 def reshape_at_dim(
     x: torch.Tensor, dim: int, target_shape: Union[tuple[int], list[int]]
 ) -> torch.Tensor:
-    """reshape dimension dim of x to target_shape
+    """
+    Reshape dimension 'dim' of x to 'target_shape'. If target_shape is a single-element
+    list and the product of x.shape[dim-1] and x.shape[dim] equals that element, then merge
+    the two dimensions (allowing partial flatten).
+
+    e.g. For x with shape [2,3,4,5] and dim=-2 (i.e. x.shape[-2] == 4), if target_shape is [12]
+         and 3*4==12, then merge dimensions 1 and 2 to obtain shape [2,12,5].
 
     Args:
         x (torch.Tensor): input
         dim (int): dimension to reshape
-        target_shape (Union[Tuple[int], List[int]]): target_shape of dim
+        target_shape (Union[Tuple[int], List[int]]): target shape for the specified dimension
 
     Returns:
         torch.Tensor: reshaped tensor
     """
-    n_dim = len(x.shape)
+    n_dim = x.dim()
     if dim < 0:
         dim = n_dim + dim
 
-    target_shape = tuple(target_shape)
-    target_shape = (*x.shape[:dim], *target_shape)
-    if dim + 1 < n_dim:
-        target_shape = (*target_shape, *x.shape[dim + 1 :])
-    return x.reshape(target_shape)
+    tgt = tuple(target_shape)
+    if len(tgt) == 1:
+        desired = tgt[0]
+        if dim > 0:
+            combined = x.shape[dim - 1] * x.shape[dim]
+            if combined == desired:
+                shape_list = list(x.shape)
+                shape_list[dim - 1] = desired
+                del shape_list[dim]
+                return x.reshape(*shape_list)
+
+    # fallback => standard single-dimension replace
+    shape_list = list(x.shape)
+    old_size = shape_list[dim]
+    new_prod = 1
+    for v in tgt:
+        new_prod *= v
+
+    if new_prod != old_size:
+        raise RuntimeError(
+            f"reshape_at_dim: can't reshape dimension {dim} of size {old_size} into {tgt} (product={new_prod})"
+        )
+    shape_list = shape_list[:dim] + list(tgt) + shape_list[dim + 1 :]
+    return x.reshape(*shape_list)
 
 
 def move_final_dim_to_dim(x: torch.Tensor, dim: int) -> torch.Tensor:
@@ -434,7 +459,6 @@ def move_final_dim_to_dim(x: torch.Tensor, dim: int) -> torch.Tensor:
     Returns:
         torch.Tensor: Tensor with the final dimension moved to the specified dimension.
     """
-    # permute_final_dims
     n_dim = len(x.shape)
     if dim < 0:
         dim = n_dim + dim
