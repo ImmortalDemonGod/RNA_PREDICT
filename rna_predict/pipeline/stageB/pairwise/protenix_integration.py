@@ -57,7 +57,7 @@ class ProtenixIntegration:
             c_z=c_token,  # using c_token as the dimension for pair embeddings
         ).to(device)
 
-    @snoop
+    # @snoop
     def build_embeddings(self, input_features: dict) -> dict:
         """
         Given a dictionary of raw features, produce the following embeddings:
