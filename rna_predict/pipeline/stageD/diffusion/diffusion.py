@@ -45,7 +45,7 @@ class DiffusionConditioning(nn.Module):
     Implements Algorithm 21 in AF3
     """
 
-    @snoop
+    # @snoop
     def __init__(
         self,
         sigma_data: float = 16.0,
@@ -93,7 +93,7 @@ class DiffusionConditioning(nn.Module):
         self.transition_s2 = Transition(c_in=self.c_s, n=2)
         print(f"Diffusion Module has {self.sigma_data}")
 
-    @snoop
+    # @snoop
     def forward(
         self,
         t_hat_noise_level: torch.Tensor,
