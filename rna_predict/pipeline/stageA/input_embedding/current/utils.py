@@ -216,7 +216,7 @@ def batched_gather(
     return data[ranges]
 
 
-@snoop
+# @snoop
 def broadcast_token_to_atom(
     x_token: torch.Tensor, atom_to_token_idx: torch.Tensor
 ) -> torch.Tensor:
