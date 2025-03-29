@@ -1,10 +1,10 @@
 import torch
-
+import snoop
 
 class StageCReconstruction:
     """
     Legacy fallback approach for Stage C. Used if method != 'mp_nerf'.
-    Returns trivial coords.
+    Returns trivial coords (N*3, 3).
     """
 
     def __call__(self, torsion_angles: torch.Tensor):
@@ -12,7 +12,7 @@ class StageCReconstruction:
         coords = torch.zeros((N * 3, 3))
         return {"coords": coords, "atom_count": coords.size(0)}
 
-
+# @snoop
 def run_stageC_rna_mpnerf(
     sequence: str,
     predicted_torsions: torch.Tensor,
@@ -24,6 +24,9 @@ def run_stageC_rna_mpnerf(
     """
     Main RNA Stage C function. We build scaffolds referencing final_kb_rna,
     fold the backbone, optionally place bases, and do ring closure if desired.
+
+    We also slice angles to the first 7 if more are provided,
+    and if we have fewer than 7 but a non-empty sequence, we raise ValueError.
     """
     from rna_predict.pipeline.stageC.mp_nerf.rna import (
         build_scaffolds_rna_from_torsions,
@@ -33,7 +36,18 @@ def run_stageC_rna_mpnerf(
         skip_missing_atoms,
     )
 
-    # 1) Build scaffolds from predicted torsions
+    # If predicted_torsions has more than 7 columns, slice to 7
+    if predicted_torsions.size(1) > 7:
+        predicted_torsions = predicted_torsions[:, :7]
+
+    # If we have fewer than 7 columns but a non-empty seq, error
+    if predicted_torsions.size(0) > 0 and predicted_torsions.size(1) < 7:
+        raise ValueError(
+            f"Not enough angles for Stage C. "
+            f"Expected 7, got {predicted_torsions.size(1)}"
+        )
+
+    # 1) Build scaffolds
     scaffolds = build_scaffolds_rna_from_torsions(
         seq=sequence,
         torsions=predicted_torsions,
@@ -56,7 +70,6 @@ def run_stageC_rna_mpnerf(
     else:
         coords_full = coords_bb
 
-    # final
     total_atoms = coords_full.shape[0] * coords_full.shape[1]
     return {"coords": coords_full, "atom_count": total_atoms}
 
@@ -71,7 +84,7 @@ def run_stageC(
     sugar_pucker="C3'-endo",
 ):
     """
-    Unified Stage C entrypoint. If method=="mp_nerf", uses final approach referencing final_kb_rna,
+    Unified Stage C entrypoint. If method == "mp_nerf", uses final approach referencing final_kb_rna,
     else fallback to the trivial StageCReconstruction.
     """
     if method == "mp_nerf":
@@ -91,7 +104,8 @@ def run_stageC(
 if __name__ == "__main__":
     # example usage
     sample_seq = "ACGU"
-    dummy_torsions = torch.zeros((len(sample_seq), 7))  # alpha..zeta, chi in degrees
+    # Suppose alpha..zeta, chi in degrees => we have [N,7]
+    dummy_torsions = torch.zeros((len(sample_seq), 7))
     out = run_stageC(
         sequence=sample_seq,
         torsion_angles=dummy_torsions,
