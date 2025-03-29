@@ -8,6 +8,7 @@ from rna_predict.pipeline.stageC.mp_nerf.final_kb_rna import (
     get_bond_length,
 )
 from rna_predict.pipeline.stageC.mp_nerf.massive_pnerf import mp_nerf_torch
+import snoop
 
 ###############################################################################
 # 1) DEFINE A CANONICAL BACKBONE ORDER
@@ -67,6 +68,7 @@ def compute_max_rna_atoms():
 ###############################################################################
 # 4) PRIMARY FUNCTION: build_scaffolds_rna_from_torsions
 ###############################################################################
+
 def build_scaffolds_rna_from_torsions(
     seq: str,
     torsions: torch.Tensor,
