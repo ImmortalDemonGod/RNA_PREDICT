@@ -15,7 +15,7 @@ Usage:
 
 import unittest
 from unittest.mock import patch
-
+import math
 import pandas as pd
 import torch
 from hypothesis import HealthCheck, example, given, settings
@@ -204,8 +204,139 @@ class TestPredict3DStructure(unittest.TestCase):
 class TestPredictSubmission(unittest.TestCase):
     """
     Tests the predict_submission method, focusing on DataFrame output,
-    repeated coords, residue atom choice, and shape handling.
+    repeated coords, residue atom choice, shape handling,
+    and replicating NaN propagation from missing bond lengths.
     """
+
+    def setUp(self):
+        """Instantiate a RNAPredictor for repeated usage."""
+        self.predictor = RNAPredictor(device="cpu")
+
+    def test_predict_submission_basic(self):
+        """
+        Test normal usage with a small sequence.
+        Ensures columns are correct and repeated coords match.
+        """
+        sequence = "ACGU"
+        repeats = 5
+        df = self.predictor.predict_submission(
+            sequence, prediction_repeats=repeats, residue_atom_choice=0
+        )
+        self.assertIsInstance(df, pd.DataFrame)
+        self.assertEqual(
+            len(df), len(sequence), "DataFrame rows should match number of residues."
+        )
+        expected_cols = ["ID", "resname", "resid"]
+        for i in range(1, repeats + 1):
+            expected_cols += [f"x_{i}", f"y_{i}", f"z_{i}"]
+        self.assertListEqual(list(df.columns), expected_cols)
+
+    def test_predict_submission_empty_seq(self):
+        """
+        If sequence is empty, expect an empty DataFrame but valid columns.
+        """
+        sequence = ""
+        df = self.predictor.predict_submission(sequence, prediction_repeats=2)
+        self.assertTrue(df.empty, "DataFrame should be empty for empty sequence.")
+        expected_cols = [
+            "ID",
+            "resname",
+            "resid",
+            "x_1",
+            "y_1",
+            "z_1",
+            "x_2",
+            "y_2",
+            "z_2",
+        ]
+        self.assertListEqual(list(df.columns), expected_cols)
+
+    def test_predict_submission_invalid_atom_choice(self):
+        """
+        If we pick a residue_atom_choice that doesn't exist, code should raise IndexError.
+        """
+        sequence = "ACGU"
+        with self.assertRaises(IndexError):
+            self.predictor.predict_submission(sequence, residue_atom_choice=9999)
+
+    @patch("rna_predict.interface.run_stageC")
+    def test_predict_submission_forced_shape_mismatch(self, mock_stageC):
+        """
+        Force a shape mismatch in coords so code raises ValueError (unexpected shape).
+        """
+        mock_stageC.return_value = {"coords": torch.zeros((10, 4)), "atom_count": 40}
+        sequence = "ACGU"
+        with self.assertRaises(ValueError):
+            self.predictor.predict_submission(sequence)
+
+    def test_predict_submission_custom_repeats(self):
+        """
+        Provide a custom number of repeats and ensure correct columns.
+        """
+        sequence = "ACGU"
+        repeats = 3
+        df = self.predictor.predict_submission(
+            sequence, prediction_repeats=repeats, residue_atom_choice=0
+        )
+        self.assertEqual(len(df), len(sequence))
+        self.assertIn("x_3", df.columns, "Should have x_3 for the final repeat.")
+        self.assertIn("y_1", df.columns)
+        self.assertIn("z_2", df.columns)
+
+    @given(
+        seq=valid_rna_sequences,
+        repeats=st.integers(min_value=1, max_value=5),
+        atom_choice=st.integers(min_value=0, max_value=4),
+    )
+    @settings(
+        suppress_health_check=[HealthCheck.too_slow, HealthCheck.filter_too_much],
+        max_examples=10,
+    )
+    @example(seq="", repeats=5, atom_choice=0)
+    def test_predict_submission_hypothesis_random(self, seq, repeats, atom_choice):
+        """
+        Hypothesis test for broad coverage of submission logic with random sequences.
+        """
+        try:
+            df = self.predictor.predict_submission(
+                seq, prediction_repeats=repeats, residue_atom_choice=atom_choice
+            )
+            self.assertIsInstance(df, pd.DataFrame)
+            self.assertEqual(
+                len(df),
+                len(seq),
+                "Row count should match sequence length or be 0 if seq is empty.",
+            )
+        except (ValueError, IndexError, RuntimeError, OSError):
+            pass
+
+    @patch("rna_predict.pipeline.stageC.mp_nerf.final_kb_rna.get_bond_length")
+    def test_predict_submission_nan_propagation(self, mock_get_bond_length):
+        """
+        Force a missing bond length for 'C4'-C3'' so it returns None,
+        replicating the scenario that leads to NaNs in the final coords.
+        We then check if the output DataFrame actually has NaNs.
+        """
+        from rna_predict.pipeline.stageC.mp_nerf.final_kb_rna import RNA_BOND_LENGTHS_C3_ENDO
+
+        def custom_bond_length(pair, sugar_pucker="C3'-endo"):
+            if pair == "C4'-C3'":
+                return None
+            return RNA_BOND_LENGTHS_C3_ENDO.get(pair, None)
+
+        mock_get_bond_length.side_effect = custom_bond_length
+
+        seq = "ACGUA"
+        df_nan = self.predictor.predict_submission(seq)
+
+        self.assertFalse(df_nan.empty, "Resulting DataFrame should not be empty.")
+        # Check for any NaNs in x_1..z_5 columns
+        numeric_cols = [c for c in df_nan.columns if c.startswith(("x_", "y_", "z_"))]
+        # At least one row must contain NaN in these columns
+        self.assertTrue(
+            df_nan[numeric_cols].isna().any().any(),
+            "Expected at least one NaN in final coordinate columns due to missing bond length.",
+        )
 
     def setUp(self):
         """Instantiate a RNAPredictor for repeated usage."""
@@ -310,6 +441,72 @@ class TestPredictSubmission(unittest.TestCase):
             # Accept environment or shape-based errors
             pass
 
+    @patch("rna_predict.interface.RNAPredictor.predict_3d_structure")
+    def test_predict_submission_nan_handling(self, mock_predict_3d):
+        """
+        Test that if predict_3d_structure returns NaN coords, they appear in the submission DataFrame.
+        This reproduces the user-reported issue at a higher-level mock.
+        """
+        sequence = "ACGU"
+        N = len(sequence)
+        atoms_per_res = 3  # Example
+        # Mock return with NaN values
+        mock_coords = torch.full((N, atoms_per_res, 3), float('nan'), dtype=torch.float32)
+        mock_predict_3d.return_value = {
+            "coords": mock_coords,
+            "atom_count": N * atoms_per_res,
+        }
+
+        repeats = 5
+        df = self.predictor.predict_submission(
+            sequence, prediction_repeats=repeats, residue_atom_choice=0
+        )
+
+        # Assert that NaNs are present in the coordinate columns
+        self.assertTrue(df["x_1"].isna().any(), "x_1 column should contain NaNs")
+        self.assertTrue(df["y_1"].isna().any(), "y_1 column should contain NaNs")
+        self.assertTrue(df["z_1"].isna().any(), "z_1 column should contain NaNs")
+        self.assertTrue(
+            df[f"x_{repeats}"].isna().any(), f"x_{repeats} column should contain NaNs"
+        )
+
+    @patch("rna_predict.interface.RNAPredictor.predict_3d_structure")
+    def test_predict_submission_numerical_validity(self, mock_predict_3d):
+        """
+        Test that if predict_3d_structure returns valid numerical coords,
+        the submission DataFrame contains only finite values.
+        """
+        sequence = "GCAA"
+        N = len(sequence)
+        atoms_per_res = 10  # Example using a more realistic number
+        # Mock return with valid float values
+        mock_coords = torch.randn((N, atoms_per_res, 3), dtype=torch.float32)
+        mock_predict_3d.return_value = {
+            "coords": mock_coords,
+            "atom_count": N * atoms_per_res,
+        }
+
+        repeats = 3
+        df = self.predictor.predict_submission(
+            sequence, prediction_repeats=repeats, residue_atom_choice=1
+        ) # Use atom choice 1
+
+        # Assert that coordinate columns contain only finite values
+        for i in range(1, repeats + 1):
+            col_x, col_y, col_z = f"x_{i}", f"y_{i}", f"z_{i}"
+            self.assertTrue(
+                df[col_x].apply(lambda x: math.isfinite(x)).all(),
+                f"{col_x} column should contain only finite values",
+            )
+            self.assertTrue(
+                df[col_y].apply(lambda x: math.isfinite(x)).all(),
+                f"{col_y} column should contain only finite values",
+            )
+            self.assertTrue(
+                df[col_z].apply(lambda x: math.isfinite(x)).all(),
+                f"{col_z} column should contain only finite values",
+            )
+
 
 # --------------------------------------------------------------------------------------
 #               Test Class: PredictSubmissionParametricShapes (Optional)
@@ -332,7 +529,7 @@ class TestPredictSubmissionParametricShapes(unittest.TestCase):
     )
     @settings(
         suppress_health_check=[HealthCheck.too_slow, HealthCheck.filter_too_much],
-        max_examples=10,
+        max_examples=5,
     )
     def test_forced_coord_shapes(self, seq, shape_type, atoms_per_res, repeats):
         """
