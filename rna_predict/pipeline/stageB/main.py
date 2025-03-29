@@ -20,7 +20,7 @@ def run_pipeline(sequence: str):
         model_name_or_path="sayby/rna_torsionbert",
         device="cpu",
         angle_mode="degrees",
-        num_angles=16,
+        num_angles=7,
         max_length=512,
     )
     outB = stageB(seq, adjacency)
