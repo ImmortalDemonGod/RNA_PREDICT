@@ -18,20 +18,19 @@ from typing import Any, Optional
 
 import torch
 import torch.nn as nn
-from protenix.model.modules.primitives import LinearNoBias, Transition
-from protenix.model.modules.transformer import AttentionPairBias
-from protenix.model.utils import sample_msa_feature_dict_random_without_replacement
+from rna_predict.pipeline.stageA.input_embedding.current.primitives import LinearNoBias, Transition, LayerNorm
+from rna_predict.pipeline.stageA.input_embedding.current.transformer import AttentionPairBias
+from rna_predict.pipeline.stageA.input_embedding.current.utils import sample_msa_feature_dict_random_without_replacement
 from protenix.openfold_local.model.dropout import DropoutRowwise
 from protenix.openfold_local.model.outer_product_mean import (
     OuterProductMean,  # Alg 9 in AF3
 )
-from protenix.openfold_local.model.primitives import LayerNorm
 from protenix.openfold_local.model.triangular_attention import TriangleAttention
 from protenix.openfold_local.model.triangular_multiplicative_update import (
     TriangleMultiplicationIncoming,  # Alg 13 in AF3
     TriangleMultiplicationOutgoing,  # Alg 12 in AF3
 )
-from protenix.openfold_local.utils.checkpointing import checkpoint_blocks
+from rna_predict.pipeline.stageA.input_embedding.current.checkpointing import checkpoint_blocks
 
 
 class PairformerBlock(nn.Module):
