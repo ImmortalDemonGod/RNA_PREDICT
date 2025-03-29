@@ -11,6 +11,8 @@ Goal:
     - Include a dummy TorsionBertModel that returns predictable data for robust unit testing.
     - Use property-based testing (Hypothesis) for constructor fuzz and angle conversion edge cases.
     - Demonstrate how adjacency is accepted but currently unused in the pipeline.
+    - **Now also** mocks out Hugging Face calls so 'dummy_path' never triggers an actual download.
+    - **Additionally** includes a test replicating the "14 vs 32" mismatch bug from interface.py.
 
 How to Run:
     pytest test_stageB_torsionbert_predictor_comprehensive.py --maxfail=1 -v
@@ -36,10 +38,20 @@ from unittest.mock import patch, MagicMock
 from hypothesis import given, strategies as st, settings, HealthCheck
 from hypothesis import example
 
-# Import the class under test
-from rna_predict.pipeline.stageB.torsion.torsion_bert_predictor import (
-    StageBTorsionBertPredictor,
-)
+# ----------------------------------------------------------------------
+# IMPORTANT: Mock out the HF calls so "dummy_path" doesn't trigger downloads
+# ----------------------------------------------------------------------
+with patch("rna_predict.pipeline.stageB.torsion.torsionbert_inference.AutoTokenizer.from_pretrained") as mock_tok:
+    mock_tok.return_value = MagicMock(name="MockedTokenizer")
+
+    with patch("rna_predict.pipeline.stageB.torsion.torsionbert_inference.AutoModel.from_pretrained") as mock_model:
+        mock_model.return_value = MagicMock(name="MockedAutoModel")
+
+        # Now we import the class under test, in an environment
+        # where HF calls won't actually contact huggingface.co:
+        from rna_predict.pipeline.stageB.torsion.torsion_bert_predictor import (
+            StageBTorsionBertPredictor,
+        )
 
 
 class DummyTorsionBertModel:
@@ -65,6 +77,10 @@ class DummyTorsionBertModel:
         self.return_style = return_style
 
     def predict_angles_from_sequence(self, sequence: str) -> torch.Tensor:
+        """
+        Returns either all ones, random data, or shape-mismatched data,
+        depending on self.return_style.
+        """
         N = len(sequence)
         if self.return_style == "mismatch":
             # Forcing a shape mismatch to ensure we test dimension errors
@@ -73,7 +89,7 @@ class DummyTorsionBertModel:
         elif self.return_style == "random":
             return torch.randn(N, 2 * self.num_angles)
         else:
-            # Default: All ones, shape (N, 2 * num_angles)
+            # Default: All ones, shape (N, 2 * self.num_angles)
             return torch.ones((N, 2 * self.num_angles))
 
 
@@ -115,7 +131,8 @@ def predictor_degrees(dummy_model_ones: DummyTorsionBertModel) -> StageBTorsionB
         angle_mode="degrees",
         num_angles=dummy_model_ones.num_angles,
     )
-    predictor.model = dummy_model_ones  # Inject the dummy model
+    # Inject the dummy TorsionBertModel to bypass real HF inference
+    predictor.model = dummy_model_ones
     return predictor
 
 
@@ -159,7 +176,9 @@ class TestStageBTorsionBertPredictorCore:
         # Because the input is all ones => sin=1, cos=1 => angle= arctan2(1,1)= pi/4 => ~0.785 rad => 45 degrees
         # So each angle should be ~45 degrees if the conversion logic is correct.
         # Tolerate small floating diffs:
-        assert torch.allclose(torsion, torch.full((2, 4), 45.0), atol=1e-3), "Degrees conversion mismatch"
+        assert torch.allclose(
+            torsion, torch.full((2, 4), 45.0), atol=1e-3
+        ), "Degrees conversion mismatch for short sequence"
 
     def test_normal_sequence_degrees(self, predictor_degrees: StageBTorsionBertPredictor):
         """
@@ -242,9 +261,7 @@ class TestStageBTorsionBertPredictorSincosRoundTrip:
         predictor = StageBTorsionBertPredictor(angle_mode="sin_cos", num_angles=3)
 
         # Construct a custom sincos tensor
-        # Let's keep them in [-1,1] to be valid sin/cos pairs
-        # We'll skip ensuring sin^2 + cos^2=1 so we can see how the method handles it.
-        # In real usage, TorsionBert might produce approximations anyway.
+        # We'll skip guaranteeing sin^2+cos^2 == 1 to see how method handles approximate pairs.
         torch.manual_seed(42)
         N = 4
         sin_part = torch.rand((N, 3)) * 2 - 1.0
@@ -257,20 +274,16 @@ class TestStageBTorsionBertPredictorSincosRoundTrip:
         sin_restored = torch.sin(angles)
         cos_restored = torch.cos(angles)
 
-        # We'll check that at least the direction is consistent with the original sign
-        # i.e., sign(sin_part) == sign(sin_restored), ignoring magnitude differences.
+        # We'll check sign consistency except near zero
         for i in range(N):
             for j in range(3):
                 orig_sin = sin_part[i, j].item()
                 rest_sin = sin_restored[i, j].item()
-                # The sign of sin values should match if cos wasn't near 0 crossing
-                # We'll do a small tolerance check to handle edge cases.
-                if abs(orig_sin) > 0.05:  # skip near-zero sign flips
+                if abs(orig_sin) > 0.05:
                     assert (orig_sin * rest_sin) > 0, (
                         f"Sign mismatch in sin at row {i}, angle {j}: "
                         f"original={orig_sin}, restored={rest_sin}"
                     )
-                # We won't check exact magnitude, as the raw sin^2 + cos^2 might not be 1.
 
 
 class TestStageBTorsionBertPredictorConstructorFuzzing:
@@ -319,7 +332,7 @@ class TestStageBTorsionBertPredictorConstructorFuzzing:
                         assert out["torsion_angles"].shape == (1, 2 * num_angles)
                     else:
                         assert out["torsion_angles"].shape == (1, num_angles)
-        except (ValueError, RuntimeError, TypeError) as e:
+        except (ValueError, RuntimeError, TypeError):
             # We allow these exceptions if arguments are invalid or the device is bogus.
             pass
         except Exception as e:
@@ -350,7 +363,7 @@ class TestAngleConversionHypothesis:
         We'll do num_angles=3. We skip domain checking (sin^2+cos^2=1) since the real model
         might produce approximate sin/cos. We only confirm the function is consistent with atan2.
         """
-        # Construct a predictor with num_angles=3 => expect shape [N, 6] => [N, 2*num_angles]
+        # Construct a predictor with num_angles=3 => expect shape [N, 6].
         predictor = StageBTorsionBertPredictor(angle_mode="radians", num_angles=3)
 
         # Convert sincos_data -> Tensor
@@ -358,8 +371,7 @@ class TestAngleConversionHypothesis:
 
         # Validate shape
         N = sincos_tensor.shape[0]
-        # If columns != 6, skip or fail => but we generated exactly 6 columns above
-        assert sincos_tensor.shape[1] == 6, "We expect 6 columns for 3 angles in sin/cos pairs."
+        assert sincos_tensor.shape[1] == 6, "We expect exactly 6 columns for 3 angles in sin/cos pairs."
 
         # Convert
         angles = predictor._convert_sincos_to_angles(sincos_tensor)
@@ -367,15 +379,46 @@ class TestAngleConversionHypothesis:
         # Compare each pair via math.atan2
         for i in range(N):
             for angle_idx in range(3):
-                s_val = sincos_data[i][2 * angle_idx]     # sin
-                c_val = sincos_data[i][2 * angle_idx + 1] # cos
+                s_val = sincos_data[i][2 * angle_idx]
+                c_val = sincos_data[i][2 * angle_idx + 1]
                 expected_angle = math.atan2(s_val, c_val)
                 actual_angle = angles[i, angle_idx].item()
-                # We'll allow small numerical tolerance
-                # (Note that atan2 can differ by 2*pi if signs differ, so we do a relaxed approach.)
                 diff = abs(expected_angle - actual_angle)
                 # We'll allow up to ~1e-3 mismatch
                 assert diff < 0.01, (
                     f"Mismatch in row {i}, angle {angle_idx}, sin={s_val}, cos={c_val}: "
                     f"expected={expected_angle}, got={actual_angle} (diff={diff})"
                 )
+
+
+# ----------------------------------------------------------------------
+#   REPLICATING THE "14 vs 32" BUG from user: interface.py => TorsionBertPredictor
+# ----------------------------------------------------------------------
+class TestReplicateInterfaceBug:
+    @patch("rna_predict.pipeline.stageB.torsion.torsion_bert_predictor.TorsionBertModel")
+    def test_interface_style_dimension_error(self, mock_tbm):
+        """
+        The user's trace indicates a mismatch of 14 vs 32. Possibly because
+        raw_sincos is shape [1, i], while we attempt to assign to result of shape [seq_len, 2*num_angles].
+
+        We'll simulate a scenario in which TorsionBertModel returns e.g. shape [1, 32], but
+        the sequence length is 14 => dimension mismatch.
+
+        The result is a forced RuntimeError (like "expanded size of the tensor... must match existing size...").
+        """
+        # Fake TorsionBertModel that yields shape [1,32]
+        mock_model_inst = MagicMock(name="MockedModelInstance")
+        mock_model_inst.predict_angles_from_sequence.return_value = torch.rand((1,32))
+        mock_tbm.return_value = mock_model_inst
+
+        # Create a predictor expecting e.g. 16 angles => shape (N, 32).
+        # Then pass a 14-length sequence => triggers dimension mismatch in code.
+        predictor = StageBTorsionBertPredictor(
+            model_name_or_path="dummy_path",
+            device="cpu",
+            angle_mode="sin_cos",
+            num_angles=16
+        )
+        seq = "ACGUACGUACGUAC"  # length=14
+        with pytest.raises(RuntimeError, match="Tensor sizes"):
+            predictor(seq)
