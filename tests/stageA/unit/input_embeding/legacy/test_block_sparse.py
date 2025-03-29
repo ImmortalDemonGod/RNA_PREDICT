@@ -6,7 +6,7 @@ from typing import Tuple
 import pytest
 import torch
 
-from rna_predict.pipeline.stageA.input_embedding.legacy.attention.block_sparse import ( # IS USING LEGACY
+from rna_predict.pipeline.stageA.input_embedding.legacy.attention.block_sparse import (  # IS USING LEGACY
     _HAS_BSA,
     BlockSparseAttentionOptimized,
     LocalBlockMaskConfig,
@@ -129,9 +129,9 @@ def test_local_block_sparse_attention_naive_forward_backward(
 
     # Now call the custom function directly with the separate tensors
     out = LocalBlockSparseAttentionNaive.apply(q, k, v, pair_bias, block_index)
-    assert out.shape == q.shape, (
-        "Output shape must match [N_atom, n_heads, c_per_head]."
-    )
+    assert (
+        out.shape == q.shape
+    ), "Output shape must match [N_atom, n_heads, c_per_head]."
 
     grad = torch.ones_like(out)
     out.backward(grad, retain_graph=True)

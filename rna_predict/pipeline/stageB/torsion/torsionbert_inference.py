@@ -32,12 +32,10 @@ class TorsionBertModel(nn.Module):
 
         # Load HF objects
         self.tokenizer = AutoTokenizer.from_pretrained(
-            model_name_or_path,
-            trust_remote_code=True
+            model_name_or_path, trust_remote_code=True
         )
         self.model = AutoModel.from_pretrained(
-            model_name_or_path,
-            trust_remote_code=True
+            model_name_or_path, trust_remote_code=True
         ).to(self.device)
         self.model.eval()
 
@@ -52,27 +50,31 @@ class TorsionBertModel(nn.Module):
         """
         Convert an RNA seq to sin/cos angle pairs as a [N, sincos_dim] tensor,
         where sincos_dim = 2*NmodelAngles from the loaded model.
-        If the seq is empty or has no valid k-mer tokens, returns a zero tensor of shape (seq_len, 2 * user_requested_num_angles)
-        to keep consistent at zero size.
+        If the seq is empty or has no valid k-mer tokens, returns a zero tensor of
+        shape (seq_len, 2 * self.user_requested_num_angles).
 
-        We do a partial fill of the result, row i => raw_sincos[0, i].
+        We do a partial fill of the result, row i => raw_sincos[0, i], if i < seq_len.
         """
         seq = rna_sequence.upper().replace("U", "T")
         seq_len = len(seq)
         if seq_len == 0:
             # Return a zero-length result
-            return torch.zeros((0, 2 * self.user_requested_num_angles), device=self.device)
+            return torch.zeros(
+                (0, 2 * self.user_requested_num_angles), device=self.device
+            )
 
         # Build 3-mers by sliding window of 3
         k = 3
         tokens = []
         for i in range(seq_len - (k - 1)):
-            tokens.append(seq[i:i + k])
+            tokens.append(seq[i : i + k])
         spaced_kmers = " ".join(tokens)
 
         if not spaced_kmers:
             # No valid 3-mer => no data
-            return torch.zeros((seq_len, 2 * self.user_requested_num_angles), device=self.device)
+            return torch.zeros(
+                (seq_len, 2 * self.user_requested_num_angles), device=self.device
+            )
 
         # Prepare inputs
         inputs = self.tokenizer(
@@ -107,3 +109,22 @@ class TorsionBertModel(nn.Module):
                 result[i] = raw_sincos[0, i]
 
         return result
+
+
+class DummyTorsionModel(nn.Module):
+    """
+    Fallback model if HF loading fails.
+    Returns zero sin/cos pairs -> zero angles.
+    """
+
+    def __init__(self, device: torch.device, num_angles: int = 7):
+        super().__init__()
+        self.device = device
+        self.num_angles = num_angles
+
+    def predict_angles_from_sequence(self, rna_sequence: str) -> torch.Tensor:
+        """
+        Produce a zero-filled sin/cos tensor if the real model cannot be loaded.
+        """
+        N = len(rna_sequence)
+        return torch.zeros((N, 2 * self.num_angles), device=self.device)

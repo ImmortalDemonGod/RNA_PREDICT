@@ -1,8 +1,9 @@
-import pytest
-import torch
 import time
 
+import torch
+
 from rna_predict.pipeline.stageD.run_stageD import run_stageD_diffusion
+
 
 # @pytest.mark.performance
 def test_diffusion_single_embed_caching():
@@ -57,6 +58,6 @@ def test_diffusion_single_embed_caching():
     # We expect second call to skip building s_inputs
     # so it should be noticeably faster. This is not guaranteed stable in all environments,
     # but can serve as a rough check.
-    assert second_call_duration < first_call_duration, (
-        f"Second call was not faster. First={first_call_duration:.3f}s, Second={second_call_duration:.3f}s"
-    )
+    assert (
+        second_call_duration < first_call_duration
+    ), f"Second call was not faster. First={first_call_duration:.3f}s, Second={second_call_duration:.3f}s"

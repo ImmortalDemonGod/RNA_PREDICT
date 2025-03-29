@@ -1,20 +1,22 @@
 import unittest
+from typing import Any, Dict
+
 import torch
-import math
-from hypothesis import given, strategies as st, settings
-from typing import List, Dict, Any
+from hypothesis import given, settings
+from hypothesis import strategies as st
 
 # Assuming rna.py is on the Python path or in the same package:
-from rna_predict.pipeline.stageC.mp_nerf.rna import (build_scaffolds_rna_from_torsions,
-                    rna_fold,
-                    place_rna_bases,
-                    skip_missing_atoms,
-                    handle_mods,
-                    validate_rna_geometry,
-                    mini_refinement,
-                    ring_closure_refinement,
-                    get_base_atoms,
-                )
+from rna_predict.pipeline.stageC.mp_nerf.rna import (
+    build_scaffolds_rna_from_torsions,
+    get_base_atoms,
+    handle_mods,
+    mini_refinement,
+    place_rna_bases,
+    ring_closure_refinement,
+    rna_fold,
+    skip_missing_atoms,
+    validate_rna_geometry,
+)
 
 
 class TestGetBaseAtoms(unittest.TestCase):
@@ -68,7 +70,9 @@ class TestBuildScaffoldsRnaFromTorsions(unittest.TestCase):
         """
         Check that the scaffolds dictionary has the expected keys and shapes.
         """
-        scaffolds = build_scaffolds_rna_from_torsions(self.seq, self.torsions, self.device)
+        scaffolds = build_scaffolds_rna_from_torsions(
+            self.seq, self.torsions, self.device
+        )
         self.assertIn("bond_mask", scaffolds)
         self.assertIn("angles_mask", scaffolds)
         self.assertIn("point_ref_mask", scaffolds)
@@ -85,14 +89,18 @@ class TestBuildScaffoldsRnaFromTorsions(unittest.TestCase):
         """
         If an empty seq is provided, all returned tensors should be empty.
         """
-        scaffolds = rna.build_scaffolds_rna_from_torsions("", torch.zeros((0, 7)), self.device)
+        scaffolds = rna.build_scaffolds_rna_from_torsions(
+            "", torch.zeros((0, 7)), self.device
+        )
         self.assertEqual(scaffolds["bond_mask"].numel(), 0)
         self.assertEqual(scaffolds["angles_mask"].numel(), 0)
         self.assertEqual(scaffolds["point_ref_mask"].numel(), 0)
         self.assertEqual(scaffolds["cloud_mask"].numel(), 0)
 
-    @given(st.text(alphabet="ACGU", min_size=1, max_size=10),
-           st.integers(min_value=0, max_value=1))  # simplistic device toggling
+    @given(
+        st.text(alphabet="ACGU", min_size=1, max_size=10),
+        st.integers(min_value=0, max_value=1),
+    )  # simplistic device toggling
     @settings(max_examples=5)
     def test_fuzz_build_scaffolds_rna_from_torsions(self, seq: str, device_flag: int):
         """
@@ -105,8 +113,12 @@ class TestBuildScaffoldsRnaFromTorsions(unittest.TestCase):
         torsions = torch.zeros(torsions_shape)
         scaffolds = build_scaffolds_rna_from_torsions(seq, torsions, device=device)
         self.assertIsInstance(scaffolds, dict)
-        self.assertTrue(all(k in scaffolds for k in ["bond_mask", "angles_mask",
-                                                     "point_ref_mask", "cloud_mask"]))
+        self.assertTrue(
+            all(
+                k in scaffolds
+                for k in ["bond_mask", "angles_mask", "point_ref_mask", "cloud_mask"]
+            )
+        )
 
 
 class TestRnaFold(unittest.TestCase):
@@ -137,7 +149,9 @@ class TestRnaFold(unittest.TestCase):
 
     @given(st.builds(dict), st.text(), st.booleans())
     @settings(max_examples=5)
-    def test_fuzz_rna_fold(self, scaffolds: Dict[Any, Any], device: str, do_ring_closure: bool):
+    def test_fuzz_rna_fold(
+        self, scaffolds: Dict[Any, Any], device: str, do_ring_closure: bool
+    ):
         """
         Fuzzy test for rna_fold ensuring it doesn't crash with arbitrary scaffolds.
         This doesn't guarantee correct shape if scaffolds are malformed,
@@ -155,7 +169,9 @@ class TestPlaceRnaBases(unittest.TestCase):
 
     def setUp(self):
         self.seq = "ACG"
-        self.scaffolds = build_scaffolds_rna_from_torsions(self.seq, torch.zeros((3, 7)))
+        self.scaffolds = build_scaffolds_rna_from_torsions(
+            self.seq, torch.zeros((3, 7))
+        )
         self.backbone_coords = rna_fold(self.scaffolds)
         self.angles_mask = self.scaffolds["angles_mask"]
 
@@ -167,17 +183,23 @@ class TestPlaceRnaBases(unittest.TestCase):
         # compute_max_rna_atoms() => up to 21 for G
         self.assertEqual(coords.shape[1], compute_max_rna_atoms())
 
-    @given(st.builds(torch.zeros, st.tuples(st.integers(min_value=0, max_value=5),
-                                           st.just(3)).map(lambda x: x)),
-           st.text(alphabet="ACGU", min_size=0, max_size=5),
-           st.builds(torch.zeros, st.tuples(st.just(2),
-                                           st.integers(min_value=0, max_value=5),
-                                           st.just(10))))
+    @given(
+        st.builds(
+            torch.zeros,
+            st.tuples(st.integers(min_value=0, max_value=5), st.just(3)).map(
+                lambda x: x
+            ),
+        ),
+        st.text(alphabet="ACGU", min_size=0, max_size=5),
+        st.builds(
+            torch.zeros,
+            st.tuples(st.just(2), st.integers(min_value=0, max_value=5), st.just(10)),
+        ),
+    )
     @settings(max_examples=5)
-    def test_fuzz_place_rna_bases(self,
-                                  backbone_coords: torch.Tensor,
-                                  seq: str,
-                                  angles_mask: torch.Tensor):
+    def test_fuzz_place_rna_bases(
+        self, backbone_coords: torch.Tensor, seq: str, angles_mask: torch.Tensor
+    ):
         """
         Fuzzy test that place_rna_bases doesn't crash for random small shapes.
         """
@@ -203,10 +225,11 @@ class TestSkipMissingAtoms(unittest.TestCase):
             "cloud_mask": torch.ones((2, 10), dtype=torch.bool),
         }
         new_scaff = skip_missing_atoms(seq, scaffolds)
-        self.assertIs(new_scaff, scaffolds, "Currently returns the same reference object.")
+        self.assertIs(
+            new_scaff, scaffolds, "Currently returns the same reference object."
+        )
 
-    @given(st.text(alphabet="ACGU", min_size=0, max_size=5),
-           st.builds(dict))
+    @given(st.text(alphabet="ACGU", min_size=0, max_size=5), st.builds(dict))
     @settings(max_examples=5)
     def test_fuzz_skip_missing_atoms(self, seq: str, scaffolds: Dict[str, Any]):
         """
@@ -235,8 +258,7 @@ class TestHandleMods(unittest.TestCase):
         new_scaff = handle_mods(seq, scaffolds)
         self.assertIs(new_scaff, scaffolds)
 
-    @given(st.text(alphabet="ACGU", min_size=0, max_size=5),
-           st.builds(dict))
+    @given(st.text(alphabet="ACGU", min_size=0, max_size=5), st.builds(dict))
     @settings(max_examples=5)
     def test_fuzz_handle_mods(self, seq: str, scaffolds: Dict[str, Any]):
         """
@@ -258,9 +280,12 @@ class TestValidateRnaGeometry(unittest.TestCase):
         coords = torch.zeros((2, 10, 3))
         validate_rna_geometry(coords)
 
-    @given(st.builds(torch.zeros, st.tuples(st.integers(min_value=0, max_value=5),
-                                           st.just(10),
-                                           st.just(3))))
+    @given(
+        st.builds(
+            torch.zeros,
+            st.tuples(st.integers(min_value=0, max_value=5), st.just(10), st.just(3)),
+        )
+    )
     @settings(max_examples=5)
     def test_fuzz_validate_rna_geometry(self, coords: torch.Tensor):
         """
@@ -280,10 +305,17 @@ class TestMiniRefinement(unittest.TestCase):
         refined = mini_refinement(coords, method="none")
         self.assertTrue(torch.equal(coords, refined), "Should return the same tensor.")
 
-    @given(st.builds(torch.randn, st.tuples(st.integers(min_value=0, max_value=3),
-                                            st.integers(min_value=0, max_value=5),
-                                            st.just(3))),
-           st.sampled_from(["none", "some_method", "other"]))
+    @given(
+        st.builds(
+            torch.randn,
+            st.tuples(
+                st.integers(min_value=0, max_value=3),
+                st.integers(min_value=0, max_value=5),
+                st.just(3),
+            ),
+        ),
+        st.sampled_from(["none", "some_method", "other"]),
+    )
     @settings(max_examples=5)
     def test_fuzz_mini_refinement(self, coords: torch.Tensor, method: str):
         """
@@ -305,9 +337,16 @@ class TestRingClosureRefinement(unittest.TestCase):
         new_coords = ring_closure_refinement(coords)
         self.assertTrue(torch.equal(coords, new_coords))
 
-    @given(st.builds(torch.randn, st.tuples(st.integers(min_value=0, max_value=5),
-                                            st.integers(min_value=0, max_value=10),
-                                            st.just(3))))
+    @given(
+        st.builds(
+            torch.randn,
+            st.tuples(
+                st.integers(min_value=0, max_value=5),
+                st.integers(min_value=0, max_value=10),
+                st.just(3),
+            ),
+        )
+    )
     @settings(max_examples=5)
     def test_fuzz_ring_closure_refinement(self, coords: torch.Tensor):
         """

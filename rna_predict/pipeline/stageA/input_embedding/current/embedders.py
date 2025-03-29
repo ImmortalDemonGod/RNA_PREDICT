@@ -49,7 +49,7 @@ class InputFeatureEmbedder(nn.Module):
         c_token: int = 384,
         restype_dim: int = 32,
         profile_dim: int = 32,
-        c_pair: int = 16,     # Overlaps with c_atompair or can remain separate
+        c_pair: int = 16,  # Overlaps with c_atompair or can remain separate
         num_heads: int = 4,
         num_layers: int = 3,
         use_optimized: bool = False,
@@ -147,7 +147,7 @@ class InputFeatureEmbedder(nn.Module):
             val = input_feature_dict[name].reshape(*batch_shape, dim_size)
             extras_list.append(val)
         token_extras = torch.cat(extras_list, dim=-1)  # => [..., N_token, sum_of_dims]
-        extras_emb = self.extras_linear(token_extras)   # => [..., N_token, c_token]
+        extras_emb = self.extras_linear(token_extras)  # => [..., N_token, c_token]
 
         # 3) Merge atom output with these extra features
         #    Summation is a simple choice that yields a final [N_token, c_token].

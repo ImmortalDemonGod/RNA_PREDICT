@@ -63,14 +63,14 @@ def create_embedder(
     device = resolve_device(device)
 
     embedder = InputFeatureEmbedder(
-        c_token      = c_token,
-        restype_dim  = restype_dim,
-        profile_dim  = profile_dim,
-        c_atom       = c_atom,
-        c_pair       = c_pair,
-        num_heads    = num_heads,
-        num_layers   = num_layers,
-        use_optimized= use_optimized,
+        c_token=c_token,
+        restype_dim=restype_dim,
+        profile_dim=profile_dim,
+        c_atom=c_atom,
+        c_pair=c_pair,
+        num_heads=num_heads,
+        num_layers=num_layers,
+        use_optimized=use_optimized,
     )
     # Place on CPU/CUDA
     embedder.to(device)
@@ -120,8 +120,10 @@ def warmup_inference(
             if device == "cuda":
                 torch.cuda.synchronize(device)
 
+
 # Alias for compatibility
 warmup_decoding = warmup_inference
+
 
 def measure_inference_time_and_memory(
     embedder: nn.Module,
@@ -153,6 +155,7 @@ def measure_inference_time_and_memory(
                 print(f"   Iter peak GPU memory usage: {peak_mem_mb:.2f} MB")
 
     return fwd_time / num_iters
+
 
 def benchmark_decoding_latency_and_memory(
     N_atom_list=[128, 256, 512],
@@ -290,6 +293,7 @@ def time_input_embedding(
 
     return fwd_time / num_iters, bwd_time / num_iters
 
+
 def benchmark_input_embedding(
     N_atom_list=[128, 256, 512],
     N_token_list=[32, 64, 128],
@@ -329,7 +333,9 @@ def benchmark_input_embedding(
 
     for N_atom in config.N_atom_list:
         for N_token in config.N_token_list:
-            print(f"\n=== Benchmarking N_atom={N_atom}, N_token={N_token}, optimized={config.use_optimized} ===")
+            print(
+                f"\n=== Benchmarking N_atom={N_atom}, N_token={N_token}, optimized={config.use_optimized} ==="
+            )
 
             # Generate synthetic features
             f = generate_synthetic_features(N_atom, N_token, actual_device)
@@ -347,9 +353,12 @@ def benchmark_input_embedding(
                 embedder, f, block_index, actual_device, config.num_iters, criterion
             )
             print(f"Avg Forward: {avg_fwd:.4f}s,  Avg Backward: {avg_bwd:.4f}s")
+
+
 # Additional aliases for test_benchmark usage:
 warmup_embedding = warmup_input_embedding
 timed_embedding = time_input_embedding
+
 
 def timed_decoding(
     embedder: nn.Module,
@@ -362,6 +371,7 @@ def timed_decoding(
     Measure decoding time by calling measure_inference_time_and_memory.
     """
     return measure_inference_time_and_memory(embedder, f, block_index, device, iters)
+
 
 if __name__ == "__main__":
     # Example usage: compare naive vs. optimized side by side

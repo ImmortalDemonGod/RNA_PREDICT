@@ -1,5 +1,12 @@
 import torch
-from rna_predict.pipeline.stageC.mp_nerf.ml_utils import scn_atom_embedd, chain2atoms, rename_symmetric_atoms, torsion_angle_loss, fape_torch
+
+from rna_predict.pipeline.stageC.mp_nerf.ml_utils import (
+    chain2atoms,
+    fape_torch,
+    rename_symmetric_atoms,
+    scn_atom_embedd,
+    torsion_angle_loss,
+)
 from rna_predict.pipeline.stageC.mp_nerf.proteins import scn_cloud_mask
 
 

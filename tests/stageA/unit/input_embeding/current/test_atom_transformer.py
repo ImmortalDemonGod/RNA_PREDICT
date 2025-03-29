@@ -1,4 +1,3 @@
-import pytest
 import torch
 
 """
@@ -7,12 +6,15 @@ rna_predict.pipeline.stageA.input_embedding.current.transformer
 All legacy and block-specific tests have been removed.
 """
 
+
 def test_atom_transformer_full_stack():
     """
     Test the full AtomTransformer with multiple blocks (using the current code).
     Also checks 3D fallback vs. 5D trunk usage.
     """
-    from rna_predict.pipeline.stageA.input_embedding.current.transformer import AtomTransformer
+    from rna_predict.pipeline.stageA.input_embedding.current.transformer import (
+        AtomTransformer,
+    )
 
     torch.manual_seed(43)
     c_atom = 32
@@ -28,10 +30,7 @@ def test_atom_transformer_full_stack():
     p_3d = torch.randn(n_atom, n_atom, c_pair)
 
     model_3d = AtomTransformer(
-        c_atom=c_atom,
-        c_atompair=c_pair,
-        n_blocks=n_blocks_3d,
-        n_heads=num_heads
+        c_atom=c_atom, c_atompair=c_pair, n_blocks=n_blocks_3d, n_heads=num_heads
     )
     out_3d = model_3d(x, c, p_3d)
     assert out_3d.shape == (n_atom, c_atom), f"3D fallback => got {out_3d.shape}"
@@ -52,7 +51,7 @@ def test_atom_transformer_full_stack():
         n_blocks=n_blocks_5d,
         n_heads=num_heads,
         n_queries=n_queries_5d,
-        n_keys=n_keys_5d
+        n_keys=n_keys_5d,
     )
     out_5d = model_5d(x5, c5, p_5d)
     # Should produce shape [1, n_atom, c_atom]
@@ -68,7 +67,10 @@ class TestAtomTransformer:
         self.c_atom = 64
         self.num_heads = 4
         self.n_blocks = 3
-        from rna_predict.pipeline.stageA.input_embedding.current.transformer import AtomTransformer
+        from rna_predict.pipeline.stageA.input_embedding.current.transformer import (
+            AtomTransformer,
+        )
+
         self.AtomTransformerClass = AtomTransformer
         # Common test data
         self.n_atoms = 5
@@ -82,7 +84,7 @@ class TestAtomTransformer:
             c_atom=self.c_atom,
             c_atompair=self.c_pair,
             n_blocks=self.n_blocks,
-            n_heads=self.num_heads
+            n_heads=self.num_heads,
         )
         out = model(self.x, self.c_embed, self.pair_emb)
         assert out.shape == (self.n_atoms, self.c_atom)
@@ -99,10 +101,13 @@ class TestAtomTransformer:
                 c_atom=self.c_atom,
                 c_atompair=self.c_pair,
                 n_blocks=self.n_blocks,
-                n_heads=self.num_heads
+                n_heads=self.num_heads,
             )
             out = model(x, x, pair_emb)
-            assert out.shape == (n_atoms, self.c_atom), f"Expected shape ({n_atoms}, {self.c_atom})."
+            assert out.shape == (
+                n_atoms,
+                self.c_atom,
+            ), f"Expected shape ({n_atoms}, {self.c_atom})."
 
     def test_transformer_round_trip(self):
         """
@@ -112,7 +117,7 @@ class TestAtomTransformer:
             c_atom=self.c_atom,
             c_atompair=self.c_pair,
             n_blocks=self.n_blocks,
-            n_heads=self.num_heads
+            n_heads=self.num_heads,
         )
         out1 = model(self.x, self.c_embed, self.pair_emb)
         out2 = model(out1, out1, self.pair_emb)

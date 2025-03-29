@@ -1,5 +1,5 @@
-import pytest
 import torch
+
 
 def stageA_mock():
     # Fake stage A output
@@ -7,6 +7,7 @@ def stageA_mock():
         "restype_embedding": torch.randn(1, 10, 32),
         "profile_embedding": torch.randn(1, 10, 32),
     }
+
 
 def stageB_mock(stageA_out):
     # Convert to trunk embeddings
@@ -16,10 +17,12 @@ def stageB_mock(stageA_out):
         "pair": torch.randn(1, 10, 10, 32),
     }
 
+
 def stageC_mock(stageB_out):
     # Make partial coords
     coords = torch.randn(1, 10, 3)
     return coords
+
 
 # @pytest.mark.integration
 def test_end_to_end_stageA_to_D():

@@ -12,16 +12,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import math
 from typing import Optional, Union
 
+import numpy as np
 import snoop
 import torch
 import torch.nn as nn
-import numpy as np
-from scipy.spatial.transform import Rotation
-
 from protenix.utils.scatter_utils import scatter
+from scipy.spatial.transform import Rotation
 
 
 def centre_random_augmentation(
@@ -304,7 +302,9 @@ def sample_indices(
         torch.Tensor: the sampled indices k
     """
     assert strategy in ["random", "topk"]
-    sample_size = torch.randint(low=min(lower_bound, n), high=n + 1, size=(1,), device=device).item()
+    sample_size = torch.randint(
+        low=min(lower_bound, n), high=n + 1, size=(1,), device=device
+    ).item()
     if strategy == "random":
         indices = torch.randperm(n=n, device=device)[:sample_size]
     if strategy == "topk":

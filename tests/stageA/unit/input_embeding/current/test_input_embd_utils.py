@@ -8,29 +8,29 @@ This module contains an extensive suite of unittests for the `utils.py` module.
 It integrates lessons learned from multiple versions:
 
 1. **Organization by Function**:
-   Each tested function in `utils.py` has its own test class, so you can quickly 
+   Each tested function in `utils.py` has its own test class, so you can quickly
    locate all relevant tests.
 
 2. **Shared Fixture**:
-   A `BaseUtilsTest` class sets up commonly used tensors, dictionaries, and masks 
+   A `BaseUtilsTest` class sets up commonly used tensors, dictionaries, and masks
    to avoid duplication in test code.
 
 3. **Mocking External Calls**:
-   We mock `scipy.spatial.transform.Rotation.random` in `TestUniformRandomRotation` 
+   We mock `scipy.spatial.transform.Rotation.random` in `TestUniformRandomRotation`
    to ensure we can isolate its behavior and verify the usage in `uniform_random_rotation`.
 
 4. **Hypothesis-Based Testing**:
-   Critical numeric functions (e.g., `centre_random_augmentation`, `rot_vec_mul`) 
+   Critical numeric functions (e.g., `centre_random_augmentation`, `rot_vec_mul`)
    are tested with Hypothesis. We generate random shapes, random numeric ranges, etc.
    This approach helps us uncover edge cases that typical "fixed-value" tests might miss.
 
 5. **Detailed Docstrings**:
-   Each test class and method includes docstrings describing the purpose and 
-   methodology, making it suitable for maintainers who want to understand the 
+   Each test class and method includes docstrings describing the purpose and
+   methodology, making it suitable for maintainers who want to understand the
    rationale behind each test.
 
 6. **Running and Coverage**:
-   Use `python -m unittest test_utils.py` to run all tests. For coverage, install 
+   Use `python -m unittest test_utils.py` to run all tests. For coverage, install
    `coverage` (e.g., `pip install coverage`) and then:
      coverage run -m unittest test_utils.py
      coverage report -m
@@ -38,26 +38,30 @@ It integrates lessons learned from multiple versions:
    This should provide a coverage metric indicating how much of `utils.py` is exercised.
 
 7. **Extendability**:
-   Add new test methods (or entire classes) as `utils.py` grows. If a new function 
+   Add new test methods (or entire classes) as `utils.py` grows. If a new function
    is introduced, create a `TestNewFunctionName` class and follow the same pattern.
 
-Enjoy the fully integrated test suite that aims for a thorough and robust 
+Enjoy the fully integrated test suite that aims for a thorough and robust
 verification of the `utils.py` functionalities.
 
 ===============================================================================
 """
+
 import unittest
 from unittest.mock import patch
+
 import numpy as np
 import torch
-import torch.nn as nn
 
 # Hypothesis & related imports
-from hypothesis import given, strategies as st, example
-from hypothesis.strategies import integers
+from hypothesis import example, given
+from hypothesis import strategies as st
 from hypothesis.extra.numpy import arrays
+from hypothesis.strategies import integers
+
 # Import from the actual path
 from rna_predict.pipeline.stageA.input_embedding.current import utils
+
 # import utils  # If you used local module directly
 
 # Hypothesis strategy for generating float32 values
@@ -68,9 +72,8 @@ float32_floats = st.floats(
     allow_nan=False,
     allow_infinity=False,
     allow_subnormal=False,
-    width=32
+    width=32,
 )
-
 
 
 class BaseUtilsTest(unittest.TestCase):
@@ -78,6 +81,7 @@ class BaseUtilsTest(unittest.TestCase):
     Base class providing shared setup data (e.g., small coordinate tensors, masks).
     Inheritors can reference self.coords, self.mask, etc. for convenience.
     """
+
     def setUp(self):
         """
         Common fixture creation. Called before each test method:
@@ -89,9 +93,7 @@ class BaseUtilsTest(unittest.TestCase):
           - self.msa_feat_dict / self.dim_dict: For sampling MSA features.
         """
         self.coords = torch.tensor(
-            [[1.0, 2.0, 3.0],
-             [4.0, 5.0, 6.0],
-             [7.0, 8.0, 9.0]], dtype=torch.float
+            [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]], dtype=torch.float
         )
         self.mask = torch.tensor([1, 0, 1], dtype=torch.float)
 
@@ -144,18 +146,22 @@ class TestCentreRandomAugmentation(BaseUtilsTest):
         """
         Check that masking excludes certain atoms from the center calculation.
         """
-        out = utils.centre_random_augmentation(self.coords, centre_only=True, mask=self.mask)
+        out = utils.centre_random_augmentation(
+            self.coords, centre_only=True, mask=self.mask
+        )
         # Expect (1,3,3)
         self.assertEqual(out.shape, (1, 3, 3))
 
         # Only atoms [0] and [2] used => average is (4,5,6).
-        expected = torch.tensor([[-3., -3., -3.],
-                                 [ 0.,  0.,  0.],
-                                 [ 3.,  3.,  3.]])
+        expected = torch.tensor([[-3.0, -3.0, -3.0], [0.0, 0.0, 0.0], [3.0, 3.0, 3.0]])
         self.assertTrue(torch.allclose(out[0], expected, atol=1e-5))
 
     @given(coords=arrays(dtype=np.float32, shape=(5, 3), elements=float32_floats))
-    @example(coords=np.array([[0,0,0],[1,1,1],[5,5,5],[5,5,5],[2,2,2]], dtype=np.float32))
+    @example(
+        coords=np.array(
+            [[0, 0, 0], [1, 1, 1], [5, 5, 5], [5, 5, 5], [2, 2, 2]], dtype=np.float32
+        )
+    )
     def test_random_augmentation_hypothesis(self, coords):
         """
         Fuzz test using Hypothesis. We create random Nx3 coords,
@@ -163,7 +169,9 @@ class TestCentreRandomAugmentation(BaseUtilsTest):
         """
         tensor_coords = torch.from_numpy(coords)
         # e.g. N_sample=2 => shape => [2, N, 3]
-        out = utils.centre_random_augmentation(tensor_coords, N_sample=2, centre_only=False)
+        out = utils.centre_random_augmentation(
+            tensor_coords, N_sample=2, centre_only=False
+        )
         self.assertEqual(out.shape, (2, coords.shape[0], 3))
 
 
@@ -198,18 +206,20 @@ class TestUniformRandomRotation(BaseUtilsTest):
     @patch("rna_predict.pipeline.stageA.input_embedding.current.utils.Rotation.random")
     def test_mock_rotation_call(self, mock_rotation):
         """
-        Mock the underlying call to Rotation.random(num=N_sample) to test 
+        Mock the underlying call to Rotation.random(num=N_sample) to test
         that we pass correct args and properly handle the result.
         """
+
         class FakeRotation:
             def as_matrix(self):
-                return np.array([[[1.,0.,0.],
-                                  [0.,1.,0.],
-                                  [0.,0.,1.]]], dtype=np.float32)
+                return np.array(
+                    [[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]],
+                    dtype=np.float32,
+                )
 
         mock_rotation.return_value = FakeRotation()
         out = utils.uniform_random_rotation(N_sample=1)
-        self.assertEqual(out.shape, (1,3,3))
+        self.assertEqual(out.shape, (1, 3, 3))
         self.assertTrue(torch.allclose(out[0], torch.eye(3), atol=1e-5))
         mock_rotation.assert_called_once_with(num=1)
 
@@ -232,12 +242,12 @@ class TestRotVecMul(BaseUtilsTest):
         """
         Rotate (1,0,0) by 90 deg around z => (0,1,0).
         """
-        rot_z_90 = torch.tensor([[0, -1, 0],
-                                 [1,  0, 0],
-                                 [0,  0, 1]], dtype=torch.float).unsqueeze(0)
-        point = torch.tensor([[1.,0.,0.]])
+        rot_z_90 = torch.tensor(
+            [[0, -1, 0], [1, 0, 0], [0, 0, 1]], dtype=torch.float
+        ).unsqueeze(0)
+        point = torch.tensor([[1.0, 0.0, 0.0]])
         out = utils.rot_vec_mul(rot_z_90, point)
-        expected = torch.tensor([[0.,1.,0.]])
+        expected = torch.tensor([[0.0, 1.0, 0.0]])
         self.assertTrue(torch.allclose(out, expected, atol=1e-5))
 
     @given(batch=integers(min_value=1, max_value=5))
@@ -245,8 +255,8 @@ class TestRotVecMul(BaseUtilsTest):
         """
         Random shapes: (batch,3,3) rotation, (batch,3) coords => output => (batch,3).
         """
-        r = torch.randn(batch,3,3)
-        t = torch.randn(batch,3)
+        r = torch.randn(batch, 3, 3)
+        t = torch.randn(batch, 3)
         out = utils.rot_vec_mul(r, t)
         self.assertEqual(out.shape, (batch, 3))
 
@@ -261,16 +271,16 @@ class TestPermuteFinalDims(BaseUtilsTest):
         """
         For shape [2,3,4], swapping last dims => [2,4,3].
         """
-        x = torch.randn(2,3,4)
-        out = utils.permute_final_dims(x, [1,0])
-        self.assertEqual(out.shape, (2,4,3))
+        x = torch.randn(2, 3, 4)
+        out = utils.permute_final_dims(x, [1, 0])
+        self.assertEqual(out.shape, (2, 4, 3))
 
     def test_noop_permutation(self):
         """
         If we permute final dims [0,1], it does nothing to shape [2,3,4].
         """
-        x = torch.randn(2,3,4)
-        out = utils.permute_final_dims(x, [0,1])
+        x = torch.randn(2, 3, 4)
+        out = utils.permute_final_dims(x, [0, 1])
         self.assertTrue(torch.allclose(x, out))
 
 
@@ -284,7 +294,7 @@ class TestFlattenFinalDims(BaseUtilsTest):
         """
         [2,3,4] => flatten final 2 => shape => [2, 12].
         """
-        x = torch.randn(2,3,4)
+        x = torch.randn(2, 3, 4)
         out = utils.flatten_final_dims(x, 2)
         self.assertEqual(out.shape, (2, 12))
 
@@ -292,7 +302,7 @@ class TestFlattenFinalDims(BaseUtilsTest):
         """
         Flattening the last single dimension is effectively a no-op in shape.
         """
-        x = torch.randn(2,3)
+        x = torch.randn(2, 3)
         out = utils.flatten_final_dims(x, 1)
         self.assertTrue(torch.allclose(x, out))
 
@@ -307,12 +317,9 @@ class TestOneHot(BaseUtilsTest):
         """
         If x => [-2,0,4,6], bins => [-1,3],[1,5], check correctness.
         """
-        x = torch.tensor([-2., 0., 4., 6.], dtype=torch.float)
+        x = torch.tensor([-2.0, 0.0, 4.0, 6.0], dtype=torch.float)
         out = utils.one_hot(x, self.lower_bins, self.upper_bins)
-        expected = torch.tensor([[0.,0.],
-                                 [1.,0.],
-                                 [0.,1.],
-                                 [0.,0.]])
+        expected = torch.tensor([[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [0.0, 0.0]])
         self.assertTrue(torch.allclose(out, expected))
 
 
@@ -326,42 +333,42 @@ class TestBatchedGather(BaseUtilsTest):
         """
         Gather from 1D data => dim=0 => standard usage.
         """
-        data = torch.tensor([10,20,30,40], dtype=torch.float)
-        inds = torch.tensor([1,3], dtype=torch.long)
+        data = torch.tensor([10, 20, 30, 40], dtype=torch.float)
+        inds = torch.tensor([1, 3], dtype=torch.long)
         out = utils.batched_gather(data, inds, dim=0, no_batch_dims=0)
-        self.assertTrue(torch.allclose(out, torch.tensor([20.,40.])))
+        self.assertTrue(torch.allclose(out, torch.tensor([20.0, 40.0])))
 
     def test_2d_batched(self):
         """
         If data is 2D => shape [B,K], and inds is [B,N], gather from dim=1.
         """
-        data = torch.tensor([[1,2,3],[4,5,6]], dtype=torch.float)
-        inds = torch.tensor([[0,2],[1,0]])
+        data = torch.tensor([[1, 2, 3], [4, 5, 6]], dtype=torch.float)
+        inds = torch.tensor([[0, 2], [1, 0]])
         out = utils.batched_gather(data, inds, dim=1, no_batch_dims=1)
         # row0 => gather [0,2] => [1,3]; row1 => gather [1,0] => [5,4]
-        expected = torch.tensor([[1,3],[5,4]], dtype=torch.float)
+        expected = torch.tensor([[1, 3], [5, 4]], dtype=torch.float)
         self.assertTrue(torch.allclose(out, expected))
 
 
 class TestBroadcastTokenToAtom(BaseUtilsTest):
     """
     Tests for `broadcast_token_to_atom`.
-    This expands token-level embeddings to per-atom embeddings 
+    This expands token-level embeddings to per-atom embeddings
     according to a mapping tensor.
     """
 
     def test_basic_broadcast(self):
         """
-        If each atom i => token i, expect the broadcast to replicate x_token's rows 
+        If each atom i => token i, expect the broadcast to replicate x_token's rows
         in the corresponding atom positions.
         """
         out = utils.broadcast_token_to_atom(self.x_token, self.atom_to_token_idx)
-        self.assertEqual(out.shape, (1,3,2))
+        self.assertEqual(out.shape, (1, 3, 2))
         self.assertTrue(torch.allclose(out, self.x_token))
 
     def test_round_trip(self):
         """
-        Round-trip check: broadcast => aggregate => x_token 
+        Round-trip check: broadcast => aggregate => x_token
         (when each atom is uniquely mapped).
         """
         x_atom = utils.broadcast_token_to_atom(self.x_token, self.atom_to_token_idx)
@@ -374,7 +381,7 @@ class TestBroadcastTokenToAtom(BaseUtilsTest):
 class TestAggregateAtomToToken(BaseUtilsTest):
     """
     Tests for `aggregate_atom_to_token`.
-    This aggregates per-atom embeddings back into per-token embeddings 
+    This aggregates per-atom embeddings back into per-token embeddings
     via sum/mean or other strategies.
     """
 
@@ -385,7 +392,7 @@ class TestAggregateAtomToToken(BaseUtilsTest):
         out = utils.aggregate_atom_to_token(
             self.coords.unsqueeze(0), self.atom_to_token_idx, n_token=3, reduce="mean"
         )
-        self.assertEqual(out.shape, (1,3,3))
+        self.assertEqual(out.shape, (1, 3, 3))
         self.assertTrue(torch.allclose(out[0], self.coords))
 
     def test_sum_aggregation(self):
@@ -397,10 +404,10 @@ class TestAggregateAtomToToken(BaseUtilsTest):
             self.coords.unsqueeze(0), all_zeros, n_token=3, reduce="sum"
         )
         # sum => (1+4+7, 2+5+8, 3+6+9) => (12,15,18)
-        exp = torch.tensor([12.,15.,18.], dtype=torch.float)
-        self.assertTrue(torch.allclose(out[0,0], exp, atol=1e-5))
-        self.assertTrue(torch.allclose(out[0,1], torch.zeros(3)))
-        self.assertTrue(torch.allclose(out[0,2], torch.zeros(3)))
+        exp = torch.tensor([12.0, 15.0, 18.0], dtype=torch.float)
+        self.assertTrue(torch.allclose(out[0, 0], exp, atol=1e-5))
+        self.assertTrue(torch.allclose(out[0, 1], torch.zeros(3)))
+        self.assertTrue(torch.allclose(out[0, 2], torch.zeros(3)))
 
 
 class TestSampleIndices(BaseUtilsTest):
@@ -442,11 +449,15 @@ class TestSampleMsaFeatureDictRandomWithoutReplacement(BaseUtilsTest):
 
     def test_basic_usage(self):
         """
-        With cutoff=3, check shapes do not exceed 3 in dimension 0 
+        With cutoff=3, check shapes do not exceed 3 in dimension 0
         and remain consistent in feature dims.
         """
         out = utils.sample_msa_feature_dict_random_without_replacement(
-            self.msa_feat_dict, self.dim_dict, cutoff=3, lower_bound=1, strategy="random"
+            self.msa_feat_dict,
+            self.dim_dict,
+            cutoff=3,
+            lower_bound=1,
+            strategy="random",
         )
         self.assertIn("msa", out)
         self.assertIn("xyz", out)
@@ -466,9 +477,9 @@ class TestExpandAtDim(BaseUtilsTest):
         """
         [3] => expand at dim=0 by n=2 => shape => [2,3].
         """
-        x = torch.tensor([1.,2.,3.])
+        x = torch.tensor([1.0, 2.0, 3.0])
         out = utils.expand_at_dim(x, dim=0, n=2)
-        self.assertEqual(out.shape, (2,3))
+        self.assertEqual(out.shape, (2, 3))
         self.assertTrue(torch.allclose(out[0], x))
         self.assertTrue(torch.allclose(out[1], x))
 
@@ -483,9 +494,9 @@ class TestPadAtDim(BaseUtilsTest):
         """
         [3] => pad (1 left, 2 right) => total length => 6.
         """
-        x = torch.tensor([10.,20.,30.])
-        out = utils.pad_at_dim(x, dim=0, pad_length=(1,2), value=-1)
-        exp = torch.tensor([-1.,10.,20.,30.,-1.,-1.])
+        x = torch.tensor([10.0, 20.0, 30.0])
+        out = utils.pad_at_dim(x, dim=0, pad_length=(1, 2), value=-1)
+        exp = torch.tensor([-1.0, 10.0, 20.0, 30.0, -1.0, -1.0])
         self.assertTrue(torch.allclose(out, exp))
 
 
@@ -499,9 +510,9 @@ class TestReshapeAtDim(BaseUtilsTest):
         """
         [2,3,4,5] => reshape dimension -2 => new shape => [12], => [2, 12, 5].
         """
-        x = torch.randn(2,3,4,5)
+        x = torch.randn(2, 3, 4, 5)
         out = utils.reshape_at_dim(x, dim=-2, target_shape=[12])
-        self.assertEqual(out.shape, (2,12,5))
+        self.assertEqual(out.shape, (2, 12, 5))
 
 
 class TestMoveFinalDimToDim(BaseUtilsTest):
@@ -514,9 +525,9 @@ class TestMoveFinalDimToDim(BaseUtilsTest):
         """
         [2,3,4], move final dim => dim=1 => shape => [2,4,3].
         """
-        x = torch.randn(2,3,4)
+        x = torch.randn(2, 3, 4)
         out = utils.move_final_dim_to_dim(x, dim=1)
-        self.assertEqual(out.shape, (2,4,3))
+        self.assertEqual(out.shape, (2, 4, 3))
 
 
 class TestSimpleMergeDictList(BaseUtilsTest):

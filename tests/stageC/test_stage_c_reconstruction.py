@@ -8,36 +8,36 @@ entrypoint (including the mp_nerf branch).
 
 Features & Highlights
 ---------------------
-1. **Logical Grouping**  
+1. **Logical Grouping**
    - Separate test classes for:
        • StageCReconstruction (fallback).
        • run_stageC_rna_mpnerf (direct call).
        • run_stageC dispatcher (mp_nerf vs. fallback).
 
-2. **SetUp and Fixtures**  
+2. **SetUp and Fixtures**
    - Common data is set up once in each test class (unittest’s setUp).
    - Repeated usage of default torsion angles, sequences, etc.
 
-3. **Docstrings and Readability**  
+3. **Docstrings and Readability**
    - Each test class and test method has docstrings explaining its coverage goals
      and clarifying the tested functionality or code paths.
 
-4. **Hypothesis Property-Based Testing**  
+4. **Hypothesis Property-Based Testing**
    - Tests use Hypothesis to generate diverse inputs (sequence strings, torsion angles)
      with constraints, discovering edge cases automatically.
    - Minimally configured @settings to keep runtime moderate; can be tuned for more thoroughness.
 
-5. **Mocking of External mp_nerf Dependencies**  
+5. **Mocking of External mp_nerf Dependencies**
    - Tests that rely on mp_nerf patch the internal calls (build_scaffolds_rna_from_torsions, skip_missing_atoms, etc.).
    - This isolates the code under test from external complexities and ensures stable, deterministic test behavior.
 
-6. **Error Handling & Edge Cases**  
+6. **Error Handling & Edge Cases**
    - Tests for invalid torsion angles (None).
    - Edge-case: empty sequences and zero-length torsion arrays.
    - Confirm that non-"mp_nerf" methods fall back gracefully to StageCReconstruction
      without raising errors.
 
-7. **Additional Coverage**  
+7. **Additional Coverage**
    - Demonstrates round-trip style checks (e.g., “test_hypothesis_mpnerf_no_mock”)
      verifying that the code can handle repeated or random sequences.
    - Handles minimal device checks and partial ring closure checks.
@@ -59,18 +59,17 @@ Dependencies
 
 """
 
-import unittest
-from unittest.mock import patch, MagicMock
-
-import torch
-from torch import Tensor
-
-from hypothesis import given, strategies as st, settings, example, assume
-
 # For demonstration, we assume the module is in the same directory or in path:
 # from rna_predict.pipeline.stageC import stage_c_reconstruction as scr
 # Adjust imports if needed to reflect your actual project structure.
 import sys
+import unittest
+from unittest.mock import MagicMock, patch
+
+import torch
+from hypothesis import given, settings
+from hypothesis import strategies as st
+
 sys.path.append(".")
 from rna_predict.pipeline.stageC import stage_c_reconstruction as scr
 
@@ -170,11 +169,13 @@ class TestRunStageCRnaMpnerf(unittest.TestCase):
         """
         return patch.multiple(
             "rna_predict.pipeline.stageC.mp_nerf.rna",
-            build_scaffolds_rna_from_torsions=MagicMock(return_value={"angles_mask": torch.ones((4,))}),
+            build_scaffolds_rna_from_torsions=MagicMock(
+                return_value={"angles_mask": torch.ones((4,))}
+            ),
             skip_missing_atoms=MagicMock(side_effect=lambda seq, scf: scf),
             handle_mods=MagicMock(side_effect=lambda seq, scf: scf),
             rna_fold=MagicMock(return_value=torch.ones((5, 3))),
-            place_rna_bases=MagicMock(return_value=torch.ones((2, 3)))
+            place_rna_bases=MagicMock(return_value=torch.ones((2, 3))),
         )
 
     def test_mpnerf_with_bases(self):
@@ -204,11 +205,13 @@ class TestRunStageCRnaMpnerf(unittest.TestCase):
         """
         with patch.multiple(
             "rna_predict.pipeline.stageC.mp_nerf.rna",
-            build_scaffolds_rna_from_torsions=MagicMock(return_value={"angles_mask": torch.ones((4,))}),
+            build_scaffolds_rna_from_torsions=MagicMock(
+                return_value={"angles_mask": torch.ones((4,))}
+            ),
             skip_missing_atoms=MagicMock(side_effect=lambda seq, scf: scf),
             handle_mods=MagicMock(side_effect=lambda seq, scf: scf),
             rna_fold=MagicMock(return_value=torch.ones((5, 3))),
-            place_rna_bases=MagicMock()  # We'll check that it's not called
+            place_rna_bases=MagicMock(),  # We'll check that it's not called
         ) as mocks:
             result = scr.run_stageC_rna_mpnerf(
                 sequence=self.sequence,
@@ -218,7 +221,9 @@ class TestRunStageCRnaMpnerf(unittest.TestCase):
                 place_bases=False,
                 sugar_pucker=self.default_sugar_pucker,
             )
-            self.assertFalse(mocks["place_rna_bases"].called, "place_rna_bases must not be called.")
+            self.assertFalse(
+                mocks["place_rna_bases"].called, "place_rna_bases must not be called."
+            )
         # shape from rna_fold => (5,3), so atom_count=15
         self.assertEqual(result["coords"].shape, (5, 3))
         self.assertEqual(result["atom_count"], 15)
@@ -288,7 +293,9 @@ class TestRunStageCIntegration(unittest.TestCase):
         If method='mp_nerf', run_stageC calls run_stageC_rna_mpnerf internally.
         We patch that function to confirm it was called with the correct arguments.
         """
-        with patch("rna_predict.pipeline.stageC.stage_c_reconstruction.run_stageC_rna_mpnerf") as mock_sub:
+        with patch(
+            "rna_predict.pipeline.stageC.stage_c_reconstruction.run_stageC_rna_mpnerf"
+        ) as mock_sub:
             mock_sub.return_value = {"coords": torch.ones((2, 3)), "atom_count": 6}
 
             result = scr.run_stageC(
@@ -330,9 +337,7 @@ class TestRunStageCIntegration(unittest.TestCase):
         place_bases=st.booleans(),
     )
     @settings(max_examples=10)
-    def test_run_stageC_hypothesis(
-        self, seq, method, do_ring_closure, place_bases
-    ):
+    def test_run_stageC_hypothesis(self, seq, method, do_ring_closure, place_bases):
         """
         Property-based fuzz test for run_stageC that covers both fallback and mp_nerf.
         We patch mp_nerf path calls if method == 'mp_nerf'.
@@ -340,7 +345,9 @@ class TestRunStageCIntegration(unittest.TestCase):
         torsion_tensor = torch.zeros((len(seq), 7), dtype=torch.float32)
 
         if method == "mp_nerf":
-            with patch("rna_predict.pipeline.stageC.stage_c_reconstruction.run_stageC_rna_mpnerf") as mock_sub:
+            with patch(
+                "rna_predict.pipeline.stageC.stage_c_reconstruction.run_stageC_rna_mpnerf"
+            ) as mock_sub:
                 dummy_return = {"coords": torch.ones((3, 3)), "atom_count": 9}
                 mock_sub.return_value = dummy_return
                 result = scr.run_stageC(
@@ -387,7 +394,9 @@ class TestRunStageCIntegration(unittest.TestCase):
         self.assertIn("atom_count", out1)
 
         # Then mp_nerf
-        with patch("rna_predict.pipeline.stageC.stage_c_reconstruction.run_stageC_rna_mpnerf") as mock_sub:
+        with patch(
+            "rna_predict.pipeline.stageC.stage_c_reconstruction.run_stageC_rna_mpnerf"
+        ) as mock_sub:
             # Suppose mp_nerf returns the same shape
             mock_sub.return_value = {"coords": torch.ones((2, 3)), "atom_count": 6}
             out2 = scr.run_stageC(

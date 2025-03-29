@@ -1,12 +1,16 @@
+from typing import Tuple
+
 import pytest
 import torch
-import math
-from typing import Tuple
-from hypothesis import given, settings, strategies as st
-from hypothesis import HealthCheck
+from hypothesis import HealthCheck, given, settings
+from hypothesis import strategies as st
 
 # Import the functions under test
-from rna_predict.utils.scatter_utils import layernorm, inverse_squared_dist, scatter_mean
+from rna_predict.utils.scatter_utils import (
+    inverse_squared_dist,
+    layernorm,
+    scatter_mean,
+)
 
 
 @pytest.mark.parametrize(
@@ -15,7 +19,7 @@ from rna_predict.utils.scatter_utils import layernorm, inverse_squared_dist, sca
         ((2, 3), 1e-5),
         ((10, 10), 1e-5),
         ((5, 1), 1e-6),
-    ]
+    ],
 )
 def test_layernorm_basic(shape: Tuple[int, int], eps: float) -> None:
     """
@@ -28,12 +32,16 @@ def test_layernorm_basic(shape: Tuple[int, int], eps: float) -> None:
     assert out.shape == x.shape, "Output shape must match input."
     # Check that we are near zero mean
     means = out.mean(dim=-1)
-    assert torch.allclose(means, torch.zeros_like(means), atol=1e-5), "layernorm should zero-center the mean."
+    assert torch.allclose(
+        means, torch.zeros_like(means), atol=1e-5
+    ), "layernorm should zero-center the mean."
 
     # Check variance is near 1
     var = out.var(dim=-1, unbiased=False)
     # Because of floating point noise, we allow a small tolerance from 1
-    assert torch.allclose(var, torch.ones_like(var), atol=1e-3), "layernorm should scale variance to 1."
+    assert torch.allclose(
+        var, torch.ones_like(var), atol=1e-3
+    ), "layernorm should scale variance to 1."
 
 
 def test_layernorm_one_dim() -> None:
@@ -62,13 +70,22 @@ def test_layernorm_error_handling() -> None:
 # inverse_squared_dist Tests
 # -----------------------------------------------------------------------------
 
+
 @pytest.mark.parametrize(
     "delta, eps, expected",
     [
-        (torch.zeros(1, 3), 1e-8, 1.0),   # zero vector => 1/(1+0^2+eps) ~ 1
-        (torch.tensor([[1.0, 0.0, 0.0]]), 1e-8, 1.0/(1+1+1e-8)),  # dist^2=1 => ~0.5
-        (torch.tensor([[3.0, 4.0, 12.0]]), 1e-8, 1.0/(1+9+16+144+1e-8)), # dist^2=169 => 1/170
-    ]
+        (torch.zeros(1, 3), 1e-8, 1.0),  # zero vector => 1/(1+0^2+eps) ~ 1
+        (
+            torch.tensor([[1.0, 0.0, 0.0]]),
+            1e-8,
+            1.0 / (1 + 1 + 1e-8),
+        ),  # dist^2=1 => ~0.5
+        (
+            torch.tensor([[3.0, 4.0, 12.0]]),
+            1e-8,
+            1.0 / (1 + 9 + 16 + 144 + 1e-8),
+        ),  # dist^2=169 => 1/170
+    ],
 )
 def test_inverse_squared_dist_explicit(
     delta: torch.Tensor, eps: float, expected: float
@@ -89,7 +106,11 @@ def test_inverse_squared_dist_batch_shapes() -> None:
     # shape: [B, 5, 3]
     delta = torch.randn(4, 5, 3)
     out = inverse_squared_dist(delta)
-    assert out.shape == (4, 5, 1), "Output shape must match input shape except last dimension is 1."
+    assert out.shape == (
+        4,
+        5,
+        1,
+    ), "Output shape must match input shape except last dimension is 1."
 
 
 def test_inverse_squared_dist_large():
@@ -97,16 +118,23 @@ def test_inverse_squared_dist_large():
     Test inverse_squared_dist with large vectors to ensure no overflow errors occur
     and that the result is very small.
     """
-    delta = torch.tensor([[1e6, 1e6, 1e6]], dtype=torch.float32)  # magnitude sqrt(3)*1e6
+    delta = torch.tensor(
+        [[1e6, 1e6, 1e6]], dtype=torch.float32
+    )  # magnitude sqrt(3)*1e6
     out = inverse_squared_dist(delta)
     # dist^2 ~ 3e12 => 1/(1+3e12+eps) -> about ~3.333e-13
     assert out.item() < 1e-12, "Expected an extremely small value for large distances."
 
 
 @given(
-    delta=st.lists(st.floats(-1e3, 1e3), min_size=3, max_size=3).map(lambda x: torch.tensor(x, dtype=torch.float32))
+    delta=st.lists(st.floats(-1e3, 1e3), min_size=3, max_size=3).map(
+        lambda x: torch.tensor(x, dtype=torch.float32)
+    )
 )
-@settings(suppress_health_check=[HealthCheck.filter_too_much, HealthCheck.too_slow], max_examples=20)
+@settings(
+    suppress_health_check=[HealthCheck.filter_too_much, HealthCheck.too_slow],
+    max_examples=20,
+)
 def test_inverse_squared_dist_hypothesis(delta: torch.Tensor) -> None:
     """
     Hypothesis test for random 3D vectors, verifying that the output is always in (0, 1].
@@ -116,12 +144,15 @@ def test_inverse_squared_dist_hypothesis(delta: torch.Tensor) -> None:
     out = inverse_squared_dist(delta, eps=1e-8)
     val = out.item()
     # We do not expect negative or zero results
-    assert 0 < val <= 1.0, "inverse_squared_dist must be within (0,1] for any real delta."
+    assert (
+        0 < val <= 1.0
+    ), "inverse_squared_dist must be within (0,1] for any real delta."
 
 
 # -----------------------------------------------------------------------------
 # scatter_mean Tests
 # -----------------------------------------------------------------------------
+
 
 def test_scatter_mean_basic() -> None:
     """
@@ -129,18 +160,18 @@ def test_scatter_mean_basic() -> None:
     src: 2D, with 4 rows, each row belongs to an index =>
     [ idx 0, idx 1, idx 1, idx 0 ] => 2 segments total => dimension=2
     """
-    src = torch.tensor([[1.0, 2.0],
-                        [3.0, 4.0],
-                        [5.0, 6.0],
-                        [7.0, 8.0]], dtype=torch.float32)
+    src = torch.tensor(
+        [[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]], dtype=torch.float32
+    )
     index = torch.tensor([0, 1, 1, 0], dtype=torch.long)
     dim_size = 2
     out = scatter_mean(src, index, dim_size=dim_size, dim=0)
     # For idx=0 => rows 0 and 3 => mean => ([1+7]/2, [2+8]/2) => (4, 5)
     # For idx=1 => rows 1 and 2 => mean => ([3+5]/2, [4+6]/2) => (4, 5)
-    expected = torch.tensor([[4.0, 5.0],
-                             [4.0, 5.0]], dtype=torch.float32)
-    assert torch.allclose(out, expected), "scatter_mean did not produce the expected segment means."
+    expected = torch.tensor([[4.0, 5.0], [4.0, 5.0]], dtype=torch.float32)
+    assert torch.allclose(
+        out, expected
+    ), "scatter_mean did not produce the expected segment means."
     assert out.shape == (dim_size, 2)
 
 
@@ -158,9 +189,7 @@ def test_scatter_mean_counts_zero() -> None:
     # Segment 0 => average is [2.0, 2.0]
     # Segment 1 => no items => out => 0
     # Segment 2 => no items => out => 0
-    expected = torch.tensor([[2.0, 2.0],
-                             [0.0, 0.0],
-                             [0.0, 0.0]], dtype=torch.float32)
+    expected = torch.tensor([[2.0, 2.0], [0.0, 0.0], [0.0, 0.0]], dtype=torch.float32)
     assert torch.allclose(out, expected)
 
 
@@ -204,7 +233,7 @@ def test_scatter_mean_inconsistent_dims() -> None:
 @given(
     n=st.integers(min_value=1, max_value=50),
     c=st.integers(min_value=1, max_value=10),
-    segments=st.integers(min_value=1, max_value=10)
+    segments=st.integers(min_value=1, max_value=10),
 )
 @settings(deadline=None)
 def test_scatter_mean_hypothesis(n: int, c: int, segments: int) -> None:

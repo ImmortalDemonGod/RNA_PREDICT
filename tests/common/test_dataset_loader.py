@@ -20,21 +20,20 @@ Key Improvements:
 """
 
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 import torch
-from hypothesis import given, strategies as st, settings, HealthCheck, example
-from rna_predict.dataset.dataset_loader import (
-    stream_bprna_dataset,
-    build_rna_token_metadata,
-    build_atom_to_token_idx,
-    validate_input_features,
-    load_rna_data_and_features,
-)
-import unittest
+from hypothesis import HealthCheck, example, given, settings
+from hypothesis import strategies as st
 
-from rna_predict.dataset.dataset_loader import stream_bprna_dataset
+from rna_predict.dataset.dataset_loader import (
+    build_atom_to_token_idx,
+    build_rna_token_metadata,
+    load_rna_data_and_features,
+    stream_bprna_dataset,
+    validate_input_features,
+)
 
 
 class TestDatasetLoader(unittest.TestCase):
@@ -51,7 +50,6 @@ class TestDatasetLoader(unittest.TestCase):
             first_item,
             "Should be able to retrieve at least one record from the dataset.",
         )
-
 
 
 # -----------------------------------------------------------------------------
@@ -114,6 +112,7 @@ class TestStreamBprnaDataset(unittest.TestCase):
         result = stream_bprna_dataset(split)
         self.assertIsNotNone(result)
 
+
 # -----------------------------------------------------------------------------
 #                 Test build_rna_token_metadata
 # -----------------------------------------------------------------------------
@@ -153,6 +152,7 @@ class TestBuildRnaTokenMetadata(unittest.TestCase):
             (meta["residue_index"] == torch.arange(1, num_tokens + 1)).all()
         )
 
+
 # -----------------------------------------------------------------------------
 #                   Test build_atom_to_token_idx
 # -----------------------------------------------------------------------------
@@ -185,8 +185,12 @@ class TestBuildAtomToTokenIdx(unittest.TestCase):
         num_atoms=st.integers(min_value=1, max_value=1000),
         num_tokens=st.integers(min_value=1, max_value=1000),
     )
-    @settings(suppress_health_check=[HealthCheck.function_scoped_fixture], max_examples=100)
-    def test_build_atom_to_token_idx_fuzz(self, num_atoms: int, num_tokens: int) -> None:
+    @settings(
+        suppress_health_check=[HealthCheck.function_scoped_fixture], max_examples=100
+    )
+    def test_build_atom_to_token_idx_fuzz(
+        self, num_atoms: int, num_tokens: int
+    ) -> None:
         """
         Fuzzy test ensures no crashes or shape mismatch for random valid num_atoms/num_tokens.
         """
@@ -195,6 +199,7 @@ class TestBuildAtomToTokenIdx(unittest.TestCase):
         # token indices must be between 0 and num_tokens-1
         self.assertTrue((idx_map >= 0).all().item())
         self.assertTrue((idx_map < num_tokens).all().item())
+
 
 # -----------------------------------------------------------------------------
 #                  Test validate_input_features
@@ -246,11 +251,15 @@ class TestValidateInputFeatures(unittest.TestCase):
             validate_input_features(invalid_input)
         self.assertIn("ref_pos must have shape [batch, N_atom, 3].", str(ctx.exception))
 
-    @given(input_dict=st.dictionaries(
-        keys=st.text(min_size=1, max_size=15),
-        values=st.none() | st.integers() | st.floats() | st.just(torch.tensor([]))
-    ))
-    @settings(suppress_health_check=[HealthCheck.function_scoped_fixture], max_examples=50)
+    @given(
+        input_dict=st.dictionaries(
+            keys=st.text(min_size=1, max_size=15),
+            values=st.none() | st.integers() | st.floats() | st.just(torch.tensor([])),
+        )
+    )
+    @settings(
+        suppress_health_check=[HealthCheck.function_scoped_fixture], max_examples=50
+    )
     def test_validate_input_features_fuzz(self, input_dict: dict) -> None:
         """
         Fuzzy test with random dictionaries to ensure code doesn't accept invalid shapes or keys.
@@ -259,10 +268,14 @@ class TestValidateInputFeatures(unittest.TestCase):
         try:
             result = validate_input_features(input_dict)  # may raise ValueError
             # If it doesn't raise, confirm the dictionary truly meets the requirement
-            self.assertTrue(result, "validate_input_features should return True if no error is raised.")
+            self.assertTrue(
+                result,
+                "validate_input_features should return True if no error is raised.",
+            )
         except ValueError:
             # Acceptable outcome, as most random dicts won't have the required shape/keys.
             pass
+
 
 # -----------------------------------------------------------------------------
 #               Test load_rna_data_and_features
@@ -295,7 +308,9 @@ class TestLoadRnaDataAndFeatures(unittest.TestCase):
     @given(
         override_num_atoms=st.one_of(st.none(), st.integers(min_value=1, max_value=200))
     )
-    @settings(suppress_health_check=[HealthCheck.function_scoped_fixture], max_examples=30)
+    @settings(
+        suppress_health_check=[HealthCheck.function_scoped_fixture], max_examples=30
+    )
     def test_load_rna_data_and_features_fuzz(self, override_num_atoms):
         """
         Fuzz test override_num_atoms to ensure method can handle a range or None without crashing.

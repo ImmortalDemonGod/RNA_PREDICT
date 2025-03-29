@@ -1,10 +1,11 @@
 import pytest
 import torch
 
-from rna_predict.pipeline.stageD.run_stageD import run_stageD_diffusion
 from rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager import (
     ProtenixDiffusionManager,
 )
+from rna_predict.pipeline.stageD.run_stageD import run_stageD_diffusion
+
 
 @pytest.mark.parametrize("missing_s_inputs", [True, False])
 def test_run_stageD_diffusion_inference(missing_s_inputs):
@@ -96,7 +97,7 @@ def test_multi_step_inference_fallback():
         trunk_embeddings=trunk_embeddings,
         inference_params=inference_params,
         override_input_features=override_input_features,
-        debug_logging=True
+        debug_logging=True,
     )
 
     # 6) shape check

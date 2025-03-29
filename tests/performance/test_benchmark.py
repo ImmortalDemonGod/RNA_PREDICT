@@ -16,7 +16,6 @@ from rna_predict.benchmarks.benchmark import (
 from rna_predict.pipeline.stageA.input_embedding.current.embedders import (
     InputFeatureEmbedder,
 )
-from rna_predict.pipeline.stageA.input_embedding.current.embedders import InputFeatureEmbedder
 
 
 class TestBenchmarkConfigs(unittest.TestCase):

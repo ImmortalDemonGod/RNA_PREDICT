@@ -1,7 +1,9 @@
 import pytest
-import torch
 
-from rna_predict.pipeline.stageB.torsion.torsion_bert_predictor import StageBTorsionBertPredictor
+from rna_predict.pipeline.stageB.torsion.torsion_bert_predictor import (
+    StageBTorsionBertPredictor,
+)
+
 
 @pytest.mark.parametrize("angle_mode", ["sin_cos", "degrees"])
 def test_torsionbert_shape_mismatch(angle_mode):
