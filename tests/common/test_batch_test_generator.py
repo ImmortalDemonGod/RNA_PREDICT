@@ -17,11 +17,10 @@ Test Cases:
 """
 
 import sys
-import os
-import shutil
-import pytest
 from pathlib import Path
 from unittest.mock import patch
+
+import pytest
 
 # We import the module under test. Adjust import as needed if test file is elsewhere.
 import rna_predict.scripts.batch_test_generator as batch_test_generator
@@ -29,6 +28,7 @@ import rna_predict.scripts.batch_test_generator as batch_test_generator
 #################
 # FIXTURES
 #################
+
 
 @pytest.fixture
 def temp_dir(tmp_path: Path) -> Path:
@@ -55,6 +55,7 @@ def temp_dir(tmp_path: Path) -> Path:
 # TESTS: process_folder
 #################
 
+
 def test_process_folder_creates_wrapped_files(temp_dir: Path) -> None:
     """
     Test that process_folder correctly processes *.py files and
@@ -67,9 +68,13 @@ def test_process_folder_creates_wrapped_files(temp_dir: Path) -> None:
     output_dir.mkdir(exist_ok=True)
 
     # We'll patch `run_test_generation` to return True to simulate successful test generation.
-    with patch("batch_test_generator.run_test_generation", return_value=True) as mock_run_gen:
+    with patch(
+        "batch_test_generator.run_test_generation", return_value=True
+    ) as mock_run_gen:
         # Act
-        batch_test_generator.process_folder(folder_path=folder_path, output_dir=output_dir)
+        batch_test_generator.process_folder(
+            folder_path=folder_path, output_dir=output_dir
+        )
 
     # Assert
     # We had 2 py files in subdir, so we expect 2 calls to run_test_generation
@@ -96,14 +101,19 @@ def test_process_folder_skips_existing_wrapped_files(temp_dir: Path) -> None:
     pre_wrapped = output_dir / "test_wrapped_script1.md"
     pre_wrapped.write_text("# pre-existing test")
 
-    with patch("batch_test_generator.run_test_generation", return_value=True) as mock_run_gen:
+    with patch(
+        "batch_test_generator.run_test_generation", return_value=True
+    ) as mock_run_gen:
         # Act
-        batch_test_generator.process_folder(folder_path=folder_path, output_dir=output_dir)
+        batch_test_generator.process_folder(
+            folder_path=folder_path, output_dir=output_dir
+        )
 
     # Assert
     # Only 'script2.py' should be processed because 'script1.py' is considered "already processed".
-    assert mock_run_gen.call_count == 1, \
-        "run_test_generation should only have been called for script2.py."
+    assert (
+        mock_run_gen.call_count == 1
+    ), "run_test_generation should only have been called for script2.py."
 
     # We expect 'test_wrapped_script2.md' to exist; 'test_wrapped_script1.md' was skipped.
     assert (output_dir / "test_wrapped_script2.md").exists()
@@ -122,9 +132,13 @@ def test_process_folder_skips_files_in_output_dir(temp_dir: Path) -> None:
     # Create a *.py file in output_dir
     (output_dir / "insider.py").write_text("# insider file")
 
-    with patch("batch_test_generator.run_test_generation", return_value=True) as mock_run_gen:
+    with patch(
+        "batch_test_generator.run_test_generation", return_value=True
+    ) as mock_run_gen:
         # Act
-        batch_test_generator.process_folder(folder_path=folder_path, output_dir=output_dir)
+        batch_test_generator.process_folder(
+            folder_path=folder_path, output_dir=output_dir
+        )
 
     # Assert
     # The insider.py is inside output_dir's parent chain, so it should be skipped.
@@ -140,9 +154,13 @@ def test_process_folder_failure_handling(temp_dir: Path, capsys) -> None:
     output_dir = temp_dir / "generated_tests"
     output_dir.mkdir(exist_ok=True)
 
-    with patch("batch_test_generator.run_test_generation", return_value=False) as mock_run_gen:
+    with patch(
+        "batch_test_generator.run_test_generation", return_value=False
+    ) as mock_run_gen:
         # Act
-        batch_test_generator.process_folder(folder_path=folder_path, output_dir=output_dir)
+        batch_test_generator.process_folder(
+            folder_path=folder_path, output_dir=output_dir
+        )
 
     # Assert
     captured = capsys.readouterr()
@@ -162,8 +180,12 @@ def test_process_folder_empty_directory(temp_dir: Path, capsys) -> None:
     output_dir = temp_dir / "generated_tests"
     output_dir.mkdir(exist_ok=True)
 
-    with patch("batch_test_generator.run_test_generation", return_value=True) as mock_run_gen:
-        batch_test_generator.process_folder(folder_path=empty_subdir, output_dir=output_dir)
+    with patch(
+        "batch_test_generator.run_test_generation", return_value=True
+    ) as mock_run_gen:
+        batch_test_generator.process_folder(
+            folder_path=empty_subdir, output_dir=output_dir
+        )
 
     # Assert
     captured = capsys.readouterr()
@@ -176,6 +198,7 @@ def test_process_folder_empty_directory(temp_dir: Path, capsys) -> None:
 #################
 # TESTS: main
 #################
+
 
 def test_main_usage_missing_argument(capsys) -> None:
     """
@@ -212,8 +235,10 @@ def test_main_happy_path(temp_dir: Path) -> None:
     """
     # We'll create a valid folder path and patch `process_folder` to confirm the call.
     test_argv = ["batch_test_generator.py", str(temp_dir)]
-    with patch.object(sys, "argv", test_argv), \
-         patch("batch_test_generator.process_folder") as mock_pf:
+    with (
+        patch.object(sys, "argv", test_argv),
+        patch("batch_test_generator.process_folder") as mock_pf,
+    ):
         batch_test_generator.main()
 
     # The function should be called exactly once with the valid path and
