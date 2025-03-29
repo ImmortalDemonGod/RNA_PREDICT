@@ -20,7 +20,7 @@ class ProtenixDiffusionManager:
       - "pair"
     """
 
-    @snoop
+    # @snoop
     def __init__(self, diffusion_config: dict, device: str = "cpu"):
         # Ensure we have an "initialization" key
         if (
@@ -32,7 +32,7 @@ class ProtenixDiffusionManager:
         self.device = torch.device(device)
         self.diffusion_module = DiffusionModule(**diffusion_config).to(self.device)
 
-    @snoop
+    # @snoop
     def train_diffusion_step(
         self,
         label_dict: Dict[str, torch.Tensor],
@@ -66,7 +66,7 @@ class ProtenixDiffusionManager:
         )
         return x_gt_augment, x_denoised, sigma
 
-    @snoop
+    # @snoop
     def multi_step_inference(
         self,
         coords_init: torch.Tensor,
