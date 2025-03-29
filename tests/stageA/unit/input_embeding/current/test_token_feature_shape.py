@@ -8,7 +8,7 @@ from rna_predict.pipeline.stageA.input_embedding.current.embedders import (
 )
 
 
-@snoop
+# @snoop
 def test_input_feature_embedder_deletion_mean_shape():
     """
     Test that InputFeatureEmbedder properly handles 'deletion_mean'.
