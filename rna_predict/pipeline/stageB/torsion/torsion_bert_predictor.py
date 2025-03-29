@@ -9,6 +9,8 @@ from rna_predict.pipeline.stageB.torsion.torsionbert_inference import TorsionBer
 class StageBTorsionBertPredictor:
     """
     Stage B: predict RNA torsion angles using TorsionBERT.
+    This version no longer forces output shape = [N, 2*self.num_angles];
+    Instead, it relies on the actual dimension of model output.
     """
 
     def __init__(
@@ -24,13 +26,14 @@ class StageBTorsionBertPredictor:
             model_name_or_path: e.g. "sayby/rna_torsionbert"
             device: "cpu" or "cuda"
             angle_mode: one of {"sin_cos", "radians", "degrees"}
-            num_angles: number of angles predicted
+            num_angles: user guess or config for angles. The actual dimension might differ if model differs.
             max_length: tokenizer max length
         """
         self.angle_mode = angle_mode
-        self.num_angles = num_angles
+        self.num_angles = num_angles  # user-provided
         self.device = torch.device(device)
 
+        # Create underlying TorsionBertModel (which also uses a user_requested_num_angles)
         self.model = TorsionBertModel(
             model_name_or_path=model_name_or_path,
             device=self.device,
@@ -39,22 +42,23 @@ class StageBTorsionBertPredictor:
         )
 
     def __call__(
-        self, sequence: str, adjacency: Optional[torch.Tensor] = None
+        self,
+        sequence: str,
+        adjacency: Optional[torch.Tensor] = None
     ) -> Dict[str, Any]:
         """
-        Pipeline interface: (sequence, adjacency) -> torsion angles.
+        Inference pipeline: (sequence, adjacency) -> torsion angles in either sin/cos or angles.
         Returns:
             {
-              "torsion_angles": [N, 2*num_angles] (if sin_cos) or [N, num_angles],
+              "torsion_angles": shape [N, 2*K] if sin_cos, or [N, K] otherwise,
               "residue_count": N
             }
         """
-        # 1) Forward pass to get sin/cos predictions
         sincos = self.model.predict_angles_from_sequence(sequence)
         N = sincos.size(0)
-        _ = adjacency  # currently unused
+        # adjacency is currently unused
+        _ = adjacency
 
-        # 2) Convert if mode is not sin_cos
         if self.angle_mode == "sin_cos":
             angles_out = sincos
         else:
@@ -63,16 +67,27 @@ class StageBTorsionBertPredictor:
                 angles_out = angles_out * (180.0 / math.pi)
             elif self.angle_mode != "radians":
                 raise ValueError(f"Unknown angle_mode: {self.angle_mode}")
-        return {"torsion_angles": angles_out, "residue_count": N}
+
+        return {
+            "torsion_angles": angles_out,
+            "residue_count": N
+        }
 
     def _convert_sincos_to_angles(self, sincos: torch.Tensor) -> torch.Tensor:
         """
-        Convert sin/cos pairs into angles in radians, shape [N, num_angles].
+        Convert pairs (sin, cos) into actual angles in radians: [N, actual_num_angles].
+        The number of angles is inferred from sincos.size(1)//2
         """
         N, dim = sincos.shape
-        expected = 2 * self.num_angles
-        if dim != expected:
-            raise RuntimeError(f"Expected {expected} columns, got {dim}")
+        if dim % 2 != 0:
+            raise RuntimeError(
+                "Expected an even number of sin/cos columns, but got "
+                f"{dim}. Perhaps the model output is malformed?"
+            )
+
+        # actual_num_angles is half of the sincos dimension
+        actual_num_angles = dim // 2
         sin_vals = sincos[:, 0::2]
         cos_vals = sincos[:, 1::2]
-        return torch.atan2(sin_vals, cos_vals)
+        angles = torch.atan2(sin_vals, cos_vals)
+        return angles
