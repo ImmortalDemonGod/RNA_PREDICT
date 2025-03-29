@@ -12,14 +12,16 @@ This suite:
 7. Is intended to be run with: python -m unittest test_refactored_RFold_code.py
 """
 
-import os
-import unittest
 import logging
+import os
 import random
-import numpy as np
+import unittest
 from unittest.mock import patch
-from hypothesis import given, strategies as st
+
+import numpy as np
 import torch
+from hypothesis import given
+from hypothesis import strategies as st
 
 # Adjust this import according to your project layout, e.g.:
 # from rna_predict.pipeline.stageA import RFold_code as RC
@@ -39,6 +41,7 @@ class TestRFoldUtilities(unittest.TestCase):
         """Clean up any temp directories created during testing."""
         if os.path.exists(self.temp_dir_name):
             import shutil
+
             shutil.rmtree(self.temp_dir_name, ignore_errors=True)
 
     @given(seed=st.integers(min_value=0, max_value=9999))
@@ -60,7 +63,7 @@ class TestRFoldUtilities(unittest.TestCase):
         Check that print_log prints and logs the given message.
         We'll patch logging.info to confirm it's called.
         """
-        with patch.object(logging, 'info') as mock_info:
+        with patch.object(logging, "info") as mock_info:
             RC.print_log("Hello World")
             mock_info.assert_called_once_with("Hello World")
 
@@ -68,6 +71,7 @@ class TestRFoldUtilities(unittest.TestCase):
         """
         Verify output_namespace returns the expected string from a namespace object.
         """
+
         class NamespaceObj:
             def __init__(self):
                 self.alpha = 1
@@ -129,10 +133,9 @@ class TestMatrixOps(unittest.TestCase):
         """
         # Single batch, length=4 => one-hot for "AUCG"
         one_hot = torch.tensor(
-            [[[1, 0, 0, 0],
-              [0, 1, 0, 0],
-              [0, 0, 1, 0],
-              [0, 0, 0, 1]]], dtype=torch.float32, device=self.device
+            [[[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]],
+            dtype=torch.float32,
+            device=self.device,
         )
         cm = RC.constraint_matrix(one_hot)
         self.assertEqual(cm.shape, (1, 4, 4))
@@ -149,9 +152,7 @@ class TestMatrixOps(unittest.TestCase):
         row_col_argmax uses the result to produce a discrete matrix of 1-hot positions.
         """
         mat = torch.tensor(
-            [[[0.1, 0.2, 0.3],
-              [0.5, 0.4, 0.2],
-              [0.0, 0.1, 0.9]]], dtype=torch.float32
+            [[[0.1, 0.2, 0.3], [0.5, 0.4, 0.2], [0.0, 0.1, 0.9]]], dtype=torch.float32
         )
         # shape => [B=1, L=3, L=3]
         softmaxed = RC.row_col_softmax(mat)
@@ -242,7 +243,9 @@ class TestNNModules(unittest.TestCase):
         Attn(...) takes a [B, L, D] input and returns [B, L, L] attention map.
         Hypothesis test to randomly vary shapes.
         """
-        attn_module = RC.Attn(dim=dim, query_key_dim=dim, expansion_factor=2.0, dropout=0.0)
+        attn_module = RC.Attn(
+            dim=dim, query_key_dim=dim, expansion_factor=2.0, dropout=0.0
+        )
         x = torch.randn(batch_size, seq_len, dim)
         out = attn_module(x)
         self.assertEqual(out.shape, (batch_size, seq_len, seq_len))
@@ -254,7 +257,9 @@ class TestNNModules(unittest.TestCase):
         """
         encoder = RC.Encoder(C_lst=[4, 8, 16])
         decoder = RC.Decoder(C_lst=[32, 16, 8])
-        seqmap = RC.Seq2Map(input_dim=4, num_hidden=8, dropout=0.0, device=torch.device("cpu"))
+        seqmap = RC.Seq2Map(
+            input_dim=4, num_hidden=8, dropout=0.0, device=torch.device("cpu")
+        )
 
         # 1) seqmap => produce a [batch, seq_len, seq_len] attention
         src = torch.randint(0, 4, (2, 10))  # batch=2, seq_len=10
@@ -262,7 +267,9 @@ class TestNNModules(unittest.TestCase):
         self.assertEqual(attention.shape, (2, 10, 10))
 
         # 2) pass into encoder => expects [B, C, H, W], so unsqueeze
-        x = (attention * torch.sigmoid(attention)).unsqueeze(1)  # shape => [2, 1, 10, 10]
+        x = (attention * torch.sigmoid(attention)).unsqueeze(
+            1
+        )  # shape => [2, 1, 10, 10]
         latent, skips = encoder(x)
         # 3) decoder => reversed skips
         out = decoder(latent, skips)
@@ -280,6 +287,7 @@ class TestRFoldModel(unittest.TestCase):
             num_hidden = 16
             dropout = 0.0
             use_gpu = False
+
         self.args = MockArgs()
         self.model = RC.RFoldModel(self.args)
         self.model.eval()
@@ -306,6 +314,7 @@ class TestIOFunctions(unittest.TestCase):
 
     def tearDown(self):
         import shutil
+
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def test_seq2dot(self):
@@ -318,7 +327,7 @@ class TestIOFunctions(unittest.TestCase):
         # index => [1,2,3,4]
         # seq[0]=2 => 2>1 => '('
         # seq[1]=0 => 0<2 => ')'
-        # seq[2]=3 => 3>3 => false => '.'? Actually 3>3 is false => '.' 
+        # seq[2]=3 => 3>3 => false => '.'? Actually 3>3 is false => '.'
         # seq[3]=0 => 0<4 => ')'
         dot_str = RC.seq2dot(seq)
         self.assertEqual(dot_str, "(.))")
@@ -339,13 +348,11 @@ class TestIOFunctions(unittest.TestCase):
         self.assertTrue(os.path.exists(ct_path), "CT file not created.")
 
         # 2) save_ct test
-        predict_matrix = torch.tensor([[[0.1, 0.8, 0.1],
-                                        [0.6, 0.1, 0.3],
-                                        [0.2, 0.0, 0.8]]])
+        predict_matrix = torch.tensor(
+            [[[0.1, 0.8, 0.1], [0.6, 0.1, 0.3], [0.2, 0.0, 0.8]]]
+        )
         # shape => [1,3,3]
-        seq_ori = torch.tensor([[[1, 0, 0],
-                                 [0, 1, 0],
-                                 [0, 0, 1]]])
+        seq_ori = torch.tensor([[[1, 0, 0], [0, 1, 0], [0, 0, 1]]])
         RC.save_ct(predict_matrix, seq_ori, "predict_test")
 
 

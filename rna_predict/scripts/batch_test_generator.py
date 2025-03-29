@@ -1,6 +1,10 @@
 import sys
 from pathlib import Path
-from rna_predict.scripts.hypot_test_gen import run_test_generation  # Adjust import if necessary
+
+from rna_predict.scripts.hypot_test_gen import (
+    run_test_generation,
+)  # Adjust import if necessary
+
 
 def process_folder(folder_path: Path, output_dir: Path):
     """
@@ -24,6 +28,7 @@ def process_folder(folder_path: Path, output_dir: Path):
         if not success:
             print(f"Failed to generate tests for {py_file}")
 
+
 def main():
     if len(sys.argv) != 2:
         print("Usage: python batch_test_generator.py <folder_path>")
@@ -38,6 +43,7 @@ def main():
     output_dir.mkdir(exist_ok=True)
 
     process_folder(folder_path, output_dir)
+
 
 if __name__ == "__main__":
     main()

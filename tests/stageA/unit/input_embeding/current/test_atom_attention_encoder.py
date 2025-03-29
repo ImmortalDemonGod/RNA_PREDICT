@@ -1,9 +1,14 @@
 import pytest
 import torch
 
-from rna_predict.pipeline.stageA.input_embedding.current.transformer import AtomAttentionEncoder
+from rna_predict.pipeline.stageA.input_embedding.current.transformer import (
+    AtomAttentionEncoder,
+)
 
-@pytest.mark.xfail(reason="Indices exceed the token range => scatter out-of-bounds error.")
+
+@pytest.mark.xfail(
+    reason="Indices exceed the token range => scatter out-of-bounds error."
+)
 def test_atom_encoder_no_coords_original_fail():
     """
     Original test that incorrectly sets atom_to_token_idx in [0..47]
@@ -33,7 +38,7 @@ def test_atom_encoder_no_coords_original_fail():
     # This call triggers the out-of-bounds error
     a, q_l, c_l, p_lm = encoder(input_feature_dict)
     # We won't reach here if the aggregator does scatter_add_ with index >= 12
-    
+
 
 def test_atom_encoder_no_coords_fixed():
     """
@@ -59,7 +64,7 @@ def test_atom_encoder_no_coords_fixed():
         "ref_element": torch.zeros(48, 128),
         "ref_atom_name_chars": torch.zeros(48, 256),
         "ref_space_uid": torch.zeros(48, 1),
-        "restype": torch.zeros(1, 12, 32),    # batch=1, 12 tokens
+        "restype": torch.zeros(1, 12, 32),  # batch=1, 12 tokens
         "profile": torch.zeros(1, 12, 32),
         "deletion_mean": torch.zeros(1, 12, 1),
     }

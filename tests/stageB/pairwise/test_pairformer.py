@@ -56,15 +56,13 @@ Enjoy robust coverage with minimal duplication!
 """
 
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
-import torch
-from torch import Tensor
 import numpy as np
-
-from hypothesis import given, settings, strategies as st, HealthCheck
+import torch
+from hypothesis import HealthCheck, given, settings
+from hypothesis import strategies as st
 from hypothesis.extra import numpy as np_strategies
-from hypothesis import assume
 
 # If your code is located elsewhere, adjust the imports accordingly.
 # Example path-based import for pairformer classes:
@@ -72,26 +70,28 @@ from hypothesis import assume
 #     PairformerBlock, PairformerStack, MSAPairWeightedAveraging,
 #     MSAStack, MSABlock, MSAModule, TemplateEmbedder
 # )
-
 from rna_predict.pipeline.stageB.pairwise.pairformer import (
-    PairformerBlock,
-    PairformerStack,
-    MSAPairWeightedAveraging,
-    MSAStack,
     MSABlock,
     MSAModule,
+    MSAPairWeightedAveraging,
+    MSAStack,
+    PairformerBlock,
+    PairformerStack,
     TemplateEmbedder,
 )
-
-
 
 # ------------------------------------------------------------------------
 # HELPER STRATEGIES & FUNCTIONS
 # ------------------------------------------------------------------------
 
 # To avoid repeated warnings about large or slow generation:
-settings.register_profile("extended", suppress_health_check=[HealthCheck.filter_too_much, HealthCheck.too_slow], deadline=None)
+settings.register_profile(
+    "extended",
+    suppress_health_check=[HealthCheck.filter_too_much, HealthCheck.too_slow],
+    deadline=None,
+)
 settings.load_profile("extended")
+
 
 def float_arrays(shape, min_value=-1e3, max_value=1e3):
     """
@@ -101,15 +101,24 @@ def float_arrays(shape, min_value=-1e3, max_value=1e3):
     return np_strategies.arrays(
         dtype=np.float32,
         shape=shape,
-        elements=st.floats(min_value=min_value, max_value=max_value, allow_nan=False, allow_infinity=False),
+        elements=st.floats(
+            min_value=min_value,
+            max_value=max_value,
+            allow_nan=False,
+            allow_infinity=False,
+        ),
     )
+
 
 def bool_arrays(shape):
     """A Hypothesis strategy for boolean arrays of a given shape."""
     return np_strategies.arrays(dtype=np.bool_, shape=shape)
 
+
 @st.composite
-def s_z_mask_draw(draw, c_s_range=(0, 64), c_z_range=(4, 64), n_token_range=(1, 8), batch_range=(1, 2)):
+def s_z_mask_draw(
+    draw, c_s_range=(0, 64), c_z_range=(4, 64), n_token_range=(1, 8), batch_range=(1, 2)
+):
     """
     Composite strategy to produce random s, z, pair_mask suitable for
     testing PairformerBlock or PairformerStack. We allow c_s=0 or >0.
@@ -141,6 +150,7 @@ def s_z_mask_draw(draw, c_s_range=(0, 64), c_z_range=(4, 64), n_token_range=(1, 
 # TEST CLASSES
 # ------------------------------------------------------------------------
 
+
 class TestPairformerBlock(unittest.TestCase):
     """
     Tests for the PairformerBlock class, covering:
@@ -164,11 +174,11 @@ class TestPairformerBlock(unittest.TestCase):
         c_hidden_mul=st.integers(min_value=4, max_value=64),
         c_hidden_pair_att=st.integers(min_value=4, max_value=64),
         no_heads_pair=st.integers(min_value=1, max_value=4),
-        dropout=st.floats(min_value=0.0, max_value=0.5)
+        dropout=st.floats(min_value=0.0, max_value=0.5),
     )
-    def test_init_random_params(self, n_heads, c_z, c_s,
-                                c_hidden_mul, c_hidden_pair_att,
-                                no_heads_pair, dropout):
+    def test_init_random_params(
+        self, n_heads, c_z, c_s, c_hidden_mul, c_hidden_pair_att, no_heads_pair, dropout
+    ):
         """
         Hypothesis test verifying no errors are raised when instantiating
         a PairformerBlock with various numeric parameters.
@@ -203,8 +213,8 @@ class TestPairformerBlock(unittest.TestCase):
             self.assertIsNone(s_out)
 
     @given(
-        data=s_z_mask_draw(c_s_range=(4, 16), c_z_range=(4, 16), n_token_range=(2,4)),
-        inplace_flag=st.booleans()
+        data=s_z_mask_draw(c_s_range=(4, 16), c_z_range=(4, 16), n_token_range=(2, 4)),
+        inplace_flag=st.booleans(),
     )
     def test_forward_inplace_safe_toggle(self, data, inplace_flag):
         """
@@ -241,7 +251,7 @@ class TestPairformerStack(unittest.TestCase):
         c_z=st.integers(min_value=4, max_value=32),
         c_s=st.integers(min_value=0, max_value=32),
         dropout=st.floats(min_value=0.0, max_value=0.5),
-        blocks_per_ckpt=st.one_of(st.none(), st.integers(min_value=1, max_value=2))
+        blocks_per_ckpt=st.one_of(st.none(), st.integers(min_value=1, max_value=2)),
     )
     def test_init_random(self, n_blocks, n_heads, c_z, c_s, dropout, blocks_per_ckpt):
         """
@@ -253,12 +263,12 @@ class TestPairformerStack(unittest.TestCase):
             c_z=c_z,
             c_s=c_s,
             dropout=dropout,
-            blocks_per_ckpt=blocks_per_ckpt
+            blocks_per_ckpt=blocks_per_ckpt,
         )
         self.assertIsInstance(stk, PairformerStack)
         self.assertEqual(len(stk.blocks), n_blocks)
 
-    @given(data=s_z_mask_draw(n_token_range=(2,4), batch_range=(1,1)))
+    @given(data=s_z_mask_draw(n_token_range=(2, 4), batch_range=(1, 1)))
     def test_forward_normal(self, data):
         """
         Normal forward pass coverage for moderate shapes.
@@ -305,7 +315,7 @@ class TestMSAPairWeightedAveraging(unittest.TestCase):
         c_m=st.integers(min_value=4, max_value=64),
         c=st.integers(min_value=4, max_value=32),
         c_z=st.integers(min_value=4, max_value=64),
-        n_heads=st.integers(min_value=1, max_value=8)
+        n_heads=st.integers(min_value=1, max_value=8),
     )
     def test_init_random(self, c_m, c, c_z, n_heads):
         mod = MSAPairWeightedAveraging(c_m=c_m, c=c, c_z=c_z, n_heads=n_heads)
@@ -317,7 +327,7 @@ class TestMSAPairWeightedAveraging(unittest.TestCase):
         n_msa=st.integers(1, 4),
         n_token=st.integers(2, 6),
         c_m=st.integers(4, 16),
-        c_z=st.integers(4, 16)
+        c_z=st.integers(4, 16),
     )
     def test_forward_shapes(self, n_msa, n_token, c_m, c_z):
         """
@@ -343,12 +353,12 @@ class TestMSAStack(unittest.TestCase):
         n_msa=st.integers(1, 3),
         n_token=st.integers(2, 5),
         c_m=st.integers(4, 16),
-        c_z=st.integers(4, 16)
+        c_z=st.integers(4, 16),
     )
     def test_forward_shapes(self, n_msa, n_token, c_m, c_z):
         """
-        MSAStack forward pass: 
-          m => [n_msa, n_token, c_m], 
+        MSAStack forward pass:
+          m => [n_msa, n_token, c_m],
           z => [n_token, n_token, c_z].
         Output should match m shape.
         """
@@ -356,7 +366,9 @@ class TestMSAStack(unittest.TestCase):
         # Adjust c_z in the nested MSAPairWeightedAveraging if needed:
         stack.msa_pair_weighted_averaging.c_z = c_z
         stack.msa_pair_weighted_averaging.layernorm_z = torch.nn.LayerNorm(c_z)
-        stack.msa_pair_weighted_averaging.linear_no_bias_z = torch.nn.Linear(c_z, stack.msa_pair_weighted_averaging.n_heads, bias=False)
+        stack.msa_pair_weighted_averaging.linear_no_bias_z = torch.nn.Linear(
+            c_z, stack.msa_pair_weighted_averaging.n_heads, bias=False
+        )
 
         m = torch.randn((n_msa, n_token, c_m), dtype=torch.float32)
         z = torch.randn((n_token, n_token, c_z), dtype=torch.float32)
@@ -382,7 +394,7 @@ class TestMSABlock(unittest.TestCase):
         n_token=st.integers(2, 4),
         c_m=st.integers(4, 16),
         c_z=st.integers(4, 16),
-        last_block=st.booleans()
+        last_block=st.booleans(),
     )
     def test_forward_behaviors(self, n_msa, n_token, c_m, c_z, last_block):
         block = MSABlock(c_m=c_m, c_z=c_z, c_hidden=8, is_last_block=last_block)
@@ -417,7 +429,7 @@ class TestMSAModule(unittest.TestCase):
         z_in = torch.randn((1, 3, 3, 16), dtype=torch.float32)
         s_inputs = torch.randn((1, 3, 8), dtype=torch.float32)
         mask = torch.ones((1, 3, 3), dtype=torch.bool)
-        out_z = module.forward({"msa": torch.zeros((2,3))}, z_in, s_inputs, mask)
+        out_z = module.forward({"msa": torch.zeros((2, 3))}, z_in, s_inputs, mask)
         self.assertTrue(torch.equal(out_z, z_in))
 
     def test_forward_no_msa_key(self):
@@ -429,7 +441,9 @@ class TestMSAModule(unittest.TestCase):
         out_z = module.forward({}, z_in, s_inputs, mask)
         self.assertTrue(torch.equal(out_z, z_in))
 
-    @patch("rna_predict.pipeline.stageB.pairwise.pairformer.sample_msa_feature_dict_random_without_replacement")
+    @patch(
+        "rna_predict.pipeline.stageB.pairwise.pairformer.sample_msa_feature_dict_random_without_replacement"
+    )
     def test_forward_with_msa(self, mock_sample):
         """If 'msa' key is present, we try sampling and proceed in blocks > 0."""
         # Mock the returned MSA feature dict
@@ -438,7 +452,9 @@ class TestMSAModule(unittest.TestCase):
             "has_deletion": torch.zeros((2, 5), dtype=torch.bool),
             "deletion_value": torch.zeros((2, 5), dtype=torch.float32),
         }
-        module = MSAModule(n_blocks=1, c_m=8, c_z=16, c_s_inputs=8, msa_configs={"enable": True})
+        module = MSAModule(
+            n_blocks=1, c_m=8, c_z=16, c_s_inputs=8, msa_configs={"enable": True}
+        )
         z_in = torch.randn((1, 5, 5, 16), dtype=torch.float32)
         s_inputs = torch.randn((1, 5, 8), dtype=torch.float32)
         mask = torch.ones((1, 5, 5), dtype=torch.bool)
@@ -471,7 +487,7 @@ class TestTemplateEmbedder(unittest.TestCase):
     def test_forward_nblocks_zero(self):
         embedder = TemplateEmbedder(n_blocks=0, c=8, c_z=16)
         z_in = torch.randn((1, 4, 4, 16), dtype=torch.float32)
-        out = embedder.forward({"template_restype": torch.zeros((1,4))}, z_in)
+        out = embedder.forward({"template_restype": torch.zeros((1, 4))}, z_in)
         self.assertEqual(out, 0)
 
     def test_forward_template_present(self):
@@ -480,7 +496,7 @@ class TestTemplateEmbedder(unittest.TestCase):
         unless there’s a deeper implementation. Checking coverage only.
         """
         embedder = TemplateEmbedder(n_blocks=2, c=8, c_z=16)
-        input_dict = {"template_restype": torch.zeros((1,4))}
+        input_dict = {"template_restype": torch.zeros((1, 4))}
         z_in = torch.randn((1, 4, 4, 16), dtype=torch.float32)
         out = embedder.forward(input_dict, z_in)
         self.assertEqual(out, 0)

@@ -1,24 +1,20 @@
 import unittest
-from unittest.mock import patch
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
 
-from hypothesis import given, settings, strategies as st
-from hypothesis import HealthCheck
-from typing import Optional
+import torch
+from hypothesis import HealthCheck, given, settings
+from hypothesis import strategies as st
 
 # We import the classes under test as if they are in the same directory or installed.
 # If needed, adjust imports per your project structure.
 try:
     from rna_predict.pipeline.stageA.input_embedding.current.transformer import (
-        AttentionPairBias,
-        DiffusionTransformerBlock,
-        DiffusionTransformer,
-        AtomTransformer,
-        ConditionedTransitionBlock,
-        AtomAttentionEncoder,
         AtomAttentionDecoder,
+        AtomAttentionEncoder,
+        AtomTransformer,
+        AttentionPairBias,
+        ConditionedTransitionBlock,
+        DiffusionTransformer,
+        DiffusionTransformerBlock,
     )
 except ImportError:
     # If your code is in a submodule like "rna_predict.pipeline.stageA.input_embedding.current.transformer",
@@ -30,6 +26,7 @@ except ImportError:
 # Utility strategies for Hypothesis
 # -------------------------
 
+
 # Strategy to generate small random 2D or 3D Tensors that are likely to be valid inputs
 # for the classes in the code. We keep shapes small for performance reasons.
 def tensor_strat(
@@ -38,11 +35,13 @@ def tensor_strat(
     requires_grad: bool = False,
     min_val: float = -10.0,
     max_val: float = 10.0,
-    dims=2
+    dims=2,
 ):
     """Generates a random float Tensor with 2 or 3 dimensions, within [min_val, max_val]."""
     assert dims in [2, 3, 4, 5], "dims must be 2, 3, 4, or 5"
-    shape_strat = st.lists(st.integers(min_size, max_size), min_size=dims, max_size=dims)
+    shape_strat = st.lists(
+        st.integers(min_size, max_size), min_size=dims, max_size=dims
+    )
     return shape_strat.map(
         lambda shape: (
             torch.rand(*shape) * (max_val - min_val) + min_val
@@ -56,8 +55,11 @@ def valid_n_heads_strategy():
     possible_c_a = [16, 32, 64, 128]
     # We'll pick a random c_a, then pick an n_heads that divides it
     return st.builds(
-        lambda c_a: (c_a, st.sampled_from([h for h in range(1, c_a+1) if c_a % h == 0])),
-        st.sampled_from(possible_c_a)
+        lambda c_a: (
+            c_a,
+            st.sampled_from([h for h in range(1, c_a + 1) if c_a % h == 0]),
+        ),
+        st.sampled_from(possible_c_a),
     ).map(lambda x: (x[0], x[1].example() if hasattr(x[1], "example") else x[1]))
 
 
@@ -81,7 +83,7 @@ class TestAttentionPairBias(unittest.TestCase):
             c_a=self.default_c_a,
             c_s=self.default_c_s,
             c_z=self.default_c_z,
-            biasinit=self.default_biasinit
+            biasinit=self.default_biasinit,
         )
 
     def test_basic_instantiation(self):
@@ -96,17 +98,24 @@ class TestAttentionPairBias(unittest.TestCase):
         except Exception as e:
             self.fail(f"glorot_init raised an exception: {e}")
 
-    @settings(suppress_health_check=[HealthCheck.filter_too_much, HealthCheck.too_slow], max_examples=20)
+    @settings(
+        suppress_health_check=[HealthCheck.filter_too_much, HealthCheck.too_slow],
+        max_examples=20,
+    )
     @given(
         a=tensor_strat(dims=3),
         s=tensor_strat(dims=3),
-        z=tensor_strat(dims=4),  # For local multi-head usage: e.g. [..., n_blocks, n_queries, n_keys, c_z]
+        z=tensor_strat(
+            dims=4
+        ),  # For local multi-head usage: e.g. [..., n_blocks, n_queries, n_keys, c_z]
         n_queries=st.integers(min_value=1, max_value=16),
         n_keys=st.integers(min_value=1, max_value=16),
         inplace_safe=st.booleans(),
-        chunk_size=st.one_of(st.none(), st.integers(min_value=1, max_value=8))
+        chunk_size=st.one_of(st.none(), st.integers(min_value=1, max_value=8)),
     )
-    def test_local_multihead_attention(self, a, s, z, n_queries, n_keys, inplace_safe, chunk_size):
+    def test_local_multihead_attention(
+        self, a, s, z, n_queries, n_keys, inplace_safe, chunk_size
+    ):
         """Fuzzy test local_multihead_attention for shape/dtype correctness."""
         # We forcibly shape z to pretend: [..., n_blocks, n_queries, n_keys, c_z] => dims=5
         # We'll do a quick clamp for shape
@@ -132,19 +141,22 @@ class TestAttentionPairBias(unittest.TestCase):
                     n_queries=n_queries,
                     n_keys=n_keys,
                     inplace_safe=inplace_safe,
-                    chunk_size=chunk_size
+                    chunk_size=chunk_size,
                 )
                 self.assertEqual(out.shape, a.shape)
             except (ValueError, AssertionError, RuntimeError):
                 # Some shape mismatch could happen
                 pass
 
-    @settings(suppress_health_check=[HealthCheck.filter_too_much, HealthCheck.too_slow], max_examples=20)
+    @settings(
+        suppress_health_check=[HealthCheck.filter_too_much, HealthCheck.too_slow],
+        max_examples=20,
+    )
     @given(
         a=tensor_strat(dims=3),
         s=tensor_strat(dims=3),
         z=tensor_strat(dims=3),
-        inplace_safe=st.booleans()
+        inplace_safe=st.booleans(),
     )
     def test_standard_multihead_attention(self, a, s, z, inplace_safe):
         """Fuzzy test standard_multihead_attention shape correctness."""
@@ -163,10 +175,7 @@ class TestAttentionPairBias(unittest.TestCase):
                 return
             try:
                 out = self.module.standard_multihead_attention(
-                    a=a,
-                    s=s,
-                    z=z_expanded,
-                    inplace_safe=inplace_safe
+                    a=a, s=s, z=z_expanded, inplace_safe=inplace_safe
                 )
                 self.assertEqual(out.shape, a.shape)
             except Exception:
@@ -194,7 +203,7 @@ class TestConditionedTransitionBlock(unittest.TestCase):
 
     @given(
         a=tensor_strat(dims=2, min_size=1, max_size=8),
-        s=tensor_strat(dims=2, min_size=1, max_size=8)
+        s=tensor_strat(dims=2, min_size=1, max_size=8),
     )
     @settings(max_examples=15)
     def test_fuzz_forward_dims(self, a, s):
@@ -226,9 +235,12 @@ class TestDiffusionTransformerBlock(unittest.TestCase):
         z=tensor_strat(dims=4),
         n_queries=st.one_of(st.none(), st.integers(min_value=1, max_value=16)),
         n_keys=st.one_of(st.none(), st.integers(min_value=1, max_value=16)),
-        inplace_safe=st.booleans()
+        inplace_safe=st.booleans(),
     )
-    @settings(max_examples=20, suppress_health_check=[HealthCheck.filter_too_much, HealthCheck.too_slow])
+    @settings(
+        max_examples=20,
+        suppress_health_check=[HealthCheck.filter_too_much, HealthCheck.too_slow],
+    )
     def test_forward_fuzz(self, a, s, z, n_queries, n_keys, inplace_safe):
         """Fuzz test the forward method for shape correctness."""
         if a.size(-1) != self.c_a or s.size(-1) != self.c_s:
@@ -244,7 +256,7 @@ class TestDiffusionTransformerBlock(unittest.TestCase):
                 z=z,
                 n_queries=n_queries,
                 n_keys=n_keys,
-                inplace_safe=inplace_safe
+                inplace_safe=inplace_safe,
             )
             self.assertEqual(out_a.shape, a.shape)
         except Exception:
@@ -273,9 +285,12 @@ class TestDiffusionTransformer(unittest.TestCase):
         z=tensor_strat(dims=3),
         n_queries=st.one_of(st.none(), st.integers(min_value=1, max_value=16)),
         n_keys=st.one_of(st.none(), st.integers(min_value=1, max_value=16)),
-        inplace_safe=st.booleans()
+        inplace_safe=st.booleans(),
     )
-    @settings(max_examples=20, suppress_health_check=[HealthCheck.filter_too_much, HealthCheck.too_slow])
+    @settings(
+        max_examples=20,
+        suppress_health_check=[HealthCheck.filter_too_much, HealthCheck.too_slow],
+    )
     def test_forward_fuzz(self, a, s, z, n_queries, n_keys, inplace_safe):
         """Fuzz test the forward method shape correctness."""
         if a.size(-1) != 64 or s.size(-1) != 64 or z.size(-1) != 32:
@@ -287,7 +302,7 @@ class TestDiffusionTransformer(unittest.TestCase):
                 z=z,
                 n_queries=n_queries,
                 n_keys=n_keys,
-                inplace_safe=inplace_safe
+                inplace_safe=inplace_safe,
             )
             self.assertEqual(out.shape, a.shape)
         except Exception:
@@ -302,12 +317,7 @@ class TestAtomTransformer(unittest.TestCase):
 
     def setUp(self):
         self.transformer = AtomTransformer(
-            c_atom=64,
-            c_atompair=16,
-            n_blocks=2,
-            n_heads=4,
-            n_queries=8,
-            n_keys=8
+            c_atom=64, c_atompair=16, n_blocks=2, n_heads=4, n_queries=8, n_keys=8
         )
 
     def test_instantiation(self):
@@ -319,9 +329,12 @@ class TestAtomTransformer(unittest.TestCase):
         c=tensor_strat(dims=3),
         p=tensor_strat(dims=3),
         inplace_safe=st.booleans(),
-        chunk_size=st.one_of(st.none(), st.integers(min_value=1, max_value=8))
+        chunk_size=st.one_of(st.none(), st.integers(min_value=1, max_value=8)),
     )
-    @settings(max_examples=20, suppress_health_check=[HealthCheck.filter_too_much, HealthCheck.too_slow])
+    @settings(
+        max_examples=20,
+        suppress_health_check=[HealthCheck.filter_too_much, HealthCheck.too_slow],
+    )
     def test_forward_fuzz_3d_case(self, q, c, p, inplace_safe, chunk_size):
         """
         Fuzz test fallback usage: p.dim()==3 => global usage.
@@ -362,7 +375,7 @@ class TestAtomAttentionEncoder(unittest.TestCase):
             n_blocks=2,
             n_heads=4,
             n_queries=8,
-            n_keys=8
+            n_keys=8,
         )
 
     def test_instantiation(self):
@@ -375,7 +388,7 @@ class TestAtomAttentionEncoder(unittest.TestCase):
             self.encoder.linear_init(
                 zero_init_atom_encoder_residual_linear=True,
                 he_normal_init_atom_encoder_small_mlp=True,
-                he_normal_init_atom_encoder_output=True
+                he_normal_init_atom_encoder_output=True,
             )
         except Exception as e:
             self.fail(f"linear_init raised an exception: {e}")
@@ -385,9 +398,12 @@ class TestAtomAttentionEncoder(unittest.TestCase):
         s=tensor_strat(dims=3),
         z=tensor_strat(dims=3),
         inplace_safe=st.booleans(),
-        chunk_size=st.one_of(st.none(), st.integers(min_value=1, max_value=8))
+        chunk_size=st.one_of(st.none(), st.integers(min_value=1, max_value=8)),
     )
-    @settings(max_examples=15, suppress_health_check=[HealthCheck.filter_too_much, HealthCheck.too_slow])
+    @settings(
+        max_examples=15,
+        suppress_health_check=[HealthCheck.filter_too_much, HealthCheck.too_slow],
+    )
     def test_forward_fuzz_has_coords(self, r_l, s, z, inplace_safe, chunk_size):
         """Fuzz test forward with has_coords=True."""
         input_feature_dict = {
@@ -397,7 +413,7 @@ class TestAtomAttentionEncoder(unittest.TestCase):
             "ref_element": torch.randn(2, 10, 128),
             "ref_atom_name_chars": torch.randn(2, 10, 256),
             "atom_to_token_idx": torch.zeros(2, 10, dtype=torch.long),
-            "restype": torch.randn(2, 10, 5)  # shape [B, N_token, features]
+            "restype": torch.randn(2, 10, 5),  # shape [B, N_token, features]
         }
         try:
             a, q_l, c_l, p_lm = self.encoder(
@@ -406,7 +422,7 @@ class TestAtomAttentionEncoder(unittest.TestCase):
                 s=s,
                 z=z,
                 inplace_safe=inplace_safe,
-                chunk_size=chunk_size
+                chunk_size=chunk_size,
             )
             # Basic shape checks
             self.assertEqual(a.dim(), 3)
@@ -430,7 +446,7 @@ class TestAtomAttentionDecoder(unittest.TestCase):
             c_atom=64,
             c_atompair=16,
             n_queries=8,
-            n_keys=8
+            n_keys=8,
         )
 
     def test_instantiation(self):
@@ -443,9 +459,12 @@ class TestAtomAttentionDecoder(unittest.TestCase):
         c_skip=tensor_strat(dims=3),
         p_skip=tensor_strat(dims=5),  # local trunk shape
         inplace_safe=st.booleans(),
-        chunk_size=st.one_of(st.none(), st.integers(min_value=1, max_value=8))
+        chunk_size=st.one_of(st.none(), st.integers(min_value=1, max_value=8)),
     )
-    @settings(max_examples=15, suppress_health_check=[HealthCheck.filter_too_much, HealthCheck.too_slow])
+    @settings(
+        max_examples=15,
+        suppress_health_check=[HealthCheck.filter_too_much, HealthCheck.too_slow],
+    )
     def test_forward_fuzz(self, a, q_skip, c_skip, p_skip, inplace_safe, chunk_size):
         """Fuzz test the forward usage of AtomAttentionDecoder."""
         # We build a minimal input_feature_dict
@@ -453,7 +472,12 @@ class TestAtomAttentionDecoder(unittest.TestCase):
             "atom_to_token_idx": torch.zeros(a.shape[0], a.shape[1], dtype=torch.long)
         }
         # shape checks
-        if a.size(-1) != 128 or q_skip.size(-1) != 64 or c_skip.size(-1) != 64 or p_skip.size(-1) != 16:
+        if (
+            a.size(-1) != 128
+            or q_skip.size(-1) != 64
+            or c_skip.size(-1) != 64
+            or p_skip.size(-1) != 16
+        ):
             return
         try:
             out_coords = self.decoder(
@@ -463,7 +487,7 @@ class TestAtomAttentionDecoder(unittest.TestCase):
                 c_skip=c_skip,
                 p_skip=p_skip,
                 inplace_safe=inplace_safe,
-                chunk_size=chunk_size
+                chunk_size=chunk_size,
             )
             self.assertEqual(out_coords.shape[:-1], q_skip.shape[:-1])
             self.assertEqual(out_coords.size(-1), 3)
@@ -491,7 +515,7 @@ class TestEncoderDecoderRoundTrip(unittest.TestCase):
             n_blocks=2,
             n_heads=4,
             n_queries=8,
-            n_keys=8
+            n_keys=8,
         )
         self.decoder = AtomAttentionDecoder(
             n_blocks=2,
@@ -500,7 +524,7 @@ class TestEncoderDecoderRoundTrip(unittest.TestCase):
             c_atom=64,
             c_atompair=16,
             n_queries=8,
-            n_keys=8
+            n_keys=8,
         )
 
     def test_encode_decode_shapes(self):
@@ -516,7 +540,14 @@ class TestEncoderDecoderRoundTrip(unittest.TestCase):
             "ref_atom_name_chars": torch.randn(1, 5, 256),
             "atom_to_token_idx": torch.zeros(1, 5, dtype=torch.long),
             "restype": torch.randn(1, 5, 10),
-            "ref_space_uid": torch.randint(0, 2, (1, 5,))
+            "ref_space_uid": torch.randint(
+                0,
+                2,
+                (
+                    1,
+                    5,
+                ),
+            ),
         }
 
         # Encode
@@ -526,9 +557,7 @@ class TestEncoderDecoderRoundTrip(unittest.TestCase):
         # Now decode
         # We pass (a, q_l, c_l, p_lm) as if the decoder can reconstruct positions
         # The docs say forward signature: (input_feature_dict, a, q_skip, c_skip, p_skip)
-        out_coords = self.decoder(
-            input_feature_dict, a, q_l, c_l, p_lm
-        )
+        out_coords = self.decoder(input_feature_dict, a, q_l, c_l, p_lm)
         # Should have shape [batch, N_atom, 3]
         self.assertEqual(out_coords.shape, torch.Size([1, 5, 3]))
 

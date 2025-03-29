@@ -15,14 +15,16 @@ Run this file with:
 import math
 import unittest
 from unittest.mock import patch
-from hypothesis import given, strategies as st
-from hypothesis import settings, HealthCheck
+
+from hypothesis import HealthCheck, given, settings
+from hypothesis import strategies as st
 
 import rna_predict.pipeline.stageC.mp_nerf.final_kb_rna as final_kb_rna
 
-
 # A custom strategy for angles in degrees. We'll avoid extremes beyond +/- 1e6 for speed.
-angle_strat = st.floats(min_value=-1e6, max_value=1e6, allow_infinity=False, allow_nan=False)
+angle_strat = st.floats(
+    min_value=-1e6, max_value=1e6, allow_infinity=False, allow_nan=False
+)
 
 # A custom strategy for valid sugar puckers. We'll test some valid strings plus random text for edge cases.
 pucker_strat = st.sampled_from(["C3'-endo", "C2'-endo"])
@@ -32,6 +34,7 @@ class TestAngleConversions(unittest.TestCase):
     """
     Tests for deg_to_rad and rad_to_deg, including property-based round-trip checks.
     """
+
     def setUp(self) -> None:
         """Setup runs before each test."""
         self.sample_angle_deg = 180.0
@@ -80,6 +83,7 @@ class TestBondLengths(unittest.TestCase):
     Tests for get_bond_length function, covering both 'C3'-endo' and 'C2'-endo' states,
     as well as error handling for unknown sugar puckers.
     """
+
     def setUp(self) -> None:
         """Common test data for bond lengths."""
         self.valid_pair = "C1'-C2'"
@@ -107,7 +111,9 @@ class TestBondLengths(unittest.TestCase):
         """
         get_bond_length should return None for an unrecognized bond pair.
         """
-        length = final_kb_rna.get_bond_length(self.invalid_pair, sugar_pucker="C3'-endo")
+        length = final_kb_rna.get_bond_length(
+            self.invalid_pair, sugar_pucker="C3'-endo"
+        )
         self.assertIsNone(length)
 
     def test_get_bond_length_unknown_sugar_pucker(self) -> None:
@@ -123,6 +129,7 @@ class TestBondAngles(unittest.TestCase):
     Tests for get_bond_angle function, including coverage for degrees vs. radians,
     as well as unknown sugar pucker states.
     """
+
     def setUp(self) -> None:
         self.triplet = "C1'-C2'-C3'"
         self.expected_angle_deg = 101.5  # from RNA_BOND_ANGLES_C3_ENDO
@@ -132,21 +139,27 @@ class TestBondAngles(unittest.TestCase):
         """
         Verify a known bond angle is returned in degrees for C3'-endo.
         """
-        angle_deg = final_kb_rna.get_bond_angle(self.triplet, sugar_pucker="C3'-endo", degrees=True)
+        angle_deg = final_kb_rna.get_bond_angle(
+            self.triplet, sugar_pucker="C3'-endo", degrees=True
+        )
         self.assertAlmostEqual(angle_deg, self.expected_angle_deg, places=3)
 
     def test_get_bond_angle_c3_endo_radians(self) -> None:
         """
         Verify a known bond angle is returned in radians for C3'-endo.
         """
-        angle_rad = final_kb_rna.get_bond_angle(self.triplet, sugar_pucker="C3'-endo", degrees=False)
+        angle_rad = final_kb_rna.get_bond_angle(
+            self.triplet, sugar_pucker="C3'-endo", degrees=False
+        )
         self.assertAlmostEqual(angle_rad, self.expected_angle_rad, places=5)
 
     def test_get_bond_angle_unknown_triplet(self) -> None:
         """
         get_bond_angle should return None for an unrecognized bond angle triplet.
         """
-        angle = final_kb_rna.get_bond_angle("X-Y-Z", sugar_pucker="C3'-endo", degrees=True)
+        angle = final_kb_rna.get_bond_angle(
+            "X-Y-Z", sugar_pucker="C3'-endo", degrees=True
+        )
         self.assertIsNone(angle)
 
     def test_get_bond_angle_unknown_sugar_pucker(self) -> None:
@@ -154,7 +167,9 @@ class TestBondAngles(unittest.TestCase):
         get_bond_angle should raise ValueError for unknown sugar_pucker states.
         """
         with self.assertRaises(ValueError):
-            final_kb_rna.get_bond_angle(self.triplet, sugar_pucker="UNKNOWN", degrees=True)
+            final_kb_rna.get_bond_angle(
+                self.triplet, sugar_pucker="UNKNOWN", degrees=True
+            )
 
 
 class TestBackboneTorsion(unittest.TestCase):
@@ -162,6 +177,7 @@ class TestBackboneTorsion(unittest.TestCase):
     Tests for get_backbone_torsion function, verifying known torsion names,
     units (degrees/radians), and unknown torsion handling.
     """
+
     def test_get_backbone_torsion_known_alpha_deg(self) -> None:
         """
         Check alpha torsion in degrees.
@@ -190,6 +206,7 @@ class TestSugarPuckerTorsions(unittest.TestCase):
     """
     Tests for get_sugar_pucker_torsions function.
     """
+
     def test_get_sugar_pucker_torsions_c3_endo(self) -> None:
         """
         Confirm dictionary keys for known pucker C3'-endo.
@@ -221,6 +238,7 @@ class TestBaseGeometry(unittest.TestCase):
     """
     Tests for get_base_geometry function (A, G, C, U).
     """
+
     def test_get_base_geometry_adenine(self) -> None:
         """
         Check if base geometry for A is returned and has expected sub-keys.
@@ -242,6 +260,7 @@ class TestConnectivity(unittest.TestCase):
     """
     Tests for get_connectivity function.
     """
+
     def test_get_connectivity_backbone(self) -> None:
         """
         Ensure backbone connectivity is not empty.
@@ -264,9 +283,11 @@ class TestConnectivity(unittest.TestCase):
         Although it's not particularly necessary in real usage, this shows
         the approach for external dependencies or side effects.
         """
-        with patch('final_kb_rna.deg_to_rad', return_value=123.456) as mock_converter:
+        with patch("final_kb_rna.deg_to_rad", return_value=123.456) as mock_converter:
             # Now calling get_bond_angle in radians should yield the patched result for a known triplet
-            angle = final_kb_rna.get_bond_angle("C1'-C2'-C3'", sugar_pucker="C3'-endo", degrees=False)
+            angle = final_kb_rna.get_bond_angle(
+                "C1'-C2'-C3'", sugar_pucker="C3'-endo", degrees=False
+            )
             self.assertEqual(angle, 123.456)
             mock_converter.assert_called_once()
 

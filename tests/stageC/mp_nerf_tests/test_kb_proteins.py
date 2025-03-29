@@ -1,7 +1,8 @@
 import unittest
-from unittest.mock import patch
-from hypothesis import given, strategies as st
+
 import numpy as np
+from hypothesis import given
+from hypothesis import strategies as st
 
 # Adjust this import as needed if kb_proteins.py is in a different module/package
 import rna_predict.pipeline.stageC.mp_nerf.kb_proteins as kb_proteins
@@ -211,7 +212,10 @@ class TestMakeTorsionMask(unittest.TestCase):
         # plus sidechain in the next 1 for 'A'
         self.assertFalse(np.any(np.isnan(mask[:4])))  # backbone are numeric
         # sidechain is 'p' => replaced with np.nan => check it
-        self.assertTrue(np.isnan(mask[4]), "For 'A', we expect 'p' => np.nan in position 4 if fill=False")
+        self.assertTrue(
+            np.isnan(mask[4]),
+            "For 'A', we expect 'p' => np.nan in position 4 if fill=False",
+        )
 
     def test_make_torsion_mask_valid_fill(self):
         """Check shape for 'A' with fill=True, ensuring sidechain dihedral is from MP3SC_INFO."""
@@ -237,8 +241,10 @@ class TestMakeTorsionMask(unittest.TestCase):
             with self.assertRaises(KeyError):
                 kb_proteins.make_torsion_mask(inval, fill=False)
 
-    @given(st.sampled_from(list(kb_proteins.SC_BUILD_INFO.keys())) | st.text(),
-           st.booleans())
+    @given(
+        st.sampled_from(list(kb_proteins.SC_BUILD_INFO.keys())) | st.text(),
+        st.booleans(),
+    )
     def test_make_torsion_mask_hypothesis(self, aa, fill):
         """
         Hypothesis test for random valid or invalid strings,

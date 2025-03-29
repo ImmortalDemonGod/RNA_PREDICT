@@ -13,17 +13,22 @@ This file merges best practices to achieve:
   - Clear docstrings and robust assertions
 """
 
+from typing import Any, Dict
+from unittest.mock import MagicMock, patch
+
 import pytest
 import torch
+from hypothesis import HealthCheck, given, settings
+from hypothesis import strategies as st
 from torch import Tensor
-from unittest.mock import patch, MagicMock
-from hypothesis import given, settings, strategies as st, HealthCheck
-from typing import Any, Dict
+
+from rna_predict.pipeline.stageB.torsion.torsion_bert_predictor import (
+    StageBTorsionBertPredictor,
+)
 
 # Importing classes under test:
 # Adjust paths to reflect your project structure if they differ.
 from rna_predict.pipeline.stageB.torsion.torsionbert_inference import TorsionBertModel
-from rna_predict.pipeline.stageB.torsion.torsion_bert_predictor import StageBTorsionBertPredictor
 
 
 # ----------------------------------------------------------------------
@@ -34,6 +39,7 @@ class DummyLastHiddenStateOutput:
     Simple container that mimics a huggingface model output with .last_hidden_state
     instead of the 'logits' key. This helps us test fallback logic.
     """
+
     def __init__(self, tensor: torch.Tensor):
         self.last_hidden_state = tensor
 
@@ -76,9 +82,14 @@ def model_with_logits() -> TorsionBertModel:
     Fixture that patches AutoTokenizer/AutoModel so that the forward pass
     returns a dictionary with 'logits'.
     """
-    with patch("rna_predict.pipeline.stageB.torsion.torsionbert_inference.AutoTokenizer") as mock_tok_cls, \
-         patch("rna_predict.pipeline.stageB.torsion.torsionbert_inference.AutoModel") as mock_model_cls:
-
+    with (
+        patch(
+            "rna_predict.pipeline.stageB.torsion.torsionbert_inference.AutoTokenizer"
+        ) as mock_tok_cls,
+        patch(
+            "rna_predict.pipeline.stageB.torsion.torsionbert_inference.AutoModel"
+        ) as mock_model_cls,
+    ):
         # Mock tokenizer
         mock_tokenizer = MagicMock()
 
@@ -95,7 +106,9 @@ def model_with_logits() -> TorsionBertModel:
         # Mock model
         mock_model = MagicMock()
         mock_model.num_angles = 7
-        mock_model.__call__.side_effect = lambda inp: mock_forward_logits(mock_model, inp)
+        mock_model.__call__.side_effect = lambda inp: mock_forward_logits(
+            mock_model, inp
+        )
         mock_model_cls.from_pretrained.return_value = mock_model
 
         # Instantiate the TorsionBertModel with our mock
@@ -103,7 +116,7 @@ def model_with_logits() -> TorsionBertModel:
             model_name_or_path="dummy_path_logits",
             device=torch.device("cpu"),
             num_angles=7,
-            max_length=20
+            max_length=20,
         )
     return model
 
@@ -114,9 +127,14 @@ def model_with_last_hidden() -> TorsionBertModel:
     Fixture that patches AutoTokenizer/AutoModel so that the forward pass
     returns an object with .last_hidden_state.
     """
-    with patch("rna_predict.pipeline.stageB.torsion.torsionbert_inference.AutoTokenizer") as mock_tok_cls, \
-         patch("rna_predict.pipeline.stageB.torsion.torsionbert_inference.AutoModel") as mock_model_cls:
-
+    with (
+        patch(
+            "rna_predict.pipeline.stageB.torsion.torsionbert_inference.AutoTokenizer"
+        ) as mock_tok_cls,
+        patch(
+            "rna_predict.pipeline.stageB.torsion.torsionbert_inference.AutoModel"
+        ) as mock_model_cls,
+    ):
         mock_tokenizer = MagicMock()
 
         def _fake_tokenizer(*args, **kwargs):
@@ -132,20 +150,24 @@ def model_with_last_hidden() -> TorsionBertModel:
         # Mock model
         mock_model = MagicMock()
         mock_model.num_angles = 7
-        mock_model.__call__.side_effect = lambda inp: mock_forward_last_hidden(mock_model, inp)
+        mock_model.__call__.side_effect = lambda inp: mock_forward_last_hidden(
+            mock_model, inp
+        )
         mock_model_cls.from_pretrained.return_value = mock_model
 
         model = TorsionBertModel(
             model_name_or_path="dummy_path_last_hidden",
             device=torch.device("cpu"),
             num_angles=7,
-            max_length=20
+            max_length=20,
         )
     return model
 
 
 @pytest.fixture
-def predictor_fixture(model_with_logits: TorsionBertModel) -> StageBTorsionBertPredictor:
+def predictor_fixture(
+    model_with_logits: TorsionBertModel,
+) -> StageBTorsionBertPredictor:
     """
     Fixture that sets up a StageBTorsionBertPredictor using the model_with_logits
     to test integrated behavior. We override predictor.model with our mock-based TorsionBertModel.
@@ -155,7 +177,7 @@ def predictor_fixture(model_with_logits: TorsionBertModel) -> StageBTorsionBertP
         model_name_or_path="dummy_path_logits",
         device="cpu",
         angle_mode="degrees",
-        num_angles=16
+        num_angles=16,
     )
     # Override the predictor's internal model with our TorsionBertModel mock
     predictor.model = model_with_logits
@@ -187,7 +209,9 @@ class TestTorsionBertModel:
         assert model_with_logits.tokenizer is not None
         assert model_with_logits.model is not None
 
-    def test_init_success_last_hidden(self, model_with_last_hidden: TorsionBertModel) -> None:
+    def test_init_success_last_hidden(
+        self, model_with_last_hidden: TorsionBertModel
+    ) -> None:
         """
         Ensures the model is initialized when the forward pass
         uses last_hidden_state instead of logits.
@@ -213,7 +237,9 @@ class TestTorsionBertModel:
         # 2 * num_angles => 2*7=14
         assert outputs["logits"].shape == (1, 10, 14)
 
-    def test_forward_last_hidden(self, model_with_last_hidden: TorsionBertModel) -> None:
+    def test_forward_last_hidden(
+        self, model_with_last_hidden: TorsionBertModel
+    ) -> None:
         """
         Confirm forward returns an object with last_hidden_state
         if 'logits' isn't present.
@@ -229,13 +255,16 @@ class TestTorsionBertModel:
         # 2 * num_angles => 2*7=14
         assert outputs.last_hidden_state.shape == (1, 8, 14)
 
-    @pytest.mark.parametrize("rna_seq,expected_len", [
-        ("", 0),
-        ("A", 1),
-        ("AC", 2),
-        ("ACG", 3),
-        ("ACGU", 4),
-    ])
+    @pytest.mark.parametrize(
+        "rna_seq,expected_len",
+        [
+            ("", 0),
+            ("A", 1),
+            ("AC", 2),
+            ("ACG", 3),
+            ("ACGU", 4),
+        ],
+    )
     def test_predict_angles_basic(
         self,
         model_with_logits: TorsionBertModel,
@@ -257,7 +286,9 @@ class TestTorsionBertModel:
         assert out.shape == (0, 14)
         assert out.numel() == 0  # zero elements
 
-    def test_predict_angles_short_seq(self, model_with_logits: TorsionBertModel) -> None:
+    def test_predict_angles_short_seq(
+        self, model_with_logits: TorsionBertModel
+    ) -> None:
         """
         A single char sequence => [1,14] but no 3-mer tokens => row is zeros.
         """
@@ -265,7 +296,9 @@ class TestTorsionBertModel:
         assert out.shape == (1, 14)
         assert torch.allclose(out[0], torch.zeros(14))
 
-    def test_predict_angles_partial_fill(self, model_with_logits: TorsionBertModel) -> None:
+    def test_predict_angles_partial_fill(
+        self, model_with_logits: TorsionBertModel
+    ) -> None:
         """
         For a normal sequence of length 4 => up to 2 tokens => partial fill.
         The code uses mid_idx to place data, leaving last row zeros if mid_idx >= seq_len.
@@ -275,14 +308,16 @@ class TestTorsionBertModel:
         assert out.shape == (4, 14)
         # We won't do super-detailed row checks but at least ensure no crash, shape correct.
 
-    def test_predict_angles_fallback_last_hidden(self, model_with_logits: TorsionBertModel) -> None:
+    def test_predict_angles_fallback_last_hidden(
+        self, model_with_logits: TorsionBertModel
+    ) -> None:
         """
         If no 'logits' in the output, fallback to last_hidden_state. We manually override
         to produce last_hidden_state only, verifying correct shape and no crash.
         """
         mock_model = model_with_logits.model
         mock_model.__call__.side_effect = lambda i: DummyLastHiddenStateOutput(
-            torch.ones((1, 5, 2*mock_model.num_angles))
+            torch.ones((1, 5, 2 * mock_model.num_angles))
         )
         seq = "ACG"
         result = model_with_logits.predict_angles_from_sequence(seq)
@@ -291,9 +326,7 @@ class TestTorsionBertModel:
     @given(st.text(alphabet=["A", "C", "G", "U", "T"], min_size=0, max_size=25))
     @settings(suppress_health_check=[HealthCheck.too_slow], max_examples=30)
     def test_predict_angles_hypothesis(
-        self,
-        model_with_logits: TorsionBertModel,
-        rna_sequence: str
+        self, model_with_logits: TorsionBertModel, rna_sequence: str
     ) -> None:
         """
         Hypothesis-based test generating random RNA sequences from ACGUT,
@@ -311,7 +344,7 @@ class TestTorsionBertModel:
                 model_name_or_path="any_path",
                 device=torch.device("invalid_device"),
                 num_angles=7,
-                max_length=512
+                max_length=512,
             )
 
     @pytest.mark.parametrize("invalid_model_path", [None, 123, ""])
@@ -320,16 +353,20 @@ class TestTorsionBertModel:
         Passing invalid model paths => OSError/ValueError/TypeError
         when huggingface tries to load. We'll patch to simulate that.
         """
-        with patch("rna_predict.pipeline.stageB.torsion.torsionbert_inference.AutoTokenizer.from_pretrained",
-                   side_effect=OSError("Mock HF load fail")):
-            with patch("rna_predict.pipeline.stageB.torsion.torsionbert_inference.AutoModel.from_pretrained",
-                       side_effect=OSError("Mock HF load fail")):
+        with patch(
+            "rna_predict.pipeline.stageB.torsion.torsionbert_inference.AutoTokenizer.from_pretrained",
+            side_effect=OSError("Mock HF load fail"),
+        ):
+            with patch(
+                "rna_predict.pipeline.stageB.torsion.torsionbert_inference.AutoModel.from_pretrained",
+                side_effect=OSError("Mock HF load fail"),
+            ):
                 with pytest.raises((OSError, ValueError, TypeError)):
                     TorsionBertModel(
                         model_name_or_path=invalid_model_path,
                         device=torch.device("cpu"),
                         num_angles=7,
-                        max_length=512
+                        max_length=512,
                     )
 
 
@@ -362,7 +399,9 @@ class TestStageBTorsionBertPredictor:
         assert angles.shape == (4, 16)
 
     @pytest.mark.parametrize("seq", ["A", "ACG", "ACGUAC"])
-    def test_various_lengths(self, predictor_fixture: StageBTorsionBertPredictor, seq: str) -> None:
+    def test_various_lengths(
+        self, predictor_fixture: StageBTorsionBertPredictor, seq: str
+    ) -> None:
         """
         Check the predictor's shape for various input lengths.
         """
@@ -370,7 +409,9 @@ class TestStageBTorsionBertPredictor:
         angles = out["torsion_angles"]
         assert angles.shape == (len(seq), 16)
 
-    def test_predictor_consistency(self, predictor_fixture: StageBTorsionBertPredictor) -> None:
+    def test_predictor_consistency(
+        self, predictor_fixture: StageBTorsionBertPredictor
+    ) -> None:
         """
         If the same sequence is passed multiple times, ensure shape is consistent
         and no crash occurs. This is a minimal check for consistency.

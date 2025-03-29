@@ -6,7 +6,6 @@ from rna_predict.pipeline.stageB.pairwise.protenix_integration import (
 )
 
 # 2) For running diffusion in Stage D
-from rna_predict.pipeline.stageD.run_stageD import run_stageD_diffusion
 
 
 def demo_run_protenix_embeddings():
@@ -57,11 +56,9 @@ def demo_run_protenix_embeddings():
     print("[Embedding Demo] z_init shape:", z_init.shape)
 
 
-
 def main():
     print("=== Running Protenix Integration Demo (Embeddings) ===")
     demo_run_protenix_embeddings()
-
 
 
 if __name__ == "__main__":

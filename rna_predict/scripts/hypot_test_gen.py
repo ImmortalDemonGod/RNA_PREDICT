@@ -1,4 +1,7 @@
 import ast
+
+# Removed unused: from hypothesis import strategies as st
+import importlib.util  # For dynamic imports
 import logging
 import os
 import subprocess
@@ -6,11 +9,9 @@ import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union, Literal, Any
+from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
 import snoop  # type: ignore
-# Removed unused: from hypothesis import strategies as st
-import importlib.util  # For dynamic imports
 
 # Set up logging with file and console output
 log_file = "test_generator_debug.log"
@@ -24,6 +25,7 @@ logger = logging.getLogger(__name__)
 # We'll assume the prompt_template.md is in the same directory as this script
 PROMPT_TEMPLATE_FILE = Path(__file__).parent / "prompt_template.md"
 
+
 def load_text_prompt_template() -> str:
     """
     Load the text prompt template from the prompt_template.md file.
@@ -31,11 +33,15 @@ def load_text_prompt_template() -> str:
     try:
         return PROMPT_TEMPLATE_FILE.read_text(encoding="utf-8")
     except FileNotFoundError:
-        logger.error("prompt_template.md not found. Please ensure it is in the same directory.")
+        logger.error(
+            "prompt_template.md not found. Please ensure it is in the same directory."
+        )
         return ""
+
 
 # Configure snoop to write to a separate debug log
 snoop.install(out=Path("snoop_debug.log"))
+
 
 def fix_leading_zeros(test_code: str) -> str:
     """
@@ -43,11 +49,17 @@ def fix_leading_zeros(test_code: str) -> str:
     For example, "007" becomes "7" and "-0123" becomes "-123".
     """
     import re
+
     # Use a regex with negative lookbehind and lookahead to match numbers that start with one or more zeros.
     # The pattern (?<!\d)(-?)0+(\d+)(?!\d) ensures that a minus sign is captured if present,
     # and that only isolated numbers are matched.
-    fixed_code = re.sub(r'(?<!\d)(-?)0+(\d+)(?!\d)', lambda m: m.group(1) + str(int(m.group(2))), test_code)
+    fixed_code = re.sub(
+        r"(?<!\d)(-?)0+(\d+)(?!\d)",
+        lambda m: m.group(1) + str(int(m.group(2))),
+        test_code,
+    )
     return fixed_code
+
 
 def remove_logger_lines(text: str) -> str:
     """
@@ -57,25 +69,30 @@ def remove_logger_lines(text: str) -> str:
       - Lines containing known noisy substrings such as 'real_accelerator.py:' or 'Setting ds_accelerator to'.
     """
     import re
+
     lines = text.splitlines()
     filtered = []
-    timestamp_pattern = re.compile(r'^\[?\d{4}-\d{1,2}-\d{1,2}')
+    timestamp_pattern = re.compile(r"^\[?\d{4}-\d{1,2}-\d{1,2}")
     for line in lines:
         # Skip lines matching a leading timestamp
         if timestamp_pattern.match(line):
             continue
         # Skip lines containing known noisy substrings
-        if 'real_accelerator.py:' in line or 'Setting ds_accelerator to' in line:
+        if "real_accelerator.py:" in line or "Setting ds_accelerator to" in line:
             continue
         filtered.append(line)
     return "\n".join(filtered).strip()
 
+
 @dataclass
 class TestableEntity:
     """Represents a class, method, or function that can be tested"""
+
     name: str
     module_path: str
-    entity_type: Literal['class', 'method', 'function', 'instance_method']  # More restrictive type
+    entity_type: Literal[
+        "class", "method", "function", "instance_method"
+    ]  # More restrictive type
     parent_class: Optional[str] = None
 
 
@@ -167,7 +184,9 @@ class ModuleParser(ast.NodeVisitor):
         entity_type = "instance_method" if is_instance_method else "method"
 
         # The method path should include the class
-        method_name = f"{self.current_class}.{node.name}" if self.current_class else node.name
+        method_name = (
+            f"{self.current_class}.{node.name}" if self.current_class else node.name
+        )
 
         self.entities.append(
             TestableEntity(
@@ -184,7 +203,10 @@ class ModuleParser(ast.NodeVisitor):
     def determine_instance_method(self, node: ast.FunctionDef) -> bool:
         """Determine if the method is an instance method"""
         for decorator in node.decorator_list:
-            if isinstance(decorator, ast.Name) and decorator.id in {"classmethod", "staticmethod"}:
+            if isinstance(decorator, ast.Name) and decorator.id in {
+                "classmethod",
+                "staticmethod",
+            }:
                 return False
         return True
 
@@ -227,7 +249,7 @@ class TestFixer(ast.NodeTransformer):
         new_args = []
 
         for arg in node.args.args:
-            if arg.arg == 'self':
+            if arg.arg == "self":
                 if not seen_self:
                     seen_self = True
                     new_args.append(arg)
@@ -258,6 +280,7 @@ def fix_duplicate_self(test_content: str) -> Optional[str]:
             return ast.unparse(fixed_tree)
         except AttributeError:
             import astunparse
+
             return astunparse.unparse(fixed_tree)
 
     except Exception as e:
@@ -267,15 +290,17 @@ def fix_duplicate_self(test_content: str) -> Optional[str]:
 
 class TestGenerator:
     """Manages generation of Hypothesis tests for Python modules"""
-    def wrap_with_prompt(self, combined_test_code: str, original_source_code: str) -> str:
+
+    def wrap_with_prompt(
+        self, combined_test_code: str, original_source_code: str
+    ) -> str:
         """
         Wrap the combined test code and original source code in the custom text prompt
         read from 'prompt_template.md'.
         """
         prompt_template = load_text_prompt_template()
         return prompt_template.format(
-            TEST_CODE=combined_test_code,
-            FULL_SRC_CODE=original_source_code
+            TEST_CODE=combined_test_code, FULL_SRC_CODE=original_source_code
         )
 
     def pre_run_cleanup(self) -> None:
@@ -338,18 +363,20 @@ class TestGenerator:
         env.setdefault("PYTHONIOENCODING", "utf-8")
         return env
 
-    def process_hypothesis_result(self, result: subprocess.CompletedProcess) -> Optional[str]:
+    def process_hypothesis_result(
+        self, result: subprocess.CompletedProcess
+    ) -> Optional[str]:
         """Process the result of the hypothesis command"""
         if result.returncode == 0 and result.stdout:
             content = result.stdout.strip()
-        
+
             # Remove extraneous logging lines first
             content = remove_logger_lines(content)
-        
+
             if not content or len(content) < 50:
                 logger.warning("Hypothesis generated insufficient content")
                 return None
-        
+
             # Process and fix the test content using post_process_test_content
             fixed_content = self.post_process_test_content(content)
             if fixed_content is None:
@@ -368,7 +395,7 @@ class TestGenerator:
         try:
             # Also remove extraneous logger lines (defensive)
             content = remove_logger_lines(content)
-    
+
             # First, fix any leading zeros in integer literals
             content = fix_leading_zeros(content)
             # Then, fix duplicate self parameters
@@ -516,7 +543,9 @@ class TestGenerator:
         logger.debug(f"Found imports: {imports}")
         return imports
 
-    def populate_entities(self, parser: ModuleParser, module_path: str) -> List[TestableEntity]:
+    def populate_entities(
+        self, parser: ModuleParser, module_path: str
+    ) -> List[TestableEntity]:
         """Populate entities with correct module paths"""
         entities = []
         for entity in parser.entities:
@@ -550,7 +579,9 @@ class TestGenerator:
             logger.error("Test generation failed", exc_info=True)
             raise
 
-    def display_module_info(self, module_path: str, entities: List[TestableEntity]) -> None:
+    def display_module_info(
+        self, module_path: str, entities: List[TestableEntity]
+    ) -> None:
         """Display information about the module and its entities"""
         print(f"\nProcessing module: {module_path}")
         print(
@@ -559,7 +590,9 @@ class TestGenerator:
             f"{len([e for e in entities if e.entity_type == 'function'])} functions"
         )
 
-    def process_entities(self, entities: List[TestableEntity], total_variants: int, module_path: str) -> None:
+    def process_entities(
+        self, entities: List[TestableEntity], total_variants: int, module_path: str
+    ) -> None:
         """Process each entity and generate tests"""
         current = 0
         for entity in entities:
@@ -574,8 +607,8 @@ class TestGenerator:
     def _get_object(self, path: str) -> Optional[Any]:
         """Get the actual object from its module path"""
         try:
-            module_parts = path.split('.')
-            module_path = '.'.join(module_parts[:-1])
+            module_parts = path.split(".")
+            module_path = ".".join(module_parts[:-1])
             obj_name = module_parts[-1]
 
             spec = importlib.util.find_spec(module_path)
@@ -595,17 +628,14 @@ class TestGenerator:
 
         # Start with basic test with type inference
         variants = [
-            self.create_variant(
-                "basic",
-                f"--style=unittest --annotate {method_path}"
-            )
+            self.create_variant("basic", f"--style=unittest --annotate {method_path}")
         ]
 
         # Add error variant
         variants.append(
             self.create_variant(
                 "errors",
-                f"--style=unittest --annotate --except ValueError --except TypeError {method_path}"
+                f"--style=unittest --annotate --except ValueError --except TypeError {method_path}",
             )
         )
 
@@ -615,7 +645,9 @@ class TestGenerator:
 
         return variants
 
-    def _generate_special_variants(self, name: str, method_path: str) -> List[Dict[str, str]]:
+    def _generate_special_variants(
+        self, name: str, method_path: str
+    ) -> List[Dict[str, str]]:
         """Generate special variants based on method name"""
         special_variants = []
 
@@ -623,7 +655,7 @@ class TestGenerator:
             special_variants.append(
                 self.create_variant(
                     "idempotent",
-                    f"--style=unittest --annotate --idempotent {method_path}"
+                    f"--style=unittest --annotate --idempotent {method_path}",
                 )
             )
 
@@ -631,7 +663,7 @@ class TestGenerator:
             special_variants.append(
                 self.create_variant(
                     "validation",
-                    f"--style=unittest --annotate --errors-equivalent {method_path}"
+                    f"--style=unittest --annotate --errors-equivalent {method_path}",
                 )
             )
 
@@ -639,7 +671,7 @@ class TestGenerator:
             special_variants.append(
                 self.create_variant(
                     "roundtrip",
-                    f"--style=unittest --annotate --roundtrip {method_path}"
+                    f"--style=unittest --annotate --roundtrip {method_path}",
                 )
             )
 
@@ -647,20 +679,27 @@ class TestGenerator:
             special_variants.append(
                 self.create_variant(
                     "binary-op",
-                    f"--style=unittest --annotate --binary-op {method_path}"
+                    f"--style=unittest --annotate --binary-op {method_path}",
                 )
             )
 
         return special_variants
 
-    def generate_function_variants(self, entity: TestableEntity) -> List[Dict[str, str]]:
+    def generate_function_variants(
+        self, entity: TestableEntity
+    ) -> List[Dict[str, str]]:
         """Generate test variants for standalone functions"""
         base_cmd = f"--style=unittest --annotate {entity.module_path}.{entity.name}"
         variants = [self.create_variant("basic", base_cmd)]
 
         # Add special variants for functions if needed
         name = entity.name.lower()
-        if "encode" in name or "decode" in name or "serialize" in name or "deserialize" in name:
+        if (
+            "encode" in name
+            or "decode" in name
+            or "serialize" in name
+            or "deserialize" in name
+        ):
             variants.append(self.create_variant("roundtrip", f"{base_cmd} --roundtrip"))
         elif any(x in name for x in ["add", "sub", "mul", "combine", "merge"]):
             variants.append(self.create_variant("binary-op", f"{base_cmd} --binary-op"))
@@ -672,19 +711,26 @@ class TestGenerator:
         variants = []
         if entity.entity_type == "class":
             # For classes, just a basic annotated variant
-            variants.append(self.create_variant("basic", f"--style=unittest --annotate {entity.module_path}.{entity.name}"))
+            variants.append(
+                self.create_variant(
+                    "basic",
+                    f"--style=unittest --annotate {entity.module_path}.{entity.name}",
+                )
+            )
         elif entity.entity_type in {"method", "instance_method"}:
             variants.extend(self.generate_method_variants(entity))
         else:
             variants.extend(self.generate_function_variants(entity))
-        logger.debug(f"Generated variants for {entity.name}: {[v['type'] for v in variants]}")
+        logger.debug(
+            f"Generated variants for {entity.name}: {[v['type'] for v in variants]}"
+        )
         return variants
 
     def create_variant(self, variant_type: str, cmd: str) -> Dict[str, str]:
         """Create a test variant dictionary with properly formatted command"""
         return {
             "type": variant_type,
-            "cmd": cmd.strip()  # Ensure no extra whitespace in command
+            "cmd": cmd.strip(),  # Ensure no extra whitespace in command
         }
 
     def combine_and_cleanup_tests(self, file_path: Path) -> None:
@@ -716,14 +762,18 @@ class TestGenerator:
 
         # Step 5: Wrap the combined test code with the prompt to produce the final Markdown
         original_source_code = file_path.read_text()
-        final_wrapped_content = self.wrap_with_prompt(combined_content, original_source_code)
+        final_wrapped_content = self.wrap_with_prompt(
+            combined_content, original_source_code
+        )
         final_wrapped_file = self.output_dir / f"test_wrapped_{original_stem}.md"
         final_wrapped_file.write_text(final_wrapped_content)
         logger.info(f"Final wrapped test file created at {final_wrapped_file}")
 
         # Optional: verify the combined file
         if not combined_filepath.exists() or len(combined_filepath.read_text()) < 50:
-            logger.error(f"Combined test file {combined_filepath} appears to be incomplete.")
+            logger.error(
+                f"Combined test file {combined_filepath} appears to be incomplete."
+            )
             return
 
         # Step 6: Cleanup - delete individual test files
@@ -735,7 +785,9 @@ class TestGenerator:
                 logger.error(f"Failed to delete {test_file.name}: {e}")
 
         # Step 7: Logging and feedback
-        logger.info(f"Combined {len(test_files)} test files into {combined_filename} and removed originals.")
+        logger.info(
+            f"Combined {len(test_files)} test files into {combined_filename} and removed originals."
+        )
 
         # Step 8: Apply Ruff cleaning commands to the combined file
         cmds = [
@@ -743,7 +795,7 @@ class TestGenerator:
             f"ruff check --fix {combined_filepath}",
             f"ruff format {combined_filepath}",
             f"ruff check --select I --fix {combined_filepath}",
-            f"ruff format {combined_filepath}"
+            f"ruff format {combined_filepath}",
         ]
         for cmd in cmds:
             try:
@@ -758,7 +810,9 @@ class TestGenerator:
         # Finally, remove the combined .py file so only the markdown remains
         if combined_filepath.exists():
             combined_filepath.unlink()
-            logger.info(f"Deleted the combined file {combined_filepath} so that only the Markdown file remains.")
+            logger.info(
+                f"Deleted the combined file {combined_filepath} so that only the Markdown file remains."
+            )
 
 
 def parse_args(args: Optional[list] = None) -> Path:

@@ -31,20 +31,24 @@ Prerequisites:
 """
 
 import math
+from unittest.mock import MagicMock, patch
+
 import pytest
 import torch
-from unittest.mock import patch, MagicMock
-
-from hypothesis import given, strategies as st, settings, HealthCheck
-from hypothesis import example
+from hypothesis import HealthCheck, example, given, settings
+from hypothesis import strategies as st
 
 # ----------------------------------------------------------------------
 # IMPORTANT: Mock out the HF calls so "dummy_path" doesn't trigger downloads
 # ----------------------------------------------------------------------
-with patch("rna_predict.pipeline.stageB.torsion.torsionbert_inference.AutoTokenizer.from_pretrained") as mock_tok:
+with patch(
+    "rna_predict.pipeline.stageB.torsion.torsionbert_inference.AutoTokenizer.from_pretrained"
+) as mock_tok:
     mock_tok.return_value = MagicMock(name="MockedTokenizer")
 
-    with patch("rna_predict.pipeline.stageB.torsion.torsionbert_inference.AutoModel.from_pretrained") as mock_model:
+    with patch(
+        "rna_predict.pipeline.stageB.torsion.torsionbert_inference.AutoModel.from_pretrained"
+    ) as mock_model:
         mock_model.return_value = MagicMock(name="MockedAutoModel")
 
         # Now we import the class under test, in an environment
@@ -120,7 +124,9 @@ def dummy_model_mismatch() -> DummyTorsionBertModel:
 
 
 @pytest.fixture
-def predictor_degrees(dummy_model_ones: DummyTorsionBertModel) -> StageBTorsionBertPredictor:
+def predictor_degrees(
+    dummy_model_ones: DummyTorsionBertModel,
+) -> StageBTorsionBertPredictor:
     """
     Fixture for a StageBTorsionBertPredictor using angle_mode='degrees' with a stable dummy model.
     This is well-suited to verifying consistent, deterministic outputs for coverage.
@@ -137,7 +143,9 @@ def predictor_degrees(dummy_model_ones: DummyTorsionBertModel) -> StageBTorsionB
 
 
 @pytest.fixture
-def predictor_sincos_random(dummy_model_random: DummyTorsionBertModel) -> StageBTorsionBertPredictor:
+def predictor_sincos_random(
+    dummy_model_random: DummyTorsionBertModel,
+) -> StageBTorsionBertPredictor:
     """
     Fixture for a StageBTorsionBertPredictor using angle_mode='sin_cos' with random data
     to ensure that we capture possible floating-point variations.
@@ -157,7 +165,9 @@ class TestStageBTorsionBertPredictorCore:
     Core tests to verify normal behavior, short sequences, adjacency usage, etc.
     """
 
-    def test_short_sequence_degrees(self, predictor_degrees: StageBTorsionBertPredictor):
+    def test_short_sequence_degrees(
+        self, predictor_degrees: StageBTorsionBertPredictor
+    ):
         """
         Test a short two-letter sequence in 'degrees' mode with a stable dummy model.
         Because the dummy model returns all ones, the sin/cos pairs are (1,1),
@@ -180,7 +190,9 @@ class TestStageBTorsionBertPredictorCore:
             torsion, torch.full((2, 4), 45.0), atol=1e-3
         ), "Degrees conversion mismatch for short sequence"
 
-    def test_normal_sequence_degrees(self, predictor_degrees: StageBTorsionBertPredictor):
+    def test_normal_sequence_degrees(
+        self, predictor_degrees: StageBTorsionBertPredictor
+    ):
         """
         Test a normal 4-letter sequence in degrees mode, verifying shape correctness.
         The dummy model returns all ones, so angles should be 45 degrees as well.
@@ -189,7 +201,10 @@ class TestStageBTorsionBertPredictorCore:
         output = predictor_degrees(seq)
         torsion = output["torsion_angles"]
 
-        assert torsion.shape == (4, 4), "Expected shape [4, 4] for 4 residues in degrees mode."
+        assert torsion.shape == (
+            4,
+            4,
+        ), "Expected shape [4, 4] for 4 residues in degrees mode."
         assert output["residue_count"] == 4
         # Each angle ~45 degrees:
         assert torch.allclose(torsion, torch.full((4, 4), 45.0), atol=1e-3)
@@ -201,7 +216,10 @@ class TestStageBTorsionBertPredictorCore:
         adjacency = torch.zeros((3, 3))
         output = predictor_degrees("ACG", adjacency=adjacency)
         angles = output["torsion_angles"]
-        assert angles.shape == (3, 4), "Predictor shape should be unaffected by adjacency input."
+        assert angles.shape == (
+            3,
+            4,
+        ), "Predictor shape should be unaffected by adjacency input."
         assert output["residue_count"] == 3
 
     def test_invalid_angle_mode_raises(self):
@@ -232,8 +250,9 @@ class TestStageBTorsionBertPredictorDimChecks:
             predictor("ACG")
 
     @patch.object(
-        StageBTorsionBertPredictor, "_convert_sincos_to_angles",
-        side_effect=RuntimeError("Forced mismatch for test!")
+        StageBTorsionBertPredictor,
+        "_convert_sincos_to_angles",
+        side_effect=RuntimeError("Forced mismatch for test!"),
     )
     def test_mocked_mismatch(self, mock_conv):
         """
@@ -294,7 +313,7 @@ class TestStageBTorsionBertPredictorConstructorFuzzing:
 
     @settings(
         max_examples=50,
-        suppress_health_check=[HealthCheck.filter_too_much, HealthCheck.too_slow]
+        suppress_health_check=[HealthCheck.filter_too_much, HealthCheck.too_slow],
     )
     @given(
         model_name=st.text(min_size=0, max_size=20),
@@ -303,7 +322,9 @@ class TestStageBTorsionBertPredictorConstructorFuzzing:
         num_angles=st.integers(min_value=-5, max_value=10),
         max_length=st.integers(min_value=1, max_value=256),
     )
-    @example(model_name="", device="cpu", angle_mode="sin_cos", num_angles=1, max_length=1)
+    @example(
+        model_name="", device="cpu", angle_mode="sin_cos", num_angles=1, max_length=1
+    )
     def test_constructor_arguments(
         self, model_name, device, angle_mode, num_angles, max_length
     ):
@@ -324,8 +345,9 @@ class TestStageBTorsionBertPredictorConstructorFuzzing:
             if angle_mode in ("sin_cos", "radians", "degrees") and num_angles > 0:
                 # We'll mock the model to ensure shape is consistent.
                 with patch.object(
-                    predictor.model, "predict_angles_from_sequence",
-                    return_value=torch.zeros((1, 2 * num_angles))
+                    predictor.model,
+                    "predict_angles_from_sequence",
+                    return_value=torch.zeros((1, 2 * num_angles)),
                 ):
                     out = predictor("A")
                     if angle_mode == "sin_cos":
@@ -351,10 +373,14 @@ class TestAngleConversionHypothesis:
         # Let's fix k=3 for clarity => 6 columns total.
         sincos_data=st.lists(
             st.lists(
-                st.floats(allow_infinity=False, allow_nan=False, min_value=-1.0, max_value=1.0),
-                min_size=6, max_size=6  # exactly 6 columns
+                st.floats(
+                    allow_infinity=False, allow_nan=False, min_value=-1.0, max_value=1.0
+                ),
+                min_size=6,
+                max_size=6,  # exactly 6 columns
             ),
-            min_size=1, max_size=5  # up to 5 rows
+            min_size=1,
+            max_size=5,  # up to 5 rows
         )
     )
     def test_convert_sincos_matrix(self, sincos_data):
@@ -371,7 +397,9 @@ class TestAngleConversionHypothesis:
 
         # Validate shape
         N = sincos_tensor.shape[0]
-        assert sincos_tensor.shape[1] == 6, "We expect exactly 6 columns for 3 angles in sin/cos pairs."
+        assert (
+            sincos_tensor.shape[1] == 6
+        ), "We expect exactly 6 columns for 3 angles in sin/cos pairs."
 
         # Convert
         angles = predictor._convert_sincos_to_angles(sincos_tensor)
@@ -395,7 +423,9 @@ class TestAngleConversionHypothesis:
 #   REPLICATING THE "14 vs 32" BUG from user: interface.py => TorsionBertPredictor
 # ----------------------------------------------------------------------
 class TestReplicateInterfaceBug:
-    @patch("rna_predict.pipeline.stageB.torsion.torsion_bert_predictor.TorsionBertModel")
+    @patch(
+        "rna_predict.pipeline.stageB.torsion.torsion_bert_predictor.TorsionBertModel"
+    )
     def test_interface_style_dimension_error(self, mock_tbm):
         """
         The user's trace indicates a mismatch of 14 vs 32. Possibly because
@@ -408,7 +438,7 @@ class TestReplicateInterfaceBug:
         """
         # Fake TorsionBertModel that yields shape [1,32]
         mock_model_inst = MagicMock(name="MockedModelInstance")
-        mock_model_inst.predict_angles_from_sequence.return_value = torch.rand((1,32))
+        mock_model_inst.predict_angles_from_sequence.return_value = torch.rand((1, 32))
         mock_tbm.return_value = mock_model_inst
 
         # Create a predictor expecting e.g. 16 angles => shape (N, 32).
@@ -417,7 +447,7 @@ class TestReplicateInterfaceBug:
             model_name_or_path="dummy_path",
             device="cpu",
             angle_mode="sin_cos",
-            num_angles=16
+            num_angles=16,
         )
         seq = "ACGUACGUACGUAC"  # length=14
         with pytest.raises(RuntimeError, match="Tensor sizes"):

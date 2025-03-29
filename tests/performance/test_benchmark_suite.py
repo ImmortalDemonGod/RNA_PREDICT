@@ -1,12 +1,14 @@
 import unittest
 from unittest.mock import patch
-from typing import List, Dict
+
+import pytest
 import torch
 import torch.nn as nn
-import pytest
+
 # Hypothesis imports
-from hypothesis import given, strategies as st, settings, example, HealthCheck
-from hypothesis.strategies import integers, lists, booleans
+from hypothesis import HealthCheck, given, settings
+from hypothesis import strategies as st
+from hypothesis.strategies import booleans, integers, lists
 
 # Import the module under test (assumes `benchmark.py` is in the same folder).
 import rna_predict.benchmarks.benchmark as benchmark
@@ -16,7 +18,7 @@ import rna_predict.benchmarks.benchmark as benchmark
 #
 # This test file merges and reorganizes tests originally spread across multiple
 # “fuzz” or “basic” test files into a single, coherent unittest suite.
-# 
+#
 # Key improvements:
 #  1. Logical grouping of tests by function or class under test
 #  2. Clear docstrings for each test class and test method
@@ -45,8 +47,12 @@ class TestBenchmarkConfig(unittest.TestCase):
         self.assertFalse(config.use_optimized)
 
     @given(
-        N_atom_list=lists(integers(min_value=1, max_value=1024), min_size=1, max_size=5),
-        N_token_list=lists(integers(min_value=1, max_value=1024), min_size=1, max_size=5),
+        N_atom_list=lists(
+            integers(min_value=1, max_value=1024), min_size=1, max_size=5
+        ),
+        N_token_list=lists(
+            integers(min_value=1, max_value=1024), min_size=1, max_size=5
+        ),
         block_size=integers(min_value=1, max_value=32),
         device=st.sampled_from(["cuda", "cpu"]),
         num_warmup=integers(min_value=1, max_value=20),
@@ -54,8 +60,16 @@ class TestBenchmarkConfig(unittest.TestCase):
         use_optimized=booleans(),
     )
     @settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
-    def test_constructor_hypothesis(self, N_atom_list, N_token_list, block_size,
-                                    device, num_warmup, num_iters, use_optimized):
+    def test_constructor_hypothesis(
+        self,
+        N_atom_list,
+        N_token_list,
+        block_size,
+        device,
+        num_warmup,
+        num_iters,
+        use_optimized,
+    ):
         """
         Hypothesis-based test to ensure the config stores arbitrary valid inputs.
         """
@@ -141,7 +155,7 @@ class TestCreateEmbedder(unittest.TestCase):
 
     @pytest.mark.skipif(
         torch.version.cuda is None,
-        reason="Torch not compiled with CUDA; cannot run CUDA test."
+        reason="Torch not compiled with CUDA; cannot run CUDA test.",
     )
     @patch("torch.cuda.is_available", return_value=True)
     def test_create_embedder_cuda_available(self, mock_cuda):
@@ -165,9 +179,11 @@ class TestGenerateSyntheticFeatures(unittest.TestCase):
     @given(
         st.integers(min_value=1, max_value=256),
         st.integers(min_value=1, max_value=128),
-        st.sampled_from(["cpu", "cuda"])
+        st.sampled_from(["cpu", "cuda"]),
     )
-    @settings(suppress_health_check=[HealthCheck.function_scoped_fixture], max_examples=5)
+    @settings(
+        suppress_health_check=[HealthCheck.function_scoped_fixture], max_examples=5
+    )
     def test_generate_synthetic_features_shape(self, N_atom, N_token, device):
         """
         Uses Hypothesis to generate random but reasonable N_atom, N_token,
@@ -216,7 +232,7 @@ class TestWarmupInference(unittest.TestCase):
             f=self.f,
             block_index=self.block_index,
             device="cpu",
-            num_warmup=2
+            num_warmup=2,
         )
         # If no exceptions, we consider it passed.
 
@@ -239,7 +255,7 @@ class TestMeasureInferenceTimeAndMemory(unittest.TestCase):
             f=self.f,
             block_index=self.block_index,
             device="cpu",
-            num_iters=2
+            num_iters=2,
         )
         self.assertIsInstance(avg_fwd, float)
         self.assertGreaterEqual(avg_fwd, 0.0)
@@ -268,7 +284,7 @@ class TestBenchmarkDecodingLatencyAndMemory(unittest.TestCase):
 class TestBenchmarkInputEmbedding(unittest.TestCase):
     """
     Checks the benchmark_input_embedding function to ensure no errors
-    occur with forward/backward pass on small input. 
+    occur with forward/backward pass on small input.
     """
 
     def test_benchmark_input_embedding_runs(self):
@@ -338,7 +354,7 @@ class TestWarmupInputEmbedding(unittest.TestCase):
 
 class TestTimedDecoding(unittest.TestCase):
     """
-    Tests the timed_decoding function which calls measure_inference_time_and_memory 
+    Tests the timed_decoding function which calls measure_inference_time_and_memory
     under the hood for a number of iterations.
     """
 
@@ -354,7 +370,7 @@ class TestTimedDecoding(unittest.TestCase):
             f=self.f,
             block_index=self.block_index,
             device="cpu",
-            iters=2
+            iters=2,
         )
         self.assertIsInstance(result, float)
         self.assertGreaterEqual(result, 0.0)

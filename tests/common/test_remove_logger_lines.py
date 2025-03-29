@@ -1,5 +1,7 @@
 import unittest
+
 from rna_predict.scripts.hypot_test_gen import remove_logger_lines
+
 
 class TestRemoveLoggerLines(unittest.TestCase):
     def test_remove_logger_lines(self):
@@ -15,5 +17,6 @@ Normal code line"""
         result = remove_logger_lines(input_text)
         self.assertEqual(result, expected_output.strip())
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

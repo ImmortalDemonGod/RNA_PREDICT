@@ -15,9 +15,11 @@ Usage:
 
 import unittest
 from unittest.mock import patch
-import torch
+
 import pandas as pd
-from hypothesis import given, strategies as st, settings, HealthCheck, example, assume, reject
+import torch
+from hypothesis import HealthCheck, example, given, settings
+from hypothesis import strategies as st
 
 # Adjust import if needed for your environment
 try:
@@ -58,9 +60,20 @@ class TestRNAPredictorInitialization(unittest.TestCase):
         Checks device auto-detection (cpu/cuda), torsion predictor, and stageC_method.
         """
         predictor = RNAPredictor()
-        self.assertIsNotNone(predictor.torsion_predictor, "Should initialize torsion_predictor by default.")
-        self.assertIn(str(predictor.device), ["cpu", "cuda"], "Device should be cpu or cuda based on availability.")
-        self.assertEqual(predictor.stageC_method, "mp_nerf", "Default stageC_method should be 'mp_nerf'.")
+        self.assertIsNotNone(
+            predictor.torsion_predictor,
+            "Should initialize torsion_predictor by default.",
+        )
+        self.assertIn(
+            str(predictor.device),
+            ["cpu", "cuda"],
+            "Device should be cpu or cuda based on availability.",
+        )
+        self.assertEqual(
+            predictor.stageC_method,
+            "mp_nerf",
+            "Default stageC_method should be 'mp_nerf'.",
+        )
 
     def test_init_custom_params(self):
         """
@@ -73,7 +86,7 @@ class TestRNAPredictorInitialization(unittest.TestCase):
             angle_mode="sin_cos",
             num_angles=5,
             max_length=256,
-            stageC_method="other_method"
+            stageC_method="other_method",
         )
         self.assertEqual(str(predictor.device), "cpu")
         self.assertEqual(predictor.torsion_predictor.model_name_or_path, "custom/path")
@@ -88,11 +101,20 @@ class TestRNAPredictorInitialization(unittest.TestCase):
         angle_mode=st.sampled_from(["degrees", "radians", "sin_cos"]),
         num_angles=st.integers(min_value=1, max_value=10),
         max_length=st.integers(min_value=1, max_value=1024),
-        stageC_method=st.sampled_from(["mp_nerf", "dummy_method", "other_method"])
+        stageC_method=st.sampled_from(["mp_nerf", "dummy_method", "other_method"]),
     )
-    @settings(suppress_health_check=[HealthCheck.too_slow, HealthCheck.filter_too_much], max_examples=20)
+    @settings(
+        suppress_health_check=[HealthCheck.too_slow, HealthCheck.filter_too_much],
+        max_examples=20,
+    )
     def test_fuzz_constructor_init(
-        self, model_name_or_path, device, angle_mode, num_angles, max_length, stageC_method
+        self,
+        model_name_or_path,
+        device,
+        angle_mode,
+        num_angles,
+        max_length,
+        stageC_method,
     ):
         """
         Hypothesis-driven fuzz test of the constructor to ensure broad coverage of parameter combos.
@@ -103,7 +125,7 @@ class TestRNAPredictorInitialization(unittest.TestCase):
             angle_mode=angle_mode,
             num_angles=num_angles,
             max_length=max_length,
-            stageC_method=stageC_method
+            stageC_method=stageC_method,
         )
         self.assertEqual(predictor.torsion_predictor.angle_mode, angle_mode)
         self.assertEqual(predictor.torsion_predictor.num_angles, num_angles)
@@ -136,8 +158,12 @@ class TestPredict3DStructure(unittest.TestCase):
         self.assertIn("coords", result)
         self.assertIn("atom_count", result)
         coords = result["coords"]
-        self.assertTrue(hasattr(coords, "shape"), "coords should be a tensor or similar.")
-        self.assertGreaterEqual(coords.shape[-1], 3, "Should have at least x,y,z in the last dimension.")
+        self.assertTrue(
+            hasattr(coords, "shape"), "coords should be a tensor or similar."
+        )
+        self.assertGreaterEqual(
+            coords.shape[-1], 3, "Should have at least x,y,z in the last dimension."
+        )
 
     def test_predict_3d_structure_empty_seq(self):
         """
@@ -147,11 +173,18 @@ class TestPredict3DStructure(unittest.TestCase):
         sequence = ""
         result = self.predictor.predict_3d_structure(sequence)
         coords = result["coords"]
-        self.assertEqual(coords.shape[0], 0, "Empty sequence => zero residues => coords shape[0] = 0.")
+        self.assertEqual(
+            coords.shape[0],
+            0,
+            "Empty sequence => zero residues => coords shape[0] = 0.",
+        )
         self.assertEqual(result["atom_count"], 0, "No atoms if sequence is empty.")
 
     @given(valid_rna_sequences)
-    @settings(suppress_health_check=[HealthCheck.too_slow, HealthCheck.filter_too_much], max_examples=10)
+    @settings(
+        suppress_health_check=[HealthCheck.too_slow, HealthCheck.filter_too_much],
+        max_examples=10,
+    )
     def test_predict_3d_structure_with_random_sequences(self, sequence):
         """
         Property-based test: random valid RNA sequences.
@@ -185,9 +218,13 @@ class TestPredictSubmission(unittest.TestCase):
         """
         sequence = "ACGU"
         repeats = 5
-        df = self.predictor.predict_submission(sequence, prediction_repeats=repeats, residue_atom_choice=0)
+        df = self.predictor.predict_submission(
+            sequence, prediction_repeats=repeats, residue_atom_choice=0
+        )
         self.assertIsInstance(df, pd.DataFrame)
-        self.assertEqual(len(df), len(sequence), "DataFrame rows should match number of residues.")
+        self.assertEqual(
+            len(df), len(sequence), "DataFrame rows should match number of residues."
+        )
         expected_cols = ["ID", "resname", "resid"]
         for i in range(1, repeats + 1):
             expected_cols += [f"x_{i}", f"y_{i}", f"z_{i}"]
@@ -200,7 +237,17 @@ class TestPredictSubmission(unittest.TestCase):
         sequence = ""
         df = self.predictor.predict_submission(sequence, prediction_repeats=2)
         self.assertTrue(df.empty, "DataFrame should be empty for empty sequence.")
-        expected_cols = ["ID","resname","resid","x_1","y_1","z_1","x_2","y_2","z_2"]
+        expected_cols = [
+            "ID",
+            "resname",
+            "resid",
+            "x_1",
+            "y_1",
+            "z_1",
+            "x_2",
+            "y_2",
+            "z_2",
+        ]
         self.assertListEqual(list(df.columns), expected_cols)
 
     def test_predict_submission_invalid_atom_choice(self):
@@ -216,7 +263,7 @@ class TestPredictSubmission(unittest.TestCase):
         """
         Force a shape mismatch in coords so code raises ValueError (unexpected shape).
         """
-        mock_stageC.return_value = {"coords": torch.zeros((10,4)), "atom_count": 40}
+        mock_stageC.return_value = {"coords": torch.zeros((10, 4)), "atom_count": 40}
         sequence = "ACGU"
         with self.assertRaises(ValueError):
             self.predictor.predict_submission(sequence)
@@ -227,7 +274,9 @@ class TestPredictSubmission(unittest.TestCase):
         """
         sequence = "ACGU"
         repeats = 3
-        df = self.predictor.predict_submission(sequence, prediction_repeats=repeats, residue_atom_choice=0)
+        df = self.predictor.predict_submission(
+            sequence, prediction_repeats=repeats, residue_atom_choice=0
+        )
         self.assertEqual(len(df), len(sequence))
         self.assertIn("x_3", df.columns, "Should have x_3 for the final repeat.")
         self.assertIn("y_1", df.columns)
@@ -236,18 +285,27 @@ class TestPredictSubmission(unittest.TestCase):
     @given(
         seq=valid_rna_sequences,
         repeats=st.integers(min_value=1, max_value=5),
-        atom_choice=st.integers(min_value=0, max_value=4)
+        atom_choice=st.integers(min_value=0, max_value=4),
     )
-    @settings(suppress_health_check=[HealthCheck.too_slow, HealthCheck.filter_too_much], max_examples=10)
+    @settings(
+        suppress_health_check=[HealthCheck.too_slow, HealthCheck.filter_too_much],
+        max_examples=10,
+    )
     @example(seq="", repeats=5, atom_choice=0)
     def test_predict_submission_hypothesis_random(self, seq, repeats, atom_choice):
         """
         Hypothesis test for broad coverage of submission logic with random sequences.
         """
         try:
-            df = self.predictor.predict_submission(seq, prediction_repeats=repeats, residue_atom_choice=atom_choice)
+            df = self.predictor.predict_submission(
+                seq, prediction_repeats=repeats, residue_atom_choice=atom_choice
+            )
             self.assertIsInstance(df, pd.DataFrame)
-            self.assertEqual(len(df), len(seq), "Row count should match sequence length or be 0 if seq is empty.")
+            self.assertEqual(
+                len(df),
+                len(seq),
+                "Row count should match sequence length or be 0 if seq is empty.",
+            )
         except (ValueError, IndexError, RuntimeError, OSError):
             # Accept environment or shape-based errors
             pass
@@ -272,7 +330,10 @@ class TestPredictSubmissionParametricShapes(unittest.TestCase):
         atoms_per_res=atoms_per_res_strategy,
         repeats=st.integers(min_value=1, max_value=3),
     )
-    @settings(suppress_health_check=[HealthCheck.too_slow, HealthCheck.filter_too_much], max_examples=10)
+    @settings(
+        suppress_health_check=[HealthCheck.too_slow, HealthCheck.filter_too_much],
+        max_examples=10,
+    )
     def test_forced_coord_shapes(self, seq, shape_type, atoms_per_res, repeats):
         """
         Force run_stageC to return specific shapes, verifying correct reshaping or error handling.
@@ -291,8 +352,12 @@ class TestPredictSubmissionParametricShapes(unittest.TestCase):
 
         stageC_result = {"coords": coords, "atom_count": atom_count}
 
-        with patch.object(self.predictor, "predict_3d_structure", return_value=stageC_result) as mock_p3d:
-            df = self.predictor.predict_submission(seq, prediction_repeats=repeats, residue_atom_choice=0)
+        with patch.object(
+            self.predictor, "predict_3d_structure", return_value=stageC_result
+        ) as mock_p3d:
+            df = self.predictor.predict_submission(
+                seq, prediction_repeats=repeats, residue_atom_choice=0
+            )
             self.assertEqual(len(df), N, "Rows must match number of residues.")
             # Columns: ID, resname, resid + repeats*(x,y,z) => 3 + 3*repeats total
             self.assertEqual(df.shape[1], 3 + (3 * repeats))

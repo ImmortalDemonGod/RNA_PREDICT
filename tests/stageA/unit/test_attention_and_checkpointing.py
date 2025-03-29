@@ -13,24 +13,26 @@ This suite demonstrates:
 """
 
 import math
+from typing import Any, Callable, List, Optional
+
 import pytest
 import torch
-import torch.nn.functional as F
-from hypothesis import given, strategies as st, settings
-from typing import List, Callable, Any, Optional
+from hypothesis import given, settings
+from hypothesis import strategies as st
+
+from rna_predict.pipeline.stageA.input_embedding.current.checkpointing import (
+    checkpoint_blocks,
+)
 
 # If your actual code resides elsewhere, adjust these imports accordingly.
 # For example:
 from rna_predict.pipeline.stageA.input_embedding.legacy.attention.block_sparse import (
-     LocalBlockSparseAttentionNaive,
-     build_local_blockmask,
-     BlockSparseAttentionOptimized,
-     LocalBlockMaskConfig,
+    BlockSparseAttentionOptimized,
+    LocalBlockMaskConfig,
+    LocalBlockSparseAttentionNaive,
+    build_local_blockmask,
 )
 
-from rna_predict.pipeline.stageA.input_embedding.current.checkpointing import (
-     checkpoint_blocks,
- )
 
 ###############################################################################
 # Dummy definitions for demonstration:
@@ -38,6 +40,7 @@ from rna_predict.pipeline.stageA.input_embedding.current.checkpointing import (
 ###############################################################################
 class LocalBlockMaskConfig:
     """Configuration for local blockmask creation."""
+
     def __init__(self, block_size=128, local_window=32, nheads=4, causal=False):
         self.block_size = block_size
         self.local_window = local_window
@@ -45,7 +48,9 @@ class LocalBlockMaskConfig:
         self.causal = causal
 
 
-def build_local_blockmask(N_atom: int, config: LocalBlockMaskConfig) -> Optional[torch.Tensor]:
+def build_local_blockmask(
+    N_atom: int, config: LocalBlockMaskConfig
+) -> Optional[torch.Tensor]:
     """Dummy mock of build_local_blockmask."""
     if N_atom <= 0:
         return None
@@ -62,6 +67,7 @@ class LocalBlockSparseAttentionNaive(torch.autograd.Function):
     """
     Naive local block-sparse attention with forward/backward for demonstration.
     """
+
     @staticmethod
     def forward(ctx, q, k, v, pair_bias, block_index):
         # Minimal forward pass for demonstration
@@ -84,6 +90,7 @@ class LocalBlockSparseAttentionNaive(torch.autograd.Function):
 
 class BlockSparseAttentionOptimized(torch.nn.Module):
     """Dummy mock of an optimized block-sparse attention with optional library usage."""
+
     def __init__(self, nheads, block_size=128, local_window=32, causal=False):
         super().__init__()
         self.nheads = nheads
@@ -97,9 +104,13 @@ class BlockSparseAttentionOptimized(torch.nn.Module):
         return q.clone()  # Dummy result
 
 
-def checkpoint_blocks(blocks: List[Callable], args: List[Any], blocks_per_ckpt: Optional[int]) -> List[Any]:
+def checkpoint_blocks(
+    blocks: List[Callable], args: List[Any], blocks_per_ckpt: Optional[int]
+) -> List[Any]:
     """Dummy simplified checkpoint_blocks function."""
-    if blocks_per_ckpt is not None and (blocks_per_ckpt < 1 or blocks_per_ckpt > len(blocks)):
+    if blocks_per_ckpt is not None and (
+        blocks_per_ckpt < 1 or blocks_per_ckpt > len(blocks)
+    ):
         raise ValueError("blocks_per_ckpt must be between 1 and len(blocks)")
 
     # Very simple pass-through that calls each block in sequence
@@ -108,6 +119,8 @@ def checkpoint_blocks(blocks: List[Callable], args: List[Any], blocks_per_ckpt: 
         current = (b(*current),)
 
     return list(current)
+
+
 ###############################################################################
 
 
@@ -122,7 +135,9 @@ def small_tensors():
     k = torch.randn(N_atom, n_heads, c_per_head, requires_grad=True)
     v = torch.randn(N_atom, n_heads, c_per_head, requires_grad=True)
     pair_bias = torch.randn(N_atom, N_atom, n_heads, requires_grad=True)
-    block_index = torch.randint(low=0, high=N_atom, size=(N_atom, 2))  # block_size=2 neighbors
+    block_index = torch.randint(
+        low=0, high=N_atom, size=(N_atom, 2)
+    )  # block_size=2 neighbors
     return q, k, v, pair_bias, block_index
 
 
@@ -175,7 +190,9 @@ class TestBlockSparseAttentionOptimized:
         Checks that forward output shape matches Q.
         """
         q, k, v, bias, _ = small_tensors
-        mod = BlockSparseAttentionOptimized(nheads=q.shape[1], block_size=128, local_window=32)
+        mod = BlockSparseAttentionOptimized(
+            nheads=q.shape[1], block_size=128, local_window=32
+        )
         out = mod(q, k, v, bias)
         assert out.shape == q.shape, "Optimized attention output shape mismatch."
 
@@ -194,11 +211,14 @@ class TestBuildLocalBlockMask:
     Tests the build_local_blockmask function, verifying shape and behavior.
     """
 
-    @pytest.mark.parametrize("n_atom,expected_shape", [
-        (16, (1, 4, 1, 1)),   # N_atom=16, block_size=128 => nrow = ncol = 1
-        (256, (1, 4, 2, 2)),  # N_atom=256 => nrow=ncol=2
-        (0, None),           # 0 => should return None
-    ])
+    @pytest.mark.parametrize(
+        "n_atom,expected_shape",
+        [
+            (16, (1, 4, 1, 1)),  # N_atom=16, block_size=128 => nrow = ncol = 1
+            (256, (1, 4, 2, 2)),  # N_atom=256 => nrow=ncol=2
+            (0, None),  # 0 => should return None
+        ],
+    )
     def test_blockmask_shape(self, n_atom: int, expected_shape: Any):
         """
         Tests shape or None return for various N_atom with default config.
@@ -208,14 +228,18 @@ class TestBuildLocalBlockMask:
         if expected_shape is None:
             assert mask is None, "Expected None when N_atom <= 0."
         else:
-            assert mask.shape == expected_shape, f"Expected shape {expected_shape}, got {mask.shape}"
+            assert (
+                mask.shape == expected_shape
+            ), f"Expected shape {expected_shape}, got {mask.shape}"
 
     def test_causal_masking(self):
         """
         Ensures that if 'causal' is True, rows after the diagonal are zeroed.
         (Here we only check that certain blocks are False).
         """
-        config = LocalBlockMaskConfig(block_size=8, local_window=8, nheads=2, causal=True)
+        config = LocalBlockMaskConfig(
+            block_size=8, local_window=8, nheads=2, causal=True
+        )
         N_atom = 16
         mask = build_local_blockmask(N_atom, config)
         # Expect shape => nrow = ncol = 2
@@ -251,6 +275,7 @@ class TestCheckpointBlocks:
         """
         Checks that an invalid blocks_per_ckpt triggers ValueError.
         """
+
         def block_a(x: int) -> int:
             return x + 1
 
@@ -264,16 +289,20 @@ class TestCheckpointBlocks:
     @given(
         blocks=st.lists(st.functions(), min_size=0, max_size=5),
         args=st.lists(st.integers(), min_size=1, max_size=3),
-        blocks_per_ckpt=st.one_of(st.none(), st.integers(min_value=-1, max_value=10))
+        blocks_per_ckpt=st.one_of(st.none(), st.integers(min_value=-1, max_value=10)),
     )
-    def test_fuzz_checkpoint_blocks(self, blocks: List[Callable], args: List[int], blocks_per_ckpt: Optional[int]):
+    def test_fuzz_checkpoint_blocks(
+        self, blocks: List[Callable], args: List[int], blocks_per_ckpt: Optional[int]
+    ):
         """
         Fuzz test with Hypothesis: checks that checkpoint_blocks either completes
         or raises a predictable ValueError for invalid blocks_per_ckpt.
         """
         # If we have blocks and a valid blocks_per_ckpt, we expect no errors.
         # If blocks_per_ckpt is out of range, we expect ValueError.
-        if blocks_per_ckpt is not None and (blocks_per_ckpt < 1 or blocks_per_ckpt > len(blocks)):
+        if blocks_per_ckpt is not None and (
+            blocks_per_ckpt < 1 or blocks_per_ckpt > len(blocks)
+        ):
             # If blocks is empty, blocks_per_ckpt can't be > len(blocks). 0 is also invalid.
             if blocks:
                 with pytest.raises(ValueError):
@@ -294,6 +323,6 @@ class TestCheckpointBlocks:
                 # We only check that it returns a list, ignoring deeper correctness.
                 assert isinstance(out, list), "Expected output to be a list."
             except ValueError:
-                # If there's a race condition with an empty list, we accept ValueError. 
+                # If there's a race condition with an empty list, we accept ValueError.
                 # This is purely for demonstration of safe handling.
                 pass

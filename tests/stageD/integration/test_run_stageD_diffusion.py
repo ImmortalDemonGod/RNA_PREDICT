@@ -1,14 +1,16 @@
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
+
 import torch
-from torch import Tensor
-from hypothesis import given, strategies as st, settings, example
-from hypothesis import HealthCheck
+from hypothesis import HealthCheck, example, given, settings
+from hypothesis import strategies as st
 from hypothesis.strategies import dictionaries, text
+from torch import Tensor
 
 # We import the function under test.
 # Adjust this import as needed if your module/package layout differs.
 from rna_predict.pipeline.stageD.run_stageD import run_stageD_diffusion
+
 
 class TestRunStageDDiffusion(unittest.TestCase):
     """
@@ -27,7 +29,7 @@ class TestRunStageDDiffusion(unittest.TestCase):
         self.partial_coords = torch.zeros(1, 5, 3)
         self.trunk_embeddings = {
             "s_trunk": torch.zeros(1, 5, 384),  # shape [B, N_token, 384]
-            "pair": torch.zeros(1, 5, 5, 32),   # shape [B, N_token, N_token, c_z]
+            "pair": torch.zeros(1, 5, 5, 32),  # shape [B, N_token, N_token, c_z]
         }
         self.diffusion_config = {
             "c_atom": 128,
@@ -69,7 +71,9 @@ class TestRunStageDDiffusion(unittest.TestCase):
         # but may vary based on the code's expansions.
         self.assertTrue(coords_out.dim() >= 3, "Output must have at least 3 dims.")
         # Basic sanity checks: coordinate dimension should be last
-        self.assertEqual(coords_out.shape[-1], 3, "Last dimension must be 3 for coordinates.")
+        self.assertEqual(
+            coords_out.shape[-1], 3, "Last dimension must be 3 for coordinates."
+        )
 
     @patch("run_stageD.load_rna_data_and_features")
     def test_train_mode(self, mock_load_rna):
@@ -133,7 +137,7 @@ class TestRunStageDDiffusion(unittest.TestCase):
             {
                 "restype": torch.zeros(1, 5, dtype=torch.long),
                 "profile": torch.zeros(1, 5, 10),
-                "deletion_mean": torch.zeros(1, 5)  # shape [1, 5], will become [1,5,1]
+                "deletion_mean": torch.zeros(1, 5),  # shape [1, 5], will become [1,5,1]
             },
         )
 
@@ -187,6 +191,7 @@ class TestRunStageDDiffusion(unittest.TestCase):
         # Check final shapes for consistency
         self.assertEqual(coords_out_1.shape[-2], coords_out_2.shape[-2])
 
+
 class TestRunStageDDiffusionFuzz(unittest.TestCase):
     """
     Property-based (fuzz) tests for run_stageD_diffusion. Ensures that
@@ -196,29 +201,33 @@ class TestRunStageDDiffusionFuzz(unittest.TestCase):
 
     @settings(
         max_examples=50,
-        suppress_health_check=[HealthCheck.too_slow, HealthCheck.filter_too_much]
+        suppress_health_check=[HealthCheck.too_slow, HealthCheck.filter_too_much],
     )
     @given(
         partial_coords=st.one_of(
             # Either empty or a small random shape. Using just st.builds(Tensor) can lead
             # to very large or invalid shapes that might cause crashes in PyTorch. We refine:
             st.builds(
-                torch.randn, st.integers(min_value=1, max_value=4), st.integers(min_value=1, max_value=4)
+                torch.randn,
+                st.integers(min_value=1, max_value=4),
+                st.integers(min_value=1, max_value=4),
             ),
             # Or just a zero-dim corner case
-            st.just(torch.zeros(0, 0))
+            st.just(torch.zeros(0, 0)),
         ),
-        trunk_embeddings=dictionaries(keys=text(), values=st.builds(Tensor), max_size=5),
+        trunk_embeddings=dictionaries(
+            keys=text(), values=st.builds(Tensor), max_size=5
+        ),
         diffusion_config=dictionaries(keys=text(), values=st.integers(), max_size=5),
         mode=st.sampled_from(["inference", "train", "unknown_mode"]),
-        device=st.sampled_from(["cpu"])  # can add "cuda" if available
+        device=st.sampled_from(["cpu"]),  # can add "cuda" if available
     )
     @example(
         partial_coords=torch.randn(1, 3, 3),
         trunk_embeddings={"s_trunk": torch.randn(1, 3, 384)},
         diffusion_config={"c_atom": 128},
         mode="inference",
-        device="cpu"
+        device="cpu",
     )
     def test_fuzz_run_stageD_diffusion(
         self,
@@ -226,7 +235,7 @@ class TestRunStageDDiffusionFuzz(unittest.TestCase):
         trunk_embeddings: dict,
         diffusion_config: dict,
         mode: str,
-        device: str
+        device: str,
     ) -> None:
         """
         Hypothesis-based fuzz test that calls run_stageD_diffusion with random
@@ -239,7 +248,7 @@ class TestRunStageDDiffusionFuzz(unittest.TestCase):
                 trunk_embeddings=trunk_embeddings,
                 diffusion_config=diffusion_config,
                 mode=mode,
-                device=device
+                device=device,
             )
             # If the mode was recognized, we expect either a Tensor or a tuple.
             # It's valid if an exception wasn't raised.
