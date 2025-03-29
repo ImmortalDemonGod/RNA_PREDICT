@@ -10,7 +10,7 @@ from rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager import (
 )
 
 
-@snoop
+# @snoop
 def run_stageD_diffusion(
     partial_coords: torch.Tensor,
     trunk_embeddings: dict,
