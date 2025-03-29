@@ -5,7 +5,7 @@ from rna_predict.pipeline.stageB.torsion.torsion_bert_predictor import (
     StageBTorsionBertPredictor,
 )
 from rna_predict.pipeline.stageC.stage_c_reconstruction import run_stageC
-
+import snoop
 
 class RNAPredictor:
     """
@@ -48,8 +48,10 @@ class RNAPredictor:
             num_angles=num_angles,
             max_length=max_length,
         )
-        self.stageC_method = stageC_method
 
+        self.stageC_method = stageC_method
+    
+    # @snoop
     def predict_3d_structure(self, sequence: str) -> dict:
         """
         Runs the Stage B predictor -> Stage C reconstruction pipeline on a single RNA sequence.
@@ -85,6 +87,7 @@ class RNAPredictor:
         )
         return stageC_result
 
+    # @snoop
     def predict_submission(
         self, sequence: str, prediction_repeats: int = 5, residue_atom_choice: int = 0
     ) -> pd.DataFrame:
