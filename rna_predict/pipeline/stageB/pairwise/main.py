@@ -57,51 +57,11 @@ def demo_run_protenix_embeddings():
     print("[Embedding Demo] z_init shape:", z_init.shape)
 
 
-def demo_run_diffusion():
-    """
-    Demonstrates Stage D diffusion usage with partial coords and trunk embeddings
-    for global refinement.
-    """
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-    # Suppose partial_coords is from Stage C, or random
-    partial_coords = torch.randn(1, 10, 3, device=device)
-    trunk_embeddings = {
-        "sing": torch.randn(1, 10, 384, device=device),
-        "pair": torch.randn(1, 10, 10, 32, device=device),
-    }
-    diffusion_config = {
-        "c_atom": 128,
-        "c_s": 384,
-        "c_z": 32,
-        "transformer": {"n_blocks": 4, "n_heads": 16},
-    }
-
-    # 1) Inference mode
-    coords_final = run_stageD_diffusion(
-        partial_coords,
-        trunk_embeddings,
-        diffusion_config,
-        mode="inference",
-        device=device,
-    )
-    print("[Diffusion Demo] coords_final shape:", coords_final.shape)
-
-    # 2) Training mode
-    x_denoised, loss, sigma = run_stageD_diffusion(
-        partial_coords, trunk_embeddings, diffusion_config, mode="train", device=device
-    )
-    print(
-        f"[Diffusion Demo] Train step => x_denoised shape: {x_denoised.shape}, loss={loss.item():.4f}, sigma={sigma:.2f}"
-    )
-
 
 def main():
     print("=== Running Protenix Integration Demo (Embeddings) ===")
     demo_run_protenix_embeddings()
 
-    print("\n=== Running Stage D Diffusion Demo ===")
-    demo_run_diffusion()
 
 
 if __name__ == "__main__":
