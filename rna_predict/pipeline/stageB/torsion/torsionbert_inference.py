@@ -7,6 +7,8 @@ class TorsionBertModel(nn.Module):
     """
     A wrapper around a pre-trained TorsionBERT model that outputs
     backbone torsion angles (commonly as sin/cos pairs).
+    The 'num_angles' constructor arg is mainly for reference or validation,
+    but actual dimension might differ in the loaded model.
     """
 
     def __init__(
@@ -18,54 +20,61 @@ class TorsionBertModel(nn.Module):
     ):
         """
         Args:
-            model_name_or_path: HF Hub ID (e.g. "sayby/rna_torsionbert") or local path.
-            device: torch.device object, e.g. torch.device("cpu" or "cuda").
-            num_angles: number of backbone angles (commonly 7 for alpha..chi).
-            max_length: tokenizer maximum length (often 512).
+            model_name_or_path: HF Hub ID or local path, e.g. "sayby/rna_torsionbert"
+            device: torch.device object
+            num_angles: user-supplied guess or config
+            max_length: max tokenizer length
         """
         super().__init__()
         self.device = device
-        self.num_angles = num_angles
+        self.user_requested_num_angles = num_angles
         self.max_length = max_length
 
-        # Load tokenizer & model from Hugging Face
+        # Load HF objects
         self.tokenizer = AutoTokenizer.from_pretrained(
-            model_name_or_path, trust_remote_code=True
+            model_name_or_path,
+            trust_remote_code=True
         )
         self.model = AutoModel.from_pretrained(
-            model_name_or_path, trust_remote_code=True
+            model_name_or_path,
+            trust_remote_code=True
         ).to(self.device)
         self.model.eval()
 
     def forward(self, inputs):
         """
-        Forward pass that passes 'inputs' as a single dictionary to the remote-coded TorsionBERT model.
-        This avoids the 'unexpected keyword argument' error from passing named parameters.
+        Generic forward that calls self.model(inputs).
+        Usually returns a dict with 'logits' or an object with .last_hidden_state
         """
         return self.model(inputs)
 
     def predict_angles_from_sequence(self, rna_sequence: str) -> torch.Tensor:
         """
-        Custom method that takes a raw RNA sequence,
-        tokenizes into 3-mers, and calls the Hugging Face model.
-        Returns a [seq_len, 2 * self.num_angles] tensor of sin/cos pairs
-        or zeros if the sequence length < 1.
+        Convert an RNA seq to sin/cos angle pairs as a [N, sincos_dim] tensor,
+        where sincos_dim = 2*NmodelAngles from the loaded model.
+        If the seq is empty or has no valid k-mer tokens, returns a zero tensor of shape (seq_len, 2 * user_requested_num_angles)
+        to keep consistent at zero size.
+
+        We do a partial fill of the result, row i => raw_sincos[0, i].
         """
         seq = rna_sequence.upper().replace("U", "T")
         seq_len = len(seq)
         if seq_len == 0:
-            return torch.zeros((0, 2 * self.num_angles), device=self.device)
+            # Return a zero-length result
+            return torch.zeros((0, 2 * self.user_requested_num_angles), device=self.device)
 
-        # Build 3-mer tokens by sliding a window of size 3
-        tokens = []
+        # Build 3-mers by sliding window of 3
         k = 3
+        tokens = []
         for i in range(seq_len - (k - 1)):
-            tokens.append(seq[i : i + k])
+            tokens.append(seq[i:i + k])
         spaced_kmers = " ".join(tokens)
 
         if not spaced_kmers:
-            return torch.zeros((seq_len, 2 * self.num_angles), device=self.device)
+            # No valid 3-mer => no data
+            return torch.zeros((seq_len, 2 * self.user_requested_num_angles), device=self.device)
 
+        # Prepare inputs
         inputs = self.tokenizer(
             spaced_kmers,
             return_tensors="pt",
@@ -73,26 +82,28 @@ class TorsionBertModel(nn.Module):
             max_length=self.max_length,
             truncation=True,
         )
-        # Move tokenizer outputs to the appropriate device
-        for key_, val_ in inputs.items():
-            inputs[key_] = val_.to(self.device)
+        # Move to device
+        for k_, v_ in inputs.items():
+            inputs[k_] = v_.to(self.device)
 
-        # Now we call the model by passing the entire dictionary as a single argument
+        # Inference
         outputs = self.forward(inputs)
 
-        # By convention, TorsionBERT might store predictions in outputs["logits"]
-        # If not, we fall back to outputs.last_hidden_state
         if "logits" in outputs:
             raw_sincos = outputs["logits"]
         else:
             raw_sincos = outputs.last_hidden_state
 
-        # Allocate space for the final sin/cos angles (size [seq_len, 2 * num_angles])
-        result = torch.zeros((seq_len, 2 * self.num_angles), device=self.device)
-        # Fill each residue row with the corresponding output
-        for i in range(raw_sincos.shape[1]):
-            mid_idx = i + 1
-            if mid_idx < seq_len:
-                result[mid_idx] = raw_sincos[0, i]
+        # raw_sincos => shape [batch=1, n_3mers, sincos_dim]
+        # We'll create [seq_len, sincos_dim]
+        sincos_dim = raw_sincos.shape[-1]
+        n_3mers = raw_sincos.shape[1]
+
+        result = torch.zeros((seq_len, sincos_dim), device=self.device)
+
+        # Fill row i => raw_sincos[0, i], if i < seq_len
+        for i in range(n_3mers):
+            if i < seq_len:
+                result[i] = raw_sincos[0, i]
 
         return result
