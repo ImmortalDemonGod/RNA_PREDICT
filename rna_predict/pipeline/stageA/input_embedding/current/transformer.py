@@ -457,7 +457,7 @@ class AtomTransformer(nn.Module):
             blocks_per_ckpt=blocks_per_ckpt,
         )
 
-    @snoop
+    # @snoop
     def forward(
         self,
         q: torch.Tensor,
@@ -705,7 +705,7 @@ class AtomAttentionEncoder(nn.Module):
                 self.linear_no_bias_q.weight, a=0, mode="fan_in", nonlinearity="relu"
             )
 
-    @snoop
+    # @snoop
     def forward(
         self,
         input_feature_dict: dict[str, Union[torch.Tensor, int, float, dict]],
