@@ -59,6 +59,7 @@ PRIMARY REFERENCES AND SUGGESTED READING:
 """
 
 import math
+import snoop
 
 ###############################################################################
 # HELPER FUNCTIONS for angle unit conversion
@@ -335,7 +336,7 @@ RNA_CONNECT = {
 # 6) HELPER GETTERS
 ###############################################################################
 
-
+# @snoop
 def get_bond_length(pair, sugar_pucker="C3'-endo"):
     """
     Retrieve a standard bond length (Å) for the sugar–phosphate backbone
@@ -352,7 +353,7 @@ def get_bond_length(pair, sugar_pucker="C3'-endo"):
 
     return data_dict.get(pair, None)
 
-
+# @snoop
 def get_bond_angle(triplet, sugar_pucker="C3'-endo", degrees=True):
     """
     Retrieve a standard bond angle for the sugar–phosphate backbone (in degrees by default).
