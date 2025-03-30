@@ -3,12 +3,11 @@ from typing import Any, Dict, Optional
 
 import torch
 
-from rna_predict.pipeline.stageB.torsion.torsionbert_inference import (
+from rna_predict.pipeline.stageB.torsion.torsion_bert_predictor import (
     DummyTorsionModel,
     TorsionBertModel,
+    TorsionBertTokenizer,
 )
-
-
 class StageBTorsionBertPredictor:
     """
     Stage B: predict RNA torsion angles using TorsionBERT.
@@ -16,6 +15,9 @@ class StageBTorsionBertPredictor:
     Instead, it relies on the actual dimension of model output.
     If model_name_or_path is invalid or random, we fallback to a DummyTorsionModel
     that returns zeros, avoiding Hugging Face errors in fuzz tests.
+
+    Updated to store model_name_or_path and max_length as attributes to satisfy
+    test cases referencing them.
     """
 
     def __init__(
@@ -35,6 +37,8 @@ class StageBTorsionBertPredictor:
             num_angles: user guess/config for angles. The actual dimension might differ if model differs.
             max_length: tokenizer max length
         """
+        self.model_name_or_path = model_name_or_path
+        self.max_length = max_length
         self.angle_mode = angle_mode
         self.num_angles = num_angles  # user-provided
         self.device = torch.device(device)
@@ -45,7 +49,7 @@ class StageBTorsionBertPredictor:
                 model_name_or_path=model_name_or_path,
                 device=self.device,
                 num_angles=self.num_angles,
-                max_length=max_length,
+                max_length=self.max_length,
             )
         except Exception:
             self.model = DummyTorsionModel(
