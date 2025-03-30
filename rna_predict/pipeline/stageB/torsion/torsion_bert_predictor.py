@@ -3,11 +3,8 @@ from typing import Any, Dict, Optional
 
 import torch
 
-from rna_predict.pipeline.stageB.torsion.torsion_bert_predictor import (
-    DummyTorsionModel,
-    TorsionBertModel,
-    TorsionBertTokenizer,
-)
+from rna_predict.pipeline.stageB.torsion.dummy_torsion_model import DummyTorsionModel
+from rna_predict.pipeline.stageB.torsion.torsionbert_inference import TorsionBertModel
 class StageBTorsionBertPredictor:
     """
     Stage B: predict RNA torsion angles using TorsionBERT.
@@ -53,7 +50,7 @@ class StageBTorsionBertPredictor:
             )
         except Exception:
             self.model = DummyTorsionModel(
-                device=self.device, num_angles=self.num_angles
+                device=str(self.device), num_angles=self.num_angles
             )
 
     def __call__(
