@@ -3,6 +3,7 @@ import torch.nn as nn
 from transformers import AutoModel, AutoTokenizer
 
 
+
 class TorsionBertModel(nn.Module):
     """
     A wrapper around a pre-trained TorsionBERT model that outputs
@@ -109,22 +110,3 @@ class TorsionBertModel(nn.Module):
                 result[i] = raw_sincos[0, i]
 
         return result
-
-
-class DummyTorsionModel(nn.Module):
-    """
-    Fallback model if HF loading fails.
-    Returns zero sin/cos pairs -> zero angles.
-    """
-
-    def __init__(self, device: torch.device, num_angles: int = 7):
-        super().__init__()
-        self.device = device
-        self.num_angles = num_angles
-
-    def predict_angles_from_sequence(self, rna_sequence: str) -> torch.Tensor:
-        """
-        Produce a zero-filled sin/cos tensor if the real model cannot be loaded.
-        """
-        N = len(rna_sequence)
-        return torch.zeros((N, 2 * self.num_angles), device=self.device)
