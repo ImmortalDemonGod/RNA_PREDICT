@@ -85,6 +85,8 @@ from rna_predict.pipeline.stageA.run_stageA import (
     main,
     run_stageA,
     visualize_with_varna,
+    download_file,
+    unzip_file,
 )
 
 # Import the code under test
@@ -239,7 +241,7 @@ class TestDownloadFile(TestBase):
         with open(self.download_path, "wb") as f:
             f.write(b"Existing data")
 
-        run_stageA.download_file(self.url_regular_file, self.download_path)
+        download_file(self.url_regular_file, self.download_path)
         # The file should remain unchanged
         with open(self.download_path, "rb") as f:
             data = f.read()
@@ -252,7 +254,7 @@ class TestDownloadFile(TestBase):
         with zipfile.ZipFile(self.download_path, "w") as zf:
             zf.writestr("test.txt", "dummy content")
 
-        run_stageA.download_file(self.url_valid_zip, self.download_path)
+        download_file(self.url_valid_zip, self.download_path)
         self.assertTrue(os.path.isfile(self.download_path), "File should remain")
 
     def test_existing_corrupted_zip_redownloads(self):
@@ -268,7 +270,7 @@ class TestDownloadFile(TestBase):
         mock_response.__enter__.return_value = mock_response
         mock_response.read.return_value = b"downloaded content"
         with patch("urllib.request.urlopen", return_value=mock_response):
-            run_stageA.download_file(self.url_valid_zip, self.download_path)
+            download_file(self.url_valid_zip, self.download_path)
 
         # Now the file should be replaced
         with open(self.download_path, "rb") as f:
@@ -283,7 +285,7 @@ class TestDownloadFile(TestBase):
         mock_urlopen.return_value.__enter__.return_value.read.return_value = (
             b"some data"
         )
-        run_stageA.download_file("http://example.com/newdata", self.download_path)
+        download_file("http://example.com/newdata", self.download_path)
         self.assertTrue(os.path.isfile(self.download_path), "File should be created.")
         with open(self.download_path, "rb") as f:
             data = f.read()
@@ -295,7 +297,7 @@ class TestDownloadFile(TestBase):
         If the URL is invalid or unreachable, a URLError is raised.
         """
         with self.assertRaises(urllib.error.URLError):
-            run_stageA.download_file("http://bad-url.com", self.download_path)
+            download_file("http://bad-url.com", self.download_path)
 
     @given(url=st.text(min_size=1, max_size=30), dest=st.text(min_size=1, max_size=30))
     @settings(
@@ -317,7 +319,7 @@ class TestDownloadFile(TestBase):
             # Force isfile=False so we actually attempt a download
             with patch("os.path.isfile", return_value=False):
                 try:
-                    run_stageA.download_file(url, os.path.join(self.test_dir, dest))
+                    download_file(url, os.path.join(self.test_dir, dest))
                 except Exception:
                     # It's okay if certain random strings cause issues, so we pass
                     pass
@@ -342,7 +344,7 @@ class TestUnzipFile(TestBase):
         If zip_path doesn't exist, the function logs a warning and returns.
         """
         # No file created, so it is missing
-        run_stageA.unzip_file(self.zip_file, self.extract_dir)
+        unzip_file(self.zip_file, self.extract_dir)
         self.assertFalse(
             os.path.exists(self.extract_dir), "No extraction should occur."
         )
@@ -354,7 +356,7 @@ class TestUnzipFile(TestBase):
         with zipfile.ZipFile(self.zip_file, "w") as zf:
             zf.writestr("inside.txt", "Hello from inside zip!")
 
-        run_stageA.unzip_file(self.zip_file, self.extract_dir)
+        unzip_file(self.zip_file, self.extract_dir)
         extracted_path = os.path.join(self.extract_dir, "inside.txt")
         self.assertTrue(
             os.path.exists(extracted_path), "Zip content should be extracted."
@@ -368,7 +370,7 @@ class TestUnzipFile(TestBase):
         File existence is not guaranteed, so usually no extraction occurs.
         """
         try:
-            run_stageA.unzip_file(zip_path, os.path.join(self.test_dir, extract_dir))
+            unzip_file(zip_path, os.path.join(self.test_dir, extract_dir))
         except Exception:
             pass
 
@@ -399,7 +401,7 @@ class TestVisualizeWithVarna(TestBase):
         with open(self.jar_path, "w") as f:
             f.write("fake jar")
 
-        run_stageA.visualize_with_varna(self.ct_path, self.jar_path, self.out_png)
+        visualize_with_varna(self.ct_path, self.jar_path, self.out_png)
         mock_popen.assert_not_called()
 
     @patch("subprocess.Popen")
@@ -410,7 +412,7 @@ class TestVisualizeWithVarna(TestBase):
         with open(self.ct_path, "w") as f:
             f.write(">Test\n1 A 0 2 0 1\n")
 
-        run_stageA.visualize_with_varna(self.ct_path, self.jar_path, self.out_png)
+        visualize_with_varna(self.ct_path, self.jar_path, self.out_png)
         mock_popen.assert_not_called()
 
     @patch("subprocess.Popen")
@@ -423,7 +425,7 @@ class TestVisualizeWithVarna(TestBase):
         with open(self.jar_path, "wb") as f:
             f.write(b"\x50\x4b\x03\x04")  # minimal zip signature
 
-        run_stageA.visualize_with_varna(self.ct_path, self.jar_path, self.out_png)
+        visualize_with_varna(self.ct_path, self.jar_path, self.out_png)
         mock_popen.assert_called_once()
 
     @given(
