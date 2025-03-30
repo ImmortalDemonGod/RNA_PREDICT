@@ -55,7 +55,10 @@ PRIMARY REFERENCES AND SUGGESTED READING:
   (4) Gilski M, et al. (2019) Acta Cryst. B75, 235–254.
   (5) Nucleic Acid Database (NDB), http://ndbserver.rutgers.edu
   (6) Additional expansions from CSD and various RNA3DHub / PDB validation notes.
+
 -----------------------------------------------------------------------------------
+In this updated version, we add the canonicalize_bond_pair() helper so that reversed
+pairs like "C3'-C2'" become "C2'-C3'", preventing missing dictionary entries.
 """
 
 import math
@@ -160,13 +163,11 @@ RNA_BOND_ANGLES_C3_ENDO = {
 
 RNA_BOND_ANGLES_C2_ENDO = {
     # Typical changes in ring angles for C2′-endo
+    **RNA_BOND_ANGLES_C3_ENDO,
     "C1'-C2'-C3'": 101.3,
     "C2'-C3'-C4'": 102.6,
     "C3'-C4'-O4'": 106.1,
-    "C4'-O4'-C1'": 109.7,
     "O4'-C1'-C2'": 105.8,
-    # etc. (phosphate angles mostly remain the same)
-    # ...
 }
 
 
@@ -176,26 +177,22 @@ RNA_BOND_ANGLES_C2_ENDO = {
 # 3A) A-FORM BACKBONE TYPICALS (C3′-endo)
 # Values in degrees for alpha, beta, gamma, delta, epsilon, zeta.
 # 3B) SUGAR RING TORSIONS or "pseudorotation" angles (ν0..ν4).
-###############################################################################
 
 RNA_BACKBONE_TORSIONS_AFORM = {
     # from typical references for standard A-form RNA
-    # approximate means, in DEGREES
     "alpha": 300.0,  # O3'(n-1)-P-O5'-C5'
-    "beta": 180.0,  # P-O5'-C5'-C4'
-    "gamma": 50.0,  # O5'-C5'-C4'-C3'
-    "delta": 85.0,  # C5'-C4'-C3'-O3'
-    "epsilon": 180.0,  # C4'-C3'-O3'-P
-    "zeta": 290.0,  # C3'-O3'-P-O5'(next)
+    "beta": 180.0,   # P-O5'-C5'-C4'
+    "gamma": 50.0,   # O5'-C5'-C4'-C3'
+    "delta": 85.0,   # C5'-C4'-C3'-O3'
+    "epsilon": 180.0,# C4'-C3'-O3'-P
+    "zeta": 290.0,   # C3'-O3'-P-O5'(next)
 }
 
 RNA_SUGAR_PUCKER_TORSIONS = {
-    # Endocyclic sugar torsion angles. For instance, C3′-endo example:
     "C3'-endo": {"nu0": 357.7, "nu1": 35.2, "nu2": 35.9, "nu3": 24.2, "nu4": 20.5},
-    # Another example for C2'-endo
     "C2'-endo": {
         "nu0": 339.2,
-        # ...
+        # placeholders for others if needed
     },
 }
 
@@ -256,7 +253,6 @@ BASE_GEOMETRY = {
     },
 }
 
-# Optionally add more detail or expansions for modified bases like pseudoU, etc.
 
 ###############################################################################
 # 5) CONNECTIVITY DICTIONARY
@@ -332,17 +328,37 @@ RNA_CONNECT = {
     ],
 }
 
-###############################################################################
-# 6) HELPER GETTERS
-###############################################################################
 
-# @snoop
+###############################################################################
+# Helper: canonicalize bond pair so reversed pairs are recognized
+###############################################################################
+def canonicalize_bond_pair(pair: str) -> str:
+    """
+    Ensure that bond pairs are consistently named in ascending lexical order.
+    E.g., "C3'-C2'" => "C2'-C3'".
+    This avoids missing dictionary entries for reversed pairs.
+    """
+    atoms = pair.split("-")
+    if len(atoms) != 2:
+        return pair
+    a1, a2 = atoms
+    if a1 == a2:
+        return pair
+    # Sort them so that the dictionary can be consistently accessed
+    return pair if a1 < a2 else f"{a2}-{a1}"
+
+
+###############################################################################
+# 6) PUBLIC API: GETTERS
+###############################################################################
 def get_bond_length(pair, sugar_pucker="C3'-endo"):
     """
     Retrieve a standard bond length (Å) for the sugar–phosphate backbone
     from the dictionaries. 'pair' is a string like "C1'-C2'", or "P-O5'".
     By default, uses C3'-endo. If sugar_pucker='C2'-endo', it looks in the
     second dictionary. Returns None if not found.
+
+    This version also uses canonicalize_bond_pair() so reversed pairs are recognized.
     """
     if sugar_pucker == "C3'-endo":
         data_dict = RNA_BOND_LENGTHS_C3_ENDO
@@ -351,16 +367,20 @@ def get_bond_length(pair, sugar_pucker="C3'-endo"):
     else:
         raise ValueError("Unknown sugar_pucker state: %s" % sugar_pucker)
 
-    return data_dict.get(pair, None)
+    can_pair = canonicalize_bond_pair(pair)
+    val = data_dict.get(can_pair, None)
+    return val
 
-# @snoop
+
 def get_bond_angle(triplet, sugar_pucker="C3'-endo", degrees=True):
     """
-    Retrieve a standard bond angle for the sugar–phosphate backbone (in degrees by default).
+    Retrieve a standard bond angle for the sugar–phosphate backbone.
     'triplet' is a string like "C1'-C2'-C3'".
-    If sugar_pucker='C3'-endo' or 'C2'-endo', picks the correct dictionary.
-    If degrees=False, returns in radians.
+    By default, returns the angle in degrees. If degrees=False, returns radians.
     Returns None if not found.
+
+    We do not attempt to canonicalize the triplet in the same manner, but
+    some logic could be extended to reversed triplets if needed.
     """
     if sugar_pucker == "C3'-endo":
         data_dict = RNA_BOND_ANGLES_C3_ENDO
@@ -372,6 +392,7 @@ def get_bond_angle(triplet, sugar_pucker="C3'-endo", degrees=True):
     val_deg = data_dict.get(triplet, None)
     if val_deg is None:
         return None
+
     return val_deg if degrees else deg_to_rad(val_deg)
 
 
