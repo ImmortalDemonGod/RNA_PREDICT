@@ -14,7 +14,7 @@ instead, we keep them here and append the new version after the old one.
 """
 
 import os
-
+import logging
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -70,6 +70,9 @@ class StageARFoldPredictor:
         if isinstance(config, str):
             with open(config, "r") as f:
                 config = json.load(f)
+            logging.info(f"Loaded config from JSON: {config}")
+        else:
+            logging.info(f"Using config dict: {config}")
 
         if device is None:
             # We check if 'use_gpu' is set in config; fallback to True if missing
@@ -79,6 +82,7 @@ class StageARFoldPredictor:
             else:
                 device = torch.device("cpu")
         self.device = device
+        logging.info(f"Using device: {self.device}")
 
         # Build official model
         # The official code apparently uses a namespace object for args
@@ -94,10 +98,10 @@ class StageARFoldPredictor:
         if checkpoint_path is not None:
             if not os.path.isfile(checkpoint_path):
                 raise FileNotFoundError(f"Checkpoint not found: {checkpoint_path}")
-            print(f"[Load] Loading checkpoint from {checkpoint_path}")
+            logging.info(f"[Load] Loading checkpoint from {checkpoint_path}")
             ckp = torch.load(checkpoint_path, map_location=self.device)
             self.model.load_state_dict(ckp, strict=False)
-            print("[Load] Checkpoint loaded successfully.")
+            logging.info("[Load] Checkpoint loaded successfully.")
 
     def _get_cut_len(self, length: int, min_len=80) -> int:
         """
@@ -120,6 +124,7 @@ class StageARFoldPredictor:
           4) Use row_col_argmax & constraint_matrix for final adjacency
           5) Return adjacency as a NumPy array
         """
+        logging.info(f"Predicting adjacency for sequence: {rna_sequence}")
         if RFoldModel is None or official_seq_dict is None:
             # fallback approach using local
             mapping = {"A": 0, "U": 1, "C": 2, "G": 3}
@@ -128,6 +133,7 @@ class StageARFoldPredictor:
 
         # Special case for short sequences
         if len(rna_sequence) < 4:
+            logging.info("Sequence too short, returning zero adjacency matrix.")
             return np.zeros((len(rna_sequence), len(rna_sequence)), dtype=np.float32)
 
         # If an unknown character appears, fallback to 'G' index 3
@@ -147,6 +153,7 @@ class StageARFoldPredictor:
         # 3) Forward pass with no grad
         with torch.no_grad():
             raw_preds = self.model(seq_tensor)  # shape (1, padded_len, padded_len)
+            logging.info(f"Raw predictions shape: {raw_preds.shape}")
 
             # row_col_argmax & constraint_matrix
             # fallback if official references are missing
@@ -158,6 +165,9 @@ class StageARFoldPredictor:
 
         # 4) Crop back to original length
         adjacency_cropped = final_map[0, :original_len, :original_len].cpu().numpy()
+        logging.info(f"Adjacency matrix shape: {adjacency_cropped.shape}")
+        logging.info(f"Adjacency matrix data type: {adjacency_cropped.dtype}")
+        logging.info(f"Sample values from adjacency matrix: {adjacency_cropped[:5,:5]}")
         return adjacency_cropped
 
 
@@ -171,21 +181,22 @@ def args_namespace(config_dict):
     """
 
     class Obj:
-        pass
+        def __init__(self):
+            pass
 
     args = Obj()
     for k, v in config_dict.items():
         setattr(args, k, v)
     # Provide fallback defaults if not in config
     if not hasattr(args, "num_hidden"):
-        args.num_hidden = 128
+        setattr(args, "num_hidden", 128)
     if not hasattr(args, "dropout"):
-        args.dropout = 0.3
+        setattr(args, "dropout", 0.3)
     if not hasattr(args, "use_gpu"):
-        args.use_gpu = True
+        setattr(args, "use_gpu", True)
     if not hasattr(args, "batch_size"):
-        args.batch_size = 1
+        setattr(args, "batch_size", 1)
     if not hasattr(args, "lr"):
-        args.lr = 0.001
+        setattr(args, "lr", 0.001)
 
     return args
