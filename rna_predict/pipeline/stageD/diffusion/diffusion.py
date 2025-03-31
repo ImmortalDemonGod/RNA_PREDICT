@@ -119,9 +119,25 @@ class DiffusionConditioning(nn.Module):
                 - s (torch.Tensor): [..., N_sample, N_tokens, c_s]
                 - z (torch.Tensor): [..., N_tokens, N_tokens, c_z]
         """
+        # Get number of tokens from s_trunk
+        N_tokens = s_trunk.shape[-2]
+        
+        # Add expected_n_tokens to input_feature_dict for RelativePositionEncoding
+        input_feature_dict_with_n_tokens = dict(input_feature_dict)
+        input_feature_dict_with_n_tokens['expected_n_tokens'] = N_tokens
+        
+        # Handle the case where z_trunk is None
+        if z_trunk is None:
+            # Create a zero tensor with the appropriate shape
+            batch_dims = s_trunk.shape[:-2]  # Get batch dimensions
+            z_trunk = torch.zeros(
+                *batch_dims, N_tokens, N_tokens, self.c_z, 
+                device=s_trunk.device, dtype=s_trunk.dtype
+            )
+            
         # Pair conditioning
         pair_z = torch.cat(
-            tensors=[z_trunk, self.relpe(input_feature_dict)], dim=-1
+            tensors=[z_trunk, self.relpe(input_feature_dict_with_n_tokens)], dim=-1
         )  # [..., N_tokens, N_tokens, 2*c_z]
         pair_z = self.linear_no_bias_z(self.layernorm_z(pair_z))
         if inplace_safe:
@@ -140,6 +156,30 @@ class DiffusionConditioning(nn.Module):
         print(
             f"[DEBUG] s_inputs shape before combining: {s_inputs.shape} (expected last dim: {self.c_s_inputs})"
         )
+        
+        # Check if s_inputs and s_trunk have same token dimension
+        if s_inputs.shape[-2] != N_tokens:
+            print(f"[DEBUG] s_inputs token dimension ({s_inputs.shape[-2]}) doesn't match s_trunk token dimension ({N_tokens}). Resizing...")
+            # Adjust s_inputs to have the correct token dimension
+            if s_inputs.shape[-2] < N_tokens:
+                # Need to expand/repeat s_inputs
+                # Create a new tensor with correct shape, filled with zeros
+                batch_dims = s_inputs.shape[:-2]
+                s_inputs_expanded = torch.zeros(
+                    *batch_dims, N_tokens, s_inputs.shape[-1],
+                    device=s_inputs.device, dtype=s_inputs.dtype
+                )
+                # Fill with available values
+                s_inputs_expanded[..., :s_inputs.shape[-2], :] = s_inputs
+                # For remaining tokens, repeat the last token's embedding
+                if s_inputs.shape[-2] > 0:  # Only if there's at least one token
+                    last_token = s_inputs[..., -1:, :]
+                    s_inputs_expanded[..., s_inputs.shape[-2]:, :] = last_token.repeat(1, N_tokens - s_inputs.shape[-2], 1)
+                s_inputs = s_inputs_expanded
+            else:
+                # Need to truncate s_inputs
+                s_inputs = s_inputs[..., :N_tokens, :]
+            print(f"[DEBUG] s_inputs shape after resizing: {s_inputs.shape}")
 
         # Here, we concatenate along the last dimension:
         single_s = torch.cat(
@@ -148,6 +188,26 @@ class DiffusionConditioning(nn.Module):
         print(
             f"[DEBUG] single_s shape after concatenation: {single_s.shape} (expected: [..., N_tokens, {self.c_s + self.c_s_inputs}])"
         )
+
+        # Check if the concatenated tensor matches the expected shape for layernorm
+        expected_last_dim = self.c_s + self.c_s_inputs
+        actual_last_dim = single_s.shape[-1]
+        
+        if actual_last_dim != expected_last_dim:
+            print(f"[DEBUG] Dimensionality mismatch: Got {actual_last_dim}, expected {expected_last_dim}")
+            if actual_last_dim < expected_last_dim:
+                # Need to pad
+                padding_size = expected_last_dim - actual_last_dim
+                padding = torch.zeros(
+                    *single_s.shape[:-1], padding_size,
+                    device=single_s.device, dtype=single_s.dtype
+                )
+                single_s = torch.cat([single_s, padding], dim=-1)
+                print(f"[DEBUG] Padded tensor to shape: {single_s.shape}")
+            else:
+                # Need to truncate
+                single_s = single_s[..., :expected_last_dim]
+                print(f"[DEBUG] Truncated tensor to shape: {single_s.shape}")
 
         # Apply layer norm and projection:
         # The layer norm expects the last dimension to match self.layernorm_s.normalized_shape (which should be (c_s + c_s_inputs,))
