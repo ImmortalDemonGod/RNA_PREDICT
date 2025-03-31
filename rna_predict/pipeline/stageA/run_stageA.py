@@ -30,6 +30,7 @@ def download_file(url: str, dest_path: str):
                     f"[Warning] Existing .zip is invalid or corrupted. Re-downloading: {dest_path}"
                 )
                 os.remove(dest_path)
+                # Continue to the download section after removing the corrupt file
             else:
                 # It's a valid zip
                 print(
@@ -41,6 +42,7 @@ def download_file(url: str, dest_path: str):
             print(f"[Info] File already exists, skipping download: {dest_path}")
             return
 
+    # If we get here, we need to download the file (either it doesn't exist or was corrupt)
     print(f"[Download] Fetching {url}")
     with urllib.request.urlopen(url) as r, open(dest_path, "wb") as f:
         shutil.copyfileobj(r, f)
