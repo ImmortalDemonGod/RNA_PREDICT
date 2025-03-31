@@ -12,6 +12,8 @@ from rna_predict.benchmarks.benchmark import (
     resolve_device,
     timed_decoding,
     timed_embedding,
+    warmup_decoding,
+    warmup_embedding,
 )
 from rna_predict.pipeline.stageA.input_embedding.current.embedders import (
     InputFeatureEmbedder,
@@ -89,7 +91,7 @@ class TestBenchmarkHelpers(unittest.TestCase):
         self.assertEqual(features["ref_pos"].shape, (N_atom, 3))
         self.assertEqual(features["ref_charge"].shape, (N_atom,))
         self.assertEqual(features["ref_element"].shape, (N_atom, 128))
-        self.assertEqual(features["ref_atom_name_chars"].shape, (N_atom, 16))
+        self.assertEqual(features["ref_atom_name_chars"].shape, (N_atom, 256))
         self.assertEqual(features["atom_to_token"].shape, (N_atom,))
         self.assertEqual(features["restype"].shape, (N_token, 32))
         self.assertEqual(features["profile"].shape, (N_token, 32))
