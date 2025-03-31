@@ -74,6 +74,9 @@ class PairformerBlock(nn.Module):
         """
         super(PairformerBlock, self).__init__()
         self.n_heads = n_heads
+        self.c_z = c_z
+        self.c_s = c_s
+        self.dropout = dropout
         self.tri_mul_out = TriangleMultiplicationOutgoing(
             c_z=c_z, c_hidden=c_hidden_mul
         )
@@ -248,6 +251,9 @@ class PairformerStack(nn.Module):
         super(PairformerStack, self).__init__()
         self.n_blocks = n_blocks
         self.n_heads = n_heads
+        self.c_z = c_z
+        self.c_s = c_s
+        self.dropout = dropout
         self.blocks_per_ckpt = blocks_per_ckpt
         self.blocks = nn.ModuleList()
 
@@ -364,6 +370,9 @@ class MSAPairWeightedAveraging(nn.Module):
         self.c = c
         self.n_heads = n_heads
         self.c_z = c_z
+        # self.c_s was undefined - removed
+        # self.dropout was undefined - removed
+        # this was a duplicate line - removed
         # Input projections
         self.layernorm_m = LayerNorm(self.c_m)
         self.linear_no_bias_mv = LinearNoBias(
