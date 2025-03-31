@@ -1,6 +1,5 @@
 # tests/test_token_feature_shape.py
 import pytest
-import snoop
 import torch
 
 from rna_predict.pipeline.stageA.input_embedding.current.embedders import (

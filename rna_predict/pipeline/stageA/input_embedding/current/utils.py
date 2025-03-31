@@ -15,7 +15,6 @@
 from typing import Optional, Union
 
 import numpy as np
-import snoop
 import torch
 import torch.nn as nn
 from protenix.utils.scatter_utils import scatter

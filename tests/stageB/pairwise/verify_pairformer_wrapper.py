@@ -4,7 +4,6 @@ Simple verification script for PairformerWrapper
 import torch
 import sys
 from pathlib import Path
-import snoop
 
 # Add the project root to the Python path
 project_root = Path(__file__).parent
@@ -19,7 +18,7 @@ try:
     
     # Try to instantiate the wrapper
     wrapper = PairformerWrapper()
-    print(f"✅ Successfully instantiated PairformerWrapper with default parameters")
+    print("✅ Successfully instantiated PairformerWrapper with default parameters")
     print(f"   - n_blocks: {wrapper.n_blocks}")
     print(f"   - c_z: {wrapper.c_z}")
     print(f"   - c_s: {wrapper.c_s}")
@@ -38,16 +37,16 @@ try:
     # Try to run a forward pass
     try:
         s_updated, z_updated = wrapper(s, z, pair_mask)
-        print(f"✅ Successfully ran forward pass")
+        print("✅ Successfully ran forward pass")
         print(f"   - s shape: {s.shape} -> {s_updated.shape}")
         print(f"   - z shape: {z.shape} -> {z_updated.shape}")
         
         # Check for NaN or Inf values
         if not torch.isnan(s_updated).any() and not torch.isinf(s_updated).any() and \
            not torch.isnan(z_updated).any() and not torch.isinf(z_updated).any():
-            print(f"✅ No NaN or Inf values in the output")
+            print("✅ No NaN or Inf values in the output")
         else:
-            print(f"❌ Found NaN or Inf values in the output")
+            print("❌ Found NaN or Inf values in the output")
         
         # Try with a different sequence length
         seq_length = 15
@@ -57,7 +56,7 @@ try:
         pair_mask = torch.ones(batch_size, seq_length, seq_length, dtype=torch.float32)
         
         s_updated, z_updated = wrapper(s, z, pair_mask)
-        print(f"✅ Successfully ran forward pass with different sequence length (15)")
+        print("✅ Successfully ran forward pass with different sequence length (15)")
         print(f"   - s shape: {s.shape} -> {s_updated.shape}")
         print(f"   - z shape: {z.shape} -> {z_updated.shape}")
         
@@ -70,9 +69,9 @@ try:
         loss.backward()
         
         if s.grad is not None and z.grad is not None:
-            print(f"✅ Gradients flow through the module")
+            print("✅ Gradients flow through the module")
         else:
-            print(f"❌ Gradients do not flow through the module")
+            print("❌ Gradients do not flow through the module")
         
         # Count parameters
         param_count = sum(p.numel() for p in wrapper.parameters())

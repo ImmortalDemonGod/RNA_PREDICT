@@ -41,7 +41,6 @@ def test_rename_symmetric_atoms():
 def test_torsion_angle_loss():
     pred_torsions = torch.randn(1, 100, 7)
     true_torsions = torch.randn(1, 100, 7)
-    angle_mask = pred_torsions <= 2.0
 
     loss = torsion_angle_loss(pred_torsions, true_torsions, coeff=2.0, angle_mask=None)
     assert loss.shape == pred_torsions.shape, "Shapes don't match"
@@ -52,7 +51,7 @@ def test_fape_loss_torch():
     pred_coords = torch.randn(1, 16, 14, 3)
     true_coords = torch.randn(1, 16, 14, 3)
 
-    loss_c_alpha = fape_torch(pred_coords, true_coords, c_alpha=True, seq_list=seq_list)
-    loss_full = fape_torch(pred_coords, true_coords, c_alpha=False, seq_list=seq_list)
+    fape_torch(pred_coords, true_coords, c_alpha=True, seq_list=seq_list)
+    fape_torch(pred_coords, true_coords, c_alpha=False, seq_list=seq_list)
 
     assert True

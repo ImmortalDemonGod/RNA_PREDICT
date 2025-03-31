@@ -17,7 +17,6 @@ import math
 from functools import partial
 from typing import Optional, Union
 
-import snoop
 import torch
 import torch.nn as nn
 import torch.nn.functional as F

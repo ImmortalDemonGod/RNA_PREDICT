@@ -434,7 +434,6 @@ def sidechain_fold(
 
     Output: (L, 14, 3) and (L, 14) coordinates and cloud_mask
     """
-    precise = wrapper.dtype
 
     # parallel sidechain - do the oxygen, c-beta and side chain
     for i in range(3, 14):

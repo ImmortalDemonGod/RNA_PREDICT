@@ -1,4 +1,3 @@
-import snoop
 import torch
 import torch.nn.functional as F
 
@@ -140,7 +139,7 @@ class ProtenixIntegration:
         N_token = res_idx.size(0)
 
         # Now we can safely expand to a [N_token, N_token] matrix
-        pair_input = res_idx.unsqueeze(0).expand(N_token, N_token)
+        res_idx.unsqueeze(0).expand(N_token, N_token)
 
         # Compute the initial pair embedding (z_init) using the relative position encoding module.
         z_init = self.rel_pos_encoding(

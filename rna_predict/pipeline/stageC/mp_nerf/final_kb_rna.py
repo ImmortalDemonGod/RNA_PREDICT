@@ -62,7 +62,6 @@ pairs like "C3'-C2'" become "C2'-C3'", preventing missing dictionary entries.
 """
 
 import math
-import snoop
 
 ###############################################################################
 # HELPER FUNCTIONS for angle unit conversion

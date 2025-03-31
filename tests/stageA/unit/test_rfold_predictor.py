@@ -36,7 +36,7 @@ class TestStageARFoldPredictor(unittest.TestCase):
     def test_instantiation(self):
         """Test successful instantiation of StageARFoldPredictor."""
         try:
-            predictor = StageARFoldPredictor(config=self.config)
+            StageARFoldPredictor(config=self.config)
             logger.info("StageARFoldPredictor instantiated successfully without checkpoint.")
         except Exception as e:
             self.fail(f"StageARFoldPredictor instantiation failed: {e}")
@@ -48,7 +48,7 @@ class TestStageARFoldPredictor(unittest.TestCase):
             return
             
         try:
-            predictor = StageARFoldPredictor(config=self.config, checkpoint_path=self.checkpoint_path)
+            StageARFoldPredictor(config=self.config, checkpoint_path=self.checkpoint_path)
             logger.info("StageARFoldPredictor instantiated successfully with checkpoint.")
         except Exception as e:
             self.fail(f"StageARFoldPredictor instantiation with checkpoint failed: {e}")

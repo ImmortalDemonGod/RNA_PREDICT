@@ -71,7 +71,7 @@ class TestProtenixDiffusionManagerInitialization(unittest.TestCase):
             "rna_predict.pipeline.stageD.diffusion.diffusion.DiffusionModule"
         ) as mock_module:
             config = {"initialization": {"foo": "bar"}, "other_key": 123}
-            manager = ProtenixDiffusionManager(diffusion_config=config, device="cpu")
+            ProtenixDiffusionManager(diffusion_config=config, device="cpu")
             args, kwargs = mock_module.call_args
             self.assertIn("initialization", kwargs)
             self.assertEqual(kwargs["initialization"], {"foo": "bar"})

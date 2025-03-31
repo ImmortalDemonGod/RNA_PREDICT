@@ -15,7 +15,6 @@
 
 from typing import Any, Optional
 
-import snoop
 import torch
 import torch.nn as nn
 import torch.nn.functional as F

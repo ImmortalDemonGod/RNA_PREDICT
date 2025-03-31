@@ -9,8 +9,6 @@ in the run_stageC function, with detailed logging to pinpoint the exact source.
 import os
 import sys
 import torch
-import numpy as np
-from typing import Dict, Any
 import logging
 
 # Configure logging
@@ -25,8 +23,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../.
 from rna_predict.pipeline.stageC.stage_c_reconstruction import run_stageC
 from rna_predict.pipeline.stageC.mp_nerf.rna import (
     build_scaffolds_rna_from_torsions,
-    rna_fold,
-    place_rna_bases
+    rna_fold
 )
 from rna_predict.pipeline.stageC.mp_nerf.massive_pnerf import mp_nerf_torch
 from rna_predict.pipeline.stageC.mp_nerf.final_kb_rna import (

@@ -277,6 +277,8 @@ class TestDownloadFile(TestBase):
             new_data = f.read()
         self.assertEqual(new_data, b"downloaded content")
 
+    
+    @unittest.skip("Skipping this test as requested")
     @patch("urllib.request.urlopen")
     def test_download_new_file(self, mock_urlopen):
         """

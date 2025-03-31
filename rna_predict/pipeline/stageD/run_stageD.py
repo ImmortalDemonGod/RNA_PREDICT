@@ -1,4 +1,3 @@
-import snoop
 import torch
 
 from rna_predict.dataset.dataset_loader import load_rna_data_and_features

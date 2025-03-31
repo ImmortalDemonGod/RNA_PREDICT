@@ -9,8 +9,6 @@ rna_predict.pipeline.stageC.stage_c_reconstruction according to the verification
 import os
 import sys
 import torch
-import numpy as np
-from typing import Dict, Any
 
 # Add the project root to the Python path if needed
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
@@ -40,9 +38,9 @@ def verify_callable():
         # Simple test call with minimal parameters
         sequence = "ACGU"
         torsion_angles = torch.zeros((len(sequence), 7))
-        result = run_stageC(sequence=sequence, torsion_angles=torsion_angles)
+        run_stageC(sequence=sequence, torsion_angles=torsion_angles)
         print_result("Function can be called", True, 
-                    f"Signature: run_stageC(sequence, torsion_angles, method='mp_nerf', device='cpu', ...)")
+                    "Signature: run_stageC(sequence, torsion_angles, method='mp_nerf', device='cpu', ...)")
         return True
     except Exception as e:
         print_result("Function can be called", False, f"Error: {str(e)}")
@@ -150,7 +148,6 @@ def verify_output():
             # Check the shape of the coords tensor
             if is_tensor:
                 shape = coords.shape
-                shape_str = f"Shape: {shape}"
                 
                 # Check if shape is plausible
                 if len(shape) == 3:  # [L, num_atoms_per_res, 3]
@@ -186,7 +183,7 @@ def verify_functionality():
     torsion_angles = torch.zeros((len(sequence), 7))
     
     try:
-        result = run_stageC(
+        run_stageC(
             sequence=sequence,
             torsion_angles=torsion_angles,
             method="mp_nerf",
@@ -201,7 +198,7 @@ def verify_functionality():
     
     # Test with a different method (fallback)
     try:
-        result = run_stageC(
+        run_stageC(
             sequence=sequence,
             torsion_angles=torsion_angles,
             method="fallback",
@@ -213,7 +210,7 @@ def verify_functionality():
     
     # Test with do_ring_closure=True
     try:
-        result = run_stageC(
+        run_stageC(
             sequence=sequence,
             torsion_angles=torsion_angles,
             method="mp_nerf",
@@ -226,7 +223,7 @@ def verify_functionality():
     
     # Test with place_bases=False
     try:
-        result = run_stageC(
+        run_stageC(
             sequence=sequence,
             torsion_angles=torsion_angles,
             method="mp_nerf",
@@ -258,7 +255,7 @@ def verify_torsionbert_integration():
         torsion_angles = torsion_output["torsion_angles"]
         
         # Run Stage C
-        result = run_stageC(
+        run_stageC(
             sequence=sequence,
             torsion_angles=torsion_angles,
             method="mp_nerf",
@@ -286,7 +283,7 @@ def verify_torsionbert_integration():
         
         # This should fail because MP-NeRF expects degrees, not sin/cos pairs
         try:
-            result = run_stageC(
+            run_stageC(
                 sequence=sequence,
                 torsion_angles=torsion_angles,
                 method="mp_nerf",

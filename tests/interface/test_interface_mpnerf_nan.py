@@ -4,12 +4,10 @@ import unittest
 import pandas as pd
 import torch
 import numpy as np
-import math # Needed for isnan checks on floats potentially
 
 # Make sure the RNAPredictor class is importable
 from rna_predict.interface import RNAPredictor
 # Import the specific stage C function to potentially mock or verify settings
-from rna_predict.pipeline.stageC.stage_c_reconstruction import run_stageC
 
 # Optional: If tests are slow due to model loading, consider mocking
 # from unittest.mock import patch
