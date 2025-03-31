@@ -229,6 +229,8 @@ def rearrange_qk_to_dense_trunk(
     n_keys: int = 128,
     compute_mask: bool = True,
 ) -> tuple[Union[torch.Tensor, list[torch.Tensor]]]:
+    print(f"DEBUG: rearrange_qk_to_dense_trunk input q shape: {q.shape if isinstance(q, torch.Tensor) else 'list'}")
+    print(f"DEBUG: rearrange_qk_to_dense_trunk input k shape: {k.shape if isinstance(k, torch.Tensor) else 'list'}")
     """Rearrange q/k into blocked tensors for local operations.
 
     Args:
@@ -334,6 +336,9 @@ def rearrange_qk_to_dense_trunk(
         "k_pad_right": pad_right,
     }
 
+    print(f"DEBUG: rearrange_qk_to_dense_trunk output q_trunked shape: {q_trunked.shape if isinstance(q_trunked, torch.Tensor) else 'list'}")
+    print(f"DEBUG: rearrange_qk_to_dense_trunk output k_trunked shape: {k_trunked.shape if isinstance(k_trunked, torch.Tensor) else 'list'}")
+    
     return q_trunked, k_trunked, padding_info
 
 
@@ -823,8 +828,8 @@ def gather_pair_embedding_in_dense_trunk(
     Selectively gather elements from a tensor using two sets of indices.
 
         x: [..., N_token, N_token, d]
-        idx_q: [N_b, N_q]
-        idx_k: [N_b, N_k]
+        idx_q: [N_b, N_q] or [N_b, N_trunk, N_q]
+        idx_k: [N_b, N_k] or [N_b, N_trunk, N_k]
 
     Return:
         y: [..., N_b, N_q, N_k, d]
@@ -832,7 +837,23 @@ def gather_pair_embedding_in_dense_trunk(
     """
     idx_q = idx_q.long()
     idx_k = idx_k.long()
-    assert len(idx_q.shape) == len(idx_k.shape) == 2
+    print(f"DEBUG: idx_q shape: {idx_q.shape}, idx_k shape: {idx_k.shape}")
+    print(f"DEBUG: idx_q type: {type(idx_q)}, idx_k type: {type(idx_k)}")
+    
+    # Handle 3D indices by reshaping them to 2D
+    if len(idx_q.shape) == 3:
+        N_b, N_trunk, N_q = idx_q.shape
+        idx_q = idx_q.reshape(N_b * N_trunk, N_q)
+    else:
+        assert len(idx_q.shape) == 2, f"Expected idx_q to have 2 or 3 dimensions, got {len(idx_q.shape)}"
+    
+    if len(idx_k.shape) == 3:
+        N_b, N_trunk, N_k = idx_k.shape
+        idx_k = idx_k.reshape(N_b * N_trunk, N_k)
+    else:
+        assert len(idx_k.shape) == 2, f"Expected idx_k to have 2 or 3 dimensions, got {len(idx_k.shape)}"
+    
+    print(f"DEBUG: After reshaping - idx_q shape: {idx_q.shape}, idx_k shape: {idx_k.shape}")
 
     # Get the shape parameters
     N_b, N_q = idx_q.shape
@@ -856,6 +877,7 @@ def broadcast_token_to_local_atom_pair(
     n_keys: int,
     compute_mask: bool = True,
 ) -> torch.Tensor:
+    print(f"DEBUG: atom_to_token_idx shape: {atom_to_token_idx.shape}")
     """Broadcast token pair embedding to atom pair embedding
 
     Args:
