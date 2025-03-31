@@ -281,7 +281,7 @@ class PairformerStack(nn.Module):
 
     def forward(
         self,
-        s: torch.Tensor,
+        s: Optional[torch.Tensor],
         z: torch.Tensor,
         pair_mask: torch.Tensor,
         use_memory_efficient_kernel: bool = False,
@@ -289,7 +289,7 @@ class PairformerStack(nn.Module):
         use_lma: bool = False,
         inplace_safe: bool = False,
         chunk_size: Optional[int] = None,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[Optional[torch.Tensor], torch.Tensor]:
         """
         Args:
             s (Optional[torch.Tensor]): single feature
@@ -305,8 +305,8 @@ class PairformerStack(nn.Module):
             chunk_size (Optional[int]): Chunk size for memory-efficient operations. Defaults to None.
 
         Returns:
-            tuple[torch.Tensor, torch.Tensor]: the update of s and z
-                [..., N_token, c_s]
+            tuple[Optional[torch.Tensor], torch.Tensor]: the update of s and z
+                [..., N_token, c_s] or None if s is None
                 [..., N_token, N_token, c_z]
         """
         if z.shape[-2] > 2000 and (not self.training):
@@ -552,7 +552,7 @@ class MSAModule(nn.Module):
         msa_dropout: float = 0.15,
         pair_dropout: float = 0.25,
         blocks_per_ckpt: Optional[int] = 1,
-        msa_configs: dict = None,
+        msa_configs: Optional[dict] = None,
     ) -> None:
         """Main Entry of MSAModule
 
@@ -568,7 +568,7 @@ class MSAModule(nn.Module):
                 Size of each chunk. A higher value corresponds to fewer
                 checkpoints, and trades memory for speed. If None, no checkpointing
                 is performed.
-            msa_configs (dict, optional): a dictionary containing keys:
+            msa_configs (Optional[dict], optional): a dictionary containing keys:
                 "enable": whether using msa embedding.
         ]"""
         super(MSAModule, self).__init__()
@@ -582,20 +582,30 @@ class MSAModule(nn.Module):
             "deletion_value": 1,
         }
 
+        # Default configs
+        if msa_configs is None:
+            msa_configs = {}
+            
+        # Set up msa_configs with defaults
         self.msa_configs = {
             "enable": msa_configs.get("enable", False),
             "strategy": msa_configs.get("strategy", "random"),
+            "train_cutoff": 512,
+            "test_cutoff": 16384,
+            "train_lowerb": 1,
+            "test_lowerb": 1,
         }
+        
+        # Override defaults with provided values if they exist
         if "sample_cutoff" in msa_configs:
-            self.msa_configs["train_cutoff"] = msa_configs["sample_cutoff"].get(
-                "train", 512
-            )
-            self.msa_configs["test_cutoff"] = msa_configs["sample_cutoff"].get(
-                "test", 16384
-            )
+            sample_cutoff = msa_configs.get("sample_cutoff", {})
+            self.msa_configs["train_cutoff"] = sample_cutoff.get("train", self.msa_configs["train_cutoff"])
+            self.msa_configs["test_cutoff"] = sample_cutoff.get("test", self.msa_configs["test_cutoff"])
+            
         if "min_size" in msa_configs:
-            self.msa_configs["train_lowerb"] = msa_configs["min_size"].get("train", 1)
-            self.msa_configs["test_lowerb"] = msa_configs["min_size"].get("test", 1)
+            min_size = msa_configs.get("min_size", {})
+            self.msa_configs["train_lowerb"] = min_size.get("train", self.msa_configs["train_lowerb"])
+            self.msa_configs["test_lowerb"] = min_size.get("test", self.msa_configs["test_lowerb"])
 
         self.linear_no_bias_m = LinearNoBias(
             in_features=32 + 1 + 1, out_features=self.c_m
