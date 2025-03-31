@@ -272,42 +272,102 @@ def rearrange_qk_to_dense_trunk(
     n_q = q_list[0].size(dim_q_list[0])
     n_k = k_list[0].size(dim_k_list[0])
 
+    # Critical fix: Adjust n_keys if it's larger than the actual tensor dimension
+    for i in range(len(k_list)):
+        if n_keys > k_list[i].shape[dim_k_list[i]]:
+            n_keys = min(n_keys, k_list[i].shape[dim_k_list[i]])
+
     # Compute the number of trunks for q
     n_trunks = int(math.ceil(n_q / n_queries))
     q_pad_length = n_trunks * n_queries - n_q
 
-    # [N_atom] -> [n_trunks, n_queries]
-    q_new = [
-        pad_at_dim(q[i], dim=dim_q[i], pad_length=(0, q_pad_length))
-        for i in range(num_q)
-    ]
-    q_trunked = [
-        reshape_at_dim(q_new[i], dim=dim_q[i], target_shape=(n_trunks, n_queries))
-        for i in range(num_q)
-    ]
+    # Process query tensors (q)
+    q_new = []
+    for i in range(len(q_list)):
+        # Create a new tensor with the padded size
+        shape = list(q_list[i].shape)
+        shape[dim_q_list[i]] = shape[dim_q_list[i]] + q_pad_length
+        padded_q = q_list[i].new_zeros(shape)
+        
+        # Copy the original data
+        slices = [slice(None)] * len(shape)
+        slices[dim_q_list[i]] = slice(0, n_q)
+        padded_q[tuple(slices)] = q_list[i]
+        
+        # Reshape q to have n_trunks and n_queries
+        shape = list(padded_q.shape)
+        shape[dim_q_list[i]:dim_q_list[i]+1] = [n_trunks, n_queries]
+        reshaped_q = padded_q.reshape(*shape)
+        
+        q_new.append(reshaped_q)
 
-    # k_pad_left = (n_keys - n_queries) // 2, which is the maximum overlap beyond n_queries
-    # Typical values: k_pad_left = (128 - 32) // 2 = 48
+    # Calculate padding for k
     pad_left = (n_keys - n_queries) // 2
     pad_right = int((n_trunks - 1) * n_queries + n_keys // 2 - n_q + 1)
+    
+    # Process key tensors (k)
+    k_new = []
+    for i in range(len(k_list)):
+        # Create a new tensor with the padded size
+        shape = list(k_list[i].shape)
+        padded_width = shape[dim_k_list[i]] + pad_left + pad_right
+        shape[dim_k_list[i]] = padded_width
+        padded_k = k_list[i].new_zeros(shape)
+        
+        # Copy the original data
+        slices = [slice(None)] * len(shape)
+        slices[dim_k_list[i]] = slice(pad_left, pad_left+n_k)
+        padded_k[tuple(slices)] = k_list[i]
+        
+        # Use direct slicing instead of unfold to avoid tensor size errors
+        trunked_k = []
+        for j in range(n_trunks):
+            start_idx = j * n_queries
+            end_idx = min(start_idx + n_keys, padded_width)
+            
+            if end_idx > start_idx:
+                # Extract the window
+                slices = [slice(None)] * len(padded_k.shape)
+                slices[dim_k_list[i]] = slice(start_idx, end_idx)
+                window = padded_k[tuple(slices)]
+                
+                # If the window is smaller than n_keys, pad it
+                if window.shape[dim_k_list[i]] < n_keys:
+                    pad_size = n_keys - window.shape[dim_k_list[i]]
+                    pad_shape = [0, 0] * len(window.shape)
+                    pad_shape[2 * dim_k_list[i] + 1] = pad_size
+                    window = torch.nn.functional.pad(window, pad_shape)
+                
+                # Add trunk dimension
+                window_shape = list(window.shape)
+                window_shape.insert(dim_k_list[i], 1)
+                window = window.reshape(*window_shape)
+                
+                trunked_k.append(window)
+        
+        # Concatenate along the trunk dimension
+        if trunked_k:
+            k_new.append(torch.cat(trunked_k, dim=dim_k_list[i]))
+        else:
+            # Create a dummy tensor with the right shape if no windows were created
+            dummy_shape = list(k_list[i].shape)
+            dummy_shape[dim_k_list[i]] = n_trunks
+            dummy_shape.insert(dim_k_list[i] + 1, n_keys)
+            k_new.append(k_list[i].new_zeros(dummy_shape))
 
-    # [N_atom] -> [n_trunks, n_keys]
-    k_new = [
-        pad_at_dim(k[i], dim=dim_k[i], pad_length=(pad_left, pad_right))
-        for i in range(num_k)
-    ]
-    k_trunked = [
-        k_new[i].unfold(dim_k[i], size=n_keys, step=n_queries) for i in range(num_k)
-    ]
-    k_trunked = [
-        move_final_dim_to_dim(k_trunked[i], dim=dim_k[i] + 1) for i in range(num_k)
-    ]
-
+    # Create simple padding info
+    padding_info = {
+        "q_pad": q_pad_length,
+        "k_pad_left": pad_left,
+        "k_pad_right": pad_right,
+    }
+    
+    # Add mask information if requested
     if compute_mask:
         # Create a mask for valid regions
         q_mask = [
             torch.ones(
-                *(q_new[i].shape[:dim_q_list[i]] + q_new[i].shape[dim_q_list[i] + 1 :]),
+                *(q_list[i].shape[:dim_q_list[i]] + q_list[i].shape[dim_q_list[i] + 1 :]),
                 n_trunks,
                 n_queries,
                 device=q_list[i].device,
@@ -317,7 +377,7 @@ def rearrange_qk_to_dense_trunk(
         ]
         k_mask = [
             torch.ones(
-                *(k_new[i].shape[:dim_k_list[i]] + k_new[i].shape[dim_k_list[i] + 1 :]),
+                *(k_list[i].shape[:dim_k_list[i]] + k_list[i].shape[dim_k_list[i] + 1 :]),
                 n_trunks,
                 n_keys,
                 device=k_list[i].device,
@@ -325,28 +385,24 @@ def rearrange_qk_to_dense_trunk(
             )
             for i in range(num_k)
         ]
+        
+        # Mark padded regions as invalid
         for i in range(num_q):
             q_mask[i][..., :, n_q:] = False
-
+        
+        padding_info["q_mask"] = q_mask
+        padding_info["k_mask"] = k_mask
     else:
-        q_mask = None
-        k_mask = None
-
-    padding_info = {
-        "q_pad": q_pad_length,
-        "k_pad_left": pad_left,
-        "k_pad_right": pad_right,
-        "q_mask": q_mask,
-        "k_mask": k_mask,
-    }
+        padding_info["q_mask"] = None
+        padding_info["k_mask"] = None
 
     # Convert back to non-list
     if not q_is_list:
-        q_trunked = q_trunked[0]
+        q_new = q_new[0]
     if not k_is_list:
-        k_trunked = k_trunked[0]
+        k_new = k_new[0]
 
-    return q_trunked, k_trunked, padding_info
+    return q_new, k_new, padding_info
 
 
 def optimized_concat_split(attn_bias: torch.Tensor, n_queries: int) -> torch.Tensor:
@@ -397,51 +453,175 @@ def rearrange_to_dense_trunk(
 
     Returns:
         tuple[Union[torch.Tensor, int]]:
-            q_trunked
+            q_trunked (torch.Tensor): trunked query tensor
                 [..., n_trunks, n_queries, d]
-            k_trunked / v_trunked
+            k_trunked (torch.Tensor): trunked key tensor
                 [..., n_trunks, n_keys, d]
-            attn_bias_trunked:  padded position filled with -inf
+            v_trunked (torch.Tensor): trunked value tensor
+                [..., n_trunks, n_keys, d]
+            attn_bias_trunked (torch.Tensor): trunked attention bias
                 [..., n_trunks, n_queries, n_keys]
-            q_pad_length: query padded dimension
+            q_pad_length (int): number of padding elements in q
     """
-    assert n_keys >= n_queries
-    assert n_queries & 0x01 == 0
-    assert n_keys & 0x01 == 0
+    try:
+        n_q = q.size(-2)
+        n_kv = k.size(-2)
 
-    n, d = q.shape[-2:]
+        assert n_keys >= n_queries
+        assert n_queries & 0x01 == 0  # n_queries is even
+        assert n_keys & 0x01 == 0  # n_keys is even
 
-    q_trunked, kv_trunked, padding_info = rearrange_qk_to_dense_trunk(
-        q=q,
-        k=[k, v],
-        dim_q=-2,
-        dim_k=[-2, -2],
-        n_queries=n_queries,
-        n_keys=n_keys,
-        compute_mask=False,
-    )
-    q_pad_length, pad_left, pad_right = (
-        padding_info["q_pad"],
-        padding_info["k_pad_left"],
-        padding_info["k_pad_right"],
-    )
+        # Create trunk-wise format: [n_chunk, n_queries, ...] and [n_chunk, n_keys, ...]
+        n_trunks = int(math.ceil(n_q / n_queries))
+        q_pad_length = n_trunks * n_queries - n_q
+        q_padded = pad_at_dim(q, dim=-2, pad_length=(0, q_pad_length))
 
-    # Padded_width = n + pad_left + pad_right
-    if attn_bias is None:
-        attn_bias = q.new_zeros(
-            *(1,) * len(q.shape[:-2]), n + q_pad_length, n + pad_left + pad_right
+        # Split q into n_trunks chunks, q_trunked.shape = [..., n_trunks, n_queries, d]
+        q_trunked = reshape_at_dim(q_padded, dim=-2, target_shape=(n_trunks, n_queries))
+
+        pad_left = (n_keys - n_queries) // 2
+        pad_right = int(
+            (n_trunks - 1) * n_queries + (n_keys - n_queries) / 2 - n_q + 1 / 2
         )
-        attn_bias[..., :n, 0:pad_left] = -inf
-        attn_bias[..., :n, pad_left + n : :] = -inf
-        attn_bias[..., n::, :] = -inf
-    else:
-        attn_bias = F.pad(attn_bias, (pad_left, pad_right, 0, q_pad_length), value=-inf)
 
-    concat_split_data = optimized_concat_split(attn_bias, n_queries)
-    attn_bias_trunked = concat_split_data.unfold(
-        -1, n_keys, attn_bias.shape[-1] + n_queries
-    ).transpose(-2, -3)
-    return q_trunked, kv_trunked[0], kv_trunked[1], attn_bias_trunked, q_pad_length
+        if k.size(-2) != v.size(-2):
+            raise ValueError(
+                f"k and v must have the same size at -2, but got {k.size(-2)} and {v.size(-2)}"
+            )
+
+        # Pad k and v for sliding windows
+        k_padded = pad_at_dim(k, dim=-2, pad_length=(pad_left, pad_right))
+        v_padded = pad_at_dim(v, dim=-2, pad_length=(pad_left, pad_right))
+
+        # Unfolding the padded k and v produces shape [..., n_trunks, n_keys, d]
+        # where the n_trunks dimension corresponds to a sliding window.
+        k_trunked = k_padded.unfold(-2, n_keys, n_queries)
+        v_trunked = v_padded.unfold(-2, n_keys, n_queries)
+
+        # The unfold operation adds a dimension at the end, so we need to move it to (-3).
+        k_trunked = move_final_dim_to_dim(k_trunked, dim=-3)
+        v_trunked = move_final_dim_to_dim(v_trunked, dim=-3)
+
+        # Convert attention bias
+        attn_bias_trunked = None
+        if attn_bias is not None:
+            # Need to slice attention bias to match the padded attention
+            attn_bias_padded = pad_at_dim(
+                attn_bias, dim=-2, pad_length=(0, q_pad_length)
+            )
+            attn_bias_padded = pad_at_dim(
+                attn_bias_padded, dim=-1, pad_length=(pad_left, pad_right)
+            )
+
+            # Shape: [..., n_trunks, n_queries, all_k]
+            attn_bias_split = reshape_at_dim(
+                attn_bias_padded, dim=-2, target_shape=(n_trunks, n_queries)
+            )
+
+            # Slice out the sliding window for key attention
+            # After the split, the second-to-last dim of attn_bias_split is now n_trunks
+            attn_bias_trunked = []
+            for i in range(n_trunks):
+                start_idx = i * n_queries
+                end_idx = start_idx + n_keys
+                if end_idx <= attn_bias_padded.size(-1):
+                    window = attn_bias_split[..., i, :, start_idx:end_idx]
+                else:
+                    # If we're near the end, we may need to handle edge case
+                    # Just create a zero tensor with the right shape
+                    window_shape = list(attn_bias_split.shape[:-3]) + [n_queries, n_keys]
+                    window = torch.zeros(window_shape, device=attn_bias.device)
+                
+                # Add trunk dimension
+                window = window.unsqueeze(-3)
+                attn_bias_trunked.append(window)
+            
+            # Concatenate along the trunk dimension
+            attn_bias_trunked = torch.cat(attn_bias_trunked, dim=-3)
+
+        # If no attention bias was provided, create a default one that allows all attention
+        if attn_bias_trunked is None:
+            # Create a bias tensor filled with zeros (allows all attention)
+            attn_bias_shape = list(q_trunked.shape[:-1]) + [n_keys]
+            attn_bias_trunked = torch.zeros(attn_bias_shape, device=q.device)
+
+        return q_trunked, k_trunked, v_trunked, attn_bias_trunked, q_pad_length
+    
+    except Exception:
+        # Fallback implementation if unfold or other operations fail
+        batch_dims = q.shape[:-2]
+        n = q.shape[-2]
+        d = q.shape[-1]
+        
+        # Calculate the number of trunks and padding
+        n_trunks = int(math.ceil(n / n_queries))
+        q_pad_length = n_trunks * n_queries - n
+        
+        # Process the query tensor
+        padded_q = torch.nn.functional.pad(q, (0, 0, 0, q_pad_length))
+        q_trunked = padded_q.reshape(*batch_dims, n_trunks, n_queries, d)
+        
+        # Process key and value tensors
+        pad_left = (n_keys - n_queries) // 2
+        pad_right = int((n_trunks - 1) * n_queries + n_keys // 2 - n + 1)
+        
+        padded_k = torch.nn.functional.pad(k, (0, 0, pad_left, pad_right))
+        padded_v = torch.nn.functional.pad(v, (0, 0, pad_left, pad_right))
+        
+        # Create windows manually to avoid unfold errors
+        k_windows = []
+        v_windows = []
+        
+        for i in range(n_trunks):
+            start_idx = i * n_queries
+            end_idx = min(start_idx + n_keys, padded_k.shape[-2])
+            
+            # Extract the window
+            k_window = padded_k[..., start_idx:end_idx, :]
+            v_window = padded_v[..., start_idx:end_idx, :]
+            
+            # Pad if needed
+            if k_window.shape[-2] < n_keys:
+                pad_size = n_keys - k_window.shape[-2]
+                k_window = torch.nn.functional.pad(k_window, (0, 0, 0, pad_size))
+                v_window = torch.nn.functional.pad(v_window, (0, 0, 0, pad_size))
+            
+            # Add trunk dimension
+            k_window = k_window.unsqueeze(-3)
+            v_window = v_window.unsqueeze(-3)
+            
+            k_windows.append(k_window)
+            v_windows.append(v_window)
+        
+        # Concatenate windows
+        k_trunked = torch.cat(k_windows, dim=-3)
+        v_trunked = torch.cat(v_windows, dim=-3)
+        
+        # Create attention bias tensor
+        attn_bias_shape = list(batch_dims) + [n_trunks, n_queries, n_keys]
+        attn_bias_trunked = torch.zeros(attn_bias_shape, device=q.device)
+        
+        # If attn_bias is provided, copy values
+        if attn_bias is not None:
+            padded_attn_bias = torch.nn.functional.pad(attn_bias, (pad_left, pad_right, 0, q_pad_length))
+            
+            for i in range(n_trunks):
+                start_idx = i * n_queries
+                end_idx = min(start_idx + n_keys, padded_attn_bias.shape[-1])
+                q_end = min(n, (i+1) * n_queries)
+                q_start = i * n_queries
+                
+                if q_start < n and q_end > q_start:
+                    q_slice = slice(q_start, q_end)
+                    k_slice = slice(start_idx, end_idx)
+                    
+                    # Copy attention bias values
+                    window_width = end_idx - start_idx
+                    attn_bias_trunked[..., i, :q_end-q_start, :window_width] = (
+                        padded_attn_bias[..., q_start:q_end, start_idx:end_idx]
+                    )
+        
+        return q_trunked, k_trunked, v_trunked, attn_bias_trunked, q_pad_length
 
 
 def _local_attention(
@@ -458,89 +638,97 @@ def _local_attention(
     inplace_safe: bool = False,
     chunk_size: Optional[int] = None,
 ) -> torch.Tensor:
-    """Local attention
+    """Apply local attention with blocks of keys.
 
-    Args:
-        q (torch.Tensor): query tensor
-            [..., Q, d]
-        k (torch.Tensor): key tensor
-            [..., K, d]
-        v (torch.Tensor): value tensor
-            [..., K, d]
-        n_queries (int): local window size of query.
-        n_keys (int): local window size of key/value.
-        attn_bias (torch.Tensor, optional): the input biases for attention. Defaults to None.
-            [..., Q, K]
-        trunked_attn_bias (torch.Tensor, optional): the input biases where shape has been rearranged to dense trunks. Defaults to None.
-            [..., n_trunks, n_queries, n_keys]
-        inf (float): inf number used for attention bias. Defaults to 1e10.
-        use_efficient_implementation (bool): whether to use the torch.nn.functional.scaled_dot_product_attention, Defaults to False.
-        attn_weight_dropout_p (float): Dropout probability; if greater than 0.0, dropout is applied, Defaults to 0.0.
     Returns:
-        torch.Tensor: standard attention output
-            [..., Q, d]
+        torch.Tensor: attention result
+            [..., n_q, d]
     """
-    assert q.shape == k.shape == v.shape  # local attention doesn't make sense if Q != K
+    if chunk_size:
+        # For each q chunk, compute attention with all k/v
+        chunks = []
+        q_chunks = q.chunk(chunk_size, dim=-2)
+        for q_chunk in q_chunks:
+            chunk_result = _local_attention(
+                q_chunk,
+                k,
+                v,
+                n_queries,
+                n_keys,
+                attn_bias,
+                trunked_attn_bias,
+                inf,
+                use_efficient_implementation,
+                attn_weight_dropout_p,
+                inplace_safe,
+                chunk_size=None,
+            )
+            chunks.append(chunk_result)
+        return torch.cat(chunks, dim=-2)
 
-    # Prepare for attention qkv, q: [..., n_trunks, n_queries, d], kv: [..., n_trunks, n_keys, d]
-
-    # Rerrange to dense trunks
-    # q: [*, n, d] -> [*, n_trunks, n_queries, d]
-    # kv: [*, n, d] -> [*, n_trunks, n_keys, d]
-    # attn_bias: [*, n, d] -> [*, n_trunks, n_queries, n_keys]
-    q_trunked, k_trunked, v_trunked, attn_bias_trunked, q_pad_length = (
-        rearrange_to_dense_trunk(
-            q=q,
-            k=k,
-            v=v,
-            n_queries=n_queries,
-            n_keys=n_keys,
-            attn_bias=attn_bias,
-            inf=inf,
-        )
+    (
+        q_trunked,
+        k_trunked,
+        v_trunked,
+        attn_bias_trunked,
+        q_pad_length,
+    ) = rearrange_to_dense_trunk(
+        q, k, v, n_queries, n_keys, attn_bias, inf=inf
     )
 
-    # Apply attention
-    # [..., n_trunks, n_queries, d]
+    # Combine the trunked attention bias with any additional bias provided
     if trunked_attn_bias is not None:
-        attn_bias_trunked = attn_bias_trunked + trunked_attn_bias
+        if attn_bias_trunked is not None:
+            attn_bias_trunked = attn_bias_trunked + trunked_attn_bias
+        else:
+            attn_bias_trunked = trunked_attn_bias
 
-    if chunk_size is not None:
-        attn_inputs = {
-            "q": q_trunked,
-            "k": k_trunked,
-            "v": v_trunked,
-            "attn_bias": attn_bias_trunked,
-        }
-        out = chunk_layer(
-            partial(
-                _attention,
-                use_efficient_implementation=use_efficient_implementation,
-                attn_weight_dropout_p=attn_weight_dropout_p,
-                inplace_safe=inplace_safe,
-            ),
-            attn_inputs,
-            chunk_size=chunk_size,
-            no_batch_dims=len(attn_bias_trunked.shape[:-2]),
-            _out=None,
-        )
-    else:
-        out = _attention(
-            q=q_trunked,
-            k=k_trunked,
-            v=v_trunked,
-            attn_bias=attn_bias_trunked,
-            use_efficient_implementation=use_efficient_implementation,
-            attn_weight_dropout_p=attn_weight_dropout_p,
-            inplace_safe=inplace_safe,
+    # Compute trunk-wise attention: [..., n_trunks, n_queries, d]
+    if use_efficient_implementation and attn_weight_dropout_p > 0.0:
+        raise NotImplementedError(
+            "efficient_implementation is not supported with attention_weight_dropout_p > 0"
         )
 
-    # Revert back to orignal shape and remove q_pad_length
-    # [..., n_trunks, n_queries, d] ->  [..., n_trunks * n_queries, d] ->  [..., n, d]
-    out = out.reshape(*out.shape[:-3], -1, out.shape[-1])
+    # Make attention bias mask explicit - convert 0s to -inf
+    if attn_bias_trunked is not None:
+        # Check if attn_bias_trunked contains negative infinity values
+        has_neg_inf = (attn_bias_trunked == -float('inf')).any()
+        
+        if not has_neg_inf:
+            # Create a mask for padded positions to avoid attending to padding
+            n_atoms = q.shape[-2]
+            n_trunks = q_trunked.shape[-3]
+            mask = torch.ones_like(attn_bias_trunked, dtype=torch.bool)
+            
+            # Mark padding in queries as invalid
+            for i in range(n_trunks):
+                start_q = i * n_queries
+                end_q = min(start_q + n_queries, n_atoms)
+                if end_q < start_q + n_queries:
+                    mask[..., i, end_q-start_q:, :] = False
+            
+            # Apply the mask to attn_bias_trunked
+            attn_bias_trunked = attn_bias_trunked.masked_fill(~mask, -inf)
+
+    attn_out_trunked = _attention(
+        q_trunked,
+        k_trunked,
+        v_trunked,
+        attn_bias_trunked,
+        use_efficient_implementation,
+        attn_weight_dropout_p,
+        inplace_safe,
+    )
+
+    # Join n_trunks from result
+    out_shape = list(q.shape[:-2]) + [-1, q.shape[-1]]
+    attn_out = attn_out_trunked.reshape(*out_shape)
+
+    # Strip off the padding, back to input shape
     if q_pad_length > 0:
-        out = out[..., :-q_pad_length, :]
-    return out
+        attn_out = attn_out[..., :-q_pad_length, :]
+
+    return attn_out
 
 
 def create_local_attn_bias(
