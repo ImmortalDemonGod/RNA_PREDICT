@@ -8,6 +8,7 @@ from hypothesis import strategies as st
 # Assuming rna.py is on the Python path or in the same package:
 from rna_predict.pipeline.stageC.mp_nerf.rna import (
     build_scaffolds_rna_from_torsions,
+    compute_max_rna_atoms,
     get_base_atoms,
     handle_mods,
     mini_refinement,
@@ -89,7 +90,7 @@ class TestBuildScaffoldsRnaFromTorsions(unittest.TestCase):
         """
         If an empty seq is provided, all returned tensors should be empty.
         """
-        scaffolds = rna.build_scaffolds_rna_from_torsions(
+        scaffolds = build_scaffolds_rna_from_torsions(
             "", torch.zeros((0, 7)), self.device
         )
         self.assertEqual(scaffolds["bond_mask"].numel(), 0)
