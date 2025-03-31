@@ -25,11 +25,6 @@ sys.path.append(os.path.abspath(os.path.join(current_dir, '../../..')))
 # Import the diagnostic test functions - use absolute imports
 sys.path.append(current_dir)
 from test_mpnerf_nan_diagnosis import (
-    test_hypothesis_1_zero_vector_normalization,
-    test_hypothesis_2_missing_bond_data,
-    test_hypothesis_3_reference_points,
-    test_hypothesis_4_zero_angles,
-    test_hypothesis_5_angle_format,
     run_all_tests,
     check_for_nans
 )
@@ -122,7 +117,7 @@ def create_permanent_fix():
     
     # Read the original file
     with open(original_file, 'r') as f:
-        original_code = f.read()
+        f.read()
     
     # Create the fixed version - with triple quotes properly escaped
     fixed_code = '''import numpy as np

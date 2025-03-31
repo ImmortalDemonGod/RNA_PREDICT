@@ -147,9 +147,10 @@ def fape_torch(
     """
     fape_store = []
     if l_func is None:
-        l_func = lambda x, y, eps=1e-7, sup=max_val: (
-            ((x - y) ** 2).sum(dim=-1) + eps
-        ).sqrt()
+        def l_func(x, y, eps=1e-07, sup=max_val):
+            return (
+                    ((x - y) ** 2).sum(dim=-1) + eps
+                ).sqrt()
     # for chain
     for s in range(pred_coords.shape[0]):
         fape_store.append(0)
@@ -374,7 +375,7 @@ def combine_noise(
             theta_scale=INTERNALS_SCN_SCALE,
             verbose=False,
         )
-        masked_noised = noised_coords[naive_cloud_mask]
+        noised_coords[naive_cloud_mask]
         noised_coords = rearrange(noised_coords, "l c d -> () (l c) d")
 
     ###### SETP 2: build from backbone #########

@@ -291,7 +291,7 @@ class TestStageBTorsionBertPredictorSincosRoundTrip:
 
         # Rebuild sin, cos
         sin_restored = torch.sin(angles)
-        cos_restored = torch.cos(angles)
+        torch.cos(angles)
 
         # We'll check sign consistency except near zero
         for i in range(N):

@@ -9,15 +9,12 @@ and more extreme angle values.
 import os
 import sys
 import torch
-import math
-import numpy as np
 
 # Add the project root to the Python path if needed
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
 # Import the functions to test
 from rna_predict.pipeline.stageC.stage_c_reconstruction import run_stageC
-from rna_predict.pipeline.stageB.torsion.torsion_bert_predictor import StageBTorsionBertPredictor
 
 def print_section(title):
     """Print a section title with formatting."""

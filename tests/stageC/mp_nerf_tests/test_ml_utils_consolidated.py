@@ -375,8 +375,8 @@ class TestBinaryOperationCombineNoise(unittest.TestCase):
         """
         coords_a = torch.randn(length, 3)
         coords_b = torch.randn(length, 3)
-        coords_c = torch.randn(length, 3)
-        seq_a = self._dummy_seq(length)
+        torch.randn(length, 3)
+        self._dummy_seq(length)
         seq_b = self._dummy_seq(length)
         seq_c = self._dummy_seq(length)
 

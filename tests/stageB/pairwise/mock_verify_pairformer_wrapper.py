@@ -4,8 +4,6 @@ Mock verification script for PairformerWrapper
 import torch
 import torch.nn as nn
 import inspect
-import sys
-from pathlib import Path
 
 # Define a mock PairformerStack class
 class MockPairformerStack(nn.Module):
@@ -68,7 +66,7 @@ def verify_mock_implementation():
     
     # Create an instance
     wrapper = MockPairformerWrapper()
-    print(f"\n✅ Successfully instantiated MockPairformerWrapper with default parameters")
+    print("\n✅ Successfully instantiated MockPairformerWrapper with default parameters")
     print(f"   - n_blocks: {wrapper.n_blocks}")
     print(f"   - c_z: {wrapper.c_z}")
     print(f"   - c_s: {wrapper.c_s}")
@@ -86,7 +84,7 @@ def verify_mock_implementation():
     
     # Run a forward pass
     s_updated, z_updated = wrapper(s, z, pair_mask)
-    print(f"\n✅ Successfully ran forward pass")
+    print("\n✅ Successfully ran forward pass")
     print(f"   - s shape: {s.shape} -> {s_updated.shape}")
     print(f"   - z shape: {z.shape} -> {z_updated.shape}")
     
@@ -97,7 +95,7 @@ def verify_mock_implementation():
     pair_mask = torch.ones(batch_size, seq_length, seq_length, dtype=torch.bool)
     
     s_updated, z_updated = wrapper(s, z, pair_mask)
-    print(f"\n✅ Successfully ran forward pass with different sequence length (15)")
+    print("\n✅ Successfully ran forward pass with different sequence length (15)")
     print(f"   - s shape: {s.shape} -> {s_updated.shape}")
     print(f"   - z shape: {z.shape} -> {z_updated.shape}")
     
@@ -110,9 +108,9 @@ def verify_mock_implementation():
     loss.backward()
     
     if s.grad is not None and z.grad is not None:
-        print(f"\n✅ Gradients flow through the module")
+        print("\n✅ Gradients flow through the module")
     else:
-        print(f"\n❌ Gradients do not flow through the module")
+        print("\n❌ Gradients do not flow through the module")
     
     print("\n🎉 Mock verification completed successfully!")
     print("\nNote: This is a mock verification that only checks the interface and structure.")

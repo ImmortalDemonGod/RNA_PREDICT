@@ -500,7 +500,7 @@ class TestGenerator:
             module_path = self.construct_module_path(file_path)
             content = file_path.read_text()
             parser = self.parse_ast(content)
-            imports = self.extract_imports(content)
+            self.extract_imports(content)
 
             entities = self.populate_entities(parser, module_path)
             self.log_entities_summary(entities)

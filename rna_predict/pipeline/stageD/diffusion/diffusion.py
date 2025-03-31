@@ -15,7 +15,6 @@
 
 from typing import Optional, Union
 
-import snoop
 import torch
 import torch.nn as nn
 from protenix.model.utils import expand_at_dim

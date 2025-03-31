@@ -1,5 +1,4 @@
 import torch
-import snoop
 
 class StageCReconstruction:
     """

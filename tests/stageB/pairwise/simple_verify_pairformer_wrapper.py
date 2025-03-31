@@ -31,16 +31,16 @@ def main():
     print("Running forward pass...")
     s_updated, z_updated = wrapper(s, z, pair_mask)
     
-    print(f"✅ Forward pass successful")
+    print("✅ Forward pass successful")
     print(f"   - s shape: {s.shape} -> {s_updated.shape}")
     print(f"   - z shape: {z.shape} -> {z_updated.shape}")
     
     # Check for NaN or Inf values
     if not torch.isnan(s_updated).any() and not torch.isinf(s_updated).any() and \
        not torch.isnan(z_updated).any() and not torch.isinf(z_updated).any():
-        print(f"✅ No NaN or Inf values in the output")
+        print("✅ No NaN or Inf values in the output")
     else:
-        print(f"❌ Found NaN or Inf values in the output")
+        print("❌ Found NaN or Inf values in the output")
     
     # Check gradient flow
     s = torch.randn(batch_size, seq_length, c_s, requires_grad=True)
@@ -51,9 +51,9 @@ def main():
     loss.backward()
     
     if s.grad is not None and z.grad is not None:
-        print(f"✅ Gradients flow through the module")
+        print("✅ Gradients flow through the module")
     else:
-        print(f"❌ Gradients do not flow through the module")
+        print("❌ Gradients do not flow through the module")
     
     # Count parameters
     param_count = sum(p.numel() for p in wrapper.parameters())

@@ -1,6 +1,5 @@
 from typing import Dict, Optional
 
-import snoop
 import torch
 
 from rna_predict.pipeline.stageD.diffusion.diffusion import DiffusionModule
