@@ -106,7 +106,7 @@ def model_with_logits() -> TorsionBertModel:
         # Mock model
         mock_model = MagicMock()
         mock_model.num_angles = 7
-        mock_model.__call__.side_effect = lambda inp: mock_forward_logits(
+        mock_model.side_effect = lambda inp: mock_forward_logits(
             mock_model, inp
         )
         mock_model_cls.from_pretrained.return_value = mock_model
@@ -150,7 +150,7 @@ def model_with_last_hidden() -> TorsionBertModel:
         # Mock model
         mock_model = MagicMock()
         mock_model.num_angles = 7
-        mock_model.__call__.side_effect = lambda inp: mock_forward_last_hidden(
+        mock_model.side_effect = lambda inp: mock_forward_last_hidden(
             mock_model, inp
         )
         mock_model_cls.from_pretrained.return_value = mock_model
@@ -182,7 +182,7 @@ def predictor_fixture(
     # Override the predictor's internal model with our TorsionBertModel mock
     predictor.model = model_with_logits
     # Keep them in sync
-    predictor.model.num_angles = 16
+    predictor.model.user_requested_num_angles = 16
     return predictor
 
 
@@ -316,7 +316,7 @@ class TestTorsionBertModel:
         to produce last_hidden_state only, verifying correct shape and no crash.
         """
         mock_model = model_with_logits.model
-        mock_model.__call__.side_effect = lambda i: DummyLastHiddenStateOutput(
+        mock_model.side_effect = lambda i: DummyLastHiddenStateOutput(
             torch.ones((1, 5, 2 * mock_model.num_angles))
         )
         seq = "ACG"
@@ -339,7 +339,7 @@ class TestTorsionBertModel:
         """
         Creating TorsionBertModel with an invalid device string => RuntimeError.
         """
-        with pytest.raises(RuntimeError, match="Invalid device string"):
+        with pytest.raises(RuntimeError, match="Expected one of cpu, cuda, ipu, xpu, mkldnn, opengl, opencl, ideep, hip, ve, fpga, ort, xla, lazy, vulkan, mps, meta, hpu, mtia, privateuseone device type at start of device string"):
             TorsionBertModel(
                 model_name_or_path="any_path",
                 device=torch.device("invalid_device"),
