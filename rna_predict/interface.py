@@ -5,7 +5,6 @@ from rna_predict.pipeline.stageB.torsion.torsion_bert_predictor import (
     StageBTorsionBertPredictor,
 )
 from rna_predict.pipeline.stageC.stage_c_reconstruction import run_stageC
-import snoop
 
 class RNAPredictor:
     """
