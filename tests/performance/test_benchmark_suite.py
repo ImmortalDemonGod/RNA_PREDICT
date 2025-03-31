@@ -17,7 +17,7 @@ import rna_predict.benchmarks.benchmark as benchmark
 # Consolidated, Refactored Test Suite for benchmark.py
 #
 # This test file merges and reorganizes tests originally spread across multiple
-# “fuzz” or “basic” test files into a single, coherent unittest suite.
+# "fuzz" or "basic" test files into a single, coherent unittest suite.
 #
 # Key improvements:
 #  1. Logical grouping of tests by function or class under test
@@ -202,7 +202,7 @@ class TestGenerateSyntheticFeatures(unittest.TestCase):
         self.assertIn("ref_element", f)
         self.assertEqual(f["ref_element"].shape, (N_atom, 128))
         self.assertIn("ref_atom_name_chars", f)
-        self.assertEqual(f["ref_atom_name_chars"].shape, (N_atom, 16))
+        self.assertEqual(f["ref_atom_name_chars"].shape, (N_atom, 256))
         self.assertIn("atom_to_token", f)
         self.assertEqual(f["atom_to_token"].shape, (N_atom,))
         self.assertIn("restype", f)

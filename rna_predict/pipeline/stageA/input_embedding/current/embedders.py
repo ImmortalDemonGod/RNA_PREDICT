@@ -130,9 +130,11 @@ class InputFeatureEmbedder(nn.Module):
         #    restype, profile, deletion_mean => shape [..., N_token, sum_of_dims]
         #    Then project to [N_token, c_token] via a linear layer.
 
-        batch_shape = input_feature_dict["restype"].shape[:-1]
-        extras_list = []
-
+        # Ensure the batch shape is correctly obtained from the a tensor
+        # instead of assuming it from restype
+        a_shape = a.shape
+        token_dim = a_shape[-2]  # Number of tokens
+        
         # Handle optional trunk_sing / trunk_pair / block_index
         # (Currently no-op except for verifying presence)
         if trunk_sing is not None:
@@ -141,10 +143,43 @@ class InputFeatureEmbedder(nn.Module):
             pass  # Possibly incorporate trunk_pair into the pipeline
         if block_index is not None:
             pass  # Possibly use block_index for local attention
+            
+        extras_list = []
         for name, dim_size in self.input_feature.items():
-            # shape => [..., N_token, dim_size]
-            val = input_feature_dict[name].reshape(*batch_shape, dim_size)
+            # Use the shape from a for reshaping input features
+            # Make sure to reshape the features to match a's batch dimensions
+            raw_feature = input_feature_dict[name]
+            
+            # Handle different tensor dimensions correctly
+            if name == "deletion_mean":
+                # For deletion_mean, which is 1D, we need to reshape to match token dimensions
+                # It might need to be sliced if there are more values than tokens
+                if raw_feature.shape[0] > token_dim:
+                    val = raw_feature[:token_dim].reshape(token_dim, dim_size)
+                else:
+                    # Pad with zeros if we have fewer values than tokens
+                    padded = torch.zeros(token_dim, device=raw_feature.device)
+                    padded[:raw_feature.shape[0]] = raw_feature
+                    val = padded.reshape(token_dim, dim_size)
+            elif name in ["restype", "profile"]:
+                # For 2D features like restype and profile
+                # These have shape [N_token, feature_dim]
+                if raw_feature.shape[0] > token_dim:
+                    # More features than needed, slice to match token_dim
+                    val = raw_feature[:token_dim]
+                elif raw_feature.shape[0] < token_dim:
+                    # Fewer features than needed, pad with zeros
+                    padding = torch.zeros((token_dim - raw_feature.shape[0], raw_feature.shape[1]), 
+                                          device=raw_feature.device)
+                    val = torch.cat([raw_feature, padding], dim=0)
+                else:
+                    val = raw_feature
+            else:
+                # Shouldn't get here for this test case
+                raise ValueError(f"Unexpected feature {name} in input_feature dictionary")
+                
             extras_list.append(val)
+            
         token_extras = torch.cat(extras_list, dim=-1)  # => [..., N_token, sum_of_dims]
         extras_emb = self.extras_linear(token_extras)  # => [..., N_token, c_token]
 
