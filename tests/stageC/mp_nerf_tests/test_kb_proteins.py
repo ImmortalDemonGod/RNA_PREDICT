@@ -46,30 +46,11 @@ class TestMakeCloudMask(unittest.TestCase):
 
     def test_make_cloud_mask_invalid_aa(self):
         """
-        Test that an unrecognized amino acid string also yields 4 positions for the backbone
-        or none if code doesn't exist. Actually, the code checks 'aa != "_"',
-        so if it's invalid but not '_', it tries to read SC_BUILD_INFO.
-        This doesn't raise an error, but the sidechain logic won't exist.
-        It should produce a 14-length array with only the 4 backbone positions if the key is absent
-        from SC_BUILD_INFO or default to 0 if the code checks fail.
-        We'll check it doesn't crash.
+        Test that an unrecognized amino acid string raises a KeyError.
+        For invalid amino acids (not in SC_BUILD_INFO and not "_"), a KeyError should be raised.
         """
         for inval in self.invalid_aas:
-            mask = kb_proteins.make_cloud_mask(inval)
-            self.assertEqual(mask.shape, (14,))
-            # It's not in SC_BUILD_INFO, so the function won't set any sidechain bits
-            # But it does check 'aa != "_"', so the code attempts to do "SC_BUILD_INFO[<inval>]" if present.
-            # If <inval> not in SC_BUILD_INFO, it will produce an array with 4 + sidechain-len=0 => 4 ones
-            # or 0 if the code doesn't handle KeyError. Let's see how the code is structured:
-            #
-            # Actually, 'aa != "_"': n_atoms = 4 + len(SC_BUILD_INFO[aa]["atom-names"])
-            # This will KeyError if 'aa' not in SC_BUILD_INFO.
-            #
-            # So we either get a KeyError or continue. Let's see if we want to handle that or test it?
-            # The function doesn't handle KeyError, so it might just raise. We'll check that.
-            # We'll wrap it in a try-except to confirm behavior.
-            #
-            # But let's just test it for coverage and confirm if it raises or not:
+            # We expect a KeyError for invalid amino acids
             with self.assertRaises(KeyError):
                 kb_proteins.make_cloud_mask(inval)
 
