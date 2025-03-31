@@ -129,6 +129,9 @@ class PairformerBlock(nn.Module):
                 [..., N_token, c_s] | None
                 [..., N_token, N_token, c_z]
         """
+        # Ensure float pair_mask
+        if pair_mask is not None and pair_mask.dtype != torch.float32:
+            pair_mask = pair_mask.float()
         if inplace_safe:
             z = self.tri_mul_out(
                 z, mask=pair_mask, inplace_safe=inplace_safe, _add_with_inplace=True
@@ -166,6 +169,10 @@ class PairformerBlock(nn.Module):
                 s += self.single_transition(s)
             return s, z
         else:
+            # again ensure float after we unify code paths
+            if pair_mask is not None and pair_mask.dtype != torch.float32:
+                pair_mask = pair_mask.float()
+
             tmu_update = self.tri_mul_out(
                 z, mask=pair_mask, inplace_safe=inplace_safe, _add_with_inplace=False
             )
@@ -313,6 +320,10 @@ class PairformerStack(nn.Module):
             clear_cache_between_blocks = True
         else:
             clear_cache_between_blocks = False
+
+        # Convert pair_mask to float
+        if pair_mask is not None and pair_mask.dtype != torch.float32:
+            pair_mask = pair_mask.float()
         blocks = self._prep_blocks(
             pair_mask=pair_mask,
             use_memory_efficient_kernel=use_memory_efficient_kernel,
@@ -696,6 +707,9 @@ class MSAModule(nn.Module):
         if "msa" not in input_feature_dict:
             return z
 
+        # Convert pair_mask to float if needed
+        if pair_mask is not None and pair_mask.dtype != torch.float32:
+            pair_mask = pair_mask.float()
         msa_feat = sample_msa_feature_dict_random_without_replacement(
             feat_dict=input_feature_dict,
             dim_dict={feat_name: -2 for feat_name in self.input_feature},
@@ -717,14 +731,19 @@ class MSAModule(nn.Module):
             num_classes=self.input_feature["msa"],
         )
 
-        target_shape = msa_feat["msa"].shape[:-1]
-        msa_sample = torch.cat(
-            [
-                msa_feat[name].reshape(*target_shape, d)
-                for name, d in self.input_feature.items()
-            ],
-            dim=-1,
-        )  # [..., N_msa_sample, N_token, 32 + 1 + 1]
+        # E.g. if "msa" => shape [n_msa, n_token, 32]
+        target_shape = msa_feat["msa"].shape[:2]  # (n_msa, n_token), ignoring the 32
+
+        # Build combined features
+        # Each named feature is reshaped to [n_msa, n_token, dimension], then concatenated
+        # "msa": 32, "has_deletion":1, "deletion_value":1
+        feat_list = []
+        for name, dim in self.input_feature.items():
+            x = msa_feat[name]
+            # Reshape to [*target_shape, dim]
+            x = x.reshape(*target_shape, dim)
+            feat_list.append(x)
+        msa_sample = torch.cat(feat_list, dim=-1)  # [n_msa, n_token, 32+1+1] = [n_msa, n_token, 34]
         # Line2
         msa_sample = self.linear_no_bias_m(msa_sample)
 
