@@ -218,7 +218,6 @@ def _attention(
     return attn_output
 
 
-# @snoop
 def rearrange_qk_to_dense_trunk(
     q: Union[torch.Tensor, list[torch.Tensor]],
     k: Union[torch.Tensor, list[torch.Tensor]],
@@ -228,58 +227,56 @@ def rearrange_qk_to_dense_trunk(
     n_keys: int = 128,
     compute_mask: bool = True,
 ) -> tuple[Union[torch.Tensor, list[torch.Tensor]]]:
-    print(f"DEBUG: rearrange_qk_to_dense_trunk input q shape: {q.shape if isinstance(q, torch.Tensor) else 'list'}")
-    print(f"DEBUG: rearrange_qk_to_dense_trunk input k shape: {k.shape if isinstance(k, torch.Tensor) else 'list'}")
-    """Rearrange q/k into blocked tensors for local operations.
+    """Rearrange q/k tensors (both can be list of tensors) to "dense" trunk.
 
     Args:
-        q (torch.Tensor): query tensor. Could be a tensor or a list of tensors.
-            [..., n_q, ...] (n_q is at dimension dim_q)
-        k (torch.Tensor | List[torch.Tensor]): key tensor. Could be a tensor or a list of tensors.
-            [..., n_k, ...] (n_k is at dimension dim_k)
-        dim_q (int): along which dimension to build the trunks. Could be an int or a list of int.
-        dim_k (int): along which dimension to build the trunks. Could be an int or a list of int.
-        n_queries (int, optional): local window size of query tensor.
-        n_keys (int, optional): local window size of key/value tensor.
+        q: A tensor of list of tensors of arbitrary shapes, including N_atom dimension.
+           If a list, q[i].shape has dim_q[i] sized as N_atom. (i.e., q[i].shape[dim_q[i]] = N_atom)
+        k: A tensor of list of tensors of arbitrary shapes, including N_atom dimension.
+           If a list, k[i].shape has dim_k[i] sized as N_atom.
+        dim_q: Dimension of q that's sized as N_atom.
+           If a list, dim_q[i] corresponds to the dimension in q[i].
+        dim_k: Dimension of k that's sized as N_atom.
+           If a list, dim_k[i] corresponds to the dimension in k[i].
+        n_queries: Maximum number of query atoms per trunk.
+        n_keys: Maximum number of key atoms per trunk.
+        compute_mask: Whether to compute mask for valid region.
 
     Returns:
-        tuple[Union[torch.Tensor, list[torch.Tensor]]]:
-            q_trunked: torch.Tensor or list of tensors. Same as the input type.
-                [..., n_trunks, n_queries, ...]
-            k_trunked: torch.Tensor or list of tensors. Same as the input type.
-                [..., n_trunks, n_keys, ...]
-            padding_info (dict):
-                mask_trunked: torch.Tensor
-                    [n_trunks, n_queries, n_keys]
-                q_pad: query padded dimension
+        A tuple of "trunked" tensors/list of tensors: (q_trunked, k_trunked, padding_info)
+        q_trunked.shape[dim_q + 1] = n_queries.
+        k_trunked.shape[dim_k + 1] = n_keys.
     """
+    # Convert q/k to lists if not already
+    q_is_list = isinstance(q, list)
+    k_is_list = isinstance(k, list)
+    q_list = q if q_is_list else [q]
+    k_list = k if k_is_list else [k]
+    dim_q_list = dim_q if isinstance(dim_q, list) else [dim_q] * len(q_list)
+    dim_k_list = dim_k if isinstance(dim_k, list) else [dim_k] * len(k_list)
+    num_q = len(q_list)
+    num_k = len(k_list)
 
-    assert n_keys >= n_queries
-    assert n_queries & 0x01 == 0
-    assert n_keys & 0x01 == 0
-
+    # Safety checks ensuring all dims are positive
     def basic_checks(x, dim_x):
-        if isinstance(x, list):
-            x_is_list = True
-            assert isinstance(dim_x, list)
-        else:
-            x_is_list = False
-            x = [x]
-            dim_x = [dim_x]
-        n_x = x[0].size(dim_x[0])
-        for i in range(len(dim_x)):
-            if dim_x[i] < 0:
-                dim_x[i] = len(x[i].shape) + dim_x[i]
-            assert x[i].size(dim_x[i]) == n_x
-        return x, dim_x, x_is_list, n_x, len(x)
+        if dim_x < 0:
+            dim_x = len(x.shape) + dim_x
+        return dim_x
 
-    q, dim_q, q_is_list, n, num_q = basic_checks(q, dim_q)
-    k, dim_k, k_is_list, n_k, num_k = basic_checks(k, dim_k)
+    for i in range(num_q):
+        dim_q_list[i] = basic_checks(q_list[i], dim_q_list[i])
+    for i in range(num_k):
+        dim_k_list[i] = basic_checks(k_list[i], dim_k_list[i])
 
-    assert n == n_k
-    n_trunks = int(math.ceil(n / n_queries))
-    q_pad_length = n_trunks * n_queries - n
+    # The first tensor in lists
+    n_q = q_list[0].size(dim_q_list[0])
+    n_k = k_list[0].size(dim_k_list[0])
 
+    # Compute the number of trunks for q
+    n_trunks = int(math.ceil(n_q / n_queries))
+    q_pad_length = n_trunks * n_queries - n_q
+
+    # [N_atom] -> [n_trunks, n_queries]
     q_new = [
         pad_at_dim(q[i], dim=dim_q[i], pad_length=(0, q_pad_length))
         for i in range(num_q)
@@ -289,9 +286,12 @@ def rearrange_qk_to_dense_trunk(
         for i in range(num_q)
     ]
 
+    # k_pad_left = (n_keys - n_queries) // 2, which is the maximum overlap beyond n_queries
+    # Typical values: k_pad_left = (128 - 32) // 2 = 48
     pad_left = (n_keys - n_queries) // 2
-    pad_right = int((n_trunks - 1 / 2) * n_queries + n_keys / 2 - n + 1 / 2)
+    pad_right = int((n_trunks - 1) * n_queries + n_keys // 2 - n_q + 1)
 
+    # [N_atom] -> [n_trunks, n_keys]
     k_new = [
         pad_at_dim(k[i], dim=dim_k[i], pad_length=(pad_left, pad_right))
         for i in range(num_k)
@@ -304,40 +304,48 @@ def rearrange_qk_to_dense_trunk(
     ]
 
     if compute_mask:
-        pad_mask = q[0].new_ones(
-            *(1,) * len(q[0].shape[:-2]),
-            n + q_pad_length,
-            n + pad_left + pad_right,
-            requires_grad=False,
-        )
-        pad_mask[..., :n, 0:pad_left] = 0
-        pad_mask[..., :n, pad_left + n : :] = 0
-        pad_mask[..., n::, :] = 0
+        # Create a mask for valid regions
+        q_mask = [
+            torch.ones(
+                *(q_new[i].shape[:dim_q_list[i]] + q_new[i].shape[dim_q_list[i] + 1 :]),
+                n_trunks,
+                n_queries,
+                device=q_list[i].device,
+                dtype=torch.bool,
+            )
+            for i in range(num_q)
+        ]
+        k_mask = [
+            torch.ones(
+                *(k_new[i].shape[:dim_k_list[i]] + k_new[i].shape[dim_k_list[i] + 1 :]),
+                n_trunks,
+                n_keys,
+                device=k_list[i].device,
+                dtype=torch.bool,
+            )
+            for i in range(num_k)
+        ]
+        for i in range(num_q):
+            q_mask[i][..., :, n_q:] = False
 
-        concat_split_data = optimized_concat_split(pad_mask, n_queries)
-        pad_mask_trunked = (
-            concat_split_data.unfold(
-                -1, n_keys, pad_mask.size(-1) + n_queries
-            ).transpose(-2, -3)
-        ).bool()
     else:
-        pad_mask_trunked = None
+        q_mask = None
+        k_mask = None
 
+    padding_info = {
+        "q_pad": q_pad_length,
+        "k_pad_left": pad_left,
+        "k_pad_right": pad_right,
+        "q_mask": q_mask,
+        "k_mask": k_mask,
+    }
+
+    # Convert back to non-list
     if not q_is_list:
         q_trunked = q_trunked[0]
     if not k_is_list:
         k_trunked = k_trunked[0]
 
-    padding_info = {
-        "mask_trunked": pad_mask_trunked,
-        "q_pad": q_pad_length,
-        "k_pad_left": pad_left,
-        "k_pad_right": pad_right,
-    }
-
-    print(f"DEBUG: rearrange_qk_to_dense_trunk output q_trunked shape: {q_trunked.shape if isinstance(q_trunked, torch.Tensor) else 'list'}")
-    print(f"DEBUG: rearrange_qk_to_dense_trunk output k_trunked shape: {k_trunked.shape if isinstance(k_trunked, torch.Tensor) else 'list'}")
-    
     return q_trunked, k_trunked, padding_info
 
 
@@ -834,37 +842,23 @@ def gather_pair_embedding_in_dense_trunk(
         y: [..., N_b, N_q, N_k, d]
             where y[..., b, i, j, :] = x[..., idx_q[b, i], idx_k[b, j], :]
     """
-    idx_q = idx_q.long()
-    idx_k = idx_k.long()
-    print(f"DEBUG: idx_q shape: {idx_q.shape}, idx_k shape: {idx_k.shape}")
-    print(f"DEBUG: idx_q type: {type(idx_q)}, idx_k type: {type(idx_k)}")
+    # Import the adapter function
+    from rna_predict.pipeline.stageA.input_embedding.current.shape_adapter import adapt_indices_for_gather
     
-    # Handle 3D indices by reshaping them to 2D
-    if len(idx_q.shape) == 3:
-        N_b, N_trunk, N_q = idx_q.shape
-        idx_q = idx_q.reshape(N_b * N_trunk, N_q)
-    else:
-        assert len(idx_q.shape) == 2, f"Expected idx_q to have 2 or 3 dimensions, got {len(idx_q.shape)}"
+    # Use the adapter to ensure indices have the correct shape
+    idx_q, idx_k = adapt_indices_for_gather(idx_q, idx_k)
     
-    if len(idx_k.shape) == 3:
-        N_b, N_trunk, N_k = idx_k.shape
-        idx_k = idx_k.reshape(N_b * N_trunk, N_k)
-    else:
-        assert len(idx_k.shape) == 2, f"Expected idx_k to have 2 or 3 dimensions, got {len(idx_k.shape)}"
-    
-    print(f"DEBUG: After reshaping - idx_q shape: {idx_q.shape}, idx_k shape: {idx_k.shape}")
-
     # Get the shape parameters
     N_b, N_q = idx_q.shape
     N_k = idx_k.shape[1]
-
+    
     # Expand idx_q and idx_k to match the shape required for advanced indexing
     idx_q_expanded = idx_q.unsqueeze(-1).expand(-1, -1, N_k)
     idx_k_expanded = idx_k.unsqueeze(1).expand(-1, N_q, -1)
-
+    
     # Use advanced indexing to gather the desired elements
     y = x[..., idx_q_expanded, idx_k_expanded, :]
-
+    
     return y
 
 
@@ -875,8 +869,7 @@ def broadcast_token_to_local_atom_pair(
     n_queries: int,
     n_keys: int,
     compute_mask: bool = True,
-) -> torch.Tensor:
-    print(f"DEBUG: atom_to_token_idx shape: {atom_to_token_idx.shape}")
+) -> tuple[torch.Tensor, dict]:
     """Broadcast token pair embedding to atom pair embedding
 
     Args:
@@ -888,9 +881,7 @@ def broadcast_token_to_local_atom_pair(
     Returns:
         z_gathered_blocked (torch.Tensor): atom pair embedding, with local blocked shape
             [..., n_trunks, n_queries, n_keys, d]
-        pad_mask (torch.Tensor):
-            [n_trunks, n_queries, n_keys]
-        q_pad_length (int)
+        pad_info (dict): padding information containing mask and padding lengths
     """
 
     # [N_atom] -> [n_trunks, n_queries] and [n_trunks, n_keys]
