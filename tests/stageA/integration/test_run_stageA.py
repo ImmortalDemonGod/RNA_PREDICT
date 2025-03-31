@@ -9,7 +9,7 @@ This single-file test suite is designed to achieve near 100% test coverage on
 the 'run_stageA.py' module, utilizing the strengths of various testing approaches
 seen in prior versions (V1 to V5). It addresses their respective weaknesses by:
 
-1. Using Python’s built-in unittest framework for compatibility and ease of
+1. Using Python's built-in unittest framework for compatibility and ease of
    running via `python -m unittest`.
 2. Combining property-based testing (Hypothesis) for broad input coverage and
    real filesystem operations (temp directories) for realistic scenarios.
@@ -262,20 +262,26 @@ class TestDownloadFile(TestBase):
         If a .zip file is present but corrupted, remove and re-download it.
         We'll mock the network call to avoid real downloads.
         """
-        # Create a corrupted zip
-        with open(self.download_path, "wb") as f:
-            f.write(b"Not a real zip")
+        # Create a path with .zip extension - essential for triggering zip validation
+        zip_path = os.path.join(self.test_dir, "corrupted.zip")
+        
+        # Create a simple corrupted zip (just a few bytes to check quickly)
+        with open(zip_path, "wb") as f:
+            f.write(b"Not a zip")
 
-        mock_response = MagicMock()
-        mock_response.__enter__.return_value = mock_response
-        mock_response.read.return_value = b"downloaded content"
-        with patch("urllib.request.urlopen", return_value=mock_response):
-            download_file(self.url_valid_zip, self.download_path)
-
-        # Now the file should be replaced
-        with open(self.download_path, "rb") as f:
-            new_data = f.read()
-        self.assertEqual(new_data, b"downloaded content")
+        # Simple mock that avoids any real network activity
+        with patch("os.remove") as mock_remove, \
+             patch("urllib.request.urlopen"), \
+             patch("shutil.copyfileobj") as mock_copy:
+            
+            # Call the function under test
+            download_file(self.url_valid_zip, zip_path)
+            
+            # Verify the corrupted file was removed
+            mock_remove.assert_called_once_with(zip_path)
+            
+            # Verify a download was attempted
+            self.assertTrue(mock_copy.called, "copyfileobj should be called to download new content")
 
     
     @unittest.skip("Skipping this test as requested takes too long")
@@ -412,10 +418,27 @@ class TestVisualizeWithVarna(TestBase):
         """
         If the jar file is missing, skip calling Java.
         """
+        # Create CT file but NOT the jar file
         with open(self.ct_path, "w") as f:
             f.write(">Test\n1 A 0 2 0 1\n")
-
-        visualize_with_varna(self.ct_path, self.jar_path, self.out_png)
+            
+        # Ensure jar file doesn't exist
+        if os.path.exists(self.jar_path):
+            os.remove(self.jar_path)
+            
+        # Capture stdout to check for warning
+        with patch('builtins.print') as mock_print:
+            visualize_with_varna(self.ct_path, self.jar_path, self.out_png)
+            
+            # Verify warning was printed
+            warning_printed = False
+            for call in mock_print.call_args_list:
+                if call.args and "VARNA JAR not found" in call.args[0]:
+                    warning_printed = True
+                    break
+            self.assertTrue(warning_printed, "Warning about missing JAR should be printed")
+            
+        # Verify subprocess not called
         mock_popen.assert_not_called()
 
     @patch("subprocess.Popen")
@@ -463,10 +486,11 @@ class TestBuildPredictor(TestBase):
         """
         self.ckpt_dir = os.path.join(self.test_dir, "RFold", "checkpoints")
         os.makedirs(self.ckpt_dir, exist_ok=True)
-        with open(
-            os.path.join(self.ckpt_dir, "RNAStralign_trainset_pretrained.pth"), "wb"
-        ) as f:
-            f.write(b"fake checkpoint data")
+        
+        # Create a valid checkpoint file with torch.save
+        dummy_state = {'model': {}, 'optimizer': {}}
+        ckpt_path = os.path.join(self.ckpt_dir, "RNAStralign_trainset_pretrained.pth")
+        torch.save(dummy_state, ckpt_path)
 
     def test_build_predictor_normal(self):
         """
@@ -474,7 +498,7 @@ class TestBuildPredictor(TestBase):
         """
         config = {"num_hidden": 128, "dropout": 0.2}
         dev = torch.device("cpu")
-        predictor = run_stageA.build_predictor(self.ckpt_dir, config, dev)
+        predictor = build_predictor(self.ckpt_dir, config, dev)
         self.assertIsNotNone(predictor, "Predictor should be created successfully.")
         self.assertTrue(
             hasattr(predictor, "predict_adjacency"),
@@ -553,22 +577,23 @@ class TestMainFunction(TestBase):
     - Visualization call
     """
 
-    @patch("run_stageA.download_file", autospec=True)
-    @patch("run_stageA.visualize_with_varna", autospec=True)
-    @patch("run_stageA.build_predictor", autospec=True)
+    @patch("rna_predict.pipeline.stageA.run_stageA.download_file", autospec=True)
+    @patch("rna_predict.pipeline.stageA.run_stageA.visualize_with_varna", autospec=True)
+    @patch("rna_predict.pipeline.stageA.run_stageA.build_predictor", autospec=True)
     def test_main_smoke(self, mock_build_pred, mock_visual, mock_download):
         """
         Smoke test ensuring main() runs without error. We mock out external calls
         to avoid real I/O or Java usage.
         """
-        # Provide a mock predictor
+        # Provide a mock predictor with a tensor return value having shape attribute
         mock_pred = MagicMock()
-        mock_pred.predict_adjacency.return_value = []
+        mock_tensor = torch.zeros((10, 10))  # A dummy tensor with shape
+        mock_pred.predict_adjacency.return_value = mock_tensor
         mock_build_pred.return_value = mock_pred
 
         # Run main
         try:
-            run_stageA.main()
+            main()
         except Exception as e:
             self.fail(f"main() raised an unexpected exception: {e}")
 
