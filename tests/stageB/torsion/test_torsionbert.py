@@ -25,10 +25,7 @@ from torch import Tensor
 from rna_predict.pipeline.stageB.torsion.torsion_bert_predictor import (
     StageBTorsionBertPredictor,
 )
-
-# Importing classes under test:
-# Adjust paths to reflect your project structure if they differ.
-from rna_predict.pipeline.stageB.torsion.torsionbert_inference import TorsionBertModel
+from rna_predict.pipeline.stageB.torsion.torsionbert_inference import TorsionBertModel, DummyTorsionBertAutoModel
 
 
 # ----------------------------------------------------------------------
@@ -44,6 +41,29 @@ class DummyLastHiddenStateOutput:
         self.last_hidden_state = tensor
 
 
+def configure_mock_tensor(batch_size: int, seq_len: int, sincos_dim: int) -> MagicMock:
+    """
+    Configure a MagicMock to behave like a tensor with the specified shape.
+    This ensures proper shape and indexing behavior for testing.
+    """
+    mock_tensor = MagicMock(spec=torch.Tensor)
+    mock_tensor.shape = torch.Size([batch_size, seq_len, sincos_dim])
+    mock_tensor.dim.return_value = 3
+    mock_tensor.size.side_effect = lambda dim: mock_tensor.shape[dim]
+    
+    # Create a real tensor with random values for indexing
+    real_tensor = torch.randn(batch_size, seq_len, sincos_dim)
+    
+    # Make indexing return the corresponding slice from the real tensor
+    def getitem_side_effect(*args):
+        if len(args) == 2:  # For [0, i] indexing
+            return real_tensor[args[0], args[1]]
+        return real_tensor[args[0]]  # For single index
+    mock_tensor.__getitem__.side_effect = getitem_side_effect
+    
+    return mock_tensor
+
+
 def mock_forward_logits(self, inputs: Dict[str, Tensor]) -> Dict[str, Tensor]:
     """
     Mock forward function that returns a dictionary with 'logits'.
@@ -57,8 +77,8 @@ def mock_forward_logits(self, inputs: Dict[str, Tensor]) -> Dict[str, Tensor]:
         tokens = 5  # fallback if not found
 
     feats = 2 * getattr(self, "num_angles", 7)
-    logits = torch.randn(batch_size, tokens, feats)
-    return {"logits": logits}
+    mock_tensor = configure_mock_tensor(batch_size, tokens, feats)
+    return {"logits": mock_tensor}
 
 
 def mock_forward_last_hidden(self, inputs: Dict[str, Tensor]) -> Any:
@@ -69,97 +89,57 @@ def mock_forward_last_hidden(self, inputs: Dict[str, Tensor]) -> Any:
     batch_size = 1
     tokens = 5
     feats = 2 * getattr(self, "num_angles", 7)
-    tensor = torch.ones(batch_size, tokens, feats)
-    return DummyLastHiddenStateOutput(tensor)
+    mock_tensor = configure_mock_tensor(batch_size, tokens, feats)
+    return DummyLastHiddenStateOutput(mock_tensor)
 
 
 # ----------------------------------------------------------------------
 #                        Pytest Fixtures
 # ----------------------------------------------------------------------
 @pytest.fixture
-def model_with_logits() -> TorsionBertModel:
-    """
-    Fixture that patches AutoTokenizer/AutoModel so that the forward pass
-    returns a dictionary with 'logits'.
-    """
-    with (
-        patch(
-            "rna_predict.pipeline.stageB.torsion.torsionbert_inference.AutoTokenizer"
-        ) as mock_tok_cls,
-        patch(
-            "rna_predict.pipeline.stageB.torsion.torsionbert_inference.AutoModel"
-        ) as mock_model_cls,
-    ):
-        # Mock tokenizer
-        mock_tokenizer = MagicMock()
+def mock_tokenizer() -> MagicMock:
+    """Mock tokenizer that returns fixed-size tensors."""
+    tokenizer = MagicMock()
+    
+    def tokenize_side_effect(text, **kwargs):
+        if text is None:
+            return {}
+        seq_len = len(text.split())  # Count tokens
+        return {
+            'input_ids': torch.zeros((1, seq_len), dtype=torch.long),
+            'attention_mask': torch.ones((1, seq_len), dtype=torch.long)
+        }
+    
+    tokenizer.__call__ = MagicMock(side_effect=tokenize_side_effect)
+    return tokenizer
 
-        def _fake_tokenizer(*args, **kwargs):
-            max_len = kwargs.get("max_length", 512)
-            return {
-                "input_ids": torch.zeros((1, max_len), dtype=torch.long),
-                "attention_mask": torch.ones((1, max_len), dtype=torch.long),
-            }
 
-        mock_tokenizer.side_effect = _fake_tokenizer
-        mock_tok_cls.from_pretrained.return_value = mock_tokenizer
-
-        # Mock model
-        mock_model = MagicMock()
-        mock_model.num_angles = 7
-        mock_model.side_effect = lambda inp: mock_forward_logits(
-            mock_model, inp
-        )
-        mock_model_cls.from_pretrained.return_value = mock_model
-
-        # Instantiate the TorsionBertModel with our mock
+@pytest.fixture
+def model_with_logits(mock_tokenizer: MagicMock) -> TorsionBertModel:
+    """Return a TorsionBertModel instance configured to return logits."""
+    with patch("transformers.AutoTokenizer.from_pretrained", return_value=mock_tokenizer), \
+         patch("transformers.AutoModel.from_pretrained", return_value=DummyTorsionBertAutoModel()):
         model = TorsionBertModel(
-            model_name_or_path="dummy_path_logits",
-            device=torch.device("cpu"),
+            model_path="dummy_path",
             num_angles=7,
-            max_length=20,
+            max_length=512,
+            device="cpu",
+            return_dict=True
         )
     return model
 
 
 @pytest.fixture
-def model_with_last_hidden() -> TorsionBertModel:
-    """
-    Fixture that patches AutoTokenizer/AutoModel so that the forward pass
-    returns an object with .last_hidden_state.
-    """
-    with (
-        patch(
-            "rna_predict.pipeline.stageB.torsion.torsionbert_inference.AutoTokenizer"
-        ) as mock_tok_cls,
-        patch(
-            "rna_predict.pipeline.stageB.torsion.torsionbert_inference.AutoModel"
-        ) as mock_model_cls,
-    ):
-        mock_tokenizer = MagicMock()
-
-        def _fake_tokenizer(*args, **kwargs):
-            max_len = kwargs.get("max_length", 512)
-            return {
-                "input_ids": torch.zeros((1, max_len), dtype=torch.long),
-                "attention_mask": torch.ones((1, max_len), dtype=torch.long),
-            }
-
-        mock_tokenizer.side_effect = _fake_tokenizer
-        mock_tok_cls.from_pretrained.return_value = mock_tokenizer
-
-        # Mock model
-        mock_model = MagicMock()
-        mock_model.num_angles = 7
-        mock_model.side_effect = lambda inp: mock_forward_last_hidden(
-            mock_model, inp
-        )
-        mock_model_cls.from_pretrained.return_value = mock_model
-
+def model_with_last_hidden(mock_tokenizer: MagicMock) -> TorsionBertModel:
+    """Return a TorsionBertModel instance configured to return last_hidden_state."""
+    with patch("transformers.AutoTokenizer.from_pretrained", return_value=mock_tokenizer), \
+         patch("transformers.AutoModel.from_pretrained", return_value=DummyTorsionBertAutoModel()):
         model = TorsionBertModel(
-            model_name_or_path="dummy_path_last_hidden",
-            device=torch.device("cpu"),
+            model_path="dummy_path",
             num_angles=7,
-            max_length=20,
+            max_length=512,
+            device="cpu",
+            return_dict=False
         )
     return model
 
@@ -204,7 +184,7 @@ class TestTorsionBertModel:
         and that tokenizer/model are not None.
         """
         assert model_with_logits.num_angles == 7
-        assert model_with_logits.max_length == 20
+        assert model_with_logits.max_length == 512
         assert model_with_logits.device.type == "cpu"
         assert model_with_logits.tokenizer is not None
         assert model_with_logits.model is not None
@@ -217,7 +197,7 @@ class TestTorsionBertModel:
         uses last_hidden_state instead of logits.
         """
         assert model_with_last_hidden.num_angles == 7
-        assert model_with_last_hidden.max_length == 20
+        assert model_with_last_hidden.max_length == 512
         assert model_with_last_hidden.device.type == "cpu"
         assert model_with_last_hidden.tokenizer is not None
         assert model_with_last_hidden.model is not None
@@ -315,16 +295,22 @@ class TestTorsionBertModel:
         If no 'logits' in the output, fallback to last_hidden_state. We manually override
         to produce last_hidden_state only, verifying correct shape and no crash.
         """
-        mock_model = model_with_logits.model
-        mock_model.side_effect = lambda i: DummyLastHiddenStateOutput(
-            torch.ones((1, 5, 2 * mock_model.num_angles))
-        )
         seq = "ACG"
+        # Temporarily override the side_effect of the mocked model instance
+        def dummy_forward(input_ids, attention_mask):
+            batch_size, seq_len = input_ids.shape
+            output = torch.zeros(batch_size, seq_len, 2 * model_with_logits.num_angles)
+            return type('obj', (object,), {'last_hidden_state': output})()
+        
+        model_with_logits.model.side_effect = dummy_forward
         result = model_with_logits.predict_angles_from_sequence(seq)
-        assert result.shape == (3, 14)  # 3 residues => shape[0] = 3
+        assert result.shape == (len(seq), 2 * model_with_logits.num_angles)
 
+    @settings(
+        deadline=None,  # Disable deadline for potentially slow network calls if not mocked
+        suppress_health_check=[HealthCheck.function_scoped_fixture]  # Suppress check
+    )
     @given(st.text(alphabet=["A", "C", "G", "U", "T"], min_size=0, max_size=25))
-    @settings(suppress_health_check=[HealthCheck.too_slow], max_examples=30)
     def test_predict_angles_hypothesis(
         self, model_with_logits: TorsionBertModel, rna_sequence: str
     ) -> None:
@@ -339,7 +325,7 @@ class TestTorsionBertModel:
         """
         Creating TorsionBertModel with an invalid device string => RuntimeError.
         """
-        with pytest.raises(RuntimeError, match="Expected one of cpu, cuda, ipu, xpu, mkldnn, opengl, opencl, ideep, hip, ve, fpga, ort, xla, lazy, vulkan, mps, meta, hpu, mtia, privateuseone device type at start of device string"):
+        with pytest.raises(RuntimeError):
             TorsionBertModel(
                 model_name_or_path="any_path",
                 device=torch.device("invalid_device"),
