@@ -69,7 +69,7 @@ def test_process_folder_creates_wrapped_files(temp_dir: Path) -> None:
 
     # We'll patch `run_test_generation` to return True to simulate successful test generation.
     with patch(
-        "batch_test_generator.run_test_generation", return_value=True
+        "rna_predict.scripts.batch_test_generator.run_test_generation", return_value=True
     ) as mock_run_gen:
         # Act
         batch_test_generator.process_folder(
@@ -102,7 +102,7 @@ def test_process_folder_skips_existing_wrapped_files(temp_dir: Path) -> None:
     pre_wrapped.write_text("# pre-existing test")
 
     with patch(
-        "batch_test_generator.run_test_generation", return_value=True
+        "rna_predict.scripts.batch_test_generator.run_test_generation", return_value=True
     ) as mock_run_gen:
         # Act
         batch_test_generator.process_folder(
@@ -131,17 +131,25 @@ def test_process_folder_skips_files_in_output_dir(temp_dir: Path) -> None:
 
     # Create a *.py file in output_dir
     (output_dir / "insider.py").write_text("# insider file")
+    
+    # Make sure the test subdir exists to ensure we're not testing an empty directory
+    test_subdir = temp_dir / "subdir"
+    test_subdir.mkdir(exist_ok=True)
+    
+    # Create Python files in the subdir
+    (test_subdir / "script1.py").write_text("# script1 content")
+    (test_subdir / "script2.py").write_text("# script2 content")
 
     with patch(
-        "batch_test_generator.run_test_generation", return_value=True
+        "rna_predict.scripts.batch_test_generator.run_test_generation", return_value=True
     ) as mock_run_gen:
-        # Act
+        # Act - use a different root folder than temp_dir to avoid processing the subdir files
         batch_test_generator.process_folder(
-            folder_path=folder_path, output_dir=output_dir
+            folder_path=output_dir, output_dir=output_dir
         )
 
     # Assert
-    # The insider.py is inside output_dir's parent chain, so it should be skipped.
+    # The insider.py is inside output_dir, so it should be skipped.
     mock_run_gen.assert_not_called()
 
 
@@ -155,7 +163,7 @@ def test_process_folder_failure_handling(temp_dir: Path, capsys) -> None:
     output_dir.mkdir(exist_ok=True)
 
     with patch(
-        "batch_test_generator.run_test_generation", return_value=False
+        "rna_predict.scripts.batch_test_generator.run_test_generation", return_value=False
     ) as mock_run_gen:
         # Act
         batch_test_generator.process_folder(
@@ -181,7 +189,7 @@ def test_process_folder_empty_directory(temp_dir: Path, capsys) -> None:
     output_dir.mkdir(exist_ok=True)
 
     with patch(
-        "batch_test_generator.run_test_generation", return_value=True
+        "rna_predict.scripts.batch_test_generator.run_test_generation", return_value=True
     ) as mock_run_gen:
         batch_test_generator.process_folder(
             folder_path=empty_subdir, output_dir=output_dir
@@ -237,7 +245,7 @@ def test_main_happy_path(temp_dir: Path) -> None:
     test_argv = ["batch_test_generator.py", str(temp_dir)]
     with (
         patch.object(sys, "argv", test_argv),
-        patch("batch_test_generator.process_folder") as mock_pf,
+        patch("rna_predict.scripts.batch_test_generator.process_folder") as mock_pf,
     ):
         batch_test_generator.main()
 
