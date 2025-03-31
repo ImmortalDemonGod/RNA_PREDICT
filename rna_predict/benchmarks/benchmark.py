@@ -89,8 +89,14 @@ def generate_synthetic_features(
     f["ref_pos"] = torch.randn(N_atom, 3, device=device)
     f["ref_charge"] = torch.randint(-2, 3, (N_atom,), device=device).float()
     f["ref_element"] = torch.randn(N_atom, 128, device=device)
-    f["ref_atom_name_chars"] = torch.randn(N_atom, 16, device=device)
+    f["ref_atom_name_chars"] = torch.randn(N_atom, 256, device=device)
     f["atom_to_token"] = torch.randint(0, N_token, (N_atom,), device=device)
+    # Add atom_to_token_idx for compatibility with the encoder
+    f["atom_to_token_idx"] = f["atom_to_token"]
+    # Add ref_space_uid for compatibility with the encoder's trunk logic
+    f["ref_space_uid"] = torch.zeros(N_atom, dtype=torch.int64, device=device)
+    # Add ref_mask to indicate all atoms are valid
+    f["ref_mask"] = torch.ones(N_atom, device=device)
 
     f["restype"] = torch.randn(N_token, 32, device=device)
     f["profile"] = torch.randn(N_token, 32, device=device)
@@ -123,6 +129,7 @@ def warmup_inference(
 
 # Alias for compatibility
 warmup_decoding = warmup_inference
+# warmup_embedding will be defined later after warmup_input_embedding is defined
 
 
 def measure_inference_time_and_memory(
@@ -211,7 +218,7 @@ def benchmark_decoding_latency_and_memory(
 #    The per–atom embeddings are aggregated via scatter–mean to form a per–token embedding.
 #
 # 3) Trunk Recycling (Optional):
-#    If available, previous “trunk” embeddings can be added to the per–atom and pair embeddings.
+#    If available, previous "trunk" embeddings can be added to the per–atom and pair embeddings.
 #
 # 4) Integration of Extra Token Features:
 #    Additional token–level features (restype, profile, deletion stats) are linearly embedded
@@ -250,6 +257,9 @@ def warmup_input_embedding(
             torch.cuda.synchronize(device)
 
         embedder.zero_grad(set_to_none=True)
+
+# Alias for compatibility
+warmup_embedding = warmup_input_embedding
 
 
 def time_input_embedding(
@@ -356,7 +366,6 @@ def benchmark_input_embedding(
 
 
 # Additional aliases for test_benchmark usage:
-warmup_embedding = warmup_input_embedding
 timed_embedding = time_input_embedding
 
 
