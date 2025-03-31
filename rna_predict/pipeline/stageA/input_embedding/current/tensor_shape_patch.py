@@ -3,6 +3,8 @@ Tensor shape patch module for RNA prediction pipeline.
 
 This module provides monkey patches for functions in the RNA prediction pipeline
 to fix tensor shape compatibility issues. Apply these patches before running the pipeline.
+
+This module now imports and uses the fixes from the unified script.
 """
 
 import torch
@@ -13,16 +15,19 @@ def apply_patches():
     """
     Apply all patches to fix tensor shape compatibility issues.
     Call this function before running the pipeline.
-    """
-    # Patch gather_pair_embedding_in_dense_trunk
-    patch_gather_pair_embedding()
     
-    # Patch transformer's forward method
-    patch_transformer_forward()
+    This now imports the unified fixes from the stageD module.
+    """
+    # Import and apply fixes from the unified script
+    from rna_predict.pipeline.stageD.run_stageD_unified import apply_tensor_fixes
+    
+    # Apply all the tensor fixes
+    apply_tensor_fixes()
     
     print("Applied tensor shape compatibility patches for RNA pipeline")
 
 
+# Legacy implementation kept for backward compatibility
 def adapt_indices_for_gather(idx_q: torch.Tensor, idx_k: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
     """
     Adapt indices for the gather_pair_embedding_in_dense_trunk function.
@@ -94,94 +99,25 @@ def adapt_tensors_for_addition(tensor_a: torch.Tensor, tensor_b: torch.Tensor) -
     return tensor_a, tensor_b
 
 
+# Legacy implementation kept for backward compatibility
 def patch_gather_pair_embedding():
     """
     Patch the gather_pair_embedding_in_dense_trunk function to handle 3D indices.
     """
-    from rna_predict.pipeline.stageA.input_embedding.current import primitives
-    
-    # Store the original function
-    original_gather = primitives.gather_pair_embedding_in_dense_trunk
-    
-    @wraps(original_gather)
-    def patched_gather(x, idx_q, idx_k):
-        # Adapt indices to ensure they have the correct shape
-        idx_q, idx_k = adapt_indices_for_gather(idx_q, idx_k)
-        
-        # Call the original function with the adapted indices
-        return original_gather(x, idx_q, idx_k)
-    
-    # Replace the original function with the patched one
-    primitives.gather_pair_embedding_in_dense_trunk = patched_gather
+    # Import and use the unified fix
+    from rna_predict.pipeline.stageD.run_stageD_unified import fix_gather_pair_embedding
+    fix_gather_pair_embedding()
 
 
+# Legacy implementation kept for backward compatibility
 def patch_transformer_forward():
     """
     Patch the transformer's forward method to handle tensor shape mismatches.
     """
-    # Import the transformer module
-    from rna_predict.pipeline.stageA.input_embedding.current import transformer
-    
-    # Find all transformer classes that have a forward method
-    for attr_name in dir(transformer):
-        attr = getattr(transformer, attr_name)
-        if hasattr(attr, 'forward') and callable(attr.forward):
-            # Store the original forward method
-            original_forward = attr.forward
-            
-            @wraps(original_forward)
-            def patched_forward(self, *args, **kwargs):
-                # Call the original forward method
-                result = original_forward(self, *args, **kwargs)
-                
-                # If the result is a tensor, return it as is
-                if isinstance(result, torch.Tensor):
-                    return result
-                
-                # If the result is a tuple, check if it contains tensors that need to be adapted
-                if isinstance(result, tuple):
-                    return result
-                
-                return result
-            
-            # Replace the original forward method with the patched one
-            attr.forward = patched_forward
-    
-    # Specifically patch the AtomAttentionEncoder's forward method
-    if hasattr(transformer, 'AtomAttentionEncoder'):
-        original_forward = transformer.AtomAttentionEncoder.forward
-        
-        @wraps(original_forward)
-        def patched_atom_attention_encoder_forward(self, *args, **kwargs):
-            # Call the original forward method
-            result = original_forward(self, *args, **kwargs)
-            return result
-        
-        # Replace the original forward method with the patched one
-        transformer.AtomAttentionEncoder.forward = patched_atom_attention_encoder_forward
-
-
-# Monkey patch for tensor addition
-def _patch_tensor_add():
-    """
-    Patch the torch.Tensor.__add__ method to handle shape mismatches.
-    """
-    original_add = torch.Tensor.__add__
-    
-    @wraps(original_add)
-    def patched_add(self, other):
-        if isinstance(other, torch.Tensor):
-            # If shapes don't match and both tensors have at least 5 dimensions
-            if self.shape != other.shape and len(self.shape) >= 5 and len(other.shape) >= 5:
-                # Try to adapt the tensors for addition
-                tensor_a, tensor_b = adapt_tensors_for_addition(self, other)
-                return original_add(tensor_a, tensor_b)
-        
-        # Call the original add method
-        return original_add(self, other)
-    
-    # Replace the original add method with the patched one
-    torch.Tensor.__add__ = patched_add
+    # Import and use the unified fixes
+    from rna_predict.pipeline.stageD.run_stageD_unified import fix_atom_transformer, fix_atom_attention_encoder
+    fix_atom_transformer()
+    fix_atom_attention_encoder()
 
 
 if __name__ == "__main__":
