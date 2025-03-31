@@ -27,9 +27,10 @@ class TorsionBertModel(nn.Module):
             max_length: max tokenizer length
         """
         super().__init__()
-        self.device = device
+        self.device = device if isinstance(device, torch.device) else torch.device(device)
         self.user_requested_num_angles = num_angles
         self.max_length = max_length
+        self.num_angles = num_angles
 
         # Load HF objects
         self.tokenizer = AutoTokenizer.from_pretrained(
@@ -107,7 +108,7 @@ class TorsionBertModel(nn.Module):
         Returns:
             Tensor containing raw sin/cos values
         """
-        if "logits" in outputs:
+        if isinstance(outputs, dict) and "logits" in outputs:
             return outputs["logits"]
         return outputs.last_hidden_state
 
