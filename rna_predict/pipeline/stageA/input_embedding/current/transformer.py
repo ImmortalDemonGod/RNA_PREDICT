@@ -868,9 +868,19 @@ class AtomAttentionEncoder(nn.Module):
                 n_keys=self.n_keys,
                 compute_mask=False,
             )
-            p_lm = p_lm.unsqueeze(-5) + self.linear_no_bias_z(
-                self.layernorm_z(z_local_pairs)
-            )
+            print(f"DEBUG: z_local_pairs shape: {z_local_pairs.shape}")
+            print(f"DEBUG: p_lm shape before unsqueeze: {p_lm.shape}")
+            
+            # Unsqueeze p_lm to match z_local_pairs dimensions
+            p_lm_unsqueezed = p_lm.unsqueeze(-5)
+            print(f"DEBUG: p_lm shape after unsqueeze: {p_lm_unsqueezed.shape}")
+            
+            # Apply layernorm and linear transformation to z_local_pairs
+            z_transformed = self.linear_no_bias_z(self.layernorm_z(z_local_pairs))
+            print(f"DEBUG: z_transformed shape: {z_transformed.shape}")
+            
+            # Add the tensors
+            p_lm = p_lm_unsqueezed + z_transformed
 
         c_l_q, c_l_k, _ = rearrange_qk_to_dense_trunk(
             q=c_l,

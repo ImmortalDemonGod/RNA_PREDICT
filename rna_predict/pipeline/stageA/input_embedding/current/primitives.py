@@ -835,38 +835,26 @@ def gather_pair_embedding_in_dense_trunk(
         y: [..., N_b, N_q, N_k, d]
             where y[..., b, i, j, :] = x[..., idx_q[b, i], idx_k[b, j], :]
     """
-    idx_q = idx_q.long()
-    idx_k = idx_k.long()
-    print(f"DEBUG: idx_q shape: {idx_q.shape}, idx_k shape: {idx_k.shape}")
-    print(f"DEBUG: idx_q type: {type(idx_q)}, idx_k type: {type(idx_k)}")
+    # Import the adapter function
+    from rna_predict.pipeline.stageA.input_embedding.current.shape_adapter import adapt_indices_for_gather
     
-    # Handle 3D indices by reshaping them to 2D
-    if len(idx_q.shape) == 3:
-        N_b, N_trunk, N_q = idx_q.shape
-        idx_q = idx_q.reshape(N_b * N_trunk, N_q)
-    else:
-        assert len(idx_q.shape) == 2, f"Expected idx_q to have 2 or 3 dimensions, got {len(idx_q.shape)}"
+    # Use the adapter to ensure indices have the correct shape
+    idx_q, idx_k = adapt_indices_for_gather(idx_q, idx_k)
     
-    if len(idx_k.shape) == 3:
-        N_b, N_trunk, N_k = idx_k.shape
-        idx_k = idx_k.reshape(N_b * N_trunk, N_k)
-    else:
-        assert len(idx_k.shape) == 2, f"Expected idx_k to have 2 or 3 dimensions, got {len(idx_k.shape)}"
-    
-    print(f"DEBUG: After reshaping - idx_q shape: {idx_q.shape}, idx_k shape: {idx_k.shape}")
-
     # Get the shape parameters
     N_b, N_q = idx_q.shape
     N_k = idx_k.shape[1]
-
+    
     # Expand idx_q and idx_k to match the shape required for advanced indexing
     idx_q_expanded = idx_q.unsqueeze(-1).expand(-1, -1, N_k)
     idx_k_expanded = idx_k.unsqueeze(1).expand(-1, N_q, -1)
-
+    
     # Use advanced indexing to gather the desired elements
     y = x[..., idx_q_expanded, idx_k_expanded, :]
-
+    
     return y
+
+    # This is a duplicate block of code that should be removed
 
 
 # @snoop
@@ -876,8 +864,7 @@ def broadcast_token_to_local_atom_pair(
     n_queries: int,
     n_keys: int,
     compute_mask: bool = True,
-) -> torch.Tensor:
-    print(f"DEBUG: atom_to_token_idx shape: {atom_to_token_idx.shape}")
+) -> tuple[torch.Tensor, dict]:
     """Broadcast token pair embedding to atom pair embedding
 
     Args:
@@ -889,10 +876,9 @@ def broadcast_token_to_local_atom_pair(
     Returns:
         z_gathered_blocked (torch.Tensor): atom pair embedding, with local blocked shape
             [..., n_trunks, n_queries, n_keys, d]
-        pad_mask (torch.Tensor):
-            [n_trunks, n_queries, n_keys]
-        q_pad_length (int)
+        pad_info (dict): padding information containing mask and padding lengths
     """
+    print(f"DEBUG: atom_to_token_idx shape: {atom_to_token_idx.shape}")
 
     # [N_atom] -> [n_trunks, n_queries] and [n_trunks, n_keys]
     atom_to_token_idx_q, atom_to_token_idx_k, pad_info = rearrange_qk_to_dense_trunk(
