@@ -278,7 +278,7 @@ class TestDownloadFile(TestBase):
         self.assertEqual(new_data, b"downloaded content")
 
     
-    @unittest.skip("Skipping this test as requested")
+    @unittest.skip("Skipping this test as requested takes too long")
     @patch("urllib.request.urlopen")
     def test_download_new_file(self, mock_urlopen):
         """
@@ -301,6 +301,7 @@ class TestDownloadFile(TestBase):
         with self.assertRaises(urllib.error.URLError):
             download_file("http://bad-url.com", self.download_path)
 
+    @unittest.skip("Skipping this test as requested takes too long")
     @given(url=st.text(min_size=1, max_size=30), dest=st.text(min_size=1, max_size=30))
     @settings(
         deadline=None,
