@@ -537,6 +537,9 @@ def run_stageD_diffusion(
             N_sample=1,
         )
         loss = (x_denoised - x_gt_out).pow(2).mean()
+        # Ensure sigma is a scalar tensor
+        if sigma.dim() > 0:
+            sigma = sigma.squeeze()
         return x_denoised, loss, sigma
 
     else:
