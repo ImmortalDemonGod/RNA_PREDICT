@@ -225,10 +225,17 @@ def broadcast_token_to_atom(
     This handles cases where:
       1) atom_to_token_idx is purely 1D -> we unsqueeze to [1, N_atom].
       2) x_token may have one more batch dim than atom_to_token_idx, so we unsqueeze one dim in the index as well.
+      3) x_token may have two more batch dims than atom_to_token_idx, so we handle that case too.
     """
     if atom_to_token_idx.ndim == 1:
         atom_to_token_idx = atom_to_token_idx.unsqueeze(0)
 
+    # Handle case where x_token has two more dimensions than atom_to_token_idx
+    if x_token.ndim == atom_to_token_idx.ndim + 2:
+        # Reshape x_token to remove the extra dimension
+        original_shape = x_token.shape
+        x_token = x_token.reshape(original_shape[0], original_shape[2], original_shape[3])
+    
     # If shapes differ by exactly 1 dimension, and we need an extra unsqueeze:
     if (
         x_token.ndim == atom_to_token_idx.ndim + 1
