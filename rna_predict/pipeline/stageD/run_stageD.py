@@ -79,7 +79,7 @@ def run_stageD_diffusion(
             trunk_embeddings=trunk_embeddings,  # includes "s_inputs"
             inference_params=inference_params,
             override_input_features=atom_feature_dict,
-            debug_logging=True,
+            debug_logging=False,
         )
         return coords_final
 
@@ -113,16 +113,18 @@ def run_stageD_diffusion(
 
 def demo_run_diffusion():
     """
-    Demonstrates Stage D usage with partial coordinates and trunk embeddings
+    Demonstrates Stage D usage with partial coordinates and trunk embeddings
     for a final global refinement pass.
     """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+    # FIX: Add c_s_inputs to match the actual shape of s_inputs (384)
     diffusion_config = {
         "c_atom": 128,
         "c_s": 384,
         "c_z": 32,
         "c_token": 832,
+        "c_s_inputs": 384,  # This is the key fix - match the actual shape
         "transformer": {"n_blocks": 4, "n_heads": 16},
     }
 
