@@ -110,7 +110,10 @@ def mock_tokenizer() -> MagicMock:
             'attention_mask': torch.ones((1, seq_len), dtype=torch.long)
         }
     
-    tokenizer.__call__ = MagicMock(side_effect=tokenize_side_effect)
+    # Fix: Create a new MagicMock for __call__ with the side_effect
+    mock_call = MagicMock(side_effect=tokenize_side_effect)
+    # Use object.__setattr__ to avoid the "Cannot assign to a method" error
+    object.__setattr__(tokenizer, "__call__", mock_call)
     return tokenizer
 
 
@@ -146,11 +149,11 @@ def model_with_last_hidden(mock_tokenizer: MagicMock) -> TorsionBertModel:
 
 @pytest.fixture
 def predictor_fixture(
-    model_with_logits: TorsionBertModel,
+    mock_tokenizer: MagicMock,
 ) -> StageBTorsionBertPredictor:
     """
-    Fixture that sets up a StageBTorsionBertPredictor using the model_with_logits
-    to test integrated behavior. We override predictor.model with our mock-based TorsionBertModel.
+    Fixture that sets up a StageBTorsionBertPredictor using a model with num_angles=16
+    to test integrated behavior.
     """
     # Instantiate the predictor
     predictor = StageBTorsionBertPredictor(
@@ -159,10 +162,21 @@ def predictor_fixture(
         angle_mode="degrees",
         num_angles=16,
     )
-    # Override the predictor's internal model with our TorsionBertModel mock
-    predictor.model = model_with_logits
-    # Keep them in sync
-    predictor.model.user_requested_num_angles = 16
+    
+    # Create a new TorsionBertModel with num_angles=16 to match predictor configuration
+    with patch("transformers.AutoTokenizer.from_pretrained", return_value=mock_tokenizer), \
+         patch("transformers.AutoModel.from_pretrained", return_value=DummyTorsionBertAutoModel(num_angles=16)):
+        custom_model = TorsionBertModel(
+            model_path="dummy_path",
+            num_angles=16,  # Match the num_angles=16 from predictor
+            max_length=512,
+            device="cpu",
+            return_dict=True
+        )
+    
+    # Override the predictor's internal model with our custom TorsionBertModel
+    predictor.model = custom_model
+    
     return predictor
 
 
@@ -296,15 +310,38 @@ class TestTorsionBertModel:
         to produce last_hidden_state only, verifying correct shape and no crash.
         """
         seq = "ACG"
-        # Temporarily override the side_effect of the mocked model instance
-        def dummy_forward(input_ids, attention_mask):
-            batch_size, seq_len = input_ids.shape
-            output = torch.zeros(batch_size, seq_len, 2 * model_with_logits.num_angles)
-            return type('obj', (object,), {'last_hidden_state': output})()
+        # Save original forward method and return_dict value to restore later
+        original_forward = model_with_logits.model.forward
+        original_return_dict = model_with_logits.return_dict
         
-        model_with_logits.model.side_effect = dummy_forward
-        result = model_with_logits.predict_angles_from_sequence(seq)
-        assert result.shape == (len(seq), 2 * model_with_logits.num_angles)
+        # Create a custom forward function that correctly handles inputs
+        def custom_forward(inputs):
+            # Handle both dictionary-style inputs and direct parameter calls
+            if isinstance(inputs, dict) and "input_ids" in inputs:
+                input_ids = inputs["input_ids"]
+                batch_size, seq_len = input_ids.shape
+            else:
+                # Default dimensions if input_ids not found or not properly shaped
+                batch_size, seq_len = 1, len(seq)
+            
+            # Create a tensor with appropriate dimensions for last_hidden_state
+            hidden_state = torch.zeros(batch_size, seq_len, 2 * model_with_logits.num_angles)
+            return DummyLastHiddenStateOutput(hidden_state)
+        
+        try:
+            # Replace model's forward method and disable return_dict to force last_hidden_state usage 
+            model_with_logits.model.forward = custom_forward
+            model_with_logits.return_dict = False
+            
+            # Run the prediction
+            result = model_with_logits.predict_angles_from_sequence(seq)
+            
+            # Verify shape
+            assert result.shape == (len(seq), 2 * model_with_logits.num_angles)
+        finally:
+            # Restore original state
+            model_with_logits.model.forward = original_forward
+            model_with_logits.return_dict = original_return_dict
 
     @settings(
         deadline=None,  # Disable deadline for potentially slow network calls if not mocked
@@ -327,8 +364,8 @@ class TestTorsionBertModel:
         """
         with pytest.raises(RuntimeError):
             TorsionBertModel(
-                model_name_or_path="any_path",
-                device=torch.device("invalid_device"),
+                model_path="any_path",  # Fixed: was model_name_or_path
+                device="invalid_device",  # Already a string
                 num_angles=7,
                 max_length=512,
             )
@@ -349,8 +386,8 @@ class TestTorsionBertModel:
             ):
                 with pytest.raises((OSError, ValueError, TypeError)):
                     TorsionBertModel(
-                        model_name_or_path=invalid_model_path,
-                        device=torch.device("cpu"),
+                        model_path=invalid_model_path,  # Fixed: was model_name_or_path
+                        device="cpu",  # Fixed: was torch.device("cpu")
                         num_angles=7,
                         max_length=512,
                     )
@@ -407,4 +444,4 @@ class TestStageBTorsionBertPredictor:
         out2 = predictor_fixture(seq)
         angles1 = out1["torsion_angles"]
         angles2 = out2["torsion_angles"]
-        assert angles1.shape == angles2.shape == (8, 16)
+        assert angles1.shape == angles2.shape == (8, 16) 
