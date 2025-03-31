@@ -1680,6 +1680,9 @@ def make_cloud_mask(aa):
     """relevent points will be 1. paddings will be 0."""
     mask = np.zeros(14)
     if aa != "_":
+        if aa not in SC_BUILD_INFO:
+            # For invalid amino acids (not in SC_BUILD_INFO and not "_"), raise KeyError
+            raise KeyError(f"Invalid amino acid code: {aa}")
         n_atoms = 4 + len(SC_BUILD_INFO[aa]["atom-names"])
         mask[:n_atoms] = True
     return mask
@@ -1690,6 +1693,10 @@ def make_bond_mask(aa):
     mask = np.zeros(14)
     # backbone
     if aa != "_":
+        if aa not in SC_BUILD_INFO:
+            # For invalid amino acids (not in SC_BUILD_INFO and not "_"), raise KeyError
+            raise KeyError(f"Invalid amino acid code: {aa}")
+            
         mask[0] = BB_BUILD_INFO["BONDLENS"]["c-n"]
         mask[1] = BB_BUILD_INFO["BONDLENS"]["n-ca"]
         mask[2] = BB_BUILD_INFO["BONDLENS"]["ca-c"]
@@ -1706,6 +1713,10 @@ def make_theta_mask(aa):
     mask = np.zeros(14)
     # backbone
     if aa != "_":
+        if aa not in SC_BUILD_INFO:
+            # For invalid amino acids (not in SC_BUILD_INFO and not "_"), raise KeyError
+            raise KeyError(f"Invalid amino acid code: {aa}")
+            
         mask[0] = BB_BUILD_INFO["BONDANGS"]["ca-c-n"]  # nitrogen
         mask[1] = BB_BUILD_INFO["BONDANGS"]["c-n-ca"]  # c_alpha
         mask[2] = BB_BUILD_INFO["BONDANGS"]["n-ca-c"]  # carbon
@@ -1720,6 +1731,10 @@ def make_torsion_mask(aa, fill=False):
     """Gives the dihedral of the bond originating each atom."""
     mask = np.zeros(14)
     if aa != "_":
+        if aa not in SC_BUILD_INFO:
+            # For invalid amino acids (not in SC_BUILD_INFO and not "_"), raise KeyError
+            raise KeyError(f"Invalid amino acid code: {aa}")
+            
         # backbone
         mask[0] = BB_BUILD_INFO["BONDTORSIONS"]["n-ca-c-n"]  # psi
         mask[1] = BB_BUILD_INFO["BONDTORSIONS"]["ca-n-c-ca"]  # omega
@@ -1743,9 +1758,10 @@ def make_torsion_mask(aa, fill=False):
 def make_idx_mask(aa):
     """Gives the idxs of the 3 previous points."""
     mask = np.zeros((11, 3))
-    if aa != "_":
-        # backbone
-        mask[0, :] = np.arange(3)
+    # Always set the backbone indices
+    mask[0, :] = np.arange(3)
+    
+    if aa != "_" and aa in SC_BUILD_INFO:
         # sidechain
         mapper = {"N": 0, "CA": 1, "C": 2, "CB": 4}
         for i, torsion in enumerate(SC_BUILD_INFO[aa]["torsion-names"]):
@@ -1761,6 +1777,10 @@ def make_idx_mask(aa):
                 )
                 # set position to index
                 mask[i + 1][n] = loc
+    elif aa != "_" and aa not in SC_BUILD_INFO:
+        # For invalid amino acids (not in SC_BUILD_INFO and not "_"), raise KeyError
+        raise KeyError(f"Invalid amino acid code: {aa}")
+    
     return mask
 
 
@@ -1769,6 +1789,10 @@ def make_atom_token_mask(aa):
     mask = np.zeros(14)
     # get atom id
     if aa != "_":
+        if aa not in SC_BUILD_INFO:
+            # For invalid amino acids (not in SC_BUILD_INFO and not "_"), raise KeyError
+            raise KeyError(f"Invalid amino acid code: {aa}")
+            
         atom_list = ["N", "CA", "C", "O"] + SC_BUILD_INFO[aa]["atom-names"]
         for i, atom in enumerate(atom_list):
             mask[i] = ATOM_TOKEN_IDS[atom]
