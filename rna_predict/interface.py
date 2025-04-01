@@ -158,9 +158,15 @@ class RNAPredictor:
         rows = []
         for i, nt in enumerate(sequence):
             row = {"ID": i + 1, "resname": nt, "resid": i + 1}
-            x_val = float(final_coords[i, 0])
-            y_val = float(final_coords[i, 1])
-            z_val = float(final_coords[i, 2])
+            
+            # Check if any coordinate is NaN and preserve it
+            is_x_nan = torch.isnan(final_coords[i, 0]).item()
+            is_y_nan = torch.isnan(final_coords[i, 1]).item()
+            is_z_nan = torch.isnan(final_coords[i, 2]).item()
+            
+            x_val = float('nan') if is_x_nan else float(final_coords[i, 0])
+            y_val = float('nan') if is_y_nan else float(final_coords[i, 1])
+            z_val = float('nan') if is_z_nan else float(final_coords[i, 2])
 
             # replicate the single predicted coordinate across multiple predictions
             for rep_i in range(1, prediction_repeats + 1):
