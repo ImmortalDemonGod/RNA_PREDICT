@@ -75,7 +75,7 @@ class ProtenixIntegration:
         ):
             input_features["atom_to_token_idx"] = input_features["atom_to_token"]
 
-        # Step 1: Generate single-token embeddings using Protenix’s InputFeatureEmbedder.
+        # Step 1: Generate single-token embeddings using Protenix's InputFeatureEmbedder.
 
         # Ensure 'ref_mask' exists; if not, create a default mask with ones.
         if "ref_mask" not in input_features:
@@ -139,7 +139,7 @@ class ProtenixIntegration:
         N_token = res_idx.size(0)
 
         # Now we can safely expand to a [N_token, N_token] matrix
-        res_idx.unsqueeze(0).expand(N_token, N_token)
+        res_idx_matrix = res_idx.unsqueeze(0).expand(N_token, N_token)
 
         # Compute the initial pair embedding (z_init) using the relative position encoding module.
         z_init = self.rel_pos_encoding(
@@ -151,7 +151,10 @@ class ProtenixIntegration:
                 "token_index": res_idx,
             }
         )
-        # Note: Adjust the dictionary keys above as needed for real usage.
-
+        
+        # If z_init has 4 dimensions [1, N_token, N_token, c_z], squeeze out the batch dimension
+        if z_init.dim() == 4:
+            z_init = z_init.squeeze(0)
+        
         # Return the computed single-token and pair embeddings.
         return {"s_inputs": s_inputs, "z_init": z_init}
