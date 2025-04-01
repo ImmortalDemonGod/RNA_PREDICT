@@ -1,5 +1,6 @@
 import torch
 
+
 class StageCReconstruction:
     """
     Legacy fallback approach for Stage C. Used if method != 'mp_nerf'.
@@ -10,6 +11,7 @@ class StageCReconstruction:
         N = torsion_angles.size(0)
         coords = torch.zeros((N * 3, 3))
         return {"coords": coords, "atom_count": coords.size(0)}
+
 
 # @snoop
 def run_stageC_rna_mpnerf(

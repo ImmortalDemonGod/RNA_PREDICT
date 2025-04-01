@@ -1,12 +1,14 @@
+from typing import Any, Dict
+from unittest.mock import MagicMock
+
 import torch
 import torch.nn as nn
 from transformers import AutoModel, AutoTokenizer
-from types import SimpleNamespace
-from unittest.mock import MagicMock
-from typing import Any, Dict
+
 
 class DummyTorsionBertAutoModel(nn.Module):
     """Dummy model for testing that returns tensors with correct shape."""
+
     def __init__(self, num_angles: int = 7):
         super().__init__()
         self.num_angles = num_angles
@@ -20,15 +22,13 @@ class DummyTorsionBertAutoModel(nn.Module):
         else:
             input_ids = inputs["input_ids"]
             batch_size, seq_len = input_ids.shape
-            
+
         # Return tensor with shape [batch_size, seq_len, 2*num_angles]
         output = torch.zeros(batch_size, seq_len, 2 * self.num_angles)
         if self.side_effect:
             return self.side_effect(inputs["input_ids"], inputs["attention_mask"])
-        return type('obj', (object,), {
-            'logits': output,
-            'last_hidden_state': output
-        })()
+        return type("obj", (object,), {"logits": output, "last_hidden_state": output})()
+
 
 class TorsionBertModel(nn.Module):
     """A wrapper around the TorsionBert model that handles both logits and last_hidden_state outputs."""
@@ -65,10 +65,10 @@ class TorsionBertModel(nn.Module):
     def _preprocess_sequence(self, rna_sequence: str) -> tuple[str, int]:
         """
         Preprocess the RNA sequence by converting to uppercase and replacing U with T.
-        
+
         Args:
             rna_sequence: Input RNA sequence
-            
+
         Returns:
             Tuple of (processed sequence, sequence length)
         """
@@ -78,11 +78,11 @@ class TorsionBertModel(nn.Module):
     def _build_tokens(self, seq: str, k: int = 3) -> str:
         """
         Build k-mer tokens from the sequence using a sliding window approach.
-        
+
         Args:
             seq: Input sequence
             k: Size of the k-mer window
-            
+
         Returns:
             Space-separated string of k-mers
         """
@@ -94,10 +94,10 @@ class TorsionBertModel(nn.Module):
     def _prepare_inputs(self, spaced_kmers: str) -> dict:
         """
         Prepare tokenizer inputs from spaced k-mers and move to device.
-        
+
         Args:
             spaced_kmers: Space-separated k-mers string
-            
+
         Returns:
             Dictionary of tokenizer inputs on the correct device
         """
@@ -115,10 +115,10 @@ class TorsionBertModel(nn.Module):
     def _extract_raw_sincos(self, outputs) -> torch.Tensor:
         """
         Extract raw sin/cos values from model outputs.
-        
+
         Args:
             outputs: Model outputs dictionary or object
-            
+
         Returns:
             Tensor containing raw sin/cos values
         """
@@ -129,22 +129,22 @@ class TorsionBertModel(nn.Module):
     def _fill_result(self, raw_sincos: torch.Tensor, seq_len: int) -> torch.Tensor:
         """
         Create and fill result tensor with values from raw_sincos.
-        
+
         Args:
             raw_sincos: Raw sin/cos tensor from model
             seq_len: Length of the input sequence
-            
+
         Returns:
             Filled result tensor
         """
         sincos_dim = raw_sincos.shape[-1]
         n_3mers = raw_sincos.shape[1]
         result = torch.zeros((seq_len, sincos_dim), device=self.device)
-        
+
         for i in range(n_3mers):
             if i < seq_len:
                 result[i] = raw_sincos[0, i]
-                
+
         return result
 
     def predict_angles_from_sequence(self, sequence: str) -> torch.Tensor:
@@ -155,10 +155,10 @@ class TorsionBertModel(nn.Module):
 
         # Preprocess sequence
         seq, seq_len = self._preprocess_sequence(sequence)
-        
+
         # Build k-mer tokens
         spaced_kmers = self._build_tokens(seq)
-        
+
         # Prepare inputs
         inputs = self._prepare_inputs(spaced_kmers)
 
