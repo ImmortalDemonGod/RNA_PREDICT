@@ -1696,7 +1696,7 @@ def make_bond_mask(aa):
         if aa not in SC_BUILD_INFO:
             # For invalid amino acids (not in SC_BUILD_INFO and not "_"), raise KeyError
             raise KeyError(f"Invalid amino acid code: {aa}")
-            
+
         mask[0] = BB_BUILD_INFO["BONDLENS"]["c-n"]
         mask[1] = BB_BUILD_INFO["BONDLENS"]["n-ca"]
         mask[2] = BB_BUILD_INFO["BONDLENS"]["ca-c"]
@@ -1716,7 +1716,7 @@ def make_theta_mask(aa):
         if aa not in SC_BUILD_INFO:
             # For invalid amino acids (not in SC_BUILD_INFO and not "_"), raise KeyError
             raise KeyError(f"Invalid amino acid code: {aa}")
-            
+
         mask[0] = BB_BUILD_INFO["BONDANGS"]["ca-c-n"]  # nitrogen
         mask[1] = BB_BUILD_INFO["BONDANGS"]["c-n-ca"]  # c_alpha
         mask[2] = BB_BUILD_INFO["BONDANGS"]["n-ca-c"]  # carbon
@@ -1734,7 +1734,7 @@ def make_torsion_mask(aa, fill=False):
         if aa not in SC_BUILD_INFO:
             # For invalid amino acids (not in SC_BUILD_INFO and not "_"), raise KeyError
             raise KeyError(f"Invalid amino acid code: {aa}")
-            
+
         # backbone
         mask[0] = BB_BUILD_INFO["BONDTORSIONS"]["n-ca-c-n"]  # psi
         mask[1] = BB_BUILD_INFO["BONDTORSIONS"]["ca-n-c-ca"]  # omega
@@ -1760,7 +1760,7 @@ def make_idx_mask(aa):
     mask = np.zeros((11, 3))
     # Always set the backbone indices
     mask[0, :] = np.arange(3)
-    
+
     if aa != "_" and aa in SC_BUILD_INFO:
         # sidechain
         mapper = {"N": 0, "CA": 1, "C": 2, "CB": 4}
@@ -1780,7 +1780,7 @@ def make_idx_mask(aa):
     elif aa != "_" and aa not in SC_BUILD_INFO:
         # For invalid amino acids (not in SC_BUILD_INFO and not "_"), raise KeyError
         raise KeyError(f"Invalid amino acid code: {aa}")
-    
+
     return mask
 
 
@@ -1792,7 +1792,7 @@ def make_atom_token_mask(aa):
         if aa not in SC_BUILD_INFO:
             # For invalid amino acids (not in SC_BUILD_INFO and not "_"), raise KeyError
             raise KeyError(f"Invalid amino acid code: {aa}")
-            
+
         atom_list = ["N", "CA", "C", "O"] + SC_BUILD_INFO[aa]["atom-names"]
         for i, atom in enumerate(atom_list):
             mask[i] = ATOM_TOKEN_IDS[atom]
