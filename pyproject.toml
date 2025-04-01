@@ -12,12 +12,18 @@ requires-python = ">=3.10"
 
 # Core dependencies
 dependencies = [
-    "biopython>=1.85",
+    "biopython>=1.83",
+    "black>=25.1.0",
     "datasets>=3.3.2",
+    "einops>=0.8.1",
+    "hypothesis[cli]>=6.130.4",
+    "isort>=6.0.1",
     "lxml>=5.3.1",
     "mdanalysis>=2.9.0",
-    "numpy>=2.2.3",
+    "protenix>=0.4.4",
+    "ruff>=0.11.2",
     "torch>=2.0.1, <2.6.0",
+    "transformers>=4.49.0",
 ]
 
 # If you have optional (dev) dependencies:
@@ -34,6 +40,9 @@ dev = [
     "pytest-cov>=6.0.0",
     "pymdown-extensions",
 ]
+gpu = [
+    "nvidia-cublas-cu12==12.1.3.1; sys_platform=='linux'"
+]
 
 # If you want a console script:
 [project.scripts]
@@ -46,6 +55,17 @@ dev = [
     "pytest-cov>=6.0.0",
     "snoop>=0.6.0",
 ]
+
 [tool.setuptools.packages.find]
 include = ["rna_predict*"]
 exclude = ["site"]
+
+[tool.uv]
+override-dependencies = [
+    "nvidia-cublas-cu12==12.1.3.1; sys_platform=='linux'"
+]
+
+# Add pytest settings to fix warnings and set fixture loop scope
+[tool.pytest.ini_options]
+asyncio_mode = "strict"
+asyncio_default_fixture_loop_scope = "function"
