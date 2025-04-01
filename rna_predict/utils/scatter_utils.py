@@ -9,7 +9,7 @@ def layernorm(x, eps=1e-5):
     """
     Simple layer normalization over the last dimension.
     Non-trainable; replace with nn.LayerNorm(...) if you want trainable params.
-    
+
     Special case: When the last dimension is 1, we return zeros to ensure zero mean,
     since normalizing a single value is mathematically problematic.
     """
