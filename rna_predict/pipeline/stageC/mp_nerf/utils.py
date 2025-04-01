@@ -5,11 +5,12 @@ import torch
 
 # random hacks
 
+
 # to_pi_minus_pi(4) = -2.28  # to_pi_minus_pi(-4) = 2.28  # rads to pi-(-pi)
 def to_pi_minus_pi(x):
-    return torch.where(
-    (x // np.pi) % 2 == 0, x % np.pi, -(2 * np.pi - x % (2 * np.pi))
-)
+    return torch.where((x // np.pi) % 2 == 0, x % np.pi, -(2 * np.pi - x % (2 * np.pi)))
+
+
 def to_zero_two_pi(x):
     return torch.where(x > np.pi, x % np.pi, 2 * np.pi + x % np.pi)
 

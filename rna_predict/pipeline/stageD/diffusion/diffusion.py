@@ -107,10 +107,12 @@ class DiffusionConditioning(nn.Module):
             if "ref_pos" in input_feature_dict:
                 input_feature_dict["ref_charge"] = torch.zeros(
                     input_feature_dict["ref_pos"].shape[:-1],
-                    device=input_feature_dict["ref_pos"].device
+                    device=input_feature_dict["ref_pos"].device,
                 )
             else:
-                input_feature_dict["ref_charge"] = torch.zeros((1, 0), device=t_hat_noise_level.device)
+                input_feature_dict["ref_charge"] = torch.zeros(
+                    (1, 0), device=t_hat_noise_level.device
+                )
         """
         Args:
             t_hat_noise_level (torch.Tensor): the noise level
@@ -130,20 +132,24 @@ class DiffusionConditioning(nn.Module):
         """
         # Get number of tokens from s_trunk
         N_tokens = s_trunk.shape[-2]
-        
+
         # Add expected_n_tokens to input_feature_dict for RelativePositionEncoding
         input_feature_dict_with_n_tokens = dict(input_feature_dict)
-        input_feature_dict_with_n_tokens['expected_n_tokens'] = N_tokens
-        
+        input_feature_dict_with_n_tokens["expected_n_tokens"] = N_tokens
+
         # Handle the case where z_trunk is None
         if z_trunk is None:
             # Create a zero tensor with the appropriate shape
             batch_dims = s_trunk.shape[:-2]  # Get batch dimensions
             z_trunk = torch.zeros(
-                *batch_dims, N_tokens, N_tokens, self.c_z, 
-                device=s_trunk.device, dtype=s_trunk.dtype
+                *batch_dims,
+                N_tokens,
+                N_tokens,
+                self.c_z,
+                device=s_trunk.device,
+                dtype=s_trunk.dtype,
             )
-            
+
         # Pair conditioning
         pair_z = torch.cat(
             tensors=[z_trunk, self.relpe(input_feature_dict_with_n_tokens)], dim=-1
@@ -162,39 +168,51 @@ class DiffusionConditioning(nn.Module):
         print(
             f"[DEBUG] s_trunk shape before combining: {s_trunk.shape} (expected last dim: {self.c_s})"
         )
-        
+
         # Handle the case where s_inputs is None
         if s_inputs is None:
             # Create a zero tensor with the appropriate shape
             batch_dims = s_trunk.shape[:-2]  # Get batch dimensions
             s_inputs = torch.zeros(
-                *batch_dims, N_tokens, self.c_s_inputs,
-                device=s_trunk.device, dtype=s_trunk.dtype
+                *batch_dims,
+                N_tokens,
+                self.c_s_inputs,
+                device=s_trunk.device,
+                dtype=s_trunk.dtype,
             )
-            print(f"[DEBUG] s_inputs was None, created zero tensor with shape: {s_inputs.shape}")
+            print(
+                f"[DEBUG] s_inputs was None, created zero tensor with shape: {s_inputs.shape}"
+            )
         else:
             print(
                 f"[DEBUG] s_inputs shape before combining: {s_inputs.shape} (expected last dim: {self.c_s_inputs})"
             )
-        
+
         # Check if s_inputs and s_trunk have same token dimension
         if s_inputs.shape[-2] != N_tokens:
-            print(f"[DEBUG] s_inputs token dimension ({s_inputs.shape[-2]}) doesn't match s_trunk token dimension ({N_tokens}). Resizing...")
+            print(
+                f"[DEBUG] s_inputs token dimension ({s_inputs.shape[-2]}) doesn't match s_trunk token dimension ({N_tokens}). Resizing..."
+            )
             # Adjust s_inputs to have the correct token dimension
             if s_inputs.shape[-2] < N_tokens:
                 # Need to expand/repeat s_inputs
                 # Create a new tensor with correct shape, filled with zeros
                 batch_dims = s_inputs.shape[:-2]
                 s_inputs_expanded = torch.zeros(
-                    *batch_dims, N_tokens, s_inputs.shape[-1],
-                    device=s_inputs.device, dtype=s_inputs.dtype
+                    *batch_dims,
+                    N_tokens,
+                    s_inputs.shape[-1],
+                    device=s_inputs.device,
+                    dtype=s_inputs.dtype,
                 )
                 # Fill with available values
-                s_inputs_expanded[..., :s_inputs.shape[-2], :] = s_inputs
+                s_inputs_expanded[..., : s_inputs.shape[-2], :] = s_inputs
                 # For remaining tokens, repeat the last token's embedding
                 if s_inputs.shape[-2] > 0:  # Only if there's at least one token
                     last_token = s_inputs[..., -1:, :]
-                    s_inputs_expanded[..., s_inputs.shape[-2]:, :] = last_token.repeat(1, N_tokens - s_inputs.shape[-2], 1)
+                    s_inputs_expanded[..., s_inputs.shape[-2] :, :] = last_token.repeat(
+                        1, N_tokens - s_inputs.shape[-2], 1
+                    )
                 s_inputs = s_inputs_expanded
             else:
                 # Need to truncate s_inputs
@@ -212,15 +230,19 @@ class DiffusionConditioning(nn.Module):
         # Check if the concatenated tensor matches the expected shape for layernorm
         expected_last_dim = self.c_s + self.c_s_inputs
         actual_last_dim = single_s.shape[-1]
-        
+
         if actual_last_dim != expected_last_dim:
-            print(f"[DEBUG] Dimensionality mismatch: Got {actual_last_dim}, expected {expected_last_dim}")
+            print(
+                f"[DEBUG] Dimensionality mismatch: Got {actual_last_dim}, expected {expected_last_dim}"
+            )
             if actual_last_dim < expected_last_dim:
                 # Need to pad
                 padding_size = expected_last_dim - actual_last_dim
                 padding = torch.zeros(
-                    *single_s.shape[:-1], padding_size,
-                    device=single_s.device, dtype=single_s.dtype
+                    *single_s.shape[:-1],
+                    padding_size,
+                    device=single_s.device,
+                    dtype=single_s.dtype,
                 )
                 single_s = torch.cat([single_s, padding], dim=-1)
                 print(f"[DEBUG] Padded tensor to shape: {single_s.shape}")
@@ -473,10 +495,14 @@ class DiffusionModule(nn.Module):
             # Try to reshape or expand t_hat_noise_level to match N_sample
             if t_hat_noise_level.numel() == 1:
                 # If it's a single value, expand to the right size
-                t_hat_noise_level = t_hat_noise_level.expand(*t_hat_noise_level.shape[:-1], N_sample)
+                t_hat_noise_level = t_hat_noise_level.expand(
+                    *t_hat_noise_level.shape[:-1], N_sample
+                )
             elif t_hat_noise_level.size(-1) == 1:
                 # If the last dimension is 1, we can repeat it
-                t_hat_noise_level = t_hat_noise_level.expand(*t_hat_noise_level.shape[:-1], N_sample)
+                t_hat_noise_level = t_hat_noise_level.expand(
+                    *t_hat_noise_level.shape[:-1], N_sample
+                )
             else:
                 # Otherwise, try to reshape it if the total elements match
                 try:
@@ -484,8 +510,10 @@ class DiffusionModule(nn.Module):
                     t_hat_noise_level = t_hat_noise_level.reshape(new_shape)
                 except RuntimeError:
                     # If reshaping fails, issue a warning but continue
-                    print(f"WARNING: t_hat_noise_level shape {t_hat_noise_level.shape} doesn't match N_sample={N_sample}")
-        
+                    print(
+                        f"WARNING: t_hat_noise_level shape {t_hat_noise_level.shape} doesn't match N_sample={N_sample}"
+                    )
+
         # Feed r_noisy, s_trunk, z_trunk, t_hat_noise_level through AtomAttentionEncoder
         blocks_per_ckpt = self.blocks_per_ckpt
         if not torch.is_grad_enabled():
