@@ -15,7 +15,7 @@ Features & Highlights
        • run_stageC dispatcher (mp_nerf vs. fallback).
 
 2. **SetUp and Fixtures**
-   - Common data is set up once in each test class (unittest’s setUp).
+   - Common data is set up once in each test class (unittest's setUp).
    - Repeated usage of default torsion angles, sequences, etc.
 
 3. **Docstrings and Readability**
@@ -38,7 +38,7 @@ Features & Highlights
      without raising errors.
 
 7. **Additional Coverage**
-   - Demonstrates round-trip style checks (e.g., “test_hypothesis_mpnerf_no_mock”)
+   - Demonstrates round-trip style checks (e.g., "test_hypothesis_mpnerf_no_mock")
      verifying that the code can handle repeated or random sequences.
    - Handles minimal device checks and partial ring closure checks.
 
@@ -49,7 +49,7 @@ Run with:
 
 If run_stageC or run_stageC_rna_mpnerf changes, these tests should adapt easily,
 since the suite uses mocking to avoid direct external calls to the mp_nerf library
-(unless specifically testing “no_mock” paths).
+(unless specifically testing "no_mock" paths).
 
 Dependencies
 ------------
@@ -203,16 +203,18 @@ class TestRunStageCRnaMpnerf(unittest.TestCase):
         Test run_stageC_rna_mpnerf with place_bases=False. place_rna_bases call
         should not occur. The final coords come directly from rna_fold.
         """
-        with patch.multiple(
-            "rna_predict.pipeline.stageC.mp_nerf.rna",
-            build_scaffolds_rna_from_torsions=MagicMock(
-                return_value={"angles_mask": torch.ones((4,))}
-            ),
-            skip_missing_atoms=MagicMock(side_effect=lambda seq, scf: scf),
-            handle_mods=MagicMock(side_effect=lambda seq, scf: scf),
-            rna_fold=MagicMock(return_value=torch.ones((5, 3))),
-            place_rna_bases=MagicMock(),  # We'll check that it's not called
-        ) as mocks:
+        place_rna_bases_mock = MagicMock()
+        with patch("rna_predict.pipeline.stageC.mp_nerf.rna.build_scaffolds_rna_from_torsions", 
+                  return_value={"angles_mask": torch.ones((4,))}), \
+             patch("rna_predict.pipeline.stageC.mp_nerf.rna.skip_missing_atoms", 
+                  side_effect=lambda seq, scf: scf), \
+             patch("rna_predict.pipeline.stageC.mp_nerf.rna.handle_mods", 
+                  side_effect=lambda seq, scf: scf), \
+             patch("rna_predict.pipeline.stageC.mp_nerf.rna.rna_fold", 
+                  return_value=torch.ones((5, 3))), \
+             patch("rna_predict.pipeline.stageC.mp_nerf.rna.place_rna_bases", 
+                  place_rna_bases_mock):
+            
             result = scr.run_stageC_rna_mpnerf(
                 sequence=self.sequence,
                 predicted_torsions=self.default_torsions,
@@ -222,7 +224,7 @@ class TestRunStageCRnaMpnerf(unittest.TestCase):
                 sugar_pucker=self.default_sugar_pucker,
             )
             self.assertFalse(
-                mocks["place_rna_bases"].called, "place_rna_bases must not be called."
+                place_rna_bases_mock.called, "place_rna_bases must not be called."
             )
         # shape from rna_fold => (5,3), so atom_count=15
         self.assertEqual(result["coords"].shape, (5, 3))
