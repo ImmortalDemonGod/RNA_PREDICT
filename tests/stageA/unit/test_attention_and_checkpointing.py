@@ -72,6 +72,11 @@ class LocalBlockSparseAttentionNaive(torch.autograd.Function):
     def forward(ctx, q, k, v, pair_bias, block_index):
         # Minimal forward pass for demonstration
         N_atom, n_heads, c_per_head = q.shape
+        
+        # Check for shape mismatch between q and k
+        if q.shape[0] != k.shape[0]:
+            raise RuntimeError("Shape mismatch between Q and K tensors")
+            
         out = q.clone()  # Dummy out to show shape correctness
         ctx.save_for_backward(q, k, v, pair_bias)
         ctx.block_index = block_index
@@ -287,7 +292,7 @@ class TestCheckpointBlocks:
 
     @settings(max_examples=50)
     @given(
-        blocks=st.lists(st.functions(), min_size=0, max_size=5),
+        blocks=st.lists(st.functions(like=lambda *args: args[0] if args else None), min_size=0, max_size=5),
         args=st.lists(st.integers(), min_size=1, max_size=3),
         blocks_per_ckpt=st.one_of(st.none(), st.integers(min_value=-1, max_value=10)),
     )
