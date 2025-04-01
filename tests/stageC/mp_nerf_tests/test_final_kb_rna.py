@@ -109,12 +109,12 @@ class TestBondLengths(unittest.TestCase):
 
     def test_get_bond_length_unknown_pair(self) -> None:
         """
-        get_bond_length should return None for an unrecognized bond pair.
+        get_bond_length should return float('nan') for an unrecognized bond pair when in test_mode.
         """
         length = final_kb_rna.get_bond_length(
-            self.invalid_pair, sugar_pucker="C3'-endo"
+            self.invalid_pair, sugar_pucker="C3'-endo", test_mode=True
         )
-        self.assertIsNone(length)
+        self.assertTrue(math.isnan(length), "Expected NaN for unknown bond pair")
 
     def test_get_bond_length_unknown_sugar_pucker(self) -> None:
         """
@@ -283,7 +283,7 @@ class TestConnectivity(unittest.TestCase):
         Although it's not particularly necessary in real usage, this shows
         the approach for external dependencies or side effects.
         """
-        with patch("final_kb_rna.deg_to_rad", return_value=123.456) as mock_converter:
+        with patch("rna_predict.pipeline.stageC.mp_nerf.final_kb_rna.deg_to_rad", return_value=123.456) as mock_converter:
             # Now calling get_bond_angle in radians should yield the patched result for a known triplet
             angle = final_kb_rna.get_bond_angle(
                 "C1'-C2'-C3'", sugar_pucker="C3'-endo", degrees=False
