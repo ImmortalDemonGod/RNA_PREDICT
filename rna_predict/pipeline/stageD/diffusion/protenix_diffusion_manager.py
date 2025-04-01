@@ -187,6 +187,10 @@ class ProtenixDiffusionManager:
             inplace_safe=False,  # or True if memory is tight
             attn_chunk_size=None,  # you can set chunk sizes if needed
         )
+        
+        # Squeeze extra dimension if present to ensure correct output shape
+        if coords_final.ndim == 4 and coords_final.shape[1] == 1 and N_sample == 1:
+            coords_final = coords_final.squeeze(1)
 
         return coords_final
 
