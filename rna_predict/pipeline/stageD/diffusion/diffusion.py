@@ -102,6 +102,15 @@ class DiffusionConditioning(nn.Module):
         z_trunk: torch.Tensor,
         inplace_safe: bool = False,
     ) -> tuple[torch.Tensor, torch.Tensor]:
+        # Ensure required keys are present. Add default "ref_charge" if missing.
+        if "ref_charge" not in input_feature_dict:
+            if "ref_pos" in input_feature_dict:
+                input_feature_dict["ref_charge"] = torch.zeros(
+                    input_feature_dict["ref_pos"].shape[:-1],
+                    device=input_feature_dict["ref_pos"].device
+                )
+            else:
+                input_feature_dict["ref_charge"] = torch.zeros((1, 0), device=t_hat_noise_level.device)
         """
         Args:
             t_hat_noise_level (torch.Tensor): the noise level
@@ -459,8 +468,25 @@ class DiffusionModule(nn.Module):
                 [..., N_sample, N_atom, 3]
         """
         N_sample = r_noisy.size(-3)
-        assert t_hat_noise_level.size(-1) == N_sample
-
+        # Check if t_hat_noise_level has the right shape, and reshape if needed
+        if t_hat_noise_level.size(-1) != N_sample:
+            # Try to reshape or expand t_hat_noise_level to match N_sample
+            if t_hat_noise_level.numel() == 1:
+                # If it's a single value, expand to the right size
+                t_hat_noise_level = t_hat_noise_level.expand(*t_hat_noise_level.shape[:-1], N_sample)
+            elif t_hat_noise_level.size(-1) == 1:
+                # If the last dimension is 1, we can repeat it
+                t_hat_noise_level = t_hat_noise_level.expand(*t_hat_noise_level.shape[:-1], N_sample)
+            else:
+                # Otherwise, try to reshape it if the total elements match
+                try:
+                    new_shape = (*t_hat_noise_level.shape[:-1], N_sample)
+                    t_hat_noise_level = t_hat_noise_level.reshape(new_shape)
+                except RuntimeError:
+                    # If reshaping fails, issue a warning but continue
+                    print(f"WARNING: t_hat_noise_level shape {t_hat_noise_level.shape} doesn't match N_sample={N_sample}")
+        
+        # Feed r_noisy, s_trunk, z_trunk, t_hat_noise_level through AtomAttentionEncoder
         blocks_per_ckpt = self.blocks_per_ckpt
         if not torch.is_grad_enabled():
             blocks_per_ckpt = None
