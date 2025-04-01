@@ -29,7 +29,6 @@ from rna_predict.pipeline.stageA.input_embedding.current.primitives import (
     BiasInitLinear,
     LayerNorm,
     LinearNoBias,
-    rearrange_qk_to_dense_trunk,
 )
 from rna_predict.pipeline.stageA.input_embedding.current.utils import (
     aggregate_atom_to_token,
@@ -130,7 +129,7 @@ class AttentionPairBias(nn.Module):
         # Relax the rigid shape assertion to make it more flexible
         # The assertion below can fail when a.shape is [1, 1, N, C] and z.shape is [1, N, N, C]
         # assert len(z.shape) == len(a.shape) + 2
-        
+
         # Check if z has fewer dimensions than expected and reshape if necessary
         if len(z.shape) < len(a.shape) + 2:
             # We need to ensure z has the right shape for trunked attention
@@ -140,7 +139,7 @@ class AttentionPairBias(nn.Module):
                 # z has shape [..., N, N, c_z] but we need [..., 1, N, N, c_z]
                 z = z.unsqueeze(-4)  # Add n_blocks dimension
             # Add any other shape corrections needed here
-        
+
         # Multi-head attention bias
         bias = self.linear_nobias_z(
             self.layernorm_z(z)
@@ -231,20 +230,20 @@ class AttentionPairBias(nn.Module):
             else:
                 # Apply gating, but handle potential shape mismatches
                 gate = torch.sigmoid(self.linear_a_last(s))
-                
+
                 # Print shapes for debugging
-                #print(f"DEBUG: a shape: {a.shape}, gate shape: {gate.shape}")
-                
+                # print(f"DEBUG: a shape: {a.shape}, gate shape: {gate.shape}")
+
                 try:
                     # Try direct multiplication
                     a = gate * a
-                except RuntimeError as e:
+                except RuntimeError:
                     # If shapes don't match, proceed without gating
-                    #print(f"WARNING: Skipping adaptive gating in AttentionPairBias due to shape mismatch: {e}")
-                    #print(f"         a shape: {a.shape}, gate shape: {gate.shape}")
+                    # print(f"WARNING: Skipping adaptive gating in AttentionPairBias due to shape mismatch: {e}")
+                    # print(f"         a shape: {a.shape}, gate shape: {gate.shape}")
                     # We proceed without applying the gate as a fallback
                     pass
-                    
+
         return a
 
 
@@ -505,9 +504,9 @@ class AtomTransformer(nn.Module):
             n_blocks, n_queries, n_keys = p.shape[-4:-1]
 
             # Exactly as in old code:
-            assert (
-                n_queries == self.n_queries
-            ), f"Expected n_queries={self.n_queries}, got {n_queries}"
+            assert n_queries == self.n_queries, (
+                f"Expected n_queries={self.n_queries}, got {n_queries}"
+            )
             assert n_keys == self.n_keys, f"Expected n_keys={self.n_keys}, got {n_keys}"
 
             return self.diffusion_transformer(
@@ -592,22 +591,22 @@ class ConditionedTransitionBlock(nn.Module):
         a = self.adaln(a, s)
         b = F.silu((self.linear_nobias_a1(a))) * self.linear_nobias_a2(a)
         # Output projection (from adaLN-Zero [27])
-        
+
         # Print shapes for debugging
-        #print(f"DEBUG: ConditionedTransitionBlock: b shape: {b.shape}, s shape: {s.shape}")
-        
+        # print(f"DEBUG: ConditionedTransitionBlock: b shape: {b.shape}, s shape: {s.shape}")
+
         try:
             # Try direct style modulation
             scale = torch.sigmoid(self.linear_s(s))
             shift = self.linear_nobias_b(b)
             a = scale * shift
-        except RuntimeError as e:
+        except RuntimeError:
             # If shapes don't match, we'll bypass the conditioning
-            #print(f"WARNING: Skipping transition block conditioning due to shape mismatch: {e}")
-            #print(f"         b shape: {b.shape}, s shape: {s.shape}")
+            # print(f"WARNING: Skipping transition block conditioning due to shape mismatch: {e}")
+            # print(f"         b shape: {b.shape}, s shape: {s.shape}")
             # Return the b tensor without conditioning as a fallback
             a = self.linear_nobias_b(b)
-            
+
         return a
 
 
@@ -848,9 +847,9 @@ class AtomAttentionEncoder(nn.Module):
                 if atom_to_token_idx.max() >= n_token:
                     warnings.warn(
                         f"[AtomAttentionEncoder] atom_to_token_idx contains indices >= {n_token}. "
-                        f"Clipping indices to {n_token-1}."
+                        f"Clipping indices to {n_token - 1}."
                     )
-                    atom_to_token_idx = torch.clamp(atom_to_token_idx, max=n_token-1)
+                    atom_to_token_idx = torch.clamp(atom_to_token_idx, max=n_token - 1)
 
             # aggregator
             aggregated = aggregate_atom_to_token(
@@ -871,51 +870,66 @@ class AtomAttentionEncoder(nn.Module):
             # Create ref_space_uid if it doesn't exist
             N_atom = input_feature_dict["ref_pos"].shape[-2]
             batch_shape = input_feature_dict["ref_pos"].shape[:-2]
-            input_feature_dict["ref_space_uid"] = torch.zeros(*batch_shape, N_atom, 1, device=input_feature_dict["ref_pos"].device)
+            input_feature_dict["ref_space_uid"] = torch.zeros(
+                *batch_shape, N_atom, 1, device=input_feature_dict["ref_pos"].device
+            )
 
         # Get batch dimensions from input
         batch_shape = input_feature_dict["ref_pos"].shape[:-2]
-        
+
         # IMPORTANT FIX: Always create p_lm with dimensions expected by AtomTransformer
         # Use self.n_queries and self.n_keys instead of local values to ensure compatibility
         # Shape: [batch_size, n_blocks (1), n_queries, n_keys, c_atompair]
         p_lm = torch.zeros(
-            *batch_shape, 1, self.n_queries, self.n_keys, self.c_atompair, 
-            device=input_feature_dict["ref_pos"].device
+            *batch_shape,
+            1,
+            self.n_queries,
+            self.n_keys,
+            self.c_atompair,
+            device=input_feature_dict["ref_pos"].device,
         )
-        
+
         # Build atom embeddings
         q_l = c_l
         if r_l is not None:
             # Check both the coordinates dimension and atom count dimension
-            if r_l.size(-1) == 3 and r_l.size(1) == input_feature_dict["ref_pos"].size(1):
+            if r_l.size(-1) == 3 and r_l.size(1) == input_feature_dict["ref_pos"].size(
+                1
+            ):
                 q_l = q_l + self.linear_no_bias_r(r_l)
             else:
                 # For testing: if r_l doesn't have the expected shape, log the mismatch
                 # and skip the linear transformation
-                print(f"Warning: r_l shape mismatch. Expected [..., {input_feature_dict['ref_pos'].size(1)}, 3], got {r_l.shape}. Skipping linear_no_bias_r.")
+                print(
+                    f"Warning: r_l shape mismatch. Expected [..., {input_feature_dict['ref_pos'].size(1)}, 3], got {r_l.shape}. Skipping linear_no_bias_r."
+                )
         if s is not None:
             # Broadcast token to atom and ensure correct shape for layernorm
             broadcasted_s = broadcast_token_to_atom(s, atom_to_token_idx)
-            
+
             # Ensure the last dimension is compatible with layernorm_s
             if broadcasted_s.size(-1) != self.c_s:
                 # If the last dimension is 1 but should be c_s, expand it
                 if broadcasted_s.size(-1) == 1:
-                    broadcasted_s = broadcasted_s.expand(*broadcasted_s.shape[:-1], self.c_s)
+                    broadcasted_s = broadcasted_s.expand(
+                        *broadcasted_s.shape[:-1], self.c_s
+                    )
                 # If that doesn't work, we need to zero pad or create a compatible tensor
                 else:
                     # Create a zero tensor with the right shape and add the broadcasted values where possible
-                    compatible_s = torch.zeros(*broadcasted_s.shape[:-1], self.c_s, 
-                                              device=broadcasted_s.device)
+                    compatible_s = torch.zeros(
+                        *broadcasted_s.shape[:-1], self.c_s, device=broadcasted_s.device
+                    )
                     # Copy values from original tensor to the beginning of the compatible tensor
-                    compatible_s[..., :min(broadcasted_s.size(-1), self.c_s)] = broadcasted_s[..., :min(broadcasted_s.size(-1), self.c_s)]
+                    compatible_s[..., : min(broadcasted_s.size(-1), self.c_s)] = (
+                        broadcasted_s[..., : min(broadcasted_s.size(-1), self.c_s)]
+                    )
                     broadcasted_s = compatible_s
-            
+
             # Now apply the layernorm and linear transformation
             c_l = c_l + self.linear_no_bias_s(self.layernorm_s(broadcasted_s))
-        
-        # Optionally apply the small MLP to initialize p_lm with non-zero values    
+
+        # Optionally apply the small MLP to initialize p_lm with non-zero values
         p_lm = self.small_mlp(p_lm)
 
         # Finally run the atom transformer
@@ -924,19 +938,20 @@ class AtomAttentionEncoder(nn.Module):
         # Aggregate to token-level
         a_atom = F.relu(self.linear_no_bias_q(q_l))
         num_tokens = input_feature_dict["restype"].shape[-2]
-        
+
         # Ensure atom_to_token_idx doesn't exceed num_tokens
         # This is a safety check to prevent "index out of bounds" errors in aggregate_atom_to_token
         # The issue occurs when atom_to_token_idx contains indices higher than the number of tokens
         # in the restype tensor, causing scatter_add_ to fail with "index out of bounds" error
         if atom_to_token_idx.max() >= num_tokens:
             import warnings
+
             warnings.warn(
                 f"[AtomAttentionEncoder] atom_to_token_idx contains indices >= {num_tokens}. "
                 f"Clipping indices to prevent out-of-bounds error."
             )
-            atom_to_token_idx = torch.clamp(atom_to_token_idx, max=num_tokens-1)
-            
+            atom_to_token_idx = torch.clamp(atom_to_token_idx, max=num_tokens - 1)
+
         a = aggregate_atom_to_token(
             x_atom=a_atom,
             atom_to_token_idx=atom_to_token_idx,
