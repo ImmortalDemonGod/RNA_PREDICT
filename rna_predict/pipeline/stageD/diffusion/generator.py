@@ -168,9 +168,17 @@ def sample_diffusion(
             [..., N_sample, N_atom, 3]
     """
     N_atom = input_feature_dict["atom_to_token_idx"].size(-1)
-    batch_shape = s_inputs.shape[:-2]
-    device = s_inputs.device
-    dtype = s_inputs.dtype
+    
+    # Handle the case when s_inputs is None
+    if s_inputs is None:
+        # Use s_trunk for shape and device information
+        batch_shape = s_trunk.shape[:-2]
+        device = s_trunk.device
+        dtype = s_trunk.dtype
+    else:
+        batch_shape = s_inputs.shape[:-2]
+        device = s_inputs.device
+        dtype = s_inputs.dtype
 
     def _chunk_sample_diffusion(chunk_n_sample, inplace_safe):
         # init noise
