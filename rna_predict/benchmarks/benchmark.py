@@ -99,7 +99,7 @@ def generate_synthetic_features(
     f["ref_mask"] = torch.ones(N_atom, device=device)
 
     f["restype"] = torch.randn(N_token, 32, device=device)
-    f["profile"] = torch.randn(N_token, 32, device=device)
+    f["profile"] = 2 * torch.rand(N_token, 32, device=device) - 1
     f["deletion_mean"] = torch.randn(N_token, device=device)
     return f
 
