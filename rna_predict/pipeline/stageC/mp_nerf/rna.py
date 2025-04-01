@@ -191,15 +191,48 @@ def build_scaffolds_rna_from_torsions(
                     point_ref_mask[1, i, j] = 1  # This will be initialized to [1,0,0]
                     point_ref_mask[2, i, j] = 2  # This will be initialized to [0,1,0]
                 else:
+                    # For subsequent residues, connect P to previous residue
                     prev_o3_global = (i - 1) * B + BACKBONE_INDEX_MAP["O3'"]
-                    point_ref_mask[0, i, j] = prev_o3_global
-                    point_ref_mask[1, i, j] = prev_o3_global
+                    prev_c3_global = (i - 1) * B + BACKBONE_INDEX_MAP["C3'"]
+                    prev_c4_global = (i - 1) * B + BACKBONE_INDEX_MAP["C4'"]
+                    point_ref_mask[0, i, j] = prev_c4_global
+                    point_ref_mask[1, i, j] = prev_c3_global
                     point_ref_mask[2, i, j] = prev_o3_global
             else:
-                # local references from j-1
-                point_ref_mask[0, i, j] = i * B + (j - 1)
-                point_ref_mask[1, i, j] = i * B + (j - 1)
-                point_ref_mask[2, i, j] = i * B + (j - 1)
+                # For other atoms (j > 0), we need to set up proper references
+                # Standard NeRF needs three distinct reference points: usually j-3, j-2, j-1
+                
+                # Handle the case of the first few atoms in first residue
+                if i == 0 and j <= 2:
+                    if j == 1:  # O5'
+                        # Use the initialized points + P
+                        point_ref_mask[0, i, j] = 2  # initialized point
+                        point_ref_mask[1, i, j] = 1  # initialized point
+                        point_ref_mask[2, i, j] = 0  # P atom
+                    elif j == 2:  # C5'
+                        # Use P, O5', and an initialized point
+                        point_ref_mask[0, i, j] = 1  # initialized point
+                        point_ref_mask[1, i, j] = 0  # P atom
+                        point_ref_mask[2, i, j] = i * B + 1  # O5' atom
+                else:
+                    # For other cases, use standard approach: three previous atoms
+                    # For inter-residue connections at beginning of residue
+                    if i > 0 and j <= 2:
+                        if j == 1:  # O5'
+                            # Connect to P and previous residue
+                            point_ref_mask[0, i, j] = (i - 1) * B + BACKBONE_INDEX_MAP["C3'"]
+                            point_ref_mask[1, i, j] = (i - 1) * B + BACKBONE_INDEX_MAP["O3'"]
+                            point_ref_mask[2, i, j] = i * B + 0  # P atom
+                        elif j == 2:  # C5'
+                            # Connect to O5', P and previous residue
+                            point_ref_mask[0, i, j] = (i - 1) * B + BACKBONE_INDEX_MAP["O3'"]
+                            point_ref_mask[1, i, j] = i * B + 0  # P atom
+                            point_ref_mask[2, i, j] = i * B + 1  # O5' atom
+                    else:
+                        # For j >= 3 in any residue, can safely use three previous atoms
+                        point_ref_mask[0, i, j] = i * B + (j - 3)
+                        point_ref_mask[1, i, j] = i * B + (j - 2)
+                        point_ref_mask[2, i, j] = i * B + (j - 1)
 
     return {
         "bond_mask": bond_mask,
@@ -221,6 +254,10 @@ def rna_fold(
 
     Returns shape [L, B, 3], where B=10 for the backbone.
     """
+    # Define deg2rad function
+    def deg2rad(x):
+        return x * (math.pi / 180.0)
+        
     bond_mask = scaffolds["bond_mask"]
     angles_mask = scaffolds["angles_mask"]
     point_ref = scaffolds["point_ref_mask"]
@@ -246,7 +283,26 @@ def rna_fold(
             refB = point_ref[1, i, j].item()
             refC = point_ref[2, i, j].item()
 
-            # Ensure we have valid reference points
+            # Skip the first 3 points which were manually initialized
+            if i == 0 and j < 3:
+                # For the first residue, first 3 atoms:
+                # P is already set at [0, 0, 0]
+                if j == 1:  # O5': Set manually at typical distance from P
+                    coords[i, j] = torch.tensor([1.593, 0.0, 0.0], device=device)
+                    continue
+                elif j == 2:  # C5': Set manually at typical distances/angles from P and O5'
+                    angle_rad = deg2rad(120.9)  # typical angle P-O5'-C5'
+                    # Position C5' using typical bond length O5'-C5' (1.44Å)
+                    coords[i, j] = torch.tensor([
+                        1.593 - 1.44 * math.cos(angle_rad),
+                        1.44 * math.sin(angle_rad),
+                        0.0
+                    ], device=device)
+                    continue
+                # Only manually set the first 3 atoms of first residue
+                continue
+
+            # Ensure we have valid reference points with valid indices
             a_xyz = coords_flat[refA] if 0 <= refA < total else torch.tensor([0.0, 0.0, 0.0], device=device)
             b_xyz = coords_flat[refB] if 0 <= refB < total else torch.tensor([1.0, 0.0, 0.0], device=device)
             c_xyz = coords_flat[refC] if 0 <= refC < total else torch.tensor([0.0, 1.0, 0.0], device=device)
@@ -263,8 +319,8 @@ def rna_fold(
             theta = angles_mask[0, i, j]
             phi = angles_mask[1, i, j]
 
-            # Ensure bond length is not zero
-            if l_val < 1e-6:
+            # Ensure bond length is not zero or NaN
+            if l_val < 1e-6 or math.isnan(l_val):
                 l_val = 1.5  # Use a default bond length
 
             coords[i, j] = mp_nerf_torch(a_xyz, b_xyz, c_xyz, l_val, theta, phi)
