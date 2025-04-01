@@ -153,9 +153,20 @@ class DiffusionConditioning(nn.Module):
         print(
             f"[DEBUG] s_trunk shape before combining: {s_trunk.shape} (expected last dim: {self.c_s})"
         )
-        print(
-            f"[DEBUG] s_inputs shape before combining: {s_inputs.shape} (expected last dim: {self.c_s_inputs})"
-        )
+        
+        # Handle the case where s_inputs is None
+        if s_inputs is None:
+            # Create a zero tensor with the appropriate shape
+            batch_dims = s_trunk.shape[:-2]  # Get batch dimensions
+            s_inputs = torch.zeros(
+                *batch_dims, N_tokens, self.c_s_inputs,
+                device=s_trunk.device, dtype=s_trunk.dtype
+            )
+            print(f"[DEBUG] s_inputs was None, created zero tensor with shape: {s_inputs.shape}")
+        else:
+            print(
+                f"[DEBUG] s_inputs shape before combining: {s_inputs.shape} (expected last dim: {self.c_s_inputs})"
+            )
         
         # Check if s_inputs and s_trunk have same token dimension
         if s_inputs.shape[-2] != N_tokens:
