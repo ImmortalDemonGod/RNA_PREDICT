@@ -36,12 +36,14 @@ def test_layernorm_basic(shape: Tuple[int, int], eps: float) -> None:
         means, torch.zeros_like(means), atol=1e-5
     ), "layernorm should zero-center the mean."
 
-    # Check variance is near 1
-    var = out.var(dim=-1, unbiased=False)
-    # Because of floating point noise, we allow a small tolerance from 1
-    assert torch.allclose(
-        var, torch.ones_like(var), atol=1e-3
-    ), "layernorm should scale variance to 1."
+    # Skip variance check for dimension size 1 - mathematically it doesn't make sense
+    # to normalize a single value to have variance 1
+    if shape[-1] > 1:
+        # Check variance is near 1
+        var = out.var(dim=-1, unbiased=False)
+        assert torch.allclose(
+            var, torch.ones_like(var), atol=1e-3
+        ), "layernorm should scale variance to 1."
 
 
 def test_layernorm_one_dim() -> None:
