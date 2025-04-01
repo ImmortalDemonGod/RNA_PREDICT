@@ -5,6 +5,8 @@ import torch
 
 from rna_predict.pipeline.stageB.torsion.dummy_torsion_model import DummyTorsionModel
 from rna_predict.pipeline.stageB.torsion.torsionbert_inference import TorsionBertModel
+
+
 class StageBTorsionBertPredictor:
     """
     Stage B: predict RNA torsion angles using TorsionBERT.
@@ -99,17 +101,17 @@ class StageBTorsionBertPredictor:
         num_angles = dim // 2
         sin_vals = sincos[:, :num_angles]  # First half contains sin values
         cos_vals = sincos[:, num_angles:]  # Second half contains cos values
-        
+
         # Handle special case where cos=0 to avoid getting 0 instead of ±π/2
         # When cos is close to zero, we need to return π/2 * sign(sin)
         eps = 1e-6
         mask_cos_zero = cos_vals.abs() < eps
-        
+
         # Standard case - use atan2(sin, cos)
         angles = torch.atan2(sin_vals, cos_vals)
-        
+
         # Correct quadrants when both sin and cos are very small
         mask_both_small = (sin_vals.abs() < eps) & (cos_vals.abs() < eps)
         angles = torch.where(mask_both_small, torch.zeros_like(angles), angles)
-        
+
         return angles

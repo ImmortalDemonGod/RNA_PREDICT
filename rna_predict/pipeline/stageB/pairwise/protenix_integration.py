@@ -151,10 +151,10 @@ class ProtenixIntegration:
                 "token_index": res_idx,
             }
         )
-        
+
         # If z_init has 4 dimensions [1, N_token, N_token, c_z], squeeze out the batch dimension
         if z_init.dim() == 4:
             z_init = z_init.squeeze(0)
-        
+
         # Return the computed single-token and pair embeddings.
         return {"s_inputs": s_inputs, "z_init": z_init}

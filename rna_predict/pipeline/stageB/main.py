@@ -1,18 +1,19 @@
+from typing import Dict
+
 import torch
 import torch.nn.functional as F
-from typing import Dict, Any, Optional
 
 from rna_predict.pipeline.stageA.adjacency.rfold_predictor import StageARFoldPredictor
+from rna_predict.pipeline.stageB.pairwise.pairformer_wrapper import PairformerWrapper
 from rna_predict.pipeline.stageB.torsion.torsion_bert_predictor import (
     StageBTorsionBertPredictor,
 )
-from rna_predict.pipeline.stageB.pairwise.pairformer_wrapper import PairformerWrapper
 from rna_predict.pipeline.stageC.stage_c_reconstruction import StageCReconstruction
 
 
 def run_pipeline(sequence: str):
     """
-    A simpler demonstration that runs Stage A -> TorsionBERT -> Stage C, 
+    A simpler demonstration that runs Stage A -> TorsionBERT -> Stage C,
     but does not unify TorsionBERT + Pairformer in one call.
     """
     stageA = StageARFoldPredictor(config={})
@@ -114,12 +115,20 @@ def demo_gradient_flow_test():
 
     # 1) Instantiate TorsionBERT & Pairformer
     try:
-        torsion_model = StageBTorsionBertPredictor(model_name_or_path="sayby/rna_torsionbert", device=device)
+        torsion_model = StageBTorsionBertPredictor(
+            model_name_or_path="sayby/rna_torsionbert", device=device
+        )
     except Exception as e:
-        print(f"[Warning] Could not load 'sayby/rna_torsionbert'. Using dummy path. Error: {e}")
-        torsion_model = StageBTorsionBertPredictor(model_name_or_path="dummy_invalid_path", device=device)
+        print(
+            f"[Warning] Could not load 'sayby/rna_torsionbert'. Using dummy path. Error: {e}"
+        )
+        torsion_model = StageBTorsionBertPredictor(
+            model_name_or_path="dummy_invalid_path", device=device
+        )
 
-    pairformer_model = PairformerWrapper(n_blocks=2, c_z=32, c_s=64, dropout=0.1).to(device)
+    pairformer_model = PairformerWrapper(n_blocks=2, c_z=32, c_s=64, dropout=0.1).to(
+        device
+    )
 
     # 2) Fake data
     seq = "ACGUACGU"  # length N=8
@@ -132,15 +141,15 @@ def demo_gradient_flow_test():
         torsion_bert_model=torsion_model,
         pairformer_model=pairformer_model,
         device=device,
-        init_z_from_adjacency=False
+        init_z_from_adjacency=False,
     )
-    s_emb = outB["s_embeddings"]     # [N, c_s], e.g., [8, 64]
+    s_emb = outB["s_embeddings"]  # [N, c_s], e.g., [8, 64]
     torsion_angles = outB["torsion_angles"]  # [N, angles]
-    z_emb = outB["z_embeddings"]     # [N, N, c_z], e.g., [8, 8, 32]
+    z_emb = outB["z_embeddings"]  # [N, N, c_z], e.g., [8, 8, 32]
 
     # 4) Final linear layers
     # Merge or separately process s_emb, torsion_angles, z_emb
-    final_head_s = torch.nn.Linear(64, 3).to(device) # from s_emb dimension
+    final_head_s = torch.nn.Linear(64, 3).to(device)  # from s_emb dimension
     final_head_angles = torch.nn.Linear(torsion_angles.shape[-1], 3).to(device)
     final_head_z = torch.nn.Linear(32, 3).to(device)
 
@@ -167,26 +176,36 @@ def demo_gradient_flow_test():
     print("\n--- Grad Check ---")
     for name, param in final_head_s.named_parameters():
         if param.grad is not None:
-            print(f"  [final_head_s] {name}, grad sum={param.grad.abs().sum().item():.4e}")
-    
+            print(
+                f"  [final_head_s] {name}, grad sum={param.grad.abs().sum().item():.4e}"
+            )
+
     for name, param in final_head_angles.named_parameters():
         if param.grad is not None:
-            print(f"  [final_head_angles] {name}, grad sum={param.grad.abs().sum().item():.4e}")
-            
+            print(
+                f"  [final_head_angles] {name}, grad sum={param.grad.abs().sum().item():.4e}"
+            )
+
     for name, param in final_head_z.named_parameters():
         if param.grad is not None:
-            print(f"  [final_head_z] {name}, grad sum={param.grad.abs().sum().item():.4e}")
-            
+            print(
+                f"  [final_head_z] {name}, grad sum={param.grad.abs().sum().item():.4e}"
+            )
+
     for name, param in pairformer_model.named_parameters():
         if param.grad is not None:
-            print(f"  [pairformer] {name}, grad sum={param.grad.abs().sum().item():.4e}")
-            
+            print(
+                f"  [pairformer] {name}, grad sum={param.grad.abs().sum().item():.4e}"
+            )
+
     # For TorsionBERT, we only check a few params due to potential size
     torsion_params = list(torsion_model.model.named_parameters())
     if torsion_params:
         for name, param in torsion_params[:3]:  # Show first few
             if param.grad is not None:
-                print(f"  [torsion_bert] {name}, grad sum={param.grad.abs().sum().item():.4e}")
+                print(
+                    f"  [torsion_bert] {name}, grad sum={param.grad.abs().sum().item():.4e}"
+                )
 
 
 def main():
@@ -194,7 +213,7 @@ def main():
     Original main remains or can call the gradient flow test:
     """
     sample_seq = "ACGUACGU"
-    run_pipeline(sample_seq)   # The old pipeline demonstration
+    run_pipeline(sample_seq)  # The old pipeline demonstration
     print("\n=== Now Running Gradient Flow Test ===")
     demo_gradient_flow_test()
 
