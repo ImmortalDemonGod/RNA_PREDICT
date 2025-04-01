@@ -605,7 +605,7 @@ class MSAModule(nn.Module):
         # Default configs
         if msa_configs is None:
             msa_configs = {}
-            
+
         # Set up msa_configs with defaults
         self.msa_configs = {
             "enable": msa_configs.get("enable", False),
@@ -615,17 +615,25 @@ class MSAModule(nn.Module):
             "train_lowerb": 1,
             "test_lowerb": 1,
         }
-        
+
         # Override defaults with provided values if they exist
         if "sample_cutoff" in msa_configs:
             sample_cutoff = msa_configs.get("sample_cutoff", {})
-            self.msa_configs["train_cutoff"] = sample_cutoff.get("train", self.msa_configs["train_cutoff"])
-            self.msa_configs["test_cutoff"] = sample_cutoff.get("test", self.msa_configs["test_cutoff"])
-            
+            self.msa_configs["train_cutoff"] = sample_cutoff.get(
+                "train", self.msa_configs["train_cutoff"]
+            )
+            self.msa_configs["test_cutoff"] = sample_cutoff.get(
+                "test", self.msa_configs["test_cutoff"]
+            )
+
         if "min_size" in msa_configs:
             min_size = msa_configs.get("min_size", {})
-            self.msa_configs["train_lowerb"] = min_size.get("train", self.msa_configs["train_lowerb"])
-            self.msa_configs["test_lowerb"] = min_size.get("test", self.msa_configs["test_lowerb"])
+            self.msa_configs["train_lowerb"] = min_size.get(
+                "train", self.msa_configs["train_lowerb"]
+            )
+            self.msa_configs["test_lowerb"] = min_size.get(
+                "test", self.msa_configs["test_lowerb"]
+            )
 
         self.linear_no_bias_m = LinearNoBias(
             in_features=32 + 1 + 1, out_features=self.c_m
@@ -752,7 +760,9 @@ class MSAModule(nn.Module):
             # Reshape to [*target_shape, dim]
             x = x.reshape(*target_shape, dim)
             feat_list.append(x)
-        msa_sample = torch.cat(feat_list, dim=-1)  # [n_msa, n_token, 32+1+1] = [n_msa, n_token, 34]
+        msa_sample = torch.cat(
+            feat_list, dim=-1
+        )  # [n_msa, n_token, 32+1+1] = [n_msa, n_token, 34]
         # Line2
         msa_sample = self.linear_no_bias_m(msa_sample)
 
