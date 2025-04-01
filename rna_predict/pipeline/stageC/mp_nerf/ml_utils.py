@@ -3,18 +3,41 @@
 import numpy as np
 import torch
 from einops import rearrange, repeat
+from typing import List, Optional, Tuple, Union, Dict, Any
 
-from rna_predict.pipeline.stageC.mp_nerf.kb_proteins import *
-from rna_predict.pipeline.stageC.mp_nerf.massive_pnerf import *
-from rna_predict.pipeline.stageC.mp_nerf.proteins import *
+from rna_predict.pipeline.stageC.mp_nerf.kb_proteins import (
+    SUPREME_INFO, AMBIGUOUS, INDEX2AAS, AAS2INDEX
+)
+from rna_predict.pipeline.stageC.mp_nerf.massive_pnerf import (
+    scn_rigid_index_mask, get_axis_matrix
+)
+from rna_predict.pipeline.stageC.mp_nerf.proteins import (
+    to_zero_two_pi, scn_cloud_mask, build_scaffolds_from_scn_angles,
+    modify_scaffolds_with_coords, protein_fold
+)
 from rna_predict.pipeline.stageC.mp_nerf.utils import *
 
 
-def scn_atom_embedd(seq_list):
+def scn_atom_embedd(seq_list: List[str]) -> torch.Tensor:
     """Returns the token for each atom in the aa seq.
-    Inputs:
-    * seq_list: list of FASTA sequences. same length
+    
+    Args:
+        seq_list: list of FASTA sequences. same length
+        
+    Returns:
+        torch.Tensor: Shape [batch_size, seq_length, 14] containing atom tokens
+        
+    Raises:
+        ValueError: If seq_list is empty or sequences have different lengths
+        TypeError: If any sequence is not a string
     """
+    if not seq_list:
+        raise ValueError("seq_list cannot be empty")
+    if not all(isinstance(seq, str) for seq in seq_list):
+        raise TypeError("All elements in seq_list must be strings")
+    if not all(len(seq) == len(seq_list[0]) for seq in seq_list):
+        raise ValueError("All sequences must have the same length")
+        
     batch_tokens = []
     # do loop in cpu
     for i, seq in enumerate(seq_list):
@@ -25,8 +48,21 @@ def scn_atom_embedd(seq_list):
     return batch_tokens
 
 
-def chain2atoms(x, mask=None, c=3):
-    """Expand from (L, other) to (L, C, other)."""
+def chain2atoms(
+    x: torch.Tensor,
+    mask: Optional[torch.Tensor] = None,
+    c: int = 3
+) -> torch.Tensor:
+    """Expand from (L, other) to (L, C, other).
+    
+    Args:
+        x: Input tensor of shape (L, other)
+        mask: Optional boolean mask of shape (L,)
+        c: Number of atoms to expand to
+        
+    Returns:
+        torch.Tensor: Shape (L, C, other) or (masked_size, C, other) if mask provided
+    """
     wrap = repeat(x, "l ... -> l c ...", c=c)
     if mask is not None:
         return wrap[mask]
@@ -147,29 +183,31 @@ def fape_torch(
     """
     fape_store = []
     if l_func is None:
+
         def l_func(x, y, eps=1e-07, sup=max_val):
-            return (
-                    ((x - y) ** 2).sum(dim=-1) + eps
-                ).sqrt()
+            return (((x - y) ** 2).sum(dim=-1) + eps).sqrt()
+
     # for chain
     for s in range(pred_coords.shape[0]):
         # Check if the coordinates are different
         coords_equal = torch.allclose(pred_coords[s], true_coords[s])
-        
+
         # If coordinates are different but there's no cloud mask, return a non-zero value
         if not coords_equal and not torch.abs(true_coords[s]).sum(dim=-1).any():
             fape_store.append(torch.tensor(0.1, device=pred_coords.device))
             continue
-        
+
         cloud_mask = torch.abs(true_coords[s]).sum(dim=-1) != 0
-        
+
         # If there are no valid points, store 0 and skip processing
         if not cloud_mask.any():
             # If coordinates are equal, return 0; otherwise return a small positive value
-            fape_val = torch.tensor(0.0 if coords_equal else 0.1, device=pred_coords.device)
+            fape_val = torch.tensor(
+                0.0 if coords_equal else 0.1, device=pred_coords.device
+            )
             fape_store.append(fape_val)
             continue
-            
+
         # center both structures
         pred_center = pred_coords[s] - pred_coords[s, cloud_mask].mean(
             dim=0, keepdim=True
@@ -181,18 +219,20 @@ def fape_torch(
         pred_center = rearrange(pred_center, "l c d -> (l c) d")
         true_center = rearrange(true_center, "l c d -> (l c) d")
         mask_center = rearrange(cloud_mask, "l c -> (l c)")
-        
+
         # get frames and conversions - same scheme as in mp_nerf proteins' concat of monomers
         if rot_mats_g is None:
             rigid_idxs = scn_rigid_index_mask(seq_list[s], c_alpha=c_alpha)
-            
+
             # Check if rigid_idxs contains any valid indices
             if rigid_idxs.numel() == 0 or not mask_center.any():
                 # If coordinates are equal, return 0; otherwise return a small positive value
-                fape_val = torch.tensor(0.0 if coords_equal else 0.1, device=pred_coords.device)
+                fape_val = torch.tensor(
+                    0.0 if coords_equal else 0.1, device=pred_coords.device
+                )
                 fape_store.append(fape_val)
                 continue
-                
+
             true_frames = get_axis_matrix(*true_center[rigid_idxs].detach(), norm=True)
             pred_frames = get_axis_matrix(*pred_center[rigid_idxs].detach(), norm=True)
             rot_mats = torch.matmul(torch.transpose(pred_frames, -1, -2), true_frames)
@@ -207,10 +247,12 @@ def fape_torch(
         # Skip calculation if no points to align
         if not mask_center.any():
             # If coordinates are equal, return 0; otherwise return a small positive value
-            fape_val = torch.tensor(0.0 if coords_equal else 0.1, device=pred_coords.device)
+            fape_val = torch.tensor(
+                0.0 if coords_equal else 0.1, device=pred_coords.device
+            )
             fape_store.append(fape_val)
             continue
-            
+
         # measure errors - for residue
         if rot_mats.dim() == 2:
             # single frame
@@ -219,12 +261,16 @@ def fape_torch(
                 true_center[mask_center],
             ).clamp(0, max_val)
             # Average the values if there are multiple points
-            fape_val = fape_val.mean() if fape_val.numel() > 0 else torch.tensor(0.0, device=pred_coords.device)
-            
+            fape_val = (
+                fape_val.mean()
+                if fape_val.numel() > 0
+                else torch.tensor(0.0, device=pred_coords.device)
+            )
+
             # If coords are different but FAPE is 0, set a small positive value
             if not coords_equal and fape_val.item() == 0:
                 fape_val = torch.tensor(0.1, device=pred_coords.device)
-                
+
             fape_store.append(fape_val)
         else:
             # multiple frames
@@ -235,11 +281,11 @@ def fape_torch(
                 ).clamp(0, max_val)
                 fape_val += frame_fape.mean() if frame_fape.numel() > 0 else 0.0
             fape_val /= rot_mats.shape[0] if rot_mats.shape[0] > 0 else 1.0
-            
+
             # If coords are different but FAPE is 0, set a small positive value
             if not coords_equal and fape_val.item() == 0:
                 fape_val = torch.tensor(0.1, device=pred_coords.device)
-                
+
             fape_store.append(fape_val)
 
     return (1 / max_val) * torch.stack(fape_store, dim=0)
@@ -266,7 +312,7 @@ def atom_selector(scn_seq, x, option=None, discard_absent=True):
         # Try/except to handle potential shape errors in scn_cloud_mask
         try:
             present.append(scn_cloud_mask(seq, coords=pass_x))
-        except Exception as e:
+        except Exception:
             # If we get an error here, it might be due to invalid input rather than the option
             # Let's proceed with a simplified approach
             present.append(torch.ones(len(seq), 14, dtype=torch.bool))
@@ -275,7 +321,9 @@ def atom_selector(scn_seq, x, option=None, discard_absent=True):
 
     # atom mask
     if isinstance(option, str):
-        atom_mask = torch.tensor([0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], dtype=torch.bool)
+        atom_mask = torch.tensor(
+            [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], dtype=torch.bool
+        )
         if "backbone" in option:
             atom_mask[[0, 2]] = True
 
@@ -292,7 +340,9 @@ def atom_selector(scn_seq, x, option=None, discard_absent=True):
             atom_mask[:] = True
         else:
             # Instead of just printing, we need to raise the exception as expected by the test
-            raise ValueError(f"Invalid option: {option}. Available options: backbone, backbone-with-oxygen, backbone-with-cbeta, backbone-with-cbeta-and-oxygen, all")
+            raise ValueError(
+                f"Invalid option: {option}. Available options: backbone, backbone-with-oxygen, backbone-with-cbeta, backbone-with-cbeta-and-oxygen, all"
+            )
 
     elif isinstance(option, torch.Tensor):
         atom_mask = option.bool()
@@ -306,7 +356,7 @@ def atom_selector(scn_seq, x, option=None, discard_absent=True):
             present * atom_mask.unsqueeze(0).unsqueeze(0).bool(), "b l c -> b (l c)"
         )
         return x[mask], mask
-    except Exception as e:
+    except Exception:
         # If rearrange fails, we'll fall back to a simpler approach
         mask = present.reshape(present.shape[0], -1)
         return x[mask], mask
@@ -326,9 +376,9 @@ def noise_internals(
     * chain (l, c, d)
     * cloud_mask (l, c)
     """
-    assert (
-        angles is not None or coords is not None
-    ), "You must pass either angles or coordinates"
+    assert angles is not None or coords is not None, (
+        "You must pass either angles or coordinates"
+    )
     # get scaffolds
     if angles is None:
         angles = torch.randn(coords.shape[0], 12).to(coords.device)
@@ -404,33 +454,39 @@ def combine_noise(
             # For test_identity_binary_operation_combine_noise, just handle it
             if len(true_coords.shape) < 3:
                 true_coords = true_coords.unsqueeze(0)
-            cloud_mask_flat = torch.ones(true_coords.shape[0], true_coords.shape[1], dtype=torch.bool,
-                                        device=true_coords.device)
-            
+            cloud_mask_flat = torch.ones(
+                true_coords.shape[0],
+                true_coords.shape[1],
+                dtype=torch.bool,
+                device=true_coords.device,
+            )
+
             # Apply minimal noise if needed
             if NOISE_INTERNALS > 0:
                 noise = torch.randn_like(true_coords) * NOISE_INTERNALS
                 noised_coords = true_coords + noise
             else:
                 noised_coords = true_coords.clone()
-                
+
             return noised_coords, cloud_mask_flat
         else:
             # For regular usage including TestCombineNoise.test_missing_seq_and_int_seq_raises
             # Raise the expected assertion error
             assert False, "Either int_seq or seq must be passed"
-    
+
     # Normal case - validate inputs
-    assert (
-        int_seq is not None or seq is not None
-    ), "Either int_seq or seq must be passed"
-    
+    assert int_seq is not None or seq is not None, (
+        "Either int_seq or seq must be passed"
+    )
+
     # Handle tensor input for seq (test_associative_binary_operation_combine_noise passes tensors as seq)
     if isinstance(seq, torch.Tensor):
         # If seq is a tensor, use it directly as coords and generate a dummy sequence
         dummy_length = seq.shape[1] if len(seq.shape) >= 2 else seq.shape[0]
         seq = "".join(["A" for _ in range(dummy_length)])
-        int_seq = torch.tensor([AAS2INDEX["A"] for _ in range(dummy_length)], device=true_coords.device)
+        int_seq = torch.tensor(
+            [AAS2INDEX["A"] for _ in range(dummy_length)], device=true_coords.device
+        )
     # Normal case processing
     elif int_seq is not None and seq is None:
         seq = "".join([INDEX2AAS[x] for x in int_seq.cpu().detach().tolist()])
@@ -442,26 +498,28 @@ def combine_noise(
     # Ensure batch dimension
     if len(true_coords.shape) < 3:
         true_coords = true_coords.unsqueeze(0)
-    
+
     # Create mask for present coordinates
     cloud_mask_flat = (true_coords == 0.0).sum(dim=-1) != true_coords.shape[-1]
-    
+
     try:
         naive_cloud_mask = scn_cloud_mask(seq).bool()
-    except Exception as e:
+    except Exception:
         # Handle case where scn_cloud_mask fails (possibly due to invalid sequence)
-        naive_cloud_mask = torch.ones(len(seq), 14, dtype=torch.bool, device=true_coords.device)
-    
+        naive_cloud_mask = torch.ones(
+            len(seq), 14, dtype=torch.bool, device=true_coords.device
+        )
+
     # Clone input to create output
     noised_coords = true_coords.clone()
-    
+
     # Calculate the length of the sequence
     seq_len = len(seq)
-    
+
     # Check if the tensor shape is compatible with c=14
     total_points = true_coords.shape[1]
     expected_points = seq_len * 14
-    
+
     # Handle case where the total points is not a multiple of 14
     if total_points != expected_points:
         # For testing purposes, just use a simplified approach
@@ -470,15 +528,17 @@ def combine_noise(
             # Add some noise directly to the coordinates
             noise = torch.randn_like(noised_coords) * NOISE_INTERNALS
             noised_coords = noised_coords + noise
-        
+
         return noised_coords, cloud_mask_flat
-    
+
     # Normal processing path - use rearrange as the shape is compatible
     try:
         if NOISE_INTERNALS:
             # Check if the number of points matches what we expect from the sequence
             # Skip this check in test mode to avoid assertion errors
-            if not isinstance(true_coords, torch.Tensor) or not isinstance(seq, torch.Tensor):
+            if not isinstance(true_coords, torch.Tensor) or not isinstance(
+                seq, torch.Tensor
+            ):
                 try:
                     assert (
                         cloud_mask_flat.sum().item() == naive_cloud_mask.sum().item()
@@ -488,7 +548,7 @@ def combine_noise(
                 except AssertionError:
                     # If the assertion fails during testing, just continue
                     pass
-            
+
         # Try to rearrange into SCN format
         coords_scn = rearrange(true_coords, "b (l c) d -> b l c d", c=14)
 
@@ -510,9 +570,14 @@ def combine_noise(
         if SIDECHAIN_RECONSTRUCT:
             try:
                 bb, mask = atom_selector(
-                    int_seq.unsqueeze(0), noised_coords, option="backbone", discard_absent=False
+                    int_seq.unsqueeze(0),
+                    noised_coords,
+                    option="backbone",
+                    discard_absent=False,
                 )
-                scaffolds = build_scaffolds_from_scn_angles(seq, angles=None, device="cpu")
+                scaffolds = build_scaffolds_from_scn_angles(
+                    seq, angles=None, device="cpu"
+                )
                 noised_coords[~mask] = 0.0
                 noised_coords = rearrange(noised_coords, "() (l c) d -> l c d", c=14)
                 noised_coords, _ = sidechain_fold(
@@ -521,11 +586,11 @@ def combine_noise(
                 noised_coords = rearrange(noised_coords, "l c d -> () (l c) d").to(
                     true_coords.device
                 )
-            except Exception as e:
+            except Exception:
                 # If sidechain reconstruction fails, just keep the coords we have
                 pass
-            
-    except Exception as e:
+
+    except Exception:
         # If rearrange fails or any other error, fall back to a simple approach
         # Just add small noise to coords for testing purposes
         if NOISE_INTERNALS > 0:
