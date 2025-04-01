@@ -4,6 +4,7 @@ import pytest
 import torch
 from hypothesis import given
 from hypothesis import strategies as st
+from hypothesis import settings, HealthCheck
 
 # Assuming these imports match your project structure.
 # If necessary, adjust the import path accordingly (e.g., from rna_predict.pipeline.stageD.diffusion.generator import ...)
@@ -238,6 +239,7 @@ class TestSampleDiffusion:
         assert x_l.shape == (1, 5, 4, 3)
         # Optionally check that multiple chunk passes occurred in the code path
 
+    @settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
     @given(
         n_sample=st.integers(min_value=1, max_value=5),
         chunk=st.one_of(st.none(), st.integers(min_value=1, max_value=5)),
@@ -348,6 +350,7 @@ class TestSampleDiffusionTraining:
         assert x_denoised.shape == (1, 5, 4, 3)
         assert sigma.shape == (1, 5)
 
+    @settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
     @given(
         n_sample=st.integers(min_value=1, max_value=5),
         chunk=st.one_of(st.none(), st.integers(min_value=1, max_value=5)),
