@@ -234,26 +234,26 @@ def broadcast_token_to_atom(
     if x_token.ndim == atom_to_token_idx.ndim + 2:
         # Instead of reshaping x_token (which is risky and can cause size mismatch errors),
         # let's add dimensions to atom_to_token_idx to match x_token's dimensionality
-        
+
         # For example, if x_token is [1, 1, 8, 10, 128] and atom_to_token_idx is [1, 10],
         # instead of reshaping x_token, let's unsqueeze atom_to_token_idx to match the batch dimensions
-        
+
         # Add dimensions to atom_to_token_idx until it's just one dimension short of x_token
         # (the last missing dimension is the feature dimension which doesn't need to match)
         while atom_to_token_idx.ndim < x_token.ndim - 1:
             # Insert a new dimension at position 1 (after the first batch dimension)
             atom_to_token_idx = atom_to_token_idx.unsqueeze(1)
-            
+
         # Now the shapes should be compatible for gathering
         # E.g., atom_to_token_idx might be [1, 1, 10] and x_token [1, 1, 8, 10, 128]
-    
+
     # If shapes differ by exactly 1 dimension, and we need an extra unsqueeze:
     if (
         x_token.ndim == atom_to_token_idx.ndim + 1
         and x_token.shape[-2] != atom_to_token_idx.shape[-1]
     ):
         atom_to_token_idx = atom_to_token_idx.unsqueeze(-2)
-    
+
     # Handle case where atom_to_token_idx has more dimensions but x_token doesn't need to match
     # For example, atom_to_token_idx with shape [1, 1, N_atom] and x_token with shape [1, N_token, C]
     if atom_to_token_idx.ndim > x_token.ndim:
@@ -277,12 +277,12 @@ def broadcast_token_to_atom(
                 atom_to_token_idx = atom_to_token_idx.squeeze()
                 if atom_to_token_idx.ndim == 1:  # If we squeezed too much
                     atom_to_token_idx = atom_to_token_idx.unsqueeze(0)
-            
+
             # Next, check if we need to add dimensions to atom_to_token_idx
             while len(atom_to_token_idx.shape[:-1]) < len(x_token.shape[:-2]):
                 # Add dimensions at the beginning
                 atom_to_token_idx = atom_to_token_idx.unsqueeze(0)
-            
+
             # If dimensions match now but sizes don't, try to expand
             if len(atom_to_token_idx.shape[:-1]) == len(x_token.shape[:-2]):
                 # Try to expand atom_to_token_idx to match x_token's batch dimensions
@@ -294,22 +294,25 @@ def broadcast_token_to_atom(
                 if can_expand:
                     # Create a new shape that takes the max of each dimension
                     new_batch_shape = tuple(
-                        max(a, b) for a, b in zip(atom_to_token_idx.shape[:-1], x_token.shape[:-2])
+                        max(a, b)
+                        for a, b in zip(
+                            atom_to_token_idx.shape[:-1], x_token.shape[:-2]
+                        )
                     )
                     new_shape = new_batch_shape + (atom_to_token_idx.shape[-1],)
                     atom_to_token_idx = atom_to_token_idx.expand(new_shape)
-            
+
             # If shapes still don't match, try one more approach: reshape if possible
             if atom_to_token_idx.shape[:-1] != x_token.shape[:-2]:
                 # Check if the product of dimensions is compatible
                 prod_a = 1
                 for d in atom_to_token_idx.shape[:-1]:
                     prod_a *= d
-                
+
                 prod_x = 1
                 for d in x_token.shape[:-2]:
                     prod_x *= d
-                
+
                 if prod_a == prod_x:
                     # We can reshape
                     new_shape = list(x_token.shape[:-2]) + [atom_to_token_idx.shape[-1]]
@@ -318,11 +321,15 @@ def broadcast_token_to_atom(
                     # Try to broadcast by repeating atom_to_token_idx
                     # This is useful for cases like [1,1,10] needing to match [1,8]
                     # First, create a target shape with batch dimensions matching x_token
-                    target_shape = list(x_token.shape[:-2]) + [atom_to_token_idx.shape[-1]]
-                    
+                    target_shape = list(x_token.shape[:-2]) + [
+                        atom_to_token_idx.shape[-1]
+                    ]
+
                     # Try to create a new tensor with the target shape
-                    expanded_idx = atom_to_token_idx.new_zeros(target_shape, dtype=atom_to_token_idx.dtype)
-                    
+                    expanded_idx = atom_to_token_idx.new_zeros(
+                        target_shape, dtype=atom_to_token_idx.dtype
+                    )
+
                     # Repeat the last available atom index across the missing dimension
                     for i in range(target_shape[-2]):
                         if i < atom_to_token_idx.shape[-2]:
@@ -331,12 +338,14 @@ def broadcast_token_to_atom(
                         else:
                             # Repeat the last index for missing positions
                             expanded_idx[..., i, :] = atom_to_token_idx[..., -1, :]
-                    
+
                     atom_to_token_idx = expanded_idx
         except Exception as e:
             # If all adaptation attempts fail, provide a detailed error
             print(f"WARNING: Failed to adapt shapes in broadcast_token_to_atom: {e}")
-            print(f"x_token.shape={x_token.shape}, atom_to_token_idx.shape={atom_to_token_idx.shape}")
+            print(
+                f"x_token.shape={x_token.shape}, atom_to_token_idx.shape={atom_to_token_idx.shape}"
+            )
             # Fall back to the original approach, but log the error instead of raising it
             try:
                 new_shape = list(x_token.shape[:-2]) + [atom_to_token_idx.shape[-1]]
@@ -357,13 +366,13 @@ def broadcast_token_to_atom(
         dim=-2,
         no_batch_dims=len(x_token.shape[:-2]),
     )
-    
+
     # Check if the feature dimension of the result is 1, but should be larger
     # This handles the specific case in AtomAttentionEncoder where we get [2, 10, 1] but need [*, 64]
     if result.size(-1) == 1 and x_token.size(-1) > 1:
         # We need to expand the last dimension to match the original x_token's feature dimension
         result = result.expand(*result.shape[:-1], x_token.size(-1))
-    
+
     return result
 
 
