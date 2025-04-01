@@ -3,13 +3,15 @@ RNA-specific MP-NeRF implementation for building 3D structures from torsion angl
 """
 
 import math
+
 import torch
-from .massive_pnerf import mp_nerf_torch
+
 from .final_kb_rna import (
-    get_bond_length,
-    get_bond_angle,
     RNA_BACKBONE_TORSIONS_AFORM,
+    get_bond_angle,
+    get_bond_length,
 )
+from .massive_pnerf import mp_nerf_torch
 
 ###############################################################################
 # 1) BACKBONE ATOMS
@@ -54,6 +56,7 @@ RNA_BACKBONE_TORSIONS_AFORM_DEGREES = {
 ###############################################################################
 # 3) SCAFFOLDING
 ###############################################################################
+
 
 def build_scaffolds_rna_from_torsions(
     seq: str,
@@ -201,7 +204,7 @@ def build_scaffolds_rna_from_torsions(
             else:
                 # For other atoms (j > 0), we need to set up proper references
                 # Standard NeRF needs three distinct reference points: usually j-3, j-2, j-1
-                
+
                 # Handle the case of the first few atoms in first residue
                 if i == 0 and j <= 2:
                     if j == 1:  # O5'
@@ -220,12 +223,18 @@ def build_scaffolds_rna_from_torsions(
                     if i > 0 and j <= 2:
                         if j == 1:  # O5'
                             # Connect to P and previous residue
-                            point_ref_mask[0, i, j] = (i - 1) * B + BACKBONE_INDEX_MAP["C3'"]
-                            point_ref_mask[1, i, j] = (i - 1) * B + BACKBONE_INDEX_MAP["O3'"]
+                            point_ref_mask[0, i, j] = (i - 1) * B + BACKBONE_INDEX_MAP[
+                                "C3'"
+                            ]
+                            point_ref_mask[1, i, j] = (i - 1) * B + BACKBONE_INDEX_MAP[
+                                "O3'"
+                            ]
                             point_ref_mask[2, i, j] = i * B + 0  # P atom
                         elif j == 2:  # C5'
                             # Connect to O5', P and previous residue
-                            point_ref_mask[0, i, j] = (i - 1) * B + BACKBONE_INDEX_MAP["O3'"]
+                            point_ref_mask[0, i, j] = (i - 1) * B + BACKBONE_INDEX_MAP[
+                                "O3'"
+                            ]
                             point_ref_mask[1, i, j] = i * B + 0  # P atom
                             point_ref_mask[2, i, j] = i * B + 1  # O5' atom
                     else:
@@ -254,10 +263,11 @@ def rna_fold(
 
     Returns shape [L, B, 3], where B=10 for the backbone.
     """
+
     # Define deg2rad function
     def deg2rad(x):
         return x * (math.pi / 180.0)
-        
+
     bond_mask = scaffolds["bond_mask"]
     angles_mask = scaffolds["angles_mask"]
     point_ref = scaffolds["point_ref_mask"]
@@ -278,7 +288,7 @@ def rna_fold(
         for j in range(B):
             if not cloud_mask[i, j]:
                 continue
-                
+
             refA = point_ref[0, i, j].item()
             refB = point_ref[1, i, j].item()
             refC = point_ref[2, i, j].item()
@@ -290,22 +300,39 @@ def rna_fold(
                 if j == 1:  # O5': Set manually at typical distance from P
                     coords[i, j] = torch.tensor([1.593, 0.0, 0.0], device=device)
                     continue
-                elif j == 2:  # C5': Set manually at typical distances/angles from P and O5'
+                elif (
+                    j == 2
+                ):  # C5': Set manually at typical distances/angles from P and O5'
                     angle_rad = deg2rad(120.9)  # typical angle P-O5'-C5'
                     # Position C5' using typical bond length O5'-C5' (1.44Å)
-                    coords[i, j] = torch.tensor([
-                        1.593 - 1.44 * math.cos(angle_rad),
-                        1.44 * math.sin(angle_rad),
-                        0.0
-                    ], device=device)
+                    coords[i, j] = torch.tensor(
+                        [
+                            1.593 - 1.44 * math.cos(angle_rad),
+                            1.44 * math.sin(angle_rad),
+                            0.0,
+                        ],
+                        device=device,
+                    )
                     continue
                 # Only manually set the first 3 atoms of first residue
                 continue
 
             # Ensure we have valid reference points with valid indices
-            a_xyz = coords_flat[refA] if 0 <= refA < total else torch.tensor([0.0, 0.0, 0.0], device=device)
-            b_xyz = coords_flat[refB] if 0 <= refB < total else torch.tensor([1.0, 0.0, 0.0], device=device)
-            c_xyz = coords_flat[refC] if 0 <= refC < total else torch.tensor([0.0, 1.0, 0.0], device=device)
+            a_xyz = (
+                coords_flat[refA]
+                if 0 <= refA < total
+                else torch.tensor([0.0, 0.0, 0.0], device=device)
+            )
+            b_xyz = (
+                coords_flat[refB]
+                if 0 <= refB < total
+                else torch.tensor([1.0, 0.0, 0.0], device=device)
+            )
+            c_xyz = (
+                coords_flat[refC]
+                if 0 <= refC < total
+                else torch.tensor([0.0, 1.0, 0.0], device=device)
+            )
 
             # Check for collinearity and add small perturbation if needed
             ba = b_xyz - a_xyz
@@ -347,33 +374,37 @@ def place_bases(
 ) -> torch.Tensor:
     """
     Add base atoms to the backbone coordinates.
-    
+
     Args:
         backbone_coords: Tensor of shape [L, B, 3] where B is the number of backbone atoms
         seq: RNA sequence string
         device: Device to place tensors on
-        
+
     Returns:
         Tensor of shape [L, max_atoms, 3] where max_atoms is the maximum number of atoms in any RNA base
     """
     L = len(seq)
     max_atoms = compute_max_rna_atoms()
-    
+
     # Create a new tensor with the larger shape to hold both backbone and base atoms
-    full_coords = torch.zeros((L, max_atoms, 3), dtype=backbone_coords.dtype, device=backbone_coords.device)
-    
+    full_coords = torch.zeros(
+        (L, max_atoms, 3), dtype=backbone_coords.dtype, device=backbone_coords.device
+    )
+
     # Copy the backbone coordinates to the new tensor
     B = backbone_coords.shape[1]  # Number of backbone atoms
     full_coords[:, :B, :] = backbone_coords
-    
+
     # For a real implementation, we would need to place the base atoms relative to the backbone
     # This is a simplified implementation that just provides the expected shape
-    
+
     return full_coords
+
 
 ###############################################################################
 # 7) BACKWARD COMPATIBILITY FUNCTIONS
 ###############################################################################
+
 
 # For backward compatibility with the expected function signatures
 def place_rna_bases(backbone_coords, seq, angles_mask=None, device="cpu"):
@@ -382,39 +413,42 @@ def place_rna_bases(backbone_coords, seq, angles_mask=None, device="cpu"):
     """
     return place_bases(backbone_coords, seq, device)
 
+
 def handle_mods(seq, scaffolds=None):
     """
     Backward compatibility function for handle_mods.
-    
+
     Args:
         seq: The RNA sequence
         scaffolds: Optional scaffolds dictionary
-        
+
     Returns:
         The scaffolds dictionary, unchanged
     """
     return scaffolds if scaffolds is not None else seq
+
 
 def skip_missing_atoms(seq, scaffolds=None):
     """
     Backward compatibility function for skip_missing_atoms.
-    
+
     Args:
         seq: The RNA sequence
         scaffolds: Optional scaffolds dictionary
-        
+
     Returns:
         The scaffolds dictionary, unchanged
     """
     return scaffolds if scaffolds is not None else seq
 
+
 def get_base_atoms(base_type=None):
     """
     Get the list of atom names for a given RNA base type.
-    
+
     Args:
         base_type: The base type ('A', 'G', 'C', 'U')
-        
+
     Returns:
         List of atom names for the base, or empty list if unknown base type
     """
@@ -429,42 +463,46 @@ def get_base_atoms(base_type=None):
     else:
         return []
 
+
 def mini_refinement(coords, method=None):
     """
     Backward compatibility function for mini_refinement.
-    
+
     Args:
         coords: The coordinates tensor
         method: Optional refinement method
-        
+
     Returns:
         The coordinates tensor, unchanged
     """
     return coords
 
+
 def validate_rna_geometry(coords):
     """
     Backward compatibility function for validate_rna_geometry.
-    
+
     Args:
         coords: The coordinates tensor
-        
+
     Returns:
         True
     """
     return True
 
+
 def compute_max_rna_atoms():
     """
     Compute the maximum number of atoms in an RNA residue.
-    
+
     This includes both backbone atoms and base atoms.
-    
+
     Returns:
         The maximum number of atoms (21 for G)
     """
     # Maximum is for G which has 11 base atoms + 10 backbone atoms = 21
     return 21
+
 
 # Export all functions for backward compatibility
 __all__ = [
