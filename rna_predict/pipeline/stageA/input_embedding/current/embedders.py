@@ -141,10 +141,10 @@ class InputFeatureEmbedder(nn.Module):
             # If restype is not available, fall back to using a's token dimension
             a_shape = a.shape
             token_dim = a_shape[-2]  # Number of tokens
-        
+
         # Create a tensor of the appropriate batch shape for reshaping
         batch_shape = a.shape[:-2]  # Everything except the token and feature dimensions
-        
+
         # Handle optional trunk_sing / trunk_pair / block_index
         # (Currently no-op except for verifying presence)
         if trunk_sing is not None:
@@ -153,7 +153,7 @@ class InputFeatureEmbedder(nn.Module):
             pass  # Possibly incorporate trunk_pair into the pipeline
         if block_index is not None:
             pass  # Possibly use block_index for local attention
-            
+
         extras_list = []
         for name, dim_size in self.input_feature.items():
             # Check if the feature exists in the input_feature_dict
@@ -161,33 +161,41 @@ class InputFeatureEmbedder(nn.Module):
                 # Create a default zero tensor if the feature is missing
                 if name == "deletion_mean":
                     # For scalar features
-                    default_tensor = torch.zeros((*batch_shape, token_dim, 1), device=a.device)
+                    default_tensor = torch.zeros(
+                        (*batch_shape, token_dim, 1), device=a.device
+                    )
                     raw_feature = default_tensor
                 elif name in ["restype", "profile"]:
                     # For vector features, use the expected dimension
                     feature_dim = dim_size
-                    default_tensor = torch.zeros((*batch_shape, token_dim, feature_dim), device=a.device)
+                    default_tensor = torch.zeros(
+                        (*batch_shape, token_dim, feature_dim), device=a.device
+                    )
                     raw_feature = default_tensor
                 else:
                     # For any other unexpected features, default to zeros
-                    default_tensor = torch.zeros((*batch_shape, token_dim, 1), device=a.device)
+                    default_tensor = torch.zeros(
+                        (*batch_shape, token_dim, 1), device=a.device
+                    )
                     raw_feature = default_tensor
             else:
                 # Use the feature from input_feature_dict
                 raw_feature = input_feature_dict[name]
-            
+
             # Handle different tensor dimensions correctly
             if name == "deletion_mean":
                 # For deletion_mean, which can be 1D, 2D, or 3D, we need to reshape to match token dimensions
                 # Ensure the tensor is 3D [batch, tokens, 1]
                 if raw_feature.dim() == 1:  # [tokens]
-                    raw_feature = raw_feature.unsqueeze(0).unsqueeze(-1)  # [1, tokens, 1]
+                    raw_feature = raw_feature.unsqueeze(0).unsqueeze(
+                        -1
+                    )  # [1, tokens, 1]
                 elif raw_feature.dim() == 2:  # [batch, tokens] or [tokens, 1]
                     if raw_feature.shape[-1] == 1:  # [tokens, 1]
                         raw_feature = raw_feature.unsqueeze(0)  # [1, tokens, 1]
                     else:  # [batch, tokens]
                         raw_feature = raw_feature.unsqueeze(-1)  # [batch, tokens, 1]
-                
+
                 # Ensure the feature has the correct token dimension
                 if raw_feature.shape[1] != token_dim:
                     # Adjust the tensor shape to match the token dimension
@@ -196,15 +204,18 @@ class InputFeatureEmbedder(nn.Module):
                         raw_feature = raw_feature[:, :token_dim, :]
                     else:
                         # Fewer tokens than needed, pad with zeros
-                        padding = torch.zeros((
-                            raw_feature.shape[0], 
-                            token_dim - raw_feature.shape[1],
-                            raw_feature.shape[2]
-                        ), device=raw_feature.device)
+                        padding = torch.zeros(
+                            (
+                                raw_feature.shape[0],
+                                token_dim - raw_feature.shape[1],
+                                raw_feature.shape[2],
+                            ),
+                            device=raw_feature.device,
+                        )
                         raw_feature = torch.cat([raw_feature, padding], dim=1)
-                
+
                 val = raw_feature
-                
+
             elif name in ["restype", "profile"]:
                 # For 2D or 3D features like restype and profile
                 # Handle case where raw_feature is 3D (batch, tokens, features)
@@ -216,11 +227,14 @@ class InputFeatureEmbedder(nn.Module):
                             raw_feature = raw_feature[:, :token_dim, :]
                         else:
                             # Fewer tokens than needed, pad with zeros
-                            padding = torch.zeros((
-                                raw_feature.shape[0],
-                                token_dim - raw_feature.shape[1],
-                                raw_feature.shape[2]
-                            ), device=raw_feature.device)
+                            padding = torch.zeros(
+                                (
+                                    raw_feature.shape[0],
+                                    token_dim - raw_feature.shape[1],
+                                    raw_feature.shape[2],
+                                ),
+                                device=raw_feature.device,
+                            )
                             raw_feature = torch.cat([raw_feature, padding], dim=1)
                     val = raw_feature
                 else:
@@ -231,40 +245,50 @@ class InputFeatureEmbedder(nn.Module):
                             raw_feature = raw_feature[:token_dim, :]
                         else:
                             # Fewer tokens than needed, pad with zeros
-                            padding = torch.zeros((
-                                token_dim - raw_feature.shape[0],
-                                raw_feature.shape[1]
-                            ), device=raw_feature.device)
+                            padding = torch.zeros(
+                                (
+                                    token_dim - raw_feature.shape[0],
+                                    raw_feature.shape[1],
+                                ),
+                                device=raw_feature.device,
+                            )
                             raw_feature = torch.cat([raw_feature, padding], dim=0)
                     # Add batch dimension
-                    val = raw_feature.unsqueeze(0).expand(batch_shape[0] if batch_shape else 1, -1, -1)
+                    val = raw_feature.unsqueeze(0).expand(
+                        batch_shape[0] if batch_shape else 1, -1, -1
+                    )
             else:
                 # Shouldn't get here for this test case, but handle generically
                 # by creating a zero tensor of the right shape
                 val = torch.zeros((*batch_shape, token_dim, dim_size), device=a.device)
-                
+
             extras_list.append(val)
-            
+
         # Concatenate the extra features along the last dimension
         token_extras = torch.cat(extras_list, dim=-1)  # => [..., N_token, sum_of_dims]
-        
+
         # Check if extras_linear has the right input size, if not recreate it
         extras_in_dim = token_extras.shape[-1]
-        if not hasattr(self, 'extras_linear') or self.extras_linear.in_features != extras_in_dim:
+        if (
+            not hasattr(self, "extras_linear")
+            or self.extras_linear.in_features != extras_in_dim
+        ):
             self.extras_linear = nn.Linear(extras_in_dim, self.c_token, bias=True)
-        
+
         # Apply the linear layer to project to c_token
         extras_emb = self.extras_linear(token_extras)  # => [..., N_token, c_token]
 
         # Ensure the atom output 'a' has the same token dimension as our extras
         if a.shape[-2] != token_dim:
             # Create a padded version of 'a' with the right token dimension
-            padded_a = torch.zeros((*batch_shape, token_dim, a.shape[-1]), device=a.device)
+            padded_a = torch.zeros(
+                (*batch_shape, token_dim, a.shape[-1]), device=a.device
+            )
             # Adjust slice based on actual dimension
             if padded_a.dim() >= 3:  # Handle batch dimension potentially existing
-                padded_a[..., :a.shape[-2], :] = a  # Use ellipsis for batch dims
+                padded_a[..., : a.shape[-2], :] = a  # Use ellipsis for batch dims
             elif padded_a.dim() == 2:
-                padded_a[:a.shape[-2], :] = a  # Handle no batch dim case
+                padded_a[: a.shape[-2], :] = a  # Handle no batch dim case
             a = padded_a
 
         # 3) Merge atom output with these extra features
@@ -277,14 +301,14 @@ class InputFeatureEmbedder(nn.Module):
         # 5) Add a projection to get the expected output dimension
         # If the expected output dimension is different from c_token (e.g. 449 vs 384)
         # We need an additional projection layer
-        if not hasattr(self, 'final_projection'):
+        if not hasattr(self, "final_projection"):
             # Lazily create the projection layer the first time it's needed
             self.final_projection = nn.Linear(self.c_token, 449, bias=True)
             # Initialize weights to be close to identity transformation with small random values
-            nn.init.eye_(self.final_projection.weight[:self.c_token, :self.c_token])
+            nn.init.eye_(self.final_projection.weight[: self.c_token, : self.c_token])
             if self.final_projection.bias is not None:
                 nn.init.zeros_(self.final_projection.bias)
-        
+
         # Apply the final projection to get the desired output dimension
         out = self.final_projection(out)
 
@@ -332,7 +356,7 @@ class RelativePositionEncoding(nn.Module):
             n_tokens = input_feature_dict["expected_n_tokens"]
             device = None
             batch_size = 1
-            
+
             # Still need to find a tensor to determine device
             for key in input_feature_dict:
                 if isinstance(input_feature_dict[key], torch.Tensor):
@@ -345,14 +369,16 @@ class RelativePositionEncoding(nn.Module):
             n_tokens = 0
             device = None
             batch_size = 1
-            
+
             # Find existing tensor to determine token count and device
             for key in input_feature_dict:
                 if isinstance(input_feature_dict[key], torch.Tensor):
                     if input_feature_dict[key].dim() >= 1:
                         # Extract token count from the first available tensor
                         tensor_shape = input_feature_dict[key].shape
-                        if len(tensor_shape) > 1:  # For tensors with at least 2 dimensions
+                        if (
+                            len(tensor_shape) > 1
+                        ):  # For tensors with at least 2 dimensions
                             n_tokens = tensor_shape[-1]
                             batch_size = tensor_shape[0]
                         else:  # For 1D tensors
@@ -360,18 +386,20 @@ class RelativePositionEncoding(nn.Module):
                             batch_size = 1
                         device = input_feature_dict[key].device
                         break
-        
+
         if n_tokens == 0:
             # If we couldn't determine token count, default to 1
             n_tokens = 1
-            device = torch.device('cpu')
-        
+            device = torch.device("cpu")
+
         # Create and fill in missing features with correct batch size and token count
         feature_dict = {}
         for feature_name in self.input_feature:
             if feature_name not in input_feature_dict:
                 # Create default zero tensor for this feature with correct shapes
-                default_tensor = torch.zeros((batch_size, n_tokens), dtype=torch.long, device=device)
+                default_tensor = torch.zeros(
+                    (batch_size, n_tokens), dtype=torch.long, device=device
+                )
                 feature_dict[feature_name] = default_tensor
             else:
                 # Use existing tensor but ensure it has the right shape
@@ -382,8 +410,10 @@ class RelativePositionEncoding(nn.Module):
                         # Padding or truncation needed
                         if existing_tensor.shape[0] < n_tokens:
                             # Pad
-                            padded = torch.zeros(n_tokens, dtype=existing_tensor.dtype, device=device)
-                            padded[:existing_tensor.shape[0]] = existing_tensor
+                            padded = torch.zeros(
+                                n_tokens, dtype=existing_tensor.dtype, device=device
+                            )
+                            padded[: existing_tensor.shape[0]] = existing_tensor
                             existing_tensor = padded
                         else:
                             # Truncate
@@ -397,17 +427,22 @@ class RelativePositionEncoding(nn.Module):
                         if existing_tensor.shape[1] < n_tokens:
                             # Pad
                             padding = torch.zeros(
-                                (existing_tensor.shape[0], n_tokens - existing_tensor.shape[1]),
-                                dtype=existing_tensor.dtype, 
-                                device=device
+                                (
+                                    existing_tensor.shape[0],
+                                    n_tokens - existing_tensor.shape[1],
+                                ),
+                                dtype=existing_tensor.dtype,
+                                device=device,
                             )
-                            existing_tensor = torch.cat([existing_tensor, padding], dim=1)
+                            existing_tensor = torch.cat(
+                                [existing_tensor, padding], dim=1
+                            )
                         else:
                             # Truncate
                             existing_tensor = existing_tensor[:, :n_tokens]
-                
+
                 feature_dict[feature_name] = existing_tensor
-        
+
         # Proceed with the calculations using feature_dict instead of input_feature_dict
         b_same_chain = (
             feature_dict["asym_id"][..., :, None]
