@@ -75,14 +75,16 @@ class TestPairformerWrapperVerification(unittest.TestCase):
 
     @given(
         n_blocks=st.integers(min_value=1, max_value=48),
-        c_z=st.integers(min_value=16, max_value=256),
-        c_s=st.integers(min_value=16, max_value=512),
+        c_z=st.integers(min_value=16, max_value=256).filter(lambda x: x % 16 == 0),
+        c_s=st.integers(min_value=16, max_value=512).filter(lambda x: x % 16 == 0),
         use_checkpoint=st.booleans()
     )
     @settings(deadline=None)  # Disable deadline for potentially slow tests
     def test_instantiation_custom_parameters(self, n_blocks, c_z, c_s, use_checkpoint):
         """
         Verify that PairformerWrapper can be instantiated with custom parameters.
+        Note: both c_s and c_z must be divisible by 16 to satisfy AttentionPairBias constraint
+        where n_heads=16 by default and requires c_a % n_heads == 0.
         """
         wrapper = PairformerWrapper(
             n_blocks=n_blocks,
@@ -94,12 +96,13 @@ class TestPairformerWrapperVerification(unittest.TestCase):
         # Check parameter values
         self.assertEqual(wrapper.n_blocks, n_blocks)
         self.assertEqual(wrapper.c_z, c_z)
+        self.assertEqual(wrapper.c_z_adjusted, c_z)  # Should be equal since we filter for divisible by 16
         self.assertEqual(wrapper.c_s, c_s)
         self.assertEqual(wrapper.use_checkpoint, use_checkpoint)
         
         # Check that PairformerStack is properly initialized with the same parameters
         self.assertEqual(wrapper.stack.n_blocks, n_blocks)
-        self.assertEqual(wrapper.stack.c_z, c_z)
+        self.assertEqual(wrapper.stack.c_z, wrapper.c_z_adjusted)  # Using c_z_adjusted now
 
     def test_parameter_count(self):
         """
