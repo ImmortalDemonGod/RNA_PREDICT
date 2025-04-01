@@ -248,8 +248,12 @@ def warmup_input_embedding(
             trunk_pair=None,
             block_index=block_index,
         )
-        # The shape of out is [N_token, c_token].
-        target = torch.randn(out.size(0), out.size(1), device=device)
+        # The shape of out can be [N_token, c_token] or [batch, N_token, c_token]
+        # Create a target with matching dimensions
+        if out.dim() == 2:
+            target = torch.randn(out.size(0), out.size(1), device=device)
+        else:  # Handle 3D case or higher
+            target = torch.randn_like(out)
         loss = criterion(out, target)
         loss.backward()
 
@@ -290,7 +294,11 @@ def time_input_embedding(
         end = time.time()
         fwd_time += end - start
 
-        target = torch.randn(out.size(0), out.size(1), device=device)
+        # Create a target with matching dimensions
+        if out.dim() == 2:
+            target = torch.randn(out.size(0), out.size(1), device=device)
+        else:  # Handle 3D case or higher
+            target = torch.randn_like(out)
         start = time.time()
         loss = criterion(out, target)
         loss.backward()
