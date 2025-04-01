@@ -13,8 +13,9 @@ and the new StageARFoldPredictor. We have NOT removed any original code or comme
 instead, we keep them here and append the new version after the old one.
 """
 
-import os
 import logging
+import os
+
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -167,7 +168,9 @@ class StageARFoldPredictor:
         adjacency_cropped = final_map[0, :original_len, :original_len].cpu().numpy()
         logging.info(f"Adjacency matrix shape: {adjacency_cropped.shape}")
         logging.info(f"Adjacency matrix data type: {adjacency_cropped.dtype}")
-        logging.info(f"Sample values from adjacency matrix: {adjacency_cropped[:5,:5]}")
+        logging.info(
+            f"Sample values from adjacency matrix: {adjacency_cropped[:5, :5]}"
+        )
         return adjacency_cropped
 
 
