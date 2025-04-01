@@ -233,15 +233,15 @@ class AttentionPairBias(nn.Module):
                 gate = torch.sigmoid(self.linear_a_last(s))
                 
                 # Print shapes for debugging
-                print(f"DEBUG: a shape: {a.shape}, gate shape: {gate.shape}")
+                #print(f"DEBUG: a shape: {a.shape}, gate shape: {gate.shape}")
                 
                 try:
                     # Try direct multiplication
                     a = gate * a
                 except RuntimeError as e:
                     # If shapes don't match, proceed without gating
-                    print(f"WARNING: Skipping adaptive gating in AttentionPairBias due to shape mismatch: {e}")
-                    print(f"         a shape: {a.shape}, gate shape: {gate.shape}")
+                    #print(f"WARNING: Skipping adaptive gating in AttentionPairBias due to shape mismatch: {e}")
+                    #print(f"         a shape: {a.shape}, gate shape: {gate.shape}")
                     # We proceed without applying the gate as a fallback
                     pass
                     
@@ -594,7 +594,7 @@ class ConditionedTransitionBlock(nn.Module):
         # Output projection (from adaLN-Zero [27])
         
         # Print shapes for debugging
-        print(f"DEBUG: ConditionedTransitionBlock: b shape: {b.shape}, s shape: {s.shape}")
+        #print(f"DEBUG: ConditionedTransitionBlock: b shape: {b.shape}, s shape: {s.shape}")
         
         try:
             # Try direct style modulation
@@ -603,8 +603,8 @@ class ConditionedTransitionBlock(nn.Module):
             a = scale * shift
         except RuntimeError as e:
             # If shapes don't match, we'll bypass the conditioning
-            print(f"WARNING: Skipping transition block conditioning due to shape mismatch: {e}")
-            print(f"         b shape: {b.shape}, s shape: {s.shape}")
+            #print(f"WARNING: Skipping transition block conditioning due to shape mismatch: {e}")
+            #print(f"         b shape: {b.shape}, s shape: {s.shape}")
             # Return the b tensor without conditioning as a fallback
             a = self.linear_nobias_b(b)
             

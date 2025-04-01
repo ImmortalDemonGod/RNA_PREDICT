@@ -73,7 +73,7 @@ class AdaptiveLayerNorm(nn.Module):
         s = self.layernorm_s(s)
         
         # Print shapes for debugging
-        print(f"DEBUG: AdaptiveLayerNorm a shape: {a.shape}, s shape: {s.shape}")
+        #print(f"DEBUG: AdaptiveLayerNorm a shape: {a.shape}, s shape: {s.shape}")
         
         try:
             # Try direct style modulation
@@ -1169,8 +1169,8 @@ class Attention(nn.Module):
             g = g.view(g.shape[:-1] + (self.num_heads, -1))
             
             # Print shapes for debugging
-            print(f"DEBUG: o shape before multiplication: {o.shape}")
-            print(f"DEBUG: g shape before multiplication: {g.shape}")
+            #print(f"DEBUG: o shape before multiplication: {o.shape}")
+            #print(f"DEBUG: g shape before multiplication: {g.shape}")
             
             # Instead of trying to adapt the tensors, we'll bypass the gating mechanism
             # if the shapes are incompatible
