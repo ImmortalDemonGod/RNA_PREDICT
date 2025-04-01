@@ -513,6 +513,9 @@ def run_stageD_diffusion(
             override_input_features=atom_feature_dict,
             debug_logging=False,
         )
+        # Squeeze extra dimension if present to ensure correct output shape
+        if coords_final.ndim == 4 and coords_final.shape[1] == 1:
+            coords_final = coords_final.squeeze(1)
         return coords_final
 
     elif mode == "train":
