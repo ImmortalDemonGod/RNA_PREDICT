@@ -6,6 +6,7 @@ from rna_predict.pipeline.stageB.torsion.torsion_bert_predictor import (
 )
 from rna_predict.pipeline.stageC.stage_c_reconstruction import run_stageC
 
+
 class RNAPredictor:
     """
     High-level interface for the RNA_PREDICT pipeline.
@@ -49,7 +50,7 @@ class RNAPredictor:
         )
 
         self.stageC_method = stageC_method
-    
+
     # @snoop
     def predict_3d_structure(self, sequence: str) -> dict:
         """
@@ -158,15 +159,15 @@ class RNAPredictor:
         rows = []
         for i, nt in enumerate(sequence):
             row = {"ID": i + 1, "resname": nt, "resid": i + 1}
-            
+
             # Check if any coordinate is NaN and preserve it
             is_x_nan = torch.isnan(final_coords[i, 0]).item()
             is_y_nan = torch.isnan(final_coords[i, 1]).item()
             is_z_nan = torch.isnan(final_coords[i, 2]).item()
-            
-            x_val = float('nan') if is_x_nan else float(final_coords[i, 0])
-            y_val = float('nan') if is_y_nan else float(final_coords[i, 1])
-            z_val = float('nan') if is_z_nan else float(final_coords[i, 2])
+
+            x_val = float("nan") if is_x_nan else float(final_coords[i, 0])
+            y_val = float("nan") if is_y_nan else float(final_coords[i, 1])
+            z_val = float("nan") if is_z_nan else float(final_coords[i, 2])
 
             # replicate the single predicted coordinate across multiple predictions
             for rep_i in range(1, prediction_repeats + 1):
