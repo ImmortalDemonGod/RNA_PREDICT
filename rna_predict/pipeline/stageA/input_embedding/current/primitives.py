@@ -16,7 +16,7 @@
 import math
 import re
 from functools import partial
-from typing import Any, Optional, Union
+from typing import Optional, Union
 
 import torch
 import torch.nn as nn
@@ -28,7 +28,6 @@ from protenix.model.utils import (
     reshape_at_dim,
 )
 from protenix.openfold_local.model.primitives import LayerNorm
-from protenix.openfold_local.utils.chunk_utils import chunk_layer
 from torch.nn import Linear
 
 LinearNoBias = partial(Linear, bias=False)
@@ -71,10 +70,10 @@ class AdaptiveLayerNorm(nn.Module):
         """
         a = self.layernorm_a(a)
         s = self.layernorm_s(s)
-        
+
         # Print shapes for debugging
-        #print(f"DEBUG: AdaptiveLayerNorm a shape: {a.shape}, s shape: {s.shape}")
-        
+        # print(f"DEBUG: AdaptiveLayerNorm a shape: {a.shape}, s shape: {s.shape}")
+
         try:
             # Try direct style modulation
             scale = torch.sigmoid(self.linear_s(s))
@@ -82,11 +81,13 @@ class AdaptiveLayerNorm(nn.Module):
             a = scale * a + shift
         except RuntimeError as e:
             # If shapes don't match, we'll bypass the conditioning
-            print(f"WARNING: Skipping adaptive layernorm conditioning due to shape mismatch: {e}")
+            print(
+                f"WARNING: Skipping adaptive layernorm conditioning due to shape mismatch: {e}"
+            )
             print(f"         a shape: {a.shape}, s shape: {s.shape}")
             # Return the layernormed tensor without conditioning as a fallback
             pass
-            
+
         return a
 
 
@@ -206,11 +207,13 @@ def _attention(
     # Debug dimension issue - print shapes if dimensions are small enough for debugging
     if q.numel() < 1000 and k.numel() < 1000:
         print(f"q.shape: {q.shape}, k.shape: {k.shape}, v.shape: {v.shape}")
-    
+
     # Ensure k and v have matching shapes
     if k.shape != v.shape:
-        raise ValueError(f"Key and value tensors must have the same shape. Got k:{k.shape}, v:{v.shape}")
-    
+        raise ValueError(
+            f"Key and value tensors must have the same shape. Got k:{k.shape}, v:{v.shape}"
+        )
+
     if use_efficient_implementation:
         try:
             attn_output = F.scaled_dot_product_attention(
@@ -224,27 +227,26 @@ def _attention(
         except RuntimeError:
             # Fall back to manual implementation if scaled_dot_product_attention fails
             pass
-    
+
     # [..., n_kv, d] -> [..., d, n_kv]
     k = k.transpose(-1, -2)
-    
+
     # Check for dimension mismatch before matrix multiplication
     q_dim = q.size(-1)
     k_dim = k.size(-2)
-    
+
     if q_dim != k_dim:
         # Handle dimension mismatch by padding or truncating
         if q_dim < k_dim:
             # Pad q with zeros to match k's dimension
             padding = torch.zeros(
-                *q.shape[:-1], k_dim - q_dim, 
-                dtype=q.dtype, device=q.device
+                *q.shape[:-1], k_dim - q_dim, dtype=q.dtype, device=q.device
             )
             q = torch.cat([q, padding], dim=-1)
         else:
             # Truncate q to match k's dimension
             q = q[..., :k_dim]
-    
+
     try:
         # [..., n_q, d], [..., d, n_kv] -> [..., n_q, n_kv]
         attn_weights = q @ k
@@ -254,10 +256,7 @@ def _attention(
         print(f"Matrix multiplication failed: {e}")
         n_q = q.shape[-2]
         n_kv = k.shape[-1]
-        attn_weights = torch.zeros(
-            *q.shape[:-1], n_kv, 
-            dtype=q.dtype, device=q.device
-        )
+        attn_weights = torch.zeros(*q.shape[:-1], n_kv, dtype=q.dtype, device=q.device)
 
     if attn_bias is not None:
         # Handle dimension mismatch between attn_weights and attn_bias
@@ -266,7 +265,7 @@ def _attention(
             try:
                 # First attempt: broadcasting
                 reshaped_bias = attn_bias
-                
+
                 # If number of dimensions don't match, try to add/remove dimensions
                 if attn_weights.dim() > attn_bias.dim():
                     # Add dimensions to attn_bias
@@ -276,11 +275,18 @@ def _attention(
                     # Need to flatten some dimensions in attn_bias
                     dims_to_flatten = attn_bias.dim() - attn_weights.dim() + 1
                     if dims_to_flatten > 0:
-                        new_shape = list(attn_bias.shape[:-dims_to_flatten]) + [-1] + list(attn_bias.shape[-1:])
+                        new_shape = (
+                            list(attn_bias.shape[:-dims_to_flatten])
+                            + [-1]
+                            + list(attn_bias.shape[-1:])
+                        )
                         reshaped_bias = attn_bias.reshape(*new_shape)
-                
+
                 # Check if dimensions are compatible for addition
-                if all(a == b or a == 1 or b == 1 for a, b in zip(attn_weights.shape, reshaped_bias.shape)):
+                if all(
+                    a == b or a == 1 or b == 1
+                    for a, b in zip(attn_weights.shape, reshaped_bias.shape)
+                ):
                     # They are broadcastable, proceed with addition
                     if inplace_safe:
                         attn_weights += reshaped_bias
@@ -294,21 +300,21 @@ def _attention(
                         # Take just the necessary part of the attention bias
                         n_q = min(attn_weights.shape[-2], reshaped_bias.shape[-2])
                         n_k = min(attn_weights.shape[-1], reshaped_bias.shape[-1])
-                        
+
                         # Slice the tensors to the common sizes
                         sliced_weights = attn_weights[..., :n_q, :n_k]
                         sliced_bias = reshaped_bias[..., :n_q, :n_k]
-                        
+
                         # Expand the sliced bias to match the weights shape
                         final_shape = sliced_weights.shape
                         expanded_bias = sliced_bias.expand_as(sliced_weights)
-                        
+
                         # Apply the bias to the sliced weights
                         if inplace_safe:
                             sliced_weights += expanded_bias
                         else:
                             sliced_weights = sliced_weights + expanded_bias
-                        
+
                         # Create a new attention weights tensor with the same shape as original
                         result = torch.zeros_like(attn_weights)
                         result[..., :n_q, :n_k] = sliced_weights
@@ -316,22 +322,30 @@ def _attention(
                     else:
                         # Last resort: treat the bias as a completely separate entity
                         # that we'll manually broadcast
-                        batch_dims = attn_weights.dim() - 2  # Exclude query and key dims
-                        expanded_shape = [1] * batch_dims + list(attn_weights.shape[-2:])
+                        batch_dims = (
+                            attn_weights.dim() - 2
+                        )  # Exclude query and key dims
+                        expanded_shape = [1] * batch_dims + list(
+                            attn_weights.shape[-2:]
+                        )
                         for i in range(min(batch_dims, reshaped_bias.dim() - 2)):
                             expanded_shape[i] = reshaped_bias.shape[i]
-                        
+
                         # Reshape bias and broadcast
                         reshaped_bias = reshaped_bias.reshape(*expanded_shape)
                         if inplace_safe:
                             attn_weights += reshaped_bias
                         else:
                             attn_weights = attn_weights + reshaped_bias
-            
+
             except Exception as e:
                 # If all else fails, log the error and continue without the bias
-                print(f"Warning: Failed to apply attention bias due to shape mismatch: {e}")
-                print(f"attn_weights.shape: {attn_weights.shape}, attn_bias.shape: {attn_bias.shape}")
+                print(
+                    f"Warning: Failed to apply attention bias due to shape mismatch: {e}"
+                )
+                print(
+                    f"attn_weights.shape: {attn_weights.shape}, attn_bias.shape: {attn_bias.shape}"
+                )
         else:
             # Shapes match, simple addition
             if inplace_safe:
@@ -350,10 +364,12 @@ def _attention(
         d = v.shape[-1]
         n_q = attn_weights.shape[-2]
         attn_output = torch.zeros(
-            *attn_weights.shape[:-1], d,
-            dtype=attn_weights.dtype, device=attn_weights.device
+            *attn_weights.shape[:-1],
+            d,
+            dtype=attn_weights.dtype,
+            device=attn_weights.device,
         )
-    
+
     return attn_output
 
 
@@ -427,16 +443,16 @@ def rearrange_qk_to_dense_trunk(
         q_tensor = q_list[i]
         dim_q_i = dim_q_list[i]
         n_q_actual = q_tensor.shape[dim_q_i]
-        
+
         # Create a dummy tensor with the right shape for the trunk structure
         # This will have shape [..., n_trunks, n_queries, ...]
         orig_shape = list(q_tensor.shape)
         trunk_shape = orig_shape.copy()
-        trunk_shape[dim_q_i:dim_q_i+1] = [n_trunks, n_queries]
-        
+        trunk_shape[dim_q_i : dim_q_i + 1] = [n_trunks, n_queries]
+
         # Initialize with zeros
         q_trunked = q_tensor.new_zeros(trunk_shape)
-        
+
         # Fill in the data for each trunk directly
         for trunk_idx in range(n_trunks):
             # Determine the source range for this trunk
@@ -444,29 +460,29 @@ def rearrange_qk_to_dense_trunk(
             src_end = min(src_start + n_queries, n_q_actual)
             if src_end <= src_start:
                 continue  # Skip if no data for this trunk
-            
+
             # Determine target range in the trunked tensor
             target_len = src_end - src_start
-            
+
             # Prepare slices for source selection
             src_slices = [slice(None)] * len(orig_shape)
             src_slices[dim_q_i] = slice(src_start, src_end)
-            
+
             # Prepare slices for target placement
             tgt_slices = [slice(None)] * len(trunk_shape)
             tgt_slices[dim_q_i] = trunk_idx
             tgt_slices[dim_q_i + 1] = slice(0, target_len)
-            
+
             # Copy data from source to target
             src_data = q_tensor[tuple(src_slices)]
             q_trunked[tuple(tgt_slices)] = src_data
-        
+
         q_new.append(q_trunked)
 
     # Calculate padding for k
     pad_left = (n_keys - n_queries) // 2
     pad_right = int((n_trunks - 1) * n_queries + n_keys // 2 - n_q + 1)
-    
+
     # Process key tensors (k)
     k_new = []
     for i in range(len(k_list)):
@@ -474,16 +490,16 @@ def rearrange_qk_to_dense_trunk(
         k_tensor = k_list[i]
         dim_k_i = dim_k_list[i]
         n_k_actual = k_tensor.shape[dim_k_i]
-        
+
         # Create a dummy tensor with the right shape for the trunk structure
         # This will have shape [..., n_trunks, n_keys, ...]
         orig_shape = list(k_tensor.shape)
         trunk_shape = orig_shape.copy()
-        trunk_shape[dim_k_i:dim_k_i+1] = [n_trunks, n_keys]
-        
+        trunk_shape[dim_k_i : dim_k_i + 1] = [n_trunks, n_keys]
+
         # Initialize with zeros
         k_trunked = k_tensor.new_zeros(trunk_shape)
-        
+
         # Fill in the data for each trunk directly
         for trunk_idx in range(n_trunks):
             # Determine the source range for this trunk
@@ -491,23 +507,23 @@ def rearrange_qk_to_dense_trunk(
             src_end = min(src_start + n_keys, n_k_actual)
             if src_end <= src_start:
                 continue  # Skip if no data for this trunk
-            
+
             # Determine target range in the trunked tensor
             target_len = src_end - src_start
-            
+
             # Prepare slices for source selection
             src_slices = [slice(None)] * len(orig_shape)
             src_slices[dim_k_i] = slice(src_start, src_end)
-            
+
             # Prepare slices for target placement
             tgt_slices = [slice(None)] * len(trunk_shape)
             tgt_slices[dim_k_i] = trunk_idx
             tgt_slices[dim_k_i + 1] = slice(0, target_len)
-            
+
             # Copy data from source to target
             src_data = k_tensor[tuple(src_slices)]
             k_trunked[tuple(tgt_slices)] = src_data
-        
+
         k_new.append(k_trunked)
 
     # Create simple padding info
@@ -516,81 +532,92 @@ def rearrange_qk_to_dense_trunk(
         "k_pad_left": pad_left,
         "k_pad_right": pad_right,
     }
-    
+
     # Add mask information if requested
     if compute_mask:
         # Create a mask that marks which elements in the trunked tensor contain valid data
         q_masks = []
         k_masks = []
-        
+
         for i in range(num_q):
             # For query mask, reshape to match q_new dimensions
             q_mask = torch.zeros(trunk_shape, dtype=torch.bool, device=q_list[i].device)
-            
+
             for trunk_idx in range(n_trunks):
                 # Determine the source range for this trunk
                 src_start = trunk_idx * n_queries
                 src_end = min(src_start + n_queries, n_q)
                 if src_end <= src_start:
                     continue
-                
+
                 # Determine valid indices
                 valid_len = src_end - src_start
-                
+
                 # Set mask to True for valid indices
                 mask_slices = [slice(None)] * len(trunk_shape)
                 mask_slices[dim_q_list[i]] = trunk_idx
                 mask_slices[dim_q_list[i] + 1] = slice(0, valid_len)
                 q_mask[tuple(mask_slices)] = True
-            
+
             q_masks.append(q_mask)
-        
+
         for i in range(num_k):
             # For key mask, reshape to match k_new dimensions
             k_mask = torch.zeros(trunk_shape, dtype=torch.bool, device=k_list[i].device)
-            
+
             for trunk_idx in range(n_trunks):
                 # Determine the source range for this trunk
                 src_start = trunk_idx * n_queries
                 src_end = min(src_start + n_keys, n_k)
                 if src_end <= src_start:
                     continue
-                
+
                 # Determine valid indices
                 valid_len = src_end - src_start
-                
+
                 # Set mask to True for valid indices
                 mask_slices = [slice(None)] * len(trunk_shape)
                 mask_slices[dim_k_list[i]] = trunk_idx
                 mask_slices[dim_k_list[i] + 1] = slice(0, valid_len)
                 k_mask[tuple(mask_slices)] = True
-            
+
             k_masks.append(k_mask)
-        
+
         # Create combined trunk mask for attention
         # This has shape [..., n_trunks, n_queries, n_keys]
         mask_shape = list(q_masks[0].shape)
         mask_shape.insert(dim_q_list[0] + 2, n_keys)  # Add dimension for keys
-        
-        mask_trunked = torch.zeros(mask_shape, dtype=torch.bool, device=q_list[0].device)
-        
+
+        mask_trunked = torch.zeros(
+            mask_shape, dtype=torch.bool, device=q_list[0].device
+        )
+
         # Set mask_trunked to True where both q_mask and k_mask are True
         for trunk_idx in range(n_trunks):
             q_valid_slices = [slice(None)] * len(mask_shape)
             q_valid_slices[dim_q_list[0]] = trunk_idx
-            
+
             k_valid_slices = [slice(None)] * len(mask_shape)
             k_valid_slices[dim_k_list[0]] = trunk_idx
-            
+
             # Create a mask for this trunk
             for q_idx in range(n_queries):
                 for k_idx in range(n_keys):
-                    q_valid = q_masks[0][tuple([slice(None)] * dim_q_list[0] + [trunk_idx, q_idx])]
-                    k_valid = k_masks[0][tuple([slice(None)] * dim_k_list[0] + [trunk_idx, k_idx])]
-                    
+                    q_valid = q_masks[0][
+                        tuple([slice(None)] * dim_q_list[0] + [trunk_idx, q_idx])
+                    ]
+                    k_valid = k_masks[0][
+                        tuple([slice(None)] * dim_k_list[0] + [trunk_idx, k_idx])
+                    ]
+
                     if q_valid.any() and k_valid.any():
-                        mask_trunked[tuple([slice(None)] * dim_q_list[0] + [trunk_idx, q_idx, k_idx])] = True
-        
+                        mask_trunked[
+                            tuple(
+                                [slice(None)] * dim_q_list[0]
+                                + [trunk_idx, q_idx, k_idx]
+                            )
+                        ] = True
+
         padding_info["q_mask"] = q_masks
         padding_info["k_mask"] = k_masks
         padding_info["mask_trunked"] = mask_trunked
@@ -732,13 +759,16 @@ def rearrange_to_dense_trunk(
                 else:
                     # If we're near the end, we may need to handle edge case
                     # Just create a zero tensor with the right shape
-                    window_shape = list(attn_bias_split.shape[:-3]) + [n_queries, n_keys]
+                    window_shape = list(attn_bias_split.shape[:-3]) + [
+                        n_queries,
+                        n_keys,
+                    ]
                     window = torch.zeros(window_shape, device=attn_bias.device)
-                
+
                 # Add trunk dimension
                 window = window.unsqueeze(-3)
                 attn_bias_trunked.append(window)
-            
+
             # Concatenate along the trunk dimension
             attn_bias_trunked = torch.cat(attn_bias_trunked, dim=-3)
 
@@ -749,81 +779,83 @@ def rearrange_to_dense_trunk(
             attn_bias_trunked = torch.zeros(attn_bias_shape, device=q.device)
 
         return q_trunked, k_trunked, v_trunked, attn_bias_trunked, q_pad_length
-    
+
     except Exception:
         # Fallback implementation if unfold or other operations fail
         batch_dims = q.shape[:-2]
         n = q.shape[-2]
         d = q.shape[-1]
-        
+
         # Calculate the number of trunks and padding
         n_trunks = int(math.ceil(n / n_queries))
         q_pad_length = n_trunks * n_queries - n
-        
+
         # Process the query tensor
         padded_q = torch.nn.functional.pad(q, (0, 0, 0, q_pad_length))
         q_trunked = padded_q.reshape(*batch_dims, n_trunks, n_queries, d)
-        
+
         # Process key and value tensors
         pad_left = (n_keys - n_queries) // 2
         pad_right = int((n_trunks - 1) * n_queries + n_keys // 2 - n + 1)
-        
+
         padded_k = torch.nn.functional.pad(k, (0, 0, pad_left, pad_right))
         padded_v = torch.nn.functional.pad(v, (0, 0, pad_left, pad_right))
-        
+
         # Create windows manually to avoid unfold errors
         k_windows = []
         v_windows = []
-        
+
         for i in range(n_trunks):
             start_idx = i * n_queries
             end_idx = min(start_idx + n_keys, padded_k.shape[-2])
-            
+
             # Extract the window
             k_window = padded_k[..., start_idx:end_idx, :]
             v_window = padded_v[..., start_idx:end_idx, :]
-            
+
             # Pad if needed
             if k_window.shape[-2] < n_keys:
                 pad_size = n_keys - k_window.shape[-2]
                 k_window = torch.nn.functional.pad(k_window, (0, 0, 0, pad_size))
                 v_window = torch.nn.functional.pad(v_window, (0, 0, 0, pad_size))
-            
+
             # Add trunk dimension
             k_window = k_window.unsqueeze(-3)
             v_window = v_window.unsqueeze(-3)
-            
+
             k_windows.append(k_window)
             v_windows.append(v_window)
-        
+
         # Concatenate windows
         k_trunked = torch.cat(k_windows, dim=-3)
         v_trunked = torch.cat(v_windows, dim=-3)
-        
+
         # Create attention bias tensor
         attn_bias_shape = list(batch_dims) + [n_trunks, n_queries, n_keys]
         attn_bias_trunked = torch.zeros(attn_bias_shape, device=q.device)
-        
+
         # If attn_bias is provided, copy values
         if attn_bias is not None:
-            padded_attn_bias = torch.nn.functional.pad(attn_bias, (pad_left, pad_right, 0, q_pad_length))
-            
+            padded_attn_bias = torch.nn.functional.pad(
+                attn_bias, (pad_left, pad_right, 0, q_pad_length)
+            )
+
             for i in range(n_trunks):
                 start_idx = i * n_queries
                 end_idx = min(start_idx + n_keys, padded_attn_bias.shape[-1])
-                q_end = min(n, (i+1) * n_queries)
+                q_end = min(n, (i + 1) * n_queries)
                 q_start = i * n_queries
-                
+
                 if q_start < n and q_end > q_start:
                     q_slice = slice(q_start, q_end)
                     k_slice = slice(start_idx, end_idx)
-                    
+
                     # Copy attention bias values
                     window_width = end_idx - start_idx
-                    attn_bias_trunked[..., i, :q_end-q_start, :window_width] = (
+                    attn_bias_trunked[..., i, : q_end - q_start, :window_width] = (
                         padded_attn_bias[..., q_start:q_end, start_idx:end_idx]
                     )
-        
+
         return q_trunked, k_trunked, v_trunked, attn_bias_trunked, q_pad_length
 
 
@@ -875,9 +907,7 @@ def _local_attention(
         v_trunked,
         attn_bias_trunked,
         q_pad_length,
-    ) = rearrange_to_dense_trunk(
-        q, k, v, n_queries, n_keys, attn_bias, inf=inf
-    )
+    ) = rearrange_to_dense_trunk(q, k, v, n_queries, n_keys, attn_bias, inf=inf)
 
     # Combine the trunked attention bias with any additional bias provided
     if trunked_attn_bias is not None:
@@ -885,43 +915,68 @@ def _local_attention(
             # Check for dimension mismatch and broadcast/reshape as needed
             if attn_bias_trunked.dim() != trunked_attn_bias.dim() or any(
                 a_size != b_size and a_size != 1 and b_size != 1
-                for a_size, b_size in zip(attn_bias_trunked.shape, trunked_attn_bias.shape)
+                for a_size, b_size in zip(
+                    attn_bias_trunked.shape, trunked_attn_bias.shape
+                )
             ):
                 # Try to fix the shape mismatch by broadcasting or reshaping
                 # First get the larger shape
                 target_shape = []
-                for a_size, b_size in zip(attn_bias_trunked.shape, trunked_attn_bias.shape):
+                for a_size, b_size in zip(
+                    attn_bias_trunked.shape, trunked_attn_bias.shape
+                ):
                     target_shape.append(max(a_size, b_size))
-                
+
                 # Then try to broadcast each tensor to this shape if possible
                 try:
                     # Apply careful broadcasting that ensures matching dimensions
                     attn_bias_trunked_expanded = attn_bias_trunked.expand(*target_shape)
                     trunked_attn_bias_expanded = trunked_attn_bias.expand(*target_shape)
-                    attn_bias_trunked = attn_bias_trunked_expanded + trunked_attn_bias_expanded
+                    attn_bias_trunked = (
+                        attn_bias_trunked_expanded + trunked_attn_bias_expanded
+                    )
                 except RuntimeError as e:
                     # If we can't broadcast, try to reshape the smaller tensor if possible
                     if "The size of tensor a" in str(e) and "must match" in str(e):
                         # Find the non-matching dimension from the error message
-                        dim_match = re.search(r"at non-singleton dimension (\d+)", str(e))
+                        dim_match = re.search(
+                            r"at non-singleton dimension (\d+)", str(e)
+                        )
                         if dim_match:
                             prob_dim = int(dim_match.group(1))
                             # Reshape trunked_attn_bias if it has fewer dimensions than attn_bias_trunked
-                            if (trunked_attn_bias.dim() < attn_bias_trunked.dim() or 
-                                trunked_attn_bias.shape[prob_dim] < attn_bias_trunked.shape[prob_dim]):
+                            if (
+                                trunked_attn_bias.dim() < attn_bias_trunked.dim()
+                                or trunked_attn_bias.shape[prob_dim]
+                                < attn_bias_trunked.shape[prob_dim]
+                            ):
                                 # Reshape trunked_attn_bias to match attn_bias_trunked by repeating along the problematic dimension
                                 repeat_shape = [1] * trunked_attn_bias.dim()
                                 if prob_dim < len(repeat_shape):
-                                    repeat_shape[prob_dim] = attn_bias_trunked.shape[prob_dim] // trunked_attn_bias.shape[prob_dim]
-                                    trunked_attn_bias = trunked_attn_bias.repeat(*repeat_shape)
-                                    attn_bias_trunked = attn_bias_trunked + trunked_attn_bias
+                                    repeat_shape[prob_dim] = (
+                                        attn_bias_trunked.shape[prob_dim]
+                                        // trunked_attn_bias.shape[prob_dim]
+                                    )
+                                    trunked_attn_bias = trunked_attn_bias.repeat(
+                                        *repeat_shape
+                                    )
+                                    attn_bias_trunked = (
+                                        attn_bias_trunked + trunked_attn_bias
+                                    )
                             else:
                                 # Try reshaping attn_bias_trunked instead
                                 repeat_shape = [1] * attn_bias_trunked.dim()
                                 if prob_dim < len(repeat_shape):
-                                    repeat_shape[prob_dim] = trunked_attn_bias.shape[prob_dim] // attn_bias_trunked.shape[prob_dim]
-                                    attn_bias_trunked = attn_bias_trunked.repeat(*repeat_shape)
-                                    attn_bias_trunked = attn_bias_trunked + trunked_attn_bias
+                                    repeat_shape[prob_dim] = (
+                                        trunked_attn_bias.shape[prob_dim]
+                                        // attn_bias_trunked.shape[prob_dim]
+                                    )
+                                    attn_bias_trunked = attn_bias_trunked.repeat(
+                                        *repeat_shape
+                                    )
+                                    attn_bias_trunked = (
+                                        attn_bias_trunked + trunked_attn_bias
+                                    )
                         else:
                             # Since we can't determine the problematic dimension, just use trunked_attn_bias
                             attn_bias_trunked = trunked_attn_bias
@@ -943,23 +998,25 @@ def _local_attention(
     # Make attention bias mask explicit - convert 0s to -inf
     if attn_bias_trunked is not None:
         # Check if attn_bias_trunked contains negative infinity values
-        has_neg_inf = (attn_bias_trunked == -float('inf')).any()
-        
+        has_neg_inf = (attn_bias_trunked == -float("inf")).any()
+
         if not has_neg_inf:
             # Create a mask for padded positions to avoid attending to padding
             n_atoms = q.shape[-2]
             n_trunks = q_trunked.shape[-3]
-            
+
             # Create a mask with the correct shape to match attn_bias_trunked
             mask_shape = attn_bias_trunked.shape
-            mask = torch.ones(mask_shape, dtype=torch.bool, device=attn_bias_trunked.device)
-            
-            # Figure out the index positions in the mask tensor that correspond to 
+            mask = torch.ones(
+                mask_shape, dtype=torch.bool, device=attn_bias_trunked.device
+            )
+
+            # Figure out the index positions in the mask tensor that correspond to
             # query and key dimensions (these might not always be at the last two dims)
             mask_rank = len(mask_shape)
             query_dim = mask_rank - 2  # Second to last dimension
-            key_dim = mask_rank - 1    # Last dimension
-            
+            key_dim = mask_rank - 1  # Last dimension
+
             # Mark padding in queries as invalid, handling arbitrary tensor shapes
             for i in range(n_trunks):
                 start_q = i * n_queries
@@ -967,12 +1024,12 @@ def _local_attention(
                 if end_q < start_q + n_queries:
                     # Create indexing slices for all dimensions
                     slices = [slice(None)] * mask_rank
-                    
+
                     # Only set specific slices for the trunk and query dimensions
                     # For the trunk dimension, we select only the i-th trunk
                     if i < mask_shape[-3]:  # Make sure i is within bounds
                         slices[-3] = i
-                        
+
                         # For the query dimension, we select from end_q-start_q to the end
                         query_len = mask_shape[query_dim]
                         padding_start = max(0, min(end_q - start_q, query_len))
@@ -980,7 +1037,7 @@ def _local_attention(
                             slices[query_dim] = slice(padding_start, None)
                             # Apply the mask update
                             mask[tuple(slices)] = False
-            
+
             # Apply the mask to attn_bias_trunked
             attn_bias_trunked = attn_bias_trunked.masked_fill(~mask, -inf)
 
@@ -1167,11 +1224,11 @@ class Attention(nn.Module):
 
             # [*, G/Q, H, C_hidden]
             g = g.view(g.shape[:-1] + (self.num_heads, -1))
-            
+
             # Print shapes for debugging
-            #print(f"DEBUG: o shape before multiplication: {o.shape}")
-            #print(f"DEBUG: g shape before multiplication: {g.shape}")
-            
+            # print(f"DEBUG: o shape before multiplication: {o.shape}")
+            # print(f"DEBUG: g shape before multiplication: {g.shape}")
+
             # Instead of trying to adapt the tensors, we'll bypass the gating mechanism
             # if the shapes are incompatible
             try:
@@ -1234,27 +1291,33 @@ class Attention(nn.Module):
                     # Make sure the last 2 dims (attention dimensions) match
                     if attn_bias.shape[-2:] == q.shape[-2:]:
                         # Expand attn_bias to match q's batch dimensions
-                        attn_bias = attn_bias.expand((*q.shape[:-2], *attn_bias.shape[-2:]))
+                        attn_bias = attn_bias.expand(
+                            (*q.shape[:-2], *attn_bias.shape[-2:])
+                        )
             else:
                 # Instead of asserting that shapes match exactly, adapt the bias tensor
                 # Original: assert len(attn_bias.shape) == len(q.shape) - 1
                 # Original: assert attn_bias.shape[:-2] == q.shape[:-3]
-                
+
                 # Ensure the bias tensor has the right number of dimensions
                 while len(attn_bias.shape) < len(q.shape) - 1:
                     # Add dimensions until we have one less than q (to then add the head dim)
                     attn_bias = attn_bias.unsqueeze(0)
-                
+
                 # Make sure the dimensions match q's shape before the head dimension
                 if attn_bias.shape[:-2] != q.shape[:-3]:
                     # Try to adapt attn_bias shape to match q's batch dimensions
                     try:
                         # Expand to match q's batch dimensions
-                        attn_bias = attn_bias.expand((*q.shape[:-3], *attn_bias.shape[-2:]))
+                        attn_bias = attn_bias.expand(
+                            (*q.shape[:-3], *attn_bias.shape[-2:])
+                        )
                     except RuntimeError:
                         # If expansion fails, this is a legitimate error
-                        print(f"WARNING: Failed to adapt attn_bias shape {attn_bias.shape} to match q shape {q.shape}")
-                
+                        print(
+                            f"WARNING: Failed to adapt attn_bias shape {attn_bias.shape} to match q shape {q.shape}"
+                        )
+
                 # Expand at head dim to get shape [..., 1, Q, K]
                 attn_bias = attn_bias.unsqueeze(dim=-3)
 
@@ -1344,22 +1407,24 @@ def gather_pair_embedding_in_dense_trunk(
             where y[..., b, i, j, :] = x[..., idx_q[b, i], idx_k[b, j], :]
     """
     # Import the adapter function
-    from rna_predict.pipeline.stageA.input_embedding.current.shape_adapter import adapt_indices_for_gather
-    
+    from rna_predict.pipeline.stageA.input_embedding.current.shape_adapter import (
+        adapt_indices_for_gather,
+    )
+
     # Use the adapter to ensure indices have the correct shape
     idx_q, idx_k = adapt_indices_for_gather(idx_q, idx_k)
-    
+
     # Get the shape parameters
     N_b, N_q = idx_q.shape
     N_k = idx_k.shape[1]
-    
+
     # Expand idx_q and idx_k to match the shape required for advanced indexing
     idx_q_expanded = idx_q.unsqueeze(-1).expand(-1, -1, N_k)
     idx_k_expanded = idx_k.unsqueeze(1).expand(-1, N_q, -1)
-    
+
     # Use advanced indexing to gather the desired elements
     y = x[..., idx_q_expanded, idx_k_expanded, :]
-    
+
     return y
 
 
