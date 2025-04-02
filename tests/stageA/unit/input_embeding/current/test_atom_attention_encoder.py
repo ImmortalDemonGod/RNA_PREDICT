@@ -3,6 +3,7 @@ import torch
 
 from rna_predict.pipeline.stageA.input_embedding.current.transformer import (
     AtomAttentionEncoder,
+    AtomAttentionConfig,
 )
 
 
@@ -14,7 +15,7 @@ def test_atom_encoder_no_coords_original_fail():
     Original test that incorrectly sets atom_to_token_idx in [0..47]
     for only 12 tokens, guaranteeing an out-of-bounds error during scatter.
     """
-    encoder = AtomAttentionEncoder(
+    encoder = AtomAttentionEncoder.from_args(
         has_coords=False,
         c_atom=128,
         c_atompair=16,
@@ -45,7 +46,7 @@ def test_atom_encoder_no_coords_fixed():
     Corrected version: ensures each of the 48 atoms maps to an index in [0..11].
     We have 48 atoms, 12 tokens => 4 atoms per token. No out-of-bounds in scatter.
     """
-    encoder = AtomAttentionEncoder(
+    encoder = AtomAttentionEncoder.from_args(
         has_coords=False,
         c_atom=128,
         c_atompair=16,
@@ -69,7 +70,7 @@ def test_atom_encoder_no_coords_fixed():
         "deletion_mean": torch.zeros(1, 12, 1),
     }
 
-    a, q_l, c_l, p_lm = encoder(input_feature_dict)
+    a, q_l, c_l, p_lm = encoder.forward_legacy(input_feature_dict)
 
     # With has_coords=False, trunk logic is skipped => p_lm should be None
     assert p_lm is None, "Expected no trunk-based aggregator when has_coords=False"
