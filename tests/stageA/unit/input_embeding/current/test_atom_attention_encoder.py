@@ -63,14 +63,16 @@ def test_atom_encoder_no_coords_fixed():
     token_map = torch.repeat_interleave(torch.arange(12), 4)  # shape [48]
     assert token_map.shape[0] == 48
 
+    # Create input features with correct dimensions
+    num_atoms = 48
     input_feature_dict = {
         "atom_to_token_idx": token_map.unsqueeze(-1),  # shape [48, 1], all in [0..11]
-        "ref_pos": torch.randn(48, 3),
-        "ref_charge": torch.zeros(48, 1),
-        "ref_mask": torch.ones(48, 1, dtype=torch.bool),
-        "ref_element": torch.zeros(48, 128),
-        "ref_atom_name_chars": torch.zeros(48, 256),
-        "ref_space_uid": torch.zeros(48, 1),
+        "ref_pos": torch.randn(num_atoms, 3),  # [48, 3]
+        "ref_charge": torch.zeros(num_atoms, 1),  # [48, 1]
+        "ref_mask": torch.ones(num_atoms, 1, dtype=torch.bool),  # [48, 1]
+        "ref_element": torch.zeros(num_atoms, 128),  # [48, 128]
+        "ref_atom_name_chars": torch.zeros(num_atoms, 256),  # [48, 256]
+        "ref_space_uid": torch.zeros(num_atoms, 1),  # [48, 1]
         "restype": torch.zeros(1, 12, 32),  # batch=1, 12 tokens
         "profile": torch.zeros(1, 12, 32),
         "deletion_mean": torch.zeros(1, 12, 1),
@@ -85,8 +87,10 @@ def test_atom_encoder_no_coords_fixed():
     # a => shape [1, 12, 384] or [12, 384], check last dimension
     assert a.shape[-1] == 384, f"Token embedding last dim must be 384, got {a.shape}"
 
-    # q_l, c_l => per-atom embeddings => shape [48,128] or [1,48,128]
-    assert q_l.shape[-1] == 128
-    assert c_l.shape[-1] == 128
+    # q_l is actually p_l (pair features) => shape [48, 16] or [1, 48, 16]
+    assert q_l.shape[-1] == 16, f"Pair features last dim must be 16, got {q_l.shape}"
+    
+    # c_l is the atom features => shape [48, 128] or [1, 48, 128]
+    assert c_l.shape[-1] == 128, f"Atom features last dim must be 128, got {c_l.shape}"
 
     print("test_atom_encoder_no_coords_fixed: PASS - no out-of-bounds error.")
