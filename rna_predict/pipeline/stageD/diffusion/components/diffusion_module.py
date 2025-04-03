@@ -215,32 +215,43 @@ class DiffusionModule(nn.Module):
 
     def _determine_n_sample(self, r_noisy: torch.Tensor) -> Tuple[int, torch.Tensor]:
         """Determines N_sample and ensures r_noisy has the sample dimension."""
-        n_sample_dim_index = -3 # Expected: [..., N_sample, N_atom, 3]
+        print(f"[DEBUG] _determine_n_sample input shape: {r_noisy.shape}")
+        n_sample_dim_index = -3  # Expected: [..., N_sample, N_atom, 3]
         original_ndim = r_noisy.ndim
-        original_shape = r_noisy.shape # For warning messages
+        original_shape = r_noisy.shape
 
-        if original_ndim >= 4 and r_noisy.shape[n_sample_dim_index] > 0:
-            N_sample = r_noisy.size(n_sample_dim_index)
-            # If we have a 5D tensor, try to squeeze it to 4D
-            if original_ndim == 5:
-                # Check if any dimension before N_sample is 1 and can be squeezed
-                for dim in range(original_ndim - 3):  # Only check dimensions before N_sample
-                    if r_noisy.shape[dim] == 1:
-                        r_noisy = r_noisy.squeeze(dim)
-                        break  # Only squeeze one dimension
-                if r_noisy.dim() == 5:
-                    warnings.warn(f"Could not squeeze 5D tensor to 4D. Shape remains: {r_noisy.shape}")
-        elif original_ndim == 3:
+        # Handle 5D tensors by squeezing unnecessary dimensions
+        if original_ndim == 5:
+            # Check if any dimension before N_sample is 1 and can be squeezed
+            for dim in range(original_ndim - 3):  # Only check dimensions before N_sample
+                if r_noisy.shape[dim] == 1:
+                    r_noisy = r_noisy.squeeze(dim)
+                    print(f"[DEBUG] Squeezed dimension {dim}, new shape: {r_noisy.shape}")
+                    break
+
+        # Handle 4D tensors
+        if r_noisy.ndim == 4:
+            if r_noisy.shape[n_sample_dim_index] > 0:
+                N_sample = r_noisy.size(n_sample_dim_index)
+                print(f"[DEBUG] Found N_sample={N_sample} in 4D tensor")
+            else:
+                N_sample = 1
+                r_noisy = r_noisy.unsqueeze(n_sample_dim_index)
+                print(f"[DEBUG] Added sample dimension to 4D tensor, new shape: {r_noisy.shape}")
+        # Handle 3D tensors
+        elif r_noisy.ndim == 3:
             N_sample = 1
             r_noisy = r_noisy.unsqueeze(n_sample_dim_index)
+            print(f"[DEBUG] Added sample dimension to 3D tensor, new shape: {r_noisy.shape}")
         else:
-            N_sample = 1 # Assume 1 sample
-            if original_ndim >= 3:
+            N_sample = 1
+            if r_noisy.ndim >= 3:
                 r_noisy = r_noisy.unsqueeze(n_sample_dim_index)
-                warnings.warn(f"Unexpected shape {original_shape} for r_noisy. Assuming N_sample=1. Attempted unsqueeze to {r_noisy.shape}.")
+                print(f"[DEBUG] Added sample dimension to tensor, new shape: {r_noisy.shape}")
             else:
                 raise ValueError(f"Cannot handle r_noisy shape: {original_shape}")
 
+        print(f"[DEBUG] _determine_n_sample output - N_sample: {N_sample}, shape: {r_noisy.shape}")
         return N_sample, r_noisy
 
     def _run_with_checkpointing(self, module: nn.Module, *args, **kwargs) -> Any: # Changed return type hint
@@ -389,6 +400,21 @@ class DiffusionModule(nn.Module):
         s_single_proj = self.linear_no_bias_s(self.layernorm_s(s_single))
         print(f"[DEBUG] s_single_proj shape: {s_single_proj.shape}")
 
+        # Ensure a_token and s_single_proj have compatible shapes
+        if a_token.shape != s_single_proj.shape:
+            print(f"[DEBUG] Shape mismatch - a_token: {a_token.shape}, s_single_proj: {s_single_proj.shape}")
+            # Try to reshape s_single_proj to match a_token's shape
+            if len(a_token.shape) > len(s_single_proj.shape):
+                # Add missing dimensions to s_single_proj
+                for _ in range(len(a_token.shape) - len(s_single_proj.shape)):
+                    s_single_proj = s_single_proj.unsqueeze(0)
+                print(f"[DEBUG] Reshaped s_single_proj to: {s_single_proj.shape}")
+            elif len(s_single_proj.shape) > len(a_token.shape):
+                # Add missing dimensions to a_token
+                for _ in range(len(s_single_proj.shape) - len(a_token.shape)):
+                    a_token = a_token.unsqueeze(0)
+                print(f"[DEBUG] Reshaped a_token to: {a_token.shape}")
+
         if a_token.shape == s_single_proj.shape:
             if inplace_safe:
                 a_token += s_single_proj
@@ -402,13 +428,27 @@ class DiffusionModule(nn.Module):
         print("[DEBUG] Expanding z_pair")
         # Target ndim should be a_token.ndim + 1 (e.g., if a=4D, z should be 5D)
         target_z_ndim = a_token.ndim + 1
-        z_pair_expanded = _ensure_tensor_shape(
-            z_pair,
-            target_ndim=target_z_ndim,
-            ref_tensor=a_token.unsqueeze(-1), # Use a_token shape as reference (adding feature dim)
-            warn_prefix="[f_forward z_pair post-a_token]"
-        )
-        print(f"[DEBUG] z_pair_expanded shape: {z_pair_expanded.shape}")
+        print(f"[DEBUG] Target z_pair ndim: {target_z_ndim}, current z_pair shape: {z_pair.shape}")
+        
+        # First ensure z_pair has the right number of dimensions
+        while z_pair.ndim < target_z_ndim:
+            z_pair = z_pair.unsqueeze(0)
+            print(f"[DEBUG] Added dimension to z_pair, new shape: {z_pair.shape}")
+        
+        # Then try to match the feature dimension
+        try:
+            z_pair_expanded = _ensure_tensor_shape(
+                z_pair,
+                target_ndim=target_z_ndim,
+                ref_tensor=a_token.unsqueeze(-1),  # Use a_token shape as reference (adding feature dim)
+                warn_prefix="[f_forward z_pair post-a_token]"
+            )
+            print(f"[DEBUG] z_pair_expanded shape: {z_pair_expanded.shape}")
+        except RuntimeError as e:
+            print(f"[DEBUG] Failed to expand z_pair: {e}")
+            # If expansion fails, try to reshape z_pair to match a_token's dimensions
+            z_pair_expanded = z_pair.view(*a_token.shape[:-1], -1)
+            print(f"[DEBUG] Reshaped z_pair to: {z_pair_expanded.shape}")
 
         # Explicitly type the output of the transformer
         print("[DEBUG] Applying Diffusion Transformer")
