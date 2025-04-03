@@ -165,8 +165,8 @@ class ProtenixIntegration:
         # Determine residue indices: use provided 'residue_index' if available, otherwise create a default range.
         if "residue_index" in input_features:
             res_idx = input_features["residue_index"].to(self.device)
-            # Ensure res_idx is 1D by squeezing any extra dimensions
-            while res_idx.dim() > 1:
+            # Only squeeze if shape is [N_token, 1]
+            if res_idx.dim() == 2 and res_idx.shape[1] == 1:
                 res_idx = res_idx.squeeze(-1)
         else:
             res_idx = torch.arange(N_token, device=self.device)
