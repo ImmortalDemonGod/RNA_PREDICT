@@ -56,7 +56,7 @@ def test_input_feature_embedder_deletion_mean_shape():
         "deletion_mean": deletion_mean,
     }
 
-    embedder = InputFeatureEmbedder(c_atom=128, c_atompair=16, c_token=384)
+    embedder = InputFeatureEmbedder(c_atom=128, c_atompair=16, c_token=449)
 
     try:
         out = embedder(input_feature_dict)

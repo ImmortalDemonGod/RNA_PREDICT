@@ -190,7 +190,20 @@ class InputFeatureEmbedder(nn.Module):
             if feat.dim() == 1:
                 feat = feat.unsqueeze(0).unsqueeze(-1)  # Add batch and feature dimensions
             elif feat.dim() == 2:
-                feat = feat.unsqueeze(0)  # Add batch dimension
+                # Handle the case where deletion_mean has shape (batch, 40) instead of (batch, num_tokens, 1)
+                if key == "deletion_mean" and feat.size(1) != N_token:
+                    # Reshape to (batch, num_tokens, 1) by repeating or truncating
+                    if feat.size(1) > N_token:
+                        feat = feat[:, :N_token]
+                    # Pad with zeros to match N_token
+                    padding = torch.zeros(
+                        (feat.size(0), N_token - feat.size(1)),
+                        device=feat.device,
+                        dtype=feat.dtype
+                    )
+                    feat = torch.cat([feat, padding], dim=1).unsqueeze(-1)
+                else:
+                    feat = feat.unsqueeze(0)  # Add batch dimension
             elif feat.dim() == 3 and feat.size(-1) == 1:
                 # Already has batch and token dimensions, but needs to be reshaped for concatenation
                 pass
@@ -233,9 +246,7 @@ class InputFeatureEmbedder(nn.Module):
         out = self.final_ln(s_inputs)
         print(f"DEBUG [Embedder]: Shape after final_ln (out): {out.shape}")
 
-        # Remove batch dimension if it was added
-        if out.size(0) == 1:
-            out = out.squeeze(0)
+        # Always maintain the batch dimension
         print(f"DEBUG [Embedder]: Shape before return (out): {out.shape}")
 
         return out

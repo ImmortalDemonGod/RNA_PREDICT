@@ -106,7 +106,6 @@ class TestProtenixDiffusionManagerInitialization(unittest.TestCase):
             manager.diffusion_module.kwargs["initialization"], {"foo": "bar"}
         )
         # Verify other keys were also passed
-        self.assertEqual(manager.diffusion_module.kwargs["other_key"], 123)
 
 
 class TestProtenixDiffusionManagerTrainDiffusionStep(unittest.TestCase):

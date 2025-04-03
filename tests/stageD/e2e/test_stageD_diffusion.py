@@ -19,7 +19,7 @@ def test_run_stageD_diffusion_inference(missing_s_inputs):
 
     # 2) trunk_embeddings with 'sing' (shape [B,10,384]) & 'pair'
     trunk_embeddings = {
-        "sing": torch.randn(1, 10, 384),
+        "s_trunk": torch.randn(1, 10, 384),
         "pair": torch.randn(1, 10, 10, 32),
     }
     if not missing_s_inputs:
@@ -45,9 +45,10 @@ def test_run_stageD_diffusion_inference(missing_s_inputs):
 
     # 5) Check no error, shape is plausible
     assert isinstance(out_coords, torch.Tensor)
-    assert out_coords.ndim == 3
-    # Typically [1, 8, 3] or something close
-    assert out_coords.shape[1] == partial_coords.shape[1]
+    assert out_coords.ndim == 4  # [batch, n_samples, n_atoms, 3]
+    # Typically [1, N_sample, 8, 3] or something close
+    assert out_coords.shape[2] == partial_coords.shape[1]  # Check number of atoms matches
+    assert out_coords.shape[3] == 3  # Check coordinate dimension
 
 
 def test_multi_step_inference_fallback():
