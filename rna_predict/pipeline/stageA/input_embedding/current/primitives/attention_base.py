@@ -119,7 +119,9 @@ class AdaptiveLayerNorm(nn.Module):
             )
             # Return original 'a' (without the added dimension if unsqueezing happened and failed)
             # If unsqueezing happened but the error occurred later, a still has the extra dim.
-            if a.shape != a_original_shape and a.dim() == a_original_shape.dim() + 1:
+            # --- Start Fix ---
+            if a.shape != a_original_shape and a.dim() == len(a_original_shape) + 1: # Use len() for a_original_shape
+            # --- End Fix ---
                 a = a.squeeze(
                     1
                 )  # Squeeze back to original dims if conditioning failed after unsqueeze
@@ -229,20 +231,14 @@ def _compute_attention_weights(
     d_k = q.size(-1)
     attn_weight = torch.matmul(q, k) / math.sqrt(d_k)
 
-    # Apply attention bias if provided and shapes match
+    # Apply attention bias if provided (rely on broadcasting)
     if attn_bias is not None:
-        # Debug output for shape mismatch
-        if attn_bias.shape != attn_weight.shape:
-            # Use warnings.warn
-            warnings.warn(
-                f"Shape mismatch - attn_weight: {attn_weight.shape}, attn_bias: {attn_bias.shape}"
-            )
-            warnings.warn(
-                "WARNING: Attention bias shape mismatch. Skipping bias application for stability."
-            )
-        else:
-            # Only apply bias if shapes match exactly
-            attn_weight = attn_weight + attn_bias
+        # --- Permanent Fix ---
+        # Directly add the bias, relying on PyTorch's broadcasting.
+        # The previous strict check was too restrictive and prevented valid broadcasting.
+        # If broadcasting fails here, it will raise a RuntimeError, which is appropriate.
+        attn_weight = attn_weight + attn_bias
+        # --- End Permanent Fix ---
 
     # Softmax normalization
     return F.softmax(attn_weight, dim=-1)
