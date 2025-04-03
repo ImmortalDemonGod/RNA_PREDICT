@@ -104,13 +104,16 @@ def _map_tokens_to_atoms(
 
     # Create gather indices for mapping tokens to atoms
     n_atoms = config.atom_to_token_idx.shape[1]
-    batch_indices = torch.arange(config.n_batch, device=config.atom_to_token_idx.device)
-    batch_indices = batch_indices.reshape(-1, 1).expand(-1, n_atoms)
+
+    # Add extra dimension to match token_feats_reshaped shape
+    gather_indices = (
+        config.atom_to_token_idx.unsqueeze(-1)
+        .unsqueeze(-1)
+        .expand(-1, -1, 1, token_feats.shape[-1])
+    )
 
     # Map tokens to atoms via gather operation
-    atom_feats = token_feats_reshaped.gather(
-        1, config.atom_to_token_idx.unsqueeze(-1).expand(-1, -1, token_feats.shape[-1])
-    )
+    atom_feats = token_feats_reshaped.gather(1, gather_indices)
 
     return atom_feats.squeeze(2)
 
@@ -136,7 +139,7 @@ def broadcast_token_to_local_atom_pair(
                 - device: (Optional) Device for computation
 
     Returns:
-        Broadcasted token features of shape (batch, n_atoms, n_atoms, channels)
+        Broadcasted token features of shape (batch, n_atoms, n_atoms, 2*channels)
 
     Raises:
         ValueError: If required parameters are missing
@@ -166,11 +169,18 @@ def broadcast_token_to_local_atom_pair(
     # Map tokens to atoms
     atom_feats = _map_tokens_to_atoms(token_feats, pair_config)
 
-    # Expand for pairwise interactions
-    atom_feats_i = atom_feats.unsqueeze(2)  # (batch, n_atoms, 1, channels)
-    atom_feats_j = atom_feats.unsqueeze(1)  # (batch, 1, n_atoms, channels)
+    # Get number of atoms from atom_feats shape
+    n_atoms = atom_feats.size(1)
 
-    # Combine pairwise features
+    # Expand for pairwise interactions: expand dimensions to enable broadcasting to shape (batch, n_atoms, n_atoms, channels)
+    atom_feats_i = atom_feats.unsqueeze(2).expand(
+        -1, n_atoms, n_atoms, -1
+    )  # (batch, n_atoms, n_atoms, channels)
+    atom_feats_j = atom_feats.unsqueeze(1).expand(
+        -1, n_atoms, n_atoms, -1
+    )  # (batch, n_atoms, n_atoms, channels)
+
+    # Combine pairwise features along the last dimension to form (batch, n_atoms, n_atoms, 2*channels)
     pair_feats = torch.cat([atom_feats_i, atom_feats_j], dim=-1)
 
     return pair_feats
