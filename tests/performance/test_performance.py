@@ -14,8 +14,9 @@ def test_diffusion_single_embed_caching():
     """
 
     trunk_embeddings = {
-        "sing": torch.randn(1, 10, 384),
+        "s_trunk": torch.randn(1, 10, 384),  # Add required s_trunk
         "pair": torch.randn(1, 10, 10, 32),
+        "sing": torch.randn(1, 10, 384), # Keep sing as fallback
     }
     partial_coords = torch.randn(1, 10, 3)
     diffusion_config = {

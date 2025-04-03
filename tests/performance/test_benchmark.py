@@ -88,14 +88,14 @@ class TestBenchmarkHelpers(unittest.TestCase):
         dev = "cpu"
         features = generate_synthetic_features(N_atom, N_token, dev)
         self.assertIn("ref_pos", features)
-        self.assertEqual(features["ref_pos"].shape, (N_atom, 3))
-        self.assertEqual(features["ref_charge"].shape, (N_atom, 1))
-        self.assertEqual(features["ref_element"].shape, (N_atom, 128))
-        self.assertEqual(features["ref_atom_name_chars"].shape, (N_atom, 256))
-        self.assertEqual(features["atom_to_token"].shape, (N_atom,))
-        self.assertEqual(features["restype"].shape, (N_token, 32))
-        self.assertEqual(features["profile"].shape, (N_token, 32))
-        self.assertEqual(features["deletion_mean"].shape, (N_token,))
+        self.assertEqual(features["ref_pos"].shape, (1, N_atom, 3))
+        self.assertEqual(features["ref_charge"].shape, (1, N_atom, 1))
+        self.assertEqual(features["ref_element"].shape, (1, N_atom, 128))
+        self.assertEqual(features["ref_atom_name_chars"].shape, (1, N_atom, 256))
+        self.assertEqual(features["atom_to_token"].shape, (1, N_atom))
+        self.assertEqual(features["restype"].shape, (1, N_token, 32))
+        self.assertEqual(features["profile"].shape, (1, N_token, 32))
+        self.assertEqual(features["deletion_mean"].shape, (1, N_token))
 
     def test_warmup_decoding(self):
         embedder = InputFeatureEmbedder()
