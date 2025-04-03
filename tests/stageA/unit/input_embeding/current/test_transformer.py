@@ -8,13 +8,16 @@ from hypothesis import strategies as st
 # If needed, adjust imports per your project structure.
 try:
     from rna_predict.pipeline.stageA.input_embedding.current.transformer import (
+        AtomAttentionConfig,
         AtomAttentionDecoder,
         AtomAttentionEncoder,
         AtomTransformer,
         AttentionPairBias,
         ConditionedTransitionBlock,
+        DecoderForwardParams,  # Added import
         DiffusionTransformer,
         DiffusionTransformerBlock,
+        EncoderForwardParams,  # Added import
     )
 except ImportError:
     # If your code is in a submodule like "rna_predict.pipeline.stageA.input_embedding.current.transformer",
@@ -376,7 +379,7 @@ class TestAtomAttentionEncoder(unittest.TestCase):
     """Tests for the AtomAttentionEncoder class."""
 
     def setUp(self):
-        self.encoder = AtomAttentionEncoder(
+        config = AtomAttentionConfig(
             has_coords=True,
             c_token=128,
             c_atom=64,
@@ -388,6 +391,7 @@ class TestAtomAttentionEncoder(unittest.TestCase):
             n_queries=8,
             n_keys=8,
         )
+        self.encoder = AtomAttentionEncoder(config=config)
 
     def test_instantiation(self):
         """Basic instantiation check."""
@@ -425,6 +429,7 @@ class TestAtomAttentionEncoder(unittest.TestCase):
             "ref_atom_name_chars": torch.randn(2, 10, 256),
             "atom_to_token_idx": torch.zeros(2, 10, dtype=torch.long),
             "restype": torch.randn(2, 10, 5),  # shape [B, N_token, features]
+            "ref_space_uid": torch.zeros(2, 10, 3), # Added dummy ref_space_uid
         }
         
         # Skip mismatched input shapes to avoid dimension errors deeper in the model
@@ -476,20 +481,26 @@ class TestAtomAttentionEncoder(unittest.TestCase):
             "ref_atom_name_chars": torch.randn(2, 10, 256),
             "atom_to_token_idx": torch.zeros(2, 10, dtype=torch.long),
             "restype": torch.randn(2, 10, 5),  # shape [B, N_token, features]
+            "ref_space_uid": torch.zeros(2, 10, 3), # Added dummy ref_space_uid
         }
-        
+
         # Create input 's' with a small feature dimension (1)
         # This would previously cause the error with layernorm expecting [*, 64]
         s = torch.randn(2, 10, 1)  # [B, N_token, 1]
-        
-        # This should not raise an error after our fix
-        a, q_l, c_l, p_lm = self.encoder(
+
+        # Create params object for the forward call
+        encoder_params = EncoderForwardParams(
             input_feature_dict=input_feature_dict,
             s=s,
+            r_l=None,  # Not provided in this test
+            z=None,  # Not provided in this test
             inplace_safe=False,
             chunk_size=None,
         )
-        
+
+        # This should not raise an error after our fix
+        a, q_l, c_l, p_lm = self.encoder(params=encoder_params)
+
         # Basic shape checks
         self.assertEqual(a.dim(), 3)
         self.assertEqual(q_l.dim(), 3)
@@ -506,15 +517,21 @@ class TestAtomAttentionDecoder(unittest.TestCase):
     """Tests for the AtomAttentionDecoder class."""
 
     def setUp(self):
-        self.decoder = AtomAttentionDecoder(
-            n_blocks=2,
-            n_heads=4,
+        # Decoder config requires has_coords, c_s, c_z even if not directly used in its init logic
+        # Set reasonable defaults based on typical usage or encoder defaults
+        config = AtomAttentionConfig(
+            has_coords=True,  # Decoder typically assumes coordinates exist
             c_token=128,
             c_atom=64,
             c_atompair=16,
+            c_s=0,  # Not directly used by decoder's internal AtomTransformer setup
+            c_z=0,  # Not directly used by decoder's internal AtomTransformer setup
+            n_blocks=2,
+            n_heads=4,
             n_queries=8,
             n_keys=8,
         )
+        self.decoder = AtomAttentionDecoder(config=config)
 
     def test_instantiation(self):
         """Ensure the decoder is instantiated properly."""
@@ -572,7 +589,7 @@ class TestEncoderDecoderRoundTrip(unittest.TestCase):
     """
 
     def setUp(self):
-        self.encoder = AtomAttentionEncoder(
+        encoder_config = AtomAttentionConfig(
             has_coords=True,
             c_token=64,
             c_atom=64,
@@ -584,49 +601,80 @@ class TestEncoderDecoderRoundTrip(unittest.TestCase):
             n_queries=8,
             n_keys=8,
         )
-        self.decoder = AtomAttentionDecoder(
-            n_blocks=2,
-            n_heads=4,
+        self.encoder = AtomAttentionEncoder(config=encoder_config)
+
+        decoder_config = AtomAttentionConfig(
+            has_coords=True,  # Decoder assumes coordinates
             c_token=64,
             c_atom=64,
             c_atompair=16,
+            c_s=0,  # Not used by decoder
+            c_z=0,  # Not used by decoder
+            n_blocks=2,
+            n_heads=4,
             n_queries=8,
             n_keys=8,
         )
+        self.decoder = AtomAttentionDecoder(config=decoder_config)
 
     def test_encode_decode_shapes(self):
         """
         Simple test showing that after encoding, we can decode
         some representation back to coordinates of expected shape.
         """
+        n_atom = 10 # Increased number of atoms to be >= n_keys (8)
         input_feature_dict = {
-            "ref_pos": torch.randn(1, 5, 3),
-            "ref_charge": torch.randn(1, 5, 1),
-            "ref_mask": torch.ones(1, 5, 1),
-            "ref_element": torch.randn(1, 5, 128),
-            "ref_atom_name_chars": torch.randn(1, 5, 256),
-            "atom_to_token_idx": torch.zeros(1, 5, dtype=torch.long),
-            "restype": torch.randn(1, 5, 10),
+            "ref_pos": torch.randn(1, n_atom, 3),
+            "ref_charge": torch.randn(1, n_atom, 1),
+            "ref_mask": torch.ones(1, n_atom, 1),
+            "ref_element": torch.randn(1, n_atom, 128),
+            "ref_atom_name_chars": torch.randn(1, n_atom, 256),
+            "atom_to_token_idx": torch.zeros(1, n_atom, dtype=torch.long), # Assuming all atoms map to token 0 for simplicity
+            "restype": torch.randn(1, n_atom, 10), # Assuming N_token = N_atom for this simple test
             "ref_space_uid": torch.randint(
                 0,
                 2,
                 (
                     1,
-                    5,
+                    n_atom,
+                    3, # Corrected shape for ref_space_uid
                 ),
             ),
         }
 
         # Encode
-        a, q_l, c_l, p_lm = self.encoder(input_feature_dict)
+        encoder_params = EncoderForwardParams(
+            input_feature_dict=input_feature_dict,
+            # Provide other necessary params if needed, e.g., r_l, s, z
+            # For this test, let's assume they are not strictly required or default internally
+            r_l=None,
+            s=None,
+            z=None,
+        )
+        a, q_l, c_l, p_lm = self.encoder(params=encoder_params)
         self.assertEqual(a.shape[-1], 64)
         self.assertEqual(q_l.shape[-1], 64)
+
         # Now decode
-        # We pass (a, q_l, c_l, p_lm) as if the decoder can reconstruct positions
-        # The docs say forward signature: (input_feature_dict, a, q_skip, c_skip, p_skip)
-        out_coords = self.decoder(input_feature_dict, a, q_l, c_l, p_lm)
+        # The decoder expects 'r_l' (initial positions) and 'a' (token embeddings)
+        # It might also use extra_feats, mask, atom_mask, atom_to_token_idx
+        # We use q_l as extra_feats based on typical patterns, r_l needs to be provided
+        # Let's use the ref_pos as the initial r_l for the decoder
+        initial_r_l = input_feature_dict["ref_pos"]
+        decoder_params = DecoderForwardParams(
+            a=a,
+            r_l=initial_r_l,
+            extra_feats=q_l,  # Assuming q_l serves as extra features
+            p_lm=p_lm, # Pass the pair embedding from the encoder
+            atom_to_token_idx=input_feature_dict["atom_to_token_idx"],
+            # mask and atom_mask could be derived or passed if needed
+            mask=None, # Assuming not needed for basic shape test
+            atom_mask=input_feature_dict["ref_mask"].squeeze(-1) if "ref_mask" in input_feature_dict else None,
+        )
+        out_coords = self.decoder(params=decoder_params)
+
         # Should have shape [batch, N_atom, 3]
-        self.assertEqual(out_coords.shape, torch.Size([1, 5, 3]))
+        self.assertEqual(out_coords.shape, torch.Size([1, n_atom, 3])) # Updated assertion shape
 
 
 if __name__ == "__main__":

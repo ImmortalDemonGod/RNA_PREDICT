@@ -4,7 +4,7 @@ import torch
 from rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager import (
     ProtenixDiffusionManager,
 )
-from rna_predict.pipeline.stageD.run_stageD import run_stageD_diffusion
+from rna_predict.pipeline.stageD.run_stageD_unified import run_stageD_diffusion
 
 # ------------------------------------------------------------------------------
 # Test: Single-sample shape expansion using multi_step_inference
