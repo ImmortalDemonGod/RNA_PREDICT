@@ -303,3 +303,99 @@ M2 is complete when all 10 "Must-Have" requirements listed in Section 3 are met 
 M3 will focus on **Validation & Debugging**: Implementing quantitative metrics (TM-score), evaluating M2 predictions, debugging geometry/numerical issues, and performing initial hyperparameter tuning based on validation results.
 
 ---
+Okay, let's define specific, actionable code quality and testing goals for Milestone 2 (M2), tailored for a senior developer who has successfully completed M1. These goals align with M2's primary objective: achieving functional end-to-end trainability and initial output generation.
+
+**Context:** M1 established the integrated pipeline structure and module implementations (potentially with stubs or basic functionality). M2 focuses on making this integrated system *runnable* for training and inference, particularly validating LoRA, gradient flow, and the core mechanics.
+
+---
+
+**M2 Code Quality Goals**
+
+The focus is on **functional correctness, clear integration points, and maintainable infrastructure setup**, rather than perfect optimization or deep refactoring at this stage.
+
+1.  **Functional Correctness of New M2 Components:**
+    *   **Goal:** Ensure the primary scripts and modules introduced or significantly modified for M2 (`train.py`, `predict.py`, `RNALightningModule`, `RNADataset`, partial checkpoint loader) execute their core functions without runtime errors (crashes, type errors, major shape mismatches not handled by patching).
+    *   **Metric:** Successful completion of a minimal training run (e.g., 1 epoch or 100 steps) and a minimal inference run (e.g., predicting 1-2 validation samples).
+
+2.  **Readability and Clarity of Integration Logic:**
+    *   **Goal:** The code implementing the training loop (`RNALightningModule`, `train.py`), inference logic (`predict.py`), and data loading (`RNADataset`) should be clearly structured and understandable. Key integration points (e.g., how data flows into `run_full_pipeline`, how loss is computed, how trainable parameters are selected) should be evident.
+    *   **Metric:** Peer code review confirms understandability. Docstrings for major classes/functions (`RNALightningModule`, `train_single_run` equivalent, `predict.py` main function) are present and explain purpose/flow.
+
+3.  **Configuration-Driven Execution:**
+    *   **Goal:** All critical hyperparameters (learning rate, batch size, LoRA ranks/targets, loss weights, file paths, diffusion steps, etc.) should be managed via the Hydra configuration system (`conf/` directory), not hardcoded.
+    *   **Metric:** The `train.py` and `predict.py` scripts primarily rely on the `cfg: DictConfig` object for settings. Manual inspection confirms no major hardcoded parameters remain.
+
+4.  **Correct LoRA/Trainable Parameter Handling:**
+    *   **Goal:** The mechanism for identifying and isolating trainable parameters (LoRA adapters, Merger, Diffusion head) for the optimizer must be implemented correctly and demonstrably work. Base model parameters must remain frozen.
+    *   **Metric:** Code inspection confirms filtering logic. Logging/debugging output confirms only the intended parameters receive gradients and updates during a test `optimizer.step()`.
+
+5.  **Robust Checkpoint Save/Load (Partial):**
+    *   **Goal:** Checkpoints saved during training must contain only the necessary trainable weights and optimizer state. The inference script must successfully load these partial checkpoints into the full model structure.
+    *   **Metric:** Successful execution of Requirement #9 and #10 (loading checkpoint and generating inference output). Manual inspection of a saved `.pt` file can confirm it doesn't contain the full base model weights (should be significantly smaller).
+
+6.  **Explicit Patching:**
+    *   **Goal:** Runtime tensor shape patches should be applied explicitly and controllably, ideally via the central `patching/shape_fixes.py` module.
+    *   **Metric:** Patches are applied via a clear function call (e.g., `apply_tensor_fixes()`) at the start of `train.py` and `predict.py`.
+
+**Out of Scope for M2 Code Quality:**
+
+*   Deep refactoring of M1 modules (unless required to fix critical M2 blockers).
+*   Extensive performance optimization (micro-optimizations, kernel fusion).
+*   Full PEP 8 compliance across the entire codebase (focus on *new* M2 code).
+*   Elimination of the *need* for runtime patching (this is a later refactoring goal).
+
+---
+
+**M2 Testing Goals**
+
+The focus is on **integration testing** to verify the core mechanics of the end-to-end training and inference workflows. Unit testing is secondary and targeted at critical new components.
+
+1.  **Core Training Loop Integration Test:**
+    *   **Goal:** Verify that the training script (`train.py` using `RNALightningModule`) can successfully execute a small number of steps (e.g., 2-5 batches) on realistic (or simplified real) data without crashing.
+    *   **Implementation:** A pytest test (e.g., `tests/pipeline/test_train_integration.py`) that:
+        *   Sets up a minimal Hydra config pointing to small data subsets/adjacencies.
+        *   Instantiates the `RNALightningModule` and a Lightning `Trainer` with `fast_dev_run=True` or `max_steps=5`.
+        *   Calls `trainer.fit()`.
+    *   **Assertions:** The test passes if `trainer.fit()` completes without exceptions. Check that the logged training loss is not NaN/Inf.
+
+2.  **Gradient Flow and Parameter Update Test:**
+    *   **Goal:** Confirm that backpropagation works and *only* updates the intended trainable parameters (LoRA, etc.).
+    *   **Implementation:** Extend the training loop integration test (or create a separate one):
+        *   Before the first `optimizer.step()`, store the initial values (or norms) of a sample of trainable parameters and a sample of frozen parameters.
+        *   After `optimizer.step()`, assert that the trainable parameters *have changed* and the frozen parameters *have not changed*.
+        *   Assert that `param.grad` is non-None for trainable params and None (or all zeros) for frozen params after `loss.backward()`.
+    *   **Metric:** Test passes assertions.
+
+3.  **Checkpoint Save/Load/Inference Cycle Test:**
+    *   **Goal:** Verify the critical cycle of saving trainable weights during training and loading them for inference works correctly.
+    *   **Implementation:** A pytest test (e.g., `tests/pipeline/test_checkpoint_inference_cycle.py`) that:
+        1.  Runs the training loop test (Task 1) for a few steps, ensuring a checkpoint is saved by `ModelCheckpoint`.
+        2.  Instantiates the inference pipeline model structure.
+        3.  Loads the saved checkpoint using the `partial_load_state_dict` logic.
+        4.  Runs the inference logic (`predict.py`'s core steps) on a single test sequence using the loaded model.
+    *   **Assertions:** Loading the partial checkpoint succeeds. Inference runs without crashing. The output coordinate tensor has the expected shape and contains numeric values (not all zeros, no NaNs/Infs).
+
+4.  **Unit Test: `partial_load_state_dict`:**
+    *   **Goal:** Ensure the partial checkpoint loading utility functions correctly in isolation.
+    *   **Implementation:** Unit tests in `tests/core/test_checkpointing.py` using dummy `nn.Module`s and `state_dict`s (one full, one partial) to verify correct loading behavior and error handling.
+
+5.  **Unit Test: `RNADataset` / `collate_fn`:**
+    *   **Goal:** Verify the dataset loading and batch collation.
+    *   **Implementation:** Unit tests in `tests/data/test_loader.py` that:
+        *   Instantiate `RNADataset` with mock file paths.
+        *   Check that `__getitem__` returns a dictionary with the expected keys and tensor shapes/types for a single sample.
+        *   Test the `collate_fn` (if custom) to ensure it correctly batches samples, potentially including padding.
+
+**Out of Scope for M2 Testing:**
+
+*   Unit tests for *all* individual modules implemented in M1 (assume basic tests exist or focus is on integration).
+*   `hypothesis`-based fuzzing for most components (can be added in M3+).
+*   Quantitative accuracy tests (TM-score, precise coordinate RMSD).
+*   Testing edge cases in data loading (corrupted files, very long sequences beyond padding limits).
+*   Mocking external dependencies like Hugging Face Hub downloads (assume models are pre-downloaded or rely on caching).
+
+---
+
+**Summary for Senior Developer:**
+
+M2 requires building and validating the core training and inference infrastructure around the integrated pipeline from M1. Code quality focuses on functional correctness and clear configuration. Testing priorities are **integration tests** verifying the train loop, gradient flow to LoRA parameters, and the checkpoint save/load/predict cycle. Unit tests should cover critical new M2 components like partial checkpoint loading and data collation. Achieving these goals ensures we have a mechanically sound system ready for quantitative validation and iterative refinement in M3. Please confirm the prerequisite checks listed in the previous document section before proceeding with these tasks.
