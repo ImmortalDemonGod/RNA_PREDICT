@@ -86,23 +86,24 @@ def generate_synthetic_features(
     used as input to the InputFeatureEmbedder in benchmarks.
     """
     f = {}
-    # Create tensors without batch dimension
-    f["ref_pos"] = torch.randn(N_atom, 3, device=device)
-    f["ref_charge"] = torch.randint(-2, 3, (N_atom, 1), device=device).float()
-    f["ref_element"] = torch.randn(N_atom, 128, device=device)
-    f["ref_atom_name_chars"] = torch.randn(N_atom, 256, device=device)
-    f["atom_to_token"] = torch.randint(0, N_token, (N_atom,), device=device)
+    # Create tensors with batch dimension
+    f["ref_pos"] = torch.randn(1, N_atom, 3, device=device)
+    f["ref_charge"] = torch.randint(-2, 3, (1, N_atom, 1), device=device).float()
+    f["ref_element"] = torch.randn(1, N_atom, 128, device=device)
+    f["ref_atom_name_chars"] = torch.randn(1, N_atom, 256, device=device)
+    f["atom_to_token"] = torch.randint(0, N_token, (1, N_atom), device=device)
     # Add atom_to_token_idx for compatibility with the encoder
     f["atom_to_token_idx"] = f["atom_to_token"]
     # Add ref_space_uid for compatibility with the encoder's trunk logic
-    f["ref_space_uid"] = torch.zeros(N_atom, 1, dtype=torch.int64, device=device)
+    f["ref_space_uid"] = torch.zeros(1, N_atom, 1, dtype=torch.int64, device=device)
     # Add ref_mask to indicate all atoms are valid
-    f["ref_mask"] = torch.ones(N_atom, 1, device=device)
-
+    f["ref_mask"] = torch.ones(1, N_atom, 1, device=device)
+    
     # Token-level features
-    f["restype"] = torch.randn(N_token, 32, device=device)
-    f["profile"] = 2 * torch.rand(N_token, 32, device=device) - 1
-    f["deletion_mean"] = torch.randn(N_token, device=device)
+    f["restype"] = torch.randn(1, N_token, 32, device=device)
+    f["profile"] = 2 * torch.rand(1, N_token, 32, device=device) - 1
+    f["deletion_mean"] = torch.randn(1, N_token, device=device)
+    
     return f
 
 
