@@ -39,6 +39,8 @@ class InputFeatureDict(TypedDict, total=False):
     ref_atom_name_chars: torch.Tensor
     ref_space_uid: torch.Tensor
     restype: torch.Tensor
+    profile: torch.Tensor
+    deletion_mean: torch.Tensor
 
 
 def safe_tensor_access(feature_dict: InputFeatureDict, key: str) -> torch.Tensor:
