@@ -155,7 +155,7 @@ class InputFeatureEmbedder(nn.Module):
 
         # Extract the number of tokens from the restype feature
         # This is more reliable than using the output of AtomAttentionEncoder
-        if "restype" in input_feature_dict and input_feature_dict["restype"] is not None:
+        if "restype" in input_feature_dict and input_feature_dict.get("restype") is not None:
             restype = input_feature_dict["restype"]
             if restype.dim() >= 3:  # [B, N_token, C]
                 token_dim = restype.shape[-2]
