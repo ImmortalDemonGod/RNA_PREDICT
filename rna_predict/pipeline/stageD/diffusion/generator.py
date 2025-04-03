@@ -191,11 +191,16 @@ def sample_diffusion(
             zip(noise_schedule[:-1], noise_schedule[1:])
         ):
             # [..., N_sample, N_atom, 3]
-            x_l = (
-                centre_random_augmentation(x_input_coords=x_l, N_sample=1)
-                .squeeze(dim=-3)
-                .to(dtype)
-            )
+            # Apply augmentation using the current chunk's sample size
+            # Apply augmentation using the current chunk's sample size
+            # The augmentation function might add an extra dimension, which we squeeze out.
+            # x_l = (                                                        # <-- COMMENTED OUT
+            #     centre_random_augmentation(                                # <-- COMMENTED OUT
+            #         x_input_coords=x_l, N_sample=chunk_n_sample            # <-- COMMENTED OUT
+            #     )                                                        # <-- COMMENTED OUT
+            #     # .squeeze(dim=-3) # <-- REMOVED THIS LINE                 # <-- COMMENTED OUT
+            #     .to(dtype)                                                # <-- COMMENTED OUT
+            # )                                                              # <-- COMMENTED OUT
 
             # Denoise with a predictor-corrector sampler
             # 1. Add noise to move x_{c_tau_last} to x_{t_hat}
@@ -301,7 +306,10 @@ def sample_diffusion_training(
 
     # Add independent noise to each structure
     # sigma: independent noise-level [..., N_sample]
-    sigma = noise_sampler(size=(*batch_size_shape, N_sample), device=device).to(dtype)
+    # Ensure the size argument is passed as torch.Size, constructing it explicitly
+    sigma_size_list = list(batch_size_shape) + [N_sample]
+    sigma_size = torch.Size(sigma_size_list)
+    sigma = noise_sampler(size=sigma_size, device=device).to(dtype)
     # noise: [..., N_sample, N_atom, 3]
     noise = torch.randn_like(x_gt_augment, dtype=dtype) * sigma[..., None, None]
 

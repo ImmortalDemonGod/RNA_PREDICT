@@ -1,12 +1,11 @@
 import unittest
-import numpy as np
 
 import torch
 import torch.nn as nn
-from hypothesis import HealthCheck, example, given, settings
+from hypothesis import given, settings
 from hypothesis import strategies as st
 from hypothesis.extra.numpy import arrays
-from hypothesis.strategies import booleans, floats, integers, none, one_of
+from hypothesis.strategies import booleans, floats
 
 # Import the classes under test
 from rna_predict.pipeline.stageA.input_embedding.current.embedders import (
@@ -37,11 +36,11 @@ class TestInputFeatureEmbedder(unittest.TestCase):
         self.restype_dim = 32  # Match the expected dimension
         self.profile_dim = 32  # Match the expected dimension
         self.embedder = InputFeatureEmbedder(
-            c_atom=self.c_atom, 
-            c_atompair=self.c_atompair, 
+            c_atom=self.c_atom,
+            c_atompair=self.c_atompair,
             c_token=self.c_token,
             restype_dim=self.restype_dim,
-            profile_dim=self.profile_dim
+            profile_dim=self.profile_dim,
         )
 
     def test_init_values(self):
@@ -61,17 +60,17 @@ class TestInputFeatureEmbedder(unittest.TestCase):
         # Create fixed-size input tensors with the right dimensions
         batch_size = 1
         token_len = 3
-        
+
         # Create input tensors
         restype = torch.tensor([[1, 2, 3]], dtype=torch.long)
         profile = torch.randn(batch_size, token_len, self.profile_dim)
         deletion_mean = torch.randn(batch_size, token_len, 1)
-        
+
         # Create atom_to_token_idx tensor - in this case, we'll use one atom per token
         atom_to_token_idx = torch.zeros(batch_size, token_len, dtype=torch.long)
         for i in range(token_len):
             atom_to_token_idx[:, i] = i
-            
+
         # Create additional required fields for the atom attention encoder
         ref_pos = torch.randn(batch_size, token_len, 3)
         ref_charge = torch.randn(batch_size, token_len, 1)
@@ -88,7 +87,7 @@ class TestInputFeatureEmbedder(unittest.TestCase):
             "ref_charge": ref_charge,
             "ref_mask": ref_mask,
             "ref_element": ref_element,
-            "ref_atom_name_chars": ref_atom_name_chars
+            "ref_atom_name_chars": ref_atom_name_chars,
         }
 
         output = self.embedder.forward(

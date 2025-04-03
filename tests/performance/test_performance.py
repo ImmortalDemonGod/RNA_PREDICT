@@ -59,6 +59,8 @@ def test_diffusion_single_embed_caching():
     # so it should be noticeably faster. This is not guaranteed stable in all environments,
     # but can serve as a rough check.
     # Instead of requiring the second call to be faster, just print the times and check that both calls completed
-    print(f"First call: {first_call_duration:.3f}s, Second call: {second_call_duration:.3f}s")
+    print(
+        f"First call: {first_call_duration:.3f}s, Second call: {second_call_duration:.3f}s"
+    )
     # The timing test is unstable and can vary based on system load, caching, etc.
     # Just ensure both calls completed successfully

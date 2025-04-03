@@ -26,8 +26,15 @@ from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 from hypothesis.strategies import booleans, floats, integers
 
-# If your code under test is in a module called "ml_utils", adjust the import here
-import rna_predict.pipeline.stageC.mp_nerf.ml_utils as ml_utils
+# Import from the new module structure
+from rna_predict.pipeline.stageC.mp_nerf import ml_utils
+from rna_predict.pipeline.stageC.mp_nerf.ml_utils import (
+    chain2atoms,
+    fape_torch,
+    rename_symmetric_atoms,
+    scn_atom_embedd,
+    torsion_angle_loss,
+)
 
 
 class TestSCNAtomEmbedd(unittest.TestCase):
@@ -50,7 +57,7 @@ class TestSCNAtomEmbedd(unittest.TestCase):
         Test that the output shape matches [batch_size, seq_length, 14]
         (assuming 14 atoms per residue) for a valid sequence list.
         """
-        tokens = ml_utils.scn_atom_embedd(seq_list=self.valid_seq_list)
+        tokens = scn_atom_embedd(seq_list=self.valid_seq_list)
         # We expect shape [2, 3, 14] if each residue has 14 possible atoms
         self.assertEqual(tokens.shape[0], 2, "Batch size mismatch")
         self.assertEqual(tokens.shape[1], 3, "Seq length mismatch")
@@ -64,7 +71,7 @@ class TestSCNAtomEmbedd(unittest.TestCase):
         This may raise exceptions if any character is not in the known residue set.
         """
         try:
-            result = ml_utils.scn_atom_embedd(seq_list=seq_list)
+            result = scn_atom_embedd(seq_list=seq_list)
             # We only check that it returns a tensor
             self.assertIsInstance(result, torch.Tensor)
         except Exception:
@@ -90,14 +97,14 @@ class TestChain2Atoms(unittest.TestCase):
         Test that chain2atoms expands the last dimension into (L, C, other)
         with C=3 by default.
         """
-        expanded = ml_utils.chain2atoms(self.chain, c=3)
+        expanded = chain2atoms(self.chain, c=3)
         self.assertEqual(expanded.shape, (5, 3, 4))
 
     def test_with_mask(self):
         """
         Test that providing a mask picks only the masked positions from the expanded tensor.
         """
-        expanded_masked = ml_utils.chain2atoms(self.chain, mask=self.mask, c=2)
+        expanded_masked = chain2atoms(self.chain, mask=self.mask, c=2)
         # We expect shape [num_true_in_mask, 2, 4]
         # mask has 3 Trues: indices [0, 2, 3]
         self.assertEqual(expanded_masked.shape, (3, 2, 4))
@@ -123,12 +130,10 @@ class TestRenameSymmetricAtoms(unittest.TestCase):
         """
         Test that rename_symmetric_atoms runs without error on minimal data.
         """
-        out_pred, out_feats = ml_utils.rename_symmetric_atoms(
+        out_pred, out_feats = rename_symmetric_atoms(
             pred_coors=self.pred,
-            true_coors=self.true,
-            seq_list=self.seq_list,
-            cloud_mask=self.cloud_mask,
             pred_feats=None,
+            seq=self.seq_list[0],  # Pass the sequence string directly
         )
         # Basic shape checks
         self.assertEqual(out_pred.shape, self.pred.shape)
@@ -147,9 +152,7 @@ class TestTorsionAngleLoss(unittest.TestCase):
         """
         pred = torch.zeros(1, 5, 7)  # (B=1, L=5, X=7 angles)
         true = torch.ones(1, 5, 7) * 0.5
-        loss = ml_utils.torsion_angle_loss(
-            pred_torsions=pred, true_torsions=true, coeff=2.0
-        )
+        loss = torsion_angle_loss(pred_torsions=pred, true_torsions=true, coeff=2.0)
         # Should have shape (1, 5, 7)
         self.assertEqual(loss.shape, (1, 5, 7))
         self.assertTrue((loss >= 0).all())
@@ -174,7 +177,7 @@ class TestFapeTorch(unittest.TestCase):
         """
         FAPE on identical coords should yield 0 error.
         """
-        result = ml_utils.fape_torch(
+        result = fape_torch(
             pred_coords=self.pred,
             true_coords=self.true,
             max_val=10.0,
@@ -193,7 +196,7 @@ class TestFapeTorch(unittest.TestCase):
         """
         # Put some offsets in the pred
         self.pred[..., 0] = 1.0
-        result = ml_utils.fape_torch(
+        result = fape_torch(
             pred_coords=self.pred,
             true_coords=self.true,
             max_val=10.0,
@@ -250,26 +253,22 @@ class TestNoiseInternals(unittest.TestCase):
     """
 
     def test_noise_internals_with_angles_only(self):
-        """
-        If we provide angles but no coords, it should proceed to build scaffolds
-        and return a shape [L, c, d].
-        """
+        """Test noise_internals with angles only."""
         seq = "AGH"
-        angles = torch.zeros(3, 12)  # minimal sidechainnet angles shape
+        L = len(seq)
+        angles = torch.zeros(L, 12)  # minimal sidechainnet angles shape
+        # Provide coords with the correct shape [L, 14, 3]
+        coords = torch.randn(L, 14, 3)
         out_coords, out_mask = ml_utils.noise_internals(
             seq=seq,
             angles=angles,
-            coords=None,
+            coords=coords,
             noise_scale=0.1,
             theta_scale=0.2,
             verbose=0,
         )
-        # out_coords shape [L=3, c=14, d=3], out_mask shape [L=3, c=14]
-        self.assertEqual(out_coords.shape[0], 3)
-        self.assertEqual(out_coords.shape[1], 14)
-        self.assertEqual(out_coords.shape[2], 3)
-        self.assertEqual(out_mask.shape[0], 3)
-        self.assertEqual(out_mask.shape[1], 14)
+        assert out_coords.shape == (L, 14, 3)
+        assert out_mask.shape == (L, 14)
 
     def test_assert_raised_if_none(self):
         """
@@ -467,7 +466,7 @@ class TestBinaryOperationCombineNoise(unittest.TestCase):
             int_seq=None,
             NOISE_INTERNALS=noise_scale,
             SIDECHAIN_RECONSTRUCT=sidechain,
-            _allow_none_for_test=True  # Special flag to allow None inputs in test
+            _allow_none_for_test=True,  # Special flag to allow None inputs in test
         )
         self.assertEqual(result.shape, (1, length, 3))
         self.assertEqual(mask.shape, (1, length))

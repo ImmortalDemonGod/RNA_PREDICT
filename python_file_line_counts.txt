@@ -62,6 +62,7 @@
 ./rna_predict/pipeline/stageA/input_embedding/current/primitives/atom_pair_transforms.py: 238 lines
 ./tests/stageD/unit/shape/test_stageD_shape_tests.py: 232 lines
 ./rna_predict/pipeline/stageD/diffusion/components/diffusion_conditioning.py: 229 lines
+./rna_predict/pipeline/stageA/input_embedding/current/transformer/atom_attention/encoder.py: 225 lines
 ./rna_predict/pipeline/stageB/main.py: 224 lines
 ./rna_predict/pipeline/stageC/mp_nerf/protein_utils/mask_generators.py: 223 lines
 ./rna_predict/pipeline/stageD/diffusion/protenix_diffusion_manager.py: 213 lines
@@ -92,8 +93,11 @@
 ./rna_predict/pipeline/stageA/input_embedding/current/transformer/encoder_components/pair_embedding.py: 162 lines
 ./rna_predict/pipeline/stageC/mp_nerf/utils.py: 159 lines
 ./rna_predict/pipeline/stageD/tensor_fixes/transformer_fixes.py: 158 lines
+./rna_predict/pipeline/stageA/input_embedding/current/transformer/atom_attention/decoder.py: 156 lines
 ./rna_predict/pipeline/stageA/run_stageA.py: 151 lines
 ./rna_predict/pipeline/stageA/input_embedding/current/primitives/attention/masking_padding_utils.py: 151 lines
+./rna_predict/pipeline/stageA/input_embedding/current/transformer/atom_attention/components/feature_processing.py: 149 lines
+./rna_predict/pipeline/stageA/input_embedding/current/transformer/atom_attention/components/attention_components.py: 144 lines
 ./rna_predict/pipeline/stageA/input_embedding/current/tensor_shape_patch.py: 139 lines
 ./rna_predict/pipeline/stageA/input_embedding/current/transformer/transition.py: 138 lines
 ./tests/stageC/mp_nerf_tests/verify_fix.py: 137 lines
@@ -101,6 +105,7 @@
 ./rna_predict/pipeline/stageA/input_embedding/current/primitives/linear_primitives.py: 133 lines
 ./tests/stageB/pairwise/mock_verify_pairformer_wrapper.py: 132 lines
 ./rna_predict/pipeline/stageA/input_embedding/current/primitives/attention/config_types.py: 131 lines
+./rna_predict/pipeline/stageA/input_embedding/current/transformer/atom_attention/components/coordinate_processing.py: 130 lines
 ./tests/stageA/unit/input_embeding/current/test_atom_transformer.py: 125 lines
 ./rna_predict/pipeline/stageC/stage_c_reconstruction.py: 119 lines
 ./rna_predict/pipeline/stageB/torsion/torsion_bert_predictor.py: 117 lines
@@ -115,9 +120,10 @@
 ./rna_predict/pipeline/stageD/tensor_fixes/diffusion_fixes.py: 95 lines
 ./rna_predict/pipeline/stageA/input_embedding/current/transformer/common.py: 94 lines
 ./rna_predict/pipeline/stageD/tensor_fixes/attention_fixes.py: 93 lines
+./tests/stageA/unit/input_embeding/current/test_atom_attention_encoder.py: 92 lines
 ./rna_predict/pipeline/stageC/mp_nerf/protein_utils/__init__.py: 88 lines
 ./rna_predict/scripts/count_python_lines.py: 88 lines
-./tests/stageA/unit/input_embeding/current/test_atom_attention_encoder.py: 84 lines
+./rna_predict/pipeline/stageA/input_embedding/current/transformer/atom_attention/components/feature_processor.py: 85 lines
 ./rna_predict/pipeline/stageD/tensor_fixes/embedding_fixes.py: 83 lines
 ./rna_predict/pipeline/stageD/tensor_fixes/__init__.py: 72 lines
 ./tests/stageB/pairwise/simple_verify_pairformer_wrapper.py: 72 lines
@@ -129,6 +135,7 @@
 ./tests/performance/test_performance.py: 66 lines
 ./rna_predict/pipeline/stageB/pairwise/main.py: 65 lines
 ./tests/stageC/mp_nerf_tests/test_main.py: 65 lines
+./rna_predict/pipeline/stageA/input_embedding/current/transformer/atom_attention/config.py: 63 lines
 ./rna_predict/pipeline/stageD/diffusion/diffusion.py: 63 lines
 ./rna_predict/pipeline/stageA/input_embedding/current/primitives.py: 61 lines
 ./rna_predict/pipeline/stageA/input_embedding/current/transformer/encoder_components/config.py: 61 lines
@@ -150,7 +157,9 @@
 ./rna_predict/pipeline/stageA/input_embedding/current/primitives/attention/__init__.py: 27 lines
 ./rna_predict/pipeline/stageB/pairwise/dummy_pairformer.py: 27 lines
 ./rna_predict/main.py: 24 lines
+./rna_predict/pipeline/stageA/input_embedding/current/transformer/atom_attention/__init__.py: 23 lines
 ./tests/common/test_remove_logger_lines.py: 22 lines
+./rna_predict/pipeline/stageA/input_embedding/current/transformer/atom_attention/components/__init__.py: 19 lines
 ./rna_predict/pipeline/stageD/run_stageD.py: 17 lines
 ./rna_predict/pipeline/stageA/input_embedding/current/primitives/data_transforms.py: 15 lines
 ./tests/common/test_dummy.py: 3 lines

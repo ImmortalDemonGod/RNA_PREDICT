@@ -7,14 +7,13 @@ from rna_predict.pipeline.stageC.mp_nerf.ml_utils import (
     scn_atom_embedd,
     torsion_angle_loss,
 )
-from rna_predict.pipeline.stageC.mp_nerf.proteins import scn_cloud_mask
 
 
 # test ML utils
 def test_scn_atom_embedd():
-    seq_list = ["AGHHKLHRTVNMSTIL", "WERTQLITANMWTCSD"]
+    seq_list = ["AGCDEFGIKLMNPQRSTVWY", "WERTQLITANMWTCSDAAA_"]
     embedds = scn_atom_embedd(seq_list)
-    assert embedds.shape == torch.Size([2, 16, 14]), "Shapes don't match"
+    assert embedds.shape == torch.Size([2, 20, 14]), "Shapes don't match"
 
 
 def test_chain_to_atoms():
@@ -24,18 +23,29 @@ def test_chain_to_atoms():
 
 
 def test_rename_symmetric_atoms():
-    seq_list = ["AGHHKLHRTVNMSTIL"]
-    pred_coors = torch.randn(1, 16, 14, 3)
-    true_coors = torch.randn(1, 16, 14, 3)
-    cloud_mask = scn_cloud_mask(seq_list[0]).unsqueeze(0)
-    pred_feats = torch.randn(1, 16, 14, 16)
+    seq_list = ["AGCDEFGIKLMNPQRSTV"]
+    # Adjust shapes to match expected input format (batch, num_atoms, 3/features)
+    # Assuming num_atoms = seq_len * 14 for SCN format
+    seq_len = len(seq_list[0])
+    num_atoms = seq_len * 14
+    pred_coors = torch.randn(1, num_atoms, 3)  # Example: Batch size 1
+    pred_feats = torch.randn(1, num_atoms, 16)  # Example: Batch size 1, 16 features
+    # true_coors and cloud_mask are no longer needed for the refactored function call
 
-    renamed = rename_symmetric_atoms(
-        pred_coors, true_coors, seq_list, cloud_mask, pred_feats=pred_feats
+    # Call with the updated signature
+    renamed_coors, renamed_feats = rename_symmetric_atoms(
+        pred_coors=pred_coors[0],  # Pass the first batch element
+        pred_feats=pred_feats[0],  # Pass the first batch element
+        seq=seq_list[0],
     )
+
+    # Check output shapes (adjusting for single batch element processing)
     assert (
-        renamed[0].shape == pred_coors.shape and renamed[1].shape == pred_feats.shape
-    ), "Shapes don't match"
+        renamed_coors.shape == pred_coors[0].shape
+    ), f"Coordinate shapes don't match: Expected {pred_coors[0].shape}, Got {renamed_coors.shape}"
+    assert (
+        renamed_feats.shape == pred_feats[0].shape
+    ), f"Feature shapes don't match: Expected {pred_feats[0].shape}, Got {renamed_feats.shape}"
 
 
 def test_torsion_angle_loss():
@@ -47,9 +57,9 @@ def test_torsion_angle_loss():
 
 
 def test_fape_loss_torch():
-    seq_list = ["AGHHKLHRTVNMSTIL"]
-    pred_coords = torch.randn(1, 16, 14, 3)
-    true_coords = torch.randn(1, 16, 14, 3)
+    seq_list = ["AGCDEFGIKLMNPQRSTV"]
+    pred_coords = torch.randn(1, 18, 14, 3)
+    true_coords = torch.randn(1, 18, 14, 3)
 
     fape_torch(pred_coords, true_coords, c_alpha=True, seq_list=seq_list)
     fape_torch(pred_coords, true_coords, c_alpha=False, seq_list=seq_list)

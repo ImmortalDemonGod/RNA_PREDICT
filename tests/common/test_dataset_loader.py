@@ -22,7 +22,6 @@ Key Improvements:
 import unittest
 from unittest.mock import MagicMock, patch
 
-import pytest
 import torch
 from hypothesis import HealthCheck, example, given, settings
 from hypothesis import strategies as st
@@ -81,59 +80,67 @@ class TestStreamBprnaDataset(unittest.TestCase):
         )
 
     @patch("rna_predict.dataset.dataset_loader.load_dataset")
-    def test_stream_bprna_dataset_multiple_splits_train(self, mock_load_dataset: MagicMock) -> None:
+    def test_stream_bprna_dataset_multiple_splits_train(
+        self, mock_load_dataset: MagicMock
+    ) -> None:
         """
         Test train split to ensure calls to HF dataset are correct.
         """
         mock_iterable = MagicMock()
         mock_load_dataset.return_value = mock_iterable
         split = "train"
-        
+
         result = stream_bprna_dataset(split)
         self.assertEqual(result, mock_iterable)
         mock_load_dataset.assert_called_with(
             "multimolecule/bprna-spot", split=split, streaming=True
         )
-        
+
     @patch("rna_predict.dataset.dataset_loader.load_dataset")
-    def test_stream_bprna_dataset_multiple_splits_test(self, mock_load_dataset: MagicMock) -> None:
+    def test_stream_bprna_dataset_multiple_splits_test(
+        self, mock_load_dataset: MagicMock
+    ) -> None:
         """
         Test test split to ensure calls to HF dataset are correct.
         """
         mock_iterable = MagicMock()
         mock_load_dataset.return_value = mock_iterable
         split = "test"
-        
+
         result = stream_bprna_dataset(split)
         self.assertEqual(result, mock_iterable)
         mock_load_dataset.assert_called_with(
             "multimolecule/bprna-spot", split=split, streaming=True
         )
-        
+
     @patch("rna_predict.dataset.dataset_loader.load_dataset")
-    def test_stream_bprna_dataset_multiple_splits_validation(self, mock_load_dataset: MagicMock) -> None:
+    def test_stream_bprna_dataset_multiple_splits_validation(
+        self, mock_load_dataset: MagicMock
+    ) -> None:
         """
         Test validation split to ensure calls to HF dataset are correct.
         """
         mock_iterable = MagicMock()
         mock_load_dataset.return_value = mock_iterable
         split = "validation"
-        
+
         result = stream_bprna_dataset(split)
         self.assertEqual(result, mock_iterable)
         mock_load_dataset.assert_called_with(
             "multimolecule/bprna-spot", split=split, streaming=True
         )
-        
+
     @patch("rna_predict.dataset.dataset_loader.load_dataset")
-    def test_stream_bprna_dataset_multiple_splits_random(self, mock_load_dataset: MagicMock) -> None:
+    def test_stream_bprna_dataset_multiple_splits_random(
+        self, mock_load_dataset: MagicMock
+    ) -> None:
         """
         Test random split to ensure calls to HF dataset are correct.
         """
         mock_iterable = MagicMock()
         mock_load_dataset.return_value = mock_iterable
         split = "random"
-        
+
         result = stream_bprna_dataset(split)
         self.assertEqual(result, mock_iterable)
         mock_load_dataset.assert_called_with(

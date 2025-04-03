@@ -8,36 +8,33 @@ This script:
 3. Verifies that the fixes resolve the NaN issues
 """
 
+import logging
 import os
 import sys
-import logging
+
 import torch
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, 
-                   format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger("mpnerf_fix")
 
 # Add the project root to the Python path if needed
 current_dir = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(os.path.abspath(os.path.join(current_dir, '../../..')))
+sys.path.append(os.path.abspath(os.path.join(current_dir, "../../..")))
 
 # Import the diagnostic test functions - use absolute imports
 sys.path.append(current_dir)
-from test_mpnerf_nan_diagnosis import (
-    run_all_tests,
-    check_for_nans
-)
-
 # Import the instrumented MP-NeRF
-from instrumented_massive_pnerf import (
-    patch_mp_nerf,
-    restore_mp_nerf
-)
+from instrumented_massive_pnerf import patch_mp_nerf, restore_mp_nerf
+from test_mpnerf_nan_diagnosis import check_for_nans, run_all_tests
+
+from rna_predict.pipeline.stageC.mp_nerf.final_kb_rna import RNA_BACKBONE_TORSIONS_AFORM
 
 # Import the functions we might need to fix
 from rna_predict.pipeline.stageC.stage_c_reconstruction import run_stageC
-from rna_predict.pipeline.stageC.mp_nerf.final_kb_rna import RNA_BACKBONE_TORSIONS_AFORM
+
 
 def print_section(title):
     """Print a section title with formatting."""
@@ -45,62 +42,64 @@ def print_section(title):
     logger.info(f"  {title}")
     logger.info(f"{'=' * 80}")
 
+
 def apply_fixes():
     """
     Apply fixes to the MP-NeRF implementation based on diagnostic test results.
     """
     print_section("Applying Fixes")
-    
+
     # Apply the instrumented MP-NeRF (which includes safety checks)
     patch_mp_nerf()
     logger.info("Applied safe MP-NeRF implementation with division-by-zero protection")
-    
+
     # Test if the fixes resolved the issues
     sequence = "ACGU"
-    
+
     # Test with zero angles (which previously caused NaNs)
     zero_angles = torch.zeros((len(sequence), 7))
     logger.info("Testing with zero angles after applying fixes")
-    
+
     result_zero = run_stageC(
-        sequence=sequence,
-        torsion_angles=zero_angles,
-        method="mp_nerf",
-        device="cpu"
+        sequence=sequence, torsion_angles=zero_angles, method="mp_nerf", device="cpu"
     )
-    
+
     has_nan_zero = check_for_nans(result_zero["coords"], "zero angles result")
-    
+
     # Test with A-form angles
-    aform_angles = torch.tensor([
+    aform_angles = torch.tensor(
         [
-            RNA_BACKBONE_TORSIONS_AFORM["alpha"],
-            RNA_BACKBONE_TORSIONS_AFORM["beta"],
-            RNA_BACKBONE_TORSIONS_AFORM["gamma"],
-            RNA_BACKBONE_TORSIONS_AFORM["delta"],
-            RNA_BACKBONE_TORSIONS_AFORM["epsilon"],
-            RNA_BACKBONE_TORSIONS_AFORM["zeta"],
-            0.0  # chi
+            [
+                RNA_BACKBONE_TORSIONS_AFORM["alpha"],
+                RNA_BACKBONE_TORSIONS_AFORM["beta"],
+                RNA_BACKBONE_TORSIONS_AFORM["gamma"],
+                RNA_BACKBONE_TORSIONS_AFORM["delta"],
+                RNA_BACKBONE_TORSIONS_AFORM["epsilon"],
+                RNA_BACKBONE_TORSIONS_AFORM["zeta"],
+                0.0,  # chi
+            ]
         ]
-    ] * len(sequence), dtype=torch.float32)
-    
-    logger.info("Testing with A-form angles after applying fixes")
-    
-    result_aform = run_stageC(
-        sequence=sequence,
-        torsion_angles=aform_angles,
-        method="mp_nerf",
-        device="cpu"
+        * len(sequence),
+        dtype=torch.float32,
     )
-    
+
+    logger.info("Testing with A-form angles after applying fixes")
+
+    result_aform = run_stageC(
+        sequence=sequence, torsion_angles=aform_angles, method="mp_nerf", device="cpu"
+    )
+
     has_nan_aform = check_for_nans(result_aform["coords"], "A-form angles result")
-    
+
     if not has_nan_zero and not has_nan_aform:
-        logger.info("SUCCESS: Fixes resolved NaN issues for both zero and A-form angles")
+        logger.info(
+            "SUCCESS: Fixes resolved NaN issues for both zero and A-form angles"
+        )
         return True
     else:
         logger.error("Fixes did not resolve all NaN issues")
         return False
+
 
 def create_permanent_fix():
     """
@@ -108,17 +107,21 @@ def create_permanent_fix():
     This involves modifying the original massive_pnerf.py file.
     """
     print_section("Creating Permanent Fix")
-    
+
     # Path to the original file
     original_file = os.path.join(
         os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))),
-        "rna_predict", "pipeline", "stageC", "mp_nerf", "massive_pnerf.py"
+        "rna_predict",
+        "pipeline",
+        "stageC",
+        "mp_nerf",
+        "massive_pnerf.py",
     )
-    
+
     # Read the original file
-    with open(original_file, 'r') as f:
+    with open(original_file, "r") as f:
         f.read()
-    
+
     # Create the fixed version - with triple quotes properly escaped
     fixed_code = '''import numpy as np
 
@@ -224,50 +227,57 @@ def mp_nerf_torch(a, b, c, l, theta, chi):
     # extend base point, set length
     return c + l.unsqueeze(-1) * torch.matmul(rotate, d).squeeze()
 '''
-    
+
     # Create a backup of the original file
     backup_file = original_file + ".bak"
     import shutil
+
     shutil.copy2(original_file, backup_file)
     logger.info(f"Created backup of original file at {backup_file}")
-    
+
     # Write the fixed version
-    with open(original_file, 'w') as f:
+    with open(original_file, "w") as f:
         f.write(fixed_code)
-    
+
     logger.info(f"Applied permanent fix to {original_file}")
     logger.info("The fix includes:")
     logger.info("1. Safe normalization with epsilon to avoid division by zero")
     logger.info("2. Clamping theta to valid range instead of raising error")
     logger.info("3. Adding small perturbations to avoid zero vectors and collinearity")
-    
+
     return True
+
 
 def main():
     """Run the diagnosis and apply fixes."""
     print_section("MP-NeRF NaN Diagnosis and Fix")
-    
+
     # First, run the diagnostic tests
     logger.info("Running diagnostic tests to identify NaN sources...")
     run_all_tests()
-    
+
     # Apply temporary fixes and test
     logger.info("\nApplying temporary fixes...")
     fixes_successful = apply_fixes()
-    
+
     # If temporary fixes work, create permanent fix
     if fixes_successful:
         logger.info("\nTemporary fixes were successful. Creating permanent fix...")
         create_permanent_fix()
-        
+
         # Restore original function for clean state
         restore_mp_nerf()
-        
-        logger.info("\nFix complete! The MP-NeRF implementation should now be robust against NaN issues.")
+
+        logger.info(
+            "\nFix complete! The MP-NeRF implementation should now be robust against NaN issues."
+        )
     else:
-        logger.error("\nTemporary fixes were not successful. More investigation needed.")
+        logger.error(
+            "\nTemporary fixes were not successful. More investigation needed."
+        )
         # Restore original function
         restore_mp_nerf()
+
 
 if __name__ == "__main__":
     main()
