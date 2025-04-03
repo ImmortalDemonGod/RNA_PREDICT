@@ -21,8 +21,13 @@ import torch.nn.functional as F
 
 from rna_predict.pipeline.stageA.input_embedding.current.primitives import LinearNoBias
 from rna_predict.pipeline.stageA.input_embedding.current.transformer import (
+    AtomAttentionConfig,  # Import from transformer package
     AtomAttentionEncoder,
+    EncoderForwardParams,  # Import from transformer package
+    InputFeatureDict,  # Import the type hint
 )
+
+# Removed the direct import from ...transformer.atom_attention
 
 
 class InputFeatureEmbedder(nn.Module):
@@ -77,12 +82,15 @@ class InputFeatureEmbedder(nn.Module):
         self.num_layers = num_layers
         self.use_optimized = use_optimized
 
-        self.atom_attention_encoder = AtomAttentionEncoder(
-            c_atom=self.c_atom,
-            c_atompair=self.c_atompair,  # or self.c_pair if needed
+        # Create the config object explicitly
+        encoder_config = AtomAttentionConfig(
+            has_coords=False,  # Based on original failing call
             c_token=self.c_token,
-            has_coords=False,
+            c_atom=self.c_atom,
+            c_atompair=self.c_atompair,
+            # Rely on defaults in AtomAttentionConfig for other params (c_s, c_z, n_blocks, etc.)
         )
+        self.atom_attention_encoder = AtomAttentionEncoder(config=encoder_config)
         # Existing line2 comment
         #
         # We'll store these so we know how many dims to expect for restype, profile, etc.
@@ -94,6 +102,7 @@ class InputFeatureEmbedder(nn.Module):
 
         # We'll create extras_linear lazily in the forward pass once we know
         # the exact input dimension
+        self.extras_linear: Optional[nn.Linear] = None
 
         # Optionally, place a final layer norm after summing
         self.final_ln = nn.LayerNorm(self.c_token)
@@ -101,7 +110,7 @@ class InputFeatureEmbedder(nn.Module):
     # @snoop
     def forward(
         self,
-        input_feature_dict: dict[str, Any],
+        input_feature_dict: InputFeatureDict,
         trunk_sing: Optional[torch.Tensor] = None,
         trunk_pair: Optional[torch.Tensor] = None,
         block_index: Optional[torch.Tensor] = None,
@@ -117,13 +126,38 @@ class InputFeatureEmbedder(nn.Module):
         Returns:
             torch.Tensor: token embedding with shape [..., N_token, c_token]
         """
+        # --- Start: Added Key Check ---
+        # Check if all required top-level keys are present
+        required_keys = set(self.input_feature.keys())
+        missing_keys = required_keys - set(input_feature_dict.keys())
+        if missing_keys:
+            raise KeyError(
+                f"Missing required keys in input_feature_dict: {missing_keys}"
+            )
+        # --- End: Added Key Check ---
+
         # 1) Embed per-atom features with the AtomAttentionEncoder.
         #    a => [..., N_token, c_token]
-        a, _, _, _ = self.atom_attention_encoder(
+        # Create EncoderForwardParams object
+        encoder_params = EncoderForwardParams(
             input_feature_dict=input_feature_dict,
+            # r_l, s, z are not passed to this forward method, so they remain None
+            # Pass inplace_safe and chunk_size correctly
             inplace_safe=inplace_safe,
             chunk_size=chunk_size,
         )
+        # Pass arguments individually instead of using EncoderForwardParams object
+        # Note: r_l, s, z are typically None when called from InputFeatureEmbedder
+        # as it usually runs with has_coords=False for the encoder.
+        a, _, _, _ = self.atom_attention_encoder(
+            input_feature_dict=input_feature_dict,
+            r_l=None,  # Explicitly None as not available here
+            s=None,  # Explicitly None as not available here
+            z=None,  # Explicitly None as not available here
+            inplace_safe=inplace_safe,
+            chunk_size=chunk_size,
+        )
+        print(f"DEBUG [Embedder]: Shape after encoder (a): {a.shape}") # DEBUG
 
         # 2) Gather the extra token-level features
         #    restype, profile, deletion_mean => shape [..., N_token, sum_of_dims]
@@ -180,7 +214,7 @@ class InputFeatureEmbedder(nn.Module):
                     raw_feature = default_tensor
             else:
                 # Use the feature from input_feature_dict
-                raw_feature = input_feature_dict[name]
+                raw_feature = input_feature_dict[name]  # type: ignore[literal-required] # Mypy struggles with variable keys here
 
             # Handle different tensor dimensions correctly
             if name == "deletion_mean":
@@ -267,16 +301,29 @@ class InputFeatureEmbedder(nn.Module):
         # Concatenate the extra features along the last dimension
         token_extras = torch.cat(extras_list, dim=-1)  # => [..., N_token, sum_of_dims]
 
-        # Check if extras_linear has the right input size, if not recreate it
+        # Check if extras_linear needs to be created or recreated
         extras_in_dim = token_extras.shape[-1]
-        if (
-            not hasattr(self, "extras_linear")
-            or self.extras_linear.in_features != extras_in_dim
-        ):
-            self.extras_linear = nn.Linear(extras_in_dim, self.c_token, bias=True)
+        recreate_linear = False
+        if self.extras_linear is None:
+            recreate_linear = True
+        else:
+            # Check input dimension only if the layer exists
+            if self.extras_linear.in_features != extras_in_dim:
+                recreate_linear = True
+
+        if recreate_linear:
+            # Ensure the layer is on the correct device
+            device = token_extras.device
+            self.extras_linear = nn.Linear(extras_in_dim, self.c_token, bias=True).to(
+                device
+            )
+            # Initialization logic could be added here if needed
 
         # Apply the linear layer to project to c_token
+        # Add assertion to assure mypy that extras_linear is not None here
+        assert self.extras_linear is not None
         extras_emb = self.extras_linear(token_extras)  # => [..., N_token, c_token]
+        print(f"DEBUG [Embedder]: Shape after extras_linear (extras_emb): {extras_emb.shape}") # DEBUG
 
         # Ensure the atom output 'a' has the same token dimension as our extras
         if a.shape[-2] != token_dim:
@@ -294,9 +341,11 @@ class InputFeatureEmbedder(nn.Module):
         # 3) Merge atom output with these extra features
         #    Summation is a simple choice that yields a final [N_token, c_token].
         s_inputs = a + extras_emb
+        print(f"DEBUG [Embedder]: Shape after addition (s_inputs): {s_inputs.shape}") # DEBUG
 
         # 4) Optional final layer norm
         out = self.final_ln(s_inputs)  # => [..., N_token, c_token]
+        print(f"DEBUG [Embedder]: Shape after final_ln (out): {out.shape}") # DEBUG
 
         # 5) Add a projection to get the expected output dimension
         # If the expected output dimension is different from c_token (e.g. 449 vs 384)
@@ -311,6 +360,7 @@ class InputFeatureEmbedder(nn.Module):
 
         # Apply the final projection to get the desired output dimension
         out = self.final_projection(out)
+        print(f"DEBUG [Embedder]: Shape before return (out): {out.shape}") # DEBUG
 
         return out
 
