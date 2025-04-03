@@ -51,9 +51,8 @@ wc -l path/to/file.py
 
 Decision point: If file exceeds 500 lines, prioritize splitting it before detailed refactoring.
 
-	2.	Find Complex Methods:
+	2.	Find all methods that have code smell issue identified by codescene (cs):
 
-cat analysis_results_file.py.txt | grep "Complex Method\|Large Method\|Bumpy Road" -A 10
 
 Focus on: Methods with cyclomatic complexity > 15 or > 50 lines
 
