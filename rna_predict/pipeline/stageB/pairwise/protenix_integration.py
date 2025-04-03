@@ -125,20 +125,26 @@ class ProtenixIntegration:
         if s_inputs.dim() == 3 and s_inputs.size(0) == 1:
             s_inputs = s_inputs.squeeze(0)
 
-        # Extract the number of tokens from atom_to_token
-        if "atom_to_token" in input_features:
-            atom_to_token = input_features["atom_to_token"]
-            if atom_to_token.dim() == 2:
-                N_token = atom_to_token.size(0)
-            else:
-                N_token = atom_to_token.max().item() + 1
-        else:
-            # Fallback to restype if atom_to_token is not available
+        # Extract the number of tokens from restype or profile
+        if "restype" in input_features:
             restype = input_features["restype"]
             if restype.dim() == 2:
                 N_token = restype.size(0)
             else:
                 N_token = restype.size(1)
+        elif "profile" in input_features:
+            profile = input_features["profile"]
+            if profile.dim() == 2:
+                N_token = profile.size(0)
+            else:
+                N_token = profile.size(1)
+        else:
+            # Fallback to atom_to_token if neither restype nor profile is available
+            atom_to_token = input_features["atom_to_token"]
+            if atom_to_token.dim() == 2:
+                N_token = atom_to_token.size(0)
+            else:
+                N_token = atom_to_token.max().item() + 1
 
         # Ensure s_inputs has the correct number of tokens
         if s_inputs.dim() == 2:
@@ -159,8 +165,8 @@ class ProtenixIntegration:
         # Determine residue indices: use provided 'residue_index' if available, otherwise create a default range.
         if "residue_index" in input_features:
             res_idx = input_features["residue_index"].to(self.device)
-            # Squeeze out the trailing dimension if it's [N_token, 1]
-            if res_idx.dim() == 2 and res_idx.shape[1] == 1:
+            # Ensure res_idx is 1D by squeezing any extra dimensions
+            while res_idx.dim() > 1:
                 res_idx = res_idx.squeeze(-1)
         else:
             res_idx = torch.arange(N_token, device=self.device)
