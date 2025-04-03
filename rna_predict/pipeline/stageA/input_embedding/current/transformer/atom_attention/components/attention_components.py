@@ -99,7 +99,9 @@ class AttentionComponents:
         )
 
     def process_pair_features(
-        self, c_l: torch.Tensor, m_l: torch.Tensor
+        self,
+        c_l: torch.Tensor,
+        m_l: torch.Tensor,
     ) -> torch.Tensor:
         """
         Process pair features through MLP.
@@ -121,6 +123,9 @@ class AttentionComponents:
         p_i = p_l.unsqueeze(1)  # [N, 1, c_atompair]
         p_j = p_l.unsqueeze(0)  # [1, N, c_atompair]
         p_ij = p_i + p_j  # [N, N, c_atompair]
+
+        # Ensure the tensor has the correct dtype
+        p_ij = p_ij.to(dtype=torch.float32)
 
         return p_ij
 
@@ -150,6 +155,14 @@ class AttentionComponents:
         # Ensure mask has correct shape
         if mask.dim() == 2:
             mask = mask.unsqueeze(-1)
+
+        # Ensure pair features have correct dimensions
+        if p.shape[-1] != self.c_atompair:
+            p = p.unsqueeze(-1).expand(*p.shape[:-1], self.c_atompair)
+            
+        # Convert mask to float32 if it's a boolean tensor
+        if mask.dtype == torch.bool:
+            mask = mask.to(dtype=torch.float32)
 
         return self.atom_transformer(
             a,
