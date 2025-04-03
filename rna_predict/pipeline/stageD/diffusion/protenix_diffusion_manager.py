@@ -62,8 +62,8 @@ class ProtenixDiffusionManager:
              diffusion_module_args["blocks_per_ckpt"] = diffusion_config.get("blocks_per_ckpt")
         if "use_fine_grained_checkpoint" in diffusion_config:
              diffusion_module_args["use_fine_grained_checkpoint"] = diffusion_config.get("use_fine_grained_checkpoint")
-        if initialization_config: # Pass if not empty
-             diffusion_module_args["initialization"] = initialization_config
+        # Pass initialization config (guaranteed to be a dict by lines 25-27)
+        diffusion_module_args["initialization"] = initialization_config
 
         # Filter out None values so DiffusionModule uses its internal defaults
         filtered_diffusion_module_args = {k: v for k, v in diffusion_module_args.items() if v is not None}
