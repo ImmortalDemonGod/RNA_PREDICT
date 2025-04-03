@@ -150,3 +150,6 @@ test_seq.ct
 test_seq.png
 generated_tests/*.DS_Store
 .DS_Store?
+memory-bank/
+.roo
+.clinerules-default
