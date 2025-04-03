@@ -145,27 +145,32 @@ class AttentionPairBias(nn.Module):
                 len(a.shape) + 2
             )  # e.g. 3 + 2 = 5 (if a is missing sample dim)
 
-            is_a_5d = (
-                len(a.shape) == 5
-            )  # Diffusion case where 'a' already has sample dim
+            is_a_3d = len(a.shape) == 3
+            is_a_4d = len(a.shape) == 4
+            is_a_5d = len(a.shape) == 5
+
+            is_z_4d = len(z.shape) == 4
             is_z_5d = len(z.shape) == 5
+            is_z_6d = len(z.shape) == 6 # Added check for 6D z
 
             # Valid conditions:
             # 1. z is 4D and a is 3D (standard case)
             # 2. z is 5D and a is 4D (diffusion case where 'a' has sample dim)
             # 3. z is 5D and a is 3D (diffusion case where 'a' doesn't have sample dim *yet*)
             # 4. z is 5D and a is 5D (diffusion case, maybe less common but possible)
-
-            valid_4d_standard = len(z.shape) == expected_dim_4d and len(a.shape) == 3
-            valid_5d_diffusion_a4d = len(z.shape) == 5 and len(a.shape) == 4
-            valid_5d_diffusion_a3d = len(z.shape) == 5 and len(a.shape) == 3
-            valid_5d_diffusion_a5d = len(z.shape) == 5 and len(a.shape) == 5
+            # 5. z is 6D and a is 5D (diffusion single sample expansion case)
+            valid_4d_standard = is_z_4d and is_a_3d
+            valid_5d_diffusion_a4d = is_z_5d and is_a_4d
+            valid_5d_diffusion_a3d = is_z_5d and is_a_3d
+            valid_5d_diffusion_a5d = is_z_5d and is_a_5d
+            valid_6d_diffusion_a5d = is_z_6d and is_a_5d # Added condition
 
             if not (
                 valid_4d_standard
                 or valid_5d_diffusion_a4d
                 or valid_5d_diffusion_a3d
                 or valid_5d_diffusion_a5d
+                or valid_6d_diffusion_a5d # Include new condition
             ):
                 raise ValueError(
                     f"Unexpected dimension combination for non-local attention. "
