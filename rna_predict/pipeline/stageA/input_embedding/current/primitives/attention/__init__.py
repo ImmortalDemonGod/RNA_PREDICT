@@ -20,9 +20,8 @@ __all__ = [
     # Dense trunk functions
     "rearrange_qk_to_dense_trunk",
     "rearrange_to_dense_trunk",
-    
     # Mask operations
     "MaskCreationConfig",
     "MaskSliceInfo",
     "_create_masks",
-] 
+]
