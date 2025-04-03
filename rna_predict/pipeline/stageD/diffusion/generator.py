@@ -167,7 +167,12 @@ def sample_diffusion(
         torch.Tensor: the denoised coordinates of x in inference stage
             [..., N_sample, N_atom, 3]
     """
+    print("[DEBUG] Starting sample_diffusion")
+    print(f"[DEBUG] noise_schedule shape: {noise_schedule.shape}")
+    print(f"[DEBUG] noise_schedule values: {noise_schedule}")
+    
     N_atom = input_feature_dict["atom_to_token_idx"].size(-1)
+    print(f"[DEBUG] N_atom: {N_atom}")
 
     # Handle the case when s_inputs is None
     if s_inputs is None:
@@ -179,38 +184,36 @@ def sample_diffusion(
         batch_shape = s_inputs.shape[:-2]
         device = s_inputs.device
         dtype = s_inputs.dtype
+    
+    print(f"[DEBUG] batch_shape: {batch_shape}")
+    print(f"[DEBUG] device: {device}")
+    print(f"[DEBUG] dtype: {dtype}")
 
     def _chunk_sample_diffusion(chunk_n_sample, inplace_safe):
+        print(f"[DEBUG] Starting _chunk_sample_diffusion with chunk_n_sample={chunk_n_sample}")
         # init noise
         # [..., N_sample, N_atom, 3]
         x_l = noise_schedule[0] * torch.randn(
             size=(*batch_shape, chunk_n_sample, N_atom, 3), device=device, dtype=dtype
         )  # NOTE: set seed in distributed training
+        print(f"[DEBUG] Initial x_l shape: {x_l.shape}")
 
-        for _, (c_tau_last, c_tau) in enumerate(
+        for step, (c_tau_last, c_tau) in enumerate(
             zip(noise_schedule[:-1], noise_schedule[1:])
         ):
-            # [..., N_sample, N_atom, 3]
-            # Apply augmentation using the current chunk's sample size
-            # Apply augmentation using the current chunk's sample size
-            # The augmentation function might add an extra dimension, which we squeeze out.
-            # x_l = (                                                        # <-- COMMENTED OUT
-            #     centre_random_augmentation(                                # <-- COMMENTED OUT
-            #         x_input_coords=x_l, N_sample=chunk_n_sample            # <-- COMMENTED OUT
-            #     )                                                        # <-- COMMENTED OUT
-            #     # .squeeze(dim=-3) # <-- REMOVED THIS LINE                 # <-- COMMENTED OUT
-            #     .to(dtype)                                                # <-- COMMENTED OUT
-            # )                                                              # <-- COMMENTED OUT
-
+            print(f"[DEBUG] Step {step}: c_tau_last={c_tau_last}, c_tau={c_tau}")
+            
             # Denoise with a predictor-corrector sampler
             # 1. Add noise to move x_{c_tau_last} to x_{t_hat}
             gamma = float(gamma0) if c_tau > gamma_min else 0
             t_hat = c_tau_last * (gamma + 1)
+            print(f"[DEBUG] Step {step}: gamma={gamma}, t_hat={t_hat}")
 
             delta_noise_level = torch.sqrt(t_hat**2 - c_tau_last**2)
             x_noisy = x_l + noise_scale_lambda * delta_noise_level * torch.randn(
                 size=x_l.shape, device=device, dtype=dtype
             )
+            print(f"[DEBUG] Step {step}: x_noisy shape: {x_noisy.shape}")
 
             # 2. Denoise from x_{t_hat} to x_{c_tau}
             # Euler step only
@@ -219,7 +222,9 @@ def sample_diffusion(
                 .expand(*batch_shape, chunk_n_sample)
                 .to(dtype)
             )
+            print(f"[DEBUG] Step {step}: t_hat shape after reshape: {t_hat.shape}")
 
+            print(f"[DEBUG] Step {step}: Calling denoise_net")
             x_denoised = denoise_net(
                 x_noisy=x_noisy,
                 t_hat_noise_level=t_hat,
@@ -230,18 +235,22 @@ def sample_diffusion(
                 chunk_size=attn_chunk_size,
                 inplace_safe=inplace_safe,
             )
+            print(f"[DEBUG] Step {step}: x_denoised shape: {x_denoised.shape}")
 
             delta = (x_noisy - x_denoised) / t_hat[
                 ..., None, None
             ]  # Line 9 of AF3 uses 'x_l_hat' instead, which we believe  is a typo.
             dt = c_tau - t_hat
             x_l = x_noisy + step_scale_eta * dt[..., None, None] * delta
+            print(f"[DEBUG] Step {step}: Updated x_l shape: {x_l.shape}")
 
         return x_l
 
     if diffusion_chunk_size is None:
+        print("[DEBUG] Running without chunking")
         x_l = _chunk_sample_diffusion(N_sample, inplace_safe=inplace_safe)
     else:
+        print(f"[DEBUG] Running with chunking, chunk_size={diffusion_chunk_size}")
         x_l = []
         no_chunks = N_sample // diffusion_chunk_size + (
             N_sample % diffusion_chunk_size != 0
@@ -252,11 +261,20 @@ def sample_diffusion(
                 if i < no_chunks - 1
                 else N_sample - i * diffusion_chunk_size
             )
+            print(f"[DEBUG] Processing chunk {i+1}/{no_chunks} with {chunk_n_sample} samples")
             chunk_x_l = _chunk_sample_diffusion(
                 chunk_n_sample, inplace_safe=inplace_safe
             )
             x_l.append(chunk_x_l)
         x_l = torch.cat(x_l, -3)  # [..., N_sample, N_atom, 3]
+        print(f"[DEBUG] Final concatenated x_l shape: {x_l.shape}")
+
+    # If N_sample is 1, squeeze out the sample dimension
+    if N_sample == 1:
+        print("[DEBUG] Squeezing sample dimension for N_sample=1")
+        x_l = x_l.squeeze(-3)  # Remove the N_sample dimension when it's 1
+        print(f"[DEBUG] Final squeezed x_l shape: {x_l.shape}")
+
     return x_l
 
 

@@ -173,12 +173,12 @@ def _aggregate_to_token_level(
 
     Args:
         encoder: The encoder module instance (not directly used here, but kept for consistency)
-        a_atom: Atom-level features
-        atom_to_token_idx: Mapping from atoms to tokens
+        a_atom: Atom-level features [..., N_atom, C]
+        atom_to_token_idx: Mapping from atoms to tokens [..., N_atom]
         num_tokens: Number of tokens
 
     Returns:
-        Token-level aggregated features
+        Token-level aggregated features [..., N_token, C]
     """
     # Ensure atom_to_token_idx has compatible batch dimensions with a_atom
     # Target shape for index: [*a_atom.shape[:-2], N_atom]
@@ -188,7 +188,7 @@ def _aggregate_to_token_level(
     n_batch_dims_target = len(target_batch_shape)
     n_atom_dim_a = a_atom.shape[-2]  # N_atom dimension from a_atom
 
-    # Ensure index has at least batch_dims + 1 dimensions
+    # Ensure index has at least batch_dims + 1 dimensions (batch + atom)
     temp_idx = atom_to_token_idx
     while temp_idx.dim() < n_batch_dims_target + 1:
         temp_idx = temp_idx.unsqueeze(0)
@@ -196,78 +196,108 @@ def _aggregate_to_token_level(
     # Match the number of batch dimensions by squeezing/unsqueezing index
     while temp_idx.dim() > n_batch_dims_target + 1:
         squeezed = False
-        for i in range(1, temp_idx.dim() - 1): # Don't squeeze batch or atom dim
+        # Try squeezing dimensions between the first batch dim and the last (atom) dim
+        for i in range(1, temp_idx.dim() - 1):
             if temp_idx.shape[i] == 1:
                 temp_idx = temp_idx.squeeze(i)
                 squeezed = True
                 break
         if not squeezed:
-            warnings.warn(
-                f"Could not reduce index dimensions from {temp_idx.dim()} to {n_batch_dims_target + 1}"
-            )
-            break
+            # If no squeezable dim found, check if the first dim can be squeezed (if it's not the only batch dim)
+            if temp_idx.shape[0] == 1 and n_batch_dims_target > 0 and temp_idx.dim() > 2:
+                 temp_idx = temp_idx.squeeze(0)
+                 squeezed = True
 
+        if not squeezed:
+             warnings.warn(
+                 f"Could not reduce index dimensions from {temp_idx.dim()} to target {n_batch_dims_target + 1}. "
+                 f"Index shape: {temp_idx.shape}, Original: {original_idx_shape}, Target Batch: {target_batch_shape}"
+             )
+             break # Cannot reduce further
+
+    # Add missing batch dimensions (typically at the start or after first batch dim)
     while temp_idx.dim() < n_batch_dims_target + 1:
-        temp_idx = temp_idx.unsqueeze(1) # Add dimensions after potential batch dim 0
+        # Add dimensions after the potential first batch dim
+        temp_idx = temp_idx.unsqueeze(1 if n_batch_dims_target > 0 else 0)
 
-    # Match batch dimension sizes via expand
+    # --- Start Fix: Check atom dimension compatibility BEFORE batch expansion ---
+    n_atom_dim_idx = temp_idx.shape[-1]
+    if n_atom_dim_idx != n_atom_dim_a:
+        # Attempt to expand atom dimension only if it's 1
+        if n_atom_dim_idx == 1:
+            warnings.warn(
+                f"Atom dimension mismatch: a_atom has {n_atom_dim_a} atoms, index has 1. "
+                f"Expanding index atom dimension. Original idx shape: {original_idx_shape}."
+            )
+            temp_idx = temp_idx.expand(*temp_idx.shape[:-1], n_atom_dim_a)
+            n_atom_dim_idx = temp_idx.shape[-1] # Update after expansion
+        else:
+            # If atom dimensions mismatch and index atom dim is not 1, it's an irreconcilable error.
+            raise ValueError(
+                f"Irreconcilable atom dimension mismatch in _aggregate_to_token_level. "
+                f"a_atom shape: {a_atom.shape} (N_atom={n_atom_dim_a}), "
+                f"processed atom_to_token_idx shape: {temp_idx.shape} (N_atom={n_atom_dim_idx}). "
+                f"Original index shape was {original_idx_shape}. Cannot aggregate."
+            )
+    # --- End Fix ---
+
+
+    # Match batch dimension sizes via expand (only if atom dimensions now match)
     current_batch_shape = temp_idx.shape[:-1]
     if target_batch_shape != current_batch_shape:
-        can_expand = all(
-            t == c or c == 1 for t, c in zip(target_batch_shape, current_batch_shape)
-        )
-        if can_expand:
-            # Ensure the atom dimension matches a_atom's atom dimension if index's doesn't
-            n_atom_dim_idx = temp_idx.shape[-1]
-            if n_atom_dim_idx != n_atom_dim_a:
-                 warnings.warn(
-                    f"Atom dimension mismatch between a_atom ({n_atom_dim_a}) and "
-                    f"atom_to_token_idx ({n_atom_dim_idx}) before expansion. "
-                    f"Original idx shape: {original_idx_shape}. Attempting to expand index atom dim."
-                 )
-                 # Try expanding the atom dimension if it's 1
-                 if n_atom_dim_idx == 1:
-                     temp_idx = temp_idx.expand(*current_batch_shape, n_atom_dim_a)
-                 else:
-                     # If not 1, we likely can't safely expand. Keep original shape for error below.
-                     pass # Keep temp_idx as is, let the final check catch it
-
-            # Now expand batch dimensions
-            target_idx_shape = target_batch_shape + (temp_idx.shape[-1],) # Use potentially expanded atom dim
-            try:
-                temp_idx = temp_idx.expand(target_idx_shape)
-            except RuntimeError as e:
-                warnings.warn(
-                    f"Could not expand atom_to_token_idx from {temp_idx.shape} to {target_idx_shape}: {e}. "
-                    f"Original idx shape: {original_idx_shape}."
-                )
+        # Special case: if target_batch_shape is empty, we need to squeeze all batch dimensions
+        if len(target_batch_shape) == 0:
+            # Keep squeezing until we only have the atom dimension
+            while temp_idx.dim() > 1:
+                temp_idx = temp_idx.squeeze(0)
         else:
-            warnings.warn(
-                f"Cannot expand index batch dims {current_batch_shape} to target {target_batch_shape}. "
-                f"Original idx shape: {original_idx_shape}."
+            # Check if expansion is possible (target dim == current dim OR current dim == 1)
+            can_expand = all(
+                t == c or c == 1 for t, c in zip(target_batch_shape, current_batch_shape)
             )
+            # Also need to ensure the number of dimensions is compatible for expansion
+            # (temp_idx might have fewer batch dims than target after squeezing)
+            if len(current_batch_shape) <= len(target_batch_shape) and can_expand:
+                 target_idx_shape = target_batch_shape + (n_atom_dim_a,) # Use the matched atom dim size
+                 try:
+                     # Expand to the target shape (handles adding dimensions implicitly if needed)
+                     temp_idx = temp_idx.expand(target_idx_shape)
+                 except RuntimeError as e:
+                     # This expansion should ideally not fail if the checks above passed, but catch just in case
+                     raise RuntimeError(
+                         f"Failed to expand atom_to_token_idx batch dimensions from {current_batch_shape} "
+                         f"to {target_batch_shape} (target index shape: {target_idx_shape}). "
+                         f"Original idx shape: {original_idx_shape}. Error: {e}"
+                     ) from e
+            else: # Expansion is not possible
+                 # Refined error message for clarity
+                 raise ValueError(
+                    f"Cannot expand index batch dimensions {current_batch_shape} to target {target_batch_shape}. "
+                    f"Expansion possible: {can_expand}, Dim lengths compatible: {len(current_batch_shape) <= len(target_batch_shape)}. "
+                    f"Original idx shape: {original_idx_shape}. Aggregation impossible."
+                )
+    # If shapes already match, do nothing and proceed. The removed 'else' block caused the error.
 
-    # Final check before aggregation
+    # Final check before aggregation (should always pass if logic above is correct)
     if temp_idx.shape[:-1] != a_atom.shape[:-2] or temp_idx.shape[-1] != n_atom_dim_a:
-        warnings.warn(
-            f"Shape mismatch persists before aggregation: "
-            f"a_atom shape {a_atom.shape}, "
-            f"atom_to_token_idx shape {temp_idx.shape}. "
+         # This path indicates a bug in the reshaping/expansion logic itself.
+         raise AssertionError(
+            f"Internal logic error: Shape mismatch persists before aggregation despite checks. "
+            f"a_atom shape {a_atom.shape}, atom_to_token_idx shape {temp_idx.shape}. "
             f"Original idx shape was {original_idx_shape}."
         )
-        # Fallback: Use original index if shapes are incompatible after attempts
-        # This might still error in aggregate_atom_to_token, but prevents using a badly reshaped index
-        if atom_to_token_idx.shape[:-1] != a_atom.shape[:-2] or atom_to_token_idx.shape[-1] != n_atom_dim_a:
-             warnings.warn("Falling back to original atom_to_token_idx due to persistent shape mismatch.")
-             temp_idx = atom_to_token_idx # Revert to original if still mismatched
 
     # Ensure atom_to_token_idx doesn't exceed num_tokens to prevent out-of-bounds
-    if temp_idx.numel() > 0 and temp_idx.max() >= num_tokens:
-        warnings.warn(
-            f"[AtomAttentionEncoder] atom_to_token_idx contains indices >= {num_tokens}. "
-            f"Clipping indices to prevent out-of-bounds error."
-        )
-        temp_idx = torch.clamp(temp_idx, max=num_tokens - 1)
+    if num_tokens <= 0:
+         raise ValueError(f"num_tokens must be positive, but got {num_tokens}.")
+    if temp_idx.numel() > 0:
+        max_idx = temp_idx.max()
+        if max_idx >= num_tokens:
+            warnings.warn(
+                f"[AtomAttentionEncoder] atom_to_token_idx contains indices ({max_idx}) >= num_tokens ({num_tokens}). "
+                f"Clipping indices to prevent out-of-bounds error."
+            )
+            temp_idx = torch.clamp(temp_idx, max=num_tokens - 1)
 
     # Aggregate atom features to token level
     return aggregate_atom_to_token(
@@ -347,27 +377,75 @@ def process_inputs_with_coords(
     # Project to token dimension with ReLU
     a_atom = F.relu(encoder.linear_no_bias_q(q_l))
 
-    # Get token count and aggregate to token level
-    restype = safe_tensor_access(params.input_feature_dict, "restype")
-    # Corrected logic:
-    if restype is not None and hasattr(restype, 'dim'):
-        if restype.dim() >= 3:
-            num_tokens = restype.shape[-2]
-        elif restype.dim() == 2:
-            if restype.shape[0] > restype.shape[1] and restype.shape[1] != a_atom.shape[-1]:
-                num_tokens = restype.shape[0]
+    # --- Start Fix: Ensure atom_to_token_idx matches a_atom's atom dimension & Recalculate num_tokens ---
+    if atom_to_token_idx is not None:
+        n_atom_a = a_atom.shape[-2]
+        # Ensure index has at least one dimension before checking the last one
+        if atom_to_token_idx.dim() > 0:
+            n_atom_idx = atom_to_token_idx.shape[-1]
+            if n_atom_a != n_atom_idx:
+                warnings.warn(
+                    f"Mismatch between a_atom atom dimension ({n_atom_a}) and atom_to_token_idx last dimension ({n_atom_idx}). "
+                    f"This might be caused by upstream patching (e.g., transformer_fixes). "
+                    f"Slicing atom_to_token_idx to match a_atom. Index shape before: {atom_to_token_idx.shape}"
+                )
+                # Slice the last dimension of the index
+                try:
+                    # Create slices for all dimensions except the last one
+                    slices = [slice(None)] * (atom_to_token_idx.dim() - 1)
+                    # Add the slice for the last dimension
+                    slices.append(slice(0, n_atom_a))
+                    atom_to_token_idx = atom_to_token_idx[tuple(slices)]
+                    warnings.warn(f"Index shape after slicing: {atom_to_token_idx.shape}")
+                except IndexError as e:
+                    warnings.warn(f"Failed to slice atom_to_token_idx: {e}. Proceeding with original index.")
+                    # If slicing fails, we likely can't determine the correct num_tokens, maybe fallback or error?
+                    # For now, let the original num_tokens calculation proceed, but it might be wrong.
+                    pass # Allow original num_tokens calculation below if slicing fails
+
+            # Recalculate num_tokens based on the *potentially sliced* index
+            if atom_to_token_idx.numel() > 0:
+                 # Add 1 because indices are 0-based
+                num_tokens = int(atom_to_token_idx.max().item()) + 1
+                # print(f"[DEBUG] Recalculated num_tokens from sliced index: {num_tokens}") # Optional debug print
             else:
-                num_tokens = restype.shape[-1]
-        elif restype.dim() == 1:
-            num_tokens = restype.shape[0]
+                # Handle empty index case
+                warnings.warn("atom_to_token_idx is empty after potential slicing. Setting num_tokens to 0.")
+                num_tokens = 0
+
         else:
-            warnings.warn(f"Could not determine num_tokens from restype shape {restype.shape}. Falling back to a_atom.")
-            num_tokens = a_atom.shape[-2]
+             warnings.warn("atom_to_token_idx has 0 dimensions. Cannot determine num_tokens from it.")
+             # Fallback: Use original restype logic or a default? Let's use a default of 0 for safety.
+             num_tokens = 0
     else:
-         warnings.warn(f"restype is None or not a Tensor. Falling back to a_atom shape for num_tokens.")
-         num_tokens = a_atom.shape[-2]
+        # If atom_to_token_idx was None initially
+        warnings.warn("atom_to_token_idx is None. Cannot determine num_tokens.")
+        num_tokens = 0 # Or handle as appropriate for the aggregation logic
+
+    # --- End Fix ---
 
 
-    a = _aggregate_to_token_level(encoder, a_atom, atom_to_token_idx, num_tokens)
+    # Ensure atom_to_token_idx is not None before aggregation (it might be None if slicing failed badly or input was None)
+    if atom_to_token_idx is None:
+        warnings.warn("atom_to_token_idx is None before aggregation. Cannot aggregate.")
+        # Return zero tensor or handle error appropriately
+        # Assuming 'a' should have shape [..., num_tokens, feature_dim]
+        # We might not know the correct batch dims here easily if index was None
+        # Let's return None and let the caller handle it, or raise an error.
+        # For now, let's try returning zeros based on a_atom batching and num_tokens=0
+        # This might still cause issues downstream if num_tokens=0 is unexpected.
+        batch_dims = a_atom.shape[:-2]
+        feature_dim = a_atom.shape[-1]
+        a = torch.zeros(*batch_dims, 0, feature_dim, device=a_atom.device, dtype=a_atom.dtype)
+
+    elif num_tokens <= 0:
+         warnings.warn(f"num_tokens is {num_tokens}. Cannot aggregate to zero or negative tokens. Returning empty tensor.")
+         batch_dims = a_atom.shape[:-2]
+         feature_dim = a_atom.shape[-1]
+         a = torch.zeros(*batch_dims, 0, feature_dim, device=a_atom.device, dtype=a_atom.dtype)
+    else:
+        # Proceed with aggregation only if index and num_tokens are valid
+        a = _aggregate_to_token_level(encoder, a_atom, atom_to_token_idx, num_tokens)
+
 
     return a, q_l, c_l, p_lm

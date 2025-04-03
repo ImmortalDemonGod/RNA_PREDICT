@@ -221,38 +221,25 @@ class DiffusionModule(nn.Module):
 
         if original_ndim >= 4 and r_noisy.shape[n_sample_dim_index] > 0:
             N_sample = r_noisy.size(n_sample_dim_index)
+            # If we have a 5D tensor, try to squeeze it to 4D
+            if original_ndim == 5:
+                # Check if any dimension before N_sample is 1 and can be squeezed
+                for dim in range(original_ndim - 3):  # Only check dimensions before N_sample
+                    if r_noisy.shape[dim] == 1:
+                        r_noisy = r_noisy.squeeze(dim)
+                        break  # Only squeeze one dimension
+                if r_noisy.dim() == 5:
+                    warnings.warn(f"Could not squeeze 5D tensor to 4D. Shape remains: {r_noisy.shape}")
         elif original_ndim == 3:
             N_sample = 1
             r_noisy = r_noisy.unsqueeze(n_sample_dim_index)
-            # warnings.warn(f"Input r_noisy was 3D, assuming N_sample=1. Unsqueezed to {r_noisy.shape}")
-        elif original_ndim == 5:
-             # First, determine N_sample before using it in warnings or logic
-             potential_n_sample_idx = n_sample_dim_index # Usually -3
-             if len(original_shape) + potential_n_sample_idx < 0: # Handle cases where ndim < 3? Unlikely but safe.
-                 N_sample = 1 # Fallback
-                 warnings.warn(f"Cannot determine N_sample reliably for 5D tensor with shape {original_shape}. Assuming N_sample=1.")
-             else:
-                 N_sample = original_shape[potential_n_sample_idx] # Get N_sample from the expected dimension
-
-             # Now try to squeeze
-             if r_noisy.shape[-4] == 1 and n_sample_dim_index == -4: # Check if dim before N_atom is 1
-                 r_noisy = r_noisy.squeeze(-4)
-                 # N_sample should remain the same after squeeze if it was the dim at -3 originally
-                 N_sample = r_noisy.size(n_sample_dim_index) # Re-confirm N_sample is at -3 now
-                 warnings.warn(f"Input r_noisy was 5D, squeezed extra dim. New shape: {r_noisy.shape}")
-             elif r_noisy.shape[-3] == 1 and n_sample_dim_index == -3: # Check if sample dim itself is 1
-                 # N_sample is already determined above
-                 warnings.warn(f"Input r_noisy was 5D with shape {original_shape}. Assuming dim at index {n_sample_dim_index} is N_sample={N_sample}.")
-             else:
-                 # N_sample is already determined above
-                 warnings.warn(f"Unexpected 5D shape for r_noisy: {r_noisy.shape}. Assuming N_sample={N_sample} at index {n_sample_dim_index}.")
         else:
             N_sample = 1 # Assume 1 sample
             if original_ndim >= 3:
-                 r_noisy = r_noisy.unsqueeze(n_sample_dim_index)
-                 warnings.warn(f"Unexpected shape {original_shape} for r_noisy. Assuming N_sample=1. Attempted unsqueeze to {r_noisy.shape}.")
+                r_noisy = r_noisy.unsqueeze(n_sample_dim_index)
+                warnings.warn(f"Unexpected shape {original_shape} for r_noisy. Assuming N_sample=1. Attempted unsqueeze to {r_noisy.shape}.")
             else:
-                 raise ValueError(f"Cannot handle r_noisy shape: {original_shape}")
+                raise ValueError(f"Cannot handle r_noisy shape: {original_shape}")
 
         return N_sample, r_noisy
 
@@ -329,10 +316,21 @@ class DiffusionModule(nn.Module):
         """
         Core network forward pass F_theta(c_in * x, c_noise(sigma)).
         """
+        print("[DEBUG] Starting f_forward")
+        print(f"[DEBUG] Input shapes - r_noisy: {r_noisy.shape}, t_hat_noise_level: {t_hat_noise_level.shape}")
+        print(f"[DEBUG] s_trunk shape: {s_trunk.shape}")
+        if s_inputs is not None:
+            print(f"[DEBUG] s_inputs shape: {s_inputs.shape}")
+        if z_trunk is not None:
+            print(f"[DEBUG] z_trunk shape: {z_trunk.shape}")
+
         # 1. Determine N_sample and ensure r_noisy has sample dimension
+        print("[DEBUG] Determining N_sample")
         N_sample, r_noisy = self._determine_n_sample(r_noisy)
+        print(f"[DEBUG] N_sample: {N_sample}, r_noisy shape after: {r_noisy.shape}")
 
         # 2. Ensure t_hat_noise_level has compatible shape
+        print("[DEBUG] Ensuring t_hat_noise_level shape compatibility")
         t_hat_target_ndim = r_noisy.ndim - 2
         if t_hat_target_ndim < 1: t_hat_target_ndim = 1
         t_hat_noise_level = _ensure_tensor_shape(
@@ -341,8 +339,10 @@ class DiffusionModule(nn.Module):
             target_shape=(r_noisy.shape[0], N_sample) if t_hat_target_ndim==2 else (r_noisy.shape[0],),
             warn_prefix="[f_forward t_hat]"
         )
+        print(f"[DEBUG] t_hat_noise_level shape after reshape: {t_hat_noise_level.shape}")
 
         # 3. Apply Diffusion Conditioning (using imported module)
+        print("[DEBUG] Applying Diffusion Conditioning")
         # Explicitly type the unpacked variables
         s_single: torch.Tensor
         z_pair: torch.Tensor
@@ -355,12 +355,15 @@ class DiffusionModule(nn.Module):
             z_trunk=z_trunk,
             inplace_safe=inplace_safe,
         )
+        print(f"[DEBUG] After conditioning - s_single shape: {s_single.shape}, z_pair shape: {z_pair.shape}")
 
         # 4. Expand s_trunk to match s_single's dimensions for the encoder
+        print("[DEBUG] Expanding s_trunk")
         s_trunk_expanded = _ensure_tensor_shape(s_trunk, s_single.ndim, ref_tensor=s_single, warn_prefix="[f_forward s_trunk]")
-        # NOTE: z_pair expansion is deferred until after a_token is generated
+        print(f"[DEBUG] s_trunk_expanded shape: {s_trunk_expanded.shape}")
 
         # 5. Apply Atom Attention Encoder
+        print("[DEBUG] Applying Atom Attention Encoder")
         # Explicitly type the unpacked variables (assuming Optional for skips)
         a_token: torch.Tensor
         q_skip: Optional[torch.Tensor]
@@ -375,19 +378,28 @@ class DiffusionModule(nn.Module):
             inplace_safe=inplace_safe,
             chunk_size=chunk_size,
         )
+        print(f"[DEBUG] After encoder - a_token shape: {a_token.shape}")
+        if q_skip is not None:
+            print(f"[DEBUG] q_skip shape: {q_skip.shape}")
+        if p_skip is not None:
+            print(f"[DEBUG] p_skip shape: {p_skip.shape}")
 
         # 6. Combine with Single Conditioning and Apply Transformer
+        print("[DEBUG] Combining with Single Conditioning")
         s_single_proj = self.linear_no_bias_s(self.layernorm_s(s_single))
+        print(f"[DEBUG] s_single_proj shape: {s_single_proj.shape}")
 
         if a_token.shape == s_single_proj.shape:
             if inplace_safe:
                 a_token += s_single_proj
             else:
                 a_token = a_token + s_single_proj
+            print(f"[DEBUG] After combining - a_token shape: {a_token.shape}")
         else:
             warnings.warn(f"Shape mismatch between a_token ({a_token.shape}) and projected s_single ({s_single_proj.shape}). Skipping addition.")
 
         # Expand z_pair based on a_token's dimensions AFTER a_token is generated
+        print("[DEBUG] Expanding z_pair")
         # Target ndim should be a_token.ndim + 1 (e.g., if a=4D, z should be 5D)
         target_z_ndim = a_token.ndim + 1
         z_pair_expanded = _ensure_tensor_shape(
@@ -396,8 +408,10 @@ class DiffusionModule(nn.Module):
             ref_tensor=a_token.unsqueeze(-1), # Use a_token shape as reference (adding feature dim)
             warn_prefix="[f_forward z_pair post-a_token]"
         )
+        print(f"[DEBUG] z_pair_expanded shape: {z_pair_expanded.shape}")
 
         # Explicitly type the output of the transformer
+        print("[DEBUG] Applying Diffusion Transformer")
         a_token_transformed: torch.Tensor
         a_token_transformed = self._run_with_checkpointing(
             self.diffusion_transformer,
@@ -407,9 +421,12 @@ class DiffusionModule(nn.Module):
             inplace_safe=inplace_safe,
             chunk_size=chunk_size,
         )
+        print(f"[DEBUG] a_token_transformed shape: {a_token_transformed.shape}")
         a_token = self.layernorm_a(a_token_transformed) # Assign back to a_token after layernorm
+        print(f"[DEBUG] a_token shape after layernorm: {a_token.shape}")
 
         # 7. Prepare Decoder Inputs
+        print("[DEBUG] Preparing Decoder Inputs")
         decoder_params = self._prepare_decoder_params(
             a_token=a_token,
             r_noisy=r_noisy,
@@ -420,12 +437,14 @@ class DiffusionModule(nn.Module):
         )
 
         # 8. Apply Atom Attention Decoder
+        print("[DEBUG] Applying Atom Attention Decoder")
         # Explicitly type the output
         r_update: torch.Tensor
         r_update = self._run_with_checkpointing(
             self.atom_attention_decoder,
             params=decoder_params,
         )
+        print(f"[DEBUG] r_update shape: {r_update.shape}")
 
         return r_update
 
@@ -445,23 +464,36 @@ class DiffusionModule(nn.Module):
         Performs one step of denoising using the EDM formulation.
         Uses imported _calculate_edm_scaling_factors.
         """
+        print("[DEBUG] Starting DiffusionModule forward")
+        print(f"[DEBUG] x_noisy shape: {x_noisy.shape}")
+        print(f"[DEBUG] t_hat_noise_level shape: {t_hat_noise_level.shape}")
+        print(f"[DEBUG] s_trunk shape: {s_trunk.shape}")
+        if s_inputs is not None:
+            print(f"[DEBUG] s_inputs shape: {s_inputs.shape}")
+        if z_trunk is not None:
+            print(f"[DEBUG] z_trunk shape: {z_trunk.shape}")
+
         # 1. Calculate EDM scaling factors (using imported utility)
+        print("[DEBUG] Calculating EDM scaling factors")
         c_in, c_skip, c_out = _calculate_edm_scaling_factors(
             sigma=t_hat_noise_level,
             sigma_data=self.sigma_data,
             ref_tensor=x_noisy
         )
+        print(f"[DEBUG] EDM factors shapes - c_in: {c_in.shape}, c_skip: {c_skip.shape}, c_out: {c_out.shape}")
 
         # 2. Scale noisy input: r_noisy = c_in * x_noisy
         # Ensure c_in is broadcastable
         try:
+            print("[DEBUG] Scaling noisy input")
             r_noisy = c_in * x_noisy
+            print(f"[DEBUG] r_noisy shape after scaling: {r_noisy.shape}")
         except RuntimeError as e:
              warnings.warn(f"Could not multiply c_in {c_in.shape} with x_noisy {x_noisy.shape}: {e}. Returning x_noisy.")
              return x_noisy
 
-
         # 3. Get the network prediction (coordinate update)
+        print("[DEBUG] Calling f_forward")
         r_update = self.f_forward(
             r_noisy=r_noisy,
             t_hat_noise_level=t_hat_noise_level,
@@ -472,12 +504,15 @@ class DiffusionModule(nn.Module):
             inplace_safe=inplace_safe,
             chunk_size=chunk_size,
         )
+        print(f"[DEBUG] r_update shape: {r_update.shape}")
 
         # 4. Apply denoising formula: x_denoised = c_skip * x_noisy + c_out * r_update
         # Ensure factors are broadcastable and dtypes match
         try:
+            print("[DEBUG] Applying denoising formula")
             dtype = r_update.dtype
             x_denoised = (c_skip.to(dtype) * x_noisy.to(dtype) + c_out.to(dtype) * r_update).to(dtype)
+            print(f"[DEBUG] x_denoised shape: {x_denoised.shape}")
         except RuntimeError as e:
              warnings.warn(f"Could not compute denoised output. Shapes: c_skip={c_skip.shape}, x_noisy={x_noisy.shape}, c_out={c_out.shape}, r_update={r_update.shape}. Error: {e}. Returning x_noisy.")
              return x_noisy
