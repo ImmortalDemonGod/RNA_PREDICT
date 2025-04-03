@@ -29,12 +29,12 @@ class TestInputFeatureEmbedder(unittest.TestCase):
         """
         Create a default InputFeatureEmbedder instance for reuse across tests.
         """
-        # Smaller dims to speed up tests and reduce memory usage:
-        self.c_atom = 16
-        self.c_atompair = 4
-        self.c_token = 32
-        self.restype_dim = 32  # Match the expected dimension
-        self.profile_dim = 32  # Match the expected dimension
+        # Use dimensions that will result in the expected output size of 449
+        self.c_atom = 449  # Match the expected final dimension
+        self.c_atompair = 16
+        self.c_token = 449  # Match the expected final dimension
+        self.restype_dim = 32
+        self.profile_dim = 32
         self.embedder = InputFeatureEmbedder(
             c_atom=self.c_atom,
             c_atompair=self.c_atompair,

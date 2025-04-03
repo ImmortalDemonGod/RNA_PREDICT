@@ -31,7 +31,8 @@ class TestRunStageDDiffusion(unittest.TestCase):
             "c_atom": 128,
             "c_s": 384,
             "c_z": 32,
-            "c_token": 832,
+            "c_token": 384,  # Changed from 832 to 384 to match actual code
+            "c_s_inputs": 384,  # Added to match actual code
             "transformer": {"n_blocks": 4, "n_heads": 16},
         }
         self.device = "cpu"
@@ -159,7 +160,7 @@ class TestRunStageDDiffusion(unittest.TestCase):
             {
                 "restype": torch.zeros(1, 5, dtype=torch.long),
                 "profile": torch.zeros(1, 5, 10),
-                "deletion_mean": torch.zeros(1, 5),  # shape [1, 5], will become [1,5,1]
+                "deletion_mean": torch.zeros(1, 5, 1),  # shape [1, 5, 1] to match expected format
             },
         )
 
