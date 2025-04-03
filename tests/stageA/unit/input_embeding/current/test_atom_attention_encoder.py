@@ -1,9 +1,14 @@
+"""
+Tests for the atom attention encoder.
+"""
+
 import pytest
 import torch
 
-from rna_predict.pipeline.stageA.input_embedding.current.transformer import (
+from rna_predict.pipeline.stageA.input_embedding.current.transformer.atom_attention import (
     AtomAttentionEncoder,
     AtomAttentionConfig,
+    EncoderForwardParams,
 )
 
 
@@ -37,7 +42,8 @@ def test_atom_encoder_no_coords_original_fail():
     }
 
     # This call triggers the out-of-bounds error
-    a, q_l, c_l, p_lm = encoder(input_feature_dict)
+    params = EncoderForwardParams(input_feature_dict=input_feature_dict)
+    a, q_l, c_l, p_lm = encoder(params)
     # We won't reach here if the aggregator does scatter_add_ with index >= 12
 
 
@@ -70,7 +76,8 @@ def test_atom_encoder_no_coords_fixed():
         "deletion_mean": torch.zeros(1, 12, 1),
     }
 
-    a, q_l, c_l, p_lm = encoder.forward_legacy(input_feature_dict)
+    params = EncoderForwardParams(input_feature_dict=input_feature_dict)
+    a, q_l, c_l, p_lm = encoder(params)
 
     # With has_coords=False, trunk logic is skipped => p_lm should be None
     assert p_lm is None, "Expected no trunk-based aggregator when has_coords=False"
