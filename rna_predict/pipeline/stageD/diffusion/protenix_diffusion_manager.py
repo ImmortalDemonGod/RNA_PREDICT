@@ -21,15 +21,56 @@ class ProtenixDiffusionManager:
 
     # @snoop
     def __init__(self, diffusion_config: dict, device: str = "cpu"):
-        # Ensure we have an "initialization" key
-        if (
-            "initialization" not in diffusion_config
-            or diffusion_config["initialization"] is None
-        ):
-            diffusion_config["initialization"] = {}
+        # Ensure we have an "initialization" key, default to empty dict if missing
+        initialization_config = diffusion_config.get("initialization", {})
+        if initialization_config is None:
+             initialization_config = {}
+
+        # Extract arguments specifically for DiffusionModule, using defaults if necessary
+        diffusion_module_args = {}
+
+        # Get nested configs or use empty dicts if missing
+        conditioning_config = diffusion_config.get("conditioning", {})
+        embedder_config = diffusion_config.get("embedder", {})
+        transformer_config = diffusion_config.get("transformer", {})
+        # Assuming atom_encoder/decoder configs might be top-level or nested, check both
+        atom_encoder_config = diffusion_config.get("atom_encoder", {})
+        atom_decoder_config = diffusion_config.get("atom_decoder", {})
+
+        # Extract values, using defaults from DiffusionModule.__init__ signature if not found
+        # Using get allows falling back to DiffusionModule's internal defaults if not specified anywhere
+        diffusion_module_args["sigma_data"] = diffusion_config.get("sigma_data")
+        diffusion_module_args["c_atom"] = embedder_config.get("c_atom")
+        diffusion_module_args["c_atompair"] = embedder_config.get("c_atompair")
+        diffusion_module_args["c_token"] = embedder_config.get("c_token")
+        # Prioritize conditioning config for c_s/c_z, then top-level, then let DiffusionModule default
+        diffusion_module_args["c_s"] = conditioning_config.get("c_s", diffusion_config.get("c_s"))
+        diffusion_module_args["c_z"] = conditioning_config.get("c_z", diffusion_config.get("c_z"))
+        diffusion_module_args["c_s_inputs"] = conditioning_config.get("c_s_inputs")
+        diffusion_module_args["c_noise_embedding"] = conditioning_config.get("c_noise_embedding")
+
+        # Pass the whole sub-dictionaries for nested configs if they exist
+        if transformer_config:
+            diffusion_module_args["transformer"] = transformer_config
+        if atom_encoder_config:
+             diffusion_module_args["atom_encoder"] = atom_encoder_config
+        if atom_decoder_config:
+             diffusion_module_args["atom_decoder"] = atom_decoder_config
+
+        # Pass top-level args if they exist
+        if "blocks_per_ckpt" in diffusion_config:
+             diffusion_module_args["blocks_per_ckpt"] = diffusion_config.get("blocks_per_ckpt")
+        if "use_fine_grained_checkpoint" in diffusion_config:
+             diffusion_module_args["use_fine_grained_checkpoint"] = diffusion_config.get("use_fine_grained_checkpoint")
+        if initialization_config: # Pass if not empty
+             diffusion_module_args["initialization"] = initialization_config
+
+        # Filter out None values so DiffusionModule uses its internal defaults
+        filtered_diffusion_module_args = {k: v for k, v in diffusion_module_args.items() if v is not None}
 
         self.device = torch.device(device)
-        self.diffusion_module = DiffusionModule(**diffusion_config).to(self.device)
+        # Instantiate DiffusionModule with the filtered arguments
+        self.diffusion_module = DiffusionModule(**filtered_diffusion_module_args).to(self.device)
 
     # @snoop
     def train_diffusion_step(
