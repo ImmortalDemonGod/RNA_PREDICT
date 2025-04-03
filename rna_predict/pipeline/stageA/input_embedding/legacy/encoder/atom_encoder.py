@@ -1,9 +1,12 @@
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 
 import torch
 import torch.nn as nn
 
-from rna_predict.models.attention.atom_transformer import AtomTransformer
+# Corrected import path from models.attention to legacy.attention
+from rna_predict.pipeline.stageA.input_embedding.legacy.attention.atom_transformer import (
+    AtomTransformer,
+)
 from rna_predict.utils.scatter_utils import scatter_mean
 
 
@@ -55,10 +58,12 @@ class AtomAttentionEncoder(nn.Module):
         self.c_token = config.c_token
 
         # (1) Per-atom input: example input dims = pos (3) + charge (1) + element (128) + name (16)
+        # TODO: Define these input dimensions more formally, perhaps using constants or a TypedDict
         in_atom_dim = 3 + 1 + 128 + 16
         self.atom_linear = nn.Linear(in_atom_dim, self.c_atom)
 
         # (2) Pairwise embedding: example input dims = delta (3) + same_entity (1)
+        # TODO: Define these input dimensions more formally
         in_pair_dim = 3 + 1
         self.pair_linear = nn.Linear(in_pair_dim, self.c_pair)
         self.mlp_pair = nn.Sequential(
@@ -78,13 +83,13 @@ class AtomAttentionEncoder(nn.Module):
         # (5) Final projection from atom embedding to token embedding.
         self.post_atom_proj = nn.Linear(self.c_atom, self.c_token)
 
-    def forward(
+    def forward(  # noqa: C901 - Function complexity okay for now, address if needed later
         self,
         f: Dict[str, torch.Tensor],
         trunk_sing: Optional[torch.Tensor] = None,
         trunk_pair: Optional[torch.Tensor] = None,
         block_index: Optional[torch.Tensor] = None,
-    ):
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Args:
           f: dict of Tensors containing:
@@ -105,6 +110,7 @@ class AtomAttentionEncoder(nn.Module):
           p_lm: [N_atom, N_atom, c_pair]
         """
         # Unpack per-atom features.
+        # TODO: Consider using a TypedDict for 'f' for better clarity and safety
         pos = f["ref_pos"]  # [N_atom, 3]
         charge = f["ref_charge"].unsqueeze(-1).float()  # [N_atom, 1]
         elem = f["ref_element"]  # [N_atom, 128]
@@ -126,27 +132,38 @@ class AtomAttentionEncoder(nn.Module):
 
         # (3) Optionally incorporate trunk embeddings from previous recycle passes.
         if trunk_sing is not None:
-            c_atom0 = c_atom0 + trunk_sing[token_ids]  # [N_atom, c_atom]
+            c_atom0 = c_atom0 + trunk_sing[token_ids.long()]  # Use .long() for indexing
         if trunk_pair is not None:
-            i_l = token_ids.unsqueeze(-1)  # [N_atom, 1]
-            i_m = token_ids.unsqueeze(0)  # [1, N_atom]
+            # Ensure indices are long type for indexing
+            i_l = token_ids.unsqueeze(-1).long()  # [N_atom, 1]
+            i_m = token_ids.unsqueeze(0).long()  # [1, N_atom]
             trunk_pair_lm = trunk_pair[i_l, i_m]  # [N_atom, N_atom, c_pair]
             p_lm = p_lm + trunk_pair_lm
 
         # Provide a default block_index if None
         if block_index is None:
             N_atom = c_atom0.shape[0]
-            block_index = torch.arange(N_atom, device=c_atom0.device).unsqueeze(1)
+            # Ensure block_index is long type if used for indexing later
+            block_index = (
+                torch.arange(N_atom, device=c_atom0.device).unsqueeze(1).long()
+            )
+        else:
+            # Ensure provided block_index is also long
+            block_index = block_index.long()
 
         # (4) Run local self-attention over atoms.
+        # Ensure block_index is long type for transformer
         q_atom = self.atom_transformer(c_atom0, p_lm, block_index)  # [N_atom, c_atom]
-        q_atom = self.atom_transformer(c_atom0, p_lm, block_index)  # [N_atom, c_atom]
+
         # (5) Project and aggregate atoms to tokens — robust approach:
         #     Use the user-supplied number of tokens from f["restype"].size(0)
         #     (or whichever per-token feature is the definitive source).
         q_proj = self.post_atom_proj(q_atom)  # [N_atom, c_token]
         N_token_supplied = f["restype"].size(0)  # e.g. guaranteed shape
-        a_token = scatter_mean(q_proj, token_ids, dim_size=N_token_supplied, dim=0)
+        # Ensure token_ids are long type for scatter_mean index
+        a_token = scatter_mean(
+            q_proj, token_ids.long(), dim_size=N_token_supplied, dim=0
+        )
         # a_token is now [N_token_supplied, c_token] — guaranteed to match extras later.
 
         return a_token, q_atom, c_atom0, p_lm
