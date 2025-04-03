@@ -81,10 +81,14 @@ def checkpoint_blocks(
     # Avoids mishaps when the blocks take just one argument
     args = wrap(args)
 
+    # Handle empty blocks list
+    if not blocks:
+        return args
+
     if blocks_per_ckpt is None or not torch.is_grad_enabled():
         return exec(blocks, args)
     elif blocks_per_ckpt < 1 or blocks_per_ckpt > len(blocks):
-        raise ValueError("blocks_per_ckpt must be between 1 and len(blocks)")
+        blocks_per_ckpt = len(blocks)  # Default to using all blocks in one chunk
 
     checkpoint = get_checkpoint_fn()
 
