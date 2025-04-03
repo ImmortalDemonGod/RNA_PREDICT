@@ -6,7 +6,7 @@ for tensor shape compatibility issues.
 """
 
 import warnings  # Ensure warnings is imported
-from typing import Dict, Any
+from typing import Dict, Any, Union, Tuple
 
 import torch
 
@@ -28,7 +28,7 @@ def run_stageD_diffusion(
     mode: str = "inference",
     device: str = "cpu",
     input_features: Dict[str, Any] | None = None,  # <-- Add new optional argument
-) -> torch.Tensor:
+) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor, torch.Tensor]]:
     """
     Run Stage D diffusion refinement.
 
@@ -43,7 +43,10 @@ def run_stageD_diffusion(
                         Must contain necessary keys like 'restype', 'atom_to_token_idx', etc.
 
     Returns:
-        Refined coordinates [B, N_atom, 3]
+        If mode == "inference":
+            Refined coordinates [B, N_atom, 3]
+        If mode == "train":
+            Tuple of (x_denoised, x_gt_out, sigma)
     """
     if mode not in ["inference", "train"]:
         raise ValueError(f"Unsupported mode: {mode}. Must be 'inference' or 'train'.")
@@ -138,13 +141,13 @@ def run_stageD_diffusion(
             
         z_trunk = trunk_embeddings.get("pair")
         # Fallback for z_trunk if needed (optional for some models)
-        # if z_trunk is None:
-        #     warnings.warn("Fallback: Creating dummy 'z_trunk' for training.")
-        #     # Create a zero tensor with the expected shape based on s_trunk and c_z
-        #     c_z = diffusion_config.get("c_z", 32) # Get c_z from config
-        #     s_shape = trunk_embeddings["s_trunk"].shape
-        #     z_shape = (s_shape[0], s_shape[1], s_shape[1], c_z) # B, N_token, N_token, c_z
-        #     z_trunk = torch.zeros(z_shape, device=device, dtype=trunk_embeddings["s_trunk"].dtype)
+        if z_trunk is None:
+            warnings.warn("Fallback: Creating dummy 'z_trunk' for training.")
+            # Create a zero tensor with the expected shape based on s_trunk and c_z
+            c_z = diffusion_config.get("c_z", 32) # Get c_z from config
+            s_shape = trunk_embeddings["s_trunk"].shape
+            z_shape = (s_shape[0], s_shape[1], s_shape[1], c_z) # B, N_token, N_token, c_z
+            z_trunk = torch.zeros(z_shape, device=device, dtype=trunk_embeddings["s_trunk"].dtype)
 
             
         x_gt_out, x_denoised, sigma = diffusion_manager.train_diffusion_step(
@@ -152,11 +155,17 @@ def run_stageD_diffusion(
             input_feature_dict=prepared_features, # Use prepared features
             s_inputs=s_inputs.to(device), # Ensure on device
             s_trunk=trunk_embeddings["s_trunk"].to(device), # Ensure on device
-            z_trunk=z_trunk.to(device) if z_trunk is not None else None, # Ensure on device
+            z_trunk=z_trunk.to(device), # Ensure on device
             sampler_params=diffusion_config.get("training", {}).get("sampler_params", {}), # Get sampler params
             N_sample=1, # Assuming N_sample=1 for training step
         )
-        coords = x_denoised # Return denoised coordinates for training inspection
+        # Compute MSE loss between denoised output and ground truth
+        loss = torch.mean((x_denoised - x_gt_out) ** 2)
+        # Ensure sigma is a scalar by taking mean if it's not already
+        if sigma.dim() > 0:
+            sigma = torch.mean(sigma)
+        # Return the expected tuple format
+        return x_denoised, loss, sigma
 
     return coords
 
