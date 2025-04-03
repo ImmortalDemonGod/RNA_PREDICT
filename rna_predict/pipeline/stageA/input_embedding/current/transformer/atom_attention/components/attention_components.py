@@ -109,13 +109,20 @@ class AttentionComponents:
             m_l: Middle pair tensor
 
         Returns:
-            Processed pair features
+            Processed pair features of shape [num_atoms, num_atoms, c_atompair]
         """
         # Project to pair dimension
-        p_l = self.linear_no_bias_cl(c_l) + self.linear_no_bias_cm(m_l)
+        p_l = self.linear_no_bias_cl(c_l) + self.linear_no_bias_cm(m_l)  # [N, c_atompair]
 
         # Process through MLP
-        return self.small_mlp(p_l)
+        p_l = self.small_mlp(p_l)  # [N, c_atompair]
+
+        # Create outer product to get pair features
+        p_i = p_l.unsqueeze(1)  # [N, 1, c_atompair]
+        p_j = p_l.unsqueeze(0)  # [1, N, c_atompair]
+        p_ij = p_i + p_j  # [N, N, c_atompair]
+
+        return p_ij
 
     def apply_transformer(
         self,
