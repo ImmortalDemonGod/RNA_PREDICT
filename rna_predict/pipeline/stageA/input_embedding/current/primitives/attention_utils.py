@@ -200,18 +200,17 @@ def _process_attention_chunk(inputs: ChunkProcessingInputs) -> torch.Tensor:
         processed_bias_slice = processed_bias_slice.squeeze(-3)
         # Now shape is [..., n_heads, n_queries, n_keys]
         # We might need to further slice if n_queries_chunk < n_queries
-        n_queries_chunk = inputs.q_chunk.shape[-3] # Get the actual query chunk size
+        n_queries_chunk = inputs.q_chunk.shape[-3]  # Get the actual query chunk size
         if processed_bias_slice.shape[-2] != n_queries_chunk:
-             # Slice to match the actual query chunk dimension
-             processed_bias_slice = processed_bias_slice[..., :n_queries_chunk, :]
-
+            # Slice to match the actual query chunk dimension
+            processed_bias_slice = processed_bias_slice[..., :n_queries_chunk, :]
 
     # Convert to AttentionInputs for compatibility with the new _attention signature
     attention_inputs = AttentionInputs(
         q=inputs.q_chunk,
         k=inputs.k,
         v=inputs.v,
-        attn_bias=processed_bias_slice, # Use the potentially reshaped bias
+        attn_bias=processed_bias_slice,  # Use the potentially reshaped bias
         use_efficient_implementation=inputs.use_efficient_implementation,
         attn_weight_dropout_p=inputs.attn_weight_dropout_p,
         inplace_safe=inputs.inplace_safe,
@@ -270,21 +269,27 @@ def _process_small_tensors(inputs: LocalAttentionInputs) -> Optional[torch.Tenso
                 # First try to see if it already matches or can be broadcast
                 expected_size = inputs.q.shape[-2] * inputs.k.shape[-2]
                 actual_size = bias.numel()
-                
+
                 if expected_size != actual_size:
                     # Print debug info if shapes don't match
-                    print(f"Warning: attn_bias shape mismatch in _process_small_tensors. "
-                          f"Expected size: {expected_size}, actual size: {actual_size}. "
-                          f"Skipping bias application for stability.")
+                    print(
+                        f"Warning: attn_bias shape mismatch in _process_small_tensors. "
+                        f"Expected size: {expected_size}, actual size: {actual_size}. "
+                        f"Skipping bias application for stability."
+                    )
                     bias = None
                 else:
                     # Only reshape if the total element count matches
-                    bias = bias.reshape(*bias.shape[:-2], inputs.q.shape[-2], inputs.k.shape[-2])
+                    bias = bias.reshape(
+                        *bias.shape[:-2], inputs.q.shape[-2], inputs.k.shape[-2]
+                    )
             except (RuntimeError, ValueError):
                 # If reshaping fails, skip using the bias to maintain stability
-                print(f"Warning: Couldn't reshape attn_bias from {bias.shape} to match query/key dimensions. "
-                      f"q shape: {inputs.q.shape}, k shape: {inputs.k.shape}. "
-                      f"Skipping bias application for stability.")
+                print(
+                    f"Warning: Couldn't reshape attn_bias from {bias.shape} to match query/key dimensions. "
+                    f"q shape: {inputs.q.shape}, k shape: {inputs.k.shape}. "
+                    f"Skipping bias application for stability."
+                )
                 bias = None
 
         # Convert to AttentionInputs for compatibility
