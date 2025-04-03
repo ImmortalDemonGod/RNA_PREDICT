@@ -177,11 +177,19 @@ class AtomTransformer(torch.nn.Module):
             )
             result = cast(torch.Tensor, result)
 
-        # Handle unexpected tensor dimensions
+        # Handle 3D case - global attention without batch
         else:
-            raise ValueError(
-                f"Unsupported tensor dimension for p. Expected 3D or 5D, got {p.dim()}D with shape {p.shape}"
+            # Process through diffusion transformer with global attention
+            result = self.diffusion_transformer(
+                a=q,  # Pass atom features as 'a'
+                s=s,  # Pass token-level style features as 's'
+                z=p,  # Pass pair features as 'z'
+                n_queries=None,  # signals fallback to global attention
+                n_keys=None,
+                inplace_safe=inplace_safe,
+                chunk_size=chunk_size,
             )
+            result = cast(torch.Tensor, result)
 
         # Remove batch dimension if it was added
         if q_dim == 2 and result.dim() > q_dim:
