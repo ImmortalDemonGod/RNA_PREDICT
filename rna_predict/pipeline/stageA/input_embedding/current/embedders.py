@@ -153,20 +153,28 @@ class InputFeatureEmbedder(nn.Module):
             a = a.unsqueeze(0)  # Add batch dimension
         print(f"DEBUG [Embedder]: Shape after dimension adjustment (a): {a.shape}")
 
-        # Extract the number of tokens from atom_to_token
-        if "atom_to_token" in input_feature_dict:
-            atom_to_token = input_feature_dict["atom_to_token"]
-            if atom_to_token.dim() == 2:
-                N_token = atom_to_token.size(0)
-            else:
-                N_token = atom_to_token.max().item() + 1
-        else:
-            # Fallback to restype if atom_to_token is not available
+        # Extract the number of tokens from restype or profile
+        if "restype" in input_feature_dict:
             restype = input_feature_dict["restype"]
             if restype.dim() == 2:
                 N_token = restype.size(0)
             else:
                 N_token = restype.size(1)
+        elif "profile" in input_feature_dict:
+            profile = input_feature_dict["profile"]
+            if profile.dim() == 2:
+                N_token = profile.size(0)
+            else:
+                N_token = profile.size(1)
+        else:
+            # Fallback to atom_to_token if neither restype nor profile is available
+            atom_to_token = input_feature_dict["atom_to_token"]
+            if atom_to_token.dim() == 2:
+                N_token = atom_to_token.size(0)
+            else:
+                N_token = atom_to_token.max().item() + 1
+
+        print(f"DEBUG [Embedder]: N_token determined as: {N_token}")
 
         # Ensure 'a' has the correct number of tokens
         if a.size(1) != N_token:
@@ -182,28 +190,25 @@ class InputFeatureEmbedder(nn.Module):
                 )
                 a = torch.cat([a, padding], dim=1)
 
+        print(f"DEBUG [Embedder]: Shape after token adjustment (a): {a.shape}")
+
         # Create extras tensor by concatenating restype, profile, and deletion_mean
         extras = []
         for key in ("restype", "profile", "deletion_mean"):
             feat = input_feature_dict[key]
             # Ensure all tensors have the same batch and token dimensions
             if feat.dim() == 1:
-                feat = feat.unsqueeze(0).unsqueeze(-1)  # Add batch and feature dimensions
+                # For 1D tensors (like deletion_mean), reshape to [1, N_token, 1]
+                feat = feat.unsqueeze(0).unsqueeze(-1)
             elif feat.dim() == 2:
-                # Handle the case where deletion_mean has shape (batch, 40) instead of (batch, num_tokens, 1)
-                if key == "deletion_mean" and feat.size(1) != N_token:
-                    # Reshape to (batch, num_tokens, 1) by repeating or truncating
-                    if feat.size(1) > N_token:
-                        feat = feat[:, :N_token]
-                    # Pad with zeros to match N_token
-                    padding = torch.zeros(
-                        (feat.size(0), N_token - feat.size(1)),
-                        device=feat.device,
-                        dtype=feat.dtype
-                    )
-                    feat = torch.cat([feat, padding], dim=1).unsqueeze(-1)
+                # For 2D tensors (like restype and profile), reshape to [batch, N_token, feature_dim]
+                # For deletion_mean, we need to ensure it has the correct number of tokens
+                if key == "deletion_mean":
+                    # Reshape to [batch, 1, N_token] and then transpose to [batch, N_token, 1]
+                    feat = feat.unsqueeze(1).transpose(1, 2)
                 else:
-                    feat = feat.unsqueeze(0)  # Add batch dimension
+                    # For other 2D tensors, just add a feature dimension
+                    feat = feat.unsqueeze(-1)
             elif feat.dim() == 3 and feat.size(-1) == 1:
                 # Already has batch and token dimensions, but needs to be reshaped for concatenation
                 pass
@@ -212,7 +217,7 @@ class InputFeatureEmbedder(nn.Module):
                 # Reshape to [batch, token, feature]
                 if feat.dim() > 3:
                     feat = feat.view(feat.size(0), feat.size(1), -1)
-            
+
             # Ensure the tensor has the correct number of tokens
             if feat.size(1) != N_token:
                 if feat.size(1) > N_token:
@@ -224,7 +229,8 @@ class InputFeatureEmbedder(nn.Module):
                         dtype=feat.dtype
                     )
                     feat = torch.cat([feat, padding], dim=1)
-            
+
+            print(f"DEBUG [Embedder]: {key} shape after processing: {feat.shape}")
             extras.append(feat)
         
         # Now concatenate along the feature dimension
@@ -246,9 +252,7 @@ class InputFeatureEmbedder(nn.Module):
         out = self.final_ln(s_inputs)
         print(f"DEBUG [Embedder]: Shape after final_ln (out): {out.shape}")
 
-        # Always maintain the batch dimension
-        print(f"DEBUG [Embedder]: Shape before return (out): {out.shape}")
-
+        # Return the output with the batch dimension preserved
         return out
 
 
