@@ -215,7 +215,7 @@ def demo_run_diffusion():
     diffusion_config = {
         "conditioning": {"hidden_dim": 128, "num_heads": 8, "num_layers": 6}, # Example values
         "manager": {"hidden_dim": 128, "num_heads": 8, "num_layers": 6},      # Example values
-        "inference": {"num_steps": 100, "noise_schedule": "linear"},          # Example values
+        "inference": {"num_steps": 100, "noise_schedule": "linear"},          # <<< MODIFIED: Changed num_steps back to 100
         # Ensure the actual config used aligns with model expectations if not using defaults
         # Specifically, how ProtenixDiffusionManager uses this config to potentially
         # override DiffusionConditioning's c_s default might be relevant in a real scenario.
