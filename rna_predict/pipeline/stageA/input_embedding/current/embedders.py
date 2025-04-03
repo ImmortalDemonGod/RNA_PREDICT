@@ -186,11 +186,35 @@ class InputFeatureEmbedder(nn.Module):
         extras = []
         for key in ("restype", "profile", "deletion_mean"):
             feat = input_feature_dict[key]
+            # Ensure all tensors have the same batch and token dimensions
             if feat.dim() == 1:
-                feat = feat.unsqueeze(-1)
-            if feat.dim() == 2:
-                feat = feat.unsqueeze(0)
+                feat = feat.unsqueeze(0).unsqueeze(-1)  # Add batch and feature dimensions
+            elif feat.dim() == 2:
+                feat = feat.unsqueeze(0)  # Add batch dimension
+            elif feat.dim() == 3 and feat.size(-1) == 1:
+                # Already has batch and token dimensions, but needs to be reshaped for concatenation
+                pass
+            else:
+                # For tensors with more than 3 dimensions or with feature dimension > 1
+                # Reshape to [batch, token, feature]
+                if feat.dim() > 3:
+                    feat = feat.view(feat.size(0), feat.size(1), -1)
+            
+            # Ensure the tensor has the correct number of tokens
+            if feat.size(1) != N_token:
+                if feat.size(1) > N_token:
+                    feat = feat[:, :N_token, :]
+                else:
+                    padding = torch.zeros(
+                        (feat.size(0), N_token - feat.size(1), feat.size(-1)),
+                        device=feat.device,
+                        dtype=feat.dtype
+                    )
+                    feat = torch.cat([feat, padding], dim=1)
+            
             extras.append(feat)
+        
+        # Now concatenate along the feature dimension
         extras = torch.cat(extras, dim=-1)
         print(f"DEBUG [Embedder]: extras shape before linear: {extras.shape}")
 
