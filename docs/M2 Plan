@@ -145,3 +145,18 @@ M2 is complete when all 10 "Must-Have" requirements listed in Section 3 are met 
 Upon successful completion of M2, the focus shifts to **M3: Validation & Debugging**. This will involve implementing quantitative validation metrics (TM-score), systematically evaluating the initial M2 predictions, debugging geometric/numerical issues, and performing initial hyperparameter adjustments.
 
 ---
+
+Important considerations:
+Location and generation process for pre-computed Stage A adjacency matrices.
+
+Location and structure of the LoRA configuration within the Hydra setup.
+
+Exact implementation details for trainable parameter filtering and partial checkpoint loading.
+
+Location and specific type (MSE, L1, FAPE?) of the primary 3D loss function.
+
+Status and input/output handling of the UnifiedLatentMerger.
+
+Confirmation that the necessary dependencies (Lightning, Hydra, PEFT) are installed.
+
+Confirmation that tensor shape patching is active.
