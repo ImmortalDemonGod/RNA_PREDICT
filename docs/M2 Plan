@@ -160,3 +160,146 @@ Status and input/output handling of the UnifiedLatentMerger.
 Confirmation that the necessary dependencies (Lightning, Hydra, PEFT) are installed.
 
 Confirmation that tensor shape patching is active.
+=========
+V2:
+Okay, here is a comprehensive document detailing the goals, requirements, and tasks for Milestone 2 (M2), suitable for briefing a senior developer. It incorporates the analysis of the `rna_predict` project and leverages relevant patterns identified from the `ProjectEquiSurv` example.
+
+---
+
+**Project `rna_predict` - Milestone 2 Specification: Initial End-to-End Training & Prediction**
+
+**Document Version:** 1.0
+**Date:** March 30, 2025
+**Target Completion for M2:** ~April 7th-10th, 2025
+
+**1. Objective**
+
+The primary goal of Milestone 2 (M2) is to achieve and validate the **functional trainability** of the integrated RNA 3D prediction pipeline developed in M1. This involves demonstrating that the end-to-end system (Sequence -> Stage A Adjacency -> Stage B Torsions/Pairs -> Unified Latent Merger -> Stage D Diffusion -> Final 3D Coords) can execute within a training loop, compute losses, backpropagate gradients correctly to the intended trainable parameters (primarily LoRA adapters), and generate initial 3D coordinate outputs.
+
+**Key Focus:** Functionality and Infrastructure. Achieving high prediction accuracy is **not** the goal of M2; instead, we focus on proving the pipeline works mechanically, gradients flow correctly, and we can generate baseline outputs for subsequent debugging and refinement (M3). The infrastructure established in M2 (training scripts, configuration, checkpointing) will be crucial for future iterations.
+
+**2. Prerequisites**
+
+*   **M1 Completed:** The integrated pipeline codebase is complete and functionally callable via `rna_predict.pipeline.run_pipeline.run_full_pipeline`. This implies:
+    *   Functional interfaces/wrappers for Stage A (`StageARFoldPredictor`), Stage B (`run_stageB_combined` using `StageBTorsionBertPredictor` & `PairformerWrapper`), Stage C (`run_stageC`), and Stage D (`ProtenixDiffusionManager`, `run_stageD_diffusion`).
+    *   The `UnifiedLatentMerger` (`SimpleLatentMerger` or equivalent) is integrated into the `run_full_pipeline` flow.
+    *   LoRA adapters have been applied to the base TorsionBERT and Pairformer models (using `peft` or custom wrappers), and these wrapped models are used in the pipeline. Base weights are configured to be frozen.
+    *   The necessary runtime patching (`rna_predict.pipeline.patching.shape_fixes.apply_tensor_fixes`) is integrated and callable.
+
+**3. Core Requirements (Definition of Done for M2)**
+
+The following must be demonstrably working by the end of M2:
+
+1.  **Trainable Pipeline Execution:** The primary training script (`rna_predict/train.py`) successfully executes the full forward pass of the integrated pipeline (A -> B -> Merger -> D) on batches of training data without crashing (resolving any shape, type, or device errors).
+2.  **Loss Calculation:** A defined loss function (minimum: 3D coordinate-based loss like L1/MSE between Stage D output `final_coords` and ground truth `coords_gt`) is implemented and computes a valid (non-NaN, non-Inf) scalar loss value per batch.
+3.  **Data Loading:** A functional PyTorch `DataLoader` (using `rna_predict.data.loader.RNADataset` or similar) provides batches containing sequences, pre-computed adjacency matrices, ground truth 3D coordinates, and potentially other features. It must correctly handle padding/batching for variable-length sequences.
+4.  **Optimizer Configuration & Parameter Targeting:** An optimizer (e.g., AdamW) is correctly configured to update *only* the specified trainable parameters (LoRA adapters in TorsionBERT/Pairformer, UnifiedLatentMerger weights, Diffusion head/adapters). A verified mechanism exists to filter and provide only these parameters to the optimizer.
+5.  **Backpropagation & Weight Update:** `loss.backward()` and `optimizer.step()` execute successfully, showing gradients are computed and applied to the trainable parameters without error. Verification should confirm non-zero gradients for trainable parameters and zero gradients for frozen base parameters.
+6.  **Training Loop Functionality:** The training script completes at least one full epoch over the training dataset without critical runtime errors, demonstrating stability.
+7.  **Checkpoint Saving:** The training process successfully saves model checkpoints containing the `state_dict` of *trainable* parameters and the optimizer state (e.g., via PyTorch Lightning's `ModelCheckpoint`).
+8.  **Inference Script:** A separate inference script (`rna_predict/predict.py`) exists for generating predictions from saved checkpoints.
+9.  **Checkpoint Loading (Partial):** The inference script successfully loads the *trainable* parameters from a saved M2 checkpoint into the corresponding pipeline model structure using a partial loading mechanism (e.g., `partial_load_state_dict` adapted from `ProjectEquiSurv`), gracefully handling the absence of base model weights in the checkpoint.
+10. **Initial Prediction Generation:** The inference script, using a loaded M2 checkpoint, successfully generates and saves 3D coordinate outputs (e.g., `.pdb` format) for a small, representative subset of the validation data without crashing.
+
+**4. Key Technical Tasks & Recommended Approaches**
+
+**Confirmations Needed Before Starting:**
+
+*   [ ] **Data Paths:** Confirm locations for raw Kaggle CSVs, precomputed Stage A adjacency files (specify format/naming), and ground truth coordinate data.
+*   [ ] **Train/Val Split:** Confirm the method/file defining the train/validation split indices.
+*   [ ] **LoRA Configuration:** Confirm the location (`conf/lora/*.yaml`?) and structure of LoRA configs (`r`, `alpha`, `target_modules`).
+*   [ ] **LoRA Wrapping:** Confirm the implementation used to wrap base models with LoRA adapters is functional.
+*   [ ] **Parameter Freezing:** Confirm the mechanism used to freeze base model parameters is active.
+*   [ ] **Loss Function:** Confirm the specific 3D coordinate loss function (L1, MSE, FAPE?) and its location (`rna_predict/core/losses.py`?).
+*   [ ] **Merger Status:** Confirm the `UnifiedLatentMerger` implementation is stable and handles expected inputs.
+*   [ ] **Dependencies:** Confirm PyTorch Lightning, Hydra, and PEFT (or custom LoRA library) are in `requirements-dev.txt`.
+*   [ ] **Patching:** Confirm `apply_tensor_fixes` is being called at the start of `train.py` and `predict.py`.
+
+**Implementation Tasks:**
+
+**4.1. Implement Training Framework (Leverage PyTorch Lightning)**
+
+*   **Task:** Create `rna_predict/training/rna_lightning_module.py` defining `RNALightningModule`.
+*   **Details:**
+    *   `__init__`: Instantiate the full pipeline model components based on Hydra config (`cfg`). Store components (predictors, merger, manager) as attributes. Store loss weights.
+    *   `forward`: Define the core forward pass logic (potentially calling `run_full_pipeline`).
+    *   `training_step`: Call `forward`, compute loss(es), log `train/loss`.
+    *   `validation_step`: Call `forward` with `torch.no_grad()`, compute loss(es), compute basic coordinate MAE, log `val/loss`, `val/mae`.
+    *   `configure_optimizers`: Instantiate optimizer (e.g., AdamW from `cfg.training.optimizer`) targeting *only* trainable parameters (Task 4.3). Optionally build LR scheduler (using `build_scheduler` pattern from `ProjectEquiSurv`).
+    *   `load_state_dict`: Override to use `partial_load_state_dict` (Task 4.4).
+*   **Reference (`ProjectEquiSurv`):** `lightning_survival_module.py`, `optim_wrappers.py`.
+
+**4.2. Establish Configuration Management (Leverage Hydra)**
+
+*   **Task:** Set up `rna_predict/conf/` directory and schema.
+*   **Details:**
+    *   Create `rna_predict/conf/config_schema.py` with dataclasses (`DataConfig`, `ModelConfig`, `LoRAConfig`, `TrainingConfig`, `DiffusionConfig`, `PipelineConfig`, `RootConfig`).
+    *   Create default `.yaml` files in `rna_predict/conf/` (e.g., `train.yaml`, `model/default.yaml`, `lora/torsionbert.yaml`).
+    *   Use `@hydra.main` in `train.py` and `predict.py`.
+*   **Reference (`ProjectEquiSurv`):** `conf/config_schema.py`, `pipeline/main.py`.
+
+**4.3. Implement Trainable Parameter Filtering**
+
+*   **Task:** Implement a function `get_trainable_parameters(model: torch.nn.Module)` -> Iterator[torch.nn.Parameter].
+*   **Details:** Place this in `rna_predict/core/utils.py` or within `RNALightningModule`. It should iterate `model.named_parameters()` and yield `p` if `lora` is in `name` OR if `p` belongs to the Merger/Diffusion head (identify by module name/path) AND `p.requires_grad` is True.
+*   **Verification:** Log the count/percentage of trainable parameters in `RNALightningModule.__init__`.
+
+**4.4. Implement Partial Checkpoint Loading**
+
+*   **Task:** Adapt `partial_load_state_dict` for use in `rna_predict`.
+*   **Details:** Copy the function logic into `rna_predict/core/checkpointing.py` or `utils.py`. Ensure it handles loading a `state_dict` containing only LoRA/Merger/Diffusion keys into the full pipeline model structure without raising `strict=True` errors. Call this from `RNALightningModule.load_state_dict` and `predict.py`.
+*   **Reference (`ProjectEquiSurv`):** `hypercloning/checkpoint_utils.py`.
+
+**4.5. Build Data Handling Pipeline**
+
+*   **Task:** Finalize `RNADataset` and `DataLoader` setup.
+*   **Details:**
+    *   Ensure `RNADataset` (`data/loader.py`) correctly loads sequence, adjacency (e.g., from `data/processed/adjacency/{seq_id}.pt`), and ground truth coords (e.g., from `data/processed/coords/{seq_id}.pt`). Return a dictionary.
+    *   Implement splitting logic in `train.py` (e.g., using `torch.utils.data.random_split` or loading pre-defined indices).
+    *   Create `DataLoader`s. Implement a `collate_fn` if needed for padding batches of variable-length sequences/adjacencies/coords.
+*   **Reference (`ProjectEquiSurv`):** `graph_survival_dataset.py`, `split_manager.py`.
+
+**4.6. Implement Training Script (`train.py`)**
+
+*   **Task:** Create the main training script `rna_predict/train.py`.
+*   **Details:**
+    *   Use `@hydra.main(config_path="conf", config_name="train")`.
+    *   Initialize logging (WandB/TensorBoard via Lightning loggers).
+    *   Call `apply_tensor_fixes()`.
+    *   Instantiate `RNALightningModule(cfg)`.
+    *   Setup `DataLoader`s.
+    *   Setup `ModelCheckpoint` callback (monitor `val/loss` or `val/mae`).
+    *   Instantiate `Trainer` (pass `logger`, `callbacks`, `max_epochs` from `cfg`).
+    *   Call `trainer.fit(model, train_dataloader, val_dataloader)`.
+*   **Reference (`ProjectEquiSurv`):** `pipeline/pipeline_train_single.py`.
+
+**4.7. Implement Inference Script (`predict.py`)**
+
+*   **Task:** Create the inference script `rna_predict/predict.py`.
+*   **Details:**
+    *   Use `@hydra.main`.
+    *   Call `apply_tensor_fixes()`.
+    *   Instantiate the model structure (e.g., `RNALightningModule(cfg)` or directly the pipeline components).
+    *   Load checkpoint using `torch.load` and `partial_load_state_dict`.
+    *   Set `model.eval()`.
+    *   Load list of sequences to predict (e.g., from `cfg.predict.input_file`).
+    *   Create a simple `DataLoader` or loop through sequences.
+    *   For each sequence: prepare features (adjacency), run inference via `model.forward` or `run_full_pipeline` with `torch.no_grad()`, potentially generating multiple samples (`N_sample` in diffusion).
+    *   Save `final_coords` to `.pdb` (using BioPython) or `.pt` files in `cfg.predict.output_dir`.
+*   **Reference (`ProjectEquiSurv`):** `kaggle_submission/ensemble_inference.py`, `inference_utils.py`.
+
+**5. Optional Enhancements for M2**
+
+*   **Logging:** Integrate `wandb` logger with PyTorch Lightning `Trainer`.
+*   **Gradient Clipping:** Add `gradient_clip_val: 1.0` to `conf/train.yaml` and pass to `Trainer`.
+*   **Qualitative Check:** Add a step in `train.py`'s `on_validation_epoch_end` hook (or manually run `predict.py`) to save one prediction PDB and visually inspect it.
+
+**6. Definition of Done (M2)**
+
+M2 is complete when all 10 "Must-Have" requirements listed in Section 3 are met and verified. The integrated pipeline is demonstrably trainable using LoRA, and initial 3D coordinate predictions can be generated from saved checkpoints for validation data.
+
+**7. Next Steps (Post-M2)**
+
+M3 will focus on **Validation & Debugging**: Implementing quantitative metrics (TM-score), evaluating M2 predictions, debugging geometry/numerical issues, and performing initial hyperparameter tuning based on validation results.
+
+---
