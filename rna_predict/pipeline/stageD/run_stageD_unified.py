@@ -6,6 +6,7 @@ for tensor shape compatibility issues.
 """
 
 import warnings  # Ensure warnings is imported
+from typing import Dict, Any
 
 import torch
 
@@ -22,23 +23,27 @@ from rna_predict.pipeline.stageD.tensor_fixes import apply_tensor_fixes
 
 def run_stageD_diffusion(
     partial_coords: torch.Tensor,
-    trunk_embeddings: dict,
-    diffusion_config: dict,
+    trunk_embeddings: Dict[str, torch.Tensor],
+    diffusion_config: Dict[str, Any],
     mode: str = "inference",
     device: str = "cpu",
-):
+    input_features: Dict[str, Any] | None = None,  # <-- Add new optional argument
+) -> torch.Tensor:
     """
-    Run the diffusion-based refinement stage with tensor shape compatibility fixes.
+    Run Stage D diffusion refinement.
 
     Args:
-        partial_coords: Partial coordinates tensor
-        trunk_embeddings: Dictionary of trunk embeddings
-        diffusion_config: Configuration dictionary for diffusion
+        partial_coords: Initial coordinates [B, N_atom, 3]
+        trunk_embeddings: Dictionary with trunk embeddings (e.g., s_trunk, pair)
+        diffusion_config: Configuration for diffusion components
         mode: Either "inference" or "training"
-        device: Device to run on ("cpu" or "cuda")
+        device: Device to run on
+        input_features: Optional pre-computed input feature dictionary. If provided,
+                        internal feature loading and preparation will be skipped.
+                        Must contain necessary keys like 'restype', 'atom_to_token_idx', etc.
 
     Returns:
-        Refined coordinates tensor
+        Refined coordinates [B, N_atom, 3]
     """
     if mode not in ["inference", "train"]:
         raise ValueError(f"Unsupported mode: {mode}. Must be 'inference' or 'train'.")
@@ -49,170 +54,111 @@ def run_stageD_diffusion(
     # Apply tensor shape compatibility fixes
     apply_tensor_fixes()
 
-    # Initialize diffusion components
-    diffusion_conditioning = DiffusionConditioning(
-        **diffusion_config.get("conditioning", {})
-    ).to(device)
-
-    # Correctly pass the main diffusion_config dictionary and device
-    diffusion_manager = ProtenixDiffusionManager(
-        diffusion_config=diffusion_config, device=device
-    )
-    # Note: .to(device) is likely handled internally by ProtenixDiffusionManager
-
-    # --- Re-introduced Feature Preparation Logic ---
-    # 2) Build or load the atom-level + token-level features
-    #    Using placeholder logic as exact feature loading might depend on context
-    #    This part needs careful review based on actual data loading requirements.
-    # atom_feature_dict = {} # Placeholder - Initialized by loader now
-    # token_feature_dict = {} # Placeholder - Initialized by loader now
-    # Example: Load features if needed (replace with actual loading)
-    # --- UNCOMMENTED AND PATH UPDATED ---
-    atom_feature_dict, token_feature_dict = load_rna_data_and_features(
-        "rna_predict/dataset/examples/1a9n_1_R.cif",  # <-- REPLACE WITH YOUR ACTUAL INPUT PATH
-        device=device,
-        override_num_atoms=partial_coords.shape[1],  # Keep if needed
-    )
-    # --- END UNCOMMENT ---
-
-    # Ensure atom_to_token_idx is now present after loading
-    if "atom_to_token_idx" not in atom_feature_dict:
-        raise ValueError("atom_to_token_idx is still missing after loading features!")
-
-    # Ensure essential keys exist even if loading fails or is skipped
-    if "ref_pos" not in atom_feature_dict:
-        atom_feature_dict["ref_pos"] = partial_coords.to(device)  # Use input coords
-    if "restype" not in token_feature_dict:
-        # Create dummy restype based on trunk_embeddings token dim if possible
-        num_tokens = trunk_embeddings.get(
-            "sing", trunk_embeddings.get("s_trunk")
-        ).shape[1]
-        token_feature_dict["restype"] = torch.zeros(
-            partial_coords.shape[0], num_tokens, 32, device=device
-        )  # Dummy restype
-
-    # 3) Fix shape for "deletion_mean" if needed (assuming it comes from token_feature_dict)
-    if "deletion_mean" in token_feature_dict:
-        deletion = token_feature_dict["deletion_mean"]
-        expected_tokens = token_feature_dict["restype"].shape[1]
-        if deletion.ndim == 2:
-            deletion = deletion.unsqueeze(-1)
-        if deletion.shape[1] != expected_tokens:
-            deletion = deletion[:, :expected_tokens, :]
-        atom_feature_dict["deletion_mean"] = deletion  # Add to atom features
-
-    # 4) Overwrite default coords with partial_coords
-    atom_feature_dict["ref_pos"] = partial_coords.to(device)
-
-    # 5) Merge necessary token-level features into atom_feature_dict
-    atom_feature_dict["restype"] = token_feature_dict["restype"]
-    if "profile" in token_feature_dict:  # Profile might be optional
-        # Correct indentation for the line below
-        atom_feature_dict["profile"] = token_feature_dict["profile"]
-
-    # 6) If trunk_embeddings lacks "s_trunk", fallback to "sing"
-    if "s_trunk" not in trunk_embeddings or trunk_embeddings["s_trunk"] is None:
-        trunk_embeddings["s_trunk"] = trunk_embeddings.get("sing")
-        if trunk_embeddings["s_trunk"] is None:
-            raise ValueError(
-                "Trunk embeddings must contain either 's_trunk' or 'sing'."
-            )
-
-    # 7) Use InputFeatureEmbedder to produce s_inputs (dimension depends on embedder config)
-    #    Make sure embedder config matches diffusion_config expectations if needed
-    embedder_config = diffusion_config.get(
-        "embedder", {"c_atom": 128, "c_atompair": 16, "c_token": 384}
-    )  # Example config
-    embedder = InputFeatureEmbedder(**embedder_config).to(device)
-    # Ensure all required features for embedder are in atom_feature_dict
-    # Add dummy features if necessary for the embedder call
-    required_embedder_keys = [
-        "ref_pos",
-        "restype",
-        "profile",
-        "deletion_mean",
-    ]  # Example keys
-    for key in required_embedder_keys:
-        if key not in atom_feature_dict:
-            # Create dummy data based on expected shapes or raise error
-            warnings.warn(
-                f"Missing feature '{key}' for InputFeatureEmbedder. Creating dummy."
-            )
-            # Example dummy creation - needs refinement based on actual embedder needs
-            if key == "profile":
-                atom_feature_dict[key] = torch.zeros_like(atom_feature_dict["restype"])
-            elif key == "deletion_mean":
-                atom_feature_dict[key] = torch.zeros_like(
-                    atom_feature_dict["restype"][..., 0:1]
-                )
-            # Add more cases as needed
-
-    s_inputs = embedder(
-        atom_feature_dict, inplace_safe=False, chunk_size=None
-    )  # Generate s_inputs
-
-    # 8) Store generated s_inputs in trunk_embeddings if not already present
-    if "s_inputs" not in trunk_embeddings or trunk_embeddings["s_inputs"] is None:
-        # Correct indentation for the line below
-        trunk_embeddings["s_inputs"] = s_inputs
-    # --- End Re-introduced Logic ---
-
-    # Run diffusion using the prepared features and embeddings
-    if mode == "inference":
-        coords = diffusion_manager.multi_step_inference(
-            coords_init=partial_coords,
-            trunk_embeddings=trunk_embeddings,  # Now contains s_trunk and s_inputs
-            inference_params=diffusion_config.get("inference", {}),
-            override_input_features=atom_feature_dict,  # Pass the prepared features
+    # --- Feature Preparation ---
+    if input_features is None:
+        # If features aren't provided, load and prepare them internally
+        warnings.warn("input_features not provided, loading from default path.") # Add warning
+        atom_feature_dict, token_feature_dict = load_rna_data_and_features(
+            "rna_predict/dataset/examples/1a9n_1_R.cif",  # <-- REPLACE WITH YOUR ACTUAL INPUT PATH
+            device=device,
+            override_num_atoms=partial_coords.shape[1],  # Keep if needed
         )
 
-        # Ensure the output has the correct batch dimension of 1
-        if coords.ndim > 3:
-            # If there are extra dimensions, squeeze them
-            while coords.ndim > 3 and coords.shape[0] == 1:
-                coords = coords.squeeze(0)
-        elif coords.ndim == 2:
-            # If missing batch dimension, add it
-            coords = coords.unsqueeze(0)
+        # Ensure token_feature_dict has the right dimensions
+        for key in token_feature_dict:
+            if key == "deletion_mean" and token_feature_dict[key].dim() == 2:
+                token_feature_dict[key] = token_feature_dict[key].unsqueeze(-1)
 
-        # Ensure batch dimension is 1
-        if coords.shape[0] != 1:
-            coords = coords[:1]  # Take only the first batch element
+        # Merge token_feature_dict into atom_feature_dict
+        for key in ["restype", "profile", "deletion_mean"]:
+            if key in token_feature_dict:
+                atom_feature_dict[key] = token_feature_dict[key]
+        
+        # Add fallback for essential keys if loading failed
+        if "restype" not in atom_feature_dict:
+             warnings.warn("Fallback: Creating dummy 'restype'.")
+             num_tokens = trunk_embeddings["s_trunk"].shape[1] # Assuming s_trunk exists
+             # Example dummy shape, adjust if needed
+             atom_feature_dict["restype"] = torch.zeros(partial_coords.shape[0], num_tokens, 32, device=device)
+        if "atom_to_token_idx" not in atom_feature_dict:
+             warnings.warn("Fallback: Creating dummy 'atom_to_token_idx'.")
+             num_atoms = partial_coords.shape[1]
+             atom_feature_dict["atom_to_token_idx"] = torch.arange(num_atoms, device=device).unsqueeze(0)
 
-        return coords
-    else:  # mode == "train"
-        # Ensure label_dict is correctly formed for training
+
+        prepared_features = atom_feature_dict
+    else:
+        # Use the provided features directly
+        prepared_features = input_features
+        # Ensure provided features are on the correct device
+        for key, value in prepared_features.items():
+            if isinstance(value, torch.Tensor):
+                prepared_features[key] = value.to(device)
+    # --- End Feature Preparation ---
+
+
+    # Update diffusion_config to match the expected dimensions (This might be redundant if config is passed correctly)
+    # Consider removing this hardcoded update if config is reliable
+    # diffusion_config.update({
+    #     "c_s_inputs": 384,  # Match the input embedder dimension
+    # })
+
+    # Create and initialize the diffusion manager
+    diffusion_manager = ProtenixDiffusionManager(
+        diffusion_config=diffusion_config,
+        device=device,
+    )
+
+    # Run diffusion
+    if mode == "inference":
+        coords = diffusion_manager.multi_step_inference(
+            coords_init=partial_coords.to(device), # Ensure coords are on device
+            trunk_embeddings=trunk_embeddings, # Manager moves these internally now
+            inference_params=diffusion_config.get("inference", {}), # Get inference params from config
+            override_input_features=prepared_features, # Use prepared features
+        )
+    else: # mode == "train"
+        # For training mode
         label_dict = {
             "coordinate": partial_coords.to(device),
             "coordinate_mask": torch.ones_like(partial_coords[..., 0], device=device),
         }
+        
+        # Ensure s_inputs and z_trunk are tensors
+        s_inputs = trunk_embeddings.get("s_inputs")
+        if s_inputs is None:
+            # If s_inputs not provided, it might be generated internally or needs fallback
+            # This part might need adjustment based on how s_inputs is handled upstream
+             warnings.warn("'s_inputs' not found in trunk_embeddings for training mode. Check upstream logic.")
+             # Example fallback: Use s_trunk if dimensions match expected c_s_inputs? Risky.
+             # Or generate using InputFeatureEmbedder here? Requires embedder config.
+             # For now, raise error or use a placeholder if essential
+             raise ValueError("Training mode requires 's_inputs' in trunk_embeddings or generation logic.")
+
+            
+        z_trunk = trunk_embeddings.get("pair")
+        # Fallback for z_trunk if needed (optional for some models)
+        # if z_trunk is None:
+        #     warnings.warn("Fallback: Creating dummy 'z_trunk' for training.")
+        #     # Create a zero tensor with the expected shape based on s_trunk and c_z
+        #     c_z = diffusion_config.get("c_z", 32) # Get c_z from config
+        #     s_shape = trunk_embeddings["s_trunk"].shape
+        #     z_shape = (s_shape[0], s_shape[1], s_shape[1], c_z) # B, N_token, N_token, c_z
+        #     z_trunk = torch.zeros(z_shape, device=device, dtype=trunk_embeddings["s_trunk"].dtype)
+
+            
         x_gt_out, x_denoised, sigma = diffusion_manager.train_diffusion_step(
             label_dict=label_dict,
-            input_feature_dict=atom_feature_dict,  # Pass prepared features
-            s_inputs=trunk_embeddings["s_inputs"],  # Use prepared s_inputs
-            s_trunk=trunk_embeddings["s_trunk"],  # Use prepared s_trunk
-            z_trunk=trunk_embeddings.get("pair"),
-            sampler_params=diffusion_config.get("training", {}).get(
-                "sampler_params", {}
-            ),
-            N_sample=1,
+            input_feature_dict=prepared_features, # Use prepared features
+            s_inputs=s_inputs.to(device), # Ensure on device
+            s_trunk=trunk_embeddings["s_trunk"].to(device), # Ensure on device
+            z_trunk=z_trunk.to(device) if z_trunk is not None else None, # Ensure on device
+            sampler_params=diffusion_config.get("training", {}).get("sampler_params", {}), # Get sampler params
+            N_sample=1, # Assuming N_sample=1 for training step
         )
-        # Calculate loss properly - reduce spatial dimensions but preserve batch
-        # x_denoised and x_gt_out have shape [B, N_sample, N_atom, 3]
-        # First reduce spatial dimensions (N_atom, 3)
-        loss = (x_denoised - x_gt_out).pow(2).mean(dim=(-1, -2))
-        # Then reduce sample dimension if present
-        if loss.dim() > 1:
-            loss = loss.mean(dim=1)
-        # Finally ensure scalar
-        if loss.dim() > 0:
-            loss = loss.mean()
+        coords = x_denoised # Return denoised coordinates for training inspection
 
-        # Ensure sigma is a scalar
-        if sigma.dim() > 0:
-            sigma = sigma.mean()
-
-        return x_denoised, loss, sigma
+    return coords
 
 
 def demo_run_diffusion():
