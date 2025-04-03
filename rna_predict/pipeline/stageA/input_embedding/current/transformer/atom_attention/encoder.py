@@ -116,13 +116,17 @@ class AtomAttentionEncoder(nn.Module):
         # Create pair features
         p_l = self.feature_processor.create_pair_embedding(params.input_feature_dict)
 
-        # Process pair features through attention components
-        p_l = self.attention_components.process_pair_features(c_l, c_l)
-
         # Create attention mask if needed
-        mask = torch.ones_like(c_l[..., 0], dtype=torch.bool)
         if "ref_mask" in params.input_feature_dict:
             mask = params.input_feature_dict["ref_mask"]
+        else:
+            mask = torch.ones_like(c_l[..., 0], dtype=torch.bool)
+
+        # Ensure mask has correct shape for attention
+        if mask.dim() == 2:
+            mask = mask.unsqueeze(-1)
+        if mask.shape[-1] == 1:
+            mask = mask.expand(-1, -1, self.c_atompair)
 
         # Apply transformer
         a_atom = self.attention_components.apply_transformer(
