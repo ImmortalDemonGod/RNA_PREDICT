@@ -48,11 +48,41 @@ def test_end_to_end_stageA_to_D():
     trunk_embeddings = stageB_out  # includes 'sing' & 'pair'
 
     diffusion_config = {
+        "sigma_data": 16.0,
         "c_atom": 128,
+        "c_atompair": 16,
+        "c_token": 832,
         "c_s": 384,
         "c_z": 32,
-        "c_token": 832,
-        "transformer": {"n_blocks": 2, "n_heads": 8},
+        "c_s_inputs": 384,
+        "conditioning": {
+            "c_s": 384,
+            "c_z": 32,
+            "c_s_inputs": 384,
+            "c_noise_embedding": 128
+        },
+        "embedder": {
+            "c_atom": 128,
+            "c_atompair": 16,
+            "c_token": 832
+        },
+        "transformer": {
+            "n_blocks": 2,
+            "n_heads": 8
+        },
+        "atom_encoder": {
+            "n_blocks": 2,
+            "n_heads": 8
+        },
+        "atom_decoder": {
+            "n_blocks": 2,
+            "n_heads": 8
+        },
+        "initialization": {},
+        "inference": {
+            "N_sample": 1,
+            "num_steps": 10
+        }
     }
 
     # 5) run_stageD_diffusion in inference mode
