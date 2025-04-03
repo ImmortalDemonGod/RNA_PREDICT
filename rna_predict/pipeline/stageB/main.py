@@ -67,8 +67,10 @@ def run_stageB_combined(
         "z_embeddings":   (N, N, c_z)
       }
     """
-    pairformer_model.to(device)
-    torsion_bert_model.model.to(device)
+    if hasattr(pairformer_model, "to"):
+        pairformer_model.to(device)
+    if hasattr(torsion_bert_model, "model") and hasattr(torsion_bert_model.model, "to"):
+        torsion_bert_model.model.to(device)
 
     # 1) TorsionBERT -> torsion angles
     torsion_out = torsion_bert_model(sequence, adjacency=adjacency_matrix)
