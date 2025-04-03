@@ -271,46 +271,32 @@ class DiffusionTransformer(nn.Module):
         chunk_size: Optional[int] = None,
     ) -> torch.Tensor:
         """
-        Forward pass through the diffusion transformer.
+        Process input through the diffusion transformer.
 
         Args:
             a: Single feature aggregate per-atom representation [..., N, c_a]
             s: Single embedding [..., N, c_s]
-            z: Pair embedding [..., N, N, c_z] or [..., n_blocks, n_queries, n_keys, c_z]
+            z: Pair embedding [..., N, N, c_z] or [..., n_block, n_queries, n_keys, c_z]
             n_queries: Local window size of query tensor. If not None, will perform local attention.
             n_keys: Local window size of key tensor.
             inplace_safe: Whether it is safe to use inplace operations.
             chunk_size: Chunk size for memory-efficient operations.
 
         Returns:
-            Updated atom representation
+            Updated representation
         """
-        # Determine whether to clear cache between blocks
-        clear_cache_between_blocks = False
-        if hasattr(z, "shape") and len(z.shape) >= 3:
-            if z.shape[-2] > 2000 and not self.training:
-                clear_cache_between_blocks = True
-
-        # Prepare blocks with common parameters
+        # Prepare blocks with appropriate parameters
         blocks = self._prep_blocks(
             n_queries=n_queries,
             n_keys=n_keys,
             inplace_safe=inplace_safe,
             chunk_size=chunk_size,
-            clear_cache_between_blocks=clear_cache_between_blocks,
         )
 
-        # Determine whether to use checkpointing
-        blocks_per_ckpt = self.blocks_per_ckpt
-        if not torch.is_grad_enabled():
-            blocks_per_ckpt = None
+        # Set blocks_per_ckpt to the number of blocks if not specified
+        blocks_per_ckpt = self.blocks_per_ckpt if self.blocks_per_ckpt is not None else len(blocks)
 
-        # Process through blocks with optional checkpointing
-        a, s, z = checkpoint_blocks(
-            blocks, args=(a, s, z), blocks_per_ckpt=blocks_per_ckpt
-        )
-
-        # Clean up to free memory
-        del s, z
+        # Process through blocks with checkpointing
+        a, s, z = checkpoint_blocks(blocks, (a, s, z), blocks_per_ckpt)
 
         return a
