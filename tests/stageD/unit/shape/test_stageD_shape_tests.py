@@ -155,42 +155,83 @@ def test_multi_sample_shape_mismatch():
 
 
 def test_local_trunk_small_natom():
-    """Test local trunk with small number of atoms."""
+    """Test local trunk with small number of atoms, providing minimal features."""
     # Create minimal valid inputs
-    partial_coords = torch.randn(1, 10, 3)  # [batch=1, atoms=10, 3D coords]
+    batch_size = 1
+    num_atoms = 10
+    num_tokens = 10 # Assuming 1 atom maps to 1 token for simplicity here
+    device = "cpu"
+
+    partial_coords = torch.randn(batch_size, num_atoms, 3, device=device)
     trunk_embeddings = {
-        "s_trunk": torch.randn(1, 10, 384),  # [batch=1, tokens=10, c_s=384]
-        "pair": torch.randn(1, 10, 10, 32),  # [batch=1, tokens=10, tokens=10, c_z=32]
+        "s_trunk": torch.randn(batch_size, num_tokens, 384, device=device),
+        "pair": torch.randn(batch_size, num_tokens, num_tokens, 32, device=device),
+        # s_inputs is expected to be generated internally by the embedder within run_stageD
     }
+    
+    # Define consistent configuration (as before)
+    c_s_val = 384
+    c_z_val = 32
+    embedder_output_dim = 384
+    
     diffusion_config = {
-        "c_atom": 128,
-        "c_s": 384,
-        "c_z": 32,
-        "c_token": 832,
+        "c_s": c_s_val,
+        "c_z": c_z_val,
         "transformer": {"n_blocks": 2, "n_heads": 8},
+        "embedder": {
+            "c_atom": 128,
+            "c_atompair": 16,
+            "c_token": embedder_output_dim
+        },
+        "conditioning": {
+            "c_s": c_s_val,
+            "c_z": c_z_val,
+            "c_s_inputs": embedder_output_dim
+        },
     }
+
+    # --- Create minimal input_features dictionary ---
+    # Required to avoid internal loading and prevent NoneType errors
+    input_features = {
+        # Essential for mapping and potentially shape inference
+        "atom_to_token_idx": torch.arange(num_atoms, device=device).unsqueeze(0).expand(batch_size, -1), # Shape: [B, N_atom]
+        # Required by AtomAttentionEncoder/Decoder
+        "restype": torch.zeros(batch_size, num_tokens, 32, device=device), # Shape: [B, N_token, C_restype] (Using dummy C=32)
+        "ref_mask": torch.ones(batch_size, num_atoms, device=device), # Shape: [B, N_atom]
+        # Required by AtomAttentionEncoder (ensure_space_uid)
+        "ref_space_uid": torch.arange(num_atoms, device=device).unsqueeze(0).expand(batch_size, -1), # Shape: [B, N_atom] - Dummy UID
+        # Required by create_pair_embedding
+        "ref_charge": torch.zeros(batch_size, num_atoms, device=device), # Shape: [B, N_atom] - Dummy charge
+        # Add other minimal features if required by specific components down the line
+        "ref_pos": partial_coords, # Often needed as reference
+    }
+    # --- End input_features creation ---
 
     coords_final = run_stageD_diffusion(
         partial_coords=partial_coords,
         trunk_embeddings=trunk_embeddings,
         diffusion_config=diffusion_config,
         mode="inference",
-        device="cpu",
+        device=device,
+        input_features=input_features, # <-- Pass the created features
     )
-
+    
+    # Add assertions about the output shape/type if needed
+    assert isinstance(coords_final, torch.Tensor)
     # Expect shape [B, N_atom, 3] after squeezing N_sample=1 dimension
     assert (
         coords_final.ndim == 3
     ), f"Expected 3 dimensions after squeeze, got {coords_final.ndim}"
     assert (
-        coords_final.shape[0] == 1
-    ), f"Expected batch dim 1, got {coords_final.shape[0]}"
+        coords_final.shape[0] == batch_size
+    ), f"Expected batch dim {batch_size}, got {coords_final.shape[0]}"
     assert (
-        coords_final.shape[1] == 10
-    ), f"Expected atom dim 10, got {coords_final.shape[1]}"
+        coords_final.shape[1] == num_atoms
+    ), f"Expected atom dim {num_atoms}, got {coords_final.shape[1]}"
     assert (
         coords_final.shape[2] == 3
     ), f"Expected coord dim 3, got {coords_final.shape[2]}"
+    # Add more specific value checks if required by the test's purpose
 
 
 # ------------------------------------------------------------------------------
