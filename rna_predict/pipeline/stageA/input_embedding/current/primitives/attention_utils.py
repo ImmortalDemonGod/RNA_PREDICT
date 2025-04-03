@@ -5,6 +5,7 @@ This module contains specialized utility functions for handling various attentio
 operations, such as local attention, bias creation, and optimization functions.
 """
 
+import warnings # <<< ADDED IMPORT
 from dataclasses import dataclass
 from typing import Any, List, Optional, Tuple, TypedDict, Union
 
@@ -262,42 +263,75 @@ def _process_small_tensors(inputs: LocalAttentionInputs) -> Optional[torch.Tenso
     """
     # Check if tensors are small enough to process directly
     if inputs.q.shape[-2] <= inputs.n_queries and inputs.k.shape[-2] <= inputs.n_keys:
-        bias = inputs.attn_bias
-        if bias is not None:
-            # Ensure bias has compatible shape with q and k, or skip it
-            try:
-                # First try to see if it already matches or can be broadcast
-                expected_size = inputs.q.shape[-2] * inputs.k.shape[-2]
-                actual_size = bias.numel()
+        # --- Start Fix: Select the correct bias ---
+        # Prioritize attn_bias, fall back to trunked_attn_bias
+        bias_to_process = inputs.attn_bias
+        if bias_to_process is None:
+            bias_to_process = inputs.trunked_attn_bias
+            # If trunked_attn_bias is used, it might be 5D [..., H, B, Q, K]
+            # We need to adapt it for the expected 4D [..., H, Q, K] in _attention
+            if bias_to_process is not None and bias_to_process.ndim == 5:
+                 # Assuming the extra dim is the block dim at index -3
+                 # Squeeze it out if it's size 1, otherwise raise error or warn
+                 if bias_to_process.shape[-3] == 1:
+                     bias_to_process = bias_to_process.squeeze(-3)
+                 else:
+                      # This case is ambiguous, maybe log and proceed without bias
+                      warnings.warn(f"Trunked bias has unexpected 5D shape {bias_to_process.shape} "
+                                    f"with block dim != 1. Cannot safely adapt for small tensor processing. Skipping bias.")
+                      bias_to_process = None
 
-                if expected_size != actual_size:
-                    # Print debug info if shapes don't match
-                    print(
-                        f"Warning: attn_bias shape mismatch in _process_small_tensors. "
-                        f"Expected size: {expected_size}, actual size: {actual_size}. "
+        processed_bias = None # Initialize bias to pass to _attention as None
+        if bias_to_process is not None:
+            # Apply size check and reshape logic to the selected bias
+            try:
+                # --- Start Mypy Fix ---
+                assert bias_to_process is not None # Add assertion for type checker
+                # --- End Mypy Fix ---
+                expected_size = inputs.q.shape[-2] * inputs.k.shape[-2]
+                actual_size = bias_to_process.numel()
+
+                # Check if the total number of elements matches.
+                # This is less strict than exact shape match and allows for broadcasting.
+                if expected_size == actual_size:
+                    # Reshape if the total element count matches
+                    # Target shape for bias in _attention is typically [..., H, N_q, N_kv]
+                    # We need to infer H (num_heads) if possible, or assume broadcasting works.
+                    # Let's try reshaping to the direct query/key dims first.
+                    target_bias_shape = (*bias_to_process.shape[:-2], inputs.q.shape[-2], inputs.k.shape[-2])
+                    processed_bias = bias_to_process.reshape(target_bias_shape)
+
+                # If sizes don't match, broadcasting might still work, but let's warn and proceed without bias
+                # as the original code did, to maintain stability for now.
+                # A more robust solution might try broadcasting directly in _attention.
+                elif expected_size != actual_size:
+                    print( # Keep the print for debugging visibility
+                        f"Warning: Selected bias shape mismatch in _process_small_tensors. "
+                        f"Expected size: {expected_size}, actual size: {actual_size} (from {bias_to_process.shape}). "
                         f"Skipping bias application for stability."
                     )
-                    bias = None
-                else:
-                    # Only reshape if the total element count matches
-                    bias = bias.reshape(
-                        *bias.shape[:-2], inputs.q.shape[-2], inputs.k.shape[-2]
-                    )
-            except (RuntimeError, ValueError):
-                # If reshaping fails, skip using the bias to maintain stability
+                    processed_bias = None # Explicitly set to None if check fails
+
+            except (RuntimeError, ValueError) as e:
+                # If reshaping fails, skip using the bias
+                # --- Start Mypy Fix ---
+                # Ensure bias_to_process is not None before accessing shape in error message
+                bias_shape = bias_to_process.shape if bias_to_process is not None else "Unknown (None)"
+                # --- End Mypy Fix ---
                 print(
-                    f"Warning: Couldn't reshape attn_bias from {bias.shape} to match query/key dimensions. "
-                    f"q shape: {inputs.q.shape}, k shape: {inputs.k.shape}. "
+                    f"Warning: Couldn't reshape selected bias from {bias_shape} to match query/key dimensions. "
+                    f"q shape: {inputs.q.shape}, k shape: {inputs.k.shape}. Error: {e}. "
                     f"Skipping bias application for stability."
                 )
-                bias = None
+                processed_bias = None
+        # --- End Fix ---
 
         # Convert to AttentionInputs for compatibility
         attention_inputs = AttentionInputs(
             q=inputs.q,
             k=inputs.k,
             v=inputs.v,
-            attn_bias=bias,
+            attn_bias=processed_bias, # Pass the potentially reshaped or None bias
             use_efficient_implementation=inputs.use_efficient_implementation,
             attn_weight_dropout_p=inputs.attn_weight_dropout_p,
             inplace_safe=inputs.inplace_safe,
