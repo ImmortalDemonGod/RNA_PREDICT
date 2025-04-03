@@ -217,6 +217,15 @@ class ProtenixDiffusionManager:
         num_steps = inference_params.get("num_steps", 20)
         noise_schedule = torch.linspace(1.0, 0.0, steps=num_steps + 1, device=device)
 
+        if debug_logging:
+            print(f"[DEBUG] Before sample_diffusion:")
+            print(f"  coords_init shape: {coords_init.shape}")
+            print(f"  s_trunk shape: {trunk_embeddings['s_trunk'].shape}")
+            if s_inputs is not None:
+                print(f"  s_inputs shape: {s_inputs.shape}")
+            if z_trunk is not None:
+                print(f"  z_trunk shape: {z_trunk.shape}")
+
         coords_final = sample_diffusion(
             denoise_net=self.diffusion_module,
             input_feature_dict=input_feature_dict,
@@ -229,9 +238,20 @@ class ProtenixDiffusionManager:
             attn_chunk_size=None,  # you can set chunk sizes if needed
         )
 
+        if debug_logging:
+            print(f"[DEBUG] After sample_diffusion:")
+            print(f"  coords_final shape before squeeze: {coords_final.shape}")
+
         # Remove extra dimension when N_sample=1 to match expected shape [B, N_atom, 3]
-        if coords_final.ndim == 4 and coords_final.shape[1] == 1:
-            coords_final = coords_final.squeeze(1)
+        if N_sample == 1:
+            if coords_final.ndim == 4:
+                coords_final = coords_final.squeeze(1)
+            elif coords_final.ndim == 5:
+                # Handle case where we have an extra dimension before N_sample
+                coords_final = coords_final.squeeze(0).squeeze(0)
+
+        if debug_logging:
+            print(f"[DEBUG] Final coords_final shape: {coords_final.shape}")
 
         return coords_final
 
