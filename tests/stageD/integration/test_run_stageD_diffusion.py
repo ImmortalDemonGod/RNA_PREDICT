@@ -26,13 +26,14 @@ class TestRunStageDDiffusion(unittest.TestCase):
         self.trunk_embeddings = {
             "s_trunk": torch.zeros(1, 5, 384),  # shape [B, N_token, 384]
             "pair": torch.zeros(1, 5, 5, 32),  # shape [B, N_token, N_token, c_z]
+            "s_inputs": torch.zeros(1, 5, 449),  # Updated to match c_s_inputs dimension
         }
         self.diffusion_config = {
             "c_atom": 128,
             "c_s": 384,
             "c_z": 32,
             "c_token": 384,  # Changed from 832 to 384 to match actual code
-            "c_s_inputs": 384,  # Added to match actual code
+            "c_s_inputs": 449,  # Updated to match expected dimension
             "transformer": {"n_blocks": 4, "n_heads": 16},
         }
         self.device = "cpu"
