@@ -120,10 +120,12 @@ class FeatureProcessor:
         # Combine features
         p = d + invd + v  # [N, c_atompair]
 
-        # Reshape to [num_atoms, num_atoms, c_atompair]
-        p = p.unsqueeze(0).expand(num_atoms, -1, -1)
+        # Create outer product to get pair features
+        p_i = p.unsqueeze(1)  # [N, 1, c_atompair]
+        p_j = p.unsqueeze(0)  # [1, N, c_atompair]
+        p_ij = p_i + p_j  # [N, N, c_atompair]
 
-        return p
+        return p_ij
 
     def aggregate_to_token_level(
         self, a_atom: torch.Tensor, atom_to_token_idx: torch.Tensor, num_tokens: int

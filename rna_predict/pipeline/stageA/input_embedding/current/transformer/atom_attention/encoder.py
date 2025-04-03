@@ -112,9 +112,11 @@ class AtomAttentionEncoder(nn.Module):
         """
         # Extract features
         c_l = self.feature_processor.extract_atom_features(params.input_feature_dict)
+
+        # Create pair features
         p_l = self.feature_processor.create_pair_embedding(params.input_feature_dict)
 
-        # Process pair features
+        # Process pair features through attention components
         p_l = self.attention_components.process_pair_features(c_l, c_l)
 
         # Create attention mask if needed
@@ -133,7 +135,7 @@ class AtomAttentionEncoder(nn.Module):
             # Try to infer from restype shape
             restype = params.input_feature_dict.get("restype", None)
             if restype is not None:
-                num_tokens = restype.shape[1]
+                num_tokens = int(restype.shape[1])
             else:
                 # Default to maximum token index + 1
                 num_tokens = int(params.input_feature_dict["atom_to_token_idx"].max().item() + 1)
@@ -142,7 +144,7 @@ class AtomAttentionEncoder(nn.Module):
         a_token = self.feature_processor.aggregate_to_token_level(
             a_atom,
             params.input_feature_dict["atom_to_token_idx"],
-            num_tokens,
+            int(num_tokens),  # Explicitly cast to int
         )
 
         # Project to token dimension
