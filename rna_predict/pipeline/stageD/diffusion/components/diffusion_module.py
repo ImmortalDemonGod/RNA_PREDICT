@@ -1,0 +1,485 @@
+# rna_predict/pipeline/stageD/diffusion/components/diffusion_module.py
+import warnings
+from typing import Optional, Union, Tuple, Any
+
+import torch
+import torch.nn as nn
+
+# Imports from the original location - adjust paths as needed if these move too
+from rna_predict.pipeline.stageA.input_embedding.current.checkpointing import (
+    get_checkpoint_fn,
+)
+from rna_predict.pipeline.stageA.input_embedding.current.primitives import (
+    LayerNorm,
+    LinearNoBias,
+    Transition,
+)
+from rna_predict.pipeline.stageA.input_embedding.current.transformer import (
+    AtomAttentionDecoder,
+    AtomAttentionEncoder,
+    DiffusionTransformer,
+)
+from rna_predict.pipeline.stageA.input_embedding.current.transformer.atom_attention_decoder import (
+    DecoderForwardParams,
+)
+from rna_predict.pipeline.stageA.input_embedding.current.transformer.atom_attention_encoder import (
+    AtomAttentionConfig,
+)
+
+# Imports from within the components directory
+from .diffusion_conditioning import DiffusionConditioning
+from .diffusion_utils import _ensure_tensor_shape, _calculate_edm_scaling_factors
+
+
+class DiffusionModule(nn.Module):
+    """
+    Implements Algorithm 20 in AF3 (Moved from diffusion.py).
+    Uses imported DiffusionConditioning and utility functions.
+    """
+
+    def __init__(
+        self,
+        sigma_data: float = 16.0,
+        c_atom: int = 128,
+        c_atompair: int = 16,
+        c_token: int = 768,
+        c_s: int = 384,
+        c_z: int = 128,
+        c_s_inputs: int = 449,
+        c_noise_embedding: int = 256, # Added for DiffusionConditioning init
+        atom_encoder: dict[str, int] = {"n_blocks": 3, "n_heads": 4},
+        transformer: dict[str, int] = {"n_blocks": 24, "n_heads": 16},
+        atom_decoder: dict[str, int] = {"n_blocks": 3, "n_heads": 4},
+        blocks_per_ckpt: Optional[int] = None,
+        use_fine_grained_checkpoint: bool = False,
+        initialization: Optional[dict[str, Union[str, float, bool]]] = None,
+    ) -> None:
+        """
+        Args:
+            sigma_data (torch.float, optional): the standard deviation of the data. Defaults to 16.0.
+            c_atom (int, optional): embedding dim for atom feature. Defaults to 128.
+            c_atompair (int, optional): embedding dim for atompair feature. Defaults to 16.
+            c_token (int, optional): feature channel of token (single a). Defaults to 768.
+            c_s (int, optional):  hidden dim [for single embedding]. Defaults to 384.
+            c_z (int, optional): hidden dim [for pair embedding]. Defaults to 128.
+            c_s_inputs (int, optional): hidden dim [for single input embedding]. Defaults to 449.
+            c_noise_embedding (int, optional): noise embedding dim for conditioning. Defaults to 256.
+            atom_encoder (dict[str, int], optional): configs in AtomAttentionEncoder. Defaults to {"n_blocks": 3, "n_heads": 4}.
+            transformer (dict[str, int], optional): configs in DiffusionTransformer. Defaults to {"n_blocks": 24, "n_heads": 16}.
+            atom_decoder (dict[str, int], optional): configs in AtomAttentionDecoder. Defaults to {"n_blocks": 3, "n_heads": 4}.
+            blocks_per_ckpt: number of atom_encoder/transformer/atom_decoder blocks in each activation checkpoint
+                Size of each chunk. A higher value corresponds to fewer
+                checkpoints, and trades memory for speed. If None, no checkpointing is performed.
+            use_fine_grained_checkpoint: whether use fine-gained checkpoint for finetuning stage 2
+                only effective if blocks_per_ckpt is not None.
+            initialization: initialize the diffusion module according to initialization config.
+        """
+
+        super(DiffusionModule, self).__init__()
+        self.sigma_data = sigma_data
+        self.c_atom = c_atom
+        self.c_atompair = c_atompair
+        self.c_token = c_token
+        self.c_s_inputs = c_s_inputs
+        self.c_s = c_s
+        self.c_z = c_z
+
+        # Grad checkpoint setting
+        self.blocks_per_ckpt = blocks_per_ckpt
+        self.use_fine_grained_checkpoint = use_fine_grained_checkpoint
+
+        # Use imported DiffusionConditioning
+        self.diffusion_conditioning = DiffusionConditioning(
+            sigma_data=self.sigma_data,
+            c_z=c_z,
+            c_s=c_s,
+            c_s_inputs=c_s_inputs,
+            c_noise_embedding=c_noise_embedding # Pass necessary arg
+        )
+
+        # --- AtomAttentionEncoder ---
+        encoder_config_dict = atom_encoder
+        encoder_config = AtomAttentionConfig(
+            c_atom=c_atom,
+            c_atompair=c_atompair,
+            c_token=c_token,
+            has_coords=True,  # Specific to this context in DiffusionModule
+            c_s=c_s,
+            c_z=c_z,
+            blocks_per_ckpt=blocks_per_ckpt,
+            n_blocks=encoder_config_dict.get("n_blocks", 3),
+            n_heads=encoder_config_dict.get("n_heads", 4),
+            n_queries=encoder_config_dict.get("n_queries", 32),  # Add default
+            n_keys=encoder_config_dict.get("n_keys", 128),  # Add default
+        )
+        self.atom_attention_encoder = AtomAttentionEncoder(config=encoder_config)
+
+        # Alg20: line4
+        self.layernorm_s = LayerNorm(c_s)
+        self.linear_no_bias_s = LinearNoBias(in_features=c_s, out_features=c_token)
+
+        # --- DiffusionTransformer Instantiation ---
+        self.diffusion_transformer = DiffusionTransformer(
+            **transformer,
+            c_a=c_token,  # Note: c_a used here, not c_token directly
+            c_s=c_s,
+            c_z=c_z,
+            blocks_per_ckpt=blocks_per_ckpt,
+        )
+        self.layernorm_a = LayerNorm(c_token)
+
+        # --- AtomAttentionDecoder ---
+        decoder_config_dict = atom_decoder
+        decoder_config = AtomAttentionConfig(
+            c_atom=c_atom,
+            c_atompair=c_atompair,
+            c_token=c_token,
+            has_coords=True,  # Specific to this context in DiffusionModule
+            c_s=c_s,
+            c_z=c_z,
+            blocks_per_ckpt=blocks_per_ckpt,
+            n_blocks=decoder_config_dict.get("n_blocks", 3),
+            n_heads=decoder_config_dict.get("n_heads", 4),
+            n_queries=decoder_config_dict.get("n_queries", 32),  # Add default
+            n_keys=decoder_config_dict.get("n_keys", 128),  # Add default
+        )
+        self.atom_attention_decoder = AtomAttentionDecoder(config=decoder_config)
+
+        # Handle initialization safely
+        if initialization is None:
+            initialization = {}  # Ensure initialization is a dict
+        self.init_parameters(initialization)
+
+    def init_parameters(self, initialization: dict):
+        """
+        Initializes the parameters of the diffusion module according to the provided initialization configuration.
+        """
+        # Note: Initialization for imported DiffusionConditioning happens within its own class
+        # if initialization.get("zero_init_condition_transition", False):
+        #     self.diffusion_conditioning.transition_z1.zero_init() # Access might change if imported
+        #     self.diffusion_conditioning.transition_z2.zero_init()
+        #     self.diffusion_conditioning.transition_s1.zero_init()
+        #     self.diffusion_conditioning.transition_s2.zero_init()
+
+        self.atom_attention_encoder.linear_init(
+            zero_init_atom_encoder_residual_linear=initialization.get(
+                "zero_init_atom_encoder_residual_linear", False
+            ),
+            he_normal_init_atom_encoder_small_mlp=initialization.get(
+                "he_normal_init_atom_encoder_small_mlp", False
+            ),
+            he_normal_init_atom_encoder_output=initialization.get(
+                "he_normal_init_atom_encoder_output", False
+            ),
+        )
+
+        if initialization.get("glorot_init_self_attention", False):
+             if hasattr(self.atom_attention_encoder, 'atom_transformer') and \
+                hasattr(self.atom_attention_encoder.atom_transformer, 'diffusion_transformer'):
+                 for block in self.atom_attention_encoder.atom_transformer.diffusion_transformer.blocks:
+                     if hasattr(block, 'attention_pair_bias') and hasattr(block.attention_pair_bias, 'glorot_init'):
+                         block.attention_pair_bias.glorot_init()
+                     else:
+                          warnings.warn("Could not apply glorot_init_self_attention to atom_encoder block.")
+             else:
+                 warnings.warn("Atom encoder structure changed, cannot apply glorot_init_self_attention.")
+
+
+        for block in self.diffusion_transformer.blocks:
+            if initialization.get("zero_init_adaln", False):
+                if hasattr(block, 'attention_pair_bias') and hasattr(block.attention_pair_bias, 'layernorm_a'):
+                    block.attention_pair_bias.layernorm_a.zero_init()
+                if hasattr(block, 'conditioned_transition_block') and hasattr(block.conditioned_transition_block, 'adaln'):
+                    block.conditioned_transition_block.adaln.zero_init()
+                else:
+                    warnings.warn("Could not apply zero_init_adaln to diffusion_transformer block.")
+
+            if initialization.get("zero_init_residual_condition_transition", False):
+                 if hasattr(block, 'conditioned_transition_block') and hasattr(block.conditioned_transition_block, 'linear_nobias_b'):
+                     nn.init.zeros_(block.conditioned_transition_block.linear_nobias_b.weight)
+                 else:
+                     warnings.warn("Could not apply zero_init_residual_condition_transition to diffusion_transformer block.")
+
+        if initialization.get("zero_init_atom_decoder_linear", False):
+            if hasattr(self.atom_attention_decoder, 'linear_no_bias_a'):
+                 nn.init.zeros_(self.atom_attention_decoder.linear_no_bias_a.weight)
+            else:
+                 warnings.warn("Could not apply zero_init_atom_decoder_linear.")
+
+
+        if initialization.get("zero_init_dit_output", False):
+            if hasattr(self.atom_attention_decoder, 'linear_no_bias_out'):
+                nn.init.zeros_(self.atom_attention_decoder.linear_no_bias_out.weight)
+            else:
+                 warnings.warn("Could not apply zero_init_dit_output.")
+
+    def _determine_n_sample(self, r_noisy: torch.Tensor) -> Tuple[int, torch.Tensor]:
+        """Determines N_sample and ensures r_noisy has the sample dimension."""
+        n_sample_dim_index = -3 # Expected: [..., N_sample, N_atom, 3]
+        original_ndim = r_noisy.ndim
+        original_shape = r_noisy.shape # For warning messages
+
+        if original_ndim >= 4 and r_noisy.shape[n_sample_dim_index] > 0:
+            N_sample = r_noisy.size(n_sample_dim_index)
+        elif original_ndim == 3:
+            N_sample = 1
+            r_noisy = r_noisy.unsqueeze(n_sample_dim_index)
+            # warnings.warn(f"Input r_noisy was 3D, assuming N_sample=1. Unsqueezed to {r_noisy.shape}")
+        elif original_ndim == 5:
+             # First, determine N_sample before using it in warnings or logic
+             potential_n_sample_idx = n_sample_dim_index # Usually -3
+             if len(original_shape) + potential_n_sample_idx < 0: # Handle cases where ndim < 3? Unlikely but safe.
+                 N_sample = 1 # Fallback
+                 warnings.warn(f"Cannot determine N_sample reliably for 5D tensor with shape {original_shape}. Assuming N_sample=1.")
+             else:
+                 N_sample = original_shape[potential_n_sample_idx] # Get N_sample from the expected dimension
+
+             # Now try to squeeze
+             if r_noisy.shape[-4] == 1 and n_sample_dim_index == -4: # Check if dim before N_atom is 1
+                 r_noisy = r_noisy.squeeze(-4)
+                 # N_sample should remain the same after squeeze if it was the dim at -3 originally
+                 N_sample = r_noisy.size(n_sample_dim_index) # Re-confirm N_sample is at -3 now
+                 warnings.warn(f"Input r_noisy was 5D, squeezed extra dim. New shape: {r_noisy.shape}")
+             elif r_noisy.shape[-3] == 1 and n_sample_dim_index == -3: # Check if sample dim itself is 1
+                 # N_sample is already determined above
+                 warnings.warn(f"Input r_noisy was 5D with shape {original_shape}. Assuming dim at index {n_sample_dim_index} is N_sample={N_sample}.")
+             else:
+                 # N_sample is already determined above
+                 warnings.warn(f"Unexpected 5D shape for r_noisy: {r_noisy.shape}. Assuming N_sample={N_sample} at index {n_sample_dim_index}.")
+        else:
+            N_sample = 1 # Assume 1 sample
+            if original_ndim >= 3:
+                 r_noisy = r_noisy.unsqueeze(n_sample_dim_index)
+                 warnings.warn(f"Unexpected shape {original_shape} for r_noisy. Assuming N_sample=1. Attempted unsqueeze to {r_noisy.shape}.")
+            else:
+                 raise ValueError(f"Cannot handle r_noisy shape: {original_shape}")
+
+        return N_sample, r_noisy
+
+    def _run_with_checkpointing(self, module: nn.Module, *args, **kwargs) -> Any: # Changed return type hint
+        """Runs a module with optional gradient checkpointing."""
+        use_ckpt = self.blocks_per_ckpt is not None and torch.is_grad_enabled()
+        # Fine-grained checkpointing might apply to specific modules (e.g., encoder/decoder)
+        # Add specific checks if needed, here we use a general flag
+        use_fine_grained = use_ckpt and self.use_fine_grained_checkpoint
+
+        # Note: Fine-grained checkpointing logic might need to be more specific
+        # depending on how it's implemented within the sub-modules themselves.
+        # This wrapper assumes the module call itself can be checkpointed.
+
+        if use_ckpt: # Includes fine-grained if enabled
+            checkpoint_fn = get_checkpoint_fn()
+            # Filter out kwargs not accepted by the module's forward method if necessary
+            # For simplicity, assume all kwargs are valid for now
+            return checkpoint_fn(module, *args, **kwargs)
+        else:
+            return module(*args, **kwargs)
+
+    def _prepare_decoder_params(
+        self,
+        a_token: torch.Tensor,
+        r_noisy: torch.Tensor,
+        q_skip: Optional[torch.Tensor],
+        p_skip: Optional[torch.Tensor],
+        input_feature_dict: dict,
+        chunk_size: Optional[int],
+    ) -> DecoderForwardParams:
+        """Prepares the parameters object for the AtomAttentionDecoder."""
+        atom_mask_val = input_feature_dict.get("ref_mask")
+        atom_to_token_idx_val = input_feature_dict.get("atom_to_token_idx")
+
+        # Ensure masks and indices are Tensors or None
+        atom_mask: Optional[torch.Tensor] = None
+        if isinstance(atom_mask_val, torch.Tensor):
+            atom_mask = atom_mask_val
+        elif atom_mask_val is not None:
+             warnings.warn(f"Expected 'ref_mask' to be Tensor or None, got {type(atom_mask_val)}. Setting mask to None.")
+
+        mask: Optional[torch.Tensor] = atom_mask # Use same mask for now
+
+        atom_to_token_idx: Optional[torch.Tensor] = None
+        if isinstance(atom_to_token_idx_val, torch.Tensor):
+            atom_to_token_idx = atom_to_token_idx_val
+        elif atom_to_token_idx_val is not None:
+             warnings.warn(f"Expected 'atom_to_token_idx' to be Tensor or None, got {type(atom_to_token_idx_val)}. Setting index to None.")
+
+
+        return DecoderForwardParams(
+            a=a_token,
+            r_l=r_noisy,
+            extra_feats=q_skip,
+            p_lm=p_skip,
+            mask=mask,
+            atom_mask=atom_mask,
+            atom_to_token_idx=atom_to_token_idx,
+            chunk_size=chunk_size,
+        )
+
+    def f_forward(
+        self,
+        r_noisy: torch.Tensor,
+        t_hat_noise_level: torch.Tensor,
+        input_feature_dict: dict[str, Union[torch.Tensor, int, float, dict]],
+        s_inputs: Optional[torch.Tensor], # Allow None
+        s_trunk: torch.Tensor,
+        z_trunk: Optional[torch.Tensor], # Allow None
+        inplace_safe: bool = False,
+        chunk_size: Optional[int] = None,
+    ) -> torch.Tensor:
+        """
+        Core network forward pass F_theta(c_in * x, c_noise(sigma)).
+        """
+        # 1. Determine N_sample and ensure r_noisy has sample dimension
+        N_sample, r_noisy = self._determine_n_sample(r_noisy)
+
+        # 2. Ensure t_hat_noise_level has compatible shape
+        t_hat_target_ndim = r_noisy.ndim - 2
+        if t_hat_target_ndim < 1: t_hat_target_ndim = 1
+        t_hat_noise_level = _ensure_tensor_shape(
+            t_hat_noise_level,
+            target_ndim=t_hat_target_ndim,
+            target_shape=(r_noisy.shape[0], N_sample) if t_hat_target_ndim==2 else (r_noisy.shape[0],),
+            warn_prefix="[f_forward t_hat]"
+        )
+
+        # 3. Apply Diffusion Conditioning (using imported module)
+        # Explicitly type the unpacked variables
+        s_single: torch.Tensor
+        z_pair: torch.Tensor
+        s_single, z_pair = self._run_with_checkpointing(
+            self.diffusion_conditioning,
+            t_hat_noise_level=t_hat_noise_level,
+            input_feature_dict=input_feature_dict,
+            s_inputs=s_inputs,
+            s_trunk=s_trunk,
+            z_trunk=z_trunk,
+            inplace_safe=inplace_safe,
+        )
+
+        # 4. Expand s_trunk to match s_single's dimensions for the encoder
+        s_trunk_expanded = _ensure_tensor_shape(s_trunk, s_single.ndim, ref_tensor=s_single, warn_prefix="[f_forward s_trunk]")
+        # NOTE: z_pair expansion is deferred until after a_token is generated
+
+        # 5. Apply Atom Attention Encoder
+        # Explicitly type the unpacked variables (assuming Optional for skips)
+        a_token: torch.Tensor
+        q_skip: Optional[torch.Tensor]
+        c_skip: Optional[torch.Tensor] # c_skip is not used later, but typing for completeness
+        p_skip: Optional[torch.Tensor]
+        a_token, q_skip, c_skip, p_skip = self._run_with_checkpointing(
+            self.atom_attention_encoder,
+            input_feature_dict=input_feature_dict,
+            r_l=r_noisy,
+            s=s_trunk_expanded,
+            z=z_pair, # Pass original z_pair to encoder
+            inplace_safe=inplace_safe,
+            chunk_size=chunk_size,
+        )
+
+        # 6. Combine with Single Conditioning and Apply Transformer
+        s_single_proj = self.linear_no_bias_s(self.layernorm_s(s_single))
+
+        if a_token.shape == s_single_proj.shape:
+            if inplace_safe:
+                a_token += s_single_proj
+            else:
+                a_token = a_token + s_single_proj
+        else:
+            warnings.warn(f"Shape mismatch between a_token ({a_token.shape}) and projected s_single ({s_single_proj.shape}). Skipping addition.")
+
+        # Expand z_pair based on a_token's dimensions AFTER a_token is generated
+        # Target ndim should be a_token.ndim + 1 (e.g., if a=4D, z should be 5D)
+        target_z_ndim = a_token.ndim + 1
+        z_pair_expanded = _ensure_tensor_shape(
+            z_pair,
+            target_ndim=target_z_ndim,
+            ref_tensor=a_token.unsqueeze(-1), # Use a_token shape as reference (adding feature dim)
+            warn_prefix="[f_forward z_pair post-a_token]"
+        )
+
+        # Explicitly type the output of the transformer
+        a_token_transformed: torch.Tensor
+        a_token_transformed = self._run_with_checkpointing(
+            self.diffusion_transformer,
+            a=a_token,
+            s=s_single,
+            z=z_pair_expanded, # Use correctly expanded z_pair
+            inplace_safe=inplace_safe,
+            chunk_size=chunk_size,
+        )
+        a_token = self.layernorm_a(a_token_transformed) # Assign back to a_token after layernorm
+
+        # 7. Prepare Decoder Inputs
+        decoder_params = self._prepare_decoder_params(
+            a_token=a_token,
+            r_noisy=r_noisy,
+            q_skip=q_skip,
+            p_skip=p_skip,
+            input_feature_dict=input_feature_dict,
+            chunk_size=chunk_size,
+        )
+
+        # 8. Apply Atom Attention Decoder
+        # Explicitly type the output
+        r_update: torch.Tensor
+        r_update = self._run_with_checkpointing(
+            self.atom_attention_decoder,
+            params=decoder_params,
+        )
+
+        return r_update
+
+
+    def forward(
+        self,
+        x_noisy: torch.Tensor,
+        t_hat_noise_level: torch.Tensor,
+        input_feature_dict: dict[str, Union[torch.Tensor, int, float, dict]],
+        s_inputs: Optional[torch.Tensor], # Allow None
+        s_trunk: torch.Tensor,
+        z_trunk: Optional[torch.Tensor], # Allow None
+        inplace_safe: bool = False,
+        chunk_size: Optional[int] = None,
+    ) -> torch.Tensor:
+        """
+        Performs one step of denoising using the EDM formulation.
+        Uses imported _calculate_edm_scaling_factors.
+        """
+        # 1. Calculate EDM scaling factors (using imported utility)
+        c_in, c_skip, c_out = _calculate_edm_scaling_factors(
+            sigma=t_hat_noise_level,
+            sigma_data=self.sigma_data,
+            ref_tensor=x_noisy
+        )
+
+        # 2. Scale noisy input: r_noisy = c_in * x_noisy
+        # Ensure c_in is broadcastable
+        try:
+            r_noisy = c_in * x_noisy
+        except RuntimeError as e:
+             warnings.warn(f"Could not multiply c_in {c_in.shape} with x_noisy {x_noisy.shape}: {e}. Returning x_noisy.")
+             return x_noisy
+
+
+        # 3. Get the network prediction (coordinate update)
+        r_update = self.f_forward(
+            r_noisy=r_noisy,
+            t_hat_noise_level=t_hat_noise_level,
+            input_feature_dict=input_feature_dict,
+            s_inputs=s_inputs,
+            s_trunk=s_trunk,
+            z_trunk=z_trunk,
+            inplace_safe=inplace_safe,
+            chunk_size=chunk_size,
+        )
+
+        # 4. Apply denoising formula: x_denoised = c_skip * x_noisy + c_out * r_update
+        # Ensure factors are broadcastable and dtypes match
+        try:
+            dtype = r_update.dtype
+            x_denoised = (c_skip.to(dtype) * x_noisy.to(dtype) + c_out.to(dtype) * r_update).to(dtype)
+        except RuntimeError as e:
+             warnings.warn(f"Could not compute denoised output. Shapes: c_skip={c_skip.shape}, x_noisy={x_noisy.shape}, c_out={c_out.shape}, r_update={r_update.shape}. Error: {e}. Returning x_noisy.")
+             return x_noisy
+
+        return x_denoised

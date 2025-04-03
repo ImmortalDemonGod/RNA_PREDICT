@@ -41,7 +41,9 @@ def test_end_to_end_stageA_to_D():
     partial_coords = stageC_mock(stageB_out)
 
     # 4) Stage D config
-    from rna_predict.pipeline.stageD.run_stageD import run_stageD_diffusion
+    from rna_predict.pipeline.stageD.run_stageD_unified import (
+        run_stageD_diffusion,
+    )  # FIX: Import from the correct unified module
 
     trunk_embeddings = stageB_out  # includes 'sing' & 'pair'
 

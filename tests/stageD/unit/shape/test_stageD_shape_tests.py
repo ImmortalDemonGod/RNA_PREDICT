@@ -57,13 +57,17 @@ def test_single_sample_shape_expansion():
 
     # The model may return coordinates with extra batch dimensions
     # Check that the output has the correct final dimensions
-    assert coords_final.size(-2) == 10, "Final coords should have 10 atoms (second-to-last dimension)"
-    assert coords_final.size(-1) == 3, "Final coords should have 3 coordinates (last dimension)"
-    
+    assert (
+        coords_final.size(-2) == 10
+    ), "Final coords should have 10 atoms (second-to-last dimension)"
+    assert (
+        coords_final.size(-1) == 3
+    ), "Final coords should have 3 coordinates (last dimension)"
+
     # Check that the output contains valid values
     assert not torch.isnan(coords_final).any(), "Output contains NaN values"
     assert not torch.isinf(coords_final).any(), "Output contains infinity values"
-    
+
     print(f"Test passed with coords shape = {coords_final.shape}")
 
 
@@ -151,22 +155,19 @@ def test_multi_sample_shape_mismatch():
 
 
 def test_local_trunk_small_natom():
-    """
-    Ensures no dimension mismatch when N_atom < certain thresholds.
-    With the patch or correct usage, code should now pass without error.
-    """
-    device = torch.device("cpu")
+    """Test local trunk with small number of atoms."""
+    # Create minimal valid inputs
+    partial_coords = torch.randn(1, 10, 3)  # [batch=1, atoms=10, 3D coords]
+    trunk_embeddings = {
+        "s_trunk": torch.randn(1, 10, 384),  # [batch=1, tokens=10, c_s=384]
+        "pair": torch.randn(1, 10, 10, 32),  # [batch=1, tokens=10, tokens=10, c_z=32]
+    }
     diffusion_config = {
         "c_atom": 128,
         "c_s": 384,
         "c_z": 32,
-        "transformer": {"n_blocks": 4, "n_heads": 16},
-    }
-
-    partial_coords = torch.randn(1, 10, 3, device=device)
-    trunk_embeddings = {
-        "sing": torch.randn(1, 10, 384, device=device),
-        "pair": torch.randn(1, 10, 10, 32, device=device),
+        "c_token": 832,
+        "transformer": {"n_blocks": 2, "n_heads": 8},
     }
 
     coords_final = run_stageD_diffusion(
@@ -174,11 +175,22 @@ def test_local_trunk_small_natom():
         trunk_embeddings=trunk_embeddings,
         diffusion_config=diffusion_config,
         mode="inference",
-        device=device,
+        device="cpu",
     )
-    assert coords_final.shape[0] == 1
-    assert coords_final.shape[1] == 10
-    assert coords_final.shape[2] == 3, "Should produce final coords [1, 10, 3]"
+
+    # Expect shape [B, N_atom, 3] after squeezing N_sample=1 dimension
+    assert (
+        coords_final.ndim == 3
+    ), f"Expected 3 dimensions after squeeze, got {coords_final.ndim}"
+    assert (
+        coords_final.shape[0] == 1
+    ), f"Expected batch dim 1, got {coords_final.shape[0]}"
+    assert (
+        coords_final.shape[1] == 10
+    ), f"Expected atom dim 10, got {coords_final.shape[1]}"
+    assert (
+        coords_final.shape[2] == 3
+    ), f"Expected coord dim 3, got {coords_final.shape[2]}"
 
 
 # ------------------------------------------------------------------------------

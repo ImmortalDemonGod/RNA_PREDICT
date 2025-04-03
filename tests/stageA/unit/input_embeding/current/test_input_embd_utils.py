@@ -48,7 +48,6 @@ verification of the `utils.py` functionalities.
 """
 
 import unittest
-from unittest.mock import patch
 
 import numpy as np
 import torch
@@ -210,17 +209,17 @@ class TestUniformRandomRotation(BaseUtilsTest):
         """
         # Mock the behavior instead of the method by directly modifying the function
         original_func = utils.uniform_random_rotation
-        
+
         # Store the original to restore later
         try:
             # Replace with our own implementation that returns identity matrix
             def mock_uniform_random_rotation(N_sample=1):
                 # Return identity matrices of the right shape
                 return torch.eye(3).unsqueeze(0).repeat(N_sample, 1, 1)
-            
+
             # Temporarily swap the functions
             utils.uniform_random_rotation = mock_uniform_random_rotation
-            
+
             # Run the test
             out = utils.uniform_random_rotation(N_sample=1)
             self.assertEqual(out.shape, (1, 3, 3))

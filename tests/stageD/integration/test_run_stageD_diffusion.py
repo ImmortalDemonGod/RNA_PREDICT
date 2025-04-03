@@ -2,10 +2,6 @@ import unittest
 from unittest.mock import patch
 
 import torch
-from hypothesis import HealthCheck, example, given, settings
-from hypothesis import strategies as st
-from hypothesis.strategies import dictionaries, text
-from torch import Tensor
 
 # We import the function under test.
 # Adjust this import as needed if your module/package layout differs.
@@ -57,11 +53,12 @@ class TestRunStageDDiffusion(unittest.TestCase):
                 "ref_mask": torch.ones(1, 5, 1),
                 "ref_element": torch.zeros(1, 5, 128),
                 "ref_atom_name_chars": torch.zeros(1, 5, 256),  # 4 * 64
-                "ref_space_uid": torch.zeros(1, 5, 1)
+                "ref_space_uid": torch.zeros(1, 5, 1),
             },
             {
                 "restype": torch.zeros(1, 5, dtype=torch.long),
                 "profile": torch.zeros(1, 5, 10),
+                "deletion_mean": torch.zeros(1, 5),  # Added missing key
             },
         )
 
@@ -98,11 +95,12 @@ class TestRunStageDDiffusion(unittest.TestCase):
                 "ref_mask": torch.ones(1, 5, 1),
                 "ref_element": torch.zeros(1, 5, 128),
                 "ref_atom_name_chars": torch.zeros(1, 5, 256),  # 4 * 64
-                "ref_space_uid": torch.zeros(1, 5, 1)
+                "ref_space_uid": torch.zeros(1, 5, 1),
             },
             {
                 "restype": torch.zeros(1, 5, dtype=torch.long),
                 "profile": torch.zeros(1, 5, 10),
+                "deletion_mean": torch.zeros(1, 5),  # Added missing key
             },
         )
 
@@ -156,7 +154,7 @@ class TestRunStageDDiffusion(unittest.TestCase):
                 "ref_mask": torch.ones(1, 5, 1),
                 "ref_element": torch.zeros(1, 5, 128),
                 "ref_atom_name_chars": torch.zeros(1, 5, 256),  # 4 * 64
-                "ref_space_uid": torch.zeros(1, 5, 1)
+                "ref_space_uid": torch.zeros(1, 5, 1),
             },
             {
                 "restype": torch.zeros(1, 5, dtype=torch.long),
@@ -190,11 +188,12 @@ class TestRunStageDDiffusion(unittest.TestCase):
                 "ref_mask": torch.ones(1, 5, 1),
                 "ref_element": torch.zeros(1, 5, 128),
                 "ref_atom_name_chars": torch.zeros(1, 5, 256),  # 4 * 64
-                "ref_space_uid": torch.zeros(1, 5, 1)
+                "ref_space_uid": torch.zeros(1, 5, 1),
             },
             {
                 "restype": torch.zeros(1, 5, dtype=torch.long),
                 "profile": torch.zeros(1, 5, 10),
+                "deletion_mean": torch.zeros(1, 5),  # Added missing key
             },
         )
 
@@ -211,8 +210,10 @@ class TestRunStageDDiffusion(unittest.TestCase):
         self.assertEqual(coords_out_1.shape[-1], 3)
 
         # Second inference pass, reusing the output of the first
+        # Select first sample from coords_out_1 (shape [5,5,3]) -> [5,3]
+        # and add batch dim -> [1,5,3] to match mocked features batch size
         coords_out_2 = run_stageD_diffusion(
-            partial_coords=coords_out_1.squeeze(1),  # shape alignment
+            partial_coords=coords_out_1[0].unsqueeze(0),
             trunk_embeddings=self.trunk_embeddings,
             diffusion_config=self.diffusion_config,
             mode="inference",
@@ -227,14 +228,14 @@ class TestRunStageDDiffusion(unittest.TestCase):
 # TODO: Add fuzz test back in once we have fixed the critical functionality
 # The TestRunStageDDiffusionFuzz class is commented out as we've fixed the core functionality
 # and this fuzz test is not essential for verifying the fixes.
-# 
+#
 # class TestRunStageDDiffusionFuzz(unittest.TestCase):
 #     """
 #     Property-based (fuzz) tests for run_stageD_diffusion. Ensures that
 #     arbitrary inputs do not crash the system. We do not assert correctness
 #     of the outputs, only that the function handles them gracefully.
 #     """
-# 
+#
 #     @settings(
 #         max_examples=20,  # Reduce the number of examples since they take time
 #         suppress_health_check=[HealthCheck.too_slow, HealthCheck.filter_too_much],
@@ -249,7 +250,7 @@ class TestRunStageDDiffusion(unittest.TestCase):
 #         ),
 #         trunk_embeddings=st.fixed_dictionaries({
 #             "s_trunk": st.builds(
-#                 torch.randn, 
+#                 torch.randn,
 #                 st.just(1),  # Batch size
 #                 st.integers(min_value=2, max_value=5),  # Number of tokens
 #                 st.just(384)  # Expected embedding dimension
@@ -281,7 +282,7 @@ class TestRunStageDDiffusion(unittest.TestCase):
 #         # Setup mock for load_rna_data_and_features
 #         n_tokens = partial_coords.shape[1]
 #         n_atoms = n_tokens  # Assuming 1 atom per token for simplicity
-#         
+#
 #         mock_load_rna.return_value = (
 #             {
 #                 "atom_to_token_idx": torch.zeros(1, n_atoms, dtype=torch.long),
@@ -298,7 +299,7 @@ class TestRunStageDDiffusion(unittest.TestCase):
 #                 "deletion_mean": torch.zeros(1, n_tokens),
 #             },
 #         )
-#         
+#
 #         try:
 #             output = run_stageD_diffusion(
 #                 partial_coords=partial_coords,
@@ -307,13 +308,13 @@ class TestRunStageDDiffusion(unittest.TestCase):
 #                 mode=mode,
 #                 device=device,
 #             )
-#             
+#
 #             # Check output shape for inference mode
 #             if mode == "inference":
 #                 self.assertIsInstance(output, torch.Tensor)
 #                 self.assertEqual(output.shape[-1], 3)  # Last dimension should be 3 for coordinates
-#             
-#             # Check output shape for train mode 
+#
+#             # Check output shape for train mode
 #             elif mode == "train":
 #                 self.assertIsInstance(output, tuple)
 #                 self.assertEqual(len(output), 3)
@@ -322,7 +323,7 @@ class TestRunStageDDiffusion(unittest.TestCase):
 #                 self.assertIsInstance(loss, torch.Tensor)
 #                 self.assertIsInstance(sigma, torch.Tensor)
 #                 self.assertTrue(sigma.dim() == 0, "Sigma should be a scalar tensor")
-#                 
+#
 #         except ValueError as e:
 #             # Only mode should cause ValueError
 #             self.fail(f"Unexpected ValueError: {e}")

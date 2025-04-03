@@ -204,17 +204,28 @@ class TestRunStageCRnaMpnerf(unittest.TestCase):
         should not occur. The final coords come directly from rna_fold.
         """
         place_rna_bases_mock = MagicMock()
-        with patch("rna_predict.pipeline.stageC.mp_nerf.rna.build_scaffolds_rna_from_torsions", 
-                  return_value={"angles_mask": torch.ones((4,))}), \
-             patch("rna_predict.pipeline.stageC.mp_nerf.rna.skip_missing_atoms", 
-                  side_effect=lambda seq, scf: scf), \
-             patch("rna_predict.pipeline.stageC.mp_nerf.rna.handle_mods", 
-                  side_effect=lambda seq, scf: scf), \
-             patch("rna_predict.pipeline.stageC.mp_nerf.rna.rna_fold", 
-                  return_value=torch.ones((5, 3))), \
-             patch("rna_predict.pipeline.stageC.mp_nerf.rna.place_rna_bases", 
-                  place_rna_bases_mock):
-            
+        with (
+            patch(
+                "rna_predict.pipeline.stageC.mp_nerf.rna.build_scaffolds_rna_from_torsions",
+                return_value={"angles_mask": torch.ones((4,))},
+            ),
+            patch(
+                "rna_predict.pipeline.stageC.mp_nerf.rna.skip_missing_atoms",
+                side_effect=lambda seq, scf: scf,
+            ),
+            patch(
+                "rna_predict.pipeline.stageC.mp_nerf.rna.handle_mods",
+                side_effect=lambda seq, scf: scf,
+            ),
+            patch(
+                "rna_predict.pipeline.stageC.mp_nerf.rna.rna_fold",
+                return_value=torch.ones((5, 3)),
+            ),
+            patch(
+                "rna_predict.pipeline.stageC.mp_nerf.rna.place_rna_bases",
+                place_rna_bases_mock,
+            ),
+        ):
             result = scr.run_stageC_rna_mpnerf(
                 sequence=self.sequence,
                 predicted_torsions=self.default_torsions,

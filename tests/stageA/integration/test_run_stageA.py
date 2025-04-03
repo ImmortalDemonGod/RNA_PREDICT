@@ -82,11 +82,11 @@ from hypothesis import strategies as st
 from rna_predict.pipeline.stageA.adjacency.rfold_predictor import StageARFoldPredictor
 from rna_predict.pipeline.stageA.run_stageA import (
     build_predictor,
+    download_file,
     main,
     run_stageA,
-    visualize_with_varna,
-    download_file,
     unzip_file,
+    visualize_with_varna,
 )
 
 # Import the code under test
@@ -264,26 +264,28 @@ class TestDownloadFile(TestBase):
         """
         # Create a path with .zip extension - essential for triggering zip validation
         zip_path = os.path.join(self.test_dir, "corrupted.zip")
-        
+
         # Create a simple corrupted zip (just a few bytes to check quickly)
         with open(zip_path, "wb") as f:
             f.write(b"Not a zip")
 
         # Simple mock that avoids any real network activity
-        with patch("os.remove") as mock_remove, \
-             patch("urllib.request.urlopen"), \
-             patch("shutil.copyfileobj") as mock_copy:
-            
+        with (
+            patch("os.remove") as mock_remove,
+            patch("urllib.request.urlopen"),
+            patch("shutil.copyfileobj") as mock_copy,
+        ):
             # Call the function under test
             download_file(self.url_valid_zip, zip_path)
-            
+
             # Verify the corrupted file was removed
             mock_remove.assert_called_once_with(zip_path)
-            
-            # Verify a download was attempted
-            self.assertTrue(mock_copy.called, "copyfileobj should be called to download new content")
 
-    
+            # Verify a download was attempted
+            self.assertTrue(
+                mock_copy.called, "copyfileobj should be called to download new content"
+            )
+
     @unittest.skip("Skipping this test as requested takes too long")
     @patch("urllib.request.urlopen")
     def test_download_new_file(self, mock_urlopen):
@@ -421,23 +423,25 @@ class TestVisualizeWithVarna(TestBase):
         # Create CT file but NOT the jar file
         with open(self.ct_path, "w") as f:
             f.write(">Test\n1 A 0 2 0 1\n")
-            
+
         # Ensure jar file doesn't exist
         if os.path.exists(self.jar_path):
             os.remove(self.jar_path)
-            
+
         # Capture stdout to check for warning
-        with patch('builtins.print') as mock_print:
+        with patch("builtins.print") as mock_print:
             visualize_with_varna(self.ct_path, self.jar_path, self.out_png)
-            
+
             # Verify warning was printed
             warning_printed = False
             for call in mock_print.call_args_list:
                 if call.args and "VARNA JAR not found" in call.args[0]:
                     warning_printed = True
                     break
-            self.assertTrue(warning_printed, "Warning about missing JAR should be printed")
-            
+            self.assertTrue(
+                warning_printed, "Warning about missing JAR should be printed"
+            )
+
         # Verify subprocess not called
         mock_popen.assert_not_called()
 
@@ -486,9 +490,9 @@ class TestBuildPredictor(TestBase):
         """
         self.ckpt_dir = os.path.join(self.test_dir, "RFold", "checkpoints")
         os.makedirs(self.ckpt_dir, exist_ok=True)
-        
+
         # Create a valid checkpoint file with torch.save
-        dummy_state = {'model': {}, 'optimizer': {}}
+        dummy_state = {"model": {}, "optimizer": {}}
         ckpt_path = os.path.join(self.ckpt_dir, "RNAStralign_trainset_pretrained.pth")
         torch.save(dummy_state, ckpt_path)
 

@@ -196,21 +196,21 @@ class TestGenerateSyntheticFeatures(unittest.TestCase):
 
         f = benchmark.generate_synthetic_features(N_atom, N_token, actual_device)
         self.assertIn("ref_pos", f)
-        self.assertEqual(f["ref_pos"].shape, (N_atom, 3))
+        self.assertEqual(f["ref_pos"].shape, (1, N_atom, 3))
         self.assertIn("ref_charge", f)
-        self.assertEqual(f["ref_charge"].shape, (N_atom, 1)) # Corrected expected shape
+        self.assertEqual(f["ref_charge"].shape, (1, N_atom, 1))  # Corrected expected shape
         self.assertIn("ref_element", f)
-        self.assertEqual(f["ref_element"].shape, (N_atom, 128))
+        self.assertEqual(f["ref_element"].shape, (1, N_atom, 128))
         self.assertIn("ref_atom_name_chars", f)
-        self.assertEqual(f["ref_atom_name_chars"].shape, (N_atom, 256))
+        self.assertEqual(f["ref_atom_name_chars"].shape, (1, N_atom, 256))
         self.assertIn("atom_to_token", f)
-        self.assertEqual(f["atom_to_token"].shape, (N_atom,))
+        self.assertEqual(f["atom_to_token"].shape, (1, N_atom))
         self.assertIn("restype", f)
-        self.assertEqual(f["restype"].shape, (N_token, 32))
+        self.assertEqual(f["restype"].shape, (1, N_token, 32))
         self.assertIn("profile", f)
-        self.assertEqual(f["profile"].shape, (N_token, 32))
+        self.assertEqual(f["profile"].shape, (1, N_token, 32))
         self.assertIn("deletion_mean", f)
-        self.assertEqual(f["deletion_mean"].shape, (N_token,))
+        self.assertEqual(f["deletion_mean"].shape, (1, N_token))
 
 
 class TestWarmupInference(unittest.TestCase):

@@ -1,10 +1,15 @@
 import numpy as np
 import torch
 
-from rna_predict.pipeline.stageC.mp_nerf.massive_pnerf import mp_nerf_torch
+from rna_predict.pipeline.stageC.mp_nerf.massive_pnerf import (
+    MpNerfParams,
+    mp_nerf_torch,
+)
 from rna_predict.pipeline.stageC.mp_nerf.proteins import (
-    get_dihedral,
     modify_angles_mask_with_torsions,
+)
+from rna_predict.pipeline.stageC.mp_nerf.utils import (
+    get_dihedral,
 )
 
 
@@ -21,23 +26,31 @@ def test_nerf_and_dihedral():
     # get angles
     theta = np.arccos(np.dot(v2, v3) / (np.linalg.norm(v2) * np.linalg.norm(v3)))
 
-    normal_p = np.cross(v1, v2)
-    normal_p_ = np.cross(v2, v3)
-    chi = np.arccos(
-        np.dot(normal_p, normal_p_)
-        / (np.linalg.norm(normal_p) * np.linalg.norm(normal_p_))
-    )
-    # get length:
+    # Calculate bond length and bond angle (theta)
     l = torch.tensor(np.linalg.norm(v3))
-    theta = torch.tensor(theta)
-    chi = torch.tensor(chi)
+    theta = torch.tensor(theta)  # Already calculated using np.arccos
+
+    # Calculate dihedral angle (chi) using the imported function for correct sign
+    chi = get_dihedral(a, b, c, d)
+
     # reconstruct
-    # doesnt work because the scn angle was not measured correctly
-    # so the method corrects that incorrection
-    assert (
-        mp_nerf_torch(a, b, c, l, theta, chi - np.pi) - torch.tensor([1, 0, 6])
-    ).sum().abs() < 0.1
-    assert get_dihedral(a, b, c, d).item() == chi
+    # The comment about scn angle might be outdated or related to a different issue.
+    # We now use standard geometric calculations for l, theta and a signed chi.
+    params = MpNerfParams(
+        a=a,
+        b=b,
+        c=c,
+        bond_length=l,
+        theta=torch.tensor(np.pi) - theta,  # Pass pi - theta
+        chi=chi,  # Use chi from get_dihedral
+    )
+    reconstructed_d = mp_nerf_torch(params)
+
+    # Assert that the NeRF reconstruction matches the original point d
+    # A tolerance is needed due to floating point precision.
+    assert torch.allclose(
+        reconstructed_d, d, atol=1e-5
+    ), f"Reconstructed {reconstructed_d} != Original {d}"
 
 
 def test_modify_angles_mask_with_torsions():

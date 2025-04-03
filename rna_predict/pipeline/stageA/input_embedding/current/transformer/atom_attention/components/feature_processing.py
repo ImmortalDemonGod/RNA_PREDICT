@@ -97,11 +97,14 @@ class FeatureProcessor:
             input_feature_dict: Dictionary containing atom features
 
         Returns:
-            Pair embedding tensor
+            Pair embedding tensor of shape [num_atoms, num_atoms, c_atompair]
         """
         # Extract distance features
         ref_pos = safe_tensor_access(input_feature_dict, "ref_pos")  # [N, 3]
         ref_charge = safe_tensor_access(input_feature_dict, "ref_charge")  # [N, 1]
+
+        # Get number of atoms
+        num_atoms = ref_pos.shape[0]
 
         # Process distance features
         d = self.linear_no_bias_d(ref_pos)  # [N, c_atompair]
@@ -115,7 +118,12 @@ class FeatureProcessor:
         v = self.linear_no_bias_v(ref_charge)  # [N, c_atompair]
 
         # Combine features
-        return d + invd + v
+        p = d + invd + v  # [N, c_atompair]
+
+        # Reshape to [num_atoms, num_atoms, c_atompair]
+        p = p.unsqueeze(0).expand(num_atoms, -1, -1)
+
+        return p
 
     def aggregate_to_token_level(
         self, a_atom: torch.Tensor, atom_to_token_idx: torch.Tensor, num_tokens: int

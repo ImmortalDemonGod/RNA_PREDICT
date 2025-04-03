@@ -1,14 +1,23 @@
-# science
+# Author: Eric Alcaide
+
+
+import einops
 import numpy as np
-
-# diff / ml
 import torch
-from einops import rearrange, repeat
-
-from rna_predict.pipeline.stageC.mp_nerf.kb_proteins import *
 
 # module
 from rna_predict.pipeline.stageC.mp_nerf.massive_pnerf import *
+from rna_predict.pipeline.stageC.mp_nerf.massive_pnerf import (
+    get_axis_matrix,
+    mp_nerf_torch,
+)
+from rna_predict.pipeline.stageC.mp_nerf.protein_utils.sidechain_data import (
+    BB_BUILD_INFO,
+    SUPREME_INFO,
+)
+from rna_predict.pipeline.stageC.mp_nerf.protein_utils.structure_utils import (
+    build_scaffolds_from_scn_angles,
+)
 from rna_predict.pipeline.stageC.mp_nerf.utils import *
 
 
@@ -23,7 +32,8 @@ def scn_cloud_mask(seq, coords=None, strict=False):
     """
     if coords is not None:
         start = (
-            (rearrange(coords, "b (l c) d -> b l c d", c=14) != 0).sum(dim=-1) != 0
+            (einops.rearrange(coords, "b (l c) d -> b l c d", c=14) != 0).sum(dim=-1)
+            != 0
         ).float()
         # if a point is 0, the following are 0s as well
         if strict:
@@ -80,9 +90,24 @@ def scn_angle_mask(seq, angles=None, device=None):
         to_fill = torsion_mask != torsion_mask  # "p" fill with passed values
         to_pick = torsion_mask == 999  # "i" infer from previous one
         for i, aa in enumerate(seq):
-            # check if any is nan -> fill the holes
-            number = to_fill[i].long().sum()
-            torsion_mask[i, to_fill[i]] = angles[i, 6 : 6 + number]
+            # Indices in torsion_mask[i] that are NaN (need filling)
+            nan_indices = torch.where(to_fill[i])[0]
+            num_nans = len(nan_indices)
+
+            # Available sidechain angles from input (always 6)
+            available_angles = angles[i, 6:]
+            num_available = len(available_angles)
+
+            # Number of angles we can actually assign
+            num_to_assign = min(num_nans, num_available)
+
+            if num_to_assign > 0:
+                # Indices to assign to (first num_to_assign NaN indices)
+                indices_to_assign = nan_indices[:num_to_assign]
+                # Angles to assign (first num_to_assign available angles)
+                angles_to_assign = available_angles[:num_to_assign]
+                # Perform assignment
+                torsion_mask[i, indices_to_assign] = angles_to_assign
 
             # pick previous value for inferred torsions
             for j, val in enumerate(to_pick[i]):
@@ -97,7 +122,7 @@ def scn_angle_mask(seq, angles=None, device=None):
             elif aa == "L":
                 torsion_mask[i, 7] += torsion_mask[i, 6]
 
-    torsion_mask[-1, 3] += np.pi
+    torsion_mask[-1, 3] = np.pi  # Set to pi directly, not add
     return torch.stack([theta_mask, torsion_mask], dim=0)
 
 
@@ -108,31 +133,11 @@ def scn_index_mask(seq):
              first angle is theta, second is dihedral
     """
     idxs = torch.tensor([SUPREME_INFO[aa]["idx_mask"] for aa in seq])
-    return rearrange(idxs, "l s d -> d l s")
+    return einops.rearrange(idxs, "l s d -> d l s")
 
 
-def scn_rigid_index_mask(seq, c_alpha=None):
-    """Inputs:
-    * seq: (length). iterable of 1-letter aa codes of a protein
-    * c_alpha: bool. whether to return only the c_alpha rigid group
-    Outputs: (3, Length * Groups). indexes for 1st, 2nd and 3rd point
-              to construct frames for each group.
-    """
-    if c_alpha:
-        return torch.cat(
-            [
-                torch.tensor(SUPREME_INFO[aa]["rigid_idx_mask"])[:1] + 14 * i
-                for i, aa in enumerate(seq)
-            ],
-            dim=0,
-        ).t()
-    return torch.cat(
-        [
-            torch.tensor(SUPREME_INFO[aa]["rigid_idx_mask"]) + 14 * i
-            for i, aa in enumerate(seq)
-        ],
-        dim=0,
-    ).t()
+# Removed local definition of scn_rigid_index_mask to resolve name collision
+# with the version imported from massive_pnerf.py
 
 
 def build_scaffolds_from_scn_angles(seq, angles=None, coords=None, device="auto"):
@@ -215,7 +220,6 @@ def modify_scaffolds_with_coords(scaffolds, coords):
     * coords: (L, 14, 3). sidechainnet tensor. same device as scaffolds
     Outputs: corrected scaffolds
     """
-
     # calculate distances and update:
     # N, CA, C
     scaffolds["bond_mask"][1:, 0] = torch.norm(
@@ -231,50 +235,20 @@ def modify_scaffolds_with_coords(scaffolds, coords):
             :, :, i - 3
         ]  # (3, L, 11) -> 3 * (L, 11)
         # correct distances
-        scaffolds["bond_mask"][:, i] = torch.norm(
-            coords[:, i] - coords[selector, idx_c], dim=-1
-        )
-        # get angles
-        scaffolds["angles_mask"][0, :, i] = get_angle(
-            coords[selector, idx_b], coords[selector, idx_c], coords[:, i]
-        )
-        # handle C-beta, where the C requested is from the previous aa
-        if i == 4:
-            # for 1st residue, use position of the second residue's N
-            first_next_n = coords[1, :1]  # 1, 3
-            # the c requested is from the previous residue
-            main_c_prev_idxs = coords[selector[:-1], idx_a[1:]]  # (L-1), 3
-            # concat
-            coords_a = torch.cat([first_next_n, main_c_prev_idxs])
+        # Add bounds checking for idx_c
+        valid_indices = (idx_c < coords.shape[1]) & (idx_c >= 0)
+        if valid_indices.any():
+            # Only calculate distances for valid indices
+            distances = torch.zeros_like(scaffolds["bond_mask"][:, i])
+            distances[valid_indices] = torch.norm(
+                coords[selector[valid_indices], i]
+                - coords[selector[valid_indices], idx_c[valid_indices]],
+                dim=-1,
+            )
+            scaffolds["bond_mask"][:, i] = distances
         else:
-            coords_a = coords[selector, idx_a]
-        # get dihedrals
-        scaffolds["angles_mask"][1, :, i] = get_dihedral(
-            coords_a, coords[selector, idx_b], coords[selector, idx_c], coords[:, i]
-        )
-    # correct angles and dihedrals for backbone
-    scaffolds["angles_mask"][0, :-1, 0] = get_angle(
-        coords[:-1, 1], coords[:-1, 2], coords[1:, 0]
-    )  # ca_c_n
-    scaffolds["angles_mask"][0, 1:, 1] = get_angle(
-        coords[:-1, 2], coords[1:, 0], coords[1:, 1]
-    )  # c_n_ca
-    scaffolds["angles_mask"][0, :, 2] = get_angle(
-        coords[:, 0], coords[:, 1], coords[:, 2]
-    )  # n_ca_c
-
-    # N determined by previous psi = f(n, ca, c, n+1)
-    scaffolds["angles_mask"][1, :-1, 0] = get_dihedral(
-        coords[:-1, 0], coords[:-1, 1], coords[:-1, 2], coords[1:, 0]
-    )
-    # CA determined by omega = f(ca, c, n+1, ca+1)
-    scaffolds["angles_mask"][1, 1:, 1] = get_dihedral(
-        coords[:-1, 1], coords[:-1, 2], coords[1:, 0], coords[1:, 1]
-    )
-    # C determined by phi = f(c-1, n, ca, c)
-    scaffolds["angles_mask"][1, 1:, 2] = get_dihedral(
-        coords[:-1, 2], coords[1:, 0], coords[1:, 1], coords[1:, 2]
-    )
+            # If no valid indices, set to default value
+            scaffolds["bond_mask"][:, i] = 0.0
 
     return scaffolds
 
@@ -330,31 +304,49 @@ def protein_fold(
     )
 
     # starting positions (in the x,y plane) and normal vector [0,0,1]
-    init_a = repeat(
+    init_a = einops.repeat(
         torch.tensor([1.0, 0.0, 0.0], device=device, dtype=precise),
         "d -> l d",
         l=length,
     )
-    init_b = repeat(
+    init_b = einops.repeat(
         torch.tensor([1.0, 1.0, 0.0], device=device, dtype=precise),
         "d -> l d",
         l=length,
     )
     # do N -> CA. don't do 1st since its done already
     thetas, dihedrals = angles_mask[:, :, 1]
-    coords[1:, 1] = mp_nerf_torch(
-        init_a, init_b, coords[:, 0], bond_mask[:, 1], thetas, dihedrals
-    )[1:]
+    params_n_ca = MpNerfParams(
+        a=init_a,
+        b=init_b,
+        c=coords[:, 0],
+        bond_length=bond_mask[:, 1],
+        theta=thetas,
+        chi=dihedrals,
+    )
+    coords[1:, 1] = mp_nerf_torch(params_n_ca)[1:]
     # do CA -> C. don't do 1st since its done already
     thetas, dihedrals = angles_mask[:, :, 2]
-    coords[1:, 2] = mp_nerf_torch(
-        init_b, coords[:, 0], coords[:, 1], bond_mask[:, 2], thetas, dihedrals
-    )[1:]
+    params_ca_c = MpNerfParams(
+        a=init_b,
+        b=coords[:, 0],
+        c=coords[:, 1],
+        bond_length=bond_mask[:, 2],
+        theta=thetas,
+        chi=dihedrals,
+    )
+    coords[1:, 2] = mp_nerf_torch(params_ca_c)[1:]
     # do C -> N
     thetas, dihedrals = angles_mask[:, :, 0]
-    coords[:, 3] = mp_nerf_torch(
-        coords[:, 0], coords[:, 1], coords[:, 2], bond_mask[:, 0], thetas, dihedrals
+    params_c_n = MpNerfParams(
+        a=coords[:, 0],
+        b=coords[:, 1],
+        c=coords[:, 2],
+        bond_length=bond_mask[:, 0],
+        theta=thetas,
+        chi=dihedrals,
     )
+    coords[:, 3] = mp_nerf_torch(params_c_n)
 
     #########
     # sequential pass to join fragments
@@ -385,29 +377,58 @@ def protein_fold(
     #########
     for i in range(3, 14):
         level_mask = cloud_mask[:, i]
+        if not level_mask.any():
+            continue
+
+        # Add bounds checking for indices
+        idx_a, idx_b, idx_c = point_ref_mask[:, :, i - 3]  # Shape: (3, L)
+        valid_indices = (
+            (idx_a < coords.shape[1])
+            & (idx_b < coords.shape[1])
+            & (idx_c < coords.shape[1])
+        )
+        valid_indices = valid_indices & (idx_a >= 0) & (idx_b >= 0) & (idx_c >= 0)
+        level_mask = level_mask & valid_indices
+
+        if not level_mask.any():
+            continue
+
         thetas, dihedrals = angles_mask[:, level_mask, i]
-        idx_a, idx_b, idx_c = point_ref_mask[:, level_mask, i - 3]
 
         # to place C-beta, we need the carbons from prev res - not available for the 1st res
         if i == 4:
             # the c requested is from the previous residue - offset boolean mask by one
             # can't be done with slicing bc glycines are inside chain (dont have cb)
-            coords_a = coords[(level_mask.nonzero().view(-1) - 1), idx_a]  # (L-1), 3
-            # if first residue is not glycine,
-            # for 1st residue, use position of the second residue's N (1,3)
-            if level_mask[0].item():
-                coords_a[0] = coords[1, 1]
+            valid_indices = level_mask.nonzero().view(-1)
+            if len(valid_indices) > 0:
+                prev_indices = valid_indices - 1
+                coords_a = coords[prev_indices, idx_a[valid_indices]]  # (L-1), 3
+                # if first residue is not glycine,
+                # for 1st residue, use position of the second residue's N (1,3)
+                if level_mask[0].item():
+                    coords_a[0] = coords[1, 1]
+            else:
+                continue
         else:
-            coords_a = coords[level_mask, idx_a]
+            valid_indices = level_mask.nonzero().view(-1)
+            if len(valid_indices) > 0:
+                coords_a = coords[valid_indices, idx_a[valid_indices]]
+            else:
+                continue
 
-        coords[level_mask, i] = mp_nerf_torch(
-            coords_a,
-            coords[level_mask, idx_b],
-            coords[level_mask, idx_c],
-            bond_mask[level_mask, i],
-            thetas,
-            dihedrals,
+        coords_b = coords[valid_indices, idx_b[valid_indices]]
+        coords_c = coords[valid_indices, idx_c[valid_indices]]
+
+        # place the atom
+        params = MpNerfParams(
+            a=coords_a,
+            b=coords_b,
+            c=coords_c,
+            bond_length=bond_mask[valid_indices, i],
+            theta=thetas,
+            chi=dihedrals,
         )
+        coords[valid_indices, i] = mp_nerf_torch(params)
 
     return coords, cloud_mask
 
@@ -457,13 +478,14 @@ def sidechain_fold(
         else:
             coords_a = wrapper[level_mask, idx_a]
 
-        wrapper[level_mask, i] = mp_nerf_torch(
-            coords_a,
-            wrapper[level_mask, idx_b],
-            wrapper[level_mask, idx_c],
-            bond_mask[level_mask, i],
-            thetas,
-            dihedrals,
+        params_sidechain_fold = MpNerfParams(
+            a=coords_a,
+            b=wrapper[level_mask, idx_b],
+            c=wrapper[level_mask, idx_c],
+            bond_length=bond_mask[level_mask, i],
+            theta=thetas,
+            chi=dihedrals,
         )
+        wrapper[level_mask, i] = mp_nerf_torch(params_sidechain_fold)
 
     return wrapper, cloud_mask

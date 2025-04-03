@@ -12,23 +12,34 @@ from rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager import (
     ProtenixDiffusionManager,
 )
 
+
 # Create a proper mock for the DiffusionModule class
 class MockDiffusionModule(torch.nn.Module):
     """
     A proper mock for DiffusionModule that avoids the super() call issue.
     """
+
     def __init__(self, **kwargs):
         super().__init__()
         # Store kwargs for inspection in tests
         self.kwargs = kwargs
         # Set up any attributes that might be accessed
-        self.initialization = kwargs.get('initialization', {})
-        
+        self.initialization = kwargs.get("initialization", {})
+
     def to(self, device):
         self.device = device
         return self
-        
-    def forward(self, x_noisy, t_hat_noise_level, input_feature_dict, s_inputs, s_trunk, z_trunk, **kwargs):
+
+    def forward(
+        self,
+        x_noisy,
+        t_hat_noise_level,
+        input_feature_dict,
+        s_inputs,
+        s_trunk,
+        z_trunk,
+        **kwargs,
+    ):
         # Return a tensor with the expected output shape
         batch_size = x_noisy.shape[0] if len(x_noisy.shape) > 3 else 1
         n_sample = x_noisy.shape[1] if len(x_noisy.shape) > 3 else 1
@@ -43,12 +54,12 @@ class TestProtenixDiffusionManagerInitialization(unittest.TestCase):
     the diffusion module properly, including handling default "initialization"
     config fields and device usage.
     """
-    
+
     def setUp(self):
         # Set up the patch at the imported module level
         self.diffusion_module_patcher = patch(
-            "rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager.DiffusionModule", 
-            MockDiffusionModule
+            "rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager.DiffusionModule",
+            MockDiffusionModule,
         )
         self.mock_diffusion_module = self.diffusion_module_patcher.start()
         self.addCleanup(self.diffusion_module_patcher.stop)
@@ -72,9 +83,7 @@ class TestProtenixDiffusionManagerInitialization(unittest.TestCase):
             {},
             "Expected an empty dict as the default 'initialization'",
         )
-        self.assertEqual(
-            str(manager.device), "cpu", "Device should be set to 'cpu'"
-        )
+        self.assertEqual(str(manager.device), "cpu", "Device should be set to 'cpu'")
 
     def test_init_respects_given_device(self):
         """
@@ -83,9 +92,7 @@ class TestProtenixDiffusionManagerInitialization(unittest.TestCase):
         manager = ProtenixDiffusionManager(
             diffusion_config={"initialization": {}}, device="cuda"
         )
-        self.assertEqual(
-            str(manager.device), "cuda", "Device should be set to 'cuda'"
-        )
+        self.assertEqual(str(manager.device), "cuda", "Device should be set to 'cuda'")
 
     def test_init_with_filled_initialization(self):
         """
@@ -95,7 +102,9 @@ class TestProtenixDiffusionManagerInitialization(unittest.TestCase):
         config = {"initialization": {"foo": "bar"}, "other_key": 123}
         manager = ProtenixDiffusionManager(diffusion_config=config, device="cpu")
         self.assertIn("initialization", manager.diffusion_module.kwargs)
-        self.assertEqual(manager.diffusion_module.kwargs["initialization"], {"foo": "bar"})
+        self.assertEqual(
+            manager.diffusion_module.kwargs["initialization"], {"foo": "bar"}
+        )
         # Verify other keys were also passed
         self.assertEqual(manager.diffusion_module.kwargs["other_key"], 123)
 
@@ -110,7 +119,7 @@ class TestProtenixDiffusionManagerTrainDiffusionStep(unittest.TestCase):
         # Patch the diffusion module at the import level
         self.diffusion_module_patcher = patch(
             "rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager.DiffusionModule",
-            MockDiffusionModule
+            MockDiffusionModule,
         )
         self.mock_diffusion_module = self.diffusion_module_patcher.start()
         self.addCleanup(self.diffusion_module_patcher.stop)
@@ -161,7 +170,7 @@ class TestProtenixDiffusionManagerTrainDiffusionStep(unittest.TestCase):
         """
         # Reset the mock for each test case to ensure call count is properly tracked
         self.mock_sample_diff_train.reset_mock()
-        
+
         fake_x_gt_augment = torch.zeros((2, 2))
         fake_x_denoised = torch.ones((2, 2))
         fake_sigma = torch.tensor([0.5])
@@ -199,7 +208,7 @@ class TestProtenixDiffusionManagerMultiStepInference(unittest.TestCase):
         # Patch the diffusion module at the import level
         self.diffusion_module_patcher = patch(
             "rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager.DiffusionModule",
-            MockDiffusionModule
+            MockDiffusionModule,
         )
         self.mock_diffusion_module = self.diffusion_module_patcher.start()
         self.addCleanup(self.diffusion_module_patcher.stop)
@@ -261,7 +270,7 @@ class TestProtenixDiffusionManagerCustomManualLoop(unittest.TestCase):
         # Patch the diffusion module at the import level
         self.diffusion_module_patcher = patch(
             "rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager.DiffusionModule",
-            MockDiffusionModule
+            MockDiffusionModule,
         )
         self.mock_diffusion_module = self.diffusion_module_patcher.start()
         self.addCleanup(self.diffusion_module_patcher.stop)
@@ -270,7 +279,9 @@ class TestProtenixDiffusionManagerCustomManualLoop(unittest.TestCase):
         # Create a specific mock for the forward method to track calls
         self.manager.diffusion_module.forward = MagicMock()
         # Set up a specific return value that matches the expected output shape
-        self.manager.diffusion_module.forward.return_value = torch.zeros_like(torch.empty(3, 3))
+        self.manager.diffusion_module.forward.return_value = torch.zeros_like(
+            torch.empty(3, 3)
+        )
 
     @given(
         x_gt=st.lists(
@@ -292,7 +303,7 @@ class TestProtenixDiffusionManagerCustomManualLoop(unittest.TestCase):
         """
         # Reset mock to ensure we're only counting calls in this test
         self.manager.diffusion_module.forward.reset_mock()
-        
+
         # Create a return value with the same shape as x_gt
         fake_x_denoised = torch.zeros_like(x_gt)
         self.manager.diffusion_module.forward.return_value = fake_x_denoised
@@ -322,7 +333,7 @@ class TestProtenixDiffusionManagerRoundTrip(unittest.TestCase):
         # Patch the diffusion module at the import level
         self.diffusion_module_patcher = patch(
             "rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager.DiffusionModule",
-            MockDiffusionModule
+            MockDiffusionModule,
         )
         self.mock_diffusion_module = self.diffusion_module_patcher.start()
         self.addCleanup(self.diffusion_module_patcher.stop)

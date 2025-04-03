@@ -11,7 +11,7 @@ from .final_kb_rna import (
     get_bond_angle,
     get_bond_length,
 )
-from .massive_pnerf import mp_nerf_torch
+from .massive_pnerf import MpNerfParams, mp_nerf_torch
 
 ###############################################################################
 # 1) BACKBONE ATOMS
@@ -344,16 +344,30 @@ def rna_fold(
 
             l_val = bond_mask[i, j]
             theta = angles_mask[0, i, j]
-            phi = angles_mask[1, i, j]
+            phi = angles_mask[
+                1, i, j
+            ]  # This is the dihedral angle, used as 'chi' in mp_nerf
 
             # Ensure bond length is not zero or NaN
             if l_val < 1e-6 or math.isnan(l_val):
                 l_val = 1.5  # Use a default bond length
 
-            coords[i, j] = mp_nerf_torch(a_xyz, b_xyz, c_xyz, l_val, theta, phi)
+            # Create MpNerfParams object, mapping phi to chi
+            nerf_params = MpNerfParams(
+                a=a_xyz,
+                b=b_xyz,
+                c=c_xyz,
+                bond_length=l_val,
+                theta=theta,
+                chi=phi,  # Map phi from context to chi expected by mp_nerf_torch
+            )
+            coords[i, j] = mp_nerf_torch(nerf_params)
 
+    # Apply ring closure refinement if requested (after loops complete)
     if do_ring_closure:
         coords = ring_closure_refinement(coords)
+
+    # Return the final coordinates
     return coords
 
 

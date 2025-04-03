@@ -58,7 +58,7 @@ class AtomAttentionDecoder(nn.Module):
             n_heads=config.n_heads,
             n_queries=self.n_queries,
             n_keys=self.n_keys,
-            blocks_per_ckpt=config.blocks_per_ckpt,
+            blocks_per_ckpt=config.blocks_per_ckpt or 0,  # Default to 0 if None
         )
 
         # Input projection from token dimension
@@ -94,21 +94,33 @@ class AtomAttentionDecoder(nn.Module):
             )
 
         # Process coordinate encoding
-        a = self.coordinate_processor.process_coordinate_encoding(
-            a, params.r_l, params.extra_feats
-        )
+        if params.extra_feats is not None:
+            a = self.coordinate_processor.process_coordinate_encoding(
+                a, params.r_l, params.extra_feats
+            )
 
         # Create pair embedding
-        p_l = self.feature_processor.create_pair_embedding(
-            {"ref_pos": params.extra_feats}
-        )
+        if params.extra_feats is not None:
+            p_l = self.feature_processor.create_pair_embedding(
+                {"ref_pos": params.extra_feats}
+            )
+        else:
+            p_l = torch.zeros(
+                (a.shape[0], self.n_queries * self.n_keys, self.c_atompair),
+                device=a.device,
+            )
 
         # Process pair features
         p_l = self.attention_components.process_pair_features(a, a)
 
+        # Create attention mask if not provided
+        mask = torch.ones_like(a[..., 0], dtype=torch.bool)
+        if params.mask is not None:
+            mask = params.mask
+
         # Apply transformer
         a = self.attention_components.apply_transformer(
-            a, p_l, mask=params.mask, chunk_size=params.chunk_size
+            a, p_l, mask=mask, chunk_size=params.chunk_size or 0
         )
 
         # Project to output dimension

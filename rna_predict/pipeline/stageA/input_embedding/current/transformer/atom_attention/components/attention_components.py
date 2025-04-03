@@ -136,9 +136,17 @@ class AttentionComponents:
         Returns:
             Transformed features
         """
+        # Create default mask if not provided
+        if mask is None:
+            mask = torch.ones_like(a[..., 0], dtype=torch.bool)
+
+        # Ensure mask has correct shape
+        if mask.dim() == 2:
+            mask = mask.unsqueeze(-1)
+
         return self.atom_transformer(
             a,
             p,
-            mask if mask is not None else torch.ones_like(a[..., 0], dtype=torch.bool),
+            mask,
             chunk_size if chunk_size is not None else 0,
         ) 

@@ -2,7 +2,7 @@ from typing import Dict, Optional
 
 import torch
 
-from rna_predict.pipeline.stageD.diffusion.diffusion import DiffusionModule
+from rna_predict.pipeline.stageD.diffusion.components.diffusion_module import DiffusionModule # Updated import path
 from rna_predict.pipeline.stageD.diffusion.generator import (
     TrainingNoiseSampler,
     sample_diffusion,
@@ -188,8 +188,8 @@ class ProtenixDiffusionManager:
             attn_chunk_size=None,  # you can set chunk sizes if needed
         )
 
-        # Squeeze extra dimension if present to ensure correct output shape
-        if coords_final.ndim == 4 and coords_final.shape[1] == 1 and N_sample == 1:
+        # Remove extra dimension when N_sample=1 to match expected shape [B, N_atom, 3]
+        if coords_final.ndim == 4 and coords_final.shape[1] == 1:
             coords_final = coords_final.squeeze(1)
 
         return coords_final

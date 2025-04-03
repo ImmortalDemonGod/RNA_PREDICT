@@ -153,149 +153,66 @@ class InputFeatureEmbedder(nn.Module):
             a = a.unsqueeze(0)  # Add batch dimension
         print(f"DEBUG [Embedder]: Shape after dimension adjustment (a): {a.shape}")
 
-        # Extract the number of tokens from the restype feature
-        # This is more reliable than using the output of AtomAttentionEncoder
-        if "restype" in input_feature_dict and input_feature_dict.get("restype") is not None:
-            restype = input_feature_dict["restype"]
-            if restype.dim() >= 3:  # [B, N_token, C]
-                token_dim = restype.shape[-2]
-            elif restype.dim() == 2:  # [B, N_token] or [N_token, C]
-                # For 2D tensors, we need to determine which dimension is N_token
-                # In RNA context, the second dimension is typically N_token
-                token_dim = restype.shape[1]
-                if token_dim > 1000:  # If second dimension is suspiciously large, it might be C
-                    token_dim = restype.shape[0]
-            elif restype.dim() == 1:  # [N_token]
-                token_dim = restype.shape[0]
+        # Extract the number of tokens from atom_to_token
+        if "atom_to_token" in input_feature_dict:
+            atom_to_token = input_feature_dict["atom_to_token"]
+            if atom_to_token.dim() == 2:
+                N_token = atom_to_token.size(0)
             else:
-                # For scalar or invalid shapes, use atom dimension as fallback
-                token_dim = a.shape[-2]
+                N_token = atom_to_token.max().item() + 1
         else:
-            # If restype is not available, use atom dimension
-            token_dim = a.shape[-2]
-
-        # 2) Ensure 'a' has the right token dimension
-        current_token_dim_a = a.shape[-2]
-        if current_token_dim_a != token_dim:
-            if current_token_dim_a < token_dim:
-                # Pad 'a' if it has fewer tokens than expected
-                padding_shape = list(a.shape)
-                padding_shape[-2] = token_dim - current_token_dim_a
-                padding = torch.zeros(padding_shape, device=a.device, dtype=a.dtype)
-                a = torch.cat([a, padding], dim=-2) # Concatenate along the token dimension
-                print(f"DEBUG [Embedder]: Padded 'a' to shape {a.shape}")
+            # Fallback to restype if atom_to_token is not available
+            restype = input_feature_dict["restype"]
+            if restype.dim() == 2:
+                N_token = restype.size(0)
             else:
-                # If a has more tokens than expected, we should keep all tokens
-                # This is important for preserving sequence information
-                print(f"DEBUG [Embedder]: Keeping all {current_token_dim_a} tokens from 'a'")
-                token_dim = current_token_dim_a  # Update token_dim to match a's dimension
+                N_token = restype.size(1)
 
-        # Create a tensor of the appropriate batch shape for reshaping
-        batch_shape = a.shape[:-2]  # Everything except the token and feature dimensions
-
-        # Handle optional trunk_sing / trunk_pair / block_index
-        # (Currently no-op except for verifying presence)
-        if trunk_sing is not None:
-            pass  # Possibly incorporate trunk_sing into the pipeline
-        if trunk_pair is not None:
-            pass  # Possibly incorporate trunk_pair into the pipeline
-        if block_index is not None:
-            pass  # Possibly use block_index for local attention
-
-        extras_list = []
-        for name, dim_size in self.input_feature.items():
-            # Check if the feature exists in the input_feature_dict
-            if name not in input_feature_dict:
-                # Create a default zero tensor if the feature is missing
-                if name == "deletion_mean":
-                    # For scalar features
-                    default_tensor = torch.zeros(
-                        (*batch_shape, token_dim, 1), device=a.device
-                    )
-                else:
-                    # For vector features
-                    default_tensor = torch.zeros(
-                        (*batch_shape, token_dim, dim_size), device=a.device
-                    )
-                extras_list.append(default_tensor)
+        # Ensure 'a' has the correct number of tokens
+        if a.size(1) != N_token:
+            # If 'a' has more tokens than needed, truncate
+            if a.size(1) > N_token:
+                a = a[:, :N_token, :]
+            # If 'a' has fewer tokens than needed, pad with zeros
             else:
-                # Get the feature tensor
-                feature = input_feature_dict[name]
+                padding = torch.zeros(
+                    (a.size(0), N_token - a.size(1), a.size(2)),
+                    device=a.device,
+                    dtype=a.dtype
+                )
+                a = torch.cat([a, padding], dim=1)
 
-                # Ensure feature has the right number of dimensions
-                while feature.dim() < len(batch_shape) + 2:  # Need [*batch, tokens, features]
-                    feature = feature.unsqueeze(0)
+        # Create extras tensor by concatenating restype, profile, and deletion_mean
+        extras = []
+        for key in ("restype", "profile", "deletion_mean"):
+            feat = input_feature_dict[key]
+            if feat.dim() == 1:
+                feat = feat.unsqueeze(-1)
+            if feat.dim() == 2:
+                feat = feat.unsqueeze(0)
+            extras.append(feat)
+        extras = torch.cat(extras, dim=-1)
+        print(f"DEBUG [Embedder]: extras shape before linear: {extras.shape}")
 
-                # Ensure feature has the right token dimension
-                if feature.shape[-2] != token_dim:
-                    if feature.shape[-2] < token_dim:
-                        # Pad feature if it has fewer tokens
-                        pad_size = token_dim - feature.shape[-2]
-                        padding = torch.zeros(
-                            (*feature.shape[:-2], pad_size, feature.shape[-1]),
-                            device=feature.device,
-                            dtype=feature.dtype
-                        )
-                        feature = torch.cat([feature, padding], dim=-2)
-                    else:
-                        # Slice feature if it has more tokens
-                        feature = feature[..., :token_dim, :]
-
-                # Ensure batch dimensions match
-                if feature.shape[:-2] != batch_shape:
-                    try:
-                        feature = feature.expand(*batch_shape, token_dim, feature.shape[-1])
-                    except RuntimeError as e:
-                        print(f"WARNING: Could not expand feature {name} from shape {feature.shape} to match batch_shape {batch_shape}")
-                        raise
-
-                extras_list.append(feature)
-
-        # Concatenate all extra features along the feature dimension
-        extras = torch.cat(extras_list, dim=-1)
-
-        # Project to token dimension if not already done
+        # Create extras_linear if not already created
         if self.extras_linear is None:
-            self.extras_linear = nn.Linear(extras.shape[-1], self.c_token)
-        extras_emb = self.extras_linear(extras)
+            extras_dim = extras.size(-1)
+            self.extras_linear = LinearNoBias(extras_dim, self.c_token).to(extras.device)
+            print(f"DEBUG [Embedder]: extras_linear weight shape: {self.extras_linear.weight.shape}")
 
-        # 3) Merge atom output with these extra features
-        #    Ensure extras_emb also matches the batch dimensions of 'a'
-        if a.shape[:-1] != extras_emb.shape[:-1]:
-             # Try to expand extras_emb to match batch_shape and token_dim
-             try:
-                 target_shape = list(a.shape[:-1]) + [extras_emb.shape[-1]]
-                 extras_emb = extras_emb.expand(target_shape)
-                 print(f"DEBUG [Embedder]: Expanded extras_emb to shape {extras_emb.shape}")
-             except RuntimeError as e:
-                 # If expansion fails, raise a more informative error
-                 raise RuntimeError(
-                    f"Cannot broadcast extras_emb (shape {extras_emb.shape}) "
-                    f"to match adjusted 'a' (shape {a.shape[:-1]}) for addition. Error: {e}"
-                 ) from e
+        # Project extras to c_token dimension and add to atom embeddings
+        extras_proj = self.extras_linear(extras)
+        s_inputs = a + extras_proj
+        print(f"DEBUG [Embedder]: Shape after addition (s_inputs): {s_inputs.shape}")
 
-        # Summation is a simple choice that yields a final [N_token, c_token].
-        s_inputs = a + extras_emb
-        print(f"DEBUG [Embedder]: Shape after addition (s_inputs): {s_inputs.shape}") # DEBUG
+        # Apply final layer norm
+        out = self.final_ln(s_inputs)
+        print(f"DEBUG [Embedder]: Shape after final_ln (out): {out.shape}")
 
-        # 4) Optional final layer norm
-        out = self.final_ln(s_inputs)  # => [..., N_token, c_token]
-        print(f"DEBUG [Embedder]: Shape after final_ln (out): {out.shape}") # DEBUG
-
-        # 5) Add a projection to get the expected output dimension
-        # If the expected output dimension is different from c_token (e.g. 449 vs 384)
-        # We need an additional projection layer
-        if not hasattr(self, "final_projection"):
-            # Lazily create the projection layer the first time it's needed
-            self.final_projection = nn.Linear(self.c_token, 449, bias=True)
-            # Initialize weights to be close to identity transformation with small random values
-            nn.init.eye_(self.final_projection.weight[: self.c_token, : self.c_token])
-            if self.final_projection.bias is not None:
-                nn.init.zeros_(self.final_projection.bias)
-
-        # Apply the final projection to get the desired output dimension
-        out = self.final_projection(out)
-        print(f"DEBUG [Embedder]: Shape before return (out): {out.shape}") # DEBUG
+        # Remove batch dimension if it was added
+        if out.size(0) == 1:
+            out = out.squeeze(0)
+        print(f"DEBUG [Embedder]: Shape before return (out): {out.shape}")
 
         return out
 

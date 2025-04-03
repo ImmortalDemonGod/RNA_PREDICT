@@ -1,8 +1,8 @@
 """
 test_run_full_pipeline.py
 
-A comprehensive test suite validating the functionality of `run_full_pipeline` 
-and `SimpleLatentMerger` in `run_full_pipeline.py`. It unifies the best practices 
+A comprehensive test suite validating the functionality of `run_full_pipeline`
+and `SimpleLatentMerger` in `run_full_pipeline.py`. It unifies the best practices
 from multiple versions of tests (V1–V5) while addressing their criticisms:
 
 1. Detailed documentation and clear docstrings throughout.
@@ -14,20 +14,19 @@ from multiple versions of tests (V1–V5) while addressing their criticisms:
 To run:
     python -m unittest test_run_full_pipeline.py
 
-You can also measure coverage (e.g., with pytest-cov or coverage.py) to ensure 
+You can also measure coverage (e.g., with pytest-cov or coverage.py) to ensure
 this suite meets your desired coverage goals.
 """
 
 import unittest
-from unittest.mock import patch, MagicMock
-from typing import Dict, Any, Optional
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import torch
 
 # Hypothesis for property-based (fuzz) testing
-from hypothesis import given, strategies as st, settings, HealthCheck
-from hypothesis import assume, reject
+from hypothesis import HealthCheck, assume, given, reject, settings
+from hypothesis import strategies as st
 
 # Import target items from your pipeline code
 from rna_predict.run_full_pipeline import SimpleLatentMerger, run_full_pipeline
@@ -61,7 +60,7 @@ class TestSimpleLatentMerger(unittest.TestCase):
             dim_angles=self.dim_angles,
             dim_s=self.dim_s,
             dim_z=self.dim_z,
-            dim_out=self.dim_out
+            dim_out=self.dim_out,
         ).to("cpu")
 
     def test_constructor_fields(self):
@@ -73,11 +72,13 @@ class TestSimpleLatentMerger(unittest.TestCase):
         self.assertEqual(self.merger.expected_dim_s, self.dim_s)
         self.assertEqual(self.merger.expected_dim_z, self.dim_z)
         self.assertEqual(self.merger.dim_out, self.dim_out)
-        self.assertIsNotNone(self.merger.mlp, "MLP submodule should be defined in constructor")
+        self.assertIsNotNone(
+            self.merger.mlp, "MLP submodule should be defined in constructor"
+        )
 
     def test_forward_normal_usage(self):
         """
-        Test a forward pass in normal usage with consistent input shapes, 
+        Test a forward pass in normal usage with consistent input shapes,
         verifying the output shape is (N, dim_out) and that it doesn't contain NaNs.
         """
         N = 4  # number of residues
@@ -92,15 +93,17 @@ class TestSimpleLatentMerger(unittest.TestCase):
             angles=angles,
             s_emb=s_emb,
             z_emb=z_emb,
-            partial_coords=partial_coords
+            partial_coords=partial_coords,
         )
         self.assertEqual(output.shape, (N, self.dim_out), "Output shape mismatch")
-        self.assertFalse(torch.isnan(output).any(), "Output contains NaNs, unexpected behavior")
+        self.assertFalse(
+            torch.isnan(output).any(), "Output contains NaNs, unexpected behavior"
+        )
 
     def test_forward_device_relocation(self):
         """
         If the MLP is on CPU but input tensors are (supposedly) on another device,
-        the code logic moves the MLP to match the angles' device. 
+        the code logic moves the MLP to match the angles' device.
         Here, we only run CPU vs. CPU, but confirm no crash occurs.
         """
         N = 2
@@ -118,7 +121,7 @@ class TestSimpleLatentMerger(unittest.TestCase):
         dim_angles=st.integers(min_value=1, max_value=8),
         dim_s=st.integers(min_value=1, max_value=8),
         dim_z=st.integers(min_value=1, max_value=8),
-        dim_out=st.integers(min_value=1, max_value=16)
+        dim_out=st.integers(min_value=1, max_value=16),
     )
     @settings(suppress_health_check=[HealthCheck.filter_too_much, HealthCheck.too_slow])
     def test_forward_hypothesis_fuzz(self, N, dim_angles, dim_s, dim_z, dim_out):
@@ -151,9 +154,9 @@ class TestSimpleLatentMerger(unittest.TestCase):
 class TestRunFullPipeline(unittest.TestCase):
     """
     Tests for the run_full_pipeline function, orchestrating:
-      Stage A adjacency -> Stage B torsion and pair embeddings -> optional Stage C -> 
-      optional merging -> optional Stage D. 
-    Includes edge cases like empty sequences, invalid device, missing config keys, 
+      Stage A adjacency -> Stage B torsion and pair embeddings -> optional Stage C ->
+      optional merging -> optional Stage D.
+    Includes edge cases like empty sequences, invalid device, missing config keys,
     plus property-based fuzzing of sequences.
     """
 
@@ -174,19 +177,39 @@ class TestRunFullPipeline(unittest.TestCase):
                     arr[0, 1] = arr[1, 0] = 1.0
                 return arr
 
-        class DummyTorsionModel:
-            def predict(self, sequence, adjacency_matrix):
+        class DummyTorsionModel(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.c_s = 64  # Single-residue embedding dimension
+                self.c_z = 32  # Pair embedding dimension
+
+            def forward(self, sequence, adjacency=None):
                 # Return (torsion angles, single-res embeddings)
                 N = len(sequence)
                 angles = torch.zeros((N, 7))
-                s_emb = torch.zeros((N, 64))
-                return angles, s_emb
+                s_emb = torch.zeros((N, self.c_s))
+                return {"torsion_angles": angles, "s_embeddings": s_emb}
 
-        class DummyPairformerModel:
-            def forward(self, adjacency_matrix, s_embeddings, init_z=None):
-                # Return pair embeddings shape => (N, N, 32)
-                N = adjacency_matrix.shape[0]
-                return torch.zeros((N, N, 32))
+            def __call__(self, sequence, adjacency=None):
+                return self.forward(sequence, adjacency)
+
+        class DummyPairformerModel(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.c_s = 64  # Single-residue embedding dimension
+                self.c_z = 32  # Pair embedding dimension
+
+            def forward(self, init_s, init_z, pair_mask=None):
+                # Return (s_up, z_up) where:
+                # s_up: shape (1, N, c_s)
+                # z_up: shape (1, N, N, c_z)
+                N = init_s.shape[1]
+                s_up = torch.zeros((1, N, self.c_s))
+                z_up = torch.zeros((1, N, N, self.c_z))
+                return s_up, z_up
+
+            def __call__(self, init_s, init_z, pair_mask=None):
+                return self.forward(init_s, init_z, pair_mask)
 
         self.default_config = {
             "stageA_predictor": DummyStageAPredictor(),
@@ -200,7 +223,7 @@ class TestRunFullPipeline(unittest.TestCase):
 
     def test_basic_pipeline_run(self):
         """
-        Basic test with the default config. 
+        Basic test with the default config.
         Ensures we get adjacency, torsion_angles, s_embeddings, z_embeddings, and None for optional outputs.
         """
         seq = "AUGC"
@@ -210,9 +233,16 @@ class TestRunFullPipeline(unittest.TestCase):
         self.assertIn("torsion_angles", result)
         self.assertIn("s_embeddings", result)
         self.assertIn("z_embeddings", result)
-        self.assertIsNone(result["partial_coords"], "Stage C is disabled, partial_coords should be None")
-        self.assertIsNone(result["unified_latent"], "Merging disabled, unified_latent should be None")
-        self.assertIsNone(result["final_coords"], "Stage D disabled, final_coords should be None")
+        self.assertIsNone(
+            result["partial_coords"],
+            "Stage C is disabled, partial_coords should be None",
+        )
+        self.assertIsNone(
+            result["unified_latent"], "Merging disabled, unified_latent should be None"
+        )
+        self.assertIsNone(
+            result["final_coords"], "Stage D disabled, final_coords should be None"
+        )
 
         N = len(seq)
         self.assertEqual(result["adjacency"].shape, (N, N))
@@ -222,7 +252,7 @@ class TestRunFullPipeline(unittest.TestCase):
 
     def test_empty_sequence(self):
         """
-        Edge case: an empty sequence. 
+        Edge case: an empty sequence.
         The function should return zero-sized adjacency, angles, embeddings, etc.
         """
         seq = ""
@@ -286,7 +316,7 @@ class TestRunFullPipeline(unittest.TestCase):
 
     def test_enable_stageC_produces_coords(self):
         """
-        With Stage C enabled, partial_coords should be a non-None tensor. 
+        With Stage C enabled, partial_coords should be a non-None tensor.
         We mock StageCReconstruction to control what gets returned.
         """
         seq = "AUGC"
@@ -311,7 +341,9 @@ class TestRunFullPipeline(unittest.TestCase):
         seq = "AUGC"
         cfg = dict(self.default_config)
         cfg["merge_latent"] = True
-        cfg["merger"] = SimpleLatentMerger(dim_angles=7, dim_s=64, dim_z=32, dim_out=128)
+        cfg["merger"] = SimpleLatentMerger(
+            dim_angles=7, dim_s=64, dim_z=32, dim_out=128
+        )
 
         result = run_full_pipeline(seq, cfg, device="cpu")
         self.assertIsNotNone(result["unified_latent"])
@@ -339,14 +371,22 @@ class TestRunFullPipeline(unittest.TestCase):
         cfg["diffusion_manager"] = MagicMock()
         cfg["stageD_config"] = {}
 
-        with patch("rna_predict.run_full_pipeline.STAGE_D_AVAILABLE", True), \
-             patch("rna_predict.run_full_pipeline.run_stageD_diffusion", return_value=torch.ones((1, 20, 3))):
+        with (
+            patch("rna_predict.run_full_pipeline.STAGE_D_AVAILABLE", True),
+            patch(
+                "rna_predict.run_full_pipeline.run_stageD_diffusion",
+                return_value=torch.ones((1, 20, 3)),
+            ),
+        ):
             result = run_full_pipeline(seq, cfg, device="cpu")
             self.assertIsNotNone(result["final_coords"])
             self.assertEqual(result["final_coords"].shape, (1, 20, 3))
 
     @given(sequence=st.text(min_size=1, max_size=10))
-    @settings(deadline=None, suppress_health_check=[HealthCheck.too_slow, HealthCheck.filter_too_much])
+    @settings(
+        deadline=None,
+        suppress_health_check=[HealthCheck.too_slow, HealthCheck.filter_too_much],
+    )
     def test_fuzz_pipeline_random_sequences(self, sequence):
         """
         Property-based test that tries random short sequences (1-10 chars).
@@ -359,7 +399,12 @@ class TestRunFullPipeline(unittest.TestCase):
             self.assertIn("adjacency", result)
         except ValueError as e:
             # If there's a known config error, it's acceptable; otherwise we reject.
-            known_config_errors = ["stageA_predictor", "torsion_bert_model", "pairformer_model", "diffusion_manager"]
+            known_config_errors = [
+                "stageA_predictor",
+                "torsion_bert_model",
+                "pairformer_model",
+                "diffusion_manager",
+            ]
             msg = str(e)
             if not any(k in msg for k in known_config_errors):
                 reject()
@@ -370,4 +415,4 @@ class TestRunFullPipeline(unittest.TestCase):
 # -----------------------------------------------------------------------------
 if __name__ == "__main__":
     # Execute all tests from this file using the standard unittest runner.
-    unittest.main() 
+    unittest.main()

@@ -125,6 +125,36 @@ class ProtenixIntegration:
         if s_inputs.dim() == 3 and s_inputs.size(0) == 1:
             s_inputs = s_inputs.squeeze(0)
 
+        # Extract the number of tokens from atom_to_token
+        if "atom_to_token" in input_features:
+            atom_to_token = input_features["atom_to_token"]
+            if atom_to_token.dim() == 2:
+                N_token = atom_to_token.size(0)
+            else:
+                N_token = atom_to_token.max().item() + 1
+        else:
+            # Fallback to restype if atom_to_token is not available
+            restype = input_features["restype"]
+            if restype.dim() == 2:
+                N_token = restype.size(0)
+            else:
+                N_token = restype.size(1)
+
+        # Ensure s_inputs has the correct number of tokens
+        if s_inputs.dim() == 2:
+            if s_inputs.size(0) != N_token:
+                # If s_inputs has more tokens than needed, truncate
+                if s_inputs.size(0) > N_token:
+                    s_inputs = s_inputs[:N_token, :]
+                # If s_inputs has fewer tokens than needed, pad with zeros
+                else:
+                    padding = torch.zeros(
+                        (N_token - s_inputs.size(0), s_inputs.size(1)),
+                        device=s_inputs.device,
+                        dtype=s_inputs.dtype
+                    )
+                    s_inputs = torch.cat([s_inputs, padding], dim=0)
+
         # Step 2: Generate pair embeddings using relative positional encoding.
         # Determine residue indices: use provided 'residue_index' if available, otherwise create a default range.
         if "residue_index" in input_features:
@@ -133,13 +163,7 @@ class ProtenixIntegration:
             if res_idx.dim() == 2 and res_idx.shape[1] == 1:
                 res_idx = res_idx.squeeze(-1)
         else:
-            N_token = s_inputs.shape[0]
             res_idx = torch.arange(N_token, device=self.device)
-
-        N_token = res_idx.size(0)
-
-        # Now we can safely expand to a [N_token, N_token] matrix
-        res_idx_matrix = res_idx.unsqueeze(0).expand(N_token, N_token)
 
         # Compute the initial pair embedding (z_init) using the relative position encoding module.
         z_init = self.rel_pos_encoding(

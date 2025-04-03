@@ -17,7 +17,7 @@ def test_residue_index_squeeze_fix():
     input_features = {
         "residue_index": torch.arange(N_token).unsqueeze(-1),  # [N_token,1]
         "ref_pos": torch.randn(4 * N_token, 3),
-        "ref_charge": torch.randn(4 * N_token),
+        "ref_charge": torch.randn(4 * N_token, 1),  # Changed to 2D shape
         "ref_element": torch.randn(4 * N_token, 128),
         "ref_atom_name_chars": torch.zeros(4 * N_token, 16),
         "atom_to_token": torch.repeat_interleave(torch.arange(N_token), 4),

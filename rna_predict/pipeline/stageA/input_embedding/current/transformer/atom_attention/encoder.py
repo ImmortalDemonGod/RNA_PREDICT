@@ -63,7 +63,7 @@ class AtomAttentionEncoder(nn.Module):
             n_heads=config.n_heads,
             n_queries=self.n_queries,
             n_keys=self.n_keys,
-            blocks_per_ckpt=config.blocks_per_ckpt,
+            blocks_per_ckpt=config.blocks_per_ckpt or 0,  # Default to 0 if None
         )
 
         # Output projection to token dimension
@@ -91,7 +91,7 @@ class AtomAttentionEncoder(nn.Module):
 
         if he_normal_init_atom_encoder_small_mlp:
             for layer in self.attention_components.small_mlp:
-                if isinstance(layer, LinearNoBias):
+                if isinstance(layer, nn.Linear):  # Changed from LinearNoBias to nn.Linear
                     nn.init.kaiming_normal_(layer.weight, nonlinearity="relu")
 
         if he_normal_init_atom_encoder_output:
@@ -118,19 +118,13 @@ class AtomAttentionEncoder(nn.Module):
         p_l = self.attention_components.process_pair_features(c_l, c_l)
 
         # Create attention mask if needed
-        mask = None
+        mask = torch.ones_like(c_l[..., 0], dtype=torch.bool)
         if "ref_mask" in params.input_feature_dict:
             mask = params.input_feature_dict["ref_mask"]
 
-        # Get number of atoms
-        num_atoms = c_l.shape[0]
-
-        # Reshape pair embeddings to [num_atoms, num_atoms, c_atompair]
-        p_l = p_l.unsqueeze(0).expand(num_atoms, -1, -1)
-
         # Apply transformer
         a_atom = self.attention_components.apply_transformer(
-            c_l, p_l, mask=mask, chunk_size=params.chunk_size
+            c_l, p_l, mask=mask, chunk_size=params.chunk_size or 0
         )
 
         # Get number of tokens
@@ -142,7 +136,7 @@ class AtomAttentionEncoder(nn.Module):
                 num_tokens = restype.shape[1]
             else:
                 # Default to maximum token index + 1
-                num_tokens = params.input_feature_dict["atom_to_token_idx"].max().item() + 1
+                num_tokens = int(params.input_feature_dict["atom_to_token_idx"].max().item() + 1)
 
         # Aggregate to token level
         a_token = self.feature_processor.aggregate_to_token_level(

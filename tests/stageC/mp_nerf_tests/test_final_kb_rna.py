@@ -283,7 +283,10 @@ class TestConnectivity(unittest.TestCase):
         Although it's not particularly necessary in real usage, this shows
         the approach for external dependencies or side effects.
         """
-        with patch("rna_predict.pipeline.stageC.mp_nerf.final_kb_rna.deg_to_rad", return_value=123.456) as mock_converter:
+        with patch(
+            "rna_predict.pipeline.stageC.mp_nerf.final_kb_rna.deg_to_rad",
+            return_value=123.456,
+        ) as mock_converter:
             # Now calling get_bond_angle in radians should yield the patched result for a known triplet
             angle = final_kb_rna.get_bond_angle(
                 "C1'-C2'-C3'", sugar_pucker="C3'-endo", degrees=False
