@@ -116,17 +116,52 @@ def rot_vec_mul(r: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
             [..., 3]
 
     Returns:
-        torch.Tensor: the rotated coordinates
+        torch.Tensor: Rotated coordinates, shape [..., 3].
     """
-    x, y, z = torch.unbind(input=t, dim=-1)
-    return torch.stack(
-        tensors=[
-            r[..., 0, 0] * x + r[..., 0, 1] * y + r[..., 0, 2] * z,
-            r[..., 1, 0] * x + r[..., 1, 1] * y + r[..., 1, 2] * z,
-            r[..., 2, 0] * x + r[..., 2, 1] * y + r[..., 2, 2] * z,
-        ],
-        dim=-1,
-    )
+    # Ensure t has a trailing dimension for matrix multiplication if it doesn't match r
+    if (
+        r.ndim == t.ndim + 1 and r.shape[-2:] == (3, 3) and t.shape[-1] == 3
+    ):  # e.g. r=[..., N, 3, 3], t=[..., N, 3]
+        # Check if batch dimensions are compatible for matmul
+        if r.shape[:-3] == t.shape[:-2]:
+            t_unsqueeze = t.unsqueeze(-1)  # [..., N, 3, 1]
+            # Perform batch matrix vector product: [...,N,3,3] @ [...,N,3,1] -> [...,N,3,1]
+            rotated_t = torch.matmul(r, t_unsqueeze)
+            return rotated_t.squeeze(-1)  # [..., N, 3]
+        else:
+            # Fallback to einsum if direct matmul broadcasting fails
+            try:
+                return torch.einsum("...nij,...nj->...ni", r, t)
+            except RuntimeError as e:
+                print(
+                    f"Einsum failed in rot_vec_mul (ndim+1 case): r={r.shape}, t={t.shape}. Error: {e}"
+                )
+                raise e  # Re-raise if einsum also fails
+    elif r.ndim >= 2 and t.ndim >= 1 and r.shape[-2:] == (3, 3) and t.shape[-1] == 3:
+        # Handle cases where r and t might have different leading dimensions but are compatible via broadcasting
+        # e.g. r=[3,3], t=[B, N, 3] -> apply same rotation to all vectors
+        # Use einsum for robust broadcasting
+        # '...ij,...j->...i' : contract last dim of r (j) with last dim of t (j)
+        try:
+            return torch.einsum("...ij,...j->...i", r, t)
+        except RuntimeError as e:
+            print(
+                f"Einsum failed in rot_vec_mul (general case): r={r.shape}, t={t.shape}. Error: {e}"
+            )
+            # Fallback: try matmul if shapes allow direct application (e.g., r=[3,3], t=[N,3])
+            if r.shape == (3, 3) and t.ndim >= 2:
+                try:
+                    # Apply rotation by multiplying t with r^T
+                    return torch.matmul(t, r.transpose(-1, -2))
+                except RuntimeError:
+                    raise e  # Re-raise original einsum error if matmul fails
+            else:
+                raise e  # Re-raise if fallback doesn't apply
+    else:
+        # If shapes are fundamentally incompatible even for einsum
+        raise ValueError(
+            f"Incompatible shapes for rot_vec_mul: r={r.shape}, t={t.shape}"
+        )
 
 
 # from openfold.utils.tensor_utils.permute_final_dims
