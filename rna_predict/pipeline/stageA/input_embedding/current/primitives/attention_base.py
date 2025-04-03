@@ -6,6 +6,7 @@ AdaptiveLayerNorm, base attention function, and the main Attention class.
 """
 
 import math
+import warnings  # Import warnings
 from dataclasses import dataclass
 from typing import Optional, Tuple
 
@@ -30,8 +31,7 @@ class AdaptiveLayerNorm(nn.Module):
         """
         super(AdaptiveLayerNorm, self).__init__()
         self.layernorm_a = nn.LayerNorm(c_a, elementwise_affine=False, bias=False)
-        # The pytorch version should be newer than 2.1
-        self.layernorm_s = nn.LayerNorm(c_s, bias=False)
+        self.c_s = c_s  # Store c_s for reference
         self.linear_s = Linear(in_features=c_s, out_features=c_a)
         self.linear_nobias_s = LinearNoBias(in_features=c_s, out_features=c_a)
 
@@ -52,15 +52,80 @@ class AdaptiveLayerNorm(nn.Module):
         Returns:
             torch.Tensor: conditioned tensor or original if shapes don't match
         """
+        a_original_shape = a.shape
+        a_was_unsqueezed = False
         try:
+            # Simplified check: If s has one more dim than a, and batch dim matches,
+            # assume 'a' is missing the sample dimension at dim 1.
+            if (
+                s.dim() > a.dim()
+                and s.dim() == a.dim() + 1
+                and s.shape[0] == a.shape[0]
+            ):
+                # Check if the remaining dimensions of s (ignoring sample dim 1) match a's dimensions
+                s_dims_to_match = s.shape[2:]
+                a_dims_to_match = a.shape[1:]
+                if s_dims_to_match == a_dims_to_match:
+                    # Unsqueeze 'a' at dim 1 to add the sample dimension
+                    a = a.unsqueeze(1)
+                    a_was_unsqueezed = True
+                    warnings.warn(
+                        f"INFO: Unsqueezed 'a' in AdaptiveLayerNorm to match 's'. New 'a' shape: {a.shape}"
+                    )
+                else:
+                    # Don't unsqueeze if other dimensions don't match
+                    pass
+
+            # Now shapes should be compatible for linear layers and element-wise ops
             scale = torch.sigmoid(self.linear_s(s))
             shift = self.linear_nobias_s(s)
-            return scale * a + shift
+
+            # Check final compatibility before element-wise ops
+            # Allow broadcasting if a was unsqueezed and s has N_sample=1
+            if a_was_unsqueezed and s.shape[1] == 1:
+                # Shapes might be [B, 1, N, C] for scale/shift and [B, 1, N, C] for a
+                # Check if feature dimensions C match
+                if scale.shape[-1] != a.shape[-1] or shift.shape[-1] != a.shape[-1]:
+                    raise RuntimeError(
+                        f"Feature dimension mismatch: scale={scale.shape}, shift={shift.shape}, a={a.shape}"
+                    )
+                # Broadcasting should handle the rest if feature dims match
+                pass
+            elif scale.shape != a.shape or shift.shape != a.shape:
+                # If shapes still don't match, raise error
+                raise RuntimeError(
+                    f"Shape mismatch after unsqueeze/projections: scale={scale.shape}, shift={shift.shape}, a={a.shape}"
+                )
+
+            conditioned_a = scale * a + shift
+            # Decide whether to squeeze back based on downstream expectations.
+            # If the layer norm is expected to output the same number of dims as the original 'a',
+            # then we should squeeze back if we unsqueezed.
+            # Let's try squeezing back if N_sample was 1.
+            if a_was_unsqueezed and conditioned_a.shape[1] == 1:
+                conditioned_a = conditioned_a.squeeze(1)
+                warnings.warn(
+                    f"INFO: Squeezing conditioned_a back. Shape: {conditioned_a.shape}"
+                )
+
+            return conditioned_a
+
         except RuntimeError as e:
-            print(
+            warnings.warn(
                 f"WARNING: Skipping adaptive layernorm conditioning due to shape mismatch: {e}"
             )
-            print(f"         a shape: {a.shape}, s shape: {s.shape}")
+            warnings.warn(
+                f"         a shape (original): {a_original_shape}, s shape: {s.shape}"
+            )
+            # Return original 'a' (without the added dimension if unsqueezing happened and failed)
+            # If unsqueezing happened but the error occurred later, a still has the extra dim.
+            if a.shape != a_original_shape and a.dim() == a_original_shape.dim() + 1:
+                a = a.squeeze(
+                    1
+                )  # Squeeze back to original dims if conditioning failed after unsqueeze
+                warnings.warn(
+                    f"INFO: Squeezing 'a' back to original dims after failed conditioning. Shape: {a.shape}"
+                )
             return a
 
     def forward(self, a: torch.Tensor, s: torch.Tensor) -> torch.Tensor:
@@ -77,7 +142,11 @@ class AdaptiveLayerNorm(nn.Module):
         """
         # Normalize inputs
         a_norm = self.layernorm_a(a)
-        s_norm = self.layernorm_s(s)
+
+        # Create a new layer norm for s with the correct dimension
+        s_last_dim = s.size(-1)  # Use size() instead of shape
+        layernorm_s = nn.LayerNorm(s_last_dim, bias=False).to(s.device)
+        s_norm = layernorm_s(s)
 
         # Apply conditioning
         return self._apply_conditioning(a_norm, s_norm)
@@ -164,10 +233,11 @@ def _compute_attention_weights(
     if attn_bias is not None:
         # Debug output for shape mismatch
         if attn_bias.shape != attn_weight.shape:
-            print(
+            # Use warnings.warn
+            warnings.warn(
                 f"Shape mismatch - attn_weight: {attn_weight.shape}, attn_bias: {attn_bias.shape}"
             )
-            print(
+            warnings.warn(
                 "WARNING: Attention bias shape mismatch. Skipping bias application for stability."
             )
         else:
@@ -470,7 +540,24 @@ class Attention(nn.Module):
         # Get attention scores
         reshaped_bias = None
         if inputs.attn_bias is not None:
-            reshaped_bias = inputs.attn_bias.reshape(-1, *inputs.attn_bias.shape[-2:])
+            # Original bias shape: [B, H, N_q, N_kv]
+            # Target shape for addition to attn_weight [B*H, N_q, N_kv]
+            try:
+                # First ensure bias has correct number of heads
+                if inputs.attn_bias.shape[1] != self.num_heads:
+                    # If bias has wrong number of heads, expand/repeat to match
+                    bias = inputs.attn_bias.unsqueeze(1)  # [B, 1, N_q, N_kv]
+                    bias = bias.expand(-1, self.num_heads, -1, -1)  # [B, H, N_q, N_kv]
+                else:
+                    bias = inputs.attn_bias
+
+                # Now reshape to match attention weights
+                reshaped_bias = bias.reshape(-1, *bias.shape[-2:])  # [B*H, N_q, N_kv]
+            except RuntimeError as e:
+                warnings.warn(
+                    f"Could not reshape attn_bias from {inputs.attn_bias.shape} to match attention weights. Error: {str(e)}"
+                )
+                reshaped_bias = None  # Skip bias if reshape fails
 
         attention_inputs = AttentionInputs(
             q=q,
@@ -506,7 +593,7 @@ class Attention(nn.Module):
             torch.Tensor: processed attention output
         """
         # For other cases, import the local attention function
-        from .attention_utils import _local_attention, LocalAttentionInputs
+        from .attention_utils import LocalAttentionInputs, _local_attention
 
         # Use efficient implementation if available
         if "global_attention_with_bias" in self.local_attention_method:
@@ -533,7 +620,7 @@ class Attention(nn.Module):
                 inplace_safe=inputs.inplace_safe,
                 chunk_size=inputs.chunk_size,
             )
-            
+
             # This implementation requires advanced handling, use _local_attention with dataclass
             o = _local_attention(local_attn_inputs)
         else:
