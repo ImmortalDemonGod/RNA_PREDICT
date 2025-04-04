@@ -141,8 +141,18 @@ class ProtenixDiffusionManager:
                 "StageD multi_step_inference requires a valid 's_trunk' in trunk_embeddings."
             )
 
-        # Attempt to get s_inputs or fallback
-        s_inputs = trunk_embeddings.get("s_inputs", trunk_embeddings.get("sing"))
+        # Attempt to get s_inputs or fallback, and cache if fallback is used
+        s_inputs_key = "s_inputs"
+        sing_key = "sing" # Assuming 'sing' is the fallback key name
+        s_inputs = trunk_embeddings.get(s_inputs_key)
+        if s_inputs is None:
+            s_inputs = trunk_embeddings.get(sing_key)
+            if s_inputs is not None:
+                 # Cache the fallback value as s_inputs for subsequent calls
+                 trunk_embeddings[s_inputs_key] = s_inputs
+                 if debug_logging: print(f"[DEBUG] Cached '{sing_key}' as '{s_inputs_key}'")
+            # else: s_inputs remains None if neither key exists
+
         z_trunk = trunk_embeddings.get("pair", None)
 
         if debug_logging:

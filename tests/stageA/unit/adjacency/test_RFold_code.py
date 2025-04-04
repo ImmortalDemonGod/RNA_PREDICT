@@ -241,14 +241,28 @@ class TestNNModules(unittest.TestCase):
     def test_attn_with_hypothesis(self, batch_size: int, seq_len: int, dim: int):
         """
         Attn(...) takes a [B, L, D] input and returns [B, L, L] attention map.
-        Hypothesis test to randomly vary shapes.
+        The output is non-negative (due to ReLU) and squared, but not normalized to sum to 1.
         """
+        # Set a fixed seed for deterministic behavior
+        torch.manual_seed(42)
+        
         attn_module = RC.Attn(
             dim=dim, query_key_dim=dim, expansion_factor=2.0, dropout=0.0
         )
         x = torch.randn(batch_size, seq_len, dim)
         out = attn_module(x)
+        
+        # Verify output shape
         self.assertEqual(out.shape, (batch_size, seq_len, seq_len))
+        
+        # Verify output properties
+        self.assertTrue(torch.all(torch.isfinite(out)), "Output contains NaN or Inf values")
+        self.assertTrue(torch.all(out >= 0), "Output contains negative values")
+        
+        # The output is squared ReLU, so values should be non-negative but not necessarily sum to 1
+        # We can verify that the values are reasonable (not too large)
+        self.assertTrue(torch.all(out <= seq_len), 
+                       "Output values should not be unreasonably large")
 
     def test_encoder_decoder_seq2map_smoke(self):
         """
