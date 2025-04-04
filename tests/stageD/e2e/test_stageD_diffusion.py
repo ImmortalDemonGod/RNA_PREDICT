@@ -14,7 +14,7 @@ def minimal_diffusion_config():
         "c_s": 384,
         "c_z": 32,
         "c_token": 384,
-        "c_s_inputs": 449,  # Required for s_inputs dimension
+        "c_s_inputs": 384,  # Match conditioning config for consistency
         "transformer": {"n_blocks": 1, "n_heads": 2},
         "inference": {"num_steps": 2, "N_sample": 1},  # Reduced steps for testing
         "conditioning": {
@@ -63,7 +63,8 @@ def test_run_stageD_diffusion_inference(missing_s_inputs, minimal_diffusion_conf
         "pair": torch.randn(1, 5, 5, 32),
     }
     if not missing_s_inputs:
-        trunk_embeddings["s_inputs"] = torch.randn(1, 5, 449)
+        # Match the c_s_inputs dimension expected by DiffusionConditioning (384)
+        trunk_embeddings["s_inputs"] = torch.randn(1, 5, 384)
 
     try:
         out_coords = run_stageD_diffusion(

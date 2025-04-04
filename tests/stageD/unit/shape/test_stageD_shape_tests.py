@@ -338,14 +338,13 @@ def test_local_trunk_small_natom_memory_efficient():
         print(f"Memory increase: {current_memory - initial_memory:.2f} MB")
 
         assert isinstance(coords_out, torch.Tensor)
-        # The output is [batch, n_samples, n_atoms, 3]
-        assert coords_out.ndim == 4
+        # For N_sample=1, the manager now ensures the output is [batch, n_atoms, 3]
+        assert coords_out.ndim == 3
         assert coords_out.shape[0] == batch_size
-        assert coords_out.shape[1] == num_atoms  # This is n_samples
-        assert coords_out.shape[2] == num_atoms  # This is n_atoms
-        assert coords_out.shape[3] == 3  # Coordinates (x,y,z)
-        
-        # Since N_sample=1 in the config, we can take the first sample
+        assert coords_out.shape[1] == num_atoms  # Check n_atoms dimension
+        assert coords_out.shape[2] == 3          # Check coordinate dimension
+
+        # Since N_sample=1 in the config, the manager already handled the shape.
         coords_out = coords_out[:, 0]  # Remove the samples dimension
         
         # Now coords_out should be [batch, n_atoms, 3]
