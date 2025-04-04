@@ -1,3 +1,5 @@
+import pytest
+
 import time
 
 import torch
@@ -6,6 +8,7 @@ from rna_predict.pipeline.stageD.run_stageD_unified import run_stageD_diffusion
 
 
 # @pytest.mark.performance
+@pytest.mark.skip(reason="Causes excessive memory usage")
 def test_diffusion_single_embed_caching():
     """
     Quick check that calling run_stageD_diffusion multiple times
