@@ -136,7 +136,7 @@ def test_broadcast_token_multisample_fail():
 @pytest.mark.xfail(
     reason="Shape mismatch bug expected (AssertionError in broadcast_token_to_atom)."
 )
-@pytest.mark.skip(reason="Causes excessive memory usage")
+# @pytest.mark.skip(reason="Causes excessive memory usage") # Ensuring it stays commented
 def test_multi_sample_shape_mismatch():
     """
     Deliberately provides multi-sample trunk embeddings while leaving
@@ -159,7 +159,9 @@ def test_multi_sample_shape_mismatch():
         "c_z": 32,
         "c_token": 384,  # Reduced from 832
         "transformer": {"n_blocks": 1, "n_heads": 2},  # Reduced from 4 blocks, 16 heads
+        "inference": {"num_steps": 2},  # Added to limit steps for memory
         "c_s_inputs": 449,  # Added c_s_inputs
+        "inference": {"num_steps": 2},  # Added to limit steps for memory
     }
 
     with pytest.raises(
@@ -176,78 +178,6 @@ def test_multi_sample_shape_mismatch():
 
 # ------------------------------------------------------------------------------
 # Test: Local trunk with small number of atoms should work without shape issues
-
-@pytest.mark.skip(reason="Causes excessive memory usage")
-def test_local_trunk_small_natom():
-    """Test local trunk with small number of atoms, providing minimal features."""
-    # Create minimal valid inputs
-    batch_size = 1
-    num_atoms = 5
-    num_tokens = 5  # Assuming 1 atom maps to 1 token for simplicity here
-    device = "cpu"
-
-    partial_coords = torch.randn(batch_size, num_atoms, 3, device=device)
-    trunk_embeddings = {
-        "s_trunk": torch.randn(batch_size, num_tokens, 384, device=device),
-        "pair": torch.randn(batch_size, num_tokens, num_tokens, 32, device=device),
-        "s_inputs": torch.randn(batch_size, num_tokens, 449, device=device),
-    }
-    
-    diffusion_config = {
-        "c_atom": 128,
-        "c_s": 384,
-        "c_z": 32,
-        "c_token": 384,
-        "c_s_inputs": 449,
-        "transformer": {"n_blocks": 1, "n_heads": 2},
-        "conditioning": {
-            "c_s": 384,
-            "c_z": 32,
-            "c_s_inputs": 449, # Corrected expected dimension
-            "c_noise_embedding": 128
-        },
-        "embedder": {
-            "c_atom": 128,
-            "c_atompair": 16,
-            "c_token": 384
-        },
-        "sigma_data": 16.0,
-        "initialization": {},
-    }
-
-    # Create minimal input_features dictionary
-    input_features = {
-        "atom_to_token_idx": torch.arange(num_atoms, device=device).unsqueeze(0),
-        "ref_pos": torch.randn(batch_size, num_atoms, 3, device=device),
-        "ref_space_uid": torch.arange(num_atoms, device=device).unsqueeze(0),
-        "ref_charge": torch.zeros(batch_size, num_atoms, 1, device=device),
-        "ref_element": torch.zeros(batch_size, num_atoms, 128, device=device),
-        "ref_atom_name_chars": torch.zeros(batch_size, num_atoms, 256, device=device),
-        "ref_mask": torch.ones(batch_size, num_atoms, 1, device=device),
-        "restype": torch.zeros(batch_size, num_tokens, 32, device=device),
-        "profile": torch.zeros(batch_size, num_tokens, 32, device=device),
-        "deletion_mean": torch.zeros(batch_size, num_atoms, 1, device=device),
-        "sing": torch.randn(batch_size, num_atoms, 449, device=device)  # Required for s_inputs fallback
-    }
-
-    try:
-        coords_out = run_stageD_diffusion(
-            partial_coords=partial_coords,
-            trunk_embeddings=trunk_embeddings,
-            diffusion_config=diffusion_config,
-            mode="inference",
-            device=device,
-            input_features=input_features
-        )
-
-        assert isinstance(coords_out, torch.Tensor)
-        assert coords_out.ndim == 3  # [batch, n_atoms, 3]
-        assert coords_out.shape[1] == num_atoms  # Check number of atoms matches
-        assert coords_out.shape[2] == 3  # Check coordinate dimension
-    finally:
-        # Cleanup
-        torch.cuda.empty_cache() if torch.cuda.is_available() else None
-
 
 def test_local_trunk_small_natom_memory_efficient():
     """
