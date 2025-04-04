@@ -35,14 +35,9 @@ def _process_distances(
     num_atoms_in_ref_pos = ref_pos.shape[-2]
 
     # Process distances between atom pairs
-    # FIX: Iterate based on the actual size of the atom dimension in ref_pos, not self.n_keys
-    # which might be temporarily adjusted for attention mechanisms.
-    for query_idx in range(
-        min(encoder.n_queries, num_atoms_in_ref_pos)
-    ):  # Also protect query_idx
-        for key_idx in range(
-            num_atoms_in_ref_pos
-        ):  # Use actual size of ref_pos dimension
+    # Iterate up to the actual number of atoms (N_atom)
+    for query_idx in range(num_atoms_in_ref_pos):
+        for key_idx in range(num_atoms_in_ref_pos):
             # Get positions of query and key atoms
             # Add checks to prevent out-of-bounds access if ref_pos is smaller than expected
             if query_idx >= num_atoms_in_ref_pos:
@@ -100,13 +95,17 @@ def _process_charges(
     num_atoms_in_ref_charge = ref_charge.shape[-2]
 
     # Get the actual number of queries and keys from pair_embed shape
-    n_queries = pair_embed.shape[-3]  # [..., n_queries, n_keys, c_atompair]
-    n_keys = pair_embed.shape[-2]
+    # n_queries = pair_embed.shape[-3] # No longer using fixed n_queries/n_keys here
+    # n_keys = pair_embed.shape[-2]
 
     # Process charge products between atom pairs
-    for query_idx in range(min(n_queries, num_atoms_in_ref_charge)):
-        for key_idx in range(min(n_keys, num_atoms_in_ref_charge)):
+    # Iterate up to the actual number of atoms (N_atom)
+    for query_idx in range(num_atoms_in_ref_charge):
+        for key_idx in range(num_atoms_in_ref_charge):
             # Get charges of query and key atoms
+            # Add bounds check just in case ref_charge is smaller than expected by pair_embed init
+            if query_idx >= pair_embed.shape[-3] or key_idx >= pair_embed.shape[-2]:
+                 continue
             charge_query = ref_charge[..., query_idx, 0]
             charge_key = ref_charge[..., key_idx, 0]
 
@@ -143,10 +142,10 @@ def create_pair_embedding(
     # Create all-pairs distance tensor
     n_atoms = ref_pos.shape[-2]
 
-    # Initialize the pair embedding tensor without the extra singleton dimension
-    # Shape: [batch_size, n_queries, n_keys, c_atompair]
+    # Initialize the pair embedding tensor based on N_atom x N_atom
+    # Shape: [..., N_atom, N_atom, c_atompair]
     p_lm = torch.zeros(
-        (*ref_pos.shape[:-2], encoder.n_queries, encoder.n_keys, encoder.c_atompair),
+        (*ref_pos.shape[:-2], n_atoms, n_atoms, encoder.c_atompair), # Use n_atoms
         device=ref_pos.device,
         dtype=ref_pos.dtype,
     )
