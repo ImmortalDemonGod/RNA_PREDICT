@@ -334,21 +334,28 @@ def process_inputs_with_coords(
         params.input_feature_dict, "atom_to_token_idx"
     )
     ref_pos = safe_tensor_access(params.input_feature_dict, "ref_pos")
+    restype = safe_tensor_access(params.input_feature_dict, "restype")
 
     # Process coordinates and style embedding
     q_l = _process_coordinate_encoding(encoder, params.c_l, params.r_l, ref_pos)
     c_l = _process_style_embedding(encoder, params.c_l, params.s, atom_to_token_idx)
 
     # Process through atom transformer
-    # Unsqueeze p_lm to add a block dimension (assuming 1 block for this context)
-    # AtomTransformer expects 3D (global) or 5D (local) pair embedding
-    if p_lm.dim() == 4:
-        p_lm_5d = p_lm.unsqueeze(
-            1
-        )  # Add block dimension: [B, N_queries, N_keys, C] -> [B, 1, N_queries, N_keys, C]
+    # Unsqueeze p_lm to add a block dimension if it's 4D (output from create_pair_embedding)
+    # AtomTransformer expects 3D (global) or 5D (local, with block dim) pair embedding
+    if p_lm is not None and p_lm.dim() == 4:
+        # Add block dimension: [B, N_queries, N_keys, C] -> [B, 1, N_queries, N_keys, C]
+        # This assumes create_pair_embedding returns [B, n_queries, n_keys, C_pair]
+        p_for_transformer = p_lm.unsqueeze(1)
+    elif p_lm is not None and p_lm.dim() in [3, 5]:
+        # Pass 3D or 5D tensors directly
+        p_for_transformer = p_lm
+    elif p_lm is None:
+        warnings.warn("p_lm is None in process_inputs_with_coords. AtomTransformer might fail.")
+        p_for_transformer = None # Explicitly set to None
     else:
-        # If it's already 3D or 5D, pass it as is (though create_pair_embedding seems to always make 4D)
-        p_lm_5d = p_lm
+        # Raise error for unexpected dimensions like 1D, 2D, or > 5D
+        raise ValueError(f"Unexpected p_lm dimensions ({p_lm.dim()}) received in process_inputs_with_coords. Shape: {p_lm.shape}")
 
     # Pass the original token-level 's' for conditioning, not the atom-level 'c_l'
     # Also ensure s is not None before passing
@@ -360,92 +367,32 @@ def process_inputs_with_coords(
             "Token-level style embedding 's' is None in process_inputs_with_coords. Creating a zero tensor."
         )
         batch_dims = q_l.shape[:-2]
-        # Estimate num_tokens based on atom_to_token_idx if possible, else use q_l atom dim
-        if atom_to_token_idx is not None and atom_to_token_idx.numel() > 0:
-            num_tokens_est = int(atom_to_token_idx.max().item()) + 1
+        # Get num_tokens from restype if available
+        if restype is not None:
+            num_tokens = restype.shape[1]  # [B, N_tokens, ...]
         else:
-            num_tokens_est = q_l.shape[-2]  # Fallback: use atom dimension
+            # Fallback to atom_to_token_idx if restype not available
+            num_tokens = int(atom_to_token_idx.max().item()) + 1 if atom_to_token_idx is not None else q_l.shape[-2]
 
         s_for_transformer = torch.zeros(
-            *batch_dims, num_tokens_est, encoder.c_s, device=q_l.device, dtype=q_l.dtype
+            *batch_dims, num_tokens, encoder.c_s, device=q_l.device, dtype=q_l.dtype
         )
 
     q_l = encoder.atom_transformer(
-        q=q_l, s=s_for_transformer, p=p_lm_5d, chunk_size=params.chunk_size
+        q=q_l, s=s_for_transformer, p=p_for_transformer, chunk_size=params.chunk_size # Use aligned p
     )
 
     # Project to token dimension with ReLU
     a_atom = F.relu(encoder.linear_no_bias_q(q_l))
 
-    # --- Start Fix: Ensure atom_to_token_idx matches a_atom's atom dimension & Recalculate num_tokens ---
-    if atom_to_token_idx is not None:
-        n_atom_a = a_atom.shape[-2]
-        # Ensure index has at least one dimension before checking the last one
-        if atom_to_token_idx.dim() > 0:
-            n_atom_idx = atom_to_token_idx.shape[-1]
-            if n_atom_a != n_atom_idx:
-                warnings.warn(
-                    f"Mismatch between a_atom atom dimension ({n_atom_a}) and atom_to_token_idx last dimension ({n_atom_idx}). "
-                    f"This might be caused by upstream patching (e.g., transformer_fixes). "
-                    f"Slicing atom_to_token_idx to match a_atom. Index shape before: {atom_to_token_idx.shape}"
-                )
-                # Slice the last dimension of the index
-                try:
-                    # Create slices for all dimensions except the last one
-                    slices = [slice(None)] * (atom_to_token_idx.dim() - 1)
-                    # Add the slice for the last dimension
-                    slices.append(slice(0, n_atom_a))
-                    atom_to_token_idx = atom_to_token_idx[tuple(slices)]
-                    warnings.warn(f"Index shape after slicing: {atom_to_token_idx.shape}")
-                except IndexError as e:
-                    warnings.warn(f"Failed to slice atom_to_token_idx: {e}. Proceeding with original index.")
-                    # If slicing fails, we likely can't determine the correct num_tokens, maybe fallback or error?
-                    # For now, let the original num_tokens calculation proceed, but it might be wrong.
-                    pass # Allow original num_tokens calculation below if slicing fails
-
-            # Recalculate num_tokens based on the *potentially sliced* index
-            if atom_to_token_idx.numel() > 0:
-                 # Add 1 because indices are 0-based
-                num_tokens = int(atom_to_token_idx.max().item()) + 1
-                # print(f"[DEBUG] Recalculated num_tokens from sliced index: {num_tokens}") # Optional debug print
-            else:
-                # Handle empty index case
-                warnings.warn("atom_to_token_idx is empty after potential slicing. Setting num_tokens to 0.")
-                num_tokens = 0
-
-        else:
-             warnings.warn("atom_to_token_idx has 0 dimensions. Cannot determine num_tokens from it.")
-             # Fallback: Use original restype logic or a default? Let's use a default of 0 for safety.
-             num_tokens = 0
+    # Get number of tokens from restype
+    if restype is not None:
+        num_tokens = restype.shape[1]  # [B, N_tokens, ...]
     else:
-        # If atom_to_token_idx was None initially
-        warnings.warn("atom_to_token_idx is None. Cannot determine num_tokens.")
-        num_tokens = 0 # Or handle as appropriate for the aggregation logic
+        # Fallback to atom_to_token_idx if restype not available
+        num_tokens = int(atom_to_token_idx.max().item()) + 1 if atom_to_token_idx is not None else q_l.shape[-2]
 
-    # --- End Fix ---
-
-
-    # Ensure atom_to_token_idx is not None before aggregation (it might be None if slicing failed badly or input was None)
-    if atom_to_token_idx is None:
-        warnings.warn("atom_to_token_idx is None before aggregation. Cannot aggregate.")
-        # Return zero tensor or handle error appropriately
-        # Assuming 'a' should have shape [..., num_tokens, feature_dim]
-        # We might not know the correct batch dims here easily if index was None
-        # Let's return None and let the caller handle it, or raise an error.
-        # For now, let's try returning zeros based on a_atom batching and num_tokens=0
-        # This might still cause issues downstream if num_tokens=0 is unexpected.
-        batch_dims = a_atom.shape[:-2]
-        feature_dim = a_atom.shape[-1]
-        a = torch.zeros(*batch_dims, 0, feature_dim, device=a_atom.device, dtype=a_atom.dtype)
-
-    elif num_tokens <= 0:
-         warnings.warn(f"num_tokens is {num_tokens}. Cannot aggregate to zero or negative tokens. Returning empty tensor.")
-         batch_dims = a_atom.shape[:-2]
-         feature_dim = a_atom.shape[-1]
-         a = torch.zeros(*batch_dims, 0, feature_dim, device=a_atom.device, dtype=a_atom.dtype)
-    else:
-        # Proceed with aggregation only if index and num_tokens are valid
-        a = _aggregate_to_token_level(encoder, a_atom, atom_to_token_idx, num_tokens)
-
+    # Aggregate to token level
+    a = _aggregate_to_token_level(encoder, a_atom, atom_to_token_idx, num_tokens)
 
     return a, q_l, c_l, p_lm
