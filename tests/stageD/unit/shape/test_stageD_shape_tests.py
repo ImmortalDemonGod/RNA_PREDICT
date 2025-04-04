@@ -90,7 +90,7 @@ def test_single_sample_shape_expansion():
 # Test: Broadcast token multisample failure (expected failure)
 
 
-@pytest.mark.skip(reason="Causes excessive memory usage due to large model config")
+# @pytest.mark.skip(reason="Causes excessive memory usage due to large model config")
 
 @pytest.mark.xfail(reason="Broadcast shape mismatch before the fix.")
 def test_broadcast_token_multisample_fail():
@@ -114,6 +114,7 @@ def test_broadcast_token_multisample_fail():
         "c_token": 832,
         "transformer": {"n_blocks": 4, "n_heads": 16},
         "c_s_inputs": 449,  # Added c_s_inputs
+        "inference": {"num_steps": 2},  # Added to limit steps for memory
     }
 
     with pytest.raises(
