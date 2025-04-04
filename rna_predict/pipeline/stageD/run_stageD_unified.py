@@ -191,17 +191,22 @@ def run_stageD_diffusion(
         # Ensure s_inputs and z_trunk are tensors
         s_inputs = trunk_embeddings.get("s_inputs")
         if s_inputs is None:
-            warnings.warn("'s_inputs' not found in trunk_embeddings for training mode. Check upstream logic.")
-            raise ValueError("Training mode requires 's_inputs' in trunk_embeddings or generation logic.")
+            # Try to get s_inputs from input_features
+            s_inputs = input_features.get("sing")
+            if s_inputs is None:
+                warnings.warn("'s_inputs' not found in trunk_embeddings or input_features for training mode. Using fallback.")
+                # Create a fallback s_inputs with the right shape
+                n_tokens = trunk_embeddings["s_trunk"].shape[1]
+                s_inputs = torch.zeros((1, n_tokens, diffusion_config["c_s_inputs"]), device=device)
+            trunk_embeddings["s_inputs"] = s_inputs
 
         z_trunk = trunk_embeddings.get("pair")
         # Fallback for z_trunk if needed
         if z_trunk is None:
             warnings.warn("Fallback: Creating dummy 'z_trunk' for training.")
-            c_z = diffusion_config.get("c_z", 32)
-            s_shape = trunk_embeddings["s_trunk"].shape
-            z_shape = (s_shape[0], s_shape[1], s_shape[1], c_z)
-            z_trunk = torch.zeros(z_shape, device=device, dtype=trunk_embeddings["s_trunk"].dtype)
+            n_tokens = trunk_embeddings["s_trunk"].shape[1]
+            z_trunk = torch.zeros((1, n_tokens, n_tokens, diffusion_config["c_z"]), device=device)
+            trunk_embeddings["pair"] = z_trunk
 
         # Run training step
         result = diffusion_manager.train_diffusion_step(
