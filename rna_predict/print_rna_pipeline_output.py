@@ -61,8 +61,11 @@ def print_tensor_example(name, tensor, max_items=5):
         else:
             truncated += "]"
     else:
-        # Higher-dimensional tensor - just show the first slice
-        truncated = f"First slice: {data[0, : min(data.shape[1], max_items), : min(data.shape[2], max_items)]}"
+        # Higher-dimensional tensor - if there are fewer items than max_items in dimension 1, print the full data
+        if data.shape[1] < max_items:
+            truncated = f"Data: {data}"
+        else:
+            truncated = f"First slice: {data[0, :max_items, :max_items]}"
 
     print(f"  {name}: {shape_str}")
     print(f"  Example values: {truncated}")
