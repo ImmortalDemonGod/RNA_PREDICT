@@ -105,6 +105,19 @@ class DiffusionConditioning(nn.Module):
             else:
                 relpe_output = relpe_output[..., : z_trunk.shape[-1]]
 
+        # Ensure relpe_output has the N_sample dimension if z_trunk does
+        if z_trunk.ndim == 5 and relpe_output.ndim == 4:
+            # Assume N_sample is the second dimension in z_trunk [B, N_sample, N, N, C]
+            # Add the sample dimension to relpe_output at dim 1
+            relpe_output = relpe_output.unsqueeze(1).expand(
+                -1, z_trunk.shape[1], -1, -1, -1
+            )
+            # print(f"[DEBUG] Expanded relpe_output shape: {relpe_output.shape}")
+        elif z_trunk.ndim != relpe_output.ndim:
+             # If dimensions still don't match after potential expansion, raise error
+             raise RuntimeError(f"Cannot concatenate z_trunk ({z_trunk.shape}) and relpe_output ({relpe_output.shape}) due to mismatched dimensions.")
+
+
         pair_z = torch.cat([z_trunk, relpe_output], dim=-1)
         pair_z = self.linear_no_bias_z(self.layernorm_z(pair_z))
 
