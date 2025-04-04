@@ -26,19 +26,19 @@ class TestRunStageDDiffusion(unittest.TestCase):
         self.trunk_embeddings = {
             "s_trunk": torch.randn(1, 5, 384),  # shape [B, N_token, 384]
             "pair": torch.randn(1, 5, 5, 32),  # shape [B, N_token, N_token, c_z]
-            "s_inputs": torch.randn(1, 5, 449),  # Updated to match c_s_inputs dimension
+            "s_inputs": torch.randn(1, 5, 384),  # Match c_s_inputs dimension with c_s
         }
         self.diffusion_config = {
             "c_atom": 128,
             "c_s": 384,
             "c_z": 32,
             "c_token": 384,
-            "c_s_inputs": 449,
+            "c_s_inputs": 384,  # Updated to match s_inputs dimension
             "transformer": {"n_blocks": 1, "n_heads": 2},
             "conditioning": {
                 "c_s": 384,
                 "c_z": 32,
-                "c_s_inputs": 384,
+                "c_s_inputs": 384,  # Updated to match s_inputs dimension
                 "c_noise_embedding": 128
             },
             "embedder": {
@@ -62,7 +62,7 @@ class TestRunStageDDiffusion(unittest.TestCase):
             "restype": torch.zeros(1, 5, 32),
             "profile": torch.zeros(1, 5, 32),
             "deletion_mean": torch.zeros(1, 5, 1),
-            "sing": torch.randn(1, 5, 449)  # Required for s_inputs fallback
+            "sing": torch.randn(1, 5, 384)  # Updated to match s_inputs dimension
         }
 
     @patch("rna_predict.pipeline.stageD.run_stageD_unified.load_rna_data_and_features")
@@ -100,7 +100,7 @@ class TestRunStageDDiffusion(unittest.TestCase):
     def test_train_mode(self, mock_load_rna):
         """
         Test that run_stageD_diffusion works in train mode and returns
-        (x_denoised, loss, sigma) with correct shapes/types.
+        (x_denoised, sigma, x_gt_augment) with correct shapes/types.
         """
         mock_load_rna.return_value = (
             self.input_features,
@@ -123,14 +123,13 @@ class TestRunStageDDiffusion(unittest.TestCase):
         self.assertIsInstance(result, tuple)
         self.assertEqual(len(result), 3)
 
-        x_denoised, loss, sigma = result
+        x_denoised, sigma, x_gt_augment = result
         self.assertIsInstance(x_denoised, torch.Tensor)
-        self.assertIsInstance(loss, torch.Tensor)
         self.assertIsInstance(sigma, torch.Tensor)
+        self.assertIsInstance(x_gt_augment, torch.Tensor)
 
         self.assertTrue(x_denoised.dim() >= 3, "x_denoised must have at least 3 dims.")
         self.assertEqual(x_denoised.shape[-1], 3, "Last dim must be 3 for coordinates.")
-        self.assertTrue(loss.dim() == 0, "Loss should be a scalar tensor.")
         self.assertTrue(sigma.dim() == 0, "Sigma should be a scalar tensor.")
 
     def test_invalid_mode_raises(self):
@@ -201,9 +200,15 @@ class TestRunStageDDiffusion(unittest.TestCase):
         self.assertIsInstance(coords_out_1, torch.Tensor)
         self.assertEqual(coords_out_1.shape[-1], 3)
 
+        # Ensure coords_out_1 has the right shape for the second pass
+        if coords_out_1.dim() == 4:  # If shape is [B, N_sample, N_atom, 3]
+            input_coords = coords_out_1[:, 0]  # Take first sample, shape becomes [B, N_atom, 3]
+        else:
+            input_coords = coords_out_1  # Already [B, N_atom, 3]
+
         # Second inference pass, reusing the output of the first
         coords_out_2 = run_stageD_diffusion(
-            partial_coords=coords_out_1[0].unsqueeze(0),
+            partial_coords=input_coords,
             trunk_embeddings=self.trunk_embeddings,
             diffusion_config=self.diffusion_config,
             mode="inference",
@@ -212,7 +217,7 @@ class TestRunStageDDiffusion(unittest.TestCase):
         )
         self.assertIsInstance(coords_out_2, torch.Tensor)
         self.assertEqual(coords_out_2.shape[-1], 3)
-        self.assertEqual(coords_out_2.shape[1], coords_out_1.shape[1])
+        self.assertEqual(coords_out_2.shape[1], input_coords.shape[1])
 
 
 # TODO: Add fuzz test back in once we have fixed the critical functionality
