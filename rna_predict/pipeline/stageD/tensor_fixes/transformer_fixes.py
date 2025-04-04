@@ -56,8 +56,9 @@ def fix_atom_transformer():
         # Call the original forward method with potentially adjusted q and s, but original p
         return original_forward(self, q, s, p, inplace_safe, chunk_size)
 
-    atom_transformer.AtomTransformer.forward = patched_forward
-    atom_transformer.AtomTransformer._patch_applied_forward_fix = True  # Add flag
+    # atom_transformer.AtomTransformer.forward = patched_forward # Disable faulty patch
+    # atom_transformer.AtomTransformer._patch_applied_forward_fix = True  # Add flag
+    print("[INFO] Faulty AtomTransformer patch disabled.")
 
 
 def fix_atom_attention_encoder():
@@ -113,9 +114,10 @@ def fix_atom_attention_encoder():
             return _original_forward_captured(self, *args, **kwargs)
 
     # Patch the forward method
-    atom_attention_encoder.AtomAttentionEncoder.forward = patched_forward
+    # atom_attention_encoder.AtomAttentionEncoder.forward = patched_forward # Disable potentially problematic patch
     # Set the flag to indicate the patch has been applied
-    atom_attention_encoder.AtomAttentionEncoder._patch_applied_forward = True
+    # atom_attention_encoder.AtomAttentionEncoder._patch_applied_forward = True
+    print("[INFO] AtomAttentionEncoder forward patch disabled.")
 
     # Ensure backward compatibility for initialization
     @wraps(original_init)
