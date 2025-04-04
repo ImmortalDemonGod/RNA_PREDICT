@@ -680,3 +680,108 @@ class Attention(nn.Module):
             attn_output = self._process_different_query_keyvalue(diff_process_inputs)
 
         return self._wrap_up(attn_output, inputs.q_x)
+
+    def _process_small_tensors(
+        self,
+        q: torch.Tensor,
+        k: torch.Tensor,
+        v: torch.Tensor,
+        bias: Optional[torch.Tensor] = None,
+        mask: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
+        """
+        Process attention for small tensors that fit in memory.
+
+        Args:
+            q: Query tensor [..., N_q, d]
+            k: Key tensor [..., N_k, d]
+            v: Value tensor [..., N_k, d]
+            bias: Optional attention bias [..., N_q, N_k]
+            mask: Optional attention mask [..., N_q, N_k]
+
+        Returns:
+            Output tensor [..., N_q, d]
+        """
+        # Ensure all tensors have same batch dimensions
+        batch_dims = q.shape[:-2]
+        for t in [k, v]:
+            if t.shape[:-2] != batch_dims:
+                t = t.expand(*batch_dims, *t.shape[-2:])
+
+        # Compute attention scores
+        scores = torch.matmul(q, k.transpose(-2, -1)) / math.sqrt(q.size(-1))
+
+        # Add bias if provided
+        if bias is not None:
+            # Ensure bias has compatible shape
+            if bias.shape[-2:] != scores.shape[-2:]:
+                warnings.warn(
+                    f"Selected bias shape mismatch in _process_small_tensors. "
+                    f"Expected size: {scores.shape[-2] * scores.shape[-1]}, "
+                    f"actual size: {bias.shape[-2] * bias.shape[-1]} "
+                    f"(from {bias.shape}). Skipping bias application for stability."
+                )
+            else:
+                scores = scores + bias
+
+        # Apply mask if provided
+        if mask is not None:
+            # Ensure mask has compatible shape
+            if mask.shape[-2:] != scores.shape[-2:]:
+                mask = mask.expand(*scores.shape[:-2], *mask.shape[-2:])
+            scores = scores.masked_fill(~mask, float('-inf'))
+
+        # Apply attention
+        attn = F.softmax(scores, dim=-1)
+        return torch.matmul(attn, v)
+
+    def _apply_adaptive_layernorm(
+        self,
+        a: torch.Tensor,
+        s: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
+        """
+        Apply adaptive layer normalization with optional conditioning.
+
+        Args:
+            a: Input tensor [..., d]
+            s: Optional conditioning tensor [..., d_s]
+
+        Returns:
+            Normalized tensor [..., d]
+        """
+        # Basic layer normalization
+        a_norm = F.layer_norm(a, normalized_shape=a.shape[-1:])
+
+        # Return early if no conditioning
+        if s is None:
+            return a_norm
+
+        # Project conditioning to scale and shift
+        scale = self.scale_net(s)  # [..., d]
+        shift = self.shift_net(s)  # [..., d]
+
+        # Ensure compatible shapes
+        if scale.shape != a.shape or shift.shape != a.shape:
+            # Try to adapt shapes
+            if len(scale.shape) < len(a.shape):
+                # Add dimensions to match
+                while len(scale.shape) < len(a.shape):
+                    scale = scale.unsqueeze(1)
+                    shift = shift.unsqueeze(1)
+                # Expand to match
+                scale = scale.expand_as(a)
+                shift = shift.expand_as(a)
+            else:
+                warnings.warn(
+                    f"WARNING: Skipping adaptive layernorm conditioning due to shape mismatch: "
+                    f"Shape mismatch after unsqueeze/projections: "
+                    f"scale={scale.shape}, shift={shift.shape}, a={a.shape}"
+                )
+                warnings.warn(
+                    f"         a shape (original): {a.shape}, s shape: {s.shape}"
+                )
+                return a_norm
+
+        # Apply conditioning
+        return a_norm * (1 + scale) + shift
