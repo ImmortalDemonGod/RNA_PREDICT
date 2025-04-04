@@ -263,17 +263,24 @@ def batched_gather(
          relative_dim = original_non_batch_rank + dim - no_batch_dims
 
     if 0 <= relative_dim < len(remaining_dims):
+        # Ensure inds is broadcastable to the slice it's replacing
+        # This typically means inds needs the same number of leading dimensions
+        # as the number of dimensions covered by 'ranges'.
+        # We'll rely on PyTorch's advanced indexing broadcasting here.
+        # If inds has fewer dims than ranges, it should broadcast correctly.
+        # If inds has more dims, it might indicate an issue.
+        if inds.ndim > len(ranges) + 1: # +1 for the dimension being indexed
+             warnings.warn(f"batched_gather: inds.ndim ({inds.ndim}) > expected ({len(ranges)+1}). Broadcasting might be unexpected.")
         remaining_dims[relative_dim] = inds
     else:
         raise IndexError(
-            f"Dimension {dim} out of range for remaining dimensions of length {len(remaining_dims)}"
+            f"Dimension {dim} (relative index {relative_dim}) out of range for remaining dimensions of length {len(remaining_dims)}"
         )
 
-    # The original code had an error here, extending with a list of slices instead of the index tensor itself
-    # Correct approach: construct the full index tuple
-    full_index_tuple = tuple(ranges) + tuple(remaining_dims)
+    # Construct the final index tuple
+    final_inds = tuple(ranges + remaining_dims)
 
-    return data[full_index_tuple]
+    return data[final_inds]
 
 
 def broadcast_token_to_atom(
@@ -388,36 +395,36 @@ def aggregate_atom_to_token(
         torch.Tensor: token-level embedding
             [..., N_token, d]
     """
-    # Broadcasting in the given dim.
-    # Ensure index has compatible leading dimensions
-    idx_leading_dims = atom_to_token_idx.shape[:-1]
-    atom_leading_dims = x_atom.shape[:-2]
+    # Squeeze last dim of index if it's 1 and index has more than 1 dimension
+    if atom_to_token_idx.ndim > 1 and atom_to_token_idx.shape[-1] == 1:
+        atom_to_token_idx = atom_to_token_idx.squeeze(-1)
 
-    if idx_leading_dims != atom_leading_dims:
-        # Check if expansion is possible
-        if len(idx_leading_dims) <= len(atom_leading_dims):
-            can_expand = all(
-                i_s == o_s or i_s == 1
-                for i_s, o_s in zip(idx_leading_dims, atom_leading_dims)
-            )
-            if can_expand:
-                try:
-                    atom_to_token_idx = atom_to_token_idx.expand(*atom_leading_dims, atom_to_token_idx.shape[-1])
-                except RuntimeError as e:
-                    raise RuntimeError(
-                        f"Cannot expand atom_to_token_idx shape {atom_to_token_idx.shape} to match x_atom leading dims {atom_leading_dims} for scatter. Error: {e}"
-                    ) from e
-            else:
-                raise ValueError(
-                    f"Cannot expand atom_to_token_idx shape {atom_to_token_idx.shape} to match x_atom leading dims {atom_leading_dims} for scatter."
-                )
-        else:  # Index has more leading dims than atom
-            raise ValueError(
-                f"atom_to_token_idx shape {atom_to_token_idx.shape} has more leading dims than x_atom {x_atom.shape} for scatter."
-            )
+    # Ensure index has compatible leading dimensions with x_atom's non-feature dimensions
+    # Expected shapes: x_atom [..., N_atom, d], atom_to_token_idx [..., N_atom]
+    idx_shape = atom_to_token_idx.shape # Shape of index up to N_atom dim
+    atom_prefix_shape = x_atom.shape[:-1] # Shape of x_atom up to N_atom dim
 
+    if idx_shape != atom_prefix_shape:
+        # Check if expansion is possible (index dims must be broadcastable to atom prefix dims)
+        try:
+            # This will raise an error if shapes are not broadcast compatible
+            target_idx_shape = torch.broadcast_shapes(idx_shape, atom_prefix_shape)
+            # If compatible, expand index to match atom prefix dims for scatter operation
+            atom_to_token_idx = atom_to_token_idx.expand(target_idx_shape)
+        except RuntimeError as e:
+             raise ValueError(
+                f"Cannot broadcast atom_to_token_idx shape {idx_shape} to match x_atom prefix shape {atom_prefix_shape} for scatter. Error: {e}"
+            ) from e
+        # Note: Removed the check `if len(idx_shape) <= len(atom_prefix_shape):` as torch.broadcast_shapes handles it.
+        # Also removed the `else` block raising error for index having more leading dims, as broadcast_shapes covers this.
+
+    # Determine the scatter dimension (the N_atom dimension)
+    # This should be the dimension *before* the feature dimension in x_atom
+    scatter_dim = x_atom.ndim - 2
+
+    # Perform scatter operation
     out = scatter(
-        src=x_atom, index=atom_to_token_idx, dim=-2, dim_size=n_token, reduce=reduce
+        src=x_atom, index=atom_to_token_idx, dim=scatter_dim, dim_size=n_token, reduce=reduce
     )
 
     return out
@@ -426,19 +433,19 @@ def aggregate_atom_to_token(
 def sample_indices(n: int, sample_size: int, strategy: str = "random", device: Optional[torch.device] = None) -> torch.Tensor:
     """
     Sample indices using specified strategy.
-    
+
     Args:
         n: Total number of indices to sample from
         sample_size: Number of indices to sample
         strategy: Sampling strategy ('random' or 'topk')
         device: Device to place the output tensor on
-    
+
     Returns:
         Tensor of sampled indices
     """
     assert strategy in ["random", "topk"], f"Invalid sampling strategy: {strategy}"
     assert sample_size <= n, f"Cannot sample {sample_size} items from {n} items"
-    
+
     if strategy == "random":
         # Ensure n is positive for randperm
         if n <= 0:
@@ -461,7 +468,7 @@ def sample_msa_feature_dict_random_without_replacement(
     """
     n_seq = next(iter(feat_dict.values())).shape[0]
     indices = sample_indices(n_seq, sample_size, strategy="random", device=device)
-    
+
     return {k: v[indices] for k, v in feat_dict.items()}
 
 
