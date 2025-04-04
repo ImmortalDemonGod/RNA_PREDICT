@@ -10,7 +10,8 @@ for better maintainability and code organization.
 """
 
 # Direct import from external dependency (needed by dependents)
-from protenix.openfold_local.model.primitives import LayerNorm
+# Using PyTorch's native LayerNorm for macOS compatibility
+from torch.nn import LayerNorm
 
 # From atom_pair_transforms.py
 from .atom_pair_transforms import (
