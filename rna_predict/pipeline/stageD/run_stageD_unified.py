@@ -209,27 +209,22 @@ def run_stageD_diffusion(
             trunk_embeddings["pair"] = z_trunk
 
         # Run training step
-        result = diffusion_manager.train_diffusion_step(
+        x_denoised_tuple = diffusion_manager.train_diffusion_step(
             label_dict=label_dict,
             input_feature_dict=input_features,
-            s_inputs=s_inputs.to(device),
-            s_trunk=trunk_embeddings["s_trunk"].to(device),
-            z_trunk=z_trunk.to(device),
-            sampler_params=diffusion_config.get("training", {}).get("sampler_params", {}),
+            s_inputs=s_inputs,
+            s_trunk=trunk_embeddings["s_trunk"],
+            z_trunk=z_trunk,
+            sampler_params={"sigma_data": diffusion_config["sigma_data"]},
             N_sample=1,
         )
 
-        # Unpack the result tuple
-        x_gt_augment, x_denoised_tuple, sigma = result
-
-        # x_denoised_tuple is (x_denoised, loss) from DiffusionModule.forward
-        x_denoised, loss = x_denoised_tuple
-
-        # Ensure sigma is a scalar by taking mean if it's not already
+        # Unpack the results - x_gt_augment, x_denoised, sigma
+        x_gt_augment, x_denoised, sigma = x_denoised_tuple
+        # Ensure sigma is a scalar tensor
         if sigma.dim() > 0:
-            sigma = torch.mean(sigma)
-
-        return x_denoised, loss, sigma
+            sigma = sigma.mean().squeeze()  # Take mean and remove all dimensions
+        return x_denoised, sigma, x_gt_augment
 
 
 def demo_run_diffusion():
