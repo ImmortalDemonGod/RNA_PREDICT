@@ -140,43 +140,44 @@ class AttentionPairBias(nn.Module):
             # z is typically [B, N, N, C] (4D) when a is [B, N, C] (3D)
             # OR z is [B, N_sample, N, N, C] (5D) when a is [B, N_sample, N, C] (4D)
             # OR z can be 5D when a is 3D if 'a' hasn't received the sample dim yet.
-            expected_dim_4d = len(a.shape) + 1  # e.g. 3 + 1 = 4
-            expected_dim_5d = (
-                len(a.shape) + 2
-            )  # e.g. 3 + 2 = 5 (if a is missing sample dim)
+            # OR z can be [B, N_sample1, N_sample2, ..., N, N, C] when a is [B, N_sample1, N_sample2, ..., N, C]
+            # for diffusion with multiple sample dimensions
 
-            is_a_3d = len(a.shape) == 3
-            is_a_4d = len(a.shape) == 4
-            is_a_5d = len(a.shape) == 5
+            # For diffusion with multiple sample dimensions, we expect:
+            # - z to have 2 more dimensions than a (for the N x N attention matrix)
+            # - The last 3 dimensions of z to be [N, N, C]
+            # - The last 2 dimensions of a to be [N, C]
+            # - All other dimensions to match between z and a
 
-            is_z_4d = len(z.shape) == 4
-            is_z_5d = len(z.shape) == 5
-            is_z_6d = len(z.shape) == 6 # Added check for 6D z
-
-            # Valid conditions:
-            # 1. z is 4D and a is 3D (standard case)
-            # 2. z is 5D and a is 4D (diffusion case where 'a' has sample dim)
-            # 3. z is 5D and a is 3D (diffusion case where 'a' doesn't have sample dim *yet*)
-            # 4. z is 5D and a is 5D (diffusion case, maybe less common but possible)
-            # 5. z is 6D and a is 5D (diffusion single sample expansion case)
-            valid_4d_standard = is_z_4d and is_a_3d
-            valid_5d_diffusion_a4d = is_z_5d and is_a_4d
-            valid_5d_diffusion_a3d = is_z_5d and is_a_3d
-            valid_5d_diffusion_a5d = is_z_5d and is_a_5d
-            valid_6d_diffusion_a5d = is_z_6d and is_a_5d # Added condition
-
-            if not (
-                valid_4d_standard
-                or valid_5d_diffusion_a4d
-                or valid_5d_diffusion_a3d
-                or valid_5d_diffusion_a5d
-                or valid_6d_diffusion_a5d # Include new condition
-            ):
-                raise ValueError(
-                    f"Unexpected dimension combination for non-local attention. "
-                    f"Got z.dim={len(z.shape)}, a.dim={len(a.shape)}. "
-                    f"Shapes: z={z.shape}, a={a.shape}"
-                )
+            if len(z.shape) != len(a.shape) + 1:
+                # Check if this is a diffusion case with multiple sample dimensions
+                # where z has one extra N dimension for the attention matrix
+                if len(z.shape) > 4 and len(a.shape) > 3:
+                    # Extract the core dimensions (N, N, C for z and N, C for a)
+                    z_core_dims = z.shape[-3:]  # Should be [N, N, C]
+                    a_core_dims = a.shape[-2:]  # Should be [N, C]
+                    
+                    # Check that the N dimensions match
+                    if z_core_dims[0] != z_core_dims[1] or z_core_dims[0] != a_core_dims[0]:
+                        raise ValueError(
+                            f"For diffusion attention, N dimensions must match. "
+                            f"Got z_core_dims={z_core_dims}, a_core_dims={a_core_dims}"
+                        )
+                    
+                    # Check that all sample dimensions match
+                    z_sample_dims = z.shape[:-3]
+                    a_sample_dims = a.shape[:-2]
+                    if z_sample_dims != a_sample_dims:
+                        raise ValueError(
+                            f"Sample dimensions must match between z and a. "
+                            f"Got z_sample_dims={z_sample_dims}, a_sample_dims={a_sample_dims}"
+                        )
+                else:
+                    raise ValueError(
+                        f"Unexpected dimension combination for non-local attention. "
+                        f"Got z.dim={len(z.shape)}, a.dim={len(a.shape)}. "
+                        f"Shapes: z={z.shape}, a={a.shape}"
+                    )
 
         # Check last dimension always matches c_z
         if z.shape[-1] != self.c_z:
