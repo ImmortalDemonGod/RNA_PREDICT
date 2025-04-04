@@ -245,11 +245,22 @@ def _aggregate_to_token_level(
     # Match batch dimension sizes via expand (only if atom dimensions now match)
     current_batch_shape = temp_idx.shape[:-1]
     if target_batch_shape != current_batch_shape:
-        # Special case: if target_batch_shape is empty, we need to squeeze all batch dimensions
+        # Special case: if target_batch_shape is empty, handle index shape
         if len(target_batch_shape) == 0:
-            # Keep squeezing until we only have the atom dimension
-            while temp_idx.dim() > 1:
-                temp_idx = temp_idx.squeeze(0)
+            # If no batch dims in target, index should be 1D [N_atom]
+            if temp_idx.dim() > 1: # Only reshape if it has extra dims
+                 # If it was expanded (e.g., from [N_atom, 1] to [N_atom, N_atom]), take the diagonal
+                 if temp_idx.shape[0] == n_atom_dim_a and temp_idx.shape[1] == n_atom_dim_a:
+                     temp_idx = torch.diag(temp_idx)
+                 else:
+                     # Otherwise, try viewing (might fail if size mismatch)
+                     try:
+                         temp_idx = temp_idx.view(n_atom_dim_a)
+                     except RuntimeError as e:
+                          raise RuntimeError(
+                              f"Failed to reshape temp_idx to [{n_atom_dim_a}] when target_batch_shape is empty. "
+                              f"Current shape: {temp_idx.shape}. Original idx shape: {original_idx_shape}. Error: {e}"
+                          ) from e
         else:
             # Check if expansion is possible (target dim == current dim OR current dim == 1)
             can_expand = all(
@@ -276,7 +287,7 @@ def _aggregate_to_token_level(
                     f"Expansion possible: {can_expand}, Dim lengths compatible: {len(current_batch_shape) <= len(target_batch_shape)}. "
                     f"Original idx shape: {original_idx_shape}. Aggregation impossible."
                 )
-    # If shapes already match, do nothing and proceed. The removed 'else' block caused the error.
+    # If shapes already match, do nothing and proceed.
 
     # Final check before aggregation (should always pass if logic above is correct)
     if temp_idx.shape[:-1] != a_atom.shape[:-2] or temp_idx.shape[-1] != n_atom_dim_a:
