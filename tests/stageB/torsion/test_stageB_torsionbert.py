@@ -20,8 +20,8 @@ def stageB_predictor():
 
 # @pytest.mark.skip(reason="Execution time is too long") # Temporarily unskipped for investigation
 def test_short_seq(stageB_predictor):
-   """
-   Test short sequence with 2 residues. Expect [2, 16] in degrees mode.
+    """
+    Test short sequence with 2 residues. Expect [2, 16] in degrees mode.
     """
     sequence = "AC"
     output = stageB_predictor(sequence)
@@ -32,8 +32,8 @@ def test_short_seq(stageB_predictor):
 
 # @pytest.mark.skip(reason="Execution time is too long") # Temporarily unskipped for investigation
 def test_normal_seq(stageB_predictor):
-   """
-   Test normal 4-letter sequence "ACGU". Expect [4,16] with 16 angles in degrees mode.
+    """
+    Test normal 4-letter sequence "ACGU". Expect [4,16] with 16 angles in degrees mode.
     """
     sequence = "ACGU"
     output = stageB_predictor(sequence)
