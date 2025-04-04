@@ -425,25 +425,26 @@ class TestSampleIndices(BaseUtilsTest):
         """
         'random' => expects valid subset of [0..n-1].
         """
-        idx = utils.sample_indices(n=5, strategy="random")
+        idx = utils.sample_indices(n=5, sample_size=3, strategy="random")
         self.assertTrue(0 <= idx.min().item() < 5)
         self.assertTrue(0 <= idx.max().item() < 5)
+        self.assertEqual(idx.shape[0], 3)
 
     def test_topk_strategy(self):
         """
         'topk' => expects first k indices in ascending order.
         """
-        idx = utils.sample_indices(n=5, strategy="topk")
-        # length can be in [1..5], but if not empty, first is 0
-        if idx.numel() > 0:
-            self.assertEqual(idx[0].item(), 0)
+        idx = utils.sample_indices(n=5, sample_size=3, strategy="topk")
+        # length should be 3, and first is 0
+        self.assertEqual(idx.shape[0], 3)
+        self.assertEqual(idx[0].item(), 0)
 
     def test_bad_strategy(self):
         """
         Invalid strategy => triggers an assertion error.
         """
         with self.assertRaises(AssertionError):
-            utils.sample_indices(n=5, strategy="unknown")
+            utils.sample_indices(n=5, sample_size=3, strategy="unknown")
 
 
 class TestSampleMsaFeatureDictRandomWithoutReplacement(BaseUtilsTest):
@@ -454,15 +455,13 @@ class TestSampleMsaFeatureDictRandomWithoutReplacement(BaseUtilsTest):
 
     def test_basic_usage(self):
         """
-        With cutoff=3, check shapes do not exceed 3 in dimension 0
+        With sample_size=3, check shapes do not exceed 3 in dimension 0
         and remain consistent in feature dims.
         """
         out = utils.sample_msa_feature_dict_random_without_replacement(
             self.msa_feat_dict,
-            self.dim_dict,
-            cutoff=3,
-            lower_bound=1,
-            strategy="random",
+            sample_size=3,
+            device=None
         )
         self.assertIn("msa", out)
         self.assertIn("xyz", out)

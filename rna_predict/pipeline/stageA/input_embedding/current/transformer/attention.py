@@ -172,6 +172,17 @@ class AttentionPairBias(nn.Module):
                             f"Sample dimensions must match between z and a. "
                             f"Got z_sample_dims={z_sample_dims}, a_sample_dims={a_sample_dims}"
                         )
+                # Allow the case where z is 5D [B, N_sample, N, N, C] and a is 3D [B, N, C]
+                elif len(z.shape) == 5 and len(a.shape) == 3:
+                    # Check if the batch and N dimensions match appropriately
+                    # z[0] vs a[0] (Batch)
+                    # z[2] vs z[3] vs a[1] (N)
+                    if z.shape[0] != a.shape[0] or z.shape[2] != z.shape[3] or z.shape[2] != a.shape[1]:
+                         raise ValueError(
+                            f"Dimension mismatch for 5D z and 3D a. "
+                            f"Shapes: z={z.shape}, a={a.shape}"
+                        )
+                    # If dimensions match, assume it's valid (z has an extra sample dim)
                 else:
                     raise ValueError(
                         f"Unexpected dimension combination for non-local attention. "

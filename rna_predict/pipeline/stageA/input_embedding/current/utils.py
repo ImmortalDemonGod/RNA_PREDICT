@@ -254,10 +254,16 @@ def batched_gather(
         ranges.append(r)
 
     remaining_dims = [slice(None)] * (len(data.shape) - no_batch_dims)
-    # Ensure dim calculation handles negative indices correctly relative to remaining_dims
-    actual_dim = dim if dim >= 0 else len(remaining_dims) + dim
-    if 0 <= actual_dim < len(remaining_dims):
-        remaining_dims[actual_dim] = inds
+    # Calculate the index relative to the remaining dimensions
+    # dim is the index in the original tensor after batch dims
+    relative_dim = dim - no_batch_dims
+    # Handle negative dim relative to the original tensor's non-batch part
+    if dim < 0:
+         original_non_batch_rank = len(data.shape) - no_batch_dims
+         relative_dim = original_non_batch_rank + dim - no_batch_dims
+
+    if 0 <= relative_dim < len(remaining_dims):
+        remaining_dims[relative_dim] = inds
     else:
         raise IndexError(
             f"Dimension {dim} out of range for remaining dimensions of length {len(remaining_dims)}"
