@@ -1,4 +1,3 @@
-
 """
 Unified RNA Stage D module with tensor shape compatibility fixes.
 
@@ -10,6 +9,7 @@ import warnings  # Ensure warnings is imported
 from typing import Dict, Any, Union, Tuple
 
 import torch
+import torch.nn.functional as F # Added for loss calculation
 
 from rna_predict.dataset.dataset_loader import load_rna_data_and_features
 from rna_predict.pipeline.stageA.input_embedding.current.embedders import (
@@ -22,13 +22,86 @@ from rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager import (
 from rna_predict.pipeline.stageD.tensor_fixes import apply_tensor_fixes
 
 
+def validate_and_fix_shapes(
+    partial_coords: torch.Tensor,
+    trunk_embeddings: Dict[str, torch.Tensor],
+    input_features: Dict[str, Any],
+) -> Tuple[torch.Tensor, Dict[str, torch.Tensor], Dict[str, Any]]:
+    """
+    Validate and fix tensor shapes to ensure compatibility.
+    
+    Args:
+        partial_coords: Initial coordinates [B, N_atom, 3]
+        trunk_embeddings: Dictionary with trunk embeddings
+        input_features: Dictionary of input features
+        
+    Returns:
+        Tuple of (fixed_partial_coords, fixed_trunk_embeddings, fixed_input_features)
+    """
+    # Fix partial_coords shape
+    if partial_coords.dim() == 4:
+        partial_coords = partial_coords.squeeze(1)
+    elif partial_coords.dim() == 5:
+        partial_coords = partial_coords.squeeze(0).squeeze(0)
+    
+    # Get batch size and number of atoms
+    batch_size = partial_coords.shape[0]
+    num_atoms = partial_coords.shape[1]
+    
+    # Fix trunk embeddings
+    fixed_trunk_embeddings = {}
+    for key, value in trunk_embeddings.items():
+        if value is None:
+            continue
+            
+        if key in ["s_trunk", "s_inputs"]:
+            if value.dim() == 4:
+                value = value.squeeze(1)
+            elif value.dim() == 5:
+                value = value.squeeze(0).squeeze(0)
+            # Ensure batch size matches
+            if value.shape[0] != batch_size:
+                value = value[:batch_size]
+            fixed_trunk_embeddings[key] = value
+            
+        elif key == "pair":
+            if value.dim() == 5:
+                value = value.squeeze(1)
+            elif value.dim() == 6:
+                value = value.squeeze(0).squeeze(0)
+            # Ensure batch size matches
+            if value.shape[0] != batch_size:
+                value = value[:batch_size]
+            fixed_trunk_embeddings[key] = value
+            
+    # Fix input features
+    fixed_input_features = {}
+    for key, value in input_features.items():
+        if isinstance(value, torch.Tensor):
+            if key == "atom_to_token_idx":
+                # Ensure atom_to_token_idx has correct shape [B, N_atom]
+                if value.dim() == 3:
+                    value = value.squeeze(-1)
+                if value.shape[0] != batch_size:
+                    value = value[:batch_size]
+                if value.shape[1] != num_atoms:
+                    value = value[:, :num_atoms]
+            elif key == "ref_pos":
+                value = partial_coords  # Use the fixed partial_coords
+            fixed_input_features[key] = value
+        else:
+            fixed_input_features[key] = value
+            
+    return partial_coords, fixed_trunk_embeddings, fixed_input_features
+
+
 def run_stageD_diffusion(
     partial_coords: torch.Tensor,
     trunk_embeddings: Dict[str, torch.Tensor],
     diffusion_config: Dict[str, Any],
     mode: str = "inference",
     device: str = "cpu",
-    input_features: Dict[str, Any] | None = None,  # <-- Add new optional argument
+    input_features: Dict[str, Any] | None = None,
 ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor, torch.Tensor]]:
     """
     Run Stage D diffusion refinement.
@@ -39,9 +112,7 @@ def run_stageD_diffusion(
         diffusion_config: Configuration for diffusion components
         mode: Either "inference" or "training"
         device: Device to run on
-        input_features: Optional pre-computed input feature dictionary. If provided,
-                        internal feature loading and preparation will be skipped.
-                        Must contain necessary keys like 'restype', 'atom_to_token_idx', etc.
+        input_features: Optional pre-computed input feature dictionary
 
     Returns:
         If mode == "inference":
@@ -56,7 +127,7 @@ def run_stageD_diffusion(
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Apply tensor shape compatibility fixes
-    apply_tensor_fixes()
+    apply_tensor_fixes() # <<< RESTORED
 
     # Create and initialize the diffusion manager
     diffusion_manager = ProtenixDiffusionManager(
@@ -84,42 +155,19 @@ def run_stageD_diffusion(
         # Overwrite default coords with partial_coords
         atom_feature_dict["ref_pos"] = partial_coords
 
-        # Merge token-level features so embedder can produce 449-dim
+        # Merge token-level features
         atom_feature_dict["restype"] = token_feature_dict["restype"]
         atom_feature_dict["profile"] = token_feature_dict["profile"]
 
-        prepared_features = atom_feature_dict
-    else:
-        # Use the provided features directly
-        prepared_features = input_features
-        # Ensure provided features are on the correct device
-        for key, value in prepared_features.items():
-            if isinstance(value, torch.Tensor):
-                prepared_features[key] = value.to(device)
+        input_features = atom_feature_dict
+
+    # Validate and fix shapes
+    partial_coords, trunk_embeddings, input_features = validate_and_fix_shapes(
+        partial_coords, trunk_embeddings, input_features
+    )
 
     # Run diffusion
     if mode == "inference":
-        # Ensure partial_coords has the right shape [B, N_atom, 3]
-        if partial_coords.dim() == 4:
-            partial_coords = partial_coords.squeeze(1)
-        elif partial_coords.dim() == 5:
-            # Handle case where we have an extra dimension before N_sample
-            partial_coords = partial_coords.squeeze(0).squeeze(0)
-
-        # Ensure trunk embeddings have consistent shapes
-        for key in ["s_trunk", "s_inputs"]:
-            if key in trunk_embeddings and trunk_embeddings[key] is not None:
-                if trunk_embeddings[key].dim() == 4:
-                    trunk_embeddings[key] = trunk_embeddings[key].squeeze(1)
-                elif trunk_embeddings[key].dim() == 5:
-                    trunk_embeddings[key] = trunk_embeddings[key].squeeze(0).squeeze(0)
-
-        if "pair" in trunk_embeddings and trunk_embeddings["pair"] is not None:
-            if trunk_embeddings["pair"].dim() == 5:
-                trunk_embeddings["pair"] = trunk_embeddings["pair"].squeeze(1)
-            elif trunk_embeddings["pair"].dim() == 6:
-                trunk_embeddings["pair"] = trunk_embeddings["pair"].squeeze(0).squeeze(0)
-
         # Set N_sample to 1 in inference params to avoid extra dimensions
         inference_params = diffusion_config.get("inference", {})
         inference_params["N_sample"] = 1
@@ -128,24 +176,9 @@ def run_stageD_diffusion(
             coords_init=partial_coords.to(device),
             trunk_embeddings=trunk_embeddings,
             inference_params=inference_params,
-            override_input_features=prepared_features,
-            debug_logging=True,  # Enable debug logging
+            override_input_features=input_features,
+            debug_logging=True,
         )
-
-        # Ensure output has shape [B, N_atom, 3] by squeezing any extra dimensions
-        if coords.dim() == 4:
-            coords = coords.squeeze(1)  # Remove N_sample dimension when it's 1
-        elif coords.dim() == 5:
-            # Handle case where we have an extra dimension before N_sample
-            coords = coords.squeeze(0).squeeze(0)
-
-        # Final shape check
-        if coords.dim() != 3:
-            warnings.warn(f"Unexpected output shape: {coords.shape}. Expected [B, N_atom, 3]")
-            # Force the shape if possible
-            if coords.dim() > 3:
-                while coords.dim() > 3:
-                    coords = coords.squeeze(0)
 
         return coords
     else:  # mode == "train"
@@ -154,25 +187,26 @@ def run_stageD_diffusion(
             "coordinate": partial_coords.to(device),
             "coordinate_mask": torch.ones_like(partial_coords[..., 0], device=device),
         }
-        
+
         # Ensure s_inputs and z_trunk are tensors
         s_inputs = trunk_embeddings.get("s_inputs")
         if s_inputs is None:
             warnings.warn("'s_inputs' not found in trunk_embeddings for training mode. Check upstream logic.")
             raise ValueError("Training mode requires 's_inputs' in trunk_embeddings or generation logic.")
-            
+
         z_trunk = trunk_embeddings.get("pair")
-        # Fallback for z_trunk if needed (optional for some models)
+        # Fallback for z_trunk if needed
         if z_trunk is None:
             warnings.warn("Fallback: Creating dummy 'z_trunk' for training.")
             c_z = diffusion_config.get("c_z", 32)
             s_shape = trunk_embeddings["s_trunk"].shape
             z_shape = (s_shape[0], s_shape[1], s_shape[1], c_z)
             z_trunk = torch.zeros(z_shape, device=device, dtype=trunk_embeddings["s_trunk"].dtype)
-            
-        x_gt_out, x_denoised, sigma = diffusion_manager.train_diffusion_step(
+
+        # Run training step
+        result = diffusion_manager.train_diffusion_step(
             label_dict=label_dict,
-            input_feature_dict=prepared_features,
+            input_feature_dict=input_features,
             s_inputs=s_inputs.to(device),
             s_trunk=trunk_embeddings["s_trunk"].to(device),
             z_trunk=z_trunk.to(device),
@@ -180,12 +214,17 @@ def run_stageD_diffusion(
             N_sample=1,
         )
 
+        # Unpack the result tuple
+        x_gt_augment, x_denoised_tuple, sigma = result
+
+        # x_denoised_tuple is (x_denoised, loss) from DiffusionModule.forward
+        x_denoised, loss = x_denoised_tuple
+
         # Ensure sigma is a scalar by taking mean if it's not already
         if sigma.dim() > 0:
             sigma = torch.mean(sigma)
 
-        # Return the expected tuple format
-        return x_denoised, x_gt_out, sigma
+        return x_denoised, loss, sigma
 
 
 def demo_run_diffusion():
