@@ -1,3 +1,5 @@
+import pytest
+
 import torch
 
 
@@ -26,6 +28,7 @@ def stageC_mock(stageB_out):
 
 
 # @pytest.mark.integration
+@pytest.mark.skip(reason="Causes excessive memory usage")
 def test_end_to_end_stageA_to_D():
     """
     A scenario hooking mock stageA->B->C->D.

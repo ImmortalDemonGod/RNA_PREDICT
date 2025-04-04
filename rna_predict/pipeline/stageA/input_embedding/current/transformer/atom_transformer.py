@@ -139,57 +139,47 @@ class AtomTransformer(torch.nn.Module):
         if p_dim == 3:
             p = p.unsqueeze(0)
 
-        # Handle 5D case - local attention with trunks
-        if p.dim() == 5:
-            n_blocks, n_queries, n_keys = p.shape[-4:-1]
+        # Determine attention type based on p's dimensions AFTER potential batch dim addition
+        current_p_dim = p.dim()
 
-            # Validate query and key dimensions match expected values
-            if n_queries != self.n_queries:
-                raise ValueError(
-                    f"Expected n_queries={self.n_queries}, got {n_queries}"
-                )
-            if n_keys != self.n_keys:
-                raise ValueError(f"Expected n_keys={self.n_keys}, got {n_keys}")
+        # Handle 5D/6D case - local or global attention with potential sample/block dims
+        # DiffusionTransformer expects z to be [..., N, N, C] or [..., B, Q, K, C]
+        # If p is 5D [B, 1, Nq, Nk, C] -> Local
+        # If p is 5D [B, N, N, N, C] -> Global (N=N_atom)
+        # If p is 6D [B, S, 1, Nq, Nk, C] -> Local
+        # If p is 6D [B, S, N, N, N, C] -> Global (N=N_atom)
+        # We pass p directly and let DiffusionTransformer handle it based on n_queries/n_keys presence.
 
-            # Process through diffusion transformer with local attention
-            result = self.diffusion_transformer(
-                a=q,  # Pass atom features as 'a'
-                s=s,  # Pass token-level style features as 's'
-                z=p,  # Pass pair features as 'z'
-                n_queries=self.n_queries,
-                n_keys=self.n_keys,
-                inplace_safe=inplace_safe,
-                chunk_size=chunk_size,
-            )
-            result = cast(torch.Tensor, result)
+        # Check if the shape suggests local attention (matches n_queries/n_keys)
+        # Use -3 and -2 because the block dim might be present at -4
+        is_potentially_local = (
+             current_p_dim >= 5 and
+             p.shape[-3] == self.n_queries and
+             p.shape[-2] == self.n_keys
+        )
 
-        # Handle 4D case - global attention with batch
-        elif p.dim() == 4:
-            # Process through diffusion transformer with global attention
-            result = self.diffusion_transformer(
-                a=q,  # Pass atom features as 'a'
-                s=s,  # Pass token-level style features as 's'
-                z=p,  # Pass pair features as 'z'
-                n_queries=None,  # signals fallback to global attention
-                n_keys=None,
-                inplace_safe=inplace_safe,
-                chunk_size=chunk_size,
-            )
-            result = cast(torch.Tensor, result)
-
-        # Handle 3D case - global attention without batch
+        if is_potentially_local:
+             # Assume local attention based on shape matching config
+             n_q = self.n_queries
+             n_k = self.n_keys
         else:
-            # Process through diffusion transformer with global attention
-            result = self.diffusion_transformer(
-                a=q,  # Pass atom features as 'a'
-                s=s,  # Pass token-level style features as 's'
-                z=p,  # Pass pair features as 'z'
-                n_queries=None,  # signals fallback to global attention
-                n_keys=None,
-                inplace_safe=inplace_safe,
-                chunk_size=chunk_size,
-            )
-            result = cast(torch.Tensor, result)
+             # Assume global attention (or let DiffusionTransformer raise error if shape is wrong)
+             n_q = None
+             n_k = None
+
+
+        # Process through diffusion transformer
+        result = self.diffusion_transformer(
+            a=q,  # Pass atom features as 'a'
+            s=s,  # Pass token-level style features as 's'
+            z=p,  # Pass pair features as 'z' (could be 4D, 5D, or 6D)
+            n_queries=n_q, # Pass None for global, values for local
+            n_keys=n_k,
+            inplace_safe=inplace_safe,
+            chunk_size=chunk_size,
+        )
+        result = cast(torch.Tensor, result)
+
 
         # Remove batch dimension if it was added
         if q_dim == 2 and result.dim() > q_dim:

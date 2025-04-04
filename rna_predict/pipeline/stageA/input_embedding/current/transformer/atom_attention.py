@@ -9,6 +9,7 @@ from typing import Optional, Tuple, cast
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from rna_predict.utils.scatter_utils import scatter_mean
 
 from rna_predict.pipeline.stageA.input_embedding.current.primitives import (
     LayerNorm,
@@ -285,6 +286,20 @@ class AtomAttentionEncoder(nn.Module):
             self.linear_no_bias_q.weight, a=0, mode="fan_in", nonlinearity="relu"
         )
 
+    def _process_input_features(self, input_feature_dict: InputFeatureDict) -> None:
+        """Process and validate input feature dimensions."""
+        # Handle ref_space_uid dimension
+        if "ref_space_uid" in input_feature_dict:
+            ref_space_uid = input_feature_dict["ref_space_uid"]
+            if ref_space_uid.dim() == 2:  # [B, N_atom]
+                input_feature_dict["ref_space_uid"] = ref_space_uid.unsqueeze(-1)  # [B, N_atom, 1]
+
+        # Handle atom_to_token_idx dimension
+        if "atom_to_token_idx" in input_feature_dict:
+            atom_to_token_idx = input_feature_dict["atom_to_token_idx"]
+            if atom_to_token_idx.dim() == 1:  # [N_atom]
+                input_feature_dict["atom_to_token_idx"] = atom_to_token_idx.unsqueeze(0)  # [1, N_atom]
+
     def _process_simple_embedding(
         self, input_feature_dict: InputFeatureDict
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, None]:
@@ -547,13 +562,32 @@ class AtomAttentionEncoder(nn.Module):
             )
             atom_to_token_idx = torch.clamp(atom_to_token_idx, max=num_tokens - 1)
 
-        # Aggregate atom features to token level
-        return aggregate_atom_to_token(
-            x_atom=a_atom,
-            atom_to_token_idx=atom_to_token_idx,
-            n_token=num_tokens,
-            reduce="mean",
+        # Aggregate atom features to token level using scatter_mean
+        a_token = torch.zeros(
+            (*a_atom.shape[:-2], num_tokens, a_atom.shape[-1]),
+            device=a_atom.device,
+            dtype=a_atom.dtype
         )
+        
+        # Handle batched inputs
+        if atom_to_token_idx.dim() == 2:  # [B, N_atom]
+            batch_size = atom_to_token_idx.size(0)
+            for b in range(batch_size):
+                a_token[b] = scatter_mean(
+                    a_atom[b],
+                    atom_to_token_idx[b],
+                    dim=0,
+                    dim_size=num_tokens
+                )
+        else:  # [N_atom]
+            a_token = scatter_mean(
+                a_atom,
+                atom_to_token_idx,
+                dim=0,
+                dim_size=num_tokens
+            )
+
+        return a_token
 
     def process_inputs_with_coords(
         self,
@@ -611,37 +645,60 @@ class AtomAttentionEncoder(nn.Module):
 
     def forward(
         self,
-        params: EncoderForwardParams,
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, Optional[torch.Tensor]]:
+        input_feature_dict: InputFeatureDict,
+        chunk_size: Optional[int] = None,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """
-        Forward pass for the AtomAttentionEncoder.
+        Forward pass of the encoder.
 
         Args:
-            params: Parameters for the forward pass
+            input_feature_dict: Dictionary of input features
+            chunk_size: Optional chunk size for processing
 
         Returns:
-            Tuple containing:
-                - Final token-level embedding, shape [..., N_token, c_token]
-                - Atom-level embedding, shape [..., N_atom, c_atom]
-                - Another atom-level embedding, shape [..., N_atom, c_atom]
-                - The trunk-based pair embedding or None if trunk is skipped
+            Tuple of (token embeddings, atom embeddings, initial atom embeddings, pair embeddings)
         """
-        # Simple path for no coordinates case
-        if not self.has_coords:
-            return self._process_simple_embedding(params.input_feature_dict)
+        # Process input feature dimensions
+        self._process_input_features(input_feature_dict)
 
-        # Extract atom features from input dictionary
-        c_l = self.extract_atom_features(params.input_feature_dict)
+        # Extract features
+        c_l = self.extract_atom_features(input_feature_dict)
 
-        # Full processing path for coordinated case
-        return self.process_inputs_with_coords(
-            input_feature_dict=params.input_feature_dict,
-            r_l=params.r_l,
-            s=params.s,
-            z=params.z,
-            c_l=c_l,
-            chunk_size=params.chunk_size,
+        # Create pair features
+        p_l = self.create_pair_embedding(input_feature_dict)
+
+        # Create attention mask if needed
+        if "ref_mask" in input_feature_dict:
+            mask = input_feature_dict["ref_mask"]
+        else:
+            mask = torch.ones_like(c_l[..., 0], dtype=torch.bool)
+
+        # Ensure mask has correct shape for attention
+        if mask.dim() == 2:
+            mask = mask.unsqueeze(-1)
+        if mask.shape[-1] == 1:
+            mask = mask.expand(-1, -1, self.c_atompair)
+
+        # Apply transformer
+        a_atom = self.atom_transformer(
+            c_l, p_l, mask=mask, chunk_size=chunk_size or 0
         )
+
+        # Get number of tokens from restype if available
+        if "restype" in input_feature_dict:
+            n_tokens = input_feature_dict["restype"].shape[1]  # [B, N_tokens, ...]
+        else:
+            # Fallback to atom_to_token_idx if restype not available
+            n_tokens = input_feature_dict["atom_to_token_idx"].max().item() + 1
+
+        # Aggregate to token level
+        a_token = self._aggregate_to_token_level(
+            a_atom,
+            input_feature_dict["atom_to_token_idx"],
+            int(n_tokens),  # Explicitly cast to int
+        )
+
+        return a_token, a_atom, c_l, p_l
 
     # For backward compatibility - uses the old parameter style
     def forward_legacy(
