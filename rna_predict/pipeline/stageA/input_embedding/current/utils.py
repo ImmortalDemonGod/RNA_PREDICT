@@ -12,11 +12,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import Optional, Union
+from typing import Optional, Union, Tuple, List, Dict, Any
+import warnings
 
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from protenix.utils.scatter_utils import scatter
 from scipy.spatial.transform import Rotation
 
@@ -26,7 +28,7 @@ def centre_random_augmentation(
     N_sample: int = 1,
     s_trans: float = 1.0,
     centre_only: bool = False,
-    mask: torch.Tensor = None,
+    mask: Optional[torch.Tensor] = None,
     eps: float = 1e-12,
 ) -> torch.Tensor:
     """Implements Algorithm 19 in AF3
@@ -54,8 +56,20 @@ def centre_random_augmentation(
             input=x_input_coords, dim=-2, keepdim=True
         )
     else:
+        # Ensure mask has compatible dimensions for broadcasting
+        while mask.ndim < x_input_coords.ndim -1:
+            mask = mask.unsqueeze(0)
+        if mask.shape[:-1] != x_input_coords.shape[:-2]:
+            # Attempt to expand mask batch dims to match x_input_coords
+            try:
+                mask = mask.expand(*x_input_coords.shape[:-2], -1)
+            except RuntimeError as e:
+                raise RuntimeError(
+                    f"Cannot expand mask shape {mask.shape} to match coords {x_input_coords.shape} for centering. Error: {e}"
+                ) from e
+
         center = (x_input_coords * mask.unsqueeze(dim=-1)).sum(dim=-2) / (
-            mask.sum(dim=-1) + eps
+            mask.sum(dim=-1, keepdim=True) + eps
         )
         x_input_coords = x_input_coords - center.unsqueeze(dim=-2)
 
@@ -82,12 +96,11 @@ def centre_random_augmentation(
         rot_vec_mul(
             r=expand_at_dim(rot_matrix_random, dim=-3, n=N_atom), t=x_input_coords
         )
-        + trans_random[..., None, :]
+        + trans_random.unsqueeze(-2)
     )  # [..., N_sample, N_atom, 3]
     return x_augment_coords
 
 
-# Comment: Rotation.random is not supported by torch.compile()
 def uniform_random_rotation(N_sample: int = 1) -> torch.Tensor:
     """Generate random rotation matrices with scipy.spatial.transform.Rotation
 
@@ -103,7 +116,6 @@ def uniform_random_rotation(N_sample: int = 1) -> torch.Tensor:
     return rot_matrix
 
 
-# this is from openfold.utils.rigid_utils import rot_vec_mul
 def rot_vec_mul(r: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
     """Apply rot matrix to vector
     Applies a rotation to a vector. Written out by hand to avoid transfer
@@ -164,22 +176,14 @@ def rot_vec_mul(r: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
         )
 
 
-# from openfold.utils.tensor_utils.permute_final_dims
-# from openfold.utils.tensor_utils.flatten_final_dims
-def permute_final_dims(tensor: torch.Tensor, inds: list[int]) -> torch.Tensor:
-    """Permute final dims of tensor
-
-    Args:
-        tensor (torch.Tensor): the input tensor
-            [...]
-        inds (List[int]): the dim to permute
-
-    Returns:
-        torch.Tensor: the permuted tensor
+def permute_final_dims(tensor: torch.Tensor, permutation: List[int]) -> torch.Tensor:
     """
-    zero_index = -1 * len(inds)
-    first_inds = list(range(len(tensor.shape[:zero_index])))
-    return tensor.permute(first_inds + [zero_index + i for i in inds])
+    Permutes the final dimensions of a tensor.
+    """
+    return tensor.permute(
+        *range(len(tensor.shape) - len(permutation)),
+        *[i + len(tensor.shape) - len(permutation) for i in permutation]
+    )
 
 
 def flatten_final_dims(t: torch.Tensor, num_dims: int) -> torch.Tensor:
@@ -215,7 +219,6 @@ def one_hot(
     return dgram
 
 
-# this is mostly from openfold.utils.torch_utils import batched_gather
 def batched_gather(
     data: torch.Tensor, inds: torch.Tensor, dim: int = 0, no_batch_dims: int = 0
 ) -> torch.Tensor:
@@ -240,175 +243,123 @@ def batched_gather(
 
     ranges = []
     for i, s in enumerate(data.shape[:no_batch_dims]):
-        r = torch.arange(s)
-        r = r.view(*(*((1,) * i), -1, *((1,) * (len(inds.shape) - i - 1))))
+        r = torch.arange(s, device=data.device)  # Ensure range is on correct device
+        # Adjust view based on the number of dimensions in inds, not hardcoded 1
+        view_shape = [1] * len(inds.shape)
+        view_shape[i] = -1  # Place the range size at the correct batch dimension
+        # Ensure view_shape has enough dimensions before assigning
+        while len(view_shape) < len(inds.shape):
+            view_shape.append(1)
+        r = r.view(*view_shape)
         ranges.append(r)
 
-    remaining_dims = [slice(None) for _ in range(len(data.shape) - no_batch_dims)]
-    remaining_dims[dim - no_batch_dims if dim >= 0 else dim] = inds
-    ranges.extend(remaining_dims)
-    return data[ranges]
+    remaining_dims = [slice(None)] * (len(data.shape) - no_batch_dims)
+    # Ensure dim calculation handles negative indices correctly relative to remaining_dims
+    actual_dim = dim if dim >= 0 else len(remaining_dims) + dim
+    if 0 <= actual_dim < len(remaining_dims):
+        remaining_dims[actual_dim] = inds
+    else:
+        raise IndexError(
+            f"Dimension {dim} out of range for remaining dimensions of length {len(remaining_dims)}"
+        )
+
+    # The original code had an error here, extending with a list of slices instead of the index tensor itself
+    # Correct approach: construct the full index tuple
+    full_index_tuple = tuple(ranges) + tuple(remaining_dims)
+
+    return data[full_index_tuple]
 
 
-# @snoop
 def broadcast_token_to_atom(
     x_token: torch.Tensor, atom_to_token_idx: torch.Tensor
 ) -> torch.Tensor:
     """
-    Broadcast token-level embeddings to atom-level embeddings.
+    Broadcast token-level embeddings to atom-level embeddings using gather.
+    Handles arbitrary leading batch/sample dimensions.
 
-    This handles cases where:
-      1) atom_to_token_idx is purely 1D -> we unsqueeze to [1, N_atom].
-      2) x_token may have one more batch dim than atom_to_token_idx, so we unsqueeze one dim in the index as well.
-      3) x_token may have two more batch dims than atom_to_token_idx, so we handle that case too.
+    Args:
+        x_token (torch.Tensor): Token features [..., N_token, C]
+        atom_to_token_idx (torch.Tensor): Index map [..., N_atom]
+
+    Returns:
+        torch.Tensor: Atom features [..., N_atom, C]
     """
-    if atom_to_token_idx.ndim == 1:
-        atom_to_token_idx = atom_to_token_idx.unsqueeze(0)
+    # --- Start Refactor ---
+    # Store original leading dimensions and N_atom, C
+    original_leading_dims = x_token.shape[:-2]
+    n_atom = atom_to_token_idx.shape[-1]
+    n_features = x_token.shape[-1]
+    n_token = x_token.shape[-2]  # Get N_token
+    device = x_token.device
 
-    # Handle case where x_token has two more dimensions than atom_to_token_idx
-    if x_token.ndim == atom_to_token_idx.ndim + 2:
-        # Instead of reshaping x_token (which is risky and can cause size mismatch errors),
-        # let's add dimensions to atom_to_token_idx to match x_token's dimensionality
+    # Flatten leading dimensions
+    x_token_flat = x_token.reshape(-1, n_token, n_features)
+    b_flat = x_token_flat.shape[0]
 
-        # For example, if x_token is [1, 1, 8, 10, 128] and atom_to_token_idx is [1, 10],
-        # instead of reshaping x_token, let's unsqueeze atom_to_token_idx to match the batch dimensions
-
-        # Add dimensions to atom_to_token_idx until it's just one dimension short of x_token
-        # (the last missing dimension is the feature dimension which doesn't need to match)
-        while atom_to_token_idx.ndim < x_token.ndim - 1:
-            # Insert a new dimension at position 1 (after the first batch dimension)
-            atom_to_token_idx = atom_to_token_idx.unsqueeze(1)
-
-        # Now the shapes should be compatible for gathering
-        # E.g., atom_to_token_idx might be [1, 1, 10] and x_token [1, 1, 8, 10, 128]
-
-    # If shapes differ by exactly 1 dimension, and we need an extra unsqueeze:
-    if (
-        x_token.ndim == atom_to_token_idx.ndim + 1
-        and x_token.shape[-2] != atom_to_token_idx.shape[-1]
-    ):
-        atom_to_token_idx = atom_to_token_idx.unsqueeze(-2)
-
-    # Handle case where atom_to_token_idx has more dimensions but x_token doesn't need to match
-    # For example, atom_to_token_idx with shape [1, 1, N_atom] and x_token with shape [1, N_token, C]
-    if atom_to_token_idx.ndim > x_token.ndim:
-        # Remove singleton dimensions from atom_to_token_idx to match x_token's shape
-        squeezed_shape = [dim for dim in atom_to_token_idx.shape[:-1] if dim != 1]
-        if len(squeezed_shape) == len(x_token.shape[:-2]):
-            # We can proceed with the squeezed shape
-            atom_to_token_idx = atom_to_token_idx.squeeze()
-            # In case we squeezed too much, add back one dimension
-            if atom_to_token_idx.ndim == 1:
-                atom_to_token_idx = atom_to_token_idx.unsqueeze(0)
-
-    # Final shape check
-    if atom_to_token_idx.shape[:-1] != x_token.shape[:-2]:
-        # Instead of immediately trying to reshape (which may fail), let's try different approaches
-        # to make the shapes compatible
-        try:
-            # First, check if atom_to_token_idx has excess dimensions that can be removed
-            if atom_to_token_idx.ndim > x_token.ndim:
-                # Try to squeeze out extra dimensions while preserving the last dimension
-                atom_to_token_idx = atom_to_token_idx.squeeze()
-                if atom_to_token_idx.ndim == 1:  # If we squeezed too much
-                    atom_to_token_idx = atom_to_token_idx.unsqueeze(0)
-
-            # Next, check if we need to add dimensions to atom_to_token_idx
-            while len(atom_to_token_idx.shape[:-1]) < len(x_token.shape[:-2]):
-                # Add dimensions at the beginning
-                atom_to_token_idx = atom_to_token_idx.unsqueeze(0)
-
-            # If dimensions match now but sizes don't, try to expand
-            if len(atom_to_token_idx.shape[:-1]) == len(x_token.shape[:-2]):
-                # Try to expand atom_to_token_idx to match x_token's batch dimensions
-                # But first check if each dimension is either 1 or matches
-                can_expand = all(
-                    a == b or a == 1 or b == 1
-                    for a, b in zip(atom_to_token_idx.shape[:-1], x_token.shape[:-2])
-                )
-                if can_expand:
-                    # Create a new shape that takes the max of each dimension
-                    new_batch_shape = tuple(
-                        max(a, b)
-                        for a, b in zip(
-                            atom_to_token_idx.shape[:-1], x_token.shape[:-2]
-                        )
-                    )
-                    new_shape = new_batch_shape + (atom_to_token_idx.shape[-1],)
-                    atom_to_token_idx = atom_to_token_idx.expand(new_shape)
-
-            # If shapes still don't match, try one more approach: reshape if possible
-            if atom_to_token_idx.shape[:-1] != x_token.shape[:-2]:
-                # Check if the product of dimensions is compatible
-                prod_a = 1
-                for d in atom_to_token_idx.shape[:-1]:
-                    prod_a *= d
-
-                prod_x = 1
-                for d in x_token.shape[:-2]:
-                    prod_x *= d
-
-                if prod_a == prod_x:
-                    # We can reshape
-                    new_shape = list(x_token.shape[:-2]) + [atom_to_token_idx.shape[-1]]
-                    atom_to_token_idx = atom_to_token_idx.reshape(new_shape)
-                else:
-                    # Try to broadcast by repeating atom_to_token_idx
-                    # This is useful for cases like [1,1,10] needing to match [1,8]
-                    # First, create a target shape with batch dimensions matching x_token
-                    target_shape = list(x_token.shape[:-2]) + [
-                        atom_to_token_idx.shape[-1]
-                    ]
-
-                    # Try to create a new tensor with the target shape
-                    expanded_idx = atom_to_token_idx.new_zeros(
-                        target_shape, dtype=atom_to_token_idx.dtype
-                    )
-
-                    # Repeat the last available atom index across the missing dimension
-                    for i in range(target_shape[-2]):
-                        if i < atom_to_token_idx.shape[-2]:
-                            # Copy existing indices
-                            expanded_idx[..., i, :] = atom_to_token_idx[..., i, :]
-                        else:
-                            # Repeat the last index for missing positions
-                            expanded_idx[..., i, :] = atom_to_token_idx[..., -1, :]
-
-                    atom_to_token_idx = expanded_idx
-        except Exception as e:
-            # If all adaptation attempts fail, provide a detailed error
-            print(f"WARNING: Failed to adapt shapes in broadcast_token_to_atom: {e}")
-            print(
-                f"x_token.shape={x_token.shape}, atom_to_token_idx.shape={atom_to_token_idx.shape}"
+    # Ensure atom_to_token_idx has compatible leading dims before flattening
+    # Add missing leading dims to atom_to_token_idx if necessary
+    idx_leading_dims = atom_to_token_idx.shape[:-1]
+    if idx_leading_dims != original_leading_dims:
+        # Check if expansion is possible
+        if len(idx_leading_dims) <= len(original_leading_dims):
+            can_expand = all(
+                i_s == o_s or i_s == 1
+                for i_s, o_s in zip(idx_leading_dims, original_leading_dims)
             )
-            # Fall back to the original approach, but log the error instead of raising it
-            try:
-                new_shape = list(x_token.shape[:-2]) + [atom_to_token_idx.shape[-1]]
-                atom_to_token_idx = atom_to_token_idx.reshape(new_shape)
-            except:
-                # If reshaping fails, just continue with the current shapes
-                # The batched_gather function might still work, or we'll get a more specific error
-                pass
+            if can_expand:
+                try:
+                    atom_to_token_idx = atom_to_token_idx.expand(*original_leading_dims, n_atom)
+                except RuntimeError as e:
+                    raise RuntimeError(
+                        f"Cannot expand atom_to_token_idx shape {atom_to_token_idx.shape} to match x_token leading dims {original_leading_dims}. Error: {e}"
+                    ) from e
+            else:
+                raise ValueError(
+                    f"Cannot expand atom_to_token_idx shape {atom_to_token_idx.shape} to match x_token leading dims {original_leading_dims}."
+                )
+        else:  # Index has more leading dims than token
+            raise ValueError(
+                f"atom_to_token_idx shape {atom_to_token_idx.shape} has more leading dims than x_token {x_token.shape}."
+            )
 
-    # If still exactly 1D after expansions, do direct indexing
-    if atom_to_token_idx.ndim == 1:
-        return x_token[..., atom_to_token_idx, :]
+    atom_to_token_idx_flat = atom_to_token_idx.reshape(b_flat, n_atom)
 
-    # Otherwise, fall back to batched gather
-    result = batched_gather(
-        data=x_token,
-        inds=atom_to_token_idx,
-        dim=-2,
-        no_batch_dims=len(x_token.shape[:-2]),
-    )
+    # Clamp indices to be within the valid range [0, N_token - 1]
+    if atom_to_token_idx_flat.numel() > 0:  # Avoid error on empty tensor
+        max_idx = atom_to_token_idx_flat.max()
+        if max_idx >= n_token:
+            warnings.warn(
+                f"Clipping atom_to_token_idx: max index {max_idx} >= N_token {n_token}. "
+                f"Original index shape: {atom_to_token_idx.shape}, Token shape: {x_token.shape}"
+            )
+            atom_to_token_idx_flat = torch.clamp(atom_to_token_idx_flat, 0, n_token - 1)
+        # Also clamp lower bound just in case
+        min_idx = atom_to_token_idx_flat.min()
+        if min_idx < 0:
+            warnings.warn(f"Clipping atom_to_token_idx: min index {min_idx} < 0.")
+            atom_to_token_idx_flat = torch.clamp(atom_to_token_idx_flat, min=0)
 
-    # Check if the feature dimension of the result is 1, but should be larger
-    # This handles the specific case in AtomAttentionEncoder where we get [2, 10, 1] but need [*, 64]
-    if result.size(-1) == 1 and x_token.size(-1) > 1:
-        # We need to expand the last dimension to match the original x_token's feature dimension
-        result = result.expand(*result.shape[:-1], x_token.size(-1))
+    # Perform gather on flattened tensors
+    # Need to expand atom_to_token_idx_flat to match feature dim for gather
+    # Shape required by gather: [B_flat, N_atom, C]
+    idx_expanded = atom_to_token_idx_flat.unsqueeze(-1).expand(b_flat, n_atom, n_features)
 
-    return result
+    # Gather using the expanded index
+    try:
+        # Gather along the N_token dimension (dim=1)
+        x_atom_flat = torch.gather(x_token_flat, dim=1, index=idx_expanded)
+    except RuntimeError as e:
+        raise RuntimeError(
+            f"torch.gather failed in broadcast_token_to_atom. "
+            f"x_token_flat shape: {x_token_flat.shape}, "
+            f"idx_expanded shape: {idx_expanded.shape}. Error: {e}"
+        ) from e
+
+    # Reshape back to original leading dimensions
+    x_atom = x_atom_flat.reshape(*original_leading_dims, n_atom, n_features)
+
+    return x_atom
+    # --- End Refactor ---
 
 
 def aggregate_atom_to_token(
@@ -432,6 +383,33 @@ def aggregate_atom_to_token(
             [..., N_token, d]
     """
     # Broadcasting in the given dim.
+    # Ensure index has compatible leading dimensions
+    idx_leading_dims = atom_to_token_idx.shape[:-1]
+    atom_leading_dims = x_atom.shape[:-2]
+
+    if idx_leading_dims != atom_leading_dims:
+        # Check if expansion is possible
+        if len(idx_leading_dims) <= len(atom_leading_dims):
+            can_expand = all(
+                i_s == o_s or i_s == 1
+                for i_s, o_s in zip(idx_leading_dims, atom_leading_dims)
+            )
+            if can_expand:
+                try:
+                    atom_to_token_idx = atom_to_token_idx.expand(*atom_leading_dims, atom_to_token_idx.shape[-1])
+                except RuntimeError as e:
+                    raise RuntimeError(
+                        f"Cannot expand atom_to_token_idx shape {atom_to_token_idx.shape} to match x_atom leading dims {atom_leading_dims} for scatter. Error: {e}"
+                    ) from e
+            else:
+                raise ValueError(
+                    f"Cannot expand atom_to_token_idx shape {atom_to_token_idx.shape} to match x_atom leading dims {atom_leading_dims} for scatter."
+                )
+        else:  # Index has more leading dims than atom
+            raise ValueError(
+                f"atom_to_token_idx shape {atom_to_token_idx.shape} has more leading dims than x_atom {x_atom.shape} for scatter."
+            )
+
     out = scatter(
         src=x_atom, index=atom_to_token_idx, dim=-2, dim_size=n_token, reduce=reduce
     )
@@ -439,68 +417,46 @@ def aggregate_atom_to_token(
     return out
 
 
-def sample_indices(
-    n: int,
-    device: torch.device = torch.device("cpu"),
-    lower_bound=1,
-    strategy: str = "random",
-) -> torch.Tensor:
-    """Sample msa indices k from uniform[1,n]
-
-    Args:
-        n (int): the msa num
-        strategy (str): the strategy to sample msa index, random or topk
-
-    Returns:
-        torch.Tensor: the sampled indices k
+def sample_indices(n: int, sample_size: int, strategy: str = "random", device: Optional[torch.device] = None) -> torch.Tensor:
     """
-    assert strategy in ["random", "topk"]
-    sample_size = torch.randint(
-        low=min(lower_bound, n), high=n + 1, size=(1,), device=device
-    ).item()
+    Sample indices using specified strategy.
+    
+    Args:
+        n: Total number of indices to sample from
+        sample_size: Number of indices to sample
+        strategy: Sampling strategy ('random' or 'topk')
+        device: Device to place the output tensor on
+    
+    Returns:
+        Tensor of sampled indices
+    """
+    assert strategy in ["random", "topk"], f"Invalid sampling strategy: {strategy}"
+    assert sample_size <= n, f"Cannot sample {sample_size} items from {n} items"
+    
     if strategy == "random":
+        # Ensure n is positive for randperm
+        if n <= 0:
+            return torch.tensor([], dtype=torch.long, device=device)
         indices = torch.randperm(n=n, device=device)[:sample_size]
-    if strategy == "topk":
+    elif strategy == "topk":
         indices = torch.arange(sample_size, device=device)
+    else:
+        raise ValueError(f"Invalid sampling strategy: {strategy}")
     return indices
 
 
 def sample_msa_feature_dict_random_without_replacement(
-    feat_dict: dict[str, torch.Tensor],
-    dim_dict: dict[str, int],
-    cutoff: int = 512,
-    lower_bound: int = 1,
-    strategy: str = "random",
-) -> dict[str, torch.Tensor]:
-    """Sample a dict of MSA features randomly without replacement.
-
-    Args:
-        feat_dict (dict[str, torch.Tensor]): A dict containing the MSA features.
-        dim_dict (dict[str, int]): A dict containing the dimensions of the MSA features.
-        cutoff (int): The maximum number of features to sample.
-        lower_bound (int): The minimum number of features to sample.
-        strategy (str): The sampling strategy to use. Can be either "random" or "sequential".
-
-    Returns:
-        dict[str, torch.Tensor]: A dict containing the sampled MSA features.
+    feat_dict: Dict[str, torch.Tensor],
+    sample_size: int,
+    device: Optional[torch.device] = None
+) -> Dict[str, torch.Tensor]:
     """
-    msa_len = feat_dict["msa"].size(dim=dim_dict["msa"])
-    indices = sample_indices(
-        n=msa_len,
-        device=feat_dict["msa"].device,
-        lower_bound=lower_bound,
-        strategy=strategy,
-    )
-    if cutoff > 0:
-        indices = indices[:cutoff]
-
-    msa_feat_dict = {
-        feat_name: torch.index_select(
-            input=feat_dict[feat_name], dim=dim, index=indices
-        )
-        for feat_name, dim in dim_dict.items()
-    }
-    return msa_feat_dict
+    Sample MSA features randomly without replacement.
+    """
+    n_seq = next(iter(feat_dict.values())).shape[0]
+    indices = sample_indices(n_seq, sample_size, strategy="random", device=device)
+    
+    return {k: v[indices] for k, v in feat_dict.items()}
 
 
 def expand_at_dim(x: torch.Tensor, dim: int, n: int) -> torch.Tensor:
@@ -515,17 +471,18 @@ def expand_at_dim(x: torch.Tensor, dim: int, n: int) -> torch.Tensor:
         torch.Tensor: expanded tensor of shape [..., n, ...]
     """
     x = x.unsqueeze(dim=dim)
-    if dim < 0:
-        dim = x.dim() + dim
-    before_shape = x.shape[:dim]
-    after_shape = x.shape[dim + 1 :]
+    # Recalculate dim relative to the new tensor shape after unsqueeze
+    actual_dim = dim if dim >= 0 else x.dim() + dim
+
+    before_shape = x.shape[:actual_dim]
+    after_shape = x.shape[actual_dim + 1 :]
     return x.expand(*before_shape, n, *after_shape)
 
 
 def pad_at_dim(
     x: torch.Tensor,
     dim: int,
-    pad_length: Union[tuple[int], list[int]],
+    pad_length: Union[tuple[int, int], list[int]],
     value: float = 0,
 ) -> torch.Tensor:
     """pad to input x at dimension dim with length pad_length[0] to the left and and pad_length[1] to the right.
@@ -539,21 +496,29 @@ def pad_at_dim(
         torch.Tensor: padded tensor
     """
     n_dim = len(x.shape)
-    if dim < 0:
-        dim = n_dim + dim
+    if not (-n_dim <= dim < n_dim): # Added closing parenthesis
+         raise IndexError(f"Dimension out of range (expected to be in range of [-{n_dim}, {n_dim-1}], but got {dim})")
 
-    pad = (pad_length[0], pad_length[1])
-    if pad == (0, 0):
+    actual_dim = dim if dim >= 0 else n_dim + dim
+
+    # PyTorch pad expects pairs of (left, right) padding for each dimension, starting from the last
+    # We only want to pad along the specified dimension 'actual_dim'
+    pad_tuple = [0] * (2 * n_dim)
+    # Calculate the position for the padding values in the tuple
+    # Example: n_dim=4, actual_dim=1 => target indices 4, 5
+    # Example: n_dim=4, actual_dim=-2 (i.e., 2) => target indices 2, 3
+    pad_idx_start = 2 * (n_dim - 1 - actual_dim)
+    pad_tuple[pad_idx_start] = pad_length[0] # Left padding
+    pad_tuple[pad_idx_start + 1] = pad_length[1] # Right padding
+
+    if tuple(pad_tuple) == (0,) * (2 * n_dim): # Check if padding is all zeros
         return x
-    k = n_dim - (dim + 1)
-    if k > 0:
-        pad_skip = (0, 0) * k
-        pad = (*pad_skip, *pad)
-    return nn.functional.pad(x, pad=pad, value=value)
+
+    return nn.functional.pad(x, pad=tuple(pad_tuple), value=value)
 
 
 def reshape_at_dim(
-    x: torch.Tensor, dim: int, target_shape: Union[tuple[int], list[int]]
+    x: torch.Tensor, dim: int, target_shape: Union[tuple[int, ...], list[int]] # Use ellipsis for tuple
 ) -> torch.Tensor:
     """
     Reshape dimension 'dim' of x to 'target_shape'. If target_shape is a single-element
@@ -566,38 +531,43 @@ def reshape_at_dim(
     Args:
         x (torch.Tensor): input
         dim (int): dimension to reshape
-        target_shape (Union[Tuple[int], List[int]]): target shape for the specified dimension
+        target_shape (Union[Tuple[int, ...], List[int]]): target shape for the specified dimension
 
     Returns:
         torch.Tensor: reshaped tensor
     """
     n_dim = x.dim()
-    if dim < 0:
-        dim = n_dim + dim
+    actual_dim = dim if dim >= 0 else n_dim + dim
+    if not (0 <= actual_dim < n_dim):
+         raise IndexError(f"Dimension out of range: {dim}")
+
 
     tgt = tuple(target_shape)
-    if len(tgt) == 1:
+    # --- Start Fix: Handle merging previous dimension ---
+    # Check if target is single element and previous dim exists and product matches
+    if len(tgt) == 1 and actual_dim > 0:
         desired = tgt[0]
-        if dim > 0:
-            combined = x.shape[dim - 1] * x.shape[dim]
-            if combined == desired:
-                shape_list = list(x.shape)
-                shape_list[dim - 1] = desired
-                del shape_list[dim]
-                return x.reshape(*shape_list)
+        combined = x.shape[actual_dim - 1] * x.shape[actual_dim]
+        if combined == desired:
+            shape_list = list(x.shape)
+            shape_list[actual_dim - 1] = desired # Replace previous dim size
+            del shape_list[actual_dim]          # Delete current dim
+            return x.reshape(*shape_list)
+    # --- End Fix ---
 
     # fallback => standard single-dimension replace
     shape_list = list(x.shape)
-    old_size = shape_list[dim]
+    old_size = shape_list[actual_dim]
     new_prod = 1
     for v in tgt:
         new_prod *= v
 
     if new_prod != old_size:
         raise RuntimeError(
-            f"reshape_at_dim: can't reshape dimension {dim} of size {old_size} into {tgt} (product={new_prod})"
+            f"reshape_at_dim: can't reshape dimension {actual_dim} of size {old_size} into {tgt} (product={new_prod})"
         )
-    shape_list = shape_list[:dim] + list(tgt) + shape_list[dim + 1 :]
+    # Replace the single dimension size with the elements of target_shape
+    shape_list = shape_list[:actual_dim] + list(tgt) + shape_list[actual_dim + 1 :]
     return x.reshape(*shape_list)
 
 
@@ -613,18 +583,19 @@ def move_final_dim_to_dim(x: torch.Tensor, dim: int) -> torch.Tensor:
         torch.Tensor: Tensor with the final dimension moved to the specified dimension.
     """
     n_dim = len(x.shape)
-    if dim < 0:
-        dim = n_dim + dim
-    if dim >= n_dim - 1:
+    actual_dim = dim if dim >= 0 else n_dim + dim
+    if not (0 <= actual_dim < n_dim):
+         raise IndexError(f"Target dimension {dim} out of range for tensor with {n_dim} dimensions.")
+
+    if actual_dim == n_dim - 1: # Already the last dimension
         return x
 
-    new_order = (n_dim - 1,)
-    if dim > 0:
-        new_order = tuple(range(dim)) + new_order
-    if dim < n_dim - 1:
-        new_order = new_order + tuple(range(dim, n_dim - 1))
+    # Create the permutation order
+    dims = list(range(n_dim))
+    final_dim_index = dims.pop(-1) # Remove the last dimension index
+    dims.insert(actual_dim, final_dim_index) # Insert it at the target position
 
-    return x.permute(new_order)
+    return x.permute(dims)
 
 
 def simple_merge_dict_list(dict_list: list[dict]) -> dict:
@@ -637,7 +608,7 @@ def simple_merge_dict_list(dict_list: list[dict]) -> dict:
     Returns:
         dict: Merged dictionary where values are concatenated arrays.
     """
-    merged_dict = {}
+    merged_dict: dict = {} # Add type hint
 
     def add(key, value):
         merged_dict.setdefault(key, [])
@@ -658,5 +629,29 @@ def simple_merge_dict_list(dict_list: list[dict]) -> dict:
         for k, v in x.items():
             add(k, v)
     for k, v in merged_dict.items():
-        merged_dict[k] = np.concatenate(v)
+        # Ensure all arrays in the list have compatible shapes before concatenating
+        if not v: continue # Skip empty lists
+        first_shape = v[0].shape
+        if not all(item.shape == first_shape for item in v):
+             # Attempt to reshape if possible (e.g., scalar vs 1-element array)
+             reshaped_v = []
+             for item in v:
+                  if item.shape == () and first_shape == (1,):
+                       reshaped_v.append(item.reshape(1))
+                  elif item.shape == (1,) and first_shape == ():
+                       reshaped_v.append(item.reshape(()))
+                  elif item.shape == first_shape:
+                       reshaped_v.append(item)
+                  else:
+                       raise ValueError(f"Incompatible shapes for key '{k}': {first_shape} vs {item.shape}")
+             v = reshaped_v
+
+        try:
+            merged_dict[k] = np.concatenate(v)
+        except ValueError as e:
+             print(f"Error concatenating key '{k}': {e}")
+             # Optionally handle error differently, e.g., keep as list
+             # merged_dict[k] = v # Keep as list if concat fails
+             raise e # Re-raise for now
+
     return merged_dict
