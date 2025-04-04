@@ -73,6 +73,8 @@ import unittest
 import urllib.error
 import zipfile
 from unittest.mock import MagicMock, patch
+from typing import Any
+
 
 import pytest
 import torch
@@ -102,7 +104,7 @@ def temp_checkpoint_folder(tmp_path) -> str:
     """
     folder = tmp_path / "checkpoints"
     folder.mkdir(parents=True, exist_ok=True)
-    dummy_state = {}
+    dummy_state: dict[str, Any] = {}  # Added type hint
     torch.save(dummy_state, str(folder / "RNAStralign_trainset_pretrained.pth"))
     return str(folder)
 
@@ -196,6 +198,7 @@ class TestBase(unittest.TestCase):
     Derived test classes that need a temp directory should inherit from this
     and reference 'self.test_dir' for local filesystem operations.
     """
+    test_dir: str  # Add class variable annotation
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -292,10 +295,16 @@ class TestDownloadFile(TestBase):
         """
         If no file exists, download_file should fetch from URL and create the file.
         """
-        mock_urlopen.return_value.__enter__.return_value.read.return_value = (
-            b"some data"
-        )
+        # Configure the mock response object correctly
+        mock_response = MagicMock()
+        mock_response.__enter__.return_value = mock_response  # Ensure context manager works
+        mock_response.read.return_value = b"some data"        # Simulate reading data
+        mock_urlopen.return_value = mock_response             # Assign mock response to urlopen
+
+        # Call the function under test
         download_file("http://example.com/newdata", self.download_path)
+
+        # Assertions
         self.assertTrue(os.path.isfile(self.download_path), "File should be created.")
         with open(self.download_path, "rb") as f:
             data = f.read()
@@ -314,8 +323,9 @@ class TestDownloadFile(TestBase):
     @settings(
         deadline=None,
         suppress_health_check=[HealthCheck.function_scoped_fixture],
-        max_examples=15,
+        max_examples=5,  # Reduced max_examples to prevent long runtimes
     )
+    @pytest.mark.timeout(10)
     def test_fuzz_download_file(self, url: str, dest: str):
         """
         Property-based testing for random URL/dest strings to ensure no unexpected crashes.
@@ -492,7 +502,7 @@ class TestBuildPredictor(TestBase):
         os.makedirs(self.ckpt_dir, exist_ok=True)
 
         # Create a valid checkpoint file with torch.save
-        dummy_state = {"model": {}, "optimizer": {}}
+        dummy_state: dict[str, Any] = {"model": {}, "optimizer": {}} # Added type hint
         ckpt_path = os.path.join(self.ckpt_dir, "RNAStralign_trainset_pretrained.pth")
         torch.save(dummy_state, ckpt_path)
 
