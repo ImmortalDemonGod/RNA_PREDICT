@@ -24,6 +24,11 @@ dependencies = [
     "ruff>=0.11.2",
     "torch>=2.0.1, <2.6.0",
     "transformers>=4.49.0",
+    "pyautogui",
+    "opencv-python",
+    "Pillow",
+    "mss",
+    "dearpygui>=1.10", # Switched from PySimpleGUI
 ]
 
 # If you have optional (dev) dependencies:
@@ -54,6 +59,7 @@ dev = [
     "mkdocs>=1.6.1",
     "pytest-asyncio>=0.25.3",
     "pytest-cov>=6.0.0",
+    "pytest-faulthandler>=2.0.1",
     "pytest-memprof>=0.2.0",
     "pytest-timeout>=2.3.1",
     "snoop>=0.6.0",
@@ -72,3 +78,16 @@ override-dependencies = [
 [tool.pytest.ini_options]
 asyncio_mode = "strict"
 asyncio_default_fixture_loop_scope = "function"
+
+
+# Mypy configuration
+[tool.mypy]
+# Ignore missing stubs for specific libraries
+[[tool.mypy.overrides]]
+module = "cv2"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "dearpygui.*"
+ignore_missing_imports = true
+
