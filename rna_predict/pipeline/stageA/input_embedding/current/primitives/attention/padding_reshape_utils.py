@@ -256,10 +256,17 @@ def _process_attention_bias(
         reshaped_bias_chunks = []
         for bias_chunk in attn_bias_list:
              # bias_chunk shape: (..., original_q_len, n_keys)
-             # We need to reshape the original_q_len dimension
-             reshaped_chunk = _reshape_bias_for_trunked_query(bias_chunk.unsqueeze(-2), config) # Add dummy k_trunk dim
-             # reshaped_chunk shape: (..., n_q_trunks, n_queries, 1, n_keys)
-             reshaped_bias_chunks.append(reshaped_chunk.squeeze(-2)) # Remove dummy dim
+             # Pad the original query dimension (-2) first
+             padded_bias_chunk = _pad_attention_bias(bias_chunk, config) # Pads dim=-2
+             # padded_bias_chunk shape: (..., original_q_len + n_q_pad, n_keys)
+
+             # Now reshape the padded query dimension
+             bias_shape = list(padded_bias_chunk.shape)
+             # Replace the padded query dim (-2) with (n_q_trunks, n_queries)
+             new_bias_shape = bias_shape[:-2] + [config.n_q_trunks, config.n_queries] + bias_shape[-1:]
+             reshaped_chunk = padded_bias_chunk.reshape(*new_bias_shape)
+             # reshaped_chunk shape: (..., n_q_trunks, n_queries, n_keys)
+             reshaped_bias_chunks.append(reshaped_chunk)
 
         # Stack the fully reshaped chunks along the n_k_trunks dimension
         attn_bias_trunked = torch.stack(reshaped_bias_chunks, dim=-2) # dim=-2 becomes the n_k_trunks dim
