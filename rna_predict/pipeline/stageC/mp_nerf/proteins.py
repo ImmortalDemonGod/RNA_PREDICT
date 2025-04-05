@@ -370,7 +370,12 @@ def protein_fold(
     # rotate all
     coords[1:, :4] = torch.matmul(coords[1:, :4], rotations)
     # offset each position by cumulative sum at that position
-    coords[1:, :4] += torch.cumsum(coords[:-1, 3], dim=0).unsqueeze(-2)
+    offset = torch.cumsum(coords[:-1, 3], dim=0).unsqueeze(-2)
+    # Replace potential NaN/Inf in offset before adding, clamp large values
+    offset = torch.nan_to_num(offset, nan=0.0, posinf=1e6, neginf=-1e6) # Clamp large values too
+    coords[1:, :4] += offset
+    # Sanitize coords after addition as well, just in case
+    coords = torch.nan_to_num(coords, nan=0.0, posinf=1e6, neginf=-1e6)
 
     #########
     # parallel sidechain - do the oxygen, c-beta and side chain
@@ -393,7 +398,9 @@ def protein_fold(
         if not level_mask.any():
             continue
 
-        thetas, dihedrals = angles_mask[:, level_mask, i]
+        # Ensure angles are also indexed by the integer indices derived from level_mask
+        valid_indices_int = level_mask.nonzero().view(-1) # Get integer indices from boolean mask
+        thetas, dihedrals = angles_mask[:, valid_indices_int, i] # Use integer indices
 
         # to place C-beta, we need the carbons from prev res - not available for the 1st res
         if i == 4:
