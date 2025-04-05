@@ -161,7 +161,7 @@ def build_scaffolds_from_scn_angles(seq, angles=None, coords=None, device="auto"
     # auto infer device and precision
     precise = angles.dtype if angles is not None else torch.get_default_dtype()
     if device == "auto":
-        device = angles.device if angles is not None else device
+        device = angles.device if angles is not None else "cpu"
 
     if coords is not None:
         cloud_mask = scn_cloud_mask(seq, coords=coords)
