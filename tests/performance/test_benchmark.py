@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 import torch
 import torch.nn as nn
@@ -14,6 +14,11 @@ from rna_predict.benchmarks.benchmark import (
     timed_embedding,
     warmup_decoding,
     warmup_embedding,
+    create_embedder,
+    warmup_inference,
+    measure_inference_time_and_memory,
+    warmup_input_embedding,
+    time_input_embedding,
 )
 from rna_predict.pipeline.stageA.input_embedding.current.embedders import (
     InputFeatureEmbedder,
@@ -185,6 +190,218 @@ class TestBenchmarkEntryPoints(unittest.TestCase):
             num_iters=1,
             use_optimized=True,
         )
+
+
+class TestBenchmark(unittest.TestCase):
+    def setUp(self):
+        # Set up common test parameters
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.N_atom = 128
+        self.N_token = 32
+        self.block_size = 16
+        self.num_warmup = 2
+        self.num_iters = 2
+
+    def test_resolve_device(self):
+        # Test CUDA available case
+        with patch('torch.cuda.is_available', return_value=True):
+            self.assertEqual(resolve_device("cuda"), "cuda")
+        
+        # Test CUDA unavailable case
+        with patch('torch.cuda.is_available', return_value=False):
+            self.assertEqual(resolve_device("cuda"), "cpu")
+        
+        # Test CPU case
+        self.assertEqual(resolve_device("cpu"), "cpu")
+
+    def test_benchmark_config(self):
+        config = BenchmarkConfig()
+        self.assertEqual(config.N_atom_list, [128, 256, 512])
+        self.assertEqual(config.N_token_list, [32, 64, 128])
+        self.assertEqual(config.block_size, 16)
+        self.assertEqual(config.device, "cuda")
+        self.assertEqual(config.num_warmup, 5)
+        self.assertEqual(config.num_iters, 10)
+        self.assertEqual(config.use_optimized, False)
+
+    def test_create_embedder(self):
+        embedder, actual_device = create_embedder(
+            self.device,
+            use_optimized=False,
+            c_token=384,
+            restype_dim=32,
+            profile_dim=32,
+            c_atom=128,
+            c_pair=32,
+            num_heads=4,
+            num_layers=3,
+        )
+        
+        self.assertIsNotNone(embedder)
+        self.assertEqual(actual_device, self.device)
+        self.assertEqual(embedder.c_token, 384)
+        self.assertEqual(embedder.restype_dim, 32)
+        self.assertEqual(embedder.profile_dim, 32)
+        self.assertEqual(embedder.c_atom, 128)
+        self.assertEqual(embedder.c_pair, 32)
+        self.assertEqual(embedder.num_heads, 4)
+        self.assertEqual(embedder.num_layers, 3)
+
+    def test_generate_synthetic_features(self):
+        features = generate_synthetic_features(self.N_atom, self.N_token, self.device)
+        
+        # Check all required features are present
+        required_features = [
+            "ref_pos", "ref_charge", "ref_element", "ref_atom_name_chars",
+            "atom_to_token", "atom_to_token_idx", "ref_space_uid", "ref_mask",
+            "restype", "profile", "deletion_mean"
+        ]
+        for feature in required_features:
+            self.assertIn(feature, features)
+        
+        # Check shapes
+        self.assertEqual(features["ref_pos"].shape, (1, self.N_atom, 3))
+        self.assertEqual(features["ref_charge"].shape, (1, self.N_atom, 1))
+        self.assertEqual(features["ref_element"].shape, (1, self.N_atom, 128))
+        self.assertEqual(features["ref_atom_name_chars"].shape, (1, self.N_atom, 256))
+        self.assertEqual(features["atom_to_token"].shape, (1, self.N_atom))
+        self.assertEqual(features["restype"].shape, (1, self.N_token, 32))
+        self.assertEqual(features["profile"].shape, (1, self.N_token, 32))
+        self.assertEqual(features["deletion_mean"].shape, (1, self.N_token))
+
+    def test_warmup_inference(self):
+        embedder, device = create_embedder(self.device)
+        features = generate_synthetic_features(self.N_atom, self.N_token, device)
+        block_index = torch.randint(0, self.N_atom, (self.N_atom, self.block_size), device=device)
+        
+        # Test with CPU
+        warmup_inference(embedder, features, block_index, "cpu", self.num_warmup)
+        
+        # Test with CUDA if available
+        if torch.cuda.is_available():
+            with patch('torch.cuda.synchronize') as mock_sync:
+                warmup_inference(embedder, features, block_index, "cuda", self.num_warmup)
+                self.assertEqual(mock_sync.call_count, self.num_warmup)
+
+    def test_measure_inference_time_and_memory(self):
+        embedder, device = create_embedder(self.device)
+        features = generate_synthetic_features(self.N_atom, self.N_token, device)
+        block_index = torch.randint(0, self.N_atom, (self.N_atom, self.block_size), device=device)
+        
+        # Test with CPU
+        avg_time_cpu = measure_inference_time_and_memory(
+            embedder, features, block_index, "cpu", self.num_iters
+        )
+        self.assertIsInstance(avg_time_cpu, float)
+        self.assertGreater(avg_time_cpu, 0)
+        
+        # Test with CUDA if available
+        if torch.cuda.is_available():
+            with patch('torch.cuda.synchronize') as mock_sync, \
+                 patch('torch.cuda.reset_peak_memory_stats') as mock_reset, \
+                 patch('torch.cuda.max_memory_allocated', return_value=1024*1024) as mock_max_mem:
+                
+                avg_time_cuda = measure_inference_time_and_memory(
+                    embedder, features, block_index, "cuda", self.num_iters
+                )
+                self.assertIsInstance(avg_time_cuda, float)
+                self.assertGreater(avg_time_cuda, 0)
+                self.assertEqual(mock_sync.call_count, self.num_iters)
+                self.assertEqual(mock_reset.call_count, self.num_iters)
+                self.assertEqual(mock_max_mem.call_count, self.num_iters)
+
+    def test_warmup_input_embedding(self):
+        embedder, device = create_embedder(self.device)
+        features = generate_synthetic_features(self.N_atom, self.N_token, device)
+        block_index = torch.randint(0, self.N_atom, (self.N_atom, self.block_size), device=device)
+        criterion = torch.nn.MSELoss().to(device)
+        
+        # Test with CPU
+        warmup_input_embedding(embedder, features, block_index, "cpu", self.num_warmup, criterion)
+        
+        # Test with CUDA if available
+        if torch.cuda.is_available():
+            with patch('torch.cuda.synchronize') as mock_sync:
+                warmup_input_embedding(embedder, features, block_index, "cuda", self.num_warmup, criterion)
+                self.assertEqual(mock_sync.call_count, self.num_warmup)
+
+    def test_time_input_embedding(self):
+        embedder, device = create_embedder(self.device)
+        features = generate_synthetic_features(self.N_atom, self.N_token, device)
+        block_index = torch.randint(0, self.N_atom, (self.N_atom, self.block_size), device=device)
+        criterion = torch.nn.MSELoss().to(device)
+        
+        # Test with CPU
+        fwd_time_cpu, bwd_time_cpu = time_input_embedding(
+            embedder, features, block_index, "cpu", self.num_iters, criterion
+        )
+        self.assertIsInstance(fwd_time_cpu, float)
+        self.assertIsInstance(bwd_time_cpu, float)
+        self.assertGreater(fwd_time_cpu, 0)
+        self.assertGreater(bwd_time_cpu, 0)
+        
+        # Test with CUDA if available
+        if torch.cuda.is_available():
+            with patch('torch.cuda.synchronize') as mock_sync:
+                fwd_time_cuda, bwd_time_cuda = time_input_embedding(
+                    embedder, features, block_index, "cuda", self.num_iters, criterion
+                )
+                self.assertIsInstance(fwd_time_cuda, float)
+                self.assertIsInstance(bwd_time_cuda, float)
+                self.assertGreater(fwd_time_cuda, 0)
+                self.assertGreater(bwd_time_cuda, 0)
+                # Should be called twice per iteration (once for forward, once for backward)
+                self.assertEqual(mock_sync.call_count, 2 * self.num_iters)
+
+    def test_benchmark_decoding_latency_and_memory_small(self):
+        # Test with small parameters to keep test time reasonable
+        benchmark_decoding_latency_and_memory(
+            N_atom_list=[128],
+            N_token_list=[32],
+            block_size=16,
+            device=self.device,
+            num_warmup=1,
+            num_iters=1
+        )
+
+    def test_benchmark_input_embedding_small(self):
+        # Test with small parameters to keep test time reasonable
+        benchmark_input_embedding(
+            N_atom_list=[128],
+            N_token_list=[32],
+            block_size=16,
+            device=self.device,
+            num_warmup=1,
+            num_iters=1,
+            use_optimized=False
+        )
+
+    def test_benchmark_input_embedding_optimized_small(self):
+        # Test with small parameters to keep test time reasonable
+        benchmark_input_embedding(
+            N_atom_list=[128],
+            N_token_list=[32],
+            block_size=16,
+            device=self.device,
+            num_warmup=1,
+            num_iters=1,
+            use_optimized=True
+        )
+
+    def test_main_execution(self):
+        # Test the main execution path
+        with patch('sys.argv', ['benchmark.py']), \
+             patch('rna_predict.benchmarks.benchmark.benchmark_input_embedding') as mock_benchmark_input, \
+             patch('rna_predict.benchmarks.benchmark.benchmark_decoding_latency_and_memory') as mock_benchmark_decoding:
+            
+            if __name__ == '__main__':
+                import rna_predict.benchmarks.benchmark
+                rna_predict.benchmarks.benchmark.main()
+                
+                # Verify both benchmark functions were called
+                mock_benchmark_input.assert_any_call(use_optimized=False)
+                mock_benchmark_input.assert_any_call(use_optimized=True)
+                mock_benchmark_decoding.assert_called_once()
 
 
 if __name__ == "__main__":
