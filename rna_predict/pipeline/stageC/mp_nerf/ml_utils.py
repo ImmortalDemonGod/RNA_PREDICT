@@ -412,6 +412,25 @@ def atom_selector(scn_seq, x, option=None, discard_absent=True):
             "option needs to be a valid string or a mask tensor of shape (14,)"
         )
 
+    # Special handling for Glycine (G) when using backbone-with-cbeta or backbone-with-cbeta-and-oxygen
+    # Glycine doesn't have a CB atom, so we need to adjust the mask for those options
+    if isinstance(option, str) and ("backbone-with-cbeta" in option):
+        # Create a new mask that combines the present mask with the atom mask
+        # but excludes CB for Glycine
+        combined_mask = present * atom_mask.unsqueeze(0).unsqueeze(0).bool()
+        
+        # For each residue in the sequence, if it's Glycine (G), ensure CB is not selected
+        for i, seq in enumerate(scn_seq):
+            if isinstance(seq, str):
+                for j, aa in enumerate(seq):
+                    if aa == 'G':
+                        # Set CB (index 5) to False for Glycine
+                        combined_mask[i, j, 5] = False
+        
+        # Use the combined mask for selection
+        mask = einops.rearrange(combined_mask, "b l c -> b (l c)")
+        return x[mask], mask
+
     try:
         mask = einops.rearrange(
             present * atom_mask.unsqueeze(0).unsqueeze(0).bool(), "b l c -> b (l c)"

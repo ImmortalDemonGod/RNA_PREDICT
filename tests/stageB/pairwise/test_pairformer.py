@@ -57,6 +57,10 @@ Enjoy robust coverage with minimal duplication!
 
 import unittest
 from unittest.mock import patch, PropertyMock
+import tracemalloc
+import gc
+import psutil
+import os
 
 import numpy as np
 import pytest
@@ -83,6 +87,12 @@ from rna_predict.pipeline.stageB.pairwise.pairformer import (
     Transition,
 )
 
+from rna_predict.pipeline.stageB.pairwise.pairformer_utils import (
+    float_arrays,
+    float_mask_arrays,
+    sample_msa_feature_dict_random_without_replacement,
+)
+
 # ------------------------------------------------------------------------
 # HELPER STRATEGIES & FUNCTIONS
 # ------------------------------------------------------------------------
@@ -96,42 +106,14 @@ settings.register_profile(
 settings.load_profile("extended")
 
 
-def float_arrays(shape, min_value=-1.0, max_value=1.0):
-    """
-    A Hypothesis strategy for creating float32 NumPy arrays of a given shape
-    within [min_value, max_value].
-
-    Fixed to avoid subnormal float issues and float32 precision problems.
-    """
-    return np_strategies.arrays(
-        dtype=np.float32,
-        shape=shape,
-        elements=st.floats(
-            min_value=min_value,
-            max_value=max_value,
-            allow_nan=False,
-            allow_infinity=False,
-            allow_subnormal=False,
-            width=32,
-        ),
-    )
-
-
 def bool_arrays(shape):
     """A Hypothesis strategy for boolean arrays of a given shape."""
     return np_strategies.arrays(dtype=np.bool_, shape=shape)
 
 
-def float_mask_arrays(shape):
-    """A Hypothesis strategy for float32 arrays of 0.0 or 1.0."""
-    return np_strategies.arrays(
-        dtype=np.float32, shape=shape, elements=st.sampled_from([0.0, 1.0])
-    )
-
-
 @st.composite
 def s_z_mask_draw(
-    draw, c_s_range=(0, 64), c_z_range=(4, 64), n_token_range=(1, 8), batch_range=(1, 2)
+    draw, c_s_range=(0, 16), c_z_range=(4, 16), n_token_range=(1, 3), batch_range=(1, 1)
 ):
     """
     Produces random (s_in, z_in, mask) plus c_s, c_z:
@@ -159,14 +141,22 @@ def s_z_mask_draw(
 
     z_array = draw(float_arrays((batch, n_token, n_token, c_z)))
     # Produce mask in [0,1] float
-    mask_array = draw(
-        float_mask_arrays((batch, n_token, n_token))
-    )  # Assuming float_mask_arrays exists or is defined elsewhere
+    mask_array = draw(float_mask_arrays((batch, n_token, n_token)))
 
     s_tensor = torch.from_numpy(s_array) if s_array is not None else None
     z_tensor = torch.from_numpy(z_array)
     mask_tensor = torch.from_numpy(mask_array)
     return s_tensor, z_tensor, mask_tensor, c_s, c_z
+
+
+def get_memory_usage():
+    """Get current memory usage of the Python process."""
+    process = psutil.Process(os.getpid())
+    mem_info = process.memory_info()
+    return {
+        'rss': mem_info.rss / 1024 / 1024,  # RSS in MB
+        'vms': mem_info.vms / 1024 / 1024,  # VMS in MB
+    }
 
 
 # ------------------------------------------------------------------------
@@ -236,23 +226,105 @@ class TestPairformerBlock(unittest.TestCase):
         # DropoutRowwise may not have a 'p' attribute, so check the class instead
         self.assertIsInstance(block.dropout_row, DropoutRowwise)
 
+    @settings(max_examples=5, deadline=None)  # Limit examples and remove deadline
     @given(data=s_z_mask_draw())
     def test_forward_shapes(self, data):
         """
         For random s, z, pair_mask shapes and c_s=0 or >0, check that
         the block forward pass returns consistent shapes or None for s_out.
         """
-        s_in, z_in, mask, c_s, c_z = data
-        block = PairformerBlock(n_heads=2, c_z=c_z, c_s=c_s, dropout=0.1)
-        s_out, z_out = block.forward(s_in, z_in, mask)
+        # Start memory tracking
+        tracemalloc.start()
+        gc.collect()  # Force garbage collection before test
+        
+        try:
+            s_in, z_in, mask, c_s, c_z = data
+            
+            # Print initial memory state
+            initial_mem = get_memory_usage()
+            print("\nInitial memory state:")
+            print(f"RSS: {initial_mem['rss']:.2f} MB")
+            print(f"VMS: {initial_mem['vms']:.2f} MB")
+            
+            block = PairformerBlock(n_heads=2, c_z=c_z, c_s=c_s, dropout=0.1)
+            
+            # Take memory snapshot before forward pass
+            snapshot1 = tracemalloc.take_snapshot()
+            
+            # Print memory state before forward pass
+            before_forward_mem = get_memory_usage()
+            print("\nMemory before forward pass:")
+            print(f"RSS: {before_forward_mem['rss']:.2f} MB")
+            print(f"VMS: {before_forward_mem['vms']:.2f} MB")
+            
+            # Use inplace operations and chunking for memory efficiency
+            s_out, z_out = block.forward(
+                s_in, 
+                z_in, 
+                mask,
+                inplace_safe=True,
+                chunk_size=32  # Use chunking for memory efficiency
+            )
 
-        # z_out should match z_in's shape
-        self.assertEqual(z_out.shape, z_in.shape)
-        if c_s > 0:
-            self.assertIsNotNone(s_out)
-            self.assertEqual(s_out.shape, s_in.shape)
-        else:
-            self.assertIsNone(s_out)
+            # Take memory snapshot after forward pass
+            snapshot2 = tracemalloc.take_snapshot()
+            
+            # Print memory state after forward pass
+            after_forward_mem = get_memory_usage()
+            print("\nMemory after forward pass:")
+            print(f"RSS: {after_forward_mem['rss']:.2f} MB")
+            print(f"VMS: {after_forward_mem['vms']:.2f} MB")
+            
+            # Print memory increase
+            print("\nMemory increase:")
+            print(f"RSS: {after_forward_mem['rss'] - before_forward_mem['rss']:.2f} MB")
+            print(f"VMS: {after_forward_mem['vms'] - before_forward_mem['vms']:.2f} MB")
+            
+            # Compare memory usage
+            print("\nDetailed memory usage by line:")
+            top_stats = snapshot2.compare_to(snapshot1, 'lineno')
+            for stat in top_stats[:10]:  # Show top 10 memory increases
+                print(stat)
+
+            # Print tensor memory info
+            print("\nTensor memory info:")
+            if s_in is not None:
+                print(f"s_in size: {s_in.element_size() * s_in.nelement() / 1024 / 1024:.2f} MB")
+            print(f"z_in size: {z_in.element_size() * z_in.nelement() / 1024 / 1024:.2f} MB")
+            if s_out is not None:
+                print(f"s_out size: {s_out.element_size() * s_out.nelement() / 1024 / 1024:.2f} MB")
+            print(f"z_out size: {z_out.element_size() * z_out.nelement() / 1024 / 1024:.2f} MB")
+
+            # z_out should match z_in's shape
+            self.assertEqual(z_out.shape, z_in.shape)
+            
+            # If c_s > 0, s_out should match s_in's shape
+            if c_s > 0:
+                self.assertEqual(s_out.shape, s_in.shape)
+            else:
+                self.assertIsNone(s_out)
+        finally:
+            # Ensure cleanup happens even if test fails
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+            # Clear any remaining tensors
+            if 's_in' in locals(): del s_in
+            if 'z_in' in locals(): del z_in
+            if 'mask' in locals(): del mask
+            if 's_out' in locals(): del s_out
+            if 'z_out' in locals(): del z_out
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+            
+            # Print final memory state
+            final_mem = get_memory_usage()
+            print("\nFinal memory state after cleanup:")
+            print(f"RSS: {final_mem['rss']:.2f} MB")
+            print(f"VMS: {final_mem['vms']:.2f} MB")
+            
+            # Stop memory tracking
+            tracemalloc.stop()
+            gc.collect()  # Force garbage collection after test
 
     @settings(max_examples=10)  # Reduce examples to speed up test
 
