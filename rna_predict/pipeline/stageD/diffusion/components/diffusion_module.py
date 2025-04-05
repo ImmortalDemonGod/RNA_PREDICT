@@ -28,7 +28,7 @@ from rna_predict.pipeline.stageA.input_embedding.current.transformer.atom_attent
 
 # Imports from within the components directory
 from .diffusion_conditioning import DiffusionConditioning
-from .diffusion_utils import _ensure_tensor_shape, _calculate_edm_scaling_factors
+# Removed import from deleted diffusion_utils.py
 
 
 class DiffusionModule(nn.Module):
