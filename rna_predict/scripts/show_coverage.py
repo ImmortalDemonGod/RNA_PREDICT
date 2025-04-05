@@ -214,7 +214,7 @@ def main():
     memprof_csv = 'memory_usage.csv'
     
     print("--- Running Pytest with Coverage and Memory Profiling ---")
-    pytest_cmd = "pytest --cov=rna_predict --cov-branch --memprof-top-n=10 --memprof-csv-file=memory_usage.csv -n auto tests/"
+    pytest_cmd = "pytest --cov=rna_predict --cov-branch --memprof-top-n=10 --memprof-csv-file=memory_usage.csv tests/"
     print(f"Running command: {pytest_cmd}")
     run_command(pytest_cmd)
 
