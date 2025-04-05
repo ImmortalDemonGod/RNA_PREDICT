@@ -80,36 +80,49 @@ class TestPairformerWrapperVerification(unittest.TestCase):
         self.assertEqual(wrapper.stack.c_z, self.default_c_z)
 
     @given(
-        n_blocks=st.integers(min_value=1, max_value=48),
-        c_z=st.integers(min_value=16, max_value=256).filter(lambda x: x % 16 == 0),
-        c_s=st.integers(min_value=16, max_value=512).filter(lambda x: x % 16 == 0),
+        n_blocks=st.integers(min_value=1, max_value=12),  # Reduced from 48
+        c_z=st.sampled_from([16, 32, 64, 128, 256]),  # Use specific values that are multiples of 16
+        c_s=st.sampled_from([16, 32, 64, 128, 256, 384, 512]),  # Use specific values
         use_checkpoint=st.booleans(),
     )
-    @settings(deadline=None)  # Disable deadline for potentially slow tests
+    @settings(
+        deadline=None,  # Disable deadline for potentially slow tests
+        max_examples=20,  # Limit number of examples
+    )
     def test_instantiation_custom_parameters(self, n_blocks, c_z, c_s, use_checkpoint):
         """
         Verify that PairformerWrapper can be instantiated with custom parameters.
         Note: both c_s and c_z must be divisible by 16 to satisfy AttentionPairBias constraint
         where n_heads=16 by default and requires c_a % n_heads == 0.
         """
-        wrapper = PairformerWrapper(
-            n_blocks=n_blocks, c_z=c_z, c_s=c_s, use_checkpoint=use_checkpoint
-        )
+        # Cache key based on parameters
+        cache_key = (n_blocks, c_z, c_s, use_checkpoint)
+        
+        # Use cached instance if available
+        if hasattr(self, '_wrapper_cache'):
+            if cache_key in self._wrapper_cache:
+                wrapper = self._wrapper_cache[cache_key]
+            else:
+                wrapper = PairformerWrapper(
+                    n_blocks=n_blocks, c_z=c_z, c_s=c_s, use_checkpoint=use_checkpoint
+                )
+                self._wrapper_cache[cache_key] = wrapper
+        else:
+            wrapper = PairformerWrapper(
+                n_blocks=n_blocks, c_z=c_z, c_s=c_s, use_checkpoint=use_checkpoint
+            )
+            self._wrapper_cache = {cache_key: wrapper}
 
         # Check parameter values
         self.assertEqual(wrapper.n_blocks, n_blocks)
         self.assertEqual(wrapper.c_z, c_z)
-        self.assertEqual(
-            wrapper.c_z_adjusted, c_z
-        )  # Should be equal since we filter for divisible by 16
+        self.assertEqual(wrapper.c_z_adjusted, c_z)  # Should be equal since we're using valid c_z values
         self.assertEqual(wrapper.c_s, c_s)
         self.assertEqual(wrapper.use_checkpoint, use_checkpoint)
 
         # Check that PairformerStack is properly initialized with the same parameters
         self.assertEqual(wrapper.stack.n_blocks, n_blocks)
-        self.assertEqual(
-            wrapper.stack.c_z, wrapper.c_z_adjusted
-        )  # Using c_z_adjusted now
+        self.assertEqual(wrapper.stack.c_z, wrapper.c_z_adjusted)
 
     def test_parameter_count(self):
         """

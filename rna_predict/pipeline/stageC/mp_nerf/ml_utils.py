@@ -459,9 +459,11 @@ def noise_internals(
         # Sidechain angles - range [-pi, pi]
         angles[:, 6:] = torch.randn(coords.shape[0], 6).to(coords.device) * 0.1
 
+    # Build scaffolds from angles
     scaffolds = build_scaffolds_from_scn_angles(seq, angles.clone())
 
-    if coords is not None:
+    # Only modify scaffolds with coords if coords are provided and not all zeros
+    if coords is not None and not torch.allclose(coords, torch.zeros_like(coords)):
         scaffolds = modify_scaffolds_with_coords(scaffolds, coords)
 
     # noise bond angles and dihedrals (dihedrals of everyone, angles only of BB)

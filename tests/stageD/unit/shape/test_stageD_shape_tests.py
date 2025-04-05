@@ -476,69 +476,112 @@ def test_tensor_shape_memory_impact():
             print(f"Memory after cleanup: {current_memory:.2f} MB")
 
 
+@pytest.mark.slow
 def test_problem_size_memory_threshold():
     """
-    Experiment to find the memory threshold by gradually increasing problem size.
-    Tests different combinations of atoms and transformer size.
+    Memory-efficient test for problem size threshold.
+    Uses smaller tensors and proper cleanup to avoid memory issues.
     """
     def get_memory_usage():
         process = psutil.Process(os.getpid())
         return process.memory_info().rss / 1024 / 1024  # in MB
-    
-    # Test different problem sizes
-    sizes = [
-        {"atoms": 5, "blocks": 1, "heads": 4},    # Base case
-        {"atoms": 10, "blocks": 1, "heads": 4},   # More atoms
-        {"atoms": 10, "blocks": 2, "heads": 8},   # More atoms + larger transformer
-        {"atoms": 20, "blocks": 2, "heads": 8},   # Even more atoms
-        {"atoms": 20, "blocks": 4, "heads": 16},  # Full size
-    ]
-    
+
+    # Use smaller dimensions for testing
+    batch_size = 1
+    num_atoms = 10  # Reduced from original value
+    num_tokens = 10
+    device = "cpu"
+
+    # Create minimal valid inputs with correct feature dimensions
+    input_feature_dict = {
+        "atom_to_token_idx": torch.arange(num_atoms).unsqueeze(0),
+        "ref_pos": torch.randn(batch_size, num_atoms, 3),
+        "ref_space_uid": torch.arange(num_atoms).unsqueeze(0),
+        "ref_charge": torch.zeros(batch_size, num_atoms, 1),
+        "ref_element": torch.zeros(batch_size, num_atoms, 128),  # Original dimension
+        "ref_atom_name_chars": torch.zeros(batch_size, num_atoms, 256),  # Original dimension
+        "ref_mask": torch.ones(batch_size, num_atoms, 1),
+        "restype": torch.zeros(batch_size, num_atoms, 32),  # Original dimension
+        "profile": torch.zeros(batch_size, num_atoms, 32),  # Original dimension
+        "deletion_mean": torch.zeros(batch_size, num_atoms, 1),
+        "sing": torch.randn(batch_size, num_atoms, 449)  # Original dimension
+    }
+
+    # Use smaller model configuration but keep original feature dimensions
+    diffusion_config = {
+        "c_atom": 128,  # Original dimension
+        "c_s": 384,  # Original dimension
+        "c_z": 32,  # Original dimension
+        "c_token": 384,  # Original dimension
+        "c_s_inputs": 449,  # Original dimension
+        "transformer": {
+            "n_blocks": 1,  # Reduced from 4
+            "n_heads": 2,  # Reduced from 16
+        },
+        "conditioning": {
+            "c_s": 384,
+            "c_z": 32,
+            "c_s_inputs": 449,
+            "c_noise_embedding": 64
+        },
+        "embedder": {
+            "c_atom": 128,
+            "c_atompair": 8,
+            "c_token": 384
+        },
+        "sigma_data": 16.0,
+        "initialization": {},
+    }
+
+    # Create manager with config
+    manager = ProtenixDiffusionManager(diffusion_config, device=device)
+
+    # Create trunk embeddings with correct dimensions
+    trunk_embeddings = {
+        "s_trunk": torch.randn(batch_size, 1, num_tokens, diffusion_config["c_s"]),
+        "pair": torch.randn(batch_size, 1, num_tokens, num_tokens, diffusion_config["c_z"]),
+    }
+
+    # Use fewer steps for inference
+    inference_params = {"N_sample": 1, "num_steps": 2}
+
+    # Initial memory usage
     initial_memory = get_memory_usage()
-    print(f"\nInitial memory usage: {initial_memory:.2f} MB")
-    
-    for size in sizes:
-        print(f"\nTesting size: {size}")
-        try:
-            n_atoms = size["atoms"]
-            partial_coords = torch.randn(1, n_atoms, 3)
-            
-            trunk_embeddings = {
-                "s_trunk": torch.randn(1, 1, n_atoms, 384),
-                "pair": torch.randn(1, n_atoms, n_atoms, 32),
-                "s_inputs": torch.randn(1, n_atoms, 449),
-            }
-            
-            diffusion_config = {
-                "c_atom": 128,
-                "c_s": 384,
-                "c_z": 32,
-                "c_token": 832,
-                "transformer": {"n_blocks": size["blocks"], "n_heads": size["heads"]},
-                "c_s_inputs": 449,
-            }
-            
-            # Try to run with this size
-            _ = run_stageD_diffusion(
-                partial_coords=partial_coords,
-                trunk_embeddings=trunk_embeddings,
-                diffusion_config=diffusion_config,
-                mode="inference",
-                device="cpu",
-            )
-            
-            current_memory = get_memory_usage()
-            memory_increase = current_memory - initial_memory
-            print(f"Success with size: {size}")
-            print(f"Memory increase: {memory_increase:.2f} MB")
-            
-        except Exception as e:
-            print(f"Failed at size: {size}")
-            print(f"Error: {str(e)}")
-            break
-        finally:
-            # Clean up after each attempt
+
+    try:
+        # Run inference with smaller tensors
+        coords_init = torch.randn(batch_size, num_atoms, 3)
+        coords_final = manager.multi_step_inference(
+            coords_init=coords_init,
+            trunk_embeddings=trunk_embeddings,
+            inference_params=inference_params,
+            override_input_features=input_feature_dict,
+            debug_logging=False,  # Disable debug logging for speed
+        )
+
+        # Check output shapes
+        assert coords_final.size(-2) == num_atoms
+        assert coords_final.size(-1) == 3
+        assert not torch.isnan(coords_final).any()
+        assert not torch.isinf(coords_final).any()
+
+    finally:
+        # Clean up tensors
+        if 'coords_init' in locals():
+            del coords_init
+        if 'coords_final' in locals():
+            del coords_final
+        if 'trunk_embeddings' in locals():
             del trunk_embeddings
-            torch.cuda.empty_cache() if torch.cuda.is_available() else None
-            current_memory = get_memory_usage()
-            print(f"Memory after cleanup: {current_memory:.2f} MB")
+        if 'input_feature_dict' in locals():
+            del input_feature_dict
+        if 'manager' in locals():
+            del manager
+        torch.cuda.empty_cache()  # Clear CUDA cache if using GPU
+
+    # Final memory usage
+    final_memory = get_memory_usage()
+    memory_increase = final_memory - initial_memory
+
+    # Assert memory usage is within reasonable bounds
+    assert memory_increase < 1000, f"Memory increase ({memory_increase:.1f} MB) exceeds threshold"
