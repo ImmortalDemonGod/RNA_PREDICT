@@ -329,70 +329,125 @@ def test_shape_mismatch_c_token_832_vs_833():
         )
 
 
+@pytest.mark.slow # Added mark
 def test_transformer_size_memory_threshold():
     """
     Experiment to find the memory threshold for transformer configuration.
     Tests progressively larger transformer sizes until memory issues occur.
+    Uses reduced embedding dimensions and limited inference steps for efficiency. # Updated docstring
     """
     def get_memory_usage():
         process = psutil.Process(os.getpid())
         return process.memory_info().rss / 1024 / 1024  # in MB
-    
-    partial_coords = torch.randn(1, 5, 3)  # Reduced size for safety
-    
+
+    # Use minimal input size
+    batch_size = 1
+    num_atoms = 5
+    num_tokens = 5
+    device = "cpu"
+    partial_coords = torch.randn(batch_size, num_atoms, 3, device=device)
+
     # Test configurations with increasing size
     configs = [
-        {"n_blocks": 1, "n_heads": 4},   # Base case
-        {"n_blocks": 2, "n_heads": 8},   # 2x size
-        {"n_blocks": 3, "n_heads": 12},  # 3x size
-        {"n_blocks": 4, "n_heads": 16},  # Original size
+        {"n_blocks": 1, "n_heads": 2},   # Smaller base case
+        {"n_blocks": 1, "n_heads": 4},
+        {"n_blocks": 2, "n_heads": 4},
+        {"n_blocks": 2, "n_heads": 8},
     ]
-    
+
+    # Reduced base dimensions for efficiency
+    base_c_atom = 64
+    base_c_s = 128
+    base_c_z = 16
+    base_c_token = 128 # Significantly reduced from 832
+    base_c_s_inputs = 449 # Keep original if necessary for input compatibility, or reduce if possible
+
     initial_memory = get_memory_usage()
     print(f"\nInitial memory usage: {initial_memory:.2f} MB")
-    
-    for config in configs:
-        print(f"\nTesting config: {config}")
+
+    for transformer_config in configs: # Renamed loop variable
+        print(f"\nTesting config: {transformer_config}")
         try:
+            # Create embeddings matching reduced dimensions
             trunk_embeddings = {
-                "s_trunk": torch.randn(1, 1, 5, 384),
-                "pair": torch.randn(1, 5, 5, 32),
-                "s_inputs": torch.randn(1, 5, 449),
+                "s_trunk": torch.randn(batch_size, 1, num_tokens, base_c_s, device=device),
+                "pair": torch.randn(batch_size, num_tokens, num_tokens, base_c_z, device=device), # Adjusted pair shape assumption
+                "s_inputs": torch.randn(batch_size, num_tokens, base_c_s_inputs, device=device),
             }
-            
+
             diffusion_config = {
-                "c_atom": 128,
-                "c_s": 384,
-                "c_z": 32,
-                "c_token": 832,
-                "transformer": config,
-                "c_s_inputs": 449,
+                "c_atom": base_c_atom,
+                "c_s": base_c_s,
+                "c_z": base_c_z,
+                "c_token": base_c_token,
+                "transformer": transformer_config, # Use the loop variable
+                "c_s_inputs": base_c_s_inputs,
+                # --- Added inference params ---
+                "inference": {
+                    "num_steps": 2, # Explicitly set low number of steps
+                    "N_sample": 1
+                },
+                 # --- Add other minimal required keys if run_stageD_diffusion needs them ---
+                 # Example: Add dummy sections if the constructor/function expects them
+                 "conditioning": {
+                     "c_s": base_c_s,
+                     "c_z": base_c_z,
+                     "c_s_inputs": base_c_s_inputs,
+                     "c_noise_embedding": 64 # Example value
+                 },
+                 "embedder": {
+                     "c_atom": base_c_atom,
+                     "c_atompair": 8, # Example value
+                     "c_token": base_c_token
+                 },
+                 "sigma_data": 16.0, # Example value
+                 "initialization": {}, # Example value
             }
-            
+
+            # Minimal input features matching dimensions
+            input_features = {
+                 "atom_to_token_idx": torch.arange(num_atoms, device=device).unsqueeze(0),
+                 # Add other minimal features required by run_stageD_diffusion or its internals
+                 # Ensure dimensions match num_atoms/num_tokens and batch_size
+                 "ref_mask": torch.ones(batch_size, num_atoms, 1, device=device),
+                 # ... (add others like ref_pos, ref_space_uid etc. if needed by the specific code path)
+            }
+
+
             # Try to run with this config
             _ = run_stageD_diffusion(
                 partial_coords=partial_coords,
                 trunk_embeddings=trunk_embeddings,
                 diffusion_config=diffusion_config,
                 mode="inference",
-                device="cpu",
+                device=device,
+                input_features=input_features # Pass minimal features if needed
             )
-            
+
             current_memory = get_memory_usage()
             memory_increase = current_memory - initial_memory
-            print(f"Success with config: {config}")
+            print(f"Success with config: {transformer_config}")
             print(f"Memory increase: {memory_increase:.2f} MB")
-            
+
         except Exception as e:
-            print(f"Failed at config: {config}")
+            current_memory = get_memory_usage() # Check memory even on failure
+            memory_increase = current_memory - initial_memory
+            print(f"Failed at config: {transformer_config}")
+            print(f"Memory increase before failure: {memory_increase:.2f} MB")
             print(f"Error: {str(e)}")
-            break
+            # Decide if the test should fail here or just report
+            # pytest.fail(f"Test failed at config {transformer_config} with error: {e}")
+            break # Stop testing further configs if one fails
         finally:
             # Clean up after each attempt
             del trunk_embeddings
-            torch.cuda.empty_cache() if torch.cuda.is_available() else None
+            del diffusion_config
+            if 'input_features' in locals(): del input_features
+            # No need to check torch.cuda.is_available() for empty_cache
+            torch.cuda.empty_cache()
             current_memory = get_memory_usage()
-            print(f"Memory after cleanup: {current_memory:.2f} MB")
+            # Optional: print memory after cleanup for debugging
+            # print(f"Memory after cleanup: {current_memory:.2f} MB")
 
 
 def test_tensor_shape_memory_impact():

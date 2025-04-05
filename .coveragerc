@@ -5,6 +5,7 @@ parallel = True
 concurrency = multiprocessing,thread
 omit =
     */tests/*
+    */scripts/*
 
 [report]
 fail_under = 0
