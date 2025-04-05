@@ -4,7 +4,7 @@ import sys
 import argparse
 import os
 import re
-from typing import Tuple, List, Optional
+from typing import Set, Tuple, List, Optional
 
 def run_command(command, check=True, capture_output=False, text=True):
     """Runs a command using subprocess and handles errors."""
@@ -170,9 +170,45 @@ def get_least_covered_report(report_output: str) -> Tuple[str, Optional[str]]:
     return minimal_report, least_covered_path # Return report and path
 
 
+def parse_missing_lines(missing_str: str) -> Set[int]:
+    """Parses a coverage 'Missing' string (e.g., '5-10, 15, 22-24') into a set of line numbers."""
+    lines = set()
+    if not missing_str:
+        return lines
+    # Remove any surrounding whitespace that might interfere
+    missing_str = missing_str.strip()
+    parts = missing_str.split(',')
+    for part in parts:
+        part = part.strip()
+        if not part:
+            continue
+        if '-' in part:
+            try:
+                # Handle potential empty strings from split if range is malformed like '5-'
+                range_parts = [p for p in part.split('-') if p]
+                if len(range_parts) == 2:
+                    start, end = map(int, range_parts)
+                    if start > end: # Handle cases like '10-5' if they occur
+                        print(f"Warning: Correcting inverted range '{part}' to '{end}-{start}'.", file=sys.stderr)
+                        start, end = end, start
+                    lines.update(range(start, end + 1))
+                else:
+                     print(f"Warning: Could not parse range '{part}' in missing lines string.", file=sys.stderr)
+
+            except ValueError:
+                print(f"Warning: Could not parse range '{part}' in missing lines string.", file=sys.stderr)
+        else:
+            try:
+                lines.add(int(part))
+            except ValueError:
+                 print(f"Warning: Could not parse line number '{part}' in missing lines string.", file=sys.stderr)
+    return lines
+
+
+
 def main():
     parser = argparse.ArgumentParser(
-        description="Run pytest with coverage and show the report. Can filter by file path/pattern or show the least covered file."
+        description="Run pytest with coverage and show the report. Can filter by file path/pattern or show the least covered file's untested lines."
     )
     # Group for mutually exclusive arguments
     group = parser.add_mutually_exclusive_group()
@@ -186,7 +222,7 @@ def main():
     group.add_argument(
         "--least-covered",
         action="store_true",
-        help="Show only the header, total, and the file with the lowest coverage percentage (with >0 statements).",
+        help="Show the file with the lowest coverage percentage (with >0 statements) and its actual untested lines.",
     )
     args = parser.parse_args()
 
@@ -198,31 +234,86 @@ def main():
 
     # Run tests under coverage
     # Run without capturing output so user sees pytest progress/results directly
+    print("--- Running Pytest with Coverage ---")
     run_command(pytest_command, capture_output=False)
 
     # Combine coverage data from parallel runs (necessary if -n auto was used)
-    # Check if .coverage files exist before combining
-    if any(fname.startswith('.coverage.') for fname in os.listdir('.')):
-        run_command(combine_command, capture_output=False)
-    else:
-        # If no parallel files, maybe it ran sequentially or failed early.
-        # Check if the main .coverage file exists.
-        if not os.path.exists(".coverage"):
-             print("Warning: No .coverage data file found after pytest run.", file=sys.stderr)
-             # Attempt to run report anyway, it might use older data or fail clearly
-        else:
-             print("No parallel coverage files found, skipping 'coverage combine'.")
-
+    print("\n--- Combining Coverage Data ---")
+    run_command(combine_command, capture_output=False)
 
     # Generate and capture the text report
+    print("\n--- Generating Full Coverage Report ---")
     report_result = run_command(report_command, capture_output=True)
     report_output = report_result.stdout
 
     # Print the report based on arguments
     if args.least_covered:
-        print("\n--- Least Covered File Report ---")
-        least_covered_report = get_least_covered_report(report_output)
-        print(least_covered_report)
+        print("\n--- Least Covered File Summary ---")
+        minimal_report, least_covered_path = get_least_covered_report(report_output)
+        print(minimal_report) # Print Header, Separator, Least Covered Line, Total
+
+        # If a least covered file was found, get its missing lines and print them
+        if least_covered_path:
+            print(f"\n--- Fetching Untested Lines for {least_covered_path} ---")
+            # Command to get detailed report for the specific file including missing lines ('-m')
+            # Use --fail-under=0 to prevent exit due to low coverage itself
+            detail_report_command = ["coverage", "report", "-m", "--fail-under=0", least_covered_path]
+            detail_result = run_command(detail_report_command, capture_output=True, check=False) # Don't exit if coverage < 100
+            detail_output_lines = detail_result.stdout.strip().split('\n')
+
+            missing_str = None
+            # Parse the detailed report output for the 'Missing' column string
+            if len(detail_output_lines) >= 3: # Header, Separator, File Line
+                file_report_line = detail_output_lines[2] # The line with stats for the file
+                parts = file_report_line.split()
+                if len(parts) > 1: # Should have at least Name and Stmts
+                    # Check if the last part looks like a missing line specification
+                    potential_missing = parts[-1]
+                    # Regex to check if it contains digits, commas, hyphens only (allowing whitespace)
+                    if re.match(r'^[\d,\s-]+$', potential_missing.strip()):
+                        missing_str = potential_missing
+                    # Else: Assume 100% coverage or unexpected format, missing_str remains None
+
+            missing_lines_set = set()
+            if missing_str:
+                missing_lines_set = parse_missing_lines(missing_str)
+            elif detail_result.returncode == 0: # Only print if command succeeded but no missing str found
+                 print(f"(Coverage report indicates no missing lines for {least_covered_path} or failed to parse missing column)")
+
+
+            # Read the source file content
+            source_lines = []
+            try:
+                # Ensure the path exists before trying to open
+                if os.path.exists(least_covered_path):
+                    with open(least_covered_path, 'r') as f:
+                        source_lines = f.readlines()
+                else:
+                     print(f"Error: Source file not found at path: {least_covered_path}", file=sys.stderr)
+            except Exception as e:
+                print(f"Error reading source file {least_covered_path}: {e}", file=sys.stderr)
+
+            # Print the untested lines
+            if source_lines and missing_lines_set:
+                print(f"\n--- Untested lines of code in {least_covered_path} ---")
+                sorted_missing_lines = sorted(list(missing_lines_set))
+                max_line_num_width = len(str(sorted_missing_lines[-1])) if sorted_missing_lines else 1
+
+                for line_num in sorted_missing_lines:
+                    if 1 <= line_num <= len(source_lines):
+                        line_content = source_lines[line_num - 1].rstrip() # Use rstrip to remove trailing newline
+                        print(f"{line_num:<{max_line_num_width}d} | {line_content}")
+                    else:
+                        # This case should be rare if coverage report is accurate, but handle defensively
+                        print(f"Warning: Line number {line_num} reported as missing, but is out of range (1-{len(source_lines)}) for file {least_covered_path}", file=sys.stderr)
+            elif source_lines and not missing_lines_set and missing_str is None and detail_result.returncode == 0:
+                # If we successfully read the file, parsed the report, and found no missing lines reported
+                pass # Message already printed above
+            elif not source_lines and least_covered_path:
+                 # Error reading file was already printed
+                 print(f"(Could not display untested lines for {least_covered_path} due to file read error)")
+
+
     elif args.file_pattern:
         print("\n--- Filtered Coverage Report ---")
         filtered_report = filter_coverage_report(report_output, args.file_pattern)
