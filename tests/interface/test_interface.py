@@ -194,9 +194,28 @@ class TestPredict3DStructure(unittest.TestCase):
         try:
             result = self.predictor.predict_3d_structure(sequence)
             self.assertIn("coords", result)
-        except (RuntimeError, OSError):
-            # If no real model is found or environment lacks GPU, we pass.
-            pass
+            self.assertIn("atom_count", result)
+            
+            # Validate coords tensor
+            coords = result["coords"]
+            self.assertTrue(torch.is_tensor(coords), "coords should be a tensor")
+            self.assertEqual(coords.dim(), 3, "coords should be 3D tensor [N, atoms, 3]")
+            self.assertEqual(coords.shape[-1], 3, "last dimension should be 3 for x,y,z")
+            
+            # Check for NaN/Inf values
+            self.assertFalse(torch.isnan(coords).any(), "coords should not contain NaN values")
+            self.assertFalse(torch.isinf(coords).any(), "coords should not contain Inf values")
+            
+            # Validate atom_count
+            self.assertIsInstance(result["atom_count"], int, "atom_count should be an integer")
+            self.assertGreaterEqual(result["atom_count"], 0, "atom_count should be non-negative")
+            
+        except (RuntimeError, OSError, ValueError, IndexError) as e:
+            # If no real model is found or environment lacks GPU, we pass
+            if "CUDA" in str(e) or "model" in str(e).lower():
+                pass
+            else:
+                raise  # Re-raise other errors
 
 
 # --------------------------------------------------------------------------------------
