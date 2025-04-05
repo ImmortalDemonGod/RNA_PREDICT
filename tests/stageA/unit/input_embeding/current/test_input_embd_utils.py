@@ -53,7 +53,7 @@ import numpy as np
 import torch
 
 # Hypothesis & related imports
-from hypothesis import example, given
+from hypothesis import example, given, settings
 from hypothesis import strategies as st
 from hypothesis.extra.numpy import arrays
 from hypothesis.strategies import integers
@@ -156,17 +156,14 @@ class TestCentreRandomAugmentation(BaseUtilsTest):
         self.assertTrue(torch.allclose(out[0], expected, atol=1e-5))
 
     @given(coords=arrays(dtype=np.float32, shape=(5, 3), elements=float32_floats))
-    @example(
-        coords=np.array(
-            [[0, 0, 0], [1, 1, 1], [5, 5, 5], [5, 5, 5], [2, 2, 2]], dtype=np.float32
-        )
-    )
+    @example(coords=np.array([[0, 0, 0], [1, 1, 1], [5, 5, 5], [5, 5, 5], [2, 2, 2]], dtype=np.float32))
+    @settings(deadline=None)  # Disable deadline since this test can be slow on first run
     def test_random_augmentation_hypothesis(self, coords):
         """
         Fuzz test using Hypothesis. We create random Nx3 coords,
         call centre_random_augmentation, ensuring shape correctness and no crash.
         """
-        tensor_coords = torch.from_numpy(coords)
+        tensor_coords = torch.from_numpy(coords) if isinstance(coords, np.ndarray) else coords
         # e.g. N_sample=2 => shape => [2, N, 3]
         out = utils.centre_random_augmentation(
             tensor_coords, N_sample=2, centre_only=False
