@@ -147,7 +147,13 @@ def mp_nerf_torch(params: MpNerfParams) -> torch.Tensor:
     if isinstance(chi, float):
         chi = torch.tensor(chi, device=a.device, dtype=a.dtype)
 
-    # safety check
+    # Validate inputs
+    if torch.isnan(a).any() or torch.isnan(b).any() or torch.isnan(c).any():
+        raise ValueError("Input coordinates contain NaN values")
+    if torch.isnan(bond_length).any() or torch.isnan(theta).any() or torch.isnan(chi).any():
+        raise ValueError("Input angles or bond length contain NaN values")
+
+    # safety check for theta
     if not ((-np.pi <= theta) * (theta <= np.pi)).all().item():
         # Clamp theta to valid range instead of raising error
         theta = torch.clamp(theta, -np.pi, np.pi)
@@ -171,7 +177,13 @@ def mp_nerf_torch(params: MpNerfParams) -> torch.Tensor:
 
     # extend base point, set length
     # bond_length is guaranteed to be a Tensor here due to the conversion above
-    return c + bond_length.unsqueeze(-1) * torch.matmul(rotate, d).squeeze()
+    result = c + bond_length.unsqueeze(-1) * torch.matmul(rotate, d).squeeze()
+
+    # Final validation
+    if torch.isnan(result).any():
+        raise ValueError("NaN values in output coordinates")
+
+    return result
 
 
 def scn_rigid_index_mask(seq: str, c_alpha: bool = False) -> torch.Tensor:
