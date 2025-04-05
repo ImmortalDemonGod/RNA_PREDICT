@@ -441,6 +441,13 @@ def noise_internals(
     assert angles is not None or coords is not None, (
         "You must pass either angles or coordinates"
     )
+    
+    # Initialize coords if not provided
+    if coords is None:
+        coords = torch.zeros(len(seq), 14, 3)
+        if angles is not None:
+            coords = coords.to(angles.device)
+    
     # get scaffolds
     if angles is None:
         # Create random angles in valid ranges
