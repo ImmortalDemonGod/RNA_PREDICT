@@ -5,6 +5,7 @@ from typing import Dict, List, Optional, Tuple
 import einops
 import numpy as np
 import torch
+from torch.nn.utils.rnn import pad_sequence  # Added import
 
 from rna_predict.pipeline.stageC.mp_nerf.massive_pnerf import (
     get_axis_matrix,
@@ -35,7 +36,7 @@ def scn_atom_embedd(seq_list: List[str]) -> torch.Tensor:
         seq_list: List of amino acid sequences
 
     Returns:
-        torch.Tensor: Token embeddings for each atom in each sequence
+        torch.Tensor: Token embeddings for each atom in each sequence, padded to the maximum sequence length. Shape: (batch_size, max_seq_len, 14)
     """
     # Create a list of tensors for each sequence
     batch_tokens = []
@@ -52,10 +53,14 @@ def scn_atom_embedd(seq_list: List[str]) -> torch.Tensor:
             else:
                 # Handle unexpected characters by using padding
                 token_masks.append(np.full(14, pad_token_id))
-        batch_tokens.append(torch.tensor(np.array(token_masks)))
+        # Ensure the tensor for each sequence is (seq_len, 14)
+        batch_tokens.append(torch.tensor(np.array(token_masks), dtype=torch.long))
 
-    # Stack the tensors along the batch dimension
-    return torch.stack(batch_tokens, dim=0).long()
+    # Pad the sequences to the maximum length in the batch
+    # pad_sequence expects (L, *) input, batch_first=True gives (B, L_max, *) output
+    padded_batch = pad_sequence(batch_tokens, batch_first=True, padding_value=pad_token_id)
+
+    return padded_batch.long()
 
 
 def chain2atoms(
@@ -197,8 +202,12 @@ def torsion_angle_loss(pred_torsions, true_torsions, coeff=2.0, angle_mask=None)
     l_normal = torch.cos(pred_torsions - true_torsions)
     l_cycle = torch.cos(to_zero_two_pi(pred_torsions) - to_zero_two_pi(true_torsions))
     maxi = torch.max(l_normal, l_cycle)
+    # Handle potential NaNs from invalid inputs (e.g., inf)
+    # Replace NaN with 1.0 (max cosine similarity) -> zero loss for these entries
+    maxi = torch.nan_to_num(maxi, nan=1.0)
     if angle_mask is not None:
-        maxi[angle_mask] = 1.0
+        # Ensure angle_mask is boolean before indexing
+        maxi[angle_mask.bool()] = 1.0
     return coeff * (1 - maxi)
 
 
@@ -331,7 +340,16 @@ def fape_torch(
 
             fape_store.append(fape_val)
 
-    return (1 / max_val) * torch.stack(fape_store, dim=0)
+    # Check for zero max_val before division
+    eps = 1e-8 # Epsilon for zero check
+    if max_val < eps:
+        # Handle zero max_val case: return 0 or some indicator?
+        # Returning 0 if max_val is zero, assuming zero error scale means zero error.
+        # Or, if FAPE should be 1 in this case, return torch.ones_like(...)
+        # Need to ensure the output tensor has the correct device
+        return torch.zeros(len(fape_store), device=pred_coords.device)
+    else:
+        return (1 / max_val) * torch.stack(fape_store, dim=0)
 
 
 def atom_selector(scn_seq, x, option=None, discard_absent=True):
@@ -643,59 +661,6 @@ def combine_noise(
             noised_coords = true_coords + noise
 
     return noised_coords, cloud_mask_flat
-
-
-def get_symmetric_atom_pairs(seq: str) -> Dict[str, List[Tuple[int, int]]]:
-    """
-    Get symmetric atom pairs for each residue type in the sequence.
-
-    Args:
-        seq: Amino acid sequence in one-letter code
-
-    Returns:
-        Dictionary mapping residue types to lists of symmetric atom pairs
-    """
-    # Define symmetric atom pairs for each residue type
-    symmetric_pairs = {
-        "A": [],  # Alanine has no symmetric atoms
-        "C": [(4, 5)],  # Cysteine: SG and HG
-        "D": [(4, 5), (6, 7)],  # Aspartic acid: CG, OD1, OD2
-        "E": [(4, 5), (6, 7), (8, 9)],  # Glutamic acid: CG, CD, OE1, OE2
-        "F": [
-            (4, 5),
-            (6, 7),
-            (8, 9),
-            (10, 11),
-        ],  # Phenylalanine: CG, CD1, CD2, CE1, CE2
-        "G": [],  # Glycine has no symmetric atoms
-        "H": [(4, 5), (6, 7), (8, 9)],  # Histidine: CG, ND1, CD2, CE1, NE2
-        "I": [(4, 5)],  # Isoleucine: CG1, CG2
-        "K": [(4, 5), (6, 7), (8, 9)],  # Lysine: CG, CD, CE, NZ
-        "L": [(4, 5), (6, 7)],  # Leucine: CG, CD1, CD2
-        "M": [],  # Methionine has no symmetric atoms
-        "N": [(4, 5), (6, 7)],  # Asparagine: CG, OD1, ND2
-        "P": [],  # Proline has no symmetric atoms
-        "Q": [(4, 5), (6, 7), (8, 9)],  # Glutamine: CG, CD, OE1, NE2
-        "R": [(4, 5), (6, 7), (8, 9), (10, 11)],  # Arginine: CG, CD, NE, CZ, NH1, NH2
-        "S": [(4, 5)],  # Serine: OG, HG
-        "T": [(4, 5)],  # Threonine: OG1, CG2
-        "V": [(4, 5)],  # Valine: CG1, CG2
-        "W": [
-            (4, 5),
-            (6, 7),
-            (8, 9),
-            (10, 11),
-        ],  # Tryptophan: CG, CD1, CD2, NE1, CE2, CE3
-        "Y": [(4, 5), (6, 7), (8, 9), (10, 11)],  # Tyrosine: CG, CD1, CD2, CE1, CE2, OH
-    }
-
-    # Create a dictionary mapping residue indices to their symmetric pairs
-    result = {}
-    for i, res in enumerate(seq):
-        if res in symmetric_pairs:
-            result[str(i)] = symmetric_pairs[res]
-
-    return result
 
 
 if __name__ == "__main__":
