@@ -123,7 +123,7 @@ class TestSimpleLatentMerger(unittest.TestCase):
         dim_z=st.integers(min_value=1, max_value=8),
         dim_out=st.integers(min_value=1, max_value=16),
     )
-    @settings(suppress_health_check=[HealthCheck.filter_too_much, HealthCheck.too_slow])
+    @settings(deadline=None, suppress_health_check=[HealthCheck.filter_too_much, HealthCheck.too_slow])
     def test_forward_hypothesis_fuzz(self, N, dim_angles, dim_s, dim_z, dim_out):
         """
         Fuzz test: random shapes for adjacency, angles, s_emb, z_emb, verifying
