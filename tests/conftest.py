@@ -6,7 +6,13 @@ import pytest
 import psutil
 import os
 import time
+import faulthandler
 from datetime import datetime
+
+# Enable faulthandler with a timeout
+faulthandler.enable()
+# Set timeout to 60 seconds
+faulthandler.dump_traceback_later(60, repeat=False)
 
 def get_memory_usage():
     """Get current memory usage of the Python process."""
@@ -39,6 +45,9 @@ class MemoryUsagePlugin:
     
     def __init__(self):
         self.memory_usage = {}
+        # Create memory_logs directory if it doesn't exist
+        self.log_dir = "memory_logs"
+        os.makedirs(self.log_dir, exist_ok=True)
     
     @pytest.hookimpl(hookwrapper=True)
     def pytest_runtest_makereport(self, item, call):
@@ -96,9 +105,9 @@ class MemoryUsagePlugin:
                 f"  Duration: {mem_info['duration']:.2f}s\n"
             )
         
-        # Save summary to file
+        # Save summary to file in memory_logs directory
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        summary_file = f"memory_usage_{timestamp}.txt"
+        summary_file = os.path.join(self.log_dir, f"memory_usage_{timestamp}.txt")
         with open(summary_file, "w") as f:
             f.write("Memory Usage Summary:\n")
             f.write("=" * 80 + "\n")
