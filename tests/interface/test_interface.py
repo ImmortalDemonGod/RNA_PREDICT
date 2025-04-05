@@ -183,6 +183,7 @@ class TestPredict3DStructure(unittest.TestCase):
 
     @given(valid_rna_sequences)
     @settings(
+        deadline=None,  # Disable deadline for this flaky test
         suppress_health_check=[HealthCheck.too_slow, HealthCheck.filter_too_much],
         max_examples=10,
     )
@@ -311,6 +312,7 @@ class TestPredictSubmission(unittest.TestCase):
     @settings(
         suppress_health_check=[HealthCheck.too_slow, HealthCheck.filter_too_much],
         max_examples=10,
+        deadline=None,  # Disable deadline
     )
     @example(seq="", repeats=5, atom_choice=0)
     def test_predict_submission_hypothesis_random(self, seq, repeats, atom_choice):

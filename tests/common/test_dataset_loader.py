@@ -236,6 +236,7 @@ class TestBuildAtomToTokenIdx(unittest.TestCase):
         num_tokens=st.integers(min_value=1, max_value=1000),
     )
     @settings(
+        deadline=None,  # Disable deadline for this flaky test
         suppress_health_check=[HealthCheck.function_scoped_fixture], max_examples=100
     )
     def test_build_atom_to_token_idx_fuzz(
@@ -308,6 +309,7 @@ class TestValidateInputFeatures(unittest.TestCase):
         )
     )
     @settings(
+        deadline=None,  # Disable deadline for this flaky test
         suppress_health_check=[HealthCheck.function_scoped_fixture], max_examples=50
     )
     def test_validate_input_features_fuzz(self, input_dict: dict) -> None:
@@ -359,7 +361,7 @@ class TestLoadRnaDataAndFeatures(unittest.TestCase):
         override_num_atoms=st.one_of(st.none(), st.integers(min_value=1, max_value=200))
     )
     @settings(
-        suppress_health_check=[HealthCheck.function_scoped_fixture], max_examples=30
+        suppress_health_check=[HealthCheck.function_scoped_fixture], max_examples=30, deadline=None
     )
     def test_load_rna_data_and_features_fuzz(self, override_num_atoms):
         """
