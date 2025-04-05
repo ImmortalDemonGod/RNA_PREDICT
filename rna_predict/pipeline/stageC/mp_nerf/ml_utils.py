@@ -447,6 +447,18 @@ def noise_internals(
         coords = torch.zeros(len(seq), 14, 3)
         if angles is not None:
             coords = coords.to(angles.device)
+            # Initialize first residue's backbone atoms with standard geometry
+            # N at origin
+            coords[0, 0] = torch.tensor([0.0, 0.0, 0.0], device=angles.device)
+            # CA at standard N-CA bond length (1.458 Å) along x-axis
+            coords[0, 1] = torch.tensor([1.458, 0.0, 0.0], device=angles.device)
+            # C at standard CA-C bond length (1.525 Å) and N-CA-C angle (111.2°)
+            angle_nca_c = 111.2 * np.pi / 180.0  # Convert to radians
+            coords[0, 2] = torch.tensor([
+                1.458 + 1.525 * np.cos(angle_nca_c),
+                1.525 * np.sin(angle_nca_c),
+                0.0
+            ], device=angles.device)
     
     # get scaffolds
     if angles is None:
@@ -458,9 +470,20 @@ def noise_internals(
         angles[:, 3:6] = torch.ones(coords.shape[0], 3).to(coords.device) * np.pi + torch.randn(coords.shape[0], 3).to(coords.device) * 0.1
         # Sidechain angles - range [-pi, pi]
         angles[:, 6:] = torch.randn(coords.shape[0], 6).to(coords.device) * 0.1
+    else:
+        # Ensure angles are in valid ranges
+        angles = angles.clone()  # Don't modify the input tensor
+        # Clamp bond angles to valid range [pi/2, 3pi/2]
+        angles[:, 3:6] = torch.clamp(angles[:, 3:6], min=np.pi/2, max=3*np.pi/2)
+        # Wrap torsion angles to [-pi, pi]
+        angles[:, :3] = torch.remainder(angles[:, :3] + np.pi, 2 * np.pi) - np.pi
+        angles[:, 6:] = torch.remainder(angles[:, 6:] + np.pi, 2 * np.pi) - np.pi
 
     # Build scaffolds from angles
-    scaffolds = build_scaffolds_from_scn_angles(seq, angles.clone())
+    scaffolds = build_scaffolds_from_scn_angles(seq, angles)
+
+    # Replace any NaN values in angles_mask with zeros
+    scaffolds["angles_mask"] = torch.nan_to_num(scaffolds["angles_mask"], nan=0.0)
 
     # Only modify scaffolds with coords if coords are provided and not all zeros
     if coords is not None and not torch.allclose(coords, torch.zeros_like(coords)):
@@ -480,12 +503,15 @@ def noise_internals(
         # dihedrals
         noised_dihedrals = scaffolds["angles_mask"][1].clone()
         noise = noise_scale * torch.randn_like(noised_dihedrals)
-        noised_dihedrals = noised_dihedrals + noise
-        # get noised values between [-pi, pi]
-        noised_dihedrals = torch.remainder(noised_dihedrals + np.pi, 2 * np.pi) - np.pi
+        # Wrap dihedrals to [-pi, pi]
+        noised_dihedrals = torch.remainder(noised_dihedrals + noise + np.pi, 2 * np.pi) - np.pi
         scaffolds["angles_mask"][1] = noised_dihedrals
 
-    # reconstruct
+    # Ensure no NaN values in scaffolds
+    for key, value in scaffolds.items():
+        if torch.isnan(value).any():
+            raise ValueError(f"NaN values found in scaffold {key}")
+
     return protein_fold(**scaffolds)
 
 
