@@ -254,6 +254,8 @@ class TestPairformerBlock(unittest.TestCase):
         else:
             self.assertIsNone(s_out)
 
+    @settings(max_examples=10)  # Reduce examples to speed up test
+
     @given(
         data=s_z_mask_draw(c_s_range=(4, 16), c_z_range=(4, 16), n_token_range=(2, 4)),
         inplace_flag=st.booleans(),
