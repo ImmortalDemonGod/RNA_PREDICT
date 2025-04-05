@@ -276,8 +276,12 @@ class Attn(nn.Module):
         normed_x = self.norm(x)
         qk = self.to_qk(normed_x)
         q, k = self.offsetscale(qk)
-        sim = einsum("b i d, b j d -> b i j", q, k) / seq_len
+        # Scale the dot product by sqrt of query dimension for better numerical stability
+        sim = einsum("b i d, b j d -> b i j", q, k) / (seq_len ** 0.5)
+        # Apply ReLU and square for non-negative attention scores
         attn = F.relu(sim) ** 2
+        # Normalize attention scores
+        attn = attn / (attn.sum(dim=-1, keepdim=True) + 1e-6)
         return attn
 
 
