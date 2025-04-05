@@ -256,9 +256,15 @@ class TestNoiseInternals(unittest.TestCase):
         """Test noise_internals with angles only."""
         seq = "AGH"
         L = len(seq)
-        angles = torch.zeros(L, 12)  # minimal sidechainnet angles shape
+        # Use protein angles (phi, psi, omega, bond angles, sidechain angles)
+        angles = torch.tensor([
+            # phi, psi, omega, b_angle(n_ca_c), b_angle(ca_c_n), b_angle(c_n_ca), 6_scn_torsions
+            [-2.0, 2.0, 0.0, 2.0, 2.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # A
+            [-2.0, 2.0, 0.0, 2.0, 2.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # G
+            [-2.0, 2.0, 0.0, 2.0, 2.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # H
+        ], dtype=torch.float32)
         # Provide coords with the correct shape [L, 14, 3]
-        coords = torch.randn(L, 14, 3)
+        coords = torch.zeros(L, 14, 3)  # Using zeros instead of random values
         out_coords, out_mask = ml_utils.noise_internals(
             seq=seq,
             angles=angles,
