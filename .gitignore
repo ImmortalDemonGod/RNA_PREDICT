@@ -153,3 +153,5 @@ generated_tests/*.DS_Store
 memory-bank/
 .roo
 .clinerules-default
+coverage.json
+prev_coverage.json
