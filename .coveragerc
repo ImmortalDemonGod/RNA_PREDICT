@@ -2,9 +2,9 @@
 source = rna_predict
 branch = True
 parallel = True
+concurrency = multiprocessing,thread
 omit =
     */tests/*
 
 [report]
-# Do not fail if no data is collected (optional)
 fail_under = 0
