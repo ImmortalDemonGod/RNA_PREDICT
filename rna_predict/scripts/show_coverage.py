@@ -6,42 +6,20 @@ import os
 import re
 from typing import Set, Tuple, List, Optional
 
-def run_command(command, check=True, capture_output=False, text=True):
-    """Runs a command using subprocess and handles errors."""
-    print(f"Running command: {' '.join(command)}")
+def run_command(cmd: str, capture_output: bool = False) -> subprocess.CompletedProcess[str]:
+    """Run a command and return its result."""
     try:
-        result = subprocess.run(
-            command,
-            check=check,
-            capture_output=capture_output,
-            text=text
-            # stderr is handled implicitly by capture_output=True
-            # For capture_output=False, stderr defaults to None (inherits), which is fine.
-            # If we wanted explicit control for False case: stderr=sys.stderr if not capture_output else None
-        )
-        if capture_output and result.returncode != 0:
-             # Print stderr if capture_output was true and there was an error
-            print(f"Error running command: {' '.join(command)}", file=sys.stderr)
-            print(result.stderr, file=sys.stderr)
-            sys.exit(result.returncode)
-        elif result.returncode != 0:
-             # If not capturing output, CalledProcessError would have been raised if check=True
-             # This handles the case where check=False might be used later, though default is True
-             print(f"Command failed: {' '.join(command)}", file=sys.stderr)
-             sys.exit(result.returncode)
+        if capture_output:
+            result = subprocess.run(cmd.split(), capture_output=True, text=True)
+        else:
+            result = subprocess.run(cmd.split(), check=True, text=True)
         return result
     except subprocess.CalledProcessError as e:
-        print(f"Command failed: {' '.join(command)}", file=sys.stderr)
-        # stderr is already printed by subprocess on failure when capture_output=False
+        print(f"Error running command: {e}")
         if capture_output:
-             print(e.stderr, file=sys.stderr) # Ensure stderr is printed if captured
-        sys.exit(e.returncode)
-    except FileNotFoundError:
-        print(f"Error: Command not found - {command[0]}. Is it installed and in PATH?", file=sys.stderr)
-        sys.exit(1)
-    except Exception as e:
-        print(f"An unexpected error occurred: {e}", file=sys.stderr)
-        sys.exit(1)
+            print(f"stdout: {e.stdout}")
+            print(f"stderr: {e.stderr}")
+        raise
 
 
 def parse_coverage_report(report_output: str):
@@ -172,7 +150,7 @@ def get_least_covered_report(report_output: str) -> Tuple[str, Optional[str]]:
 
 def parse_missing_lines(missing_str: str) -> Set[int]:
     """Parses a coverage 'Missing' string (e.g., '5-10, 15, 22-24') into a set of line numbers."""
-    lines = set()
+    lines: Set[int] = set()
     if not missing_str:
         return lines
     # Remove any surrounding whitespace that might interfere
@@ -205,124 +183,149 @@ def parse_missing_lines(missing_str: str) -> Set[int]:
     return lines
 
 
+def parse_memory_usage(csv_file: str) -> List[Tuple[str, float]]:
+    """Parse memory usage data from the memprof CSV file."""
+    if not os.path.exists(csv_file):
+        return []
+    
+    memory_data = []
+    with open(csv_file, 'r') as f:
+        # Skip header
+        next(f)
+        for line in f:
+            parts = line.strip().split(',')
+            if len(parts) >= 2:
+                test_name = parts[0]
+                # Convert bytes to MB
+                memory_usage = float(parts[1]) / (1024 * 1024)  # Convert bytes to MB
+                memory_data.append((test_name, memory_usage))
+    
+    return sorted(memory_data, key=lambda x: x[1], reverse=True)
+
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Run pytest with coverage and show the report. Can filter by file path/pattern or show the least covered file's untested lines."
-    )
-    # Group for mutually exclusive arguments
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument(
-        "file_pattern",
-        nargs="?", # Makes it optional
-        type=str,
-        default=None,
-        help="Optional file path or pattern to filter the coverage report.",
-    )
-    group.add_argument(
-        "--least-covered",
-        action="store_true",
-        help="Show the file with the lowest coverage percentage (with >0 statements) and its actual untested lines.",
-    )
+    """Run pytest with coverage and memory profiling."""
+    parser = argparse.ArgumentParser(description='Run tests with coverage and memory profiling')
+    parser.add_argument('--least-covered', action='store_true', help='Show least covered files')
+    parser.add_argument('--filter', type=str, help='Filter coverage report by file pattern')
     args = parser.parse_args()
 
-    # Define commands
-    # Using -n auto for parallel, requires combine. Using tests/ as requested.
-    pytest_command = ["pytest", "--cov=rna_predict", "--cov-branch", "-n", "auto", "tests/"]
-    combine_command = ["coverage", "combine"]
-    report_command = ["coverage", "report"]
+    # Create a temporary file for memory profiling data
+    memprof_csv = 'memory_usage.csv'
+    
+    print("--- Running Pytest with Coverage and Memory Profiling ---")
+    pytest_cmd = "pytest --cov=rna_predict --cov-branch --memprof-top-n=10 --memprof-csv-file=memory_usage.csv -n auto tests/"
+    print(f"Running command: {pytest_cmd}")
+    run_command(pytest_cmd)
 
-    # Run tests under coverage
-    # Run without capturing output so user sees pytest progress/results directly
-    print("--- Running Pytest with Coverage ---")
-    run_command(pytest_command, capture_output=False)
-
-    # Combine coverage data from parallel runs (necessary if -n auto was used)
     print("\n--- Combining Coverage Data ---")
-    run_command(combine_command, capture_output=False)
+    print("Running command: coverage combine --append")
+    run_command("coverage combine --append")
 
-    # Generate and capture the text report
     print("\n--- Generating Full Coverage Report ---")
-    report_result = run_command(report_command, capture_output=True)
-    report_output = report_result.stdout
+    print("Running command: coverage report -m")
+    run_command("coverage report -m")
 
-    # Print the report based on arguments
-    if args.least_covered:
-        print("\n--- Least Covered File Summary ---")
-        minimal_report, least_covered_path = get_least_covered_report(report_output)
-        print(minimal_report) # Print Header, Separator, Least Covered Line, Total
-
-        # If a least covered file was found, get its missing lines and print them
-        if least_covered_path:
-            print(f"\n--- Fetching Untested Lines for {least_covered_path} ---")
-            # Command to get detailed report for the specific file including missing lines ('-m')
-            # Use --fail-under=0 to prevent exit due to low coverage itself
-            detail_report_command = ["coverage", "report", "-m", "--fail-under=0", least_covered_path]
-            detail_result = run_command(detail_report_command, capture_output=True, check=False) # Don't exit if coverage < 100
-            detail_output_lines = detail_result.stdout.strip().split('\n')
-
-            missing_str = None
-            # Parse the detailed report output for the 'Missing' column string
-            if len(detail_output_lines) >= 3: # Header, Separator, File Line
-                file_report_line = detail_output_lines[2] # The line with stats for the file
-                parts = file_report_line.split()
-                if len(parts) > 1: # Should have at least Name and Stmts
-                    # Check if the last part looks like a missing line specification
-                    potential_missing = parts[-1]
-                    # Regex to check if it contains digits, commas, hyphens only (allowing whitespace)
-                    if re.match(r'^[\d,\s-]+$', potential_missing.strip()):
-                        missing_str = potential_missing
-                    # Else: Assume 100% coverage or unexpected format, missing_str remains None
-
-            missing_lines_set = set()
-            if missing_str:
-                missing_lines_set = parse_missing_lines(missing_str)
-            elif detail_result.returncode == 0: # Only print if command succeeded but no missing str found
-                 print(f"(Coverage report indicates no missing lines for {least_covered_path} or failed to parse missing column)")
-
-
-            # Read the source file content
-            source_lines = []
-            try:
-                # Ensure the path exists before trying to open
-                if os.path.exists(least_covered_path):
-                    with open(least_covered_path, 'r') as f:
-                        source_lines = f.readlines()
-                else:
-                     print(f"Error: Source file not found at path: {least_covered_path}", file=sys.stderr)
-            except Exception as e:
-                print(f"Error reading source file {least_covered_path}: {e}", file=sys.stderr)
-
-            # Print the untested lines
-            if source_lines and missing_lines_set:
-                print(f"\n--- Untested lines of code in {least_covered_path} ---")
-                sorted_missing_lines = sorted(list(missing_lines_set))
-                max_line_num_width = len(str(sorted_missing_lines[-1])) if sorted_missing_lines else 1
-
-                for line_num in sorted_missing_lines:
-                    if 1 <= line_num <= len(source_lines):
-                        line_content = source_lines[line_num - 1].rstrip() # Use rstrip to remove trailing newline
-                        print(f"{line_num:<{max_line_num_width}d} | {line_content}")
-                    else:
-                        # This case should be rare if coverage report is accurate, but handle defensively
-                        print(f"Warning: Line number {line_num} reported as missing, but is out of range (1-{len(source_lines)}) for file {least_covered_path}", file=sys.stderr)
-            elif source_lines and not missing_lines_set and missing_str is None and detail_result.returncode == 0:
-                # If we successfully read the file, parsed the report, and found no missing lines reported
-                pass # Message already printed above
-            elif not source_lines and least_covered_path:
-                 # Error reading file was already printed
-                 print(f"(Could not display untested lines for {least_covered_path} due to file read error)")
-
-
-    elif args.file_pattern:
-        print("\n--- Filtered Coverage Report ---")
-        filtered_report = filter_coverage_report(report_output, args.file_pattern)
-        print(filtered_report)
+    print("\n--- Memory Usage Summary ---")
+    memory_data = parse_memory_usage(memprof_csv)
+    if memory_data:
+        print("\nTop 10 tests by memory usage:")
+        for test_name, memory_usage in memory_data[:10]:
+            print(f"{test_name}: {memory_usage:.2f} MB")
     else:
-        print("\n--- Full Coverage Report ---")
-        print(report_output)
+        print("No memory usage data found. Make sure pytest-memprof is installed.")
 
-    print("\nCoverage report finished.")
+    # Clean up the temporary file
+    if os.path.exists(memprof_csv):
+        os.remove(memprof_csv)
+
+    print("\n--- Full Coverage Report ---")
+    if args.least_covered:
+        show_least_covered()
+    elif args.filter:
+        filter_coverage(args.filter)
+    else:
+        run_command("coverage report -m")
+
+
+def show_least_covered():
+    """Show the file with the lowest coverage and its untested lines."""
+    print("\n--- Least Covered File Summary ---")
+    result = run_command("coverage report -m", capture_output=True)
+    report_output = result.stdout
+
+    # Find the file with the lowest coverage
+    lowest_coverage = 100
+    least_covered_file = None
+    least_covered_lines = None
+
+    for line in report_output.split('\n'):
+        if not line.strip() or line.startswith('Name') or line.startswith('---') or line.startswith('TOTAL'):
+            continue
+        
+        parts = line.split()
+        if len(parts) >= 4:  # Need at least Name, Stmts, Miss, Cover
+            try:
+                file_name = parts[0]
+                stmts = int(parts[1])
+                miss = int(parts[2])
+                if stmts > 0:  # Only consider files with statements
+                    coverage = 100 - (miss * 100 // stmts)
+                    if coverage < lowest_coverage:
+                        lowest_coverage = coverage
+                        least_covered_file = file_name
+                        # Get the missing lines from the last column if it exists
+                        if len(parts) > 4 and parts[-1].strip():
+                            least_covered_lines = parts[-1]
+            except (ValueError, IndexError):
+                continue
+
+    if least_covered_file:
+        print(f"\nFile with lowest coverage: {least_covered_file}")
+        print(f"Coverage: {lowest_coverage}%")
+        if least_covered_lines:
+            print(f"Missing lines: {least_covered_lines}")
+
+            # Read and display the untested lines
+            try:
+                with open(least_covered_file, 'r') as f:
+                    source_lines = f.readlines()
+                
+                if least_covered_lines:
+                    missing_line_nums = set()
+                    for part in least_covered_lines.split(','):
+                        part = part.strip()
+                        if '-' in part:
+                            start, end = map(int, part.split('-'))
+                            missing_line_nums.update(range(start, end + 1))
+                        else:
+                            missing_line_nums.add(int(part))
+
+                    print("\nUntested lines:")
+                    for line_num in sorted(missing_line_nums):
+                        if 1 <= line_num <= len(source_lines):
+                            print(f"{line_num:4d} | {source_lines[line_num-1].rstrip()}")
+            except Exception as e:
+                print(f"Error reading file {least_covered_file}: {e}")
+    else:
+        print("No files with statements found in coverage report.")
+
+
+def filter_coverage(pattern: str):
+    """Filter the coverage report by file pattern."""
+    print("\n--- Filtered Coverage Report ---")
+    result = run_command("coverage report -m", capture_output=True)
+    report_output = result.stdout
+
+    filtered_lines = []
+    for line in report_output.split('\n'):
+        if pattern.lower() in line.lower():
+            filtered_lines.append(line)
+
+    if filtered_lines:
+        print('\n'.join(filtered_lines))
+    else:
+        print(f"No files matching pattern '{pattern}' found in coverage report.")
 
 
 if __name__ == "__main__":
