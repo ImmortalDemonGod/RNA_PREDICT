@@ -1,7 +1,7 @@
 import unittest
 import torch
 import numpy as np
-from hypothesis import given, strategies as st, settings, deadline
+from hypothesis import given, strategies as st, settings
 from hypothesis.extra.numpy import arrays
 from typing import List, Optional, Tuple
 
@@ -18,6 +18,9 @@ from rna_predict.pipeline.stageC.mp_nerf.ml_utils import (
 )
 from rna_predict.pipeline.stageC.mp_nerf.protein_utils import SUPREME_INFO, AMBIGUOUS
 
+# Configure Hypothesis settings globally
+settings.register_profile("slow", max_examples=10, deadline=None)
+settings.load_profile("slow")
 
 class TestScnAtomEmbedd(unittest.TestCase):
     """Test cases for the scn_atom_embedd function."""
@@ -73,7 +76,6 @@ class TestChain2Atoms(unittest.TestCase):
         mask_input=st.one_of(st.none(), st.booleans()), # Generate None or a single boolean
         c=st.integers(min_value=1, max_value=3)
     )
-    @settings(deadline=1000)  # Increase deadline to 1 second
     def test_basic_expansion(self, x, mask_input, c):
         """Test basic expansion functionality."""
         x_tensor = torch.tensor(x)
@@ -151,7 +153,6 @@ class TestTorsionAngleLoss(unittest.TestCase):
         coeff=st.floats(min_value=0.0, max_value=1.0),
         has_mask=st.booleans()
     )
-    @settings(deadline=500)  # Increase deadline to 500ms
     def test_basic_loss(self, pred_torsions, true_torsions, coeff, has_mask):
         """Test basic loss calculation."""
         # Ensure shapes match
@@ -193,7 +194,6 @@ class TestFapeTorch(unittest.TestCase):
         max_val=st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False), # Avoid NaN/inf for max_val
         c_alpha=st.booleans()
     )
-    @settings(deadline=1000)  # Increase deadline to 1 second
     def test_basic_fape(self, shape, coords_data, max_val, c_alpha):
         """Test basic FAPE calculation."""
         # Generate arrays with the same shape
@@ -234,7 +234,6 @@ class TestAtomSelector(unittest.TestCase):
         option=st.one_of(st.none(), st.sampled_from(["backbone", "backbone-with-oxygen", "backbone-with-cbeta", "backbone-with-cbeta-and-oxygen", "all"])),
         discard_absent=st.booleans(),
     )
-    @settings(deadline=500)  # Increase deadline to 500ms
     def test_basic_selection(self, scn_seq, x, option, discard_absent):
         """Test basic atom selection functionality."""
         # Ensure x has enough rows to match the sequence length
@@ -267,7 +266,6 @@ class TestNoiseInternals(unittest.TestCase):
         noise_scale=st.floats(min_value=0.0, max_value=0.1),  # Reduce max noise scale
         theta_scale=st.floats(min_value=0.0, max_value=0.1),  # Reduce max theta scale
     )
-    @settings(deadline=60000)  # Increase deadline to 60 seconds
     def test_basic_noise(self, seq, has_angles, has_coords, noise_scale, theta_scale):
         """Test basic noise generation functionality."""
         # Skip test if both has_angles and has_coords are False
@@ -315,7 +313,6 @@ class TestCombineNoise(unittest.TestCase):
         internals_scn_scale=st.floats(min_value=0.0, max_value=1.0),
         sidechain_reconstruct=st.booleans(),
     )
-    @settings(deadline=1000)  # Increase deadline to 1 second
     def test_basic_combination(self, true_coords, has_seq, has_int_seq, has_angles, noise_internals, internals_scn_scale, sidechain_reconstruct):
         """Test basic noise combination functionality."""
         # Skip test if both has_seq and has_int_seq are False

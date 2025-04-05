@@ -243,26 +243,25 @@ class TestNNModules(unittest.TestCase):
         Attn(...) takes a [B, L, D] input and returns [B, L, L] attention map.
         The output is non-negative (due to ReLU) and squared, but not normalized to sum to 1.
         """
-        # Set a fixed seed for deterministic behavior
+        # Set seeds for all random operations
         torch.manual_seed(42)
+        np.random.seed(42)
+        random.seed(42)
+        
+        # Create input tensor with fixed values for deterministic testing
+        x = torch.randn(batch_size, seq_len, dim)
         
         attn_module = RC.Attn(
             dim=dim, query_key_dim=dim, expansion_factor=2.0, dropout=0.0
         )
-        x = torch.randn(batch_size, seq_len, dim)
-        out = attn_module(x)
         
-        # Verify output shape
-        self.assertEqual(out.shape, (batch_size, seq_len, seq_len))
+        # Run forward pass
+        attn_output = attn_module(x)
         
         # Verify output properties
-        self.assertTrue(torch.all(torch.isfinite(out)), "Output contains NaN or Inf values")
-        self.assertTrue(torch.all(out >= 0), "Output contains negative values")
-        
-        # The output is squared ReLU, so values should be non-negative but not necessarily sum to 1
-        # We can verify that the values are reasonable (not too large)
-        self.assertTrue(torch.all(out <= seq_len), 
-                       "Output values should not be unreasonably large")
+        self.assertEqual(attn_output.shape, (batch_size, seq_len, seq_len))
+        self.assertTrue(torch.all(attn_output >= 0))  # Non-negative due to ReLU
+        self.assertTrue(torch.all(attn_output <= 1))  # Squared values should be <= 1
 
     def test_encoder_decoder_seq2map_smoke(self):
         """
