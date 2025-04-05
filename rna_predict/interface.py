@@ -66,8 +66,8 @@ class RNAPredictor:
             }
         """
         if not sequence:
-            # If empty, produce zero-sized coords but correct structure
-            return {"coords": torch.empty((0, 3)), "atom_count": 0}
+            # If empty, produce zero-sized coords but maintain a 3D shape
+            return {"coords": torch.empty((0, 0, 3)), "atom_count": 0} # Return 3D tensor
 
         # Stage B: Torsion angles
         torsion_output = self.torsion_predictor(sequence)
