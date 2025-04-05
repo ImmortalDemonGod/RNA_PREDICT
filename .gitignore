@@ -155,3 +155,4 @@ memory-bank/
 .clinerules-default
 coverage.json
 prev_coverage.json
+memory_logs/*
