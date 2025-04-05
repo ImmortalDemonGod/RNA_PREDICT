@@ -429,8 +429,9 @@ def noise_internals(
     """Noises the internal coordinates -> dihedral and bond angles.
     Inputs:
     * seq: string. Sequence in FASTA format
-    * angles: (l, 11) sidechainnet angles tensor
-    * coords: (l, 14, 13)
+    * angles: (l, 12) sidechainnet angles tensor containing:
+             [phi, psi, omega, b_angle(n_ca_c), b_angle(ca_c_n), b_angle(c_n_ca), 6_scn_torsions]
+    * coords: (l, 14, 3) coordinates tensor
     * noise_scale: float. std of noise gaussian.
     * theta_scale: float. multiplier for bond angles
     Outputs:
@@ -442,7 +443,14 @@ def noise_internals(
     )
     # get scaffolds
     if angles is None:
-        angles = torch.randn(coords.shape[0], 12).to(coords.device)
+        # Create random angles in valid ranges
+        angles = torch.zeros(coords.shape[0], 12).to(coords.device)
+        # Torsion angles (phi, psi, omega) - range [-pi, pi]
+        angles[:, :3] = torch.randn(coords.shape[0], 3).to(coords.device) * 0.1
+        # Bond angles (n_ca_c, ca_c_n, c_n_ca) - range [pi/2, 3pi/2] typically
+        angles[:, 3:6] = torch.ones(coords.shape[0], 3).to(coords.device) * np.pi + torch.randn(coords.shape[0], 3).to(coords.device) * 0.1
+        # Sidechain angles - range [-pi, pi]
+        angles[:, 6:] = torch.randn(coords.shape[0], 6).to(coords.device) * 0.1
 
     scaffolds = build_scaffolds_from_scn_angles(seq, angles.clone())
 
@@ -455,32 +463,17 @@ def noise_internals(
             print("noising", noise_scale)
         # thetas (half of noise of dihedrals. only for BB)
         noised_bb = scaffolds["angles_mask"][0, :, :3].clone()
-        noised_bb += theta_scale * noise_scale * torch.randn_like(noised_bb)
-        # get noised values between [-pi, pi]
-        off_bounds = (noised_bb > 2 * np.pi) + (noised_bb < -2 * np.pi)
-        if off_bounds.sum().item() > 0:
-            noised_bb[off_bounds] = noised_bb[off_bounds] % (2 * np.pi)
-
-        upper, lower = noised_bb > np.pi, noised_bb < -np.pi
-        if upper.sum().item() > 0:
-            noised_bb[upper] = -(2 * np.pi - noised_bb[upper]).clone()
-        if lower.sum().item() > 0:
-            noised_bb[lower] = 2 * np.pi + noised_bb[lower].clone()
+        noise = theta_scale * noise_scale * torch.randn_like(noised_bb)
+        # Ensure bond angles stay in reasonable range [pi/2, 3pi/2]
+        noised_bb = torch.clamp(noised_bb + noise, min=np.pi/2, max=3*np.pi/2)
         scaffolds["angles_mask"][0, :, :3] = noised_bb
 
         # dihedrals
         noised_dihedrals = scaffolds["angles_mask"][1].clone()
-        noised_dihedrals += noise_scale * torch.randn_like(noised_dihedrals)
+        noise = noise_scale * torch.randn_like(noised_dihedrals)
+        noised_dihedrals = noised_dihedrals + noise
         # get noised values between [-pi, pi]
-        off_bounds = (noised_dihedrals > 2 * np.pi) + (noised_dihedrals < -2 * np.pi)
-        if off_bounds.sum().item() > 0:
-            noised_dihedrals[off_bounds] = noised_dihedrals[off_bounds] % (2 * np.pi)
-
-        upper, lower = noised_dihedrals > np.pi, noised_dihedrals < -np.pi
-        if upper.sum().item() > 0:
-            noised_dihedrals[upper] = -(2 * np.pi - noised_dihedrals[upper]).clone()
-        if lower.sum().item() > 0:
-            noised_dihedrals[lower] = 2 * np.pi + noised_dihedrals[lower].clone()
+        noised_dihedrals = torch.remainder(noised_dihedrals + np.pi, 2 * np.pi) - np.pi
         scaffolds["angles_mask"][1] = noised_dihedrals
 
     # reconstruct
