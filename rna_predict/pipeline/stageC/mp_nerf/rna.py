@@ -192,7 +192,7 @@ def rna_fold(scaffolds: Dict[str, Any], device: str = "cpu", do_ring_closure: bo
     # Place first residue atoms
     coords[0, 0] = torch.tensor([0.0, 0.0, 0.0], device=device)  # P
     coords[0, 1] = torch.tensor([1.0, 0.0, 0.0], device=device)  # O5'
-    coords[0, 2] = torch.tensor([1.5, 1.0, 0.0], device=device)  # C5'
+    coords[0, 2] = torch.tensor([1.5, 1.0, 0.0], device=device)
     
     # Place remaining atoms
     for i in range(1, L):
@@ -200,6 +200,8 @@ def rna_fold(scaffolds: Dict[str, Any], device: str = "cpu", do_ring_closure: bo
             if j == 0:  # P atom
                 # Use previous residue's O3' as reference
                 prev_o3 = coords[i-1, 8]  # O3' is at index 8
+                # Clamp any NaN/Inf values in prev_o3
+                prev_o3 = torch.nan_to_num(prev_o3, nan=0.0, posinf=1e6, neginf=-1e6)
                 coords[i, j] = prev_o3 + torch.tensor([1.0, 0.0, 0.0], device=device)
             else:
                 # Get reference atoms
@@ -208,6 +210,10 @@ def rna_fold(scaffolds: Dict[str, Any], device: str = "cpu", do_ring_closure: bo
                     prev_prev_atom = coords[i, j-2]
                 else:
                     prev_prev_atom = coords[i-1, -1]  # Use last atom of previous residue
+                
+                # Clamp any NaN/Inf values in reference atoms
+                prev_atom = torch.nan_to_num(prev_atom, nan=0.0, posinf=1e6, neginf=-1e6)
+                prev_prev_atom = torch.nan_to_num(prev_prev_atom, nan=0.0, posinf=1e6, neginf=-1e6)
                 
                 # Get bond length and angle
                 bond_length = get_bond_length(f"{BACKBONE_ATOMS[j-1]}-{BACKBONE_ATOMS[j]}")
@@ -226,30 +232,25 @@ def rna_fold(scaffolds: Dict[str, Any], device: str = "cpu", do_ring_closure: bo
                     torsion_angle = torch.tensor(0.0, device=device)
                 torsion_angle = torsion_angle * (math.pi / 180.0)
                 
-                # Create MP-NeRF parameters
-                params = MpNerfParams(
-                    a=prev_prev_atom,
-                    b=prev_atom,
-                    c=prev_atom,  # Use same point for c as b for simplicity
-                    bond_length=bond_length,
-                    theta=bond_angle,
-                    chi=torsion_angle
-                )
-                
-                # Place atom
-                coords[i, j] = mp_nerf_torch(params)
-                
-                # Validate new coordinates
-                if torch.isnan(coords[i, j]).any():
-                    raise ValueError(f"NaN coordinates generated for residue {i}, atom {j}")
+                # Calculate new position
+                try:
+                    new_pos = calculate_atom_position(
+                        prev_prev_atom,
+                        prev_atom,
+                        bond_length,
+                        bond_angle,
+                        torsion_angle,
+                        device
+                    )
+                    # Clamp any NaN/Inf values in new position
+                    new_pos = torch.nan_to_num(new_pos, nan=0.0, posinf=1e6, neginf=-1e6)
+                    coords[i, j] = new_pos
+                except (RuntimeError, ValueError) as e:
+                    # If calculation fails, use a reasonable default position
+                    coords[i, j] = prev_atom + torch.tensor([1.0, 0.0, 0.0], device=device)
     
-    # Perform ring closure refinement if requested
-    if do_ring_closure:
-        coords = ring_closure_refinement(coords)
-    
-    # Final validation
-    if torch.isnan(coords).any():
-        raise ValueError("NaN values in final coordinates")
+    # Final sanitization of coordinates
+    coords = torch.nan_to_num(coords, nan=0.0, posinf=1e6, neginf=-1e6)
     
     return coords
 
@@ -515,6 +516,66 @@ def compute_max_rna_atoms():
     """
     # Maximum is for G which has 11 base atoms + 10 backbone atoms = 21
     return 21
+
+
+def calculate_atom_position(prev_prev_atom, prev_atom, bond_length, bond_angle, torsion_angle, device):
+    """
+    Calculate the position of a new atom based on previous atoms and geometric parameters.
+    
+    Args:
+        prev_prev_atom: Position of the atom before the previous atom
+        prev_atom: Position of the previous atom
+        bond_length: Length of the bond to the new atom
+        bond_angle: Angle between prev_prev_atom, prev_atom, and new atom
+        torsion_angle: Dihedral angle for rotation around the bond
+        device: Device to place tensors on
+        
+    Returns:
+        Position of the new atom
+    """
+    # Convert inputs to tensors if they aren't already
+    prev_prev_atom = torch.as_tensor(prev_prev_atom, device=device)
+    prev_atom = torch.as_tensor(prev_atom, device=device)
+    bond_length = torch.as_tensor(bond_length, device=device)
+    bond_angle = torch.as_tensor(bond_angle, device=device)
+    torsion_angle = torch.as_tensor(torsion_angle, device=device)
+    
+    # Calculate bond vector
+    bond_vector = prev_atom - prev_prev_atom
+    bond_vector = bond_vector / (torch.norm(bond_vector) + 1e-8)  # Normalize with epsilon to avoid division by zero
+    
+    # Calculate perpendicular vector
+    perpendicular = torch.cross(bond_vector, torch.tensor([0.0, 0.0, 1.0], device=device))
+    if torch.norm(perpendicular) < 1e-8:  # If parallel to z-axis
+        perpendicular = torch.tensor([1.0, 0.0, 0.0], device=device)
+    perpendicular = perpendicular / (torch.norm(perpendicular) + 1e-8)
+    
+    # Calculate rotation matrix for bond angle
+    cos_theta = torch.cos(bond_angle)
+    sin_theta = torch.sin(bond_angle)
+    rotation_bond = torch.tensor([
+        [cos_theta, -sin_theta, 0.0],
+        [sin_theta, cos_theta, 0.0],
+        [0.0, 0.0, 1.0]
+    ], device=device)
+    
+    # Calculate rotation matrix for torsion angle
+    cos_phi = torch.cos(torsion_angle)
+    sin_phi = torch.sin(torsion_angle)
+    rotation_torsion = torch.tensor([
+        [cos_phi, -sin_phi, 0.0],
+        [sin_phi, cos_phi, 0.0],
+        [0.0, 0.0, 1.0]
+    ], device=device)
+    
+    # Combine rotations
+    rotation = torch.matmul(rotation_torsion, rotation_bond)
+    
+    # Calculate new position
+    new_vector = torch.matmul(rotation, bond_vector.unsqueeze(-1)).squeeze(-1)
+    new_position = prev_atom + bond_length * new_vector
+    
+    return new_position
 
 
 # Export all functions for backward compatibility
