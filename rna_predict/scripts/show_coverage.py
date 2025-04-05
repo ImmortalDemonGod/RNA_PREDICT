@@ -85,21 +85,17 @@ def filter_coverage_report(report_output: str, file_pattern: str) -> str:
 
 def get_least_covered_report(report_output: str) -> Tuple[str, Optional[str]]:
     """
-    Finds the file with the least coverage (Stmts > 0) and returns a minimal report
-    string and the path of the least covered file.
+    Finds the file with the most uncovered lines (Stmts > 0) and returns a minimal report
+    string and the path of the file with the most uncovered lines.
     """
     header, separator, data_lines, total_line = parse_coverage_report(report_output)
 
     if header is None: # Parsing failed
         return "Error: Could not parse coverage report.", None
 
-    least_covered_line = None
-    least_covered_path = None
-    min_coverage = 101 # Start higher than possible percentage
-
-    # Regex to find the coverage percentage (last number followed by '%')
-    # Handles potential missing columns by looking from the end
-    coverage_regex = re.compile(r'(\d+)\s*%\s*$')
+    most_uncovered_line = None
+    most_uncovered_path = None
+    max_uncovered_lines = 0  # Track the maximum number of uncovered lines
 
     for line in data_lines:
         parts = line.split()
@@ -115,37 +111,33 @@ def get_least_covered_report(report_output: str) -> Tuple[str, Optional[str]]:
             if stmts <= 0: # Ignore files with no statements
                 continue
 
-            # Extract coverage percentage using regex from the end of the line
-            match = coverage_regex.search(line)
-            if not match:
-                print(f"Warning: Could not parse coverage percentage for line: {line}", file=sys.stderr)
-                continue # Skip lines where coverage can't be parsed
-
-            coverage = int(match.group(1))
-
-            if coverage < min_coverage:
-                min_coverage = coverage
-                least_covered_line = line
-                least_covered_path = file_path # Store the path
+            # Extract missed lines count (third column)
+            missed_lines = int(parts[2])
+            
+            # Update if this file has more uncovered lines
+            if missed_lines > max_uncovered_lines:
+                max_uncovered_lines = missed_lines
+                most_uncovered_line = line
+                most_uncovered_path = file_path  # Store the path
 
         except (ValueError, IndexError) as e:
             print(f"Warning: Could not parse line: {line} - {e}", file=sys.stderr)
-            continue # Skip lines that don't parse correctly
+            continue  # Skip lines that don't parse correctly
 
-    if least_covered_line is None:
+    if most_uncovered_line is None:
         no_valid_lines_msg = "(No files with statements > 0 found in the report)"
         if total_line:
             minimal_report = f"{header}\n{separator}\n{no_valid_lines_msg}\n{total_line}"
         else:
             minimal_report = f"{header}\n{separator}\n{no_valid_lines_msg}"
-        return minimal_report, None # Return None for path
+        return minimal_report, None  # Return None for path
 
     # Construct the minimal report
-    minimal_report = f"{header}\n{separator}\n{least_covered_line}"
+    minimal_report = f"{header}\n{separator}\n{most_uncovered_line}"
     if total_line:
         minimal_report += f"\n{total_line}"
 
-    return minimal_report, least_covered_path # Return report and path
+    return minimal_report, most_uncovered_path  # Return report and path
 
 
 def parse_missing_lines(missing_str: str) -> Set[int]:
@@ -249,15 +241,16 @@ def main():
 
 
 def show_least_covered():
-    """Show the file with the lowest coverage and its untested lines."""
-    print("\n--- Least Covered File Summary ---")
+    """Show the file with the most uncovered lines and its untested lines."""
+    print("\n--- Most Uncovered Lines Summary ---")
     result = run_command("coverage report -m", capture_output=True)
     report_output = result.stdout
 
-    # Find the file with the lowest coverage
-    lowest_coverage = 100
-    least_covered_file = None
-    least_covered_lines = None
+    # Find the file with the most uncovered lines
+    max_uncovered_lines = 0
+    most_uncovered_file = None
+    most_uncovered_lines = None
+    total_statements = 0
 
     for line in report_output.split('\n'):
         if not line.strip() or line.startswith('Name') or line.startswith('---') or line.startswith('TOTAL'):
@@ -270,30 +263,33 @@ def show_least_covered():
                 stmts = int(parts[1])
                 miss = int(parts[2])
                 if stmts > 0:  # Only consider files with statements
-                    coverage = 100 - (miss * 100 // stmts)
-                    if coverage < lowest_coverage:
-                        lowest_coverage = coverage
-                        least_covered_file = file_name
+                    if miss > max_uncovered_lines:
+                        max_uncovered_lines = miss
+                        most_uncovered_file = file_name
+                        total_statements = stmts
                         # Get the missing lines from the last column if it exists
                         if len(parts) > 4 and parts[-1].strip():
-                            least_covered_lines = parts[-1]
+                            most_uncovered_lines = parts[-1]
             except (ValueError, IndexError):
                 continue
 
-    if least_covered_file:
-        print(f"\nFile with lowest coverage: {least_covered_file}")
-        print(f"Coverage: {lowest_coverage}%")
-        if least_covered_lines:
-            print(f"Missing lines: {least_covered_lines}")
+    if most_uncovered_file:
+        coverage_percentage = 100 - (max_uncovered_lines * 100 // total_statements) if total_statements > 0 else 0
+        print(f"\nFile with most uncovered lines: {most_uncovered_file}")
+        print(f"Total statements: {total_statements}")
+        print(f"Uncovered lines: {max_uncovered_lines}")
+        print(f"Coverage: {coverage_percentage}%")
+        if most_uncovered_lines:
+            print(f"Missing lines: {most_uncovered_lines}")
 
             # Read and display the untested lines
             try:
-                with open(least_covered_file, 'r') as f:
+                with open(most_uncovered_file, 'r') as f:
                     source_lines = f.readlines()
                 
-                if least_covered_lines:
+                if most_uncovered_lines:
                     missing_line_nums = set()
-                    for part in least_covered_lines.split(','):
+                    for part in most_uncovered_lines.split(','):
                         part = part.strip()
                         if '-' in part:
                             start, end = map(int, part.split('-'))
@@ -306,7 +302,7 @@ def show_least_covered():
                         if 1 <= line_num <= len(source_lines):
                             print(f"{line_num:4d} | {source_lines[line_num-1].rstrip()}")
             except Exception as e:
-                print(f"Error reading file {least_covered_file}: {e}")
+                print(f"Error reading file {most_uncovered_file}: {e}")
     else:
         print("No files with statements found in coverage report.")
 
