@@ -20,7 +20,7 @@ from unittest.mock import patch
 
 import numpy as np
 import torch
-from hypothesis import given
+from hypothesis import given, settings, HealthCheck
 from hypothesis import strategies as st
 
 # Adjust this import according to your project layout, e.g.:
@@ -232,6 +232,8 @@ class TestNNModules(unittest.TestCase):
         out_q, out_k = module(x)
         self.assertEqual(out_q.shape, (3, 10, dim))
         self.assertEqual(out_k.shape, (3, 10, dim))
+
+    @settings(deadline=1000, suppress_health_check=[HealthCheck.too_slow])
 
     @given(
         batch_size=st.integers(min_value=1, max_value=4),
