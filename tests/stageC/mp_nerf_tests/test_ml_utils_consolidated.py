@@ -259,16 +259,17 @@ class TestNoiseInternals(unittest.TestCase):
         # Use protein angles (phi, psi, omega, bond angles, sidechain angles)
         angles = torch.tensor([
             # phi, psi, omega, b_angle(n_ca_c), b_angle(ca_c_n), b_angle(c_n_ca), 6_scn_torsions
-            [-2.0, 2.0, 0.0, 2.0, 2.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # A
-            [-2.0, 2.0, 0.0, 2.0, 2.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # G
-            [-2.0, 2.0, 0.0, 2.0, 2.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # H
+            [-np.pi/3, np.pi/3, 0.0, 111.2 * np.pi/180, 116.2 * np.pi/180, 121.7 * np.pi/180, 
+             np.pi/6, np.pi/4, np.pi/3, -np.pi/4, -np.pi/6, -np.pi/3],  # A
+            [-np.pi/4, np.pi/4, 0.0, 111.2 * np.pi/180, 116.2 * np.pi/180, 121.7 * np.pi/180,
+             np.pi/4, np.pi/3, np.pi/2, -np.pi/3, -np.pi/4, -np.pi/2],  # G
+            [-np.pi/6, np.pi/6, 0.0, 111.2 * np.pi/180, 116.2 * np.pi/180, 121.7 * np.pi/180,
+             np.pi/3, np.pi/2, 2*np.pi/3, -np.pi/2, -np.pi/3, -2*np.pi/3],  # H
         ], dtype=torch.float32)
-        # Provide coords with the correct shape [L, 14, 3]
-        coords = torch.zeros(L, 14, 3)  # Using zeros instead of random values
+        
         out_coords, out_mask = ml_utils.noise_internals(
             seq=seq,
             angles=angles,
-            coords=coords,
             noise_scale=0.1,
             theta_scale=0.2,
             verbose=0,
