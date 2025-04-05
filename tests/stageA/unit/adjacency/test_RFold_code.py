@@ -44,7 +44,8 @@ class TestRFoldUtilities(unittest.TestCase):
 
             shutil.rmtree(self.temp_dir_name, ignore_errors=True)
 
-    @given(seed=st.integers(min_value=0, max_value=9999))
+    @given(seed=st.integers(min_value=0, max_value=2**32-1))
+    @settings(deadline=None)  # Disable deadline since this test can be slow on first run
     def test_set_seed(self, seed: int):
         """
         Ensure set_seed initializes random seeds consistently.
