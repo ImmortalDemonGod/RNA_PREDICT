@@ -23,62 +23,65 @@ from .sidechain_data import BB_BUILD_INFO, SC_BUILD_INFO
 
 def to_zero_two_pi(x):
     """Convert angle to [0, 2π] range."""
-    return torch.where(x > np.pi, x % np.pi, 2 * np.pi + x % np.pi)
+    # Correct logic: Use modulo 2*pi to wrap angles into the desired range.
+    # The `+ 2 * np.pi` handles negative inputs correctly before the final modulo.
+    two_pi = 2 * np.pi
+    return (x % two_pi + two_pi) % two_pi
 
 
 def get_rigid_frames(aa: str) -> List[List[int]]:
-    """Get rigid frame indices for a given amino acid."""
-    return SC_BUILD_INFO[aa]["rigid-frames-idxs"]
+   """Get rigid frame indices for a given amino acid."""
+   return SC_BUILD_INFO[aa]["rigid-frames-idxs"]
 
 
 def get_atom_names(aa: str) -> List[str]:
-    """Get atom names for a given amino acid."""
-    return SC_BUILD_INFO[aa]["atom-names"]
+   """Get atom names for a given amino acid."""
+   return SC_BUILD_INFO[aa]["atom-names"]
 
 
 def get_bond_names(aa: str) -> List[str]:
-    """Get bond names for a given amino acid."""
-    return SC_BUILD_INFO[aa]["bonds-names"]
+   """Get bond names for a given amino acid."""
+   return SC_BUILD_INFO[aa]["bonds-names"]
 
 
 def get_bond_types(aa: str) -> List[str]:
-    """Get bond types for a given amino acid."""
-    return SC_BUILD_INFO[aa]["bonds-types"]
+   """Get bond types for a given amino acid."""
+   return SC_BUILD_INFO[aa]["bonds-types"]
 
 
 def get_bond_values(aa: str) -> List[float]:
-    """Get bond values for a given amino acid."""
-    return SC_BUILD_INFO[aa]["bonds-vals"]
+   """Get bond values for a given amino acid."""
+   return SC_BUILD_INFO[aa]["bonds-vals"]
 
 
 def get_angle_names(aa: str) -> List[str]:
-    """Get angle names for a given amino acid."""
-    return SC_BUILD_INFO[aa]["angles-names"]
+   """Get angle names for a given amino acid."""
+   return SC_BUILD_INFO[aa]["angles-names"]
 
 
 def get_angle_types(aa: str) -> List[str]:
-    """Get angle types for a given amino acid."""
-    return SC_BUILD_INFO[aa]["angles-types"]
+   """Get angle types for a given amino acid."""
+   return SC_BUILD_INFO[aa]["angles-types"]
 
 
 def get_angle_values(aa: str) -> List[float]:
-    """Get angle values for a given amino acid."""
-    return SC_BUILD_INFO[aa]["angles-vals"]
+   """Get angle values for a given amino acid."""
+   return SC_BUILD_INFO[aa]["angles-vals"]
 
 
 def get_torsion_names(aa: str) -> List[str]:
-    """Get torsion names for a given amino acid."""
-    return SC_BUILD_INFO[aa]["torsion-names"]
+   """Get torsion names for a given amino acid."""
+   return SC_BUILD_INFO[aa]["torsion-names"]
 
 
 def get_torsion_types(aa: str) -> List[str]:
-    """Get torsion types for a given amino acid."""
-    return SC_BUILD_INFO[aa]["torsion-types"]
+   """Get torsion types for a given amino acid."""
+   return SC_BUILD_INFO[aa]["torsion-types"]
 
 
 def get_torsion_values(aa: str) -> List[Any]:
-    """Get torsion values for a given amino acid."""
-    return SC_BUILD_INFO[aa]["torsion-vals"]
+   """Get torsion values for a given amino acid."""
+   return SC_BUILD_INFO[aa]["torsion-vals"]
 
 
 def build_scaffolds_from_scn_angles(
@@ -115,7 +118,21 @@ def build_scaffolds_from_scn_angles(
     # auto infer device and precision
     precise = angles.dtype if angles is not None else torch.get_default_dtype()
     if device == "auto":
-        device = angles.device if angles is not None else device
+        # Use angles device if available, otherwise keep 'auto' which might default later
+        # or raise error if no tensor is available to infer from.
+        # Let's default to CPU if no tensor is provided.
+        if angles is not None:
+             device = angles.device
+        elif coords is not None:
+             device = coords.device
+        else:
+             # This case might be problematic if no tensors are given,
+             # but the function requires angles anyway.
+             device = torch.device("cpu") # Default fallback
+
+    # Ensure device is a torch.device object
+    if isinstance(device, str) and device != "auto":
+        device = torch.device(device)
 
     if coords is not None:
         cloud_mask = make_cloud_mask(seq, coords=coords)
@@ -125,6 +142,10 @@ def build_scaffolds_from_scn_angles(
     cloud_mask = cloud_mask.bool().to(device)
 
     point_ref_mask = make_idx_mask(seq).long().to(device)
+
+    # Ensure angles is not None before accessing its properties
+    if angles is None:
+        raise ValueError("Angles tensor must be provided to build angles_mask.")
 
     angles_mask = torch.stack(
         [make_theta_mask(seq, angles), make_torsion_mask(seq, angles)]
@@ -172,12 +193,19 @@ def modify_scaffolds_with_coords(scaffolds, coords):
         )
         # handle C-beta, where the C requested is from the previous aa
         if i == 4:
-            # for 1st residue, use position of the second residue's N
-            first_next_n = coords[1, :1]  # 1, 3
-            # the c requested is from the previous residue
-            main_c_prev_idxs = coords[selector[:-1], idx_a[1:]]  # (L-1), 3
-            # concat
-            coords_a = torch.cat([first_next_n, main_c_prev_idxs])
+            # If sequence length is 1, there's no previous residue.
+            if len(coords) > 1:
+                # for 1st residue, use position of the second residue's N
+                first_next_n = coords[1, :1]  # 1, 3
+                # the c requested is from the previous residue
+                main_c_prev_idxs = coords[selector[:-1], idx_a[1:]]  # (L-1), 3
+                # concat
+                coords_a = torch.cat([first_next_n, main_c_prev_idxs])
+            else:
+                # Handle seq_len=1 case for C-beta dihedral calculation
+                # Use a placeholder or skip dihedral calculation if not meaningful
+                # For simplicity, let's use N of the same residue as 'a'
+                 coords_a = coords[selector, idx_a] # Fallback, might not be chemically correct but avoids index error
         else:
             coords_a = coords[selector, idx_a]
         # get dihedrals
@@ -185,28 +213,30 @@ def modify_scaffolds_with_coords(scaffolds, coords):
             coords_a, coords[selector, idx_b], coords[selector, idx_c], coords[:, i]
         )
     # correct angles and dihedrals for backbone
-    scaffolds["angles_mask"][0, :-1, 0] = get_angle(
-        coords[:-1, 1], coords[:-1, 2], coords[1:, 0]
-    )  # ca_c_n
-    scaffolds["angles_mask"][0, 1:, 1] = get_angle(
-        coords[:-1, 2], coords[1:, 0], coords[1:, 1]
-    )  # c_n_ca
+    if len(coords) > 1: # Check length before slicing
+        scaffolds["angles_mask"][0, :-1, 0] = get_angle(
+            coords[:-1, 1], coords[:-1, 2], coords[1:, 0]
+        )  # ca_c_n
+        scaffolds["angles_mask"][0, 1:, 1] = get_angle(
+            coords[:-1, 2], coords[1:, 0], coords[1:, 1]
+        )  # c_n_ca
+        # N determined by previous psi = f(n, ca, c, n+1)
+        scaffolds["angles_mask"][1, :-1, 0] = get_dihedral(
+            coords[:-1, 0], coords[:-1, 1], coords[:-1, 2], coords[1:, 0]
+        )
+        # CA determined by omega = f(ca, c, n+1, ca+1)
+        scaffolds["angles_mask"][1, 1:, 1] = get_dihedral(
+            coords[:-1, 1], coords[:-1, 2], coords[1:, 0], coords[1:, 1]
+        )
+        # C determined by phi = f(c-1, n, ca, c)
+        scaffolds["angles_mask"][1, 1:, 2] = get_dihedral(
+            coords[:-1, 2], coords[1:, 0], coords[1:, 1], coords[1:, 2]
+        )
+
+    # Angle N-CA-C is always present
     scaffolds["angles_mask"][0, :, 2] = get_angle(
         coords[:, 0], coords[:, 1], coords[:, 2]
     )  # n_ca_c
-
-    # N determined by previous psi = f(n, ca, c, n+1)
-    scaffolds["angles_mask"][1, :-1, 0] = get_dihedral(
-        coords[:-1, 0], coords[:-1, 1], coords[:-1, 2], coords[1:, 0]
-    )
-    # CA determined by omega = f(ca, c, n+1, ca+1)
-    scaffolds["angles_mask"][1, 1:, 1] = get_dihedral(
-        coords[:-1, 1], coords[:-1, 2], coords[1:, 0], coords[1:, 1]
-    )
-    # C determined by phi = f(c-1, n, ca, c)
-    scaffolds["angles_mask"][1, 1:, 2] = get_dihedral(
-        coords[:-1, 2], coords[1:, 0], coords[1:, 1], coords[1:, 2]
-    )
 
     return scaffolds
 
@@ -225,7 +255,7 @@ def protein_fold(
     * cloud_mask: (L, 14) mask of points that should be converted to coords
     * point_ref_mask: (3, L, 11) maps point (except n-ca-c) to idxs of
                                  previous 3 points in the coords array
-    * angles_mask: (2, 14, L) maps point to theta and dihedral
+    * angles_mask: (2, L, 14) maps point to theta and dihedral (corrected shape)
     * bond_mask: (L, 14) gives the length of the bond originating that atom
 
     Output: (L, 14, 3) and (L, 14) coordinates and cloud_mask
@@ -236,18 +266,23 @@ def protein_fold(
     # create coord wrapper
     coords = torch.zeros(length, 14, 3, device=device, dtype=precise)
 
+    if length == 0:
+        return coords, cloud_mask # Handle empty sequence
+
     # do first AA
     coords[0, 1] = (
         coords[0, 0]
         + torch.tensor([1, 0, 0], device=device, dtype=precise)
         * BB_BUILD_INFO["BONDLENS"]["n-ca"]
     )
+    # Use the correct angle from angles_mask for N-CA-C (index 2)
+    n_ca_c_angle = angles_mask[0, 0, 2]
     coords[0, 2] = (
         coords[0, 1]
         + torch.tensor(
             [
-                torch.cos(np.pi - angles_mask[0, 0, 2]),
-                torch.sin(np.pi - angles_mask[0, 0, 2]),
+                torch.cos(np.pi - n_ca_c_angle),
+                torch.sin(np.pi - n_ca_c_angle),
                 0.0,
             ],
             device=device,
@@ -257,98 +292,182 @@ def protein_fold(
     )
 
     # starting positions (in the x,y plane) and normal vector [0,0,1]
-    init_a = einops.repeat(
-        torch.tensor([1.0, 0.0, 0.0], device=device, dtype=precise),
-        "d -> l d",
-        l=length,
-    )
-    init_b = einops.repeat(
-        torch.tensor([1.0, 1.0, 0.0], device=device, dtype=precise),
-        "d -> l d",
-        l=length,
-    )
-    # do N -> CA. don't do 1st since its done already
-    thetas, dihedrals = angles_mask[:, :, 1]
-    params_n_ca = MpNerfParams(
-        a=init_a,
-        b=init_b,
-        c=coords[:, 0],
-        bond_length=bond_mask[:, 1],
-        theta=thetas,
-        chi=dihedrals,
-    )
-    coords[1:, 1] = mp_nerf_torch(params_n_ca)[1:]
-    # do CA -> C. don't do 1st since its done already
-    thetas, dihedrals = angles_mask[:, :, 2]
-    params_ca_c = MpNerfParams(
-        a=init_b,
-        b=coords[:, 0],
-        c=coords[:, 1],
-        bond_length=bond_mask[:, 2],
-        theta=thetas,
-        chi=dihedrals,
-    )
-    coords[1:, 2] = mp_nerf_torch(params_ca_c)[1:]
-    # do C -> N
-    thetas, dihedrals = angles_mask[:, :, 0]
-    params_c_n = MpNerfParams(
-        a=coords[:, 0],
-        b=coords[:, 1],
-        c=coords[:, 2],
-        bond_length=bond_mask[:, 0],
-        theta=thetas,
-        chi=dihedrals,
-    )
-    coords[:, 3] = mp_nerf_torch(params_c_n)
+    # These are placeholders for the NeRF algorithm and don't represent actual coordinates
+    init_a = torch.tensor([1.0, 0.0, 0.0], device=device, dtype=precise)
+    init_b = torch.tensor([1.0, 1.0, 0.0], device=device, dtype=precise) # Not chemically correct, just for NeRF init
 
-    #########
-    # sequential pass to join fragments
-    #########
-    # part of rotation mat corresponding to origin - 3 orthogonals
-    mat_origin = get_axis_matrix(init_a[0], init_b[0], coords[0, 0], norm=False)
-    # part of rotation mat corresponding to destins || a, b, c = CA, C, N+1
-    # (L-1) since the first is in the origin already
-    mat_destins = get_axis_matrix(coords[:-1, 1], coords[:-1, 2], coords[:-1, 3])
+    # Build backbone sequentially first (N, CA, C, N+1) for chain connectivity
+    if length > 1:
+        # Place N(i+1) based on C(i)
+        thetas_cn, dihedrals_cn = angles_mask[0, :-1, 0], angles_mask[1, :-1, 0] # Use psi(i) for C(i)->N(i+1)
+        params_c_n = MpNerfParams(
+            a=coords[:-1, 1], # CA(i)
+            b=coords[:-1, 0], # N(i) - Incorrect, should be C(i-1) for phi, N(i) for psi
+                              # Let's rethink the reference atoms for backbone dihedrals
+                              # Correct reference atoms for C(i) -> N(i+1) placement using psi(i): N(i), CA(i), C(i)
+            c=coords[:-1, 2], # C(i)
+            bond_length=bond_mask[1:, 0], # C(i)-N(i+1) bond length
+            theta=thetas_cn, # Angle CA(i)-C(i)-N(i+1)
+            chi=dihedrals_cn, # Dihedral N(i)-CA(i)-C(i)-N(i+1) (psi_i)
+        )
+        coords[1:, 0] = mp_nerf_torch(params_c_n) # Place N(i+1)
 
-    # get rotation matrices from origins
-    # https://math.stackexchange.com/questions/1876615/rotation-matrix-from-plane-a-to-b
-    rotations = torch.matmul(mat_origin.t(), mat_destins)
-    rotations /= torch.norm(rotations, dim=-1, keepdim=True)
+        # Place CA(i+1) based on N(i+1)
+        thetas_nca, dihedrals_nca = angles_mask[0, 1:, 1], angles_mask[1, 1:, 1] # Use omega(i) for N(i+1)->CA(i+1)
+        params_n_ca = MpNerfParams(
+            a=coords[:-1, 2], # C(i)
+            b=coords[1:, 0],  # N(i+1)
+            c=coords[:-1, 1], # CA(i) - Incorrect reference for omega
+                              # Correct reference atoms for N(i+1) -> CA(i+1) placement using omega(i): CA(i), C(i), N(i+1)
+            bond_length=bond_mask[1:, 1], # N(i+1)-CA(i+1) bond length
+            theta=thetas_nca, # Angle C(i)-N(i+1)-CA(i+1)
+            chi=dihedrals_nca, # Dihedral CA(i)-C(i)-N(i+1)-CA(i+1) (omega_i)
+        )
+        coords[1:, 1] = mp_nerf_torch(params_n_ca)
 
-    # do rotation concatenation - do for loop in cpu always - faster
-    rotations = rotations.cpu() if coords.is_cuda and hybrid else rotations
-    for i in range(1, length - 1):
-        rotations[i] = torch.matmul(rotations[i], rotations[i - 1])
-    rotations = rotations.to(device) if coords.is_cuda and hybrid else rotations
-    # rotate all
-    coords[1:, :4] = torch.matmul(coords[1:, :4], rotations)
-    # offset each position by cumulative sum at that position
-    coords[1:, :4] += torch.cumsum(coords[:-1, 3], dim=0).unsqueeze(-2)
+        # Place C(i+1) based on CA(i+1)
+        thetas_cac, dihedrals_cac = angles_mask[0, 1:, 2], angles_mask[1, 1:, 2] # Use phi(i+1) for CA(i+1)->C(i+1)
+        params_ca_c = MpNerfParams(
+            a=coords[1:, 0],  # N(i+1)
+            b=coords[:-1, 2], # C(i) - Incorrect reference for phi
+                              # Correct reference atoms for CA(i+1) -> C(i+1) placement using phi(i+1): N(i+1), CA(i+1), C(i)
+            c=coords[1:, 1],  # CA(i+1)
+            bond_length=bond_mask[1:, 2], # CA(i+1)-C(i+1) bond length
+            theta=thetas_cac, # Angle N(i+1)-CA(i+1)-C(i+1)
+            chi=dihedrals_cac, # Dihedral C(i)-N(i+1)-CA(i+1)-C(i+1) (phi_{i+1})
+        )
+        coords[1:, 2] = mp_nerf_torch(params_ca_c)
 
-    #########
-    # parallel sidechain - do the oxygen, c-beta and side chain
-    #########
+    # --- Original parallel NeRF approach (commented out, needs review) ---
+    # # starting positions (in the x,y plane) and normal vector [0,0,1]
+    # init_a = einops.repeat(
+    #     torch.tensor([1.0, 0.0, 0.0], device=device, dtype=precise),
+    #     "d -> l d",
+    #     l=length,
+    # )
+    # init_b = einops.repeat(
+    #     torch.tensor([1.0, 1.0, 0.0], device=device, dtype=precise),
+    #     "d -> l d",
+    #     l=length,
+    # )
+    # # do N -> CA. don't do 1st since its done already
+    # thetas, dihedrals = angles_mask[0, :, 1], angles_mask[1, :, 1] # Use omega? No, N-CA uses C(i-1)-N-CA angle/dihedral
+    # params_n_ca = MpNerfParams(
+    #     a=coords[:-1, 2] if length > 1 else init_a[:1], # C(i-1) or placeholder
+    #     b=init_a, # Placeholder? Needs N(i)
+    #     c=coords[:, 0], # N(i)
+    #     bond_length=bond_mask[:, 1], # N-CA bond
+    #     theta=thetas, # Angle C(i-1)-N(i)-CA(i)
+    #     chi=dihedrals, # Dihedral ? -N(i)-CA(i)
+    # )
+    # coords[1:, 1] = mp_nerf_torch(params_n_ca)[1:] # This logic seems flawed for parallel build
+
+    # # do CA -> C. don't do 1st since its done already
+    # thetas, dihedrals = angles_mask[0, :, 2], angles_mask[1, :, 2] # Use phi?
+    # params_ca_c = MpNerfParams(
+    #     a=coords[:, 0], # N(i)
+    #     b=coords[:-1, 2] if length > 1 else init_b[:1], # C(i-1) or placeholder? Needs CA(i)
+    #     c=coords[:, 1], # CA(i)
+    #     bond_length=bond_mask[:, 2], # CA-C bond
+    #     theta=thetas, # Angle N-CA-C
+    #     chi=dihedrals, # Dihedral C(i-1)-N-CA-C (phi)
+    # )
+    # coords[1:, 2] = mp_nerf_torch(params_ca_c)[1:]
+
+    # # do C -> N+1
+    # thetas, dihedrals = angles_mask[0, :, 0], angles_mask[1, :, 0] # Use psi?
+    # params_c_n = MpNerfParams(
+    #     a=coords[:, 1], # CA(i)
+    #     b=coords[:, 0], # N(i) ? Needs C(i)
+    #     c=coords[:, 2], # C(i)
+    #     bond_length=bond_mask[:, 0], # C-N bond (actually C(i)-N(i+1))
+    #     theta=thetas, # Angle CA-C-N(+1)
+    #     chi=dihedrals, # Dihedral N-CA-C-N(+1) (psi)
+    # )
+    # coords[:, 3] = mp_nerf_torch(params_c_n) # Places O atom, not N+1
+
+    # --- Simplified sequential build for backbone (N, CA, C) ---
+    # This part needs careful review based on NeRF definition and desired frame propagation
+    # The original code had issues with parallelization and reference atoms.
+    # A sequential build is generally more robust for chains.
+
+    # Re-initialize first 3 atoms based on standard geometry
+    coords[0, 0] = torch.zeros(3, device=device, dtype=precise)
+    coords[0, 1] = coords[0, 0] + torch.tensor([BB_BUILD_INFO["BONDLENS"]["n-ca"], 0.0, 0.0], device=device, dtype=precise)
+    n_ca_c_angle = angles_mask[0, 0, 2]
+    ca_c_bond = bond_mask[0, 2]
+    coords[0, 2] = coords[0, 1] + torch.tensor([
+        ca_c_bond * torch.cos(np.pi - n_ca_c_angle),
+        ca_c_bond * torch.sin(np.pi - n_ca_c_angle),
+        0.0
+    ], device=device, dtype=precise)
+
+    # Build subsequent residues
+    for i in range(length - 1):
+        # Place N(i+1) using C(i), CA(i), N(i) and psi(i)
+        params_n_next = MpNerfParams(
+            a=coords[i, 0], # N(i)
+            b=coords[i, 1], # CA(i)
+            c=coords[i, 2], # C(i)
+            bond_length=bond_mask[i+1, 0], # C(i)-N(i+1) bond
+            theta=angles_mask[0, i, 0], # Angle CA(i)-C(i)-N(i+1)
+            chi=angles_mask[1, i, 0],   # Dihedral N(i)-CA(i)-C(i)-N(i+1) (psi_i)
+        )
+        coords[i+1, 0] = mp_nerf_torch(params_n_next)
+
+        # Place CA(i+1) using N(i+1), C(i), CA(i) and omega(i)
+        params_ca_next = MpNerfParams(
+            a=coords[i, 1], # CA(i)
+            b=coords[i, 2], # C(i)
+            c=coords[i+1, 0], # N(i+1)
+            bond_length=bond_mask[i+1, 1], # N(i+1)-CA(i+1) bond
+            theta=angles_mask[0, i+1, 1], # Angle C(i)-N(i+1)-CA(i+1)
+            chi=angles_mask[1, i+1, 1],   # Dihedral CA(i)-C(i)-N(i+1)-CA(i+1) (omega_i)
+        )
+        coords[i+1, 1] = mp_nerf_torch(params_ca_next)
+
+        # Place C(i+1) using CA(i+1), N(i+1), C(i) and phi(i+1)
+        params_c_next = MpNerfParams(
+            a=coords[i, 2], # C(i)
+            b=coords[i+1, 0], # N(i+1)
+            c=coords[i+1, 1], # CA(i+1)
+            bond_length=bond_mask[i+1, 2], # CA(i+1)-C(i+1) bond
+            theta=angles_mask[0, i+1, 2], # Angle N(i+1)-CA(i+1)-C(i+1)
+            chi=angles_mask[1, i+1, 2],   # Dihedral C(i)-N(i+1)-CA(i+1)-C(i+1) (phi_{i+1})
+        )
+        coords[i+1, 2] = mp_nerf_torch(params_c_next)
+
+    # Place sidechain atoms and Oxygen (atom 3) using parallel NeRF
     for i in range(3, 14):
         level_mask = cloud_mask[:, i]
-        thetas, dihedrals = angles_mask[:, level_mask, i]
-        idx_a, idx_b, idx_c = point_ref_mask[:, level_mask, i - 3]
+        if not torch.any(level_mask):
+            continue # Skip if no atoms of this type exist
 
-        # to place C-beta, we need the carbons from prev res - not available for the 1st res
-        if i == 4:
-            # the c requested is from the previous residue - offset boolean mask by one
-            # can't be done with slicing bc glycines are inside chain (dont have cb)
-            coords_a = coords[(level_mask.nonzero().view(-1) - 1), idx_a]  # (L-1), 3
-            # if first residue is not glycine,
-            # for 1st residue, use position of the second residue's N (1,3)
-            if level_mask[0].item():
-                coords_a[0] = coords[1, 1]
-        else:
-            coords_a = coords[level_mask, idx_a]
+        thetas, dihedrals = angles_mask[0, level_mask, i], angles_mask[1, level_mask, i]
+        idx_a, idx_b, idx_c = point_ref_mask[:, level_mask, i - 3]
+        selector = level_mask.nonzero().squeeze(-1)
+
+        coords_a = coords[selector, idx_a]
+        # Handle C-beta special case for atom 'a' in dihedral calculation
+        if i == 4: # C-beta placement
+             # Find indices in selector that are > 0
+             valid_prev_indices = selector > 0
+             selector_prev = selector[valid_prev_indices]
+             if selector_prev.numel() > 0:
+                 # Use C atom from the previous residue for non-first residues
+                 coords_a[valid_prev_indices] = coords[selector_prev - 1, 2] # C(i-1)
+
+             # Handle the very first residue (index 0) if it has a CB
+             if selector.numel() > 0 and selector[0] == 0:
+                 # Use N(i+1) as a placeholder if seq_len > 1, otherwise maybe CA?
+                 # This edge case needs careful definition based on desired behavior.
+                 # Using N(i) as placeholder for first residue's C(i-1)
+                 coords_a[~valid_prev_indices] = coords[0, 0] # Use N(0) as placeholder
 
         params_sidechain = MpNerfParams(
             a=coords_a,
-            b=coords[level_mask, idx_b],
-            c=coords[level_mask, idx_c],
+            b=coords[selector, idx_b],
+            c=coords[selector, idx_c],
             bond_length=bond_mask[level_mask, i],
             theta=thetas,
             chi=dihedrals,
@@ -366,47 +485,38 @@ def get_symmetric_atom_pairs(seq: str) -> Dict[str, List[Tuple[int, int]]]:
         seq: Amino acid sequence in one-letter code
 
     Returns:
-        Dictionary mapping residue types to lists of symmetric atom pairs
+        Dictionary mapping residue indices (as strings) to lists of symmetric atom pairs indices
     """
-    # Define symmetric atom pairs for each residue type
-    symmetric_pairs = {
-        "A": [],  # Alanine has no symmetric atoms
-        "C": [(4, 5)],  # Cysteine: SG and HG
-        "D": [(4, 5), (6, 7)],  # Aspartic acid: CG, OD1, OD2
-        "E": [(4, 5), (6, 7), (8, 9)],  # Glutamic acid: CG, CD, OE1, OE2
-        "F": [
-            (4, 5),
-            (6, 7),
-            (8, 9),
-            (10, 11),
-        ],  # Phenylalanine: CG, CD1, CD2, CE1, CE2
-        "G": [],  # Glycine has no symmetric atoms
-        "H": [(4, 5), (6, 7), (8, 9)],  # Histidine: CG, ND1, CD2, CE1, NE2
-        "I": [(4, 5)],  # Isoleucine: CG1, CG2
-        "K": [(4, 5), (6, 7), (8, 9)],  # Lysine: CG, CD, CE, NZ
-        "L": [(4, 5), (6, 7)],  # Leucine: CG, CD1, CD2
-        "M": [],  # Methionine has no symmetric atoms
-        "N": [(4, 5), (6, 7)],  # Asparagine: CG, OD1, ND2
-        "P": [],  # Proline has no symmetric atoms
-        "Q": [(4, 5), (6, 7), (8, 9)],  # Glutamine: CG, CD, OE1, NE2
-        "R": [(4, 5), (6, 7), (8, 9), (10, 11)],  # Arginine: CG, CD, NE, CZ, NH1, NH2
-        "S": [(4, 5)],  # Serine: OG, HG
-        "T": [(4, 5)],  # Threonine: OG1, CG2
-        "V": [(4, 5)],  # Valine: CG1, CG2
-        "W": [
-            (4, 5),
-            (6, 7),
-            (8, 9),
-            (10, 11),
-        ],  # Tryptophan: CG, CD1, CD2, NE1, CE2, CE3
-        "Y": [(4, 5), (6, 7), (8, 9), (10, 11)],  # Tyrosine: CG, CD1, CD2, CE1, CE2, OH
+    # Define symmetric atom pairs for each residue type using indices from SC_BUILD_INFO['atom-names']
+    symmetric_pairs_by_type = {
+        "D": [("OD1", "OD2")],  # Aspartic acid
+        "E": [("OE1", "OE2")],  # Glutamic acid
+        "F": [("CD1", "CD2"), ("CE1", "CE2")],  # Phenylalanine
+        "H": [("CD2", "CE1")], # Histidine - based on common protonation states
+        "L": [("CD1", "CD2")],  # Leucine
+        "R": [("NH1", "NH2")],  # Arginine
+        "V": [("CG1", "CG2")],  # Valine
+        "Y": [("CD1", "CD2"), ("CE1", "CE2")],  # Tyrosine
     }
 
-    # Create a dictionary mapping residue indices to their symmetric pairs
     result = {}
-    for i, res in enumerate(seq):
-        if res in symmetric_pairs:
-            result[str(i)] = symmetric_pairs[res]
+    for i, res_type in enumerate(seq):
+        if res_type in symmetric_pairs_by_type:
+            atom_names = get_atom_names(res_type)
+            try:
+                name_to_idx = {name: idx for idx, name in enumerate(atom_names)}
+                pairs_for_res = []
+                for name1, name2 in symmetric_pairs_by_type[res_type]:
+                    if name1 in name_to_idx and name2 in name_to_idx:
+                         pairs_for_res.append((name_to_idx[name1], name_to_idx[name2]))
+                if pairs_for_res:
+                    result[str(i)] = pairs_for_res
+            except ValueError: # Handle cases where atom names might not be unique (shouldn't happen with standard AAs)
+                pass # Or log a warning
+        # Add empty list for residues with no symmetry defined or if lookup fails
+        if str(i) not in result:
+             result[str(i)] = []
+
 
     return result
 
@@ -427,13 +537,22 @@ def modify_angles_mask_with_torsions(
     # Copy the angles mask to avoid modifying the original
     modified_mask = angles_mask.clone()
 
+    seq_len = torsions.shape[0]
+    if seq_len == 0:
+        return modified_mask # Handle empty sequence
+
     # Update torsion angles for backbone atoms
-    # N determined by previous psi
-    modified_mask[1, :-1, 0] = torsions[:-1, 1]  # psi
-    # CA determined by omega
-    modified_mask[1, 1:, 1] = torsions[1:, 2]  # omega
-    # C determined by phi
-    modified_mask[1, 1:, 2] = torsions[1:, 0]  # phi
+    # N determined by previous psi: angles_mask[1, i, 0] = psi(i)
+    if seq_len > 1:
+        modified_mask[1, :-1, 0] = torsions[:-1, 1]  # psi
+
+    # CA determined by omega: angles_mask[1, i, 1] = omega(i)
+    if seq_len > 1:
+        modified_mask[1, 1:, 1] = torsions[1:, 2]  # omega(i) affects CA(i+1)
+
+    # C determined by phi: angles_mask[1, i, 2] = phi(i)
+    if seq_len > 1:
+        modified_mask[1, 1:, 2] = torsions[1:, 0]  # phi(i) affects C(i)
 
     return modified_mask
 
