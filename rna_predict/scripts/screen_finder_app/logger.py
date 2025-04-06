@@ -1,7 +1,8 @@
 # rna_predict/scripts/logger.py
 import logging
 
-def setup_logger(level=logging.INFO):
+
+def setup_logger(level: int = logging.INFO) -> logging.Logger:
     """
     Sets up and returns a configured logger instance.
 
@@ -12,13 +13,13 @@ def setup_logger(level=logging.INFO):
     if not logging.getLogger().hasHandlers():
         logging.basicConfig(
             level=level,
-            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-            datefmt='%Y-%m-%d %H:%M:%S'
+            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
         )
 
     # Get a logger specific to this module/application part
     logger = logging.getLogger(__name__)
-    logger.setLevel(level) # Ensure the specific logger respects the level
+    logger.setLevel(level)  # Ensure the specific logger respects the level
 
     # Prevent adding multiple handlers if called multiple times
     if not logger.handlers:
@@ -26,9 +27,10 @@ def setup_logger(level=logging.INFO):
         # BasicConfig already adds a handler to the root logger,
         # so child loggers will propagate messages to it by default.
         # If specific handling per logger (e.g., file output) is needed, add handlers here.
-        pass # Using root logger's handler configured by basicConfig
+        pass  # Using root logger's handler configured by basicConfig
 
     return logger
+
 
 # Example of how to get a logger elsewhere:
 # from logger import setup_logger
