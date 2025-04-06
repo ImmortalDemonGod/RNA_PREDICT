@@ -710,6 +710,32 @@ def combine_noise(
     return noised_coords, cloud_mask_flat
 
 
+def get_symmetric_atom_pairs(seq: str) -> Dict[str, List[Tuple[int, int]]]:
+    """
+    Get symmetric atom pairs for a given sequence.
+    
+    Args:
+        seq: String of amino acid sequence
+    
+    Returns:
+        Dictionary mapping residue indices (as strings) to lists of atom index pairs
+        that are symmetric within that residue.
+    """
+    result = {}
+    for i, aa in enumerate(seq):
+        if aa in AMBIGUOUS:
+            # Convert residue index to string key
+            key = str(i)
+            # Get the pairs of atom indices for this residue
+            pairs = []
+            for pair_indices in AMBIGUOUS[aa]["indexs"]:
+                # Convert to tuple of integers
+                pair = tuple(map(int, pair_indices))
+                pairs.append(pair)
+            result[key] = pairs
+    return result
+
+
 if __name__ == "__main__":
     import joblib
 
