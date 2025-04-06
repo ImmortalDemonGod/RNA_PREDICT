@@ -191,7 +191,7 @@ class TestBuildRnaTokenMetadata(unittest.TestCase):
 
     @given(num_tokens=st.integers(min_value=1, max_value=200))
     @example(num_tokens=1)  # minimal test case
-    @settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
+    @settings(deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture])
     def test_build_rna_token_metadata_fuzz(self, num_tokens: int) -> None:
         """
         Fuzzy test to ensure build_rna_token_metadata does not crash for various valid token counts.

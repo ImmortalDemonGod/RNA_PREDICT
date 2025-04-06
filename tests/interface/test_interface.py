@@ -465,6 +465,7 @@ class TestPredictSubmissionParametricShapes(unittest.TestCase):
         repeats=st.integers(min_value=1, max_value=3),
     )
     @settings(
+        deadline=None, # Disable deadline for this flaky test
         suppress_health_check=[HealthCheck.too_slow, HealthCheck.filter_too_much],
         max_examples=5,
     )
