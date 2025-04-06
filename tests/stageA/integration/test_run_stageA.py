@@ -178,6 +178,12 @@ def test_main_end_to_end(temp_checkpoint_folder, monkeypatch):
         backup_folder = None
 
     os.makedirs("RFold", exist_ok=True)
+    # Ensure the target path is removed before creating the symlink
+    if os.path.islink(real_folder):
+        os.unlink(real_folder)
+    elif os.path.exists(real_folder):
+        shutil.rmtree(real_folder)
+
     os.symlink(temp_checkpoint_folder, real_folder)  # link or rename
     try:
         main()
