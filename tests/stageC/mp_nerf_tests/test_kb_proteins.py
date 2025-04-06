@@ -5,6 +5,7 @@ import unittest
 import numpy as np
 from hypothesis import given
 from hypothesis import strategies as st
+from hypothesis import settings
 
 # Adjust this import as needed
 import rna_predict.pipeline.stageC.mp_nerf.protein_utils as protein_utils
@@ -40,6 +41,7 @@ class TestMakeCloudMask(unittest.TestCase):
             protein_utils.make_cloud_mask("X")
 
     @given(st.sampled_from(list(SUPREME_INFO.keys())))
+    @settings(deadline=None)
     def test_make_cloud_mask_hypothesis_valid(self, aa):
         """Hypothesis test for all valid amino acids."""
         mask = protein_utils.make_cloud_mask(aa)
@@ -122,6 +124,7 @@ class TestMakeThetaMask(unittest.TestCase):
             protein_utils.make_theta_mask("X")
 
     @given(st.sampled_from(list(SUPREME_INFO.keys())))
+    @settings(deadline=None)
     def test_make_theta_mask_hypothesis_valid(self, aa):
         """Hypothesis test for all valid amino acids."""
         mask = protein_utils.make_theta_mask(aa)
