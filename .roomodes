@@ -9,8 +9,7 @@
         "read",
         "browser",
         "command",
-        "edit",
-        "mcp"
+        "edit"
       ],
       "source": "project"
     }
