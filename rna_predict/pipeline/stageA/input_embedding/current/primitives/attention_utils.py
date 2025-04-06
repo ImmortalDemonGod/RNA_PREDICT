@@ -168,7 +168,7 @@ def _determine_chunking(
     else:
         # Heuristic to determine chunk size based on tensor dimensions
         # Smaller tensors can use larger chunks
-        if q.shape[-3] < 32:  # Small batch size
+        if q.shape[-4] <= 32: # Small batch size (Corrected condition to include 32) # CORRECTED INDEX -4
             actual_chunk_size = min(128, q.shape[-2])
         else:
             actual_chunk_size = min(64, q.shape[-2])
@@ -201,7 +201,7 @@ def _process_attention_chunk(inputs: ChunkProcessingInputs) -> torch.Tensor:
         processed_bias_slice = processed_bias_slice.squeeze(-3)
         # Now shape is [..., n_heads, n_queries, n_keys]
         # We might need to further slice if n_queries_chunk < n_queries
-        n_queries_chunk = inputs.q_chunk.shape[-3]  # Get the actual query chunk size
+        n_queries_chunk = inputs.q_chunk.shape[-2]  # Get the actual query chunk size # CORRECTED INDEX -2
         if processed_bias_slice.shape[-2] != n_queries_chunk:
             # Slice to match the actual query chunk dimension
             processed_bias_slice = processed_bias_slice[..., :n_queries_chunk, :]
@@ -361,9 +361,9 @@ def _get_bias_slice(
         return None
 
     # Extract appropriate slice of bias
-    if local_bias.ndim > 3:  # For trunked bias
+    if local_bias.ndim == 5:  # For trunked bias (5D) # CORRECTED CONDITION
         return local_bias[..., chunk_idx : chunk_idx + 1, :, :]
-    else:  # For regular bias
+    else:  # For regular bias (e.g., 4D)
         return local_bias[..., start_idx:end_idx, :]
 
 
