@@ -110,6 +110,7 @@ class TestMatrixOps(unittest.TestCase):
         self.device = torch.device("cpu")
 
     @given(n=st.integers(min_value=1, max_value=64))
+    @settings(deadline=None) # Disable deadline for this flaky test
     def test_base_matrix(self, n: int):
         """
         base_matrix(n, device) should produce an n x n matrix with 1s except

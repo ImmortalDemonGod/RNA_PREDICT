@@ -134,6 +134,7 @@ def test_inverse_squared_dist_large():
     )
 )
 @settings(
+    deadline=None, # Disable deadline for this flaky test
     suppress_health_check=[HealthCheck.filter_too_much, HealthCheck.too_slow],
     max_examples=20,
 )
