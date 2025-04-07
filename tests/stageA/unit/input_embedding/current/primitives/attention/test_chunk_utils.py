@@ -138,7 +138,7 @@ def test_process_keys_values_chunks(
     if seq_len_k_override % n_keys_override != 0:
         last_chunk_idx = n_k_trunks - 1
         original_len_last_chunk = seq_len_k_override % n_keys_override
-        padding_len = n_keys_override - original_len_last_chunk
+        n_keys_override - original_len_last_chunk
 
         # Check K/V padding (should be zeros)
         assert torch.all(
