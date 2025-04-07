@@ -11,10 +11,15 @@ from rna_predict.pipeline.stageC.mp_nerf.massive_pnerf import (
     get_axis_matrix,
     mp_nerf_torch,
 )
-# Import BB_BUILD_INFO from sidechain_data
-from rna_predict.pipeline.stageC.mp_nerf.protein_utils.sidechain_data import BB_BUILD_INFO
+
 # Import SUPREME_INFO via the package __init__ (which now points to supreme_data)
 from rna_predict.pipeline.stageC.mp_nerf.protein_utils import SUPREME_INFO
+
+# Import BB_BUILD_INFO from sidechain_data
+from rna_predict.pipeline.stageC.mp_nerf.protein_utils.sidechain_data import (
+    BB_BUILD_INFO,
+)
+
 # Removed import of build_scaffolds_from_scn_angles as it's defined locally
 # from rna_predict.pipeline.stageC.mp_nerf.protein_utils.structure_utils import (
 #     build_scaffolds_from_scn_angles,
@@ -373,7 +378,9 @@ def protein_fold(
     # offset each position by cumulative sum at that position
     offset = torch.cumsum(coords[:-1, 3], dim=0).unsqueeze(-2)
     # Replace potential NaN/Inf in offset before adding, clamp large values
-    offset = torch.nan_to_num(offset, nan=0.0, posinf=1e6, neginf=-1e6) # Clamp large values too
+    offset = torch.nan_to_num(
+        offset, nan=0.0, posinf=1e6, neginf=-1e6
+    )  # Clamp large values too
     coords[1:, :4] += offset
     # Sanitize coords after addition as well, just in case
     coords = torch.nan_to_num(coords, nan=0.0, posinf=1e6, neginf=-1e6)
@@ -400,8 +407,10 @@ def protein_fold(
             continue
 
         # Ensure angles are also indexed by the integer indices derived from level_mask
-        valid_indices_int = level_mask.nonzero().view(-1) # Get integer indices from boolean mask
-        thetas, dihedrals = angles_mask[:, valid_indices_int, i] # Use integer indices
+        valid_indices_int = level_mask.nonzero().view(
+            -1
+        )  # Get integer indices from boolean mask
+        thetas, dihedrals = angles_mask[:, valid_indices_int, i]  # Use integer indices
 
         # to place C-beta, we need the carbons from prev res - not available for the 1st res
         if i == 4:
