@@ -4,6 +4,7 @@ Protein utilities package for structure manipulation and mask generation.
 
 from rna_predict.pipeline.stageC.mp_nerf.protein_utils.supreme_data import (
     SUPREME_MASK,
+    SUPREME_INFO, # <-- Add import from supreme_data
 )
 
 from .mask_generators import (
@@ -27,7 +28,7 @@ from .sidechain_data import (
     SIDECHAIN_ANGLES,
     SIDECHAIN_BONDS,
     SIDECHAIN_MASK,
-    SUPREME_INFO,
+    # SUPREME_INFO, # <-- Removed import from sidechain_data
 )
 from .structure_utils import (
     build_scaffolds_from_scn_angles,

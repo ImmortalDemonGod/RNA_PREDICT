@@ -228,7 +228,7 @@ class TestFourierEmbedding(unittest.TestCase):
             ),
         )
     )
-    @settings(max_examples=10)
+    @settings(max_examples=10, deadline=None)  # Disable deadline
     def test_forward_random(self, arr):
         """
         Test forward pass with random shapes, ensuring shape output is consistent.

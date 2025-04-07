@@ -294,25 +294,35 @@ class TestAtomSelector(unittest.TestCase):
 
         # Calculate total expected atoms based on non-padding residues and specific AA masks if 'all'
         expected_total_atoms = 0
-        num_valid_residues = 0
         for char in scn_seq:
             if char != '_':
-                num_valid_residues += 1
-                if option == "all":
-                    # For 'all', sum the actual cloud_mask for the specific AA
-                    expected_total_atoms += sum(SUPREME_INFO[char]["cloud_mask"])
-                elif isinstance(option, str):
-                     # For specific string options, use the calculated expected_per_residue,
-                     # but ensure Glycine ('G') doesn't count CB if selected
-                     count_for_char = expected_per_residue
-                     if char == 'G':
-                         if option in ["backbone-with-cbeta", "backbone-with-cbeta-and-oxygen"]:
-                             count_for_char -= 1 # Subtract CB for Glycine
-                     expected_total_atoms += count_for_char
+                # Determine the base mask corresponding to the 'option'
+                if isinstance(option, str):
+                    option_mask_np = np.zeros(14, dtype=bool)
+                    # Map string options to boolean masks (indices based on SCN standard: N=0, CA=1, C=2, O=3, CB=4, ...)
+                    if "backbone" in option: option_mask_np[[0, 1, 2]] = True # N, CA, C
+                    if "oxygen" in option: option_mask_np[3] = True # O
+                    if "cbeta" in option: option_mask_np[4] = True # CB
+                    if option == "all": option_mask_np[:] = True
+                    # Adjust for Glycine if CB is selected by the option
+                    if char == 'G' and option_mask_np[4]:
+                        option_mask_np[4] = False # Glycine has no CB
+                    option_mask = torch.tensor(option_mask_np, dtype=torch.bool)
                 elif isinstance(option, torch.Tensor):
-                    # For tensor mask option, multiply the residue's cloud_mask with the option mask
+                    option_mask = option.bool() # Use the provided tensor mask
+                else:
+                     self.fail(f"Invalid option type: {type(option)}")
+
+                # Calculate expected count for this residue based on discard_absent
+                if discard_absent:
+                    # When discarding absent, the 'present' mask comes from coords (assumed all True for randn coords).
+                    # Expected count is the sum of the option mask itself (already adjusted for Glycine if needed).
+                    expected_total_atoms += option_mask.sum().item()
+                else:
+                    # When not discarding absent, the 'present' mask comes from SUPREME_INFO cloud_mask.
+                    # Expected count is the intersection of the residue's cloud mask and the option mask.
                     residue_cloud_mask = torch.tensor(SUPREME_INFO[char]["cloud_mask"], dtype=torch.bool)
-                    expected_total_atoms += (residue_cloud_mask & option).sum().item()
+                    expected_total_atoms += (residue_cloud_mask & option_mask).sum().item() # Use option_mask here
 
 
         # Assert the total sum of the mask matches the calculated expected total
