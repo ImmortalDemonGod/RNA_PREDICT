@@ -11,9 +11,11 @@ def fix_token_indices_after_resize():
     """
     Fix token indices after resizing to handle shape mismatches.
     """
-    from rna_predict.pipeline.stageD.diffusion import diffusion
+    from rna_predict.pipeline.stageD.diffusion.components.diffusion_conditioning import (
+        DiffusionConditioning,
+    )
 
-    original_forward = diffusion.DiffusionConditioning.forward
+    original_forward = DiffusionConditioning.forward
 
     @wraps(original_forward)
     def patched_forward(
@@ -54,7 +56,7 @@ def fix_token_indices_after_resize():
 
         return result
 
-    diffusion.DiffusionConditioning.forward = patched_forward
+    DiffusionConditioning.forward = patched_forward
 
 
 def fix_trunk_feature_dimensions():
