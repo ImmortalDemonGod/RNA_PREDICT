@@ -20,7 +20,7 @@ def test_nerf_and_dihedral():
     c = torch.tensor([1, 4, 7]).float()
     d = torch.tensor([1, 8, 8]).float()
     # calculate internal references
-    v1 = (b - a).numpy()
+    (b - a).numpy()
     v2 = (c - b).numpy()
     v3 = (d - c).numpy()
     # get angles
