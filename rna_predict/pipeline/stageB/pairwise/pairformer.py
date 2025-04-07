@@ -513,7 +513,7 @@ class MSABlock(nn.Module):
         use_lma: bool = False,
         inplace_safe: bool = False,
         chunk_size: Optional[int] = None,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[Optional[torch.Tensor], torch.Tensor]:
         """
         Args:
             m (torch.Tensor): msa embedding
@@ -729,18 +729,12 @@ class MSAModule(nn.Module):
             pair_mask = pair_mask.float()
         msa_feat = sample_msa_feature_dict_random_without_replacement(
             feat_dict=input_feature_dict,
-            dim_dict={feat_name: -2 for feat_name in self.input_feature},
-            cutoff=(
+            # dim_dict removed as it's not an accepted argument
+            sample_size=(
                 self.msa_configs["train_cutoff"]
                 if self.training
                 else self.msa_configs["test_cutoff"]
-            ),
-            lower_bound=(
-                self.msa_configs["train_lowerb"]
-                if self.training
-                else self.msa_configs["test_lowerb"]
-            ),
-            strategy=self.msa_configs["strategy"],
+            )
         )
         # pylint: disable=E1102
         msa_feat["msa"] = torch.nn.functional.one_hot(
@@ -857,7 +851,7 @@ class TemplateEmbedder(nn.Module):
         self,
         input_feature_dict: dict[str, Any],
         z: torch.Tensor,  # pylint: disable=W0613
-        pair_mask: torch.Tensor = None,  # pylint: disable=W0613
+        pair_mask: Optional[torch.Tensor] = None,  # pylint: disable=W0613
         use_memory_efficient_kernel: bool = False,  # pylint: disable=W0613
         use_deepspeed_evo_attention: bool = False,  # pylint: disable=W0613
         use_lma: bool = False,  # pylint: disable=W0613
@@ -876,7 +870,12 @@ class TemplateEmbedder(nn.Module):
             torch.Tensor: the template feature
                 [..., N_token, N_token, c_z]
         """
-        # In this version, we do not use TemplateEmbedder by setting n_blocks=0
+        # Per Algorithm 16 and typical usage, return 0 if templates aren't used or n_blocks is 0.
         if "template_restype" not in input_feature_dict or self.n_blocks < 1:
-            return 0
-        return 0
+            return 0 # Return integer 0 as expected by tests and docstring
+
+        # If templates are present but logic isn't fully implemented,
+        # also return 0 for now, consistent with the original behavior's intent.
+        # TODO: Implement the actual template embedding logic here when ready.
+        # For now, maintain the behavior of returning 0 if the main condition isn't met.
+        return 0 # Return integer 0

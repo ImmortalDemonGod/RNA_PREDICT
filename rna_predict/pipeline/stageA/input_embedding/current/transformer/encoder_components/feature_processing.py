@@ -98,8 +98,16 @@ def extract_atom_features(
     """
     features = []
 
+    # Ensure encoder.input_feature is a dictionary before iterating
+    if not hasattr(encoder, "input_feature") or not isinstance(
+        encoder.input_feature, dict
+    ):
+        raise TypeError(
+            "encoder.input_feature is not a dictionary or does not exist."
+        )
+
     # Process each feature individually
-    for feature_name, feature_dim in encoder.input_feature.items():
+    for feature_name, feature_dim in encoder.input_feature.items(): # type: ignore[union-attr] # Ignore previous error after check
         processed_feature = _process_feature(
             input_feature_dict, feature_name, feature_dim
         )
@@ -113,8 +121,16 @@ def extract_atom_features(
     # Concatenate features along last dimension
     cat_features = torch.cat(features, dim=-1)
 
+    # Ensure encoder.linear_no_bias_f is callable before calling
+    if not hasattr(encoder, "linear_no_bias_f") or not callable(
+        encoder.linear_no_bias_f
+    ):
+        raise TypeError(
+            "encoder.linear_no_bias_f is not callable or does not exist."
+        )
+
     # Pass through atom encoder
-    return encoder.linear_no_bias_f(cat_features)
+    return encoder.linear_no_bias_f(cat_features) # type: ignore[operator] # Ignore previous error after check
 
 
 def ensure_space_uid(input_feature_dict: InputFeatureDict) -> None:
