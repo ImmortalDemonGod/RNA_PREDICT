@@ -153,33 +153,31 @@ class AtomTransformer(torch.nn.Module):
         # Check if the shape suggests local attention (matches n_queries/n_keys)
         # Use -3 and -2 because the block dim might be present at -4
         is_potentially_local = (
-             current_p_dim >= 5 and
-             p.shape[-3] == self.n_queries and
-             p.shape[-2] == self.n_keys
+            current_p_dim >= 5
+            and p.shape[-3] == self.n_queries
+            and p.shape[-2] == self.n_keys
         )
 
         if is_potentially_local:
-             # Assume local attention based on shape matching config
-             n_q = self.n_queries
-             n_k = self.n_keys
+            # Assume local attention based on shape matching config
+            n_q = self.n_queries
+            n_k = self.n_keys
         else:
-             # Assume global attention (or let DiffusionTransformer raise error if shape is wrong)
-             n_q = None
-             n_k = None
-
+            # Assume global attention (or let DiffusionTransformer raise error if shape is wrong)
+            n_q = None
+            n_k = None
 
         # Process through diffusion transformer
         result = self.diffusion_transformer(
             a=q,  # Pass atom features as 'a'
             s=s,  # Pass token-level style features as 's'
             z=p,  # Pass pair features as 'z' (could be 4D, 5D, or 6D)
-            n_queries=n_q, # Pass None for global, values for local
+            n_queries=n_q,  # Pass None for global, values for local
             n_keys=n_k,
             inplace_safe=inplace_safe,
             chunk_size=chunk_size,
         )
         result = cast(torch.Tensor, result)
-
 
         # Remove batch dimension if it was added
         if q_dim == 2 and result.dim() > q_dim:
