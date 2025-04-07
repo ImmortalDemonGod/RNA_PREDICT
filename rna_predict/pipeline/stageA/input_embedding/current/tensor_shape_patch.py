@@ -50,17 +50,17 @@ def adapt_indices_for_gather(
         N_b, N_trunk, N_q = idx_q.shape
         idx_q = idx_q.reshape(N_b, N_trunk * N_q)
     else:
-        assert len(idx_q.shape) == 2, (
-            f"Expected idx_q to have 2 or 3 dimensions, got {len(idx_q.shape)}"
-        )
+        assert (
+            len(idx_q.shape) == 2
+        ), f"Expected idx_q to have 2 or 3 dimensions, got {len(idx_q.shape)}"
 
     if len(idx_k.shape) == 3:
         N_b, N_trunk, N_k = idx_k.shape
         idx_k = idx_k.reshape(N_b, N_trunk * N_k)
     else:
-        assert len(idx_k.shape) == 2, (
-            f"Expected idx_k to have 2 or 3 dimensions, got {len(idx_k.shape)}"
-        )
+        assert (
+            len(idx_k.shape) == 2
+        ), f"Expected idx_k to have 2 or 3 dimensions, got {len(idx_k.shape)}"
 
     return idx_q, idx_k
 
