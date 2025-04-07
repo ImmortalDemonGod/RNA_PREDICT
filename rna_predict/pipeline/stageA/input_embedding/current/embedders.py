@@ -128,6 +128,8 @@ class InputFeatureEmbedder(nn.Module):
         # --- Start: Added Key Check ---
         # Check if all required top-level keys are present
         required_keys = set(self.input_feature.keys())
+        # Add atom_to_token_idx as a required key if it's used for N_token calculation
+        required_keys.add("atom_to_token_idx")
         missing_keys = required_keys - set(input_feature_dict.keys())
         if missing_keys:
             raise KeyError(
@@ -166,12 +168,21 @@ class InputFeatureEmbedder(nn.Module):
             else:
                 N_token = profile.size(1)
         else:
-            # Fallback to atom_to_token if neither restype nor profile is available
-            atom_to_token = input_feature_dict["atom_to_token"]
-            if atom_to_token.dim() == 2:
-                N_token = atom_to_token.size(0)
+            # Fallback to atom_to_token_idx if neither restype nor profile is available
+            # FIX 1: Use atom_to_token_idx instead of atom_to_token
+            atom_to_token_idx = input_feature_dict["atom_to_token_idx"]
+            if atom_to_token_idx.dim() == 2:
+                N_token = atom_to_token_idx.size(0)
             else:
-                N_token = atom_to_token.max().item() + 1
+                # Ensure atom_to_token_idx is not empty before calling max()
+                if atom_to_token_idx.numel() > 0:
+                    # Explicitly cast to int to resolve mypy error
+                    N_token = int(atom_to_token_idx.max().item() + 1)
+                else:
+                    # Handle the case where atom_to_token_idx is empty
+                    N_token = 0 # Or raise an error, depending on expected behavior
+                    print("Warning: atom_to_token_idx is empty, setting N_token to 0.")
+
 
         print(f"DEBUG [Embedder]: N_token determined as: {N_token}")
 
@@ -192,7 +203,7 @@ class InputFeatureEmbedder(nn.Module):
         print(f"DEBUG [Embedder]: Shape after token adjustment (a): {a.shape}")
 
         # Create extras tensor by concatenating restype, profile, and deletion_mean
-        extras = []
+        extras_list = []
         for key in ("restype", "profile", "deletion_mean"):
             feat = input_feature_dict[key]
             # Ensure all tensors have the same batch and token dimensions
@@ -230,24 +241,28 @@ class InputFeatureEmbedder(nn.Module):
                     feat = torch.cat([feat, padding], dim=1)
 
             print(f"DEBUG [Embedder]: {key} shape after processing: {feat.shape}")
-            extras.append(feat)
+            extras_list.append(feat)
 
         # Now concatenate along the feature dimension
-        extras = torch.cat(extras, dim=-1)
-        print(f"DEBUG [Embedder]: extras shape before linear: {extras.shape}")
+        # FIX 2: Assign result to a new variable `extras_cat`
+        extras_cat = torch.cat(extras_list, dim=-1)
+        # FIX 3: Use `extras_cat` for shape access
+        print(f"DEBUG [Embedder]: extras_cat shape before linear: {extras_cat.shape}")
 
         # Create extras_linear if not already created
         if self.extras_linear is None:
-            extras_dim = extras.size(-1)
+            # FIX 4: Use `extras_cat` for size access
+            extras_dim = extras_cat.size(-1)
+            # FIX 5: Use `extras_cat` for device access
             self.extras_linear = LinearNoBias(extras_dim, self.c_token).to(
-                extras.device
+                extras_cat.device
             )
             print(
                 f"DEBUG [Embedder]: extras_linear weight shape: {self.extras_linear.weight.shape}"
             )
 
         # Project extras to c_token dimension and add to atom embeddings
-        extras_proj = self.extras_linear(extras)
+        extras_proj = self.extras_linear(extras_cat) # Use extras_cat here
         s_inputs = a + extras_proj
         print(f"DEBUG [Embedder]: Shape after addition (s_inputs): {s_inputs.shape}")
 
