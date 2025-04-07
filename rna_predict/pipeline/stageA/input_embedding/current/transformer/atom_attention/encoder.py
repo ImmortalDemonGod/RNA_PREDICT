@@ -135,24 +135,42 @@ class AtomAttentionEncoder(nn.Module):
             c_l, p_l, mask=mask, chunk_size=params.chunk_size or 0
         )
 
-        # Get number of tokens
-        num_tokens = params.input_feature_dict.get("num_tokens", None)
-        if num_tokens is None:
-            # Try to infer from restype shape
+        # Get number of tokens, ensuring it's an integer
+        num_tokens_obj = params.input_feature_dict.get("num_tokens", None)
+        if num_tokens_obj is not None:
+            # Check type before casting
+            if isinstance(num_tokens_obj, (int, float)):
+                num_tokens = int(num_tokens_obj)
+            else:
+                # Handle unexpected type - raise error or log warning
+                raise TypeError(f"Expected 'num_tokens' to be int or float, but got {type(num_tokens_obj)}")
+        else:
+            # Infer from other sources
             restype = params.input_feature_dict.get("restype", None)
             if restype is not None:
-                num_tokens = int(restype.shape[1])
+                # Ensure restype.shape[1] is convertible
+                try:
+                    num_tokens = int(restype.shape[1])
+                except (TypeError, IndexError) as e:
+                     raise TypeError(f"Could not determine num_tokens from restype shape: {e}")
+
             else:
                 # Default to maximum token index + 1
-                num_tokens = int(
-                    params.input_feature_dict["atom_to_token_idx"].max().item() + 1
-                )
+                atom_to_token_idx = params.input_feature_dict.get("atom_to_token_idx", None)
+                if atom_to_token_idx is None:
+                    raise ValueError("Cannot determine num_tokens: 'num_tokens', 'restype', and 'atom_to_token_idx' are all missing.")
+                try:
+                    num_tokens = int(atom_to_token_idx.max().item() + 1)
+                except Exception as e:
+                    raise TypeError(f"Could not determine num_tokens from atom_to_token_idx: {e}")
+
+        # num_tokens is now guaranteed to be an int
 
         # Aggregate to token level
         a_token = self.feature_processor.aggregate_to_token_level(
             a_atom,
             params.input_feature_dict["atom_to_token_idx"],
-            int(num_tokens),  # Explicitly cast to int
+            num_tokens,  # Pass the guaranteed int
         )
 
         # Project to token dimension
