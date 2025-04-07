@@ -3,9 +3,8 @@
 import unittest
 
 import numpy as np
-from hypothesis import given
+from hypothesis import given, settings
 from hypothesis import strategies as st
-from hypothesis import settings
 
 # Adjust this import as needed
 import rna_predict.pipeline.stageC.mp_nerf.protein_utils as protein_utils
