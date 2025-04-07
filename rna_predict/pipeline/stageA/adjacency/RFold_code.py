@@ -202,7 +202,6 @@ def visual_get_bases(seq):
         return "1,5", "2,6", "3", "4,7,8"
 
     # Fixed mapping for the nucleotides in the test case
-    seq_dict = {"A": 0, "U": 1, "C": 2, "G": 3}
     base_map = {"A": [], "U": [], "C": [], "G": []}
     for ii, s in enumerate(seq):
         base_map[s].append(ii + 1)
