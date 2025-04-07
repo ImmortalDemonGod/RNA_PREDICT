@@ -48,9 +48,10 @@ def _create_padding_tensor(
         # it relied on the calling function _reshape_query_to_trunk.
         # Let's refine this slightly.
         padding_shape = list(original_tensor.shape)
-        padding_shape[padding_dim] = 0 # Create a zero-size tensor along the dim
-        return torch.zeros(padding_shape, dtype=original_tensor.dtype, device=original_tensor.device)
-
+        padding_shape[padding_dim] = 0  # Create a zero-size tensor along the dim
+        return torch.zeros(
+            padding_shape, dtype=original_tensor.dtype, device=original_tensor.device
+        )
 
     padding_shape = list(original_tensor.shape)
     padding_shape[padding_dim] = padding_length
@@ -84,7 +85,7 @@ def _reshape_query_to_trunk(q: torch.Tensor, n_queries: int) -> QueryTrunkInfo:
         padding = _create_padding_tensor(q, padding_length)
         q_padded = torch.cat([q, padding], dim=-2)
     else:
-        q_padded = q # No padding needed
+        q_padded = q  # No padding needed
 
     # Reshape tensor into trunks
     q_shape = list(q_padded.shape)
@@ -167,11 +168,13 @@ def _create_different_dim_bias(
     """
     # Initialize attn_bias_trunked with -inf (masked by default)
     attn_bias_shape = list(q_trunked.shape[:-1]) + [
-        k_trunked.shape[-3], # n_k_trunks
-        k_trunked.shape[-2], # n_keys
+        k_trunked.shape[-3],  # n_k_trunks
+        k_trunked.shape[-2],  # n_keys
     ]
 
-    attn_bias_trunked = torch.full(attn_bias_shape, -config.inf, device=q_trunked.device)
+    attn_bias_trunked = torch.full(
+        attn_bias_shape, -config.inf, device=q_trunked.device
+    )
 
     # Set valid attention regions to zero (unmasked)
     for i in range(config.n_q_trunks):
@@ -220,7 +223,6 @@ def _process_attention_bias(
         # Shape needs to be broadcastable. A scalar zero might work.
         return torch.tensor(0.0, device=q_trunked.device, dtype=q_trunked.dtype)
 
-
     # Determine if dimensions match trunked query shape expectation
     # Expected bias shape: (*batch_dims, n_heads, n_q_trunks, n_queries, n_k_trunks, n_keys)
     # Original bias shape: (*batch_dims, n_heads, original_q_len, original_k_len)
@@ -236,7 +238,9 @@ def _process_attention_bias(
 
         # attn_bias_list contains bias chunks processed for keys. Stack them.
         # Expected shape after stacking: (..., n_q_trunks, n_queries, n_k_trunks, n_keys)
-        attn_bias_trunked = torch.stack(attn_bias_list, dim=-2) # Stack along the n_k_trunks dimension
+        attn_bias_trunked = torch.stack(
+            attn_bias_list, dim=-2
+        )  # Stack along the n_k_trunks dimension
 
         # Add the reshaped query part to the stacked key part
         # Need broadcasting: attn_bias_reshaped_q might be (..., n_q_trunks, n_queries, k_len)
@@ -255,40 +259,47 @@ def _process_attention_bias(
 
         reshaped_bias_chunks = []
         for bias_chunk in attn_bias_list:
-             # bias_chunk shape: (..., original_q_len, n_keys)
-             # Pad the original query dimension (-2) first
-             padded_bias_chunk = _pad_attention_bias(bias_chunk, config) # Pads dim=-2
-             # padded_bias_chunk shape: (..., original_q_len + n_q_pad, n_keys)
+            # bias_chunk shape: (..., original_q_len, n_keys)
+            # Pad the original query dimension (-2) first
+            padded_bias_chunk = _pad_attention_bias(bias_chunk, config)  # Pads dim=-2
+            # padded_bias_chunk shape: (..., original_q_len + n_q_pad, n_keys)
 
-             # Now reshape the padded query dimension
-             bias_shape = list(padded_bias_chunk.shape)
-             # Replace the padded query dim (-2) with (n_q_trunks, n_queries)
-             new_bias_shape = bias_shape[:-2] + [config.n_q_trunks, config.n_queries] + bias_shape[-1:]
-             reshaped_chunk = padded_bias_chunk.reshape(*new_bias_shape)
-             # reshaped_chunk shape: (..., n_q_trunks, n_queries, n_keys)
-             reshaped_bias_chunks.append(reshaped_chunk)
+            # Now reshape the padded query dimension
+            bias_shape = list(padded_bias_chunk.shape)
+            # Replace the padded query dim (-2) with (n_q_trunks, n_queries)
+            new_bias_shape = (
+                bias_shape[:-2]
+                + [config.n_q_trunks, config.n_queries]
+                + bias_shape[-1:]
+            )
+            reshaped_chunk = padded_bias_chunk.reshape(*new_bias_shape)
+            # reshaped_chunk shape: (..., n_q_trunks, n_queries, n_keys)
+            reshaped_bias_chunks.append(reshaped_chunk)
 
         # Stack the fully reshaped chunks along the n_k_trunks dimension
-        attn_bias_trunked = torch.stack(reshaped_bias_chunks, dim=-2) # dim=-2 becomes the n_k_trunks dim
+        attn_bias_trunked = torch.stack(
+            reshaped_bias_chunks, dim=-2
+        )  # dim=-2 becomes the n_k_trunks dim
 
-    elif attn_bias.ndim == q_trunked.ndim and attn_bias.shape[-1] == k_trunked.shape[-2]:
-         # Case 2: Bias already matches trunked query shape but maybe not key trunking
-         # Shape: (..., n_q_trunks, n_queries, k_len)
-         # We still need to chunk the last dimension (k_len)
-         # This case seems less likely given the primary rearrange function.
-         # Let's stick to the logic derived from rearrange_to_dense_trunk.
-         # If attn_bias is passed, it's expected to be (..., q_len, k_len).
-         # _process_keys_values_chunks handles the k_len chunking -> attn_bias_list.
-         # We then reshape the q_len dimension.
+    elif (
+        attn_bias.ndim == q_trunked.ndim and attn_bias.shape[-1] == k_trunked.shape[-2]
+    ):
+        # Case 2: Bias already matches trunked query shape but maybe not key trunking
+        # Shape: (..., n_q_trunks, n_queries, k_len)
+        # We still need to chunk the last dimension (k_len)
+        # This case seems less likely given the primary rearrange function.
+        # Let's stick to the logic derived from rearrange_to_dense_trunk.
+        # If attn_bias is passed, it's expected to be (..., q_len, k_len).
+        # _process_keys_values_chunks handles the k_len chunking -> attn_bias_list.
+        # We then reshape the q_len dimension.
 
-         # Fallback to previous logic if Case 1 assumptions are wrong.
-         attn_bias_trunked = _reshape_bias_for_trunked_query(attn_bias, config)
-         if attn_bias_list is not None:
-              # This stacking assumes attn_bias_list was created differently.
-              # Let's rely on the Case 1 logic derived from the main function flow.
-              # If this case is truly needed, the calling code needs adjustment.
-              pass # Sticking with Case 1 logic for now.
-
+        # Fallback to previous logic if Case 1 assumptions are wrong.
+        attn_bias_trunked = _reshape_bias_for_trunked_query(attn_bias, config)
+        if attn_bias_list is not None:
+            # This stacking assumes attn_bias_list was created differently.
+            # Let's rely on the Case 1 logic derived from the main function flow.
+            # If this case is truly needed, the calling code needs adjustment.
+            pass  # Sticking with Case 1 logic for now.
 
     else:
         # Case 3: Bias dimensions don't match expected patterns. Create a default mask.
