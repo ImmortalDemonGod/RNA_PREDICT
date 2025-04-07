@@ -6,6 +6,7 @@ from rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager import (
 )
 from rna_predict.pipeline.stageD.run_stageD_unified import run_stageD_diffusion
 
+
 @pytest.fixture(scope="function")
 def minimal_diffusion_config():
     """Provide a minimal but valid diffusion config for testing"""
@@ -21,16 +22,13 @@ def minimal_diffusion_config():
             "c_s": 384,
             "c_z": 32,
             "c_s_inputs": 384,
-            "c_noise_embedding": 128
+            "c_noise_embedding": 128,
         },
-        "embedder": {
-            "c_atom": 128,
-            "c_atompair": 16,
-            "c_token": 384
-        },
+        "embedder": {"c_atom": 128, "c_atompair": 16, "c_token": 384},
         "sigma_data": 16.0,  # Required for noise sampling
-        "initialization": {}  # Required by DiffusionModule
+        "initialization": {},  # Required by DiffusionModule
     }
+
 
 @pytest.fixture(scope="function")
 def minimal_input_features():
@@ -46,11 +44,14 @@ def minimal_input_features():
         "restype": torch.zeros(1, 5, 32),
         "profile": torch.zeros(1, 5, 32),
         "deletion_mean": torch.zeros(1, 5, 1),
-        "sing": torch.randn(1, 5, 449)  # Required for s_inputs fallback
+        "sing": torch.randn(1, 5, 449),  # Required for s_inputs fallback
     }
 
+
 @pytest.mark.parametrize("missing_s_inputs", [True, False])
-def test_run_stageD_diffusion_inference(missing_s_inputs, minimal_diffusion_config, minimal_input_features):
+def test_run_stageD_diffusion_inference(
+    missing_s_inputs, minimal_diffusion_config, minimal_input_features
+):
     """
     Calls run_stageD_diffusion in 'inference' mode with partial trunk_embeddings.
     If missing_s_inputs=True, we omit 's_inputs' to see if it is auto-computed.
@@ -73,18 +74,23 @@ def test_run_stageD_diffusion_inference(missing_s_inputs, minimal_diffusion_conf
             diffusion_config=minimal_diffusion_config,
             mode="inference",
             device="cpu",
-            input_features=minimal_input_features  # Provide input features
+            input_features=minimal_input_features,  # Provide input features
         )
 
         assert isinstance(out_coords, torch.Tensor)
         assert out_coords.ndim == 3  # [batch, n_atoms, 3]
-        assert out_coords.shape[1] == partial_coords.shape[1]  # Check number of atoms matches
+        assert (
+            out_coords.shape[1] == partial_coords.shape[1]
+        )  # Check number of atoms matches
         assert out_coords.shape[2] == 3  # Check coordinate dimension
     finally:
         # Cleanup
         torch.cuda.empty_cache() if torch.cuda.is_available() else None
 
-def test_multi_step_inference_fallback(minimal_diffusion_config, minimal_input_features):
+
+def test_multi_step_inference_fallback(
+    minimal_diffusion_config, minimal_input_features
+):
     """
     Skips run_stageD_diffusion and calls manager.multi_step_inference directly,
     providing partial trunk_embeddings plus override_input_features to
