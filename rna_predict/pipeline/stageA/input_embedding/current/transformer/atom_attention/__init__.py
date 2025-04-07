@@ -4,14 +4,14 @@ Atom attention module for RNA structure prediction.
 
 from rna_predict.pipeline.stageA.input_embedding.current.transformer.atom_attention.config import (
     AtomAttentionConfig,
-    EncoderForwardParams,
     DecoderForwardParams,
-)
-from rna_predict.pipeline.stageA.input_embedding.current.transformer.atom_attention.encoder import (
-    AtomAttentionEncoder,
+    EncoderForwardParams,
 )
 from rna_predict.pipeline.stageA.input_embedding.current.transformer.atom_attention.decoder import (
     AtomAttentionDecoder,
+)
+from rna_predict.pipeline.stageA.input_embedding.current.transformer.atom_attention.encoder import (
+    AtomAttentionEncoder,
 )
 
 __all__ = [
@@ -20,4 +20,4 @@ __all__ = [
     "DecoderForwardParams",
     "AtomAttentionEncoder",
     "AtomAttentionDecoder",
-] 
+]
