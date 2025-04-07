@@ -3,10 +3,8 @@ Feature processing components for atom attention.
 """
 
 import torch
-import torch.nn as nn
 
 from rna_predict.pipeline.stageA.input_embedding.current.primitives import (
-    LayerNorm,
     LinearNoBias,
 )
 from rna_predict.pipeline.stageA.input_embedding.current.transformer.common import (
@@ -64,7 +62,9 @@ class FeatureProcessor:
             in_features=1, out_features=self.c_atompair
         )
 
-    def extract_atom_features(self, input_feature_dict: InputFeatureDict) -> torch.Tensor:
+    def extract_atom_features(
+        self, input_feature_dict: InputFeatureDict
+    ) -> torch.Tensor:
         """
         Extract and process atom features from input dictionary.
 
@@ -79,7 +79,9 @@ class FeatureProcessor:
         ref_charge = safe_tensor_access(input_feature_dict, "ref_charge")
         ref_mask = safe_tensor_access(input_feature_dict, "ref_mask")
         ref_element = safe_tensor_access(input_feature_dict, "ref_element")
-        ref_atom_name_chars = safe_tensor_access(input_feature_dict, "ref_atom_name_chars")
+        ref_atom_name_chars = safe_tensor_access(
+            input_feature_dict, "ref_atom_name_chars"
+        )
 
         # Concatenate features
         features = torch.cat(
@@ -89,7 +91,9 @@ class FeatureProcessor:
         # Process through encoder
         return self.linear_no_bias_f(features)
 
-    def create_pair_embedding(self, input_feature_dict: InputFeatureDict) -> torch.Tensor:
+    def create_pair_embedding(
+        self, input_feature_dict: InputFeatureDict
+    ) -> torch.Tensor:
         """
         Create pair embeddings from atom features.
 
@@ -156,4 +160,4 @@ class FeatureProcessor:
         Returns:
             Atom-level broadcast features
         """
-        return broadcast_token_to_atom(a_token, atom_to_token_idx) 
+        return broadcast_token_to_atom(a_token, atom_to_token_idx)
