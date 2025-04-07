@@ -201,8 +201,10 @@ def calculate_atom_position(
     )  # Normalize with epsilon to avoid division by zero
 
     # Calculate perpendicular vector
-    perpendicular = torch.cross(
-        bond_vector, torch.tensor([0.0, 0.0, 1.0], device=device)
+    perpendicular = torch.linalg.cross(
+        input=torch.linalg.cross(input=bond_vector, other=torch.tensor([0.0, 0.0, 1.0], device=device), dim=-1),
+        other=bond_vector,
+        dim=-1
     )
     if torch.norm(perpendicular) < 1e-8:  # If parallel to z-axis
         perpendicular = torch.tensor([1.0, 0.0, 0.0], device=device)

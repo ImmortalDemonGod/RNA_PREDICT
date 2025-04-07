@@ -141,7 +141,7 @@ def setup_pipeline():
             "c_token": 768,
             "c_s": c_s,
             "c_z": c_z,
-            "c_s_inputs": 384,
+            "c_s_inputs": 449,
             "atom_encoder": {"n_blocks": 1, "n_heads": 2},
             "transformer": {"n_blocks": 1, "n_heads": 2},
             "atom_decoder": {"n_blocks": 1, "n_heads": 2},

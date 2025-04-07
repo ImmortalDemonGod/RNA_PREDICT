@@ -20,7 +20,7 @@ class ProtenixIntegration:
 
     def __init__(
         self,
-        c_token=384,
+        c_token=449,
         restype_dim=32,
         profile_dim=32,
         c_atom=128,
