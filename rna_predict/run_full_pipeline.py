@@ -21,7 +21,7 @@ try:
     from rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager import (
         ProtenixDiffusionManager,
     )
-    from rna_predict.pipeline.stageD.run_stageD_unified import run_stageD_diffusion
+    from rna_predict.pipeline.stageD.diffusion.run_stageD_unified import run_stageD_diffusion
 
     STAGE_D_AVAILABLE = True
 except ImportError:
