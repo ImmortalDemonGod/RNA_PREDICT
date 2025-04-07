@@ -1,7 +1,7 @@
 """
 Pair embedding creation logic for the AtomAttentionEncoder.
 """
-import warnings
+
 from typing import Any
 
 import torch
@@ -105,7 +105,7 @@ def _process_charges(
             # Get charges of query and key atoms
             # Add bounds check just in case ref_charge is smaller than expected by pair_embed init
             if query_idx >= pair_embed.shape[-3] or key_idx >= pair_embed.shape[-2]:
-                 continue
+                continue
             charge_query = ref_charge[..., query_idx, 0]
             charge_key = ref_charge[..., key_idx, 0]
 
@@ -145,7 +145,7 @@ def create_pair_embedding(
     # Initialize the pair embedding tensor based on N_atom x N_atom
     # Shape: [..., N_atom, N_atom, c_atompair]
     p_lm = torch.zeros(
-        (*ref_pos.shape[:-2], n_atoms, n_atoms, encoder.c_atompair), # Use n_atoms
+        (*ref_pos.shape[:-2], n_atoms, n_atoms, encoder.c_atompair),  # Use n_atoms
         device=ref_pos.device,
         dtype=ref_pos.dtype,
     )
