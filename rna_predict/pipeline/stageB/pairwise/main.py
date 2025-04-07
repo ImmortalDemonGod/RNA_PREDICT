@@ -41,7 +41,7 @@ def demo_run_protenix_embeddings():
     }
 
     integrator = ProtenixIntegration(
-        c_token=384,
+        c_token=449,
         restype_dim=32,
         profile_dim=32,
         c_atom=128,
