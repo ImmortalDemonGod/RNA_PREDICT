@@ -1,0 +1,20 @@
+{
+  "templates": [
+    {
+      "name": "roo_question",
+      "file": "roo_question.png",
+      "threshold": 0.8,
+      "action": {
+        "action": "click"
+      }
+    },
+    {
+      "name": "template",
+      "file": "template.png",
+      "threshold": 0.8,
+      "action": {
+        "action": "click"
+      }
+    }
+  ]
+}
