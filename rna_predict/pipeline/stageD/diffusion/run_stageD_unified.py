@@ -305,62 +305,47 @@ def demo_run_diffusion():
     """
     Demo function to run the diffusion stage with a simple example.
     """
-    # Load example data
-    # Note: load_rna_data_and_features might need adjustment if "example.pdb" isn't a valid path
-    # or if the function expects different arguments in a real scenario.
-    # For now, we focus on fixing the tensor shape mismatch.
-    # data = load_rna_data_and_features("example.pdb") # Commented out as it's not directly related to the shape error
+    # Set device
+    device = "mps"  # Use MPS for Mac
+    
+    # Create partial coordinates with smaller sequence length
+    partial_coords = torch.randn(1, 25, 3, device=device)  # [batch, seq_len, 3]
 
-    # Create partial coordinates
-    partial_coords = torch.randn(1, 100, 3)  # [batch, seq_len, 3]
-
-    # Create trunk embeddings
+    # Create trunk embeddings with smaller dimensions
     trunk_embeddings = {
-        "s_inputs": torch.randn(
-            1, 100, 449
-        ),  # <<< MODIFIED: Changed dimension from 128 to 449
-        "s_trunk": torch.randn(1, 100, 384),  # Corrected in previous step
-        "z_trunk": torch.randn(
-            1, 100, 100, 64
-        ),  # [batch, seq_len, seq_len, pair_dim] - Assuming 64 is correct
+        "s_inputs": torch.randn(1, 25, 449, device=device),  # [batch, seq_len, c_s_inputs]
+        "s_trunk": torch.randn(1, 25, 384, device=device),  # [batch, seq_len, c_s]
+        "z_trunk": torch.randn(1, 25, 25, 64, device=device),  # [batch, seq_len, seq_len, pair_dim]
     }
 
-    # Create diffusion config - Assuming these dimensions are correct for the demo
-    # If DiffusionConditioning was initialized differently via ProtenixDiffusionManager
-    # using this config, that would be another place to check.
-    # But the error points to the default c_s=384 in DiffusionConditioning's init.
+    # Create diffusion config with memory-optimized settings
     diffusion_config = {
         "conditioning": {
-            "hidden_dim": 128,
-            "num_heads": 8,
-            "num_layers": 6,
-        },  # Example values
+            "hidden_dim": 16,
+            "num_heads": 2,
+            "num_layers": 2,
+        },
         "manager": {
-            "hidden_dim": 128,
-            "num_heads": 8,
-            "num_layers": 6,
-        },  # Example values
+            "hidden_dim": 16,
+            "num_heads": 2,
+            "num_layers": 2,
+        },
         "inference": {
-            "num_steps": 100,
+            "num_steps": 5,
             "noise_schedule": "linear",
-        },  # <<< MODIFIED: Changed num_steps back to 100
-        # Ensure the actual config used aligns with model expectations if not using defaults
-        # Specifically, how ProtenixDiffusionManager uses this config to potentially
-        # override DiffusionConditioning's c_s default might be relevant in a real scenario.
-        # For this demo fix, we align the data to the default expectation.
-        "c_s_inputs": 449,  # Added for fallback creation
-        "c_z": 64,  # Added for fallback creation
+        },
+        "memory_efficient": True,
+        "use_checkpointing": True,
+        "chunk_size": 5,
     }
 
-    # Run diffusion
+    # Run diffusion with memory optimizations
     refined_coords = run_stageD_diffusion(
-        partial_coords,
-        trunk_embeddings,
-        diffusion_config,
+        partial_coords=partial_coords,
+        trunk_embeddings=trunk_embeddings,
+        diffusion_config=diffusion_config,
         mode="inference",
-        device="cpu",
-        # input_features could be passed here if needed, currently uses internal loading logic
+        device=device
     )
 
-    print(f"Refined coordinates shape: {refined_coords.shape}")
     return refined_coords
