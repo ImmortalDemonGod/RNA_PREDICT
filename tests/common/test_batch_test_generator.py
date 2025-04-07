@@ -127,7 +127,6 @@ def test_process_folder_skips_files_in_output_dir(temp_dir: Path) -> None:
     Test that process_folder skips any *.py files located inside the output directory itself.
     """
     # Arrange
-    folder_path = temp_dir
     output_dir = temp_dir / "generated_tests"
     output_dir.mkdir(exist_ok=True)
 
