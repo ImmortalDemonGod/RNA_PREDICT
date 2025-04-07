@@ -44,7 +44,7 @@ def minimal_input_features():
         "restype": torch.zeros(1, 5, 32),
         "profile": torch.zeros(1, 5, 32),
         "deletion_mean": torch.zeros(1, 5, 1),
-        "sing": torch.randn(1, 5, 449),  # Required for s_inputs fallback
+        "sing": torch.randn(1, 5, 384),  # Required for s_inputs fallback, match c_s_inputs
     }
 
 
