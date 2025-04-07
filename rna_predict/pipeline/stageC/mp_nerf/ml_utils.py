@@ -16,7 +16,7 @@ from rna_predict.pipeline.stageC.mp_nerf.protein_utils import (
     AMBIGUOUS,
     INDEX2AAS,
     SUPREME_INFO,
-    get_symmetric_atom_pairs,
+    # get_symmetric_atom_pairs, # Commented out due to local definition
 )
 from rna_predict.pipeline.stageC.mp_nerf.proteins import (
     build_scaffolds_from_scn_angles,
@@ -378,29 +378,46 @@ def atom_selector(scn_seq, x, option=None, discard_absent=True):
             # Let's proceed with a simplified approach
             present.append(torch.ones(len(seq), 14, dtype=torch.bool))
 
-    present = torch.stack(present, dim=0).bool()
+    present = torch.stack(present, dim=0).bool() # Shape: (B, L, 14)
+
+    # Ensure padding characters ('_') always result in a False mask for that residue
+    # This should happen *after* calculating the initial 'present' mask
+    for b, seq_item in enumerate(scn_seq):
+        if isinstance(seq_item, str):
+            for i, char in enumerate(seq_item):
+                if char == '_':
+                    present[b, i, :] = False # Zero out mask for padding residues
+        # Handle tensor seq input if necessary (though less likely based on usage)
+        elif isinstance(seq_item, torch.Tensor):
+             padding_indices = (seq_item == AAS2INDEX['_']).nonzero(as_tuple=True)[0]
+             if padding_indices.numel() > 0:
+                  present[b, padding_indices, :] = False
 
     # atom mask
     if isinstance(option, str):
-        atom_mask = torch.tensor(
-            [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], dtype=torch.bool
-        )
+        # Start with an all-False mask
+        atom_mask = torch.zeros(14, dtype=torch.bool)
+
+        # Indices: N=0, CA=1, C=2, O=3, CB=4
         if "backbone" in option:
-            atom_mask[[0, 2]] = True
+            # Correct backbone: N, CA, C (indices 0, 1, 2)
+            atom_mask[[0, 1, 2]] = True
 
         if option == "backbone":
-            pass
+            pass # N, CA, C already set
         elif option == "backbone-with-oxygen":
-            atom_mask[3] = True
+            atom_mask[3] = True # Add O
         elif option == "backbone-with-cbeta":
-            atom_mask[5] = True
+            # Correct CB index is 4
+            atom_mask[4] = True # Add CB
         elif option == "backbone-with-cbeta-and-oxygen":
-            atom_mask[3] = True
-            atom_mask[5] = True
+            atom_mask[3] = True # Add O
+            # Correct CB index is 4
+            atom_mask[4] = True # Add CB
         elif option == "all":
             atom_mask[:] = True
         else:
-            # Instead of just printing, we need to raise the exception as expected by the test
+            # Raise the exception as expected by the test
             raise ValueError(
                 f"Invalid option: {option}. Available options: backbone, backbone-with-oxygen, backbone-with-cbeta, backbone-with-cbeta-and-oxygen, all"
             )

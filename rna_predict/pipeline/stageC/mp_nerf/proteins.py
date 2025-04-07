@@ -11,13 +11,14 @@ from rna_predict.pipeline.stageC.mp_nerf.massive_pnerf import (
     get_axis_matrix,
     mp_nerf_torch,
 )
-from rna_predict.pipeline.stageC.mp_nerf.protein_utils.sidechain_data import (
-    BB_BUILD_INFO,
-    SUPREME_INFO,
-)
-from rna_predict.pipeline.stageC.mp_nerf.protein_utils.structure_utils import (
-    build_scaffolds_from_scn_angles,
-)
+# Import BB_BUILD_INFO from sidechain_data
+from rna_predict.pipeline.stageC.mp_nerf.protein_utils.sidechain_data import BB_BUILD_INFO
+# Import SUPREME_INFO via the package __init__ (which now points to supreme_data)
+from rna_predict.pipeline.stageC.mp_nerf.protein_utils import SUPREME_INFO
+# Removed import of build_scaffolds_from_scn_angles as it's defined locally
+# from rna_predict.pipeline.stageC.mp_nerf.protein_utils.structure_utils import (
+#     build_scaffolds_from_scn_angles,
+# )
 from rna_predict.pipeline.stageC.mp_nerf.utils import *
 
 
