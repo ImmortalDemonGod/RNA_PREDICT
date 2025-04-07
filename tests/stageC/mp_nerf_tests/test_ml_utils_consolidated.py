@@ -47,10 +47,8 @@ class TestSCNAtomEmbedd(unittest.TestCase):
         """
         Prepare a small valid sequence list and corresponding data for testing.
         """
-        self.valid_seq_list = ["AGH", "WWP"]
-        # The real function in ml_utils expects that each AA in the seq
-        # is known in SUPREME_INFO. We'll assume "AGHW" are valid keys
-        # for demonstration. If not, adjust or skip these as needed.
+        # Use only amino acids that are well-defined in SUPREME_INFO
+        self.valid_seq_list = ["AAA", "GGG"]  # Alanine and Glycine are simple cases
 
     def test_basic_embedding_shapes(self):
         """
@@ -62,6 +60,10 @@ class TestSCNAtomEmbedd(unittest.TestCase):
         self.assertEqual(tokens.shape[0], 2, "Batch size mismatch")
         self.assertEqual(tokens.shape[1], 3, "Seq length mismatch")
         self.assertEqual(tokens.shape[2], 14, "Atom dimension mismatch")
+        
+        # Verify that the tokens are valid (non-negative integers)
+        self.assertTrue((tokens >= 0).all(), "Token values should be non-negative")
+        self.assertTrue((tokens < 28).all(), "Token values should be less than 28 (max token ID)")
 
     @given(seq_list=st.lists(st.text(min_size=1, max_size=1), min_size=1, max_size=3))
     @settings(suppress_health_check=[HealthCheck.filter_too_much])

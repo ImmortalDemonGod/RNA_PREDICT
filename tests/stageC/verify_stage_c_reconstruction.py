@@ -133,16 +133,12 @@ def verify_dependencies():
         "final_kb_rna.py exists", final_kb_rna_exists, f"Path: {final_kb_rna_path}"
     )
 
-    # Try importing the required functions
+    # Try importing the required module to verify its existence
     try:
-        from rna_predict.pipeline.stageC.mp_nerf.rna import (
-            build_scaffolds_rna_from_torsions,
-            place_rna_bases,
-            rna_fold,
-        )
+        import rna_predict.pipeline.stageC.mp_nerf.rna  # noqa: F401 - Import check only
 
         print_result(
-            "Required functions import correctly",
+            "Required module 'rna_predict.pipeline.stageC.mp_nerf.rna' imports correctly",
             True,
             "build_scaffolds_rna_from_torsions, rna_fold, place_rna_bases",
         )

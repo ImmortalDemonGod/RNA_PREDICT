@@ -16,7 +16,7 @@ point3d = st.lists(
     st.floats(min_value=-10, max_value=10, allow_nan=False, allow_infinity=False),
     min_size=3,
     max_size=3,
-).map(lambda l: torch.tensor(l, dtype=torch.float32))
+).map(lambda coords: torch.tensor(coords, dtype=torch.float32))
 
 # 'angle' generates angles within the valid range for trigonometric functions.
 angle = st.floats(
@@ -170,7 +170,7 @@ class TestMpNerfTorch(unittest.TestCase):
         c=point3d,
         bond=st.one_of(
             bond_length,
-            st.lists(bond_length, min_size=1, max_size=1).map(lambda l: l[0]),
+            st.lists(bond_length, min_size=1, max_size=1).map(lambda length_list: length_list[0]),
         ),
         theta=angle,
         chi=angle,

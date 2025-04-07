@@ -3,6 +3,8 @@ import torch
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
+from rna_predict.pipeline.stageA.input_embedding.current.transformer.common import InputFeatureDict
+
 # We import the classes under test as if they are in the same directory or installed.
 # If needed, adjust imports per your project structure.
 try:
@@ -12,6 +14,8 @@ try:
         AtomAttentionEncoder,
         AtomTransformer,
         AttentionPairBias,
+        # Cleaned up previous failed diff attempt
+
         ConditionedTransitionBlock,
         DecoderForwardParams,  # Added import
         DiffusionTransformer,
