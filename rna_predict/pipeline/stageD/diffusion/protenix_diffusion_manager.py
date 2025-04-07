@@ -1,9 +1,11 @@
-from typing import Dict, Optional
 import warnings
+from typing import Dict, Optional
 
 import torch
 
-from rna_predict.pipeline.stageD.diffusion.components.diffusion_module import DiffusionModule # Updated import path
+from rna_predict.pipeline.stageD.diffusion.components.diffusion_module import (
+    DiffusionModule,
+)  # Updated import path
 from rna_predict.pipeline.stageD.diffusion.generator import (
     TrainingNoiseSampler,
     sample_diffusion,
@@ -25,7 +27,7 @@ class ProtenixDiffusionManager:
         # Ensure we have an "initialization" key, default to empty dict if missing
         initialization_config = diffusion_config.get("initialization", {})
         if initialization_config is None:
-             initialization_config = {}
+            initialization_config = {}
 
         # Extract arguments specifically for DiffusionModule, using defaults if necessary
         diffusion_module_args = {}
@@ -45,33 +47,47 @@ class ProtenixDiffusionManager:
         diffusion_module_args["c_atompair"] = embedder_config.get("c_atompair")
         diffusion_module_args["c_token"] = embedder_config.get("c_token")
         # Prioritize conditioning config for c_s/c_z, then top-level, then let DiffusionModule default
-        diffusion_module_args["c_s"] = conditioning_config.get("c_s", diffusion_config.get("c_s"))
-        diffusion_module_args["c_z"] = conditioning_config.get("c_z", diffusion_config.get("c_z"))
+        diffusion_module_args["c_s"] = conditioning_config.get(
+            "c_s", diffusion_config.get("c_s")
+        )
+        diffusion_module_args["c_z"] = conditioning_config.get(
+            "c_z", diffusion_config.get("c_z")
+        )
         diffusion_module_args["c_s_inputs"] = conditioning_config.get("c_s_inputs")
-        diffusion_module_args["c_noise_embedding"] = conditioning_config.get("c_noise_embedding")
+        diffusion_module_args["c_noise_embedding"] = conditioning_config.get(
+            "c_noise_embedding"
+        )
 
         # Pass the whole sub-dictionaries for nested configs if they exist
         if transformer_config:
             diffusion_module_args["transformer"] = transformer_config
         if atom_encoder_config:
-             diffusion_module_args["atom_encoder"] = atom_encoder_config
+            diffusion_module_args["atom_encoder"] = atom_encoder_config
         if atom_decoder_config:
-             diffusion_module_args["atom_decoder"] = atom_decoder_config
+            diffusion_module_args["atom_decoder"] = atom_decoder_config
 
         # Pass top-level args if they exist
         if "blocks_per_ckpt" in diffusion_config:
-             diffusion_module_args["blocks_per_ckpt"] = diffusion_config.get("blocks_per_ckpt")
+            diffusion_module_args["blocks_per_ckpt"] = diffusion_config.get(
+                "blocks_per_ckpt"
+            )
         if "use_fine_grained_checkpoint" in diffusion_config:
-             diffusion_module_args["use_fine_grained_checkpoint"] = diffusion_config.get("use_fine_grained_checkpoint")
+            diffusion_module_args["use_fine_grained_checkpoint"] = diffusion_config.get(
+                "use_fine_grained_checkpoint"
+            )
         # Pass initialization config (guaranteed to be a dict by lines 25-27)
         diffusion_module_args["initialization"] = initialization_config
 
         # Filter out None values so DiffusionModule uses its internal defaults
-        filtered_diffusion_module_args = {k: v for k, v in diffusion_module_args.items() if v is not None}
+        filtered_diffusion_module_args = {
+            k: v for k, v in diffusion_module_args.items() if v is not None
+        }
 
         self.device = torch.device(device)
         # Instantiate DiffusionModule with the filtered arguments
-        self.diffusion_module = DiffusionModule(**filtered_diffusion_module_args).to(self.device)
+        self.diffusion_module = DiffusionModule(**filtered_diffusion_module_args).to(
+            self.device
+        )
 
     # @snoop
     def train_diffusion_step(
@@ -143,14 +159,15 @@ class ProtenixDiffusionManager:
 
         # Attempt to get s_inputs or fallback, and cache if fallback is used
         s_inputs_key = "s_inputs"
-        sing_key = "sing" # Assuming 'sing' is the fallback key name
+        sing_key = "sing"  # Assuming 'sing' is the fallback key name
         s_inputs = trunk_embeddings.get(s_inputs_key)
         if s_inputs is None:
             s_inputs = trunk_embeddings.get(sing_key)
             if s_inputs is not None:
-                 # Cache the fallback value as s_inputs for subsequent calls
-                 trunk_embeddings[s_inputs_key] = s_inputs
-                 if debug_logging: print(f"[DEBUG] Cached '{sing_key}' as '{s_inputs_key}'")
+                # Cache the fallback value as s_inputs for subsequent calls
+                trunk_embeddings[s_inputs_key] = s_inputs
+                if debug_logging:
+                    print(f"[DEBUG] Cached '{sing_key}' as '{s_inputs_key}'")
             # else: s_inputs remains None if neither key exists
 
         z_trunk = trunk_embeddings.get("pair", None)
@@ -231,7 +248,7 @@ class ProtenixDiffusionManager:
         noise_schedule = torch.linspace(1.0, 0.0, steps=num_steps + 1, device=device)
 
         if debug_logging:
-            print(f"[DEBUG] Before sample_diffusion:")
+            print("[DEBUG] Before sample_diffusion:")
             print(f"  coords_init shape: {coords_init.shape}")
             print(f"  s_trunk shape: {trunk_embeddings['s_trunk'].shape}")
             if s_inputs is not None:
@@ -252,7 +269,7 @@ class ProtenixDiffusionManager:
         )
 
         if debug_logging:
-            print(f"[DEBUG] After sample_diffusion:")
+            print("[DEBUG] After sample_diffusion:")
             print(f"  coords_final shape before squeeze: {coords_final.shape}")
 
         # Restore squeeze logic: If only one sample was requested, remove the sample dimension
@@ -264,22 +281,32 @@ class ProtenixDiffusionManager:
             # Check if the shape matches the unexpected observed pattern [B, N_atom, N_atom, 3]
             # Use N_atom from input_feature_dict if available, otherwise infer from shape
             n_atoms_inferred = coords_final.shape[2] if coords_final.ndim > 2 else -1
-            if coords_final.ndim == 4 and coords_final.shape[1] == n_atoms_inferred and coords_final.shape[2] == n_atoms_inferred:
+            if (
+                coords_final.ndim == 4
+                and coords_final.shape[1] == n_atoms_inferred
+                and coords_final.shape[2] == n_atoms_inferred
+            ):
                 warnings.warn(
                     f"Observed unexpected shape {coords_final.shape} for N_sample=1. "
                     f"Expected shape like [B, 1, N_atom, 3]. Selecting first element along dimension 1."
                 )
-                coords_final = coords_final[:, 0, :, :] # Select the first "pseudo-sample" -> [B, N_atom, 3]
+                coords_final = coords_final[
+                    :, 0, :, :
+                ]  # Select the first "pseudo-sample" -> [B, N_atom, 3]
             else:
                 # Try the original intended squeeze logic assuming shape [B, 1, N_atom, 3]
                 sample_dim_index = 1
-                if coords_final.ndim > sample_dim_index and coords_final.shape[sample_dim_index] == 1:
+                if (
+                    coords_final.ndim > sample_dim_index
+                    and coords_final.shape[sample_dim_index] == 1
+                ):
                     coords_final = coords_final.squeeze(sample_dim_index)
                 # else: Keep the shape as is if it doesn't match expected patterns for N_sample=1
 
-
         if debug_logging:
-            print(f"[DEBUG] Final coords_final shape (handling N_sample=1): {coords_final.shape}")
+            print(
+                f"[DEBUG] Final coords_final shape (handling N_sample=1): {coords_final.shape}"
+            )
 
         return coords_final
 

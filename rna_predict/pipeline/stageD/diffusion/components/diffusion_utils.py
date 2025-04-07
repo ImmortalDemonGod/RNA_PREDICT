@@ -1,6 +1,6 @@
-from typing import Optional, Protocol, TypedDict, Union, Tuple
+from typing import Optional, Protocol, TypedDict, Union
+
 import torch
-import warnings
 
 
 class InputFeatureDict(TypedDict):
@@ -88,5 +88,3 @@ class DiffusionProtocol(Protocol):
     ) -> torch.Tensor:
         """Forward pass of the diffusion model."""
         ...
-
-
