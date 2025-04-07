@@ -1,33 +1,52 @@
 # Author: Eric Alcaide
 
-import numpy as np
-import torch
-
 from pathlib import Path
 from typing import List, Optional, Union
 
+import numpy as np
+import torch
+
 # Attempt to import BioPython, handle gracefully if not installed
 try:
-    from Bio.PDB import PDBParser, MMCIFParser, PDBIO, MMCIFIO
-    from Bio.PDB.StructureBuilder import StructureBuilder
-    from Bio.PDB.Model import Model
-    from Bio.PDB.Chain import Chain
-    from Bio.PDB.Residue import Residue
+    from Bio.PDB import MMCIFIO, PDBIO, MMCIFParser, PDBParser
     from Bio.PDB.Atom import Atom
+    from Bio.PDB.Chain import Chain
+    from Bio.PDB.Model import Model
+    from Bio.PDB.Residue import Residue
+    from Bio.PDB.StructureBuilder import StructureBuilder
+
     BIOPYTHON_AVAILABLE = True
 except ImportError:
     BIOPYTHON_AVAILABLE = False
+
     # Define dummy classes/functions if BioPython is not available
     # This allows the module to be imported but functions relying on BioPython will fail
-    class DummyPDBParser: pass
-    class DummyMMCIFParser: pass
-    class DummyPDBIO: pass
-    class DummyMMCIFIO: pass
-    class DummyStructureBuilder: pass
-    class DummyModel: pass
-    class DummyChain: pass
-    class DummyResidue: pass
-    class DummyAtom: pass
+    class DummyPDBParser:
+        pass
+
+    class DummyMMCIFParser:
+        pass
+
+    class DummyPDBIO:
+        pass
+
+    class DummyMMCIFIO:
+        pass
+
+    class DummyStructureBuilder:
+        pass
+
+    class DummyModel:
+        pass
+
+    class DummyChain:
+        pass
+
+    class DummyResidue:
+        pass
+
+    class DummyAtom:
+        pass
 
 
 # random hacks
@@ -186,7 +205,6 @@ def rmsd_torch(X, Y):
     return torch.sqrt(torch.mean((X - Y) ** 2, axis=(-1, -2)))
 
 
-
 def get_coords_from_pdb(file_path: str) -> torch.Tensor:
     """Extracts atom coordinates from a PDB file.
 
@@ -218,13 +236,14 @@ def get_coords_from_pdb(file_path: str) -> torch.Tensor:
         for chain in model.get_chains():
             for residue in chain.get_residues():
                 for atom in residue.get_atoms():
-                    coords.append(atom.get_coord()) # BioPython returns numpy arrays
+                    coords.append(atom.get_coord())  # BioPython returns numpy arrays
 
     if not coords:
         # Handle case with no atoms found, maybe raise error or return empty tensor
         return torch.empty((0, 3), dtype=torch.float32)
 
     return torch.tensor(np.array(coords), dtype=torch.float32)
+
 
 def get_coords_from_cif(file_path: str) -> torch.Tensor:
     """Extracts atom coordinates from an MMCIF file.
@@ -264,6 +283,7 @@ def get_coords_from_cif(file_path: str) -> torch.Tensor:
 
     return torch.tensor(np.array(coords), dtype=torch.float32)
 
+
 def get_coords_from_file(file_path: str) -> torch.Tensor:
     """Dispatches coordinate extraction based on file extension.
 
@@ -280,27 +300,31 @@ def get_coords_from_file(file_path: str) -> torch.Tensor:
         Exception: For parsing errors (raised by called functions).
     """
     suffix = Path(file_path).suffix.lower()
-    if suffix == '.pdb':
+    if suffix == ".pdb":
         return get_coords_from_pdb(file_path)
-    elif suffix == '.cif':
+    elif suffix == ".cif":
         return get_coords_from_cif(file_path)
     else:
-        raise ValueError(f"Unsupported file format: {suffix}. Only .pdb and .cif are supported.")
+        raise ValueError(
+            f"Unsupported file format: {suffix}. Only .pdb and .cif are supported."
+        )
+
 
 def get_device() -> torch.device:
     """Gets the appropriate torch device (CUDA if available, else CPU)."""
     if torch.cuda.is_available():
-        return torch.device('cuda')
+        return torch.device("cuda")
     else:
-        return torch.device('cpu')
+        return torch.device("cpu")
+
 
 def save_structure(
     coords: torch.Tensor,
     output_file: str,
     atom_types: Optional[List[str]] = None,
     res_names: Optional[List[str]] = None,
-    chain_id: str = 'A',
-    model_id: int = 0
+    chain_id: str = "A",
+    model_id: int = 0,
 ) -> None:
     """Saves coordinates as a PDB or CIF file using BioPython.
 
@@ -322,7 +346,9 @@ def save_structure(
         RuntimeError: For issues during structure building or saving.
     """
     if not BIOPYTHON_AVAILABLE:
-        raise ImportError("BioPython is required for saving structures but not installed.")
+        raise ImportError(
+            "BioPython is required for saving structures but not installed."
+        )
 
     # Validate input tensor shape
     if coords.ndim == 2:
@@ -333,39 +359,53 @@ def save_structure(
             raise ValueError("atom_types must be provided for 2D coordinate input.")
         atoms_per_residue = len(atom_types)
         if num_atoms % atoms_per_residue != 0:
-            raise ValueError(f"Number of atoms ({num_atoms}) must be divisible by the number of atom types ({atoms_per_residue}) for 2D input.")
+            raise ValueError(
+                f"Number of atoms ({num_atoms}) must be divisible by the number of atom types ({atoms_per_residue}) for 2D input."
+            )
         num_residues = num_atoms // atoms_per_residue
         # Reshape 2D coords to 3D for consistent processing
         try:
             coords_3d = coords.reshape(num_residues, atoms_per_residue, 3)
         except RuntimeError as e:
-            raise RuntimeError(f"Could not reshape coords ({coords.shape}) with {atoms_per_residue} atom types: {e}")
+            raise RuntimeError(
+                f"Could not reshape coords ({coords.shape}) with {atoms_per_residue} atom types: {e}"
+            )
 
     elif coords.ndim == 3:
         if coords.shape[1] != 3 or coords.shape[2] != 3:
-             # Check if it's (N, 3, 3) - assuming N, CA, C
-             if coords.shape[1] == 3 and coords.shape[2] == 3:
-                 if atom_types is None:
-                     atom_types = ['N', 'CA', 'C'] # Default backbone
-                 elif len(atom_types) != 3:
-                     raise ValueError(f"Expected 3 atom types for 3D input shape {coords.shape}, got {len(atom_types)}")
-             else:
-                 raise ValueError(f"Coordinates must have shape (N, 3, 3), got {coords.shape}")
+            # Check if it's (N, 3, 3) - assuming N, CA, C
+            if coords.shape[1] == 3 and coords.shape[2] == 3:
+                if atom_types is None:
+                    atom_types = ["N", "CA", "C"]  # Default backbone
+                elif len(atom_types) != 3:
+                    raise ValueError(
+                        f"Expected 3 atom types for 3D input shape {coords.shape}, got {len(atom_types)}"
+                    )
+            else:
+                raise ValueError(
+                    f"Coordinates must have shape (N, 3, 3), got {coords.shape}"
+                )
         num_residues = coords.shape[0]
         atoms_per_residue = coords.shape[1]
         if atom_types is None:
-             raise ValueError("atom_types must be provided if coords shape is not (N, 3, 3)")
+            raise ValueError(
+                "atom_types must be provided if coords shape is not (N, 3, 3)"
+            )
         elif len(atom_types) != atoms_per_residue:
-             raise ValueError(f"Length of atom_types ({len(atom_types)}) must match atoms per residue ({atoms_per_residue}) for 3D input.")
+            raise ValueError(
+                f"Length of atom_types ({len(atom_types)}) must match atoms per residue ({atoms_per_residue}) for 3D input."
+            )
         coords_3d = coords
     else:
         raise ValueError(f"Coordinates must be a 2D or 3D tensor, got {coords.ndim}D")
 
     # Default residue names if not provided
     if res_names is None:
-        res_names = ['GLY'] * num_residues
+        res_names = ["GLY"] * num_residues
     elif len(res_names) != num_residues:
-        raise ValueError(f"Length of res_names ({len(res_names)}) must match number of residues ({num_residues})")
+        raise ValueError(
+            f"Length of res_names ({len(res_names)}) must match number of residues ({num_residues})"
+        )
 
     # Build the structure
     builder = StructureBuilder()
@@ -375,7 +415,7 @@ def save_structure(
 
     atom_serial_number = 1
     for res_idx in range(num_residues):
-        res_id = (' ', res_idx + 1, ' ') # Hetflag, sequence identifier, insertion code
+        res_id = (" ", res_idx + 1, " ")  # Hetflag, sequence identifier, insertion code
         res_name = res_names[res_idx]
         builder.init_residue(res_name, res_id[0], res_id[1], res_id[2])
 
@@ -384,7 +424,7 @@ def save_structure(
             # Ensure atom name is correctly formatted (max 4 chars, potentially padded)
             formatted_atom_name = f"{atom_name:<4s}"[:4]
             coord_np = coords_3d[res_idx, atom_idx, :].detach().cpu().numpy()
-            element = atom_name[0] # Simple guess for element based on first char
+            element = atom_name[0]  # Simple guess for element based on first char
 
             # Create Atom object
             # Atom(name, coord, bfactor, occupancy, altloc, fullname, serial_number, element)
@@ -393,10 +433,10 @@ def save_structure(
                 coord=coord_np,
                 bfactor=0.0,
                 occupancy=1.0,
-                altloc=' ',
-                fullname=formatted_atom_name, # Use formatted name
+                altloc=" ",
+                fullname=formatted_atom_name,  # Use formatted name
                 serial_number=atom_serial_number,
-                element=element.upper() # Ensure element is uppercase
+                element=element.upper(),  # Ensure element is uppercase
             )
             # Add the created atom object to the current residue in the builder
             builder.residue.add(atom)
@@ -409,10 +449,10 @@ def save_structure(
     suffix = output_path.suffix.lower()
 
     # Create the appropriate IO object based on the suffix
-    io: Union[PDBIO, MMCIFIO] # Define type hint here
-    if suffix == '.pdb':
+    io: Union[PDBIO, MMCIFIO]  # Define type hint here
+    if suffix == ".pdb":
         io = PDBIO()
-    elif suffix == '.cif':
+    elif suffix == ".cif":
         io = MMCIFIO()
     else:
         raise ValueError(f"Unsupported output file format: {suffix}. Use .pdb or .cif.")
