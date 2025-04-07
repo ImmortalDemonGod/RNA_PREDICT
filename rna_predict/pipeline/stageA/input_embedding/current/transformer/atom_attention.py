@@ -9,7 +9,6 @@ from typing import Optional, Tuple, cast
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from rna_predict.utils.scatter_utils import scatter_mean
 
 from rna_predict.pipeline.stageA.input_embedding.current.primitives import (
     LayerNorm,
@@ -26,6 +25,7 @@ from rna_predict.pipeline.stageA.input_embedding.current.utils import (
     aggregate_atom_to_token,
     broadcast_token_to_atom,
 )
+from rna_predict.utils.scatter_utils import scatter_mean
 
 
 @dataclass
@@ -292,13 +292,17 @@ class AtomAttentionEncoder(nn.Module):
         if "ref_space_uid" in input_feature_dict:
             ref_space_uid = input_feature_dict["ref_space_uid"]
             if ref_space_uid.dim() == 2:  # [B, N_atom]
-                input_feature_dict["ref_space_uid"] = ref_space_uid.unsqueeze(-1)  # [B, N_atom, 1]
+                input_feature_dict["ref_space_uid"] = ref_space_uid.unsqueeze(
+                    -1
+                )  # [B, N_atom, 1]
 
         # Handle atom_to_token_idx dimension
         if "atom_to_token_idx" in input_feature_dict:
             atom_to_token_idx = input_feature_dict["atom_to_token_idx"]
             if atom_to_token_idx.dim() == 1:  # [N_atom]
-                input_feature_dict["atom_to_token_idx"] = atom_to_token_idx.unsqueeze(0)  # [1, N_atom]
+                input_feature_dict["atom_to_token_idx"] = atom_to_token_idx.unsqueeze(
+                    0
+                )  # [1, N_atom]
 
     def _process_simple_embedding(
         self, input_feature_dict: InputFeatureDict
@@ -566,25 +570,19 @@ class AtomAttentionEncoder(nn.Module):
         a_token = torch.zeros(
             (*a_atom.shape[:-2], num_tokens, a_atom.shape[-1]),
             device=a_atom.device,
-            dtype=a_atom.dtype
+            dtype=a_atom.dtype,
         )
-        
+
         # Handle batched inputs
         if atom_to_token_idx.dim() == 2:  # [B, N_atom]
             batch_size = atom_to_token_idx.size(0)
             for b in range(batch_size):
                 a_token[b] = scatter_mean(
-                    a_atom[b],
-                    atom_to_token_idx[b],
-                    dim=0,
-                    dim_size=num_tokens
+                    a_atom[b], atom_to_token_idx[b], dim=0, dim_size=num_tokens
                 )
         else:  # [N_atom]
             a_token = scatter_mean(
-                a_atom,
-                atom_to_token_idx,
-                dim=0,
-                dim_size=num_tokens
+                a_atom, atom_to_token_idx, dim=0, dim_size=num_tokens
             )
 
         return a_token
@@ -680,9 +678,7 @@ class AtomAttentionEncoder(nn.Module):
             mask = mask.expand(-1, -1, self.c_atompair)
 
         # Apply transformer
-        a_atom = self.atom_transformer(
-            c_l, p_l, mask=mask, chunk_size=chunk_size or 0
-        )
+        a_atom = self.atom_transformer(c_l, p_l, mask=mask, chunk_size=chunk_size or 0)
 
         # Get number of tokens from restype if available
         if "restype" in input_feature_dict:
