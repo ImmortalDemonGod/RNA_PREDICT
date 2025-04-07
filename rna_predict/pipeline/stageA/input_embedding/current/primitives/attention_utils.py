@@ -449,9 +449,9 @@ def _local_attention(inputs: LocalAttentionInputs) -> torch.Tensor:
     if inputs.q.shape[-2] == 0:
         return inputs.q
 
-    assert inputs.n_keys >= inputs.n_queries, (
-        f"n_keys ({inputs.n_keys}) must be >= n_queries ({inputs.n_queries})"
-    )
+    assert (
+        inputs.n_keys >= inputs.n_queries
+    ), f"n_keys ({inputs.n_keys}) must be >= n_queries ({inputs.n_queries})"
 
     # Try processing small tensors directly
     small_tensor_result = _process_small_tensors(inputs)

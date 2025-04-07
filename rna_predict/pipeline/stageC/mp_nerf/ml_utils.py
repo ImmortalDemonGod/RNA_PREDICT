@@ -476,9 +476,9 @@ def noise_internals(
     * chain (l, c, d)
     * cloud_mask (l, c)
     """
-    assert angles is not None or coords is not None, (
-        "You must pass either angles or coordinates"
-    )
+    assert (
+        angles is not None or coords is not None
+    ), "You must pass either angles or coordinates"
 
     # Initialize coords if not provided
     if coords is None:
@@ -606,9 +606,9 @@ def combine_noise(
             assert False, "Either int_seq or seq must be passed"
 
     # Normal case - validate inputs
-    assert int_seq is not None or seq is not None, (
-        "Either int_seq or seq must be passed"
-    )
+    assert (
+        int_seq is not None or seq is not None
+    ), "Either int_seq or seq must be passed"
 
     # Handle tensor input for seq (test_associative_binary_operation_combine_noise passes tensors as seq)
     if isinstance(seq, torch.Tensor):
