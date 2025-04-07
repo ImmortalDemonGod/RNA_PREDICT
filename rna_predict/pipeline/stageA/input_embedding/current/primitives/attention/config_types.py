@@ -3,7 +3,7 @@ Data classes for dense trunk attention configurations and intermediate results.
 """
 
 from dataclasses import dataclass
-from typing import Any, Callable, List, Optional, Tuple, Union
+from typing import Any, Callable, List, Optional, Union
 
 import torch
 
