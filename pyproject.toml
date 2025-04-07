@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=66.0.0", "wheel"]
+requires = ["setuptools>=66.0.0", "wheel>=0.40.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -24,11 +24,11 @@ dependencies = [
     "ruff>=0.11.2",
     "torch>=2.0.1, <2.6.0",
     "transformers>=4.49.0",
-    "pyautogui",
-    "opencv-python",
-    "Pillow",
-    "mss",
-    "dearpygui>=1.10", # Switched from PySimpleGUI
+    "pyautogui>=0.9.54",
+    "opencv-python>=4.8.0",
+    "Pillow>=10.0.0",
+    "mss>=9.0.1",
+    "dearpygui>=1.10",
 ]
 
 # If you have optional (dev) dependencies:
