@@ -1,86 +1,122 @@
 # tests/stageC/mp_nerf_tests/test_utils.py
+from pathlib import Path
+from types import SimpleNamespace  # Added SimpleNamespace
+from typing import (
+    Any,
+    Dict,
+    Iterator,
+    List,
+)  # Added Dict, Any, NamedTuple, Tuple, Iterator
+from unittest.mock import MagicMock, patch
+
+import numpy as np
 import pytest
 import torch
-import numpy as np
-from pathlib import Path
-from unittest.mock import patch, MagicMock
-from typing import List, Optional, Dict, Any, NamedTuple, Tuple, Iterator # Added Dict, Any, NamedTuple, Tuple, Iterator
-from types import SimpleNamespace # Added SimpleNamespace
 
 # Assuming the file is in rna_predict.pipeline.stageC.mp_nerf.utils
 # Adjust the import path if necessary based on your project structure and PYTHONPATH
 # Try importing from the expected location first
 try:
     from rna_predict.pipeline.stageC.mp_nerf import utils
+
     # Mock Bio.PDB for tests where file parsing is not the focus or might fail
     # We primarily want to test *our* logic around Bio.PDB calls
     mock_pdb_parser = MagicMock()
     mock_cif_parser = MagicMock()
     mock_structure = MagicMock()
     mock_model = MagicMock()
-    mock_chain = MagicMock() # Added mock for chain
+    mock_chain = MagicMock()  # Added mock for chain
     mock_residue = MagicMock()
     mock_atom = MagicMock()
-    mock_atom.get_coord.return_value = np.array([1.0, 2.0, 3.0]) # Use numpy array as BioPython returns
+    mock_atom.get_coord.return_value = np.array(
+        [1.0, 2.0, 3.0]
+    )  # Use numpy array as BioPython returns
 
     # Configure mocks to simulate structure hierarchy
-    mock_residue.get_atoms.return_value = [mock_atom] * 3 # Simulate 3 atoms per residue
-    mock_residue.id = (' ', 1, ' ') # Example residue ID
-    mock_residue.get_resname.return_value = "ALA" # Example residue name
-    mock_chain.get_residues.return_value = [mock_residue] * 2 # Simulate 2 residues
-    mock_model.get_chains.return_value = [mock_chain] # Simulate 1 chain
-    mock_structure.get_models.return_value = [mock_model] # Simulate 1 model
+    mock_residue.get_atoms.return_value = [
+        mock_atom
+    ] * 3  # Simulate 3 atoms per residue
+    mock_residue.id = (" ", 1, " ")  # Example residue ID
+    mock_residue.get_resname.return_value = "ALA"  # Example residue name
+    mock_chain.get_residues.return_value = [mock_residue] * 2  # Simulate 2 residues
+    mock_model.get_chains.return_value = [mock_chain]  # Simulate 1 chain
+    mock_structure.get_models.return_value = [mock_model]  # Simulate 1 model
     mock_pdb_parser.get_structure.return_value = mock_structure
     mock_cif_parser.get_structure.return_value = mock_structure
 
     # Patch Bio.PDB where it's imported in the utils module
-    patch_pdb_parser = patch('rna_predict.pipeline.stageC.mp_nerf.utils.PDBParser', return_value=mock_pdb_parser)
-    patch_cif_parser = patch('rna_predict.pipeline.stageC.mp_nerf.utils.MMCIFParser', return_value=mock_cif_parser)
+    patch_pdb_parser = patch(
+        "rna_predict.pipeline.stageC.mp_nerf.utils.PDBParser",
+        return_value=mock_pdb_parser,
+    )
+    patch_cif_parser = patch(
+        "rna_predict.pipeline.stageC.mp_nerf.utils.MMCIFParser",
+        return_value=mock_cif_parser,
+    )
     # Patch the IO classes used in save_structure
-    patch_pdb_io = patch('rna_predict.pipeline.stageC.mp_nerf.utils.PDBIO')
-    patch_cif_io = patch('rna_predict.pipeline.stageC.mp_nerf.utils.MMCIFIO')
+    patch_pdb_io = patch("rna_predict.pipeline.stageC.mp_nerf.utils.PDBIO")
+    patch_cif_io = patch("rna_predict.pipeline.stageC.mp_nerf.utils.MMCIFIO")
     # Patch Atom class used in save_structure
-    patch_atom_cls = patch('rna_predict.pipeline.stageC.mp_nerf.utils.Atom')
+    patch_atom_cls = patch("rna_predict.pipeline.stageC.mp_nerf.utils.Atom")
     # Patch Residue class used in save_structure
-    patch_residue_cls = patch('rna_predict.pipeline.stageC.mp_nerf.utils.Residue')
+    patch_residue_cls = patch("rna_predict.pipeline.stageC.mp_nerf.utils.Residue")
     # Patch Chain class used in save_structure
-    patch_chain_cls = patch('rna_predict.pipeline.stageC.mp_nerf.utils.Chain')
+    patch_chain_cls = patch("rna_predict.pipeline.stageC.mp_nerf.utils.Chain")
     # Patch Model class used in save_structure
-    patch_model_cls = patch('rna_predict.pipeline.stageC.mp_nerf.utils.Model')
+    patch_model_cls = patch("rna_predict.pipeline.stageC.mp_nerf.utils.Model")
     # Patch StructureBuilder used in save_structure
-    patch_builder_cls = patch('rna_predict.pipeline.stageC.mp_nerf.utils.StructureBuilder')
+    patch_builder_cls = patch(
+        "rna_predict.pipeline.stageC.mp_nerf.utils.StructureBuilder"
+    )
 
 
 except ImportError as e:
     print(f"Import Error: {e}")
-    pytest.skip("Skipping tests because rna_predict module or its dependencies not found.", allow_module_level=True)
+    pytest.skip(
+        "Skipping tests because rna_predict module or its dependencies not found.",
+        allow_module_level=True,
+    )
+
     # Define dummy functions if import fails to avoid collection errors
-    class DummyUtils: # Dummy class to hold functions
+    class DummyUtils:  # Dummy class to hold functions
         @staticmethod
-        def get_coords_from_pdb(*args, **kwargs): pass
+        def get_coords_from_pdb(*args, **kwargs):
+            pass
+
         @staticmethod
-        def get_coords_from_cif(*args, **kwargs): pass
+        def get_coords_from_cif(*args, **kwargs):
+            pass
+
         @staticmethod
-        def get_coords_from_file(*args, **kwargs): pass
+        def get_coords_from_file(*args, **kwargs):
+            pass
+
         @staticmethod
-        def get_device(*args, **kwargs): pass
+        def get_device(*args, **kwargs):
+            pass
+
         @staticmethod
-        def save_structure(*args, **kwargs): pass
+        def save_structure(*args, **kwargs):
+            pass
+
         @staticmethod
-        def get_prot(*args, **kwargs): pass # Add dummy get_prot
+        def get_prot(*args, **kwargs):
+            pass  # Add dummy get_prot
+
     # Dummy patches if import failed
-    patch_pdb_parser = patch('builtins.print')
-    patch_cif_parser = patch('builtins.print')
-    patch_pdb_io = patch('builtins.print')
-    patch_cif_io = patch('builtins.print')
-    patch_atom_cls = patch('builtins.print')
-    patch_residue_cls = patch('builtins.print')
-    patch_chain_cls = patch('builtins.print')
-    patch_model_cls = patch('builtins.print')
-    patch_builder_cls = patch('builtins.print')
+    patch_pdb_parser = patch("builtins.print")
+    patch_cif_parser = patch("builtins.print")
+    patch_pdb_io = patch("builtins.print")
+    patch_cif_io = patch("builtins.print")
+    patch_atom_cls = patch("builtins.print")
+    patch_residue_cls = patch("builtins.print")
+    patch_chain_cls = patch("builtins.print")
+    patch_model_cls = patch("builtins.print")
+    patch_builder_cls = patch("builtins.print")
 
 
 # --- Fixtures for Dummy Files ---
+
 
 @pytest.fixture
 def dummy_pdb_content() -> str:
@@ -93,6 +129,7 @@ ATOM      4  N   GLY A   2       3.000   4.000   5.000  1.00  0.00           N
 ATOM      5  CA  GLY A   2       3.500   4.500   5.500  1.00  0.00           C
 ATOM      6  C   GLY A   2       4.000   5.000   6.000  1.00  0.00           C
 """
+
 
 @pytest.fixture
 def dummy_cif_content() -> str:
@@ -125,12 +162,14 @@ ATOM   6  C C   GLY A 2 13.000 14.000 15.000 1.00 0.00 A 2
 #
 """
 
+
 @pytest.fixture
 def pdb_file(tmp_path: Path, dummy_pdb_content: str) -> Path:
     """Creates a dummy PDB file in a temporary directory."""
     p = tmp_path / "test.pdb"
     p.write_text(dummy_pdb_content)
     return p
+
 
 @pytest.fixture
 def cif_file(tmp_path: Path, dummy_cif_content: str) -> Path:
@@ -139,7 +178,9 @@ def cif_file(tmp_path: Path, dummy_cif_content: str) -> Path:
     p.write_text(dummy_cif_content)
     return p
 
+
 # --- Test Functions ---
+
 
 # Test get_coords_from_pdb (Lines 33-51)
 # Use mocks to isolate the function's logic from Bio.PDB parsing details
@@ -150,7 +191,7 @@ def test_get_coords_from_pdb(mock_parser, tmp_path: Path):
     Covers lines: 33-51
     """
     pdb_file = tmp_path / "dummy.pdb"
-    pdb_file.touch() # File just needs to exist
+    pdb_file.touch()  # File just needs to exist
 
     # Expected coords based on mock_atom.get_coord() = [1,2,3]
     # 2 residues * 3 atoms/residue = 6 atoms
@@ -160,11 +201,12 @@ def test_get_coords_from_pdb(mock_parser, tmp_path: Path):
 
     # Assert on the INSTANCE returned by the mocked class, not the class mock itself
     mock_pdb_parser.get_structure.assert_called_once_with("structure", str(pdb_file))
-    assert mock_atom.get_coord.call_count == 6 # 2 residues * 3 atoms
+    assert mock_atom.get_coord.call_count == 6  # 2 residues * 3 atoms
     assert isinstance(coords, torch.Tensor)
     assert coords.shape == (6, 3)
     assert torch.allclose(coords, expected_coords)
     assert coords.dtype == torch.float32
+
 
 # Test get_coords_from_cif (Lines 54-72)
 @patch_cif_parser
@@ -174,7 +216,7 @@ def test_get_coords_from_cif(mock_parser, tmp_path: Path):
     Covers lines: 54-72
     """
     cif_file = tmp_path / "dummy.cif"
-    cif_file.touch() # File just needs to exist
+    cif_file.touch()  # File just needs to exist
 
     # Expected coords based on mock_atom.get_coord() = [1,2,3]
     # 2 residues * 3 atoms/residue = 6 atoms
@@ -187,15 +229,16 @@ def test_get_coords_from_cif(mock_parser, tmp_path: Path):
 
     # Assert on the INSTANCE returned by the mocked class, not the class mock itself
     mock_cif_parser.get_structure.assert_called_once_with("structure", str(cif_file))
-    assert mock_atom.get_coord.call_count == 6 # 2 residues * 3 atoms
+    assert mock_atom.get_coord.call_count == 6  # 2 residues * 3 atoms
     assert isinstance(coords, torch.Tensor)
     assert coords.shape == (6, 3)
     assert torch.allclose(coords, expected_coords)
     assert coords.dtype == torch.float32
 
+
 # Test get_coords_from_file (Lines 75-78)
-@patch('rna_predict.pipeline.stageC.mp_nerf.utils.get_coords_from_pdb')
-@patch('rna_predict.pipeline.stageC.mp_nerf.utils.get_coords_from_cif')
+@patch("rna_predict.pipeline.stageC.mp_nerf.utils.get_coords_from_pdb")
+@patch("rna_predict.pipeline.stageC.mp_nerf.utils.get_coords_from_cif")
 def test_get_coords_from_file_dispatch(mock_get_cif, mock_get_pdb, tmp_path: Path):
     """
     Tests get_coords_from_file dispatching to correct function based on extension.
@@ -226,8 +269,9 @@ def test_get_coords_from_file_dispatch(mock_get_cif, mock_get_pdb, tmp_path: Pat
     mock_get_pdb.assert_not_called()
     mock_get_cif.assert_not_called()
 
+
 # Test get_device (Lines 118-122)
-@patch('rna_predict.pipeline.stageC.mp_nerf.utils.torch.cuda.is_available')
+@patch("rna_predict.pipeline.stageC.mp_nerf.utils.torch.cuda.is_available")
 def test_get_device_cuda_available(mock_cuda_available):
     """
     Tests get_device returns 'cuda' when torch.cuda.is_available() is True.
@@ -236,10 +280,11 @@ def test_get_device_cuda_available(mock_cuda_available):
     mock_cuda_available.return_value = True
     device = utils.get_device()
     assert isinstance(device, torch.device)
-    assert device.type == 'cuda'
+    assert device.type == "cuda"
     mock_cuda_available.assert_called_once()
 
-@patch('rna_predict.pipeline.stageC.mp_nerf.utils.torch.cuda.is_available')
+
+@patch("rna_predict.pipeline.stageC.mp_nerf.utils.torch.cuda.is_available")
 def test_get_device_cuda_not_available(mock_cuda_available):
     """
     Tests get_device returns 'cpu' when torch.cuda.is_available() is False.
@@ -248,8 +293,9 @@ def test_get_device_cuda_not_available(mock_cuda_available):
     mock_cuda_available.return_value = False
     device = utils.get_device()
     assert isinstance(device, torch.device)
-    assert device.type == 'cpu'
+    assert device.type == "cpu"
     mock_cuda_available.assert_called_once()
+
 
 # Test save_structure (Lines 135-154, 159)
 # Use mocks for Bio.PDB classes to avoid actual file writing and dependency
@@ -260,12 +306,23 @@ def test_get_device_cuda_not_available(mock_cuda_available):
 @patch_atom_cls
 @patch_pdb_io
 @patch_cif_io
-def test_save_structure_3d_input_pdb(mock_cifio_cls, mock_pdbio_cls, mock_atom_cls, mock_residue_cls, mock_chain_cls, mock_model_cls, mock_builder_cls, tmp_path: Path):
+def test_save_structure_3d_input_pdb(
+    mock_cifio_cls,
+    mock_pdbio_cls,
+    mock_atom_cls,
+    mock_residue_cls,
+    mock_chain_cls,
+    mock_model_cls,
+    mock_builder_cls,
+    tmp_path: Path,
+):
     """
     Tests save_structure logic for 3D input and PDB output using mocks.
     Covers lines: 135-145, 159 (pass)
     """
-    coords = torch.arange(18, dtype=torch.float32).reshape(2, 3, 3) # 2 residues, 3 atoms each
+    coords = torch.arange(18, dtype=torch.float32).reshape(
+        2, 3, 3
+    )  # 2 residues, 3 atoms each
     output_file = tmp_path / "output_3d.pdb"
     atom_types = ["N", "CA", "C"]
     res_names = ["ALA", "GLY"]
@@ -276,32 +333,48 @@ def test_save_structure_3d_input_pdb(mock_cifio_cls, mock_pdbio_cls, mock_atom_c
     mock_structure = mock_builder_inst.get_structure.return_value
     mock_model_inst = mock_model_cls.return_value
     mock_chain_inst = mock_chain_cls.return_value
-    mock_residue_inst = mock_residue_cls.return_value # Capture the instance created by the class mock
-    mock_atom_inst = mock_atom_cls.return_value # Capture the instance created by the class mock
+    mock_residue_inst = (
+        mock_residue_cls.return_value
+    )  # Capture the instance created by the class mock
+    mock_atom_inst = (
+        mock_atom_cls.return_value
+    )  # Capture the instance created by the class mock
 
     # Configure mock hierarchy returns
     mock_structure.__getitem__.return_value = mock_model_inst
     mock_model_inst.__getitem__.return_value = mock_chain_inst
 
-    utils.save_structure(coords, str(output_file), atom_types=atom_types, res_names=res_names)
+    utils.save_structure(
+        coords, str(output_file), atom_types=atom_types, res_names=res_names
+    )
 
     # Assertions
-    mock_builder_cls.assert_called_once() # Builder class was instantiated
-    mock_builder_inst.init_structure.assert_called_once_with("structure") # Method called on instance
-    mock_builder_inst.init_model.assert_called_once_with(0) # Method called on instance
-    mock_builder_inst.init_chain.assert_called_once_with('A') # Method called on instance
-    assert mock_builder_inst.init_residue.call_count == 2 # Method called on instance twice
-    assert mock_atom_cls.call_count == 6 # Atom class instantiated directly 6 times
+    mock_builder_cls.assert_called_once()  # Builder class was instantiated
+    mock_builder_inst.init_structure.assert_called_once_with(
+        "structure"
+    )  # Method called on instance
+    mock_builder_inst.init_model.assert_called_once_with(0)  # Method called on instance
+    mock_builder_inst.init_chain.assert_called_once_with(
+        "A"
+    )  # Method called on instance
+    assert (
+        mock_builder_inst.init_residue.call_count == 2
+    )  # Method called on instance twice
+    assert mock_atom_cls.call_count == 6  # Atom class instantiated directly 6 times
     # Check atom details for the first atom of the first residue (ensure Atom class was called correctly)
     # Access keyword arguments dictionary (index 1) from the first call (index 0)
     first_atom_kwargs = mock_atom_cls.call_args_list[0][1]
-    assert first_atom_kwargs['name'] == "N   " # Check 'name' keyword argument
-    np.testing.assert_allclose(first_atom_kwargs['coord'], coords[0, 0, :].numpy()) # Check 'coord' keyword argument
-    assert first_atom_kwargs['element'] == "N" # Check 'element' keyword argument
+    assert first_atom_kwargs["name"] == "N   "  # Check 'name' keyword argument
+    np.testing.assert_allclose(
+        first_atom_kwargs["coord"], coords[0, 0, :].numpy()
+    )  # Check 'coord' keyword argument
+    assert first_atom_kwargs["element"] == "N"  # Check 'element' keyword argument
 
     mock_pdbio_cls.assert_called_once()
     mock_pdbio_inst.set_structure.assert_called_once_with(mock_structure)
-    mock_pdbio_inst.save.assert_called_once_with(str(output_file)) # Save should be called now
+    mock_pdbio_inst.save.assert_called_once_with(
+        str(output_file)
+    )  # Save should be called now
     mock_cifio_cls.assert_not_called()
 
 
@@ -312,14 +385,23 @@ def test_save_structure_3d_input_pdb(mock_cifio_cls, mock_pdbio_cls, mock_atom_c
 @patch_atom_cls
 @patch_pdb_io
 @patch_cif_io
-def test_save_structure_2d_input_cif(mock_cifio_cls, mock_pdbio_cls, mock_atom_cls, mock_residue_cls, mock_chain_cls, mock_model_cls, mock_builder_cls, tmp_path: Path):
+def test_save_structure_2d_input_cif(
+    mock_cifio_cls,
+    mock_pdbio_cls,
+    mock_atom_cls,
+    mock_residue_cls,
+    mock_chain_cls,
+    mock_model_cls,
+    mock_builder_cls,
+    tmp_path: Path,
+):
     """
     Tests save_structure logic for 2D input and CIF output using mocks.
     Covers lines: 135-143, 146-151, 159 (pass)
     """
-    coords = torch.arange(12, dtype=torch.float32).reshape(4, 3) # 4 atoms total
+    coords = torch.arange(12, dtype=torch.float32).reshape(4, 3)  # 4 atoms total
     output_file = tmp_path / "output_2d.cif"
-    atom_types = ["N", "CA", "C", "O"] # 4 atom types, implies 1 residue
+    atom_types = ["N", "CA", "C", "O"]  # 4 atom types, implies 1 residue
     res_names = ["ALA"]
 
     # Mock instances
@@ -333,18 +415,28 @@ def test_save_structure_2d_input_cif(mock_cifio_cls, mock_pdbio_cls, mock_atom_c
     mock_structure.__getitem__.return_value = mock_model_inst
     mock_model_inst.__getitem__.return_value = mock_chain_inst
 
-    utils.save_structure(coords, str(output_file), atom_types=atom_types, res_names=res_names)
+    utils.save_structure(
+        coords, str(output_file), atom_types=atom_types, res_names=res_names
+    )
 
     # Assertions
-    mock_builder_cls.assert_called_once() # Builder class was instantiated
-    mock_builder_inst.init_structure.assert_called_once_with("structure") # Method called on instance
-    mock_builder_inst.init_model.assert_called_once_with(0) # Method called on instance
-    mock_builder_inst.init_chain.assert_called_once_with('A') # Method called on instance
-    assert mock_builder_inst.init_residue.call_count == 1 # Method called on instance once
-    assert mock_atom_cls.call_count == 4 # Atom class instantiated directly 4 times
+    mock_builder_cls.assert_called_once()  # Builder class was instantiated
+    mock_builder_inst.init_structure.assert_called_once_with(
+        "structure"
+    )  # Method called on instance
+    mock_builder_inst.init_model.assert_called_once_with(0)  # Method called on instance
+    mock_builder_inst.init_chain.assert_called_once_with(
+        "A"
+    )  # Method called on instance
+    assert (
+        mock_builder_inst.init_residue.call_count == 1
+    )  # Method called on instance once
+    assert mock_atom_cls.call_count == 4  # Atom class instantiated directly 4 times
 
     mock_cifio_cls.assert_called_once()
-    mock_cifio_inst.set_structure.assert_called_once_with(mock_structure) # Check set_structure call
+    mock_cifio_inst.set_structure.assert_called_once_with(
+        mock_structure
+    )  # Check set_structure call
     mock_cifio_inst.save.assert_called_once_with(str(output_file))
     mock_pdbio_cls.assert_not_called()
 
@@ -370,20 +462,26 @@ def test_save_structure_invalid_input_shape_no_mocks(tmp_path: Path):
     # Case 3: 2D tensor with wrong inner dimension
     coords_2d_wrong = torch.randn(5, 4)
     # Update regex to match actual error message format with parentheses
-    with pytest.raises(ValueError, match=r"Coordinates must have shape \(M, 3\), got .*"):
+    with pytest.raises(
+        ValueError, match=r"Coordinates must have shape \(M, 3\), got .*"
+    ):
         utils.save_structure(coords_2d_wrong, str(output_file))
 
     # Case 4: 3D tensor with wrong inner dimension
     coords_3d_wrong = torch.randn(2, 3, 4)
     # Update regex to match actual error message format with parentheses
-    with pytest.raises(ValueError, match=r"Coordinates must have shape \(N, 3, 3\), got .*"):
+    with pytest.raises(
+        ValueError, match=r"Coordinates must have shape \(N, 3, 3\), got .*"
+    ):
         utils.save_structure(coords_3d_wrong, str(output_file))
 
     # Case 5: 3D tensor with wrong middle dimension (not 3 atoms)
     coords_3d_wrong_mid = torch.randn(2, 4, 3)
     # Update regex to match actual error message format with parentheses
-    with pytest.raises(ValueError, match=r"Coordinates must have shape \(N, 3, 3\), got .*"):
-         utils.save_structure(coords_3d_wrong_mid, str(output_file))
+    with pytest.raises(
+        ValueError, match=r"Coordinates must have shape \(N, 3, 3\), got .*"
+    ):
+        utils.save_structure(coords_3d_wrong_mid, str(output_file))
 
 
 def test_save_structure_2d_input_shape_mismatch_no_mocks(tmp_path: Path):
@@ -391,13 +489,28 @@ def test_save_structure_2d_input_shape_mismatch_no_mocks(tmp_path: Path):
     Tests save_structure with 2D input where num_atoms is not divisible by len(atom_types).
     Covers lines: 135-143, 146-151 (ValueError/RuntimeError before/during reshape)
     """
-    coords_2d = torch.tensor([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0],
-                              [10., 11., 12.], [13., 14., 15.]]) # 5 atoms
+    coords_2d = torch.tensor(
+        [
+            [1.0, 2.0, 3.0],
+            [4.0, 5.0, 6.0],
+            [7.0, 8.0, 9.0],
+            [10.0, 11.0, 12.0],
+            [13.0, 14.0, 15.0],
+        ]
+    )  # 5 atoms
     output_file = tmp_path / "structure.pdb"
-    atom_types = ["N", "CA", "C", "O"] # 4 atom types specified, 5 is not divisible by 4
+    atom_types = [
+        "N",
+        "CA",
+        "C",
+        "O",
+    ]  # 4 atom types specified, 5 is not divisible by 4
 
-    with pytest.raises((ValueError, RuntimeError), match=r"Number of atoms .* must be divisible by"):
+    with pytest.raises(
+        (ValueError, RuntimeError), match=r"Number of atoms .* must be divisible by"
+    ):
         utils.save_structure(coords_2d, str(output_file), atom_types=atom_types)
+
 
 # --- Coverage Notes ---
 # Line 11: Covered by import numpy as np
@@ -407,12 +520,14 @@ def test_save_structure_2d_input_shape_mismatch_no_mocks(tmp_path: Path):
 
 # --- Tests for get_prot (Lines 58-105) --- # Adjusted line range based on previous analysis
 
+
 # Helper structures to mimic dataloader and vocab
 class DummyVocab:
     def int2char(self, aa_int: int) -> str:
-        if aa_int == 20: # Padding token
-            return "<PAD>" # Use a non-standard char to avoid confusion if 'X' is a real AA
-        return chr(ord('A') + aa_int) # Simple A, B, C... mapping
+        if aa_int == 20:  # Padding token
+            return "<PAD>"  # Use a non-standard char to avoid confusion if 'X' is a real AA
+        return chr(ord("A") + aa_int)  # Simple A, B, C... mapping
+
 
 # class DummyBatch(NamedTuple): # Use SimpleNamespace instead if NamedTuple causes issues
 #     int_seqs: torch.Tensor
@@ -421,17 +536,22 @@ class DummyVocab:
 #     crds: torch.Tensor
 #     pids: List[str]
 
-def create_dummy_dataloader(batches: List[SimpleNamespace]) -> Dict[str, Iterator[SimpleNamespace]]:
+
+def create_dummy_dataloader(
+    batches: List[SimpleNamespace],
+) -> Dict[str, Iterator[SimpleNamespace]]:
     """Creates a simple dictionary mimicking a dataloader structure."""
     # Make the dataloader yield batches one by one like an iterator
     return {"train": iter(batches)}
+
 
 # Constants for get_prot tests
 PAD_TOKEN_INT = 20
 DEFAULT_MIN_LEN = 5
 DEFAULT_MAX_LEN = 15
-NUM_ANGLES = 12 # From sidechainnet documentation/typical usage
-ATOMS_PER_RESIDUE = 14 # From sidechainnet documentation/typical usage
+NUM_ANGLES = 12  # From sidechainnet documentation/typical usage
+ATOMS_PER_RESIDUE = 14  # From sidechainnet documentation/typical usage
+
 
 def create_mock_batch_item(
     seq_len: int,
@@ -454,7 +574,7 @@ def create_mock_batch_item(
         padding_angles = padding_angles_correct
     else:
         # Introduce invalid padding (non-zero angles in padding region)
-        padding_angles = torch.rand(padding_len, num_angles) * 0.1 # Small non-zero
+        padding_angles = torch.rand(padding_len, num_angles) * 0.1  # Small non-zero
 
     angles = torch.cat([real_angles, padding_angles])
 
@@ -469,9 +589,10 @@ def create_mock_batch_item(
         "int_seq": int_seq,
         "angs": angles,
         "msks": mask,
-        "crds": coords, # Store the full coords for the item
+        "crds": coords,  # Store the full coords for the item
         "pid": pid,
     }
+
 
 def create_mock_batch(items: List[Dict[str, Any]]) -> SimpleNamespace:
     """Stacks individual items into a batch."""
@@ -488,13 +609,14 @@ def create_mock_batch(items: List[Dict[str, Any]]) -> SimpleNamespace:
     max_crd_len = max(item["crds"].shape[0] for item in items) if items else 0
     padded_crds = []
 
-
     for item in items:
         current_len = item["int_seq"].shape[0]
         pad_size = max_len - current_len
 
         # Pad int_seq (using PAD_TOKEN_INT)
-        padded_int_seqs.append(torch.cat([item["int_seq"], torch.full((pad_size,), PAD_TOKEN_INT)]))
+        padded_int_seqs.append(
+            torch.cat([item["int_seq"], torch.full((pad_size,), PAD_TOKEN_INT)])
+        )
 
         # Pad angs (using zeros)
         padded_angs.append(torch.cat([item["angs"], torch.zeros(pad_size, NUM_ANGLES)]))
@@ -507,11 +629,16 @@ def create_mock_batch(items: List[Dict[str, Any]]) -> SimpleNamespace:
         crd_pad_size = max_crd_len - current_crd_len
         padded_crds.append(torch.cat([item["crds"], torch.zeros(crd_pad_size, 3)]))
 
-
-    batch.int_seqs = torch.stack(padded_int_seqs) if items else torch.empty(0, 0, dtype=torch.long)
+    batch.int_seqs = (
+        torch.stack(padded_int_seqs) if items else torch.empty(0, 0, dtype=torch.long)
+    )
     batch.angs = torch.stack(padded_angs) if items else torch.empty(0, 0, NUM_ANGLES)
-    batch.msks = torch.stack(padded_msks) if items else torch.empty(0, 0, dtype=torch.long)
-    batch.crds = torch.stack(padded_crds) if items else torch.empty(0, 0, 3) # Shape (batch_size, max_len*14, 3)
+    batch.msks = (
+        torch.stack(padded_msks) if items else torch.empty(0, 0, dtype=torch.long)
+    )
+    batch.crds = (
+        torch.stack(padded_crds) if items else torch.empty(0, 0, 3)
+    )  # Shape (batch_size, max_len*14, 3)
     batch.pids = [item["pid"] for item in items]
 
     return batch
@@ -520,121 +647,142 @@ def create_mock_batch(items: List[Dict[str, Any]]) -> SimpleNamespace:
 @pytest.fixture
 def mock_dataloader_factory():
     """Factory to create a mock dataloader with specified batches."""
-    def _create_dataloader(batches: List[SimpleNamespace]) -> Dict[str, Iterator[SimpleNamespace]]:
+
+    def _create_dataloader(
+        batches: List[SimpleNamespace],
+    ) -> Dict[str, Iterator[SimpleNamespace]]:
         # Make the dataloader yield batches one by one like an iterator
         return {"train": iter(batches)}
+
     return _create_dataloader
 
+
 # --- Test Cases ---
+
 
 @pytest.fixture
 def mock_vocab_fixture() -> DummyVocab:
     """Provides the mock vocabulary as a fixture."""
     return DummyVocab()
 
-# def test_get_prot_success_first_item(mock_vocab_fixture, mock_dataloader_factory):
-#     """Test finding a valid protein in the first item of the first batch."""
-#     seq_len = 10
+    # def test_get_prot_success_first_item(mock_vocab_fixture, mock_dataloader_factory):
+    #     """Test finding a valid protein in the first item of the first batch."""
+    #     seq_len = 10
     padding_len = 5
-    item1_data = create_mock_batch_item(seq_len=seq_len, padding_len=padding_len, pid="P1")
+    item1_data = create_mock_batch_item(
+        seq_len=seq_len, padding_len=padding_len, pid="P1"
+    )
     # Access the original unpadded coords for assertion comparison later
-    original_coords_item1 = item1_data["crds"][:seq_len * ATOMS_PER_RESIDUE]
+    original_coords_item1 = item1_data["crds"][: seq_len * ATOMS_PER_RESIDUE]
 
     batch = create_mock_batch([item1_data])
-#     dataloader = mock_dataloader_factory([batch])
-#
-#     result = utils.get_prot(dataloader, mock_vocab_fixture, min_len=DEFAULT_MIN_LEN, max_len=DEFAULT_MAX_LEN, verbose=False)
-#
-#     assert result is not None
-#     seq_str, int_seq, coords, angles, padding_seq, mask, pid = result
+    #     dataloader = mock_dataloader_factory([batch])
+    #
+    #     result = utils.get_prot(dataloader, mock_vocab_fixture, min_len=DEFAULT_MIN_LEN, max_len=DEFAULT_MAX_LEN, verbose=False)
+    #
+    #     assert result is not None
+    #     seq_str, int_seq, coords, angles, padding_seq, mask, pid = result
 
-#     assert pid == "P1"
-#     assert padding_seq == padding_len
-#     assert len(seq_str) == seq_len
-#     assert int_seq.shape == (seq_len,)
-#     assert angles.shape == (seq_len, NUM_ANGLES)
-#     assert mask.shape == (seq_len,)
-#     assert coords.shape == (seq_len * ATOMS_PER_RESIDUE, 3) # Check coord slicing
-#     # Verify the content of the sliced coords matches the original unpadded part
-#     assert torch.equal(coords, original_coords_item1)
-#     assert torch.all(int_seq != PAD_TOKEN_INT)
-#     assert torch.all(mask == 1)
-#     # Check if angles in the returned sequence are non-zero (they were random)
-#     assert not torch.all(torch.abs(angles).sum(dim=-1) == 0)
-#     # Check string conversion
-#     expected_seq_str = "".join([mock_vocab_fixture.int2char(i.item()) for i in item1_data["int_seq"][:seq_len]])
-#     assert seq_str == expected_seq_str
+    #     assert pid == "P1"
+    #     assert padding_seq == padding_len
+    #     assert len(seq_str) == seq_len
+    #     assert int_seq.shape == (seq_len,)
+    #     assert angles.shape == (seq_len, NUM_ANGLES)
+    #     assert mask.shape == (seq_len,)
+    #     assert coords.shape == (seq_len * ATOMS_PER_RESIDUE, 3) # Check coord slicing
+    #     # Verify the content of the sliced coords matches the original unpadded part
+    #     assert torch.equal(coords, original_coords_item1)
+    #     assert torch.all(int_seq != PAD_TOKEN_INT)
+    #     assert torch.all(mask == 1)
+    #     # Check if angles in the returned sequence are non-zero (they were random)
+    #     assert not torch.all(torch.abs(angles).sum(dim=-1) == 0)
+    #     # Check string conversion
+    #     expected_seq_str = "".join([mock_vocab_fixture.int2char(i.item()) for i in item1_data["int_seq"][:seq_len]])
+    #     assert seq_str == expected_seq_str
 
-
-# def test_get_prot_success_second_item_padding_mismatch(mock_vocab_fixture, mock_dataloader_factory):
-#     """Test skipping an item with padding mismatch and finding the next valid one."""
-#     seq_len_1 = 8
+    # def test_get_prot_success_second_item_padding_mismatch(mock_vocab_fixture, mock_dataloader_factory):
+    #     """Test skipping an item with padding mismatch and finding the next valid one."""
+    #     seq_len_1 = 8
     padding_len_1 = 4
     seq_len_2 = 12
     padding_len_2 = 3
 
-    item1_invalid = create_mock_batch_item(seq_len=seq_len_1, padding_len=padding_len_1, valid_padding=False, pid="P_invalid")
-    item2_valid = create_mock_batch_item(seq_len=seq_len_2, padding_len=padding_len_2, valid_padding=True, pid="P_valid")
-    original_coords_item2 = item2_valid["crds"][:seq_len_2 * ATOMS_PER_RESIDUE]
-
+    item1_invalid = create_mock_batch_item(
+        seq_len=seq_len_1,
+        padding_len=padding_len_1,
+        valid_padding=False,
+        pid="P_invalid",
+    )
+    item2_valid = create_mock_batch_item(
+        seq_len=seq_len_2, padding_len=padding_len_2, valid_padding=True, pid="P_valid"
+    )
+    original_coords_item2 = item2_valid["crds"][: seq_len_2 * ATOMS_PER_RESIDUE]
 
     batch = create_mock_batch([item1_invalid, item2_valid])
-#     dataloader = mock_dataloader_factory([batch])
-#
-#     result = utils.get_prot(dataloader, mock_vocab_fixture, min_len=DEFAULT_MIN_LEN, max_len=DEFAULT_MAX_LEN, verbose=False)
-#
-#     assert result is not None
-#     seq_str, int_seq, coords, angles, padding_seq, mask, pid = result
+    #     dataloader = mock_dataloader_factory([batch])
+    #
+    #     result = utils.get_prot(dataloader, mock_vocab_fixture, min_len=DEFAULT_MIN_LEN, max_len=DEFAULT_MAX_LEN, verbose=False)
+    #
+    #     assert result is not None
+    #     seq_str, int_seq, coords, angles, padding_seq, mask, pid = result
 
-#     assert pid == "P_valid" # Should return the second item
-#     assert padding_seq == padding_len_2
-#     assert len(seq_str) == seq_len_2
-#     assert int_seq.shape == (seq_len_2,)
-#     assert angles.shape == (seq_len_2, NUM_ANGLES)
-#     assert mask.shape == (seq_len_2,)
-#     assert coords.shape == (seq_len_2 * ATOMS_PER_RESIDUE, 3)
-#     assert torch.equal(coords, original_coords_item2)
+    #     assert pid == "P_valid" # Should return the second item
+    #     assert padding_seq == padding_len_2
+    #     assert len(seq_str) == seq_len_2
+    #     assert int_seq.shape == (seq_len_2,)
+    #     assert angles.shape == (seq_len_2, NUM_ANGLES)
+    #     assert mask.shape == (seq_len_2,)
+    #     assert coords.shape == (seq_len_2 * ATOMS_PER_RESIDUE, 3)
+    #     assert torch.equal(coords, original_coords_item2)
 
-
-# def test_get_prot_success_second_item_length_too_short(mock_vocab_fixture, mock_dataloader_factory):
-#     """Test skipping an item that's too short and finding the next valid one."""
-#     seq_len_1 = DEFAULT_MIN_LEN - 1 # Too short
+    # def test_get_prot_success_second_item_length_too_short(mock_vocab_fixture, mock_dataloader_factory):
+    #     """Test skipping an item that's too short and finding the next valid one."""
+    #     seq_len_1 = DEFAULT_MIN_LEN - 1 # Too short
     padding_len_1 = 4
-    seq_len_2 = DEFAULT_MIN_LEN + 1 # Valid length
+    seq_len_2 = DEFAULT_MIN_LEN + 1  # Valid length
     padding_len_2 = 3
 
-    item1_short = create_mock_batch_item(seq_len=seq_len_1, padding_len=padding_len_1, valid_padding=True, pid="P_short")
-    item2_valid = create_mock_batch_item(seq_len=seq_len_2, padding_len=padding_len_2, valid_padding=True, pid="P_valid")
-    original_coords_item2 = item2_valid["crds"][:seq_len_2 * ATOMS_PER_RESIDUE]
+    item1_short = create_mock_batch_item(
+        seq_len=seq_len_1, padding_len=padding_len_1, valid_padding=True, pid="P_short"
+    )
+    item2_valid = create_mock_batch_item(
+        seq_len=seq_len_2, padding_len=padding_len_2, valid_padding=True, pid="P_valid"
+    )
+    original_coords_item2 = item2_valid["crds"][: seq_len_2 * ATOMS_PER_RESIDUE]
 
     batch = create_mock_batch([item1_short, item2_valid])
-#     dataloader = mock_dataloader_factory([batch])
-#
-#     result = utils.get_prot(dataloader, mock_vocab_fixture, min_len=DEFAULT_MIN_LEN, max_len=DEFAULT_MAX_LEN, verbose=False)
-#
-#     assert result is not None
-#     seq_str, int_seq, coords, angles, padding_seq, mask, pid = result
+    #     dataloader = mock_dataloader_factory([batch])
+    #
+    #     result = utils.get_prot(dataloader, mock_vocab_fixture, min_len=DEFAULT_MIN_LEN, max_len=DEFAULT_MAX_LEN, verbose=False)
+    #
+    #     assert result is not None
+    #     seq_str, int_seq, coords, angles, padding_seq, mask, pid = result
 
-#     assert pid == "P_valid" # Should return the second item
-#     assert padding_seq == padding_len_2
-#     assert len(seq_str) == seq_len_2
-#     assert int_seq.shape == (seq_len_2,)
-#     assert coords.shape == (seq_len_2 * ATOMS_PER_RESIDUE, 3)
-#     assert torch.equal(coords, original_coords_item2)
+    #     assert pid == "P_valid" # Should return the second item
+    #     assert padding_seq == padding_len_2
+    #     assert len(seq_str) == seq_len_2
+    #     assert int_seq.shape == (seq_len_2,)
+    #     assert coords.shape == (seq_len_2 * ATOMS_PER_RESIDUE, 3)
+    #     assert torch.equal(coords, original_coords_item2)
 
-
-# def test_get_prot_success_second_item_length_too_long(mock_vocab_fixture, mock_dataloader_factory):
-#     """Test skipping an item that's too long and finding the next valid one."""
-#     seq_len_1 = DEFAULT_MAX_LEN + 1 # Too long
+    # def test_get_prot_success_second_item_length_too_long(mock_vocab_fixture, mock_dataloader_factory):
+    #     """Test skipping an item that's too long and finding the next valid one."""
+    #     seq_len_1 = DEFAULT_MAX_LEN + 1 # Too long
     padding_len_1 = 4
-    seq_len_2 = DEFAULT_MAX_LEN - 1 # Valid length
+    seq_len_2 = DEFAULT_MAX_LEN - 1  # Valid length
     padding_len_2 = 3
 
-    item1_long = create_mock_batch_item(seq_len=seq_len_1, padding_len=padding_len_1, valid_padding=True, pid="P_long")
-    item2_valid = create_mock_batch_item(seq_len=seq_len_2, padding_len=padding_len_2, valid_padding=True, pid="P_valid")
-    original_coords_item2 = item2_valid["crds"][:seq_len_2 * ATOMS_PER_RESIDUE]
+    item1_long = create_mock_batch_item(
+        seq_len=seq_len_1, padding_len=padding_len_1, valid_padding=True, pid="P_long"
+    )
+    item2_valid = create_mock_batch_item(
+        seq_len=seq_len_2, padding_len=padding_len_2, valid_padding=True, pid="P_valid"
+    )
+    original_coords_item2 = item2_valid["crds"][: seq_len_2 * ATOMS_PER_RESIDUE]
 
     batch = create_mock_batch([item1_long, item2_valid])
+
+
 #     dataloader = mock_dataloader_factory([batch])
 #
 #     result = utils.get_prot(dataloader, mock_vocab_fixture, min_len=DEFAULT_MIN_LEN, max_len=DEFAULT_MAX_LEN, verbose=False)
@@ -653,14 +801,22 @@ def mock_vocab_fixture() -> DummyVocab:
 def test_get_prot_no_padding(mock_vocab_fixture, mock_dataloader_factory):
     """Test finding a valid protein with zero padding."""
     seq_len = 10
-    padding_len = 0 # No padding
-    item1_data = create_mock_batch_item(seq_len=seq_len, padding_len=padding_len, pid="P_no_pad")
-    original_coords_item1 = item1_data["crds"] # Should be the same shape as sliced
+    padding_len = 0  # No padding
+    item1_data = create_mock_batch_item(
+        seq_len=seq_len, padding_len=padding_len, pid="P_no_pad"
+    )
+    original_coords_item1 = item1_data["crds"]  # Should be the same shape as sliced
 
     batch = create_mock_batch([item1_data])
     dataloader = mock_dataloader_factory([batch])
 
-    result = utils.get_prot(dataloader, mock_vocab_fixture, min_len=DEFAULT_MIN_LEN, max_len=DEFAULT_MAX_LEN, verbose=False)
+    result = utils.get_prot(
+        dataloader,
+        mock_vocab_fixture,
+        min_len=DEFAULT_MIN_LEN,
+        max_len=DEFAULT_MAX_LEN,
+        verbose=False,
+    )
 
     assert result is not None
     seq_str, int_seq, coords, angles, padding_seq, mask, pid = result
@@ -678,37 +834,59 @@ def test_get_prot_no_padding(mock_vocab_fixture, mock_dataloader_factory):
     assert torch.all(mask == 1)
 
 
-def test_get_prot_verbose_true_prints(mock_vocab_fixture, mock_dataloader_factory, capsys):
+def test_get_prot_verbose_true_prints(
+    mock_vocab_fixture, mock_dataloader_factory, capsys
+):
     """Verify that verbose=True produces output for skipped items."""
-    seq_len_1 = DEFAULT_MIN_LEN - 1 # Too short
+    seq_len_1 = DEFAULT_MIN_LEN - 1  # Too short
     padding_len_1 = 2
-    seq_len_2 = DEFAULT_MAX_LEN + 1 # Too long
+    seq_len_2 = DEFAULT_MAX_LEN + 1  # Too long
     padding_len_2 = 3
-    seq_len_3 = 8 # Padding mismatch
+    seq_len_3 = 8  # Padding mismatch
     padding_len_3 = 4
-    seq_len_4 = 10 # Valid
+    seq_len_4 = 10  # Valid
     padding_len_4 = 5
 
-    item1_short = create_mock_batch_item(seq_len=seq_len_1, padding_len=padding_len_1, valid_padding=True, pid="P_short")
-    item2_long = create_mock_batch_item(seq_len=seq_len_2, padding_len=padding_len_2, valid_padding=True, pid="P_long")
-    item3_pad_mismatch = create_mock_batch_item(seq_len=seq_len_3, padding_len=padding_len_3, valid_padding=False, pid="P_pad_mismatch")
-    item4_valid = create_mock_batch_item(seq_len=seq_len_4, padding_len=padding_len_4, valid_padding=True, pid="P_valid")
+    item1_short = create_mock_batch_item(
+        seq_len=seq_len_1, padding_len=padding_len_1, valid_padding=True, pid="P_short"
+    )
+    item2_long = create_mock_batch_item(
+        seq_len=seq_len_2, padding_len=padding_len_2, valid_padding=True, pid="P_long"
+    )
+    item3_pad_mismatch = create_mock_batch_item(
+        seq_len=seq_len_3,
+        padding_len=padding_len_3,
+        valid_padding=False,
+        pid="P_pad_mismatch",
+    )
+    item4_valid = create_mock_batch_item(
+        seq_len=seq_len_4, padding_len=padding_len_4, valid_padding=True, pid="P_valid"
+    )
 
-    batch = create_mock_batch([item1_short, item2_long, item3_pad_mismatch, item4_valid])
+    batch = create_mock_batch(
+        [item1_short, item2_long, item3_pad_mismatch, item4_valid]
+    )
     dataloader = mock_dataloader_factory([batch])
 
     # Run with verbose=True (default)
-    result = utils.get_prot(dataloader, mock_vocab_fixture, min_len=DEFAULT_MIN_LEN, max_len=DEFAULT_MAX_LEN, verbose=True)
+    result = utils.get_prot(
+        dataloader,
+        mock_vocab_fixture,
+        min_len=DEFAULT_MIN_LEN,
+        max_len=DEFAULT_MAX_LEN,
+        verbose=True,
+    )
     captured = capsys.readouterr()
 
     assert result is not None
-    assert result[-1] == "P_valid" # Ensure the correct item was returned
+    assert result[-1] == "P_valid"  # Ensure the correct item was returned
 
     # Check if print statements for skipped items occurred
-    assert "found a seq of length" in captured.out # For item1 and item2
-    assert "but oustide the threshold" in captured.out # For item1 and item2
-    assert "paddings not matching" in captured.out # For item3
-    assert "stopping at sequence of length" in captured.out # For item4
+    assert "found a seq of length" in captured.out  # For item1 and item2
+    assert "but oustide the threshold" in captured.out  # For item1 and item2
+    assert "paddings not matching" in captured.out  # For item3
+    assert "stopping at sequence of length" in captured.out  # For item4
+
 
 # Note: A test case for when NO valid protein is found is omitted
 # because the `while True` loop would run indefinitely. Testing this
