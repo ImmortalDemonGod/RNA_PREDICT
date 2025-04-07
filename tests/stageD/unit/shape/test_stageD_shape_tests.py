@@ -159,8 +159,7 @@ def test_multi_sample_shape_mismatch():
         "c_token": 384,  # Reduced from 832
         "transformer": {"n_blocks": 1, "n_heads": 2},  # Reduced from 4 blocks, 16 heads
         "inference": {"num_steps": 2},  # Added to limit steps for memory
-        "c_s_inputs": 449,  # Added c_s_inputs
-        "inference": {"num_steps": 2},  # Added to limit steps for memory
+        "c_s_inputs": 449,  # Added to limit steps for memory
     }
 
     with pytest.raises(
