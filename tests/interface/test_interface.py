@@ -105,6 +105,7 @@ class TestRNAPredictorInitialization(unittest.TestCase):
         stageC_method=st.sampled_from(["mp_nerf", "dummy_method", "other_method"]),
     )
     @settings(
+        deadline=None, # Merged deadline setting here
         suppress_health_check=[HealthCheck.too_slow, HealthCheck.filter_too_much],
         max_examples=20,
     )
