@@ -58,7 +58,9 @@ def scn_atom_embedd(seq_list: List[str]) -> torch.Tensor:
 
     # Pad the sequences to the maximum length in the batch
     # pad_sequence expects (L, *) input, batch_first=True gives (B, L_max, *) output
-    padded_batch = pad_sequence(batch_tokens, batch_first=True, padding_value=pad_token_id)
+    padded_batch = pad_sequence(
+        batch_tokens, batch_first=True, padding_value=pad_token_id
+    )
 
     return padded_batch.long()
 
@@ -341,7 +343,7 @@ def fape_torch(
             fape_store.append(fape_val)
 
     # Check for zero max_val before division
-    eps = 1e-8 # Epsilon for zero check
+    eps = 1e-8  # Epsilon for zero check
     if max_val < eps:
         # Handle zero max_val case: return 0 or some indicator?
         # Returning 0 if max_val is zero, assuming zero error scale means zero error.
@@ -378,20 +380,20 @@ def atom_selector(scn_seq, x, option=None, discard_absent=True):
             # Let's proceed with a simplified approach
             present.append(torch.ones(len(seq), 14, dtype=torch.bool))
 
-    present = torch.stack(present, dim=0).bool() # Shape: (B, L, 14)
+    present = torch.stack(present, dim=0).bool()  # Shape: (B, L, 14)
 
     # Ensure padding characters ('_') always result in a False mask for that residue
     # This should happen *after* calculating the initial 'present' mask
     for b, seq_item in enumerate(scn_seq):
         if isinstance(seq_item, str):
             for i, char in enumerate(seq_item):
-                if char == '_':
-                    present[b, i, :] = False # Zero out mask for padding residues
+                if char == "_":
+                    present[b, i, :] = False  # Zero out mask for padding residues
         # Handle tensor seq input if necessary (though less likely based on usage)
         elif isinstance(seq_item, torch.Tensor):
-             padding_indices = (seq_item == AAS2INDEX['_']).nonzero(as_tuple=True)[0]
-             if padding_indices.numel() > 0:
-                  present[b, padding_indices, :] = False
+            padding_indices = (seq_item == AAS2INDEX["_"]).nonzero(as_tuple=True)[0]
+            if padding_indices.numel() > 0:
+                present[b, padding_indices, :] = False
 
     # atom mask
     if isinstance(option, str):
@@ -404,16 +406,16 @@ def atom_selector(scn_seq, x, option=None, discard_absent=True):
             atom_mask[[0, 1, 2]] = True
 
         if option == "backbone":
-            pass # N, CA, C already set
+            pass  # N, CA, C already set
         elif option == "backbone-with-oxygen":
-            atom_mask[3] = True # Add O
+            atom_mask[3] = True  # Add O
         elif option == "backbone-with-cbeta":
             # Correct CB index is 4
-            atom_mask[4] = True # Add CB
+            atom_mask[4] = True  # Add CB
         elif option == "backbone-with-cbeta-and-oxygen":
-            atom_mask[3] = True # Add O
+            atom_mask[3] = True  # Add O
             # Correct CB index is 4
-            atom_mask[4] = True # Add CB
+            atom_mask[4] = True  # Add CB
         elif option == "all":
             atom_mask[:] = True
         else:
@@ -435,15 +437,15 @@ def atom_selector(scn_seq, x, option=None, discard_absent=True):
         # Create a new mask that combines the present mask with the atom mask
         # but excludes CB for Glycine
         combined_mask = present * atom_mask.unsqueeze(0).unsqueeze(0).bool()
-        
+
         # For each residue in the sequence, if it's Glycine (G), ensure CB is not selected
         for i, seq in enumerate(scn_seq):
             if isinstance(seq, str):
                 for j, aa in enumerate(seq):
-                    if aa == 'G':
+                    if aa == "G":
                         # Set CB (index 5) to False for Glycine
                         combined_mask[i, j, 5] = False
-        
+
         # Use the combined mask for selection
         mask = einops.rearrange(combined_mask, "b l c -> b (l c)")
         return x[mask], mask
@@ -477,7 +479,7 @@ def noise_internals(
     assert angles is not None or coords is not None, (
         "You must pass either angles or coordinates"
     )
-    
+
     # Initialize coords if not provided
     if coords is None:
         coords = torch.zeros(len(seq), 14, 3)
@@ -490,12 +492,11 @@ def noise_internals(
             coords[0, 1] = torch.tensor([1.458, 0.0, 0.0], device=angles.device)
             # C at standard CA-C bond length (1.525 Å) and N-CA-C angle (111.2°)
             angle_nca_c = 111.2 * np.pi / 180.0  # Convert to radians
-            coords[0, 2] = torch.tensor([
-                1.458 + 1.525 * np.cos(angle_nca_c),
-                1.525 * np.sin(angle_nca_c),
-                0.0
-            ], device=angles.device)
-    
+            coords[0, 2] = torch.tensor(
+                [1.458 + 1.525 * np.cos(angle_nca_c), 1.525 * np.sin(angle_nca_c), 0.0],
+                device=angles.device,
+            )
+
     # get scaffolds
     if angles is None:
         # Create random angles in valid ranges
@@ -503,14 +504,17 @@ def noise_internals(
         # Torsion angles (phi, psi, omega) - range [-pi, pi]
         angles[:, :3] = torch.randn(coords.shape[0], 3).to(coords.device) * 0.1
         # Bond angles (n_ca_c, ca_c_n, c_n_ca) - range [pi/2, 3pi/2] typically
-        angles[:, 3:6] = torch.ones(coords.shape[0], 3).to(coords.device) * np.pi + torch.randn(coords.shape[0], 3).to(coords.device) * 0.1
+        angles[:, 3:6] = (
+            torch.ones(coords.shape[0], 3).to(coords.device) * np.pi
+            + torch.randn(coords.shape[0], 3).to(coords.device) * 0.1
+        )
         # Sidechain angles - range [-pi, pi]
         angles[:, 6:] = torch.randn(coords.shape[0], 6).to(coords.device) * 0.1
     else:
         # Ensure angles are in valid ranges
         angles = angles.clone()  # Don't modify the input tensor
         # Clamp bond angles to valid range [pi/2, 3pi/2]
-        angles[:, 3:6] = torch.clamp(angles[:, 3:6], min=np.pi/2, max=3*np.pi/2)
+        angles[:, 3:6] = torch.clamp(angles[:, 3:6], min=np.pi / 2, max=3 * np.pi / 2)
         # Wrap torsion angles to [-pi, pi]
         angles[:, :3] = torch.remainder(angles[:, :3] + np.pi, 2 * np.pi) - np.pi
         angles[:, 6:] = torch.remainder(angles[:, 6:] + np.pi, 2 * np.pi) - np.pi
@@ -533,14 +537,16 @@ def noise_internals(
         noised_bb = scaffolds["angles_mask"][0, :, :3].clone()
         noise = theta_scale * noise_scale * torch.randn_like(noised_bb)
         # Ensure bond angles stay in reasonable range [pi/2, 3pi/2]
-        noised_bb = torch.clamp(noised_bb + noise, min=np.pi/2, max=3*np.pi/2)
+        noised_bb = torch.clamp(noised_bb + noise, min=np.pi / 2, max=3 * np.pi / 2)
         scaffolds["angles_mask"][0, :, :3] = noised_bb
 
         # dihedrals
         noised_dihedrals = scaffolds["angles_mask"][1].clone()
         noise = noise_scale * torch.randn_like(noised_dihedrals)
         # Wrap dihedrals to [-pi, pi]
-        noised_dihedrals = torch.remainder(noised_dihedrals + noise + np.pi, 2 * np.pi) - np.pi
+        noised_dihedrals = (
+            torch.remainder(noised_dihedrals + noise + np.pi, 2 * np.pi) - np.pi
+        )
         scaffolds["angles_mask"][1] = noised_dihedrals
 
     # Ensure no NaN values in scaffolds
@@ -730,10 +736,10 @@ def combine_noise(
 def get_symmetric_atom_pairs(seq: str) -> Dict[str, List[Tuple[int, int]]]:
     """
     Get symmetric atom pairs for a given sequence.
-    
+
     Args:
         seq: String of amino acid sequence
-    
+
     Returns:
         Dictionary mapping residue indices (as strings) to lists of atom index pairs
         that are symmetric within that residue.
@@ -767,13 +773,14 @@ def _run_main_logic():
     try:
         prots = joblib.load("some_route_to_local_serialized_file_with_prots")
     except FileNotFoundError:
-        print("Error: Could not find the data file 'some_route_to_local_serialized_file_with_prots'.")
+        print(
+            "Error: Could not find the data file 'some_route_to_local_serialized_file_with_prots'."
+        )
         print("This script requires a specific data file to run its main logic.")
         return
     except Exception as e:
         print(f"Error loading data file: {e}")
         return
-
 
     # set params
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -788,15 +795,14 @@ def _run_main_logic():
 
     # Basic type/shape validation before proceeding
     if not isinstance(seq, str) or not isinstance(true_coords, torch.Tensor):
-         print("Error: Unexpected data types after unpacking.")
-         return
+        print("Error: Unexpected data types after unpacking.")
+        return
 
-    true_coords = true_coords.unsqueeze(0).to(device) # Move to device
+    true_coords = true_coords.unsqueeze(0).to(device)  # Move to device
     if angles is not None:
         angles = angles.to(device)
     if int_seq is not None:
         int_seq = int_seq.to(device)
-
 
     # check noised internals
     try:
@@ -808,14 +814,13 @@ def _run_main_logic():
     except Exception as e:
         print(f"Error during noise_internals check: {e}")
 
-
     # check integral 1 (with seq)
     try:
         integral, mask_out = combine_noise(
             true_coords,
             seq=seq,
             int_seq=None,
-            angles=None, # Pass angles if available and needed by combine_noise variant
+            angles=None,  # Pass angles if available and needed by combine_noise variant
             NOISE_INTERNALS=1e-2,
             SIDECHAIN_RECONSTRUCT=True,
         )
@@ -823,14 +828,13 @@ def _run_main_logic():
     except Exception as e:
         print(f"Error during combine_noise check (with seq): {e}")
 
-
     # check integral 2 (with int_seq)
     try:
         integral, mask_out = combine_noise(
             true_coords,
             seq=None,
             int_seq=int_seq,
-            angles=None, # Pass angles if available and needed by combine_noise variant
+            angles=None,  # Pass angles if available and needed by combine_noise variant
             NOISE_INTERNALS=1e-2,
             SIDECHAIN_RECONSTRUCT=True,
         )
