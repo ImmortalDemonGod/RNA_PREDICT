@@ -1,6 +1,6 @@
 # rna_predict/pipeline/stageD/diffusion/components/diffusion_module.py
 import warnings
-from typing import Optional, Union, Tuple, Any, Dict
+from typing import Any, Dict, Optional, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -12,7 +12,6 @@ from rna_predict.pipeline.stageA.input_embedding.current.checkpointing import (
 from rna_predict.pipeline.stageA.input_embedding.current.primitives import (
     LayerNorm,
     LinearNoBias,
-    Transition,
 )
 from rna_predict.pipeline.stageA.input_embedding.current.transformer import (
     AtomAttentionDecoder,
@@ -28,6 +27,7 @@ from rna_predict.pipeline.stageA.input_embedding.current.transformer.atom_attent
 
 # Imports from within the components directory
 from .diffusion_conditioning import DiffusionConditioning
+
 # Removed import from deleted diffusion_utils.py
 
 
@@ -46,7 +46,7 @@ class DiffusionModule(nn.Module):
         c_s: int = 384,
         c_z: int = 128,
         c_s_inputs: int = 449,
-        c_noise_embedding: int = 256, # Added for DiffusionConditioning init
+        c_noise_embedding: int = 256,  # Added for DiffusionConditioning init
         atom_encoder: dict[str, int] = {"n_blocks": 3, "n_heads": 4},
         transformer: dict[str, int] = {"n_blocks": 24, "n_heads": 16},
         atom_decoder: dict[str, int] = {"n_blocks": 3, "n_heads": 4},
@@ -94,7 +94,7 @@ class DiffusionModule(nn.Module):
             c_z=c_z,
             c_s=c_s,
             c_s_inputs=c_s_inputs,
-            c_noise_embedding=c_noise_embedding # Pass necessary arg
+            c_noise_embedding=c_noise_embedding,  # Pass necessary arg
         )
 
         # --- AtomAttentionEncoder ---
@@ -174,48 +174,67 @@ class DiffusionModule(nn.Module):
         )
 
         if initialization.get("glorot_init_self_attention", False):
-             if hasattr(self.atom_attention_encoder, 'atom_transformer') and \
-                hasattr(self.atom_attention_encoder.atom_transformer, 'diffusion_transformer'):
-                 for block in self.atom_attention_encoder.atom_transformer.diffusion_transformer.blocks:
-                     if hasattr(block, 'attention_pair_bias') and hasattr(block.attention_pair_bias, 'glorot_init'):
-                         block.attention_pair_bias.glorot_init()
-                     else:
-                          warnings.warn("Could not apply glorot_init_self_attention to atom_encoder block.")
-             else:
-                 warnings.warn("Atom encoder structure changed, cannot apply glorot_init_self_attention.")
-
+            if hasattr(self.atom_attention_encoder, "atom_transformer") and hasattr(
+                self.atom_attention_encoder.atom_transformer, "diffusion_transformer"
+            ):
+                for block in self.atom_attention_encoder.atom_transformer.diffusion_transformer.blocks:
+                    if hasattr(block, "attention_pair_bias") and hasattr(
+                        block.attention_pair_bias, "glorot_init"
+                    ):
+                        block.attention_pair_bias.glorot_init()
+                    else:
+                        warnings.warn(
+                            "Could not apply glorot_init_self_attention to atom_encoder block."
+                        )
+            else:
+                warnings.warn(
+                    "Atom encoder structure changed, cannot apply glorot_init_self_attention."
+                )
 
         for block in self.diffusion_transformer.blocks:
             if initialization.get("zero_init_adaln", False):
-                if hasattr(block, 'attention_pair_bias') and hasattr(block.attention_pair_bias, 'layernorm_a'):
+                if hasattr(block, "attention_pair_bias") and hasattr(
+                    block.attention_pair_bias, "layernorm_a"
+                ):
                     block.attention_pair_bias.layernorm_a.zero_init()
-                if hasattr(block, 'conditioned_transition_block') and hasattr(block.conditioned_transition_block, 'adaln'):
+                if hasattr(block, "conditioned_transition_block") and hasattr(
+                    block.conditioned_transition_block, "adaln"
+                ):
                     block.conditioned_transition_block.adaln.zero_init()
                 else:
-                    warnings.warn("Could not apply zero_init_adaln to diffusion_transformer block.")
+                    warnings.warn(
+                        "Could not apply zero_init_adaln to diffusion_transformer block."
+                    )
 
             if initialization.get("zero_init_residual_condition_transition", False):
-                 if hasattr(block, 'conditioned_transition_block') and hasattr(block.conditioned_transition_block, 'linear_nobias_b'):
-                     nn.init.zeros_(block.conditioned_transition_block.linear_nobias_b.weight)
-                 else:
-                     warnings.warn("Could not apply zero_init_residual_condition_transition to diffusion_transformer block.")
+                if hasattr(block, "conditioned_transition_block") and hasattr(
+                    block.conditioned_transition_block, "linear_nobias_b"
+                ):
+                    nn.init.zeros_(
+                        block.conditioned_transition_block.linear_nobias_b.weight
+                    )
+                else:
+                    warnings.warn(
+                        "Could not apply zero_init_residual_condition_transition to diffusion_transformer block."
+                    )
 
         if initialization.get("zero_init_atom_decoder_linear", False):
-            if hasattr(self.atom_attention_decoder, 'linear_no_bias_a'):
-                 nn.init.zeros_(self.atom_attention_decoder.linear_no_bias_a.weight)
+            if hasattr(self.atom_attention_decoder, "linear_no_bias_a"):
+                nn.init.zeros_(self.atom_attention_decoder.linear_no_bias_a.weight)
             else:
-                 warnings.warn("Could not apply zero_init_atom_decoder_linear.")
-
+                warnings.warn("Could not apply zero_init_atom_decoder_linear.")
 
         if initialization.get("zero_init_dit_output", False):
-            if hasattr(self.atom_attention_decoder, 'linear_no_bias_out'):
+            if hasattr(self.atom_attention_decoder, "linear_no_bias_out"):
                 nn.init.zeros_(self.atom_attention_decoder.linear_no_bias_out.weight)
             else:
-                 warnings.warn("Could not apply zero_init_dit_output.")
+                warnings.warn("Could not apply zero_init_dit_output.")
 
     # Removed _determine_n_sample method
 
-    def _run_with_checkpointing(self, module: nn.Module, *args, **kwargs) -> Any: # Changed return type hint
+    def _run_with_checkpointing(
+        self, module: nn.Module, *args, **kwargs
+    ) -> Any:  # Changed return type hint
         """Runs a module with optional gradient checkpointing."""
         use_ckpt = self.blocks_per_ckpt is not None and torch.is_grad_enabled()
         # Fine-grained checkpointing might apply to specific modules (e.g., encoder/decoder)
@@ -226,7 +245,7 @@ class DiffusionModule(nn.Module):
         # depending on how it's implemented within the sub-modules themselves.
         # This wrapper assumes the module call itself can be checkpointed.
 
-        if use_ckpt: # Includes fine-grained if enabled
+        if use_ckpt:  # Includes fine-grained if enabled
             checkpoint_fn = get_checkpoint_fn()
             # Filter out kwargs not accepted by the module's forward method if necessary
             # For simplicity, assume all kwargs are valid for now
@@ -252,16 +271,19 @@ class DiffusionModule(nn.Module):
         if isinstance(atom_mask_val, torch.Tensor):
             atom_mask = atom_mask_val
         elif atom_mask_val is not None:
-             warnings.warn(f"Expected 'ref_mask' to be Tensor or None, got {type(atom_mask_val)}. Setting mask to None.")
+            warnings.warn(
+                f"Expected 'ref_mask' to be Tensor or None, got {type(atom_mask_val)}. Setting mask to None."
+            )
 
-        mask: Optional[torch.Tensor] = atom_mask # Use same mask for now
+        mask: Optional[torch.Tensor] = atom_mask  # Use same mask for now
 
         atom_to_token_idx: Optional[torch.Tensor] = None
         if isinstance(atom_to_token_idx_val, torch.Tensor):
             atom_to_token_idx = atom_to_token_idx_val
         elif atom_to_token_idx_val is not None:
-             warnings.warn(f"Expected 'atom_to_token_idx' to be Tensor or None, got {type(atom_to_token_idx_val)}. Setting index to None.")
-
+            warnings.warn(
+                f"Expected 'atom_to_token_idx' to be Tensor or None, got {type(atom_to_token_idx_val)}. Setting index to None."
+            )
 
         return DecoderForwardParams(
             a=a_token,
@@ -274,15 +296,18 @@ class DiffusionModule(nn.Module):
             chunk_size=chunk_size,
         )
 
-
     def f_forward(
         self,
-        r_noisy: torch.Tensor, # Expected shape [B, N_sample, N_atom, 3] or similar
-        t_hat_noise_level: torch.Tensor, # Expected shape [B, N_sample] or broadcastable
+        r_noisy: torch.Tensor,  # Expected shape [B, N_sample, N_atom, 3] or similar
+        t_hat_noise_level: torch.Tensor,  # Expected shape [B, N_sample] or broadcastable
         input_feature_dict: dict[str, Union[torch.Tensor, int, float, dict]],
-        s_inputs: Optional[torch.Tensor], # Allow None, expected [B, N_sample, N_token, C]
-        s_trunk: torch.Tensor, # Expected [B, N_sample, N_token, C]
-        z_trunk: Optional[torch.Tensor], # Allow None, expected [B, N_sample, N_token, N_token, C]
+        s_inputs: Optional[
+            torch.Tensor
+        ],  # Allow None, expected [B, N_sample, N_token, C]
+        s_trunk: torch.Tensor,  # Expected [B, N_sample, N_token, C]
+        z_trunk: Optional[
+            torch.Tensor
+        ],  # Allow None, expected [B, N_sample, N_token, N_token, C]
         inplace_safe: bool = False,
         chunk_size: Optional[int] = None,
     ) -> torch.Tensor:
@@ -304,11 +329,11 @@ class DiffusionModule(nn.Module):
         z_pair: torch.Tensor
         s_single, z_pair = self._run_with_checkpointing(
             self.diffusion_conditioning,
-            t_hat_noise_level=t_hat_noise_level, # Pass potentially [B, N_sample]
+            t_hat_noise_level=t_hat_noise_level,  # Pass potentially [B, N_sample]
             input_feature_dict=input_feature_dict,
-            s_inputs=s_inputs, # Pass potentially [B, N_sample, ...]
-            s_trunk=s_trunk,   # Pass potentially [B, N_sample, ...]
-            z_trunk=z_trunk,   # Pass potentially [B, N_sample, ...]
+            s_inputs=s_inputs,  # Pass potentially [B, N_sample, ...]
+            s_trunk=s_trunk,  # Pass potentially [B, N_sample, ...]
+            z_trunk=z_trunk,  # Pass potentially [B, N_sample, ...]
             inplace_safe=inplace_safe,
         )
         # print(f"[DEBUG] After conditioning - s_single shape: {s_single.shape}, z_pair shape: {z_pair.shape}")
@@ -317,14 +342,14 @@ class DiffusionModule(nn.Module):
         # Assumes encoder handles broadcasting and returns shapes like [B, N_sample, ...]
         a_token: torch.Tensor
         q_skip: Optional[torch.Tensor]
-        c_skip: Optional[torch.Tensor] # Not used later
+        c_skip: Optional[torch.Tensor]  # Not used later
         p_skip: Optional[torch.Tensor]
         a_token, q_skip, c_skip, p_skip = self._run_with_checkpointing(
             self.atom_attention_encoder,
             input_feature_dict=input_feature_dict,
-            r_l=r_noisy, # Pass potentially [B, N_sample, N_atom, 3]
-            s=s_trunk,   # Pass potentially [B, N_sample, N_token, C]
-            z=z_pair,    # Pass potentially [B, N_sample, N_token, N_token, C]
+            r_l=r_noisy,  # Pass potentially [B, N_sample, N_atom, 3]
+            s=s_trunk,  # Pass potentially [B, N_sample, N_token, C]
+            z=z_pair,  # Pass potentially [B, N_sample, N_token, N_token, C]
             inplace_safe=inplace_safe,
             chunk_size=chunk_size,
         )
@@ -338,31 +363,32 @@ class DiffusionModule(nn.Module):
 
         # Add using broadcasting if shapes are compatible (e.g., both [B, N_sample, N_token, C])
         if a_token.shape == s_single_proj.shape:
-             if inplace_safe:
-                 a_token += s_single_proj
-             else:
-                 a_token = a_token + s_single_proj
-             # print(f"[DEBUG] After combining - a_token shape: {a_token.shape}")
+            if inplace_safe:
+                a_token += s_single_proj
+            else:
+                a_token = a_token + s_single_proj
+            # print(f"[DEBUG] After combining - a_token shape: {a_token.shape}")
         else:
-             # Attempt broadcasting if dimensions allow (e.g., one is missing N_sample)
-             try:
-                 if inplace_safe:
-                     a_token += s_single_proj # Relies on broadcasting
-                 else:
-                     a_token = a_token + s_single_proj # Relies on broadcasting
-                 # print(f"[DEBUG] After combining (broadcasted) - a_token shape: {a_token.shape}")
-             except RuntimeError as e:
-                 warnings.warn(f"Shape mismatch & broadcast failed between a_token ({a_token.shape}) and projected s_single ({s_single_proj.shape}). Skipping addition. Error: {e}")
+            # Attempt broadcasting if dimensions allow (e.g., one is missing N_sample)
+            try:
+                if inplace_safe:
+                    a_token += s_single_proj  # Relies on broadcasting
+                else:
+                    a_token = a_token + s_single_proj  # Relies on broadcasting
+                # print(f"[DEBUG] After combining (broadcasted) - a_token shape: {a_token.shape}")
+            except RuntimeError as e:
+                warnings.warn(
+                    f"Shape mismatch & broadcast failed between a_token ({a_token.shape}) and projected s_single ({s_single_proj.shape}). Skipping addition. Error: {e}"
+                )
 
         # Ensure z_pair has compatible dimensions for the transformer's attention bias
         # Typically expects z.ndim == a.ndim + 1, or matching leading dims.
         # Let's try to add leading singleton dims to z if needed.
         if z_pair is not None:
-             target_z_ndim = a_token.ndim + 1 # Expected relationship for attention bias
-             while z_pair.ndim < target_z_ndim:
-                  z_pair = z_pair.unsqueeze(0)
-             # print(f"[DEBUG] Expanded z_pair shape for transformer: {z_pair.shape}")
-
+            target_z_ndim = a_token.ndim + 1  # Expected relationship for attention bias
+            while z_pair.ndim < target_z_ndim:
+                z_pair = z_pair.unsqueeze(0)
+            # print(f"[DEBUG] Expanded z_pair shape for transformer: {z_pair.shape}")
 
         # Apply Transformer
         # Assumes transformer handles broadcasting of s_single/z_pair
@@ -370,8 +396,8 @@ class DiffusionModule(nn.Module):
         a_token_transformed = self._run_with_checkpointing(
             self.diffusion_transformer,
             a=a_token,
-            s=s_single, # Pass potentially [B, N_sample, ...]
-            z=z_pair,   # Pass potentially [B, N_sample, ...]
+            s=s_single,  # Pass potentially [B, N_sample, ...]
+            z=z_pair,  # Pass potentially [B, N_sample, ...]
             inplace_safe=inplace_safe,
             chunk_size=chunk_size,
         )
@@ -400,7 +426,6 @@ class DiffusionModule(nn.Module):
 
         return r_update
 
-
     def forward(
         self,
         x_noisy: torch.Tensor,
@@ -425,24 +450,36 @@ class DiffusionModule(nn.Module):
         if x_noisy.ndim == 3:
             N_sample = 1
             # Add sample dimension for internal consistency
-            x_noisy = x_noisy.unsqueeze(1) # [B, 1, N_atom, 3]
+            x_noisy = x_noisy.unsqueeze(1)  # [B, 1, N_atom, 3]
             # Ensure t_hat is at least [B] or [B, 1]
             if t_hat_noise_level.ndim == 0:
-                 t_hat_noise_level = t_hat_noise_level.unsqueeze(0) # [1]
-            if t_hat_noise_level.ndim == 1 and t_hat_noise_level.shape[0] == x_noisy.shape[0]:
-                 t_hat_noise_level = t_hat_noise_level.unsqueeze(1) # [B, 1]
+                t_hat_noise_level = t_hat_noise_level.unsqueeze(0)  # [1]
+            if (
+                t_hat_noise_level.ndim == 1
+                and t_hat_noise_level.shape[0] == x_noisy.shape[0]
+            ):
+                t_hat_noise_level = t_hat_noise_level.unsqueeze(1)  # [B, 1]
             elif t_hat_noise_level.shape != (x_noisy.shape[0], 1):
-                 warnings.warn(f"Broadcasting t_hat ({t_hat_noise_level.shape}) to x_noisy ({x_noisy.shape}) might be ambiguous.")
+                warnings.warn(
+                    f"Broadcasting t_hat ({t_hat_noise_level.shape}) to x_noisy ({x_noisy.shape}) might be ambiguous."
+                )
         elif x_noisy.ndim == 4:
             N_sample = x_noisy.shape[1]
             # Ensure t_hat is [B, N_sample]
-            if t_hat_noise_level.ndim == 1 and t_hat_noise_level.shape[0] == x_noisy.shape[0]:
-                 # Assume t_hat was [B], needs expansion to [B, N_sample]
-                 t_hat_noise_level = t_hat_noise_level.unsqueeze(1).expand(-1, N_sample)
+            if (
+                t_hat_noise_level.ndim == 1
+                and t_hat_noise_level.shape[0] == x_noisy.shape[0]
+            ):
+                # Assume t_hat was [B], needs expansion to [B, N_sample]
+                t_hat_noise_level = t_hat_noise_level.unsqueeze(1).expand(-1, N_sample)
             elif t_hat_noise_level.shape != (x_noisy.shape[0], N_sample):
-                 warnings.warn(f"Broadcasting t_hat ({t_hat_noise_level.shape}) to x_noisy ({x_noisy.shape}) might be ambiguous.")
+                warnings.warn(
+                    f"Broadcasting t_hat ({t_hat_noise_level.shape}) to x_noisy ({x_noisy.shape}) might be ambiguous."
+                )
         else:
-            raise ValueError(f"Unexpected x_noisy dimensions: {x_noisy.ndim}. Expected 3 or 4.")
+            raise ValueError(
+                f"Unexpected x_noisy dimensions: {x_noisy.ndim}. Expected 3 or 4."
+            )
 
         # Ensure conditioning tensors also have the sample dimension if N_sample > 1
         if N_sample > 1:
@@ -461,11 +498,12 @@ class DiffusionModule(nn.Module):
         # if s_inputs is not None: print(f"[DEBUG] Processed s_inputs shape: {s_inputs.shape}")
         # if z_trunk is not None: print(f"[DEBUG] Processed z_trunk shape: {z_trunk.shape}")
 
-
         # --- Core Logic ---
         # Calculate EDM scaling factors, ensuring they broadcast correctly
         # t_hat_noise_level should be [B, N_sample] or [B, 1] at this point
-        c_in, c_skip, c_out = self._calculate_edm_scaling_factors(t_hat_noise_level) # sigma is t_hat
+        c_in, c_skip, c_out = self._calculate_edm_scaling_factors(
+            t_hat_noise_level
+        )  # sigma is t_hat
         # Reshape factors to broadcast with x_noisy [B, N_sample, N_atom, 3]
         c_in = c_in.view(*c_in.shape, 1, 1)
         c_skip = c_skip.view(*c_skip.shape, 1, 1)
@@ -473,17 +511,19 @@ class DiffusionModule(nn.Module):
         # print(f"[DEBUG] EDM factors shapes - c_in: {c_in.shape}, c_skip: {c_skip.shape}, c_out: {c_out.shape}")
 
         # Scale noisy input
-        r_noisy = x_noisy * c_in # Broadcasting: [B, N_sample, N_atom, 3] * [B, N_sample, 1, 1]
+        r_noisy = (
+            x_noisy * c_in
+        )  # Broadcasting: [B, N_sample, N_atom, 3] * [B, N_sample, 1, 1]
         # print(f"[DEBUG] r_noisy shape after scaling: {r_noisy.shape}")
 
         # Forward pass through f_theta
         r_update = self.f_forward(
             r_noisy=r_noisy,
-            t_hat_noise_level=t_hat_noise_level, # Pass potentially [B, N_sample]
+            t_hat_noise_level=t_hat_noise_level,  # Pass potentially [B, N_sample]
             input_feature_dict=input_feature_dict,
-            s_inputs=s_inputs, # Pass potentially [B, N_sample, ...]
-            s_trunk=s_trunk,   # Pass potentially [B, N_sample, ...]
-            z_trunk=z_trunk,   # Pass potentially [B, N_sample, ...]
+            s_inputs=s_inputs,  # Pass potentially [B, N_sample, ...]
+            s_trunk=s_trunk,  # Pass potentially [B, N_sample, ...]
+            z_trunk=z_trunk,  # Pass potentially [B, N_sample, ...]
             chunk_size=chunk_size,
             inplace_safe=inplace_safe,
         )
@@ -500,19 +540,22 @@ class DiffusionModule(nn.Module):
             x_target = input_feature_dict["ref_pos"]
             # Ensure target also has sample dimension if needed
             if x_target.ndim == 3 and x_denoised.ndim == 4:
-                 x_target = x_target.unsqueeze(1).expand_as(x_denoised)
+                x_target = x_target.unsqueeze(1).expand_as(x_denoised)
             mask = input_feature_dict.get("ref_mask", None)
             # Ensure mask also has sample dimension if needed
             if mask is not None and mask.ndim == 3 and x_denoised.ndim == 4:
-                 mask = mask.unsqueeze(1).expand(*x_denoised.shape[:-1], 1) # Expand to [B, N_sample, N_atom, 1]
+                mask = mask.unsqueeze(1).expand(
+                    *x_denoised.shape[:-1], 1
+                )  # Expand to [B, N_sample, N_atom, 1]
 
             # Pass t_hat_noise_level which is already [B, N_sample] or [B, 1]
             loss = self._compute_loss(x_denoised, x_target, t_hat_noise_level, mask)
 
         # Return shape [B, N_sample, N_atom, 3]
-        print(f"[DEBUG][DiffusionModule.forward] Returning x_denoised shape: {x_denoised.shape}") # DEBUG PRINT
+        print(
+            f"[DEBUG][DiffusionModule.forward] Returning x_denoised shape: {x_denoised.shape}"
+        )  # DEBUG PRINT
         return x_denoised, loss.squeeze()
-
 
     def _compute_loss(
         self,
@@ -541,8 +584,8 @@ class DiffusionModule(nn.Module):
             # Ensure mask is broadcastable to squared_error
             while mask.ndim < squared_error.ndim:
                 mask = mask.unsqueeze(-1)
-            if mask.shape[-1] == 1: # Handle potential extra dim from expansion
-                 mask = mask.squeeze(-1)
+            if mask.shape[-1] == 1:  # Handle potential extra dim from expansion
+                mask = mask.squeeze(-1)
             squared_error = squared_error * mask
 
         # Weight by noise level
@@ -550,18 +593,22 @@ class DiffusionModule(nn.Module):
         t_hat_expanded = t_hat_noise_level
         while t_hat_expanded.ndim < squared_error.ndim:
             t_hat_expanded = t_hat_expanded.unsqueeze(-1)
-        weighted_error = squared_error / (t_hat_expanded ** 2 + 1e-8) # Add epsilon
+        weighted_error = squared_error / (t_hat_expanded**2 + 1e-8)  # Add epsilon
 
         # Average over atoms and batch dimensions
         if mask is not None:
             # Average only over valid atoms
             num_valid = mask.sum(dim=-1, keepdim=True)  # [B, N_sample, 1]
-            loss = (weighted_error.sum(dim=-1, keepdim=True) / (num_valid + 1e-8)).mean()
+            loss = (
+                weighted_error.sum(dim=-1, keepdim=True) / (num_valid + 1e-8)
+            ).mean()
         else:
             # Simple mean over all dimensions except batch/sample
-            loss = weighted_error.mean(dim=list(range(2, weighted_error.ndim))).mean() # Mean over atom and any extra dims, then mean over batch/sample
+            loss = weighted_error.mean(
+                dim=list(range(2, weighted_error.ndim))
+            ).mean()  # Mean over atom and any extra dims, then mean over batch/sample
 
-        return loss.reshape(()) # Ensure scalar
+        return loss.reshape(())  # Ensure scalar
 
     def _calculate_edm_scaling_factors(
         self,
@@ -581,9 +628,9 @@ class DiffusionModule(nn.Module):
             sigma = sigma.unsqueeze(0)
 
         # Calculate EDM scaling factors
-        sigma_sq = sigma ** 2
+        sigma_sq = sigma**2
         c_skip = 1 / (sigma_sq + 1)
         c_out = sigma * c_skip
-        c_in = 1 / (sigma * (sigma_sq + 1) ** 0.5 + 1e-8) # Add epsilon for stability
+        c_in = 1 / (sigma * (sigma_sq + 1) ** 0.5 + 1e-8)  # Add epsilon for stability
 
         return c_in, c_skip, c_out
