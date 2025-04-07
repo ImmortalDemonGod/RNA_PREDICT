@@ -234,7 +234,7 @@ def _process_attention_bias(
 
     if matches_original_q_dim and attn_bias_list is not None:
         # Case 1: Bias provided with original query dim, needs reshaping and chunking for keys
-        attn_bias_reshaped_q = _reshape_bias_for_trunked_query(attn_bias, config)
+        _reshape_bias_for_trunked_query(attn_bias, config)
 
         # attn_bias_list contains bias chunks processed for keys. Stack them.
         # Expected shape after stacking: (..., n_q_trunks, n_queries, n_k_trunks, n_keys)

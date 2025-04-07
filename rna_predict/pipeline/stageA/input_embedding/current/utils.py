@@ -301,7 +301,6 @@ def broadcast_token_to_atom(
     n_atom = atom_to_token_idx.shape[-1]
     n_features = x_token.shape[-1]
     n_token = x_token.shape[-2]  # Get N_token
-    device = x_token.device
 
     # Flatten leading dimensions
     x_token_flat = x_token.reshape(-1, n_token, n_features)

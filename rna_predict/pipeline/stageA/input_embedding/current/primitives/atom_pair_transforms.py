@@ -103,7 +103,7 @@ def _map_tokens_to_atoms(
     )
 
     # Create gather indices for mapping tokens to atoms
-    n_atoms = config.atom_to_token_idx.shape[1]
+    config.atom_to_token_idx.shape[1]
 
     # Add extra dimension to match token_feats_reshaped shape
     gather_indices = (
