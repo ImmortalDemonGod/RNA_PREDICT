@@ -120,8 +120,10 @@ class AdaptiveLayerNorm(nn.Module):
             # Return original 'a' (without the added dimension if unsqueezing happened and failed)
             # If unsqueezing happened but the error occurred later, a still has the extra dim.
             # --- Start Fix ---
-            if a.shape != a_original_shape and a.dim() == len(a_original_shape) + 1: # Use len() for a_original_shape
-            # --- End Fix ---
+            if (
+                a.shape != a_original_shape and a.dim() == len(a_original_shape) + 1
+            ):  # Use len() for a_original_shape
+                # --- End Fix ---
                 a = a.squeeze(
                     1
                 )  # Squeeze back to original dims if conditioning failed after unsqueeze
@@ -729,7 +731,7 @@ class Attention(nn.Module):
             # Ensure mask has compatible shape
             if mask.shape[-2:] != scores.shape[-2:]:
                 mask = mask.expand(*scores.shape[:-2], *mask.shape[-2:])
-            scores = scores.masked_fill(~mask, float('-inf'))
+            scores = scores.masked_fill(~mask, float("-inf"))
 
         # Apply attention
         attn = F.softmax(scores, dim=-1)
