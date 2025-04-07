@@ -72,9 +72,8 @@ import tempfile
 import unittest
 import urllib.error
 import zipfile
-from unittest.mock import MagicMock, patch
 from typing import Any
-
+from unittest.mock import MagicMock, patch
 
 import pytest
 import torch
@@ -204,6 +203,7 @@ class TestBase(unittest.TestCase):
     Derived test classes that need a temp directory should inherit from this
     and reference 'self.test_dir' for local filesystem operations.
     """
+
     test_dir: str  # Add class variable annotation
 
     @classmethod
@@ -303,9 +303,11 @@ class TestDownloadFile(TestBase):
         """
         # Configure the mock response object correctly
         mock_response = MagicMock()
-        mock_response.__enter__.return_value = mock_response  # Ensure context manager works
-        mock_response.read.return_value = b"some data"        # Simulate reading data
-        mock_urlopen.return_value = mock_response             # Assign mock response to urlopen
+        mock_response.__enter__.return_value = (
+            mock_response  # Ensure context manager works
+        )
+        mock_response.read.return_value = b"some data"  # Simulate reading data
+        mock_urlopen.return_value = mock_response  # Assign mock response to urlopen
 
         # Call the function under test
         download_file("http://example.com/newdata", self.download_path)
@@ -508,7 +510,7 @@ class TestBuildPredictor(TestBase):
         os.makedirs(self.ckpt_dir, exist_ok=True)
 
         # Create a valid checkpoint file with torch.save
-        dummy_state: dict[str, Any] = {"model": {}, "optimizer": {}} # Added type hint
+        dummy_state: dict[str, Any] = {"model": {}, "optimizer": {}}  # Added type hint
         ckpt_path = os.path.join(self.ckpt_dir, "RNAStralign_trainset_pretrained.pth")
         torch.save(dummy_state, ckpt_path)
 

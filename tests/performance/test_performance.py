@@ -1,16 +1,16 @@
-import pytest
-
+import os  # Add os
 import time
 
+import psutil  # Add psutil
 import torch
-import psutil # Add psutil
-import os    # Add os
 
 from rna_predict.pipeline.stageD.run_stageD_unified import run_stageD_diffusion
 
-def get_memory_usage(): # Helper function
+
+def get_memory_usage():  # Helper function
     process = psutil.Process(os.getpid())
     return process.memory_info().rss / 1024 / 1024  # in MB
+
 
 # @pytest.mark.performance
 # @pytest.mark.skip(reason="Causes excessive memory usage") # Temporarily unskipped
@@ -24,7 +24,7 @@ def test_diffusion_single_embed_caching():
     print(f"\nInitial memory usage: {initial_memory:.2f} MB")
 
     # Reduce problem size
-    N = 5 # Reduced from 10
+    N = 5  # Reduced from 10
     trunk_embeddings = {
         "s_trunk": torch.randn(1, N, 384),
         "pair": torch.randn(1, N, N, 32),
@@ -36,29 +36,33 @@ def test_diffusion_single_embed_caching():
         "c_atom": 128,
         "c_s": 384,
         "c_z": 32,
-        "c_token": 384, # Reduced from 832
-        "c_s_inputs": 449, # Added
-        "transformer": {"n_blocks": 1, "n_heads": 2}, # Reduced
-        "conditioning": {"c_s": 384, "c_z": 32, "c_s_inputs": 449, "c_noise_embedding": 128}, # Added
-        "embedder": {"c_atom": 128, "c_atompair": 16, "c_token": 384}, # Added
-        "sigma_data": 16.0, # Added
-        "initialization": {}, # Added
-        "inference": {"num_steps": 2, "N_sample": 1} # Added to limit steps
+        "c_token": 384,  # Reduced from 832
+        "c_s_inputs": 449,  # Added
+        "transformer": {"n_blocks": 1, "n_heads": 2},  # Reduced
+        "conditioning": {
+            "c_s": 384,
+            "c_z": 32,
+            "c_s_inputs": 449,
+            "c_noise_embedding": 128,
+        },  # Added
+        "embedder": {"c_atom": 128, "c_atompair": 16, "c_token": 384},  # Added
+        "sigma_data": 16.0,  # Added
+        "initialization": {},  # Added
+        "inference": {"num_steps": 2, "N_sample": 1},  # Added to limit steps
     }
     # Minimal input features needed by conditioning/encoder/decoder
     input_features = {
-         "atom_to_token_idx": torch.arange(N).unsqueeze(0),
-         "ref_pos": torch.randn(1, N, 3),
-         "ref_space_uid": torch.arange(N).unsqueeze(0),
-         "ref_charge": torch.zeros(1, N, 1),
-         "ref_element": torch.zeros(1, N, 128),
-         "ref_atom_name_chars": torch.zeros(1, N, 256),
-         "ref_mask": torch.ones(1, N, 1),
-         "restype": torch.zeros(1, N, 32),
-         "profile": torch.zeros(1, N, 32),
-         "deletion_mean": torch.zeros(1, N, 1),
+        "atom_to_token_idx": torch.arange(N).unsqueeze(0),
+        "ref_pos": torch.randn(1, N, 3),
+        "ref_space_uid": torch.arange(N).unsqueeze(0),
+        "ref_charge": torch.zeros(1, N, 1),
+        "ref_element": torch.zeros(1, N, 128),
+        "ref_atom_name_chars": torch.zeros(1, N, 256),
+        "ref_mask": torch.ones(1, N, 1),
+        "restype": torch.zeros(1, N, 32),
+        "profile": torch.zeros(1, N, 32),
+        "deletion_mean": torch.zeros(1, N, 1),
     }
-
 
     # 1) First call
     print(f"Memory before 1st call: {get_memory_usage():.2f} MB")
@@ -69,7 +73,7 @@ def test_diffusion_single_embed_caching():
         diffusion_config,
         mode="inference",
         device="cpu",
-        input_features=input_features # Pass input features
+        input_features=input_features,  # Pass input features
     )
     print(f"Memory after 1st call: {get_memory_usage():.2f} MB")
     t1_end = time.time()
