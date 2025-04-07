@@ -237,48 +237,79 @@ def batched_gather(
     if len(inds.shape) == 1 and no_batch_dims == 0 and dim == 0:
         return data[inds]
 
+    # --- Mypy Fix Start ---
+    # Prepare batch dimension indices
     ranges = []
     for i, s in enumerate(data.shape[:no_batch_dims]):
-        r = torch.arange(s, device=data.device)  # Ensure range is on correct device
-        # Adjust view based on the number of dimensions in inds, not hardcoded 1
-        view_shape = [1] * len(inds.shape)
-        view_shape[i] = -1  # Place the range size at the correct batch dimension
-        # Ensure view_shape has enough dimensions before assigning
-        while len(view_shape) < len(inds.shape):
-            view_shape.append(1)
+        r = torch.arange(s, device=data.device)
+        # Adjust view shape for broadcasting with inds
+        view_shape = [1] * (no_batch_dims + inds.ndim - len(data.shape[:no_batch_dims]))
+        view_shape[i] = s
         r = r.view(*view_shape)
         ranges.append(r)
 
-    remaining_dims = [slice(None)] * (len(data.shape) - no_batch_dims)
-    # Calculate the index relative to the remaining dimensions
-    # dim is the index in the original tensor after batch dims
+    # Prepare non-batch dimension indices
+    non_batch_rank = len(data.shape) - no_batch_dims
     relative_dim = dim - no_batch_dims
     # Handle negative dim relative to the original tensor's non-batch part
     if dim < 0:
-        original_non_batch_rank = len(data.shape) - no_batch_dims
-        relative_dim = original_non_batch_rank + dim - no_batch_dims
+        relative_dim = non_batch_rank + dim - no_batch_dims # Correct calculation for negative dim
 
-    if 0 <= relative_dim < len(remaining_dims):
-        # Ensure inds is broadcastable to the slice it's replacing
-        # This typically means inds needs the same number of leading dimensions
-        # as the number of dimensions covered by 'ranges'.
-        # We'll rely on PyTorch's advanced indexing broadcasting here.
-        # If inds has fewer dims than ranges, it should broadcast correctly.
-        # If inds has more dims, it might indicate an issue.
-        if inds.ndim > len(ranges) + 1:  # +1 for the dimension being indexed
-            warnings.warn(
-                f"batched_gather: inds.ndim ({inds.ndim}) > expected ({len(ranges) + 1}). Broadcasting might be unexpected."
-            )
-        remaining_dims[relative_dim] = inds
-    else:
-        raise IndexError(
-            f"Dimension {dim} (relative index {relative_dim}) out of range for remaining dimensions of length {len(remaining_dims)}"
-        )
+    if not (0 <= relative_dim < non_batch_rank):
+         raise IndexError(
+             f"Dimension {dim} (relative index {relative_dim}) out of range for non-batch dimensions of length {non_batch_rank}"
+         )
 
-    # Construct the final index tuple
-    final_inds = tuple(ranges + remaining_dims)
+    # Construct the final index tuple for advanced indexing
+    # Combine batch ranges with slices/indices for non-batch dims
+    final_inds_list: List[Union[torch.Tensor, slice]] = []
+    final_inds_list.extend(ranges) # Add batch indices
 
-    return data[final_inds]
+    # Add non-batch indices/slices
+    for i in range(non_batch_rank):
+        if i == relative_dim:
+            # Ensure inds is broadcastable with ranges
+            # We need to align the batch dimensions of inds with ranges
+            # Example: data [B1, B2, K, D], inds [B1, B2, N] -> gather dim=2 (K)
+            # ranges = [arange(B1).view(B1,1,1), arange(B2).view(1,B2,1)]
+            # inds needs shape [B1, B2, N] which it already has.
+            # Example: data [B, K, D], inds [N] -> gather dim=1 (K)
+            # ranges = [arange(B).view(B,1)]
+            # inds needs shape [B, N] -> expand inds
+            if inds.ndim < len(ranges) + 1:
+                 # Expand inds to match the number of batch dimensions + the gather dim
+                 expand_shape = list(data.shape[:no_batch_dims]) + [-1]
+                 try:
+                     inds_expanded = inds.expand(*expand_shape)
+                 except RuntimeError as e:
+                     raise RuntimeError(f"Cannot expand inds shape {inds.shape} to target {expand_shape} for broadcasting. Error: {e}") from e
+                 final_inds_list.append(inds_expanded)
+            elif inds.ndim == len(ranges) + 1:
+                 final_inds_list.append(inds)
+            else:
+                 # This case might require more complex broadcasting logic or indicate an error
+                 warnings.warn(
+                     f"batched_gather: inds.ndim ({inds.ndim}) has more dimensions than expected ({len(ranges) + 1}). Broadcasting might be complex or incorrect."
+                 )
+                 final_inds_list.append(inds) # Attempt anyway, PyTorch might handle it
+
+        else:
+            final_inds_list.append(slice(None))
+
+    final_inds = tuple(final_inds_list)
+    # --- Mypy Fix End ---
+
+    try:
+        return data[final_inds]
+    except IndexError as e:
+        # Provide more context on indexing errors
+        print("batched_gather failed with IndexError:")
+        print(f"  data.shape: {data.shape}")
+        print(f"  inds.shape: {inds.shape}")
+        print(f"  dim: {dim}, no_batch_dims: {no_batch_dims}")
+        print(f"  Calculated final_inds types: {[type(i) for i in final_inds]}")
+        print(f"  Calculated final_inds shapes/values: {[(i.shape if isinstance(i, torch.Tensor) else i) for i in final_inds]}")
+        raise e
 
 
 def broadcast_token_to_atom(
