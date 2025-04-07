@@ -46,20 +46,20 @@ def check_tensor(tensor, name, location):
     return False
 
 
-def mp_nerf_torch_safe(a, b, c, l, theta, chi):
+def mp_nerf_torch_safe(a, b, c, bond_length, theta, chi):
     """
     Safe version of mp_nerf_torch with detailed logging and safety checks.
     This is a drop-in replacement for the original function.
     """
     logger.debug(
-        f"mp_nerf_torch_safe inputs: a={a}, b={b}, c={c}, l={l}, theta={theta}, chi={chi}"
+        f"mp_nerf_torch_safe inputs: a={a}, b={b}, c={c}, l={bond_length}, theta={theta}, chi={chi}"
     )
 
     # Check inputs
     check_tensor(a, "a", "mp_nerf_torch input")
     check_tensor(b, "b", "mp_nerf_torch input")
     check_tensor(c, "c", "mp_nerf_torch input")
-    check_tensor(l, "l", "mp_nerf_torch input")
+    check_tensor(bond_length, "bond_length", "mp_nerf_torch input")
     check_tensor(theta, "theta", "mp_nerf_torch input")
     check_tensor(chi, "chi", "mp_nerf_torch input")
 
@@ -140,7 +140,7 @@ def mp_nerf_torch_safe(a, b, c, l, theta, chi):
     check_tensor(rotated_d, "rotated_d", "mp_nerf_torch rotated_d")
 
     # Final result
-    result = c + l.unsqueeze(-1) * rotated_d
+    result = c + bond_length.unsqueeze(-1) * rotated_d
     check_tensor(result, "result", "mp_nerf_torch result")
 
     return result
@@ -190,10 +190,10 @@ if __name__ == "__main__":
     a = torch.tensor([0.0, 0.0, 0.0])
     b = torch.tensor([1.0, 0.0, 0.0])
     c = torch.tensor([2.0, 0.0, 0.0])
-    l = torch.tensor(1.5)
+    bond_length = torch.tensor(1.5)
     theta = torch.tensor(1.0)
     chi = torch.tensor(0.5)
 
     # Test the safe version
-    result = mp_nerf_torch_safe(a, b, c, l, theta, chi)
+    result = mp_nerf_torch_safe(a, b, c, bond_length, theta, chi)
     print("Result:", result)
