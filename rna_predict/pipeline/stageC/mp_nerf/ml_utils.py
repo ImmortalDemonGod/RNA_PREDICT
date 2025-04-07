@@ -25,7 +25,10 @@ from rna_predict.pipeline.stageC.mp_nerf.proteins import (
     scn_cloud_mask,
     to_zero_two_pi,
 )
-from rna_predict.pipeline.stageC.mp_nerf.utils import *
+from rna_predict.pipeline.stageC.mp_nerf.utils import (
+    sidechain_fold,
+    # Add other specific imports as needed
+)
 
 
 def scn_atom_embedd(seq_list: List[str]) -> torch.Tensor:
@@ -713,12 +716,7 @@ def combine_noise(
                 noised_coords = einops.rearrange(
                     noised_coords, "() (l c) d -> l c d", c=14
                 )
-                noised_coords, _ = sidechain_fold(
-                    wrapper=noised_coords.cpu(), **scaffolds, c_beta=False
-                )
-                noised_coords = einops.rearrange(
-                    noised_coords, "() (l c) d -> l c d", c=14
-                ).to(true_coords.device)
+                noised_coords = process_coordinates(noised_coords, scaffolds)
             except Exception:
                 # If sidechain reconstruction fails, just keep the coords we have
                 pass
@@ -757,6 +755,19 @@ def get_symmetric_atom_pairs(seq: str) -> Dict[str, List[Tuple[int, int]]]:
                 pairs.append(pair)
             result[key] = pairs
     return result
+
+
+def process_coordinates(noised_coords, scaffolds):
+    """
+    Process coordinates with explicit imports.
+    """
+    noised_coords = einops.rearrange(
+        noised_coords, "(l c) d -> l c d", c=14
+    )
+    noised_coords, _ = sidechain_fold(
+        wrapper=noised_coords.cpu(), **scaffolds, c_beta=False
+    )
+    return noised_coords
 
 
 def _run_main_logic():
