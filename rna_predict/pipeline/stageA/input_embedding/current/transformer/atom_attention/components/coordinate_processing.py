@@ -3,7 +3,6 @@ Coordinate processing components for atom attention.
 """
 
 import torch
-import torch.nn as nn
 
 from rna_predict.pipeline.stageA.input_embedding.current.primitives import (
     LayerNorm,
@@ -127,4 +126,4 @@ class CoordinateProcessor:
         Returns:
             Atom-level broadcast features
         """
-        return a_token[atom_to_token_idx] 
+        return a_token[atom_to_token_idx]
