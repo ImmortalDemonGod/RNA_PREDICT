@@ -12,7 +12,6 @@ This suite demonstrates:
 - Handling of optional block-sparse-attn library for BlockSparseAttentionOptimized
 """
 
-import math
 from typing import Any, Callable, List, Optional
 
 import pytest
@@ -38,94 +37,6 @@ from rna_predict.pipeline.stageA.input_embedding.legacy.attention.block_sparse i
 # Dummy definitions for demonstration:
 # Remove these and uncomment real imports above in your actual code.
 ###############################################################################
-class LocalBlockMaskConfig:
-    """Configuration for local blockmask creation."""
-
-    def __init__(self, block_size=128, local_window=32, nheads=4, causal=False):
-        self.block_size = block_size
-        self.local_window = local_window
-        self.nheads = nheads
-        self.causal = causal
-
-
-def build_local_blockmask(
-    N_atom: int, config: LocalBlockMaskConfig
-) -> Optional[torch.Tensor]:
-    """Dummy mock of build_local_blockmask."""
-    if N_atom <= 0:
-        return None
-    shape = (
-        1,
-        config.nheads,
-        math.ceil(N_atom / config.block_size),
-        math.ceil(N_atom / config.block_size),
-    )
-    return torch.ones(shape, dtype=torch.bool)
-
-
-class LocalBlockSparseAttentionNaive(torch.autograd.Function):
-    """
-    Naive local block-sparse attention with forward/backward for demonstration.
-    """
-
-    @staticmethod
-    def forward(ctx, q, k, v, pair_bias, block_index):
-        # Minimal forward pass for demonstration
-        N_atom, n_heads, c_per_head = q.shape
-
-        # Check for shape mismatch between q and k
-        if q.shape[0] != k.shape[0]:
-            raise RuntimeError("Shape mismatch between Q and K tensors")
-
-        out = q.clone()  # Dummy out to show shape correctness
-        ctx.save_for_backward(q, k, v, pair_bias)
-        ctx.block_index = block_index
-        return out
-
-    @staticmethod
-    def backward(ctx, grad_out):
-        # Minimal backward pass
-        q, k, v, pair_bias = ctx.saved_tensors
-        dq = torch.zeros_like(q)
-        dk = torch.zeros_like(k)
-        dv = torch.zeros_like(v)
-        dpb = torch.zeros_like(pair_bias)
-        return dq, dk, dv, dpb, None
-
-
-class BlockSparseAttentionOptimized(torch.nn.Module):
-    """Dummy mock of an optimized block-sparse attention with optional library usage."""
-
-    def __init__(self, nheads, block_size=128, local_window=32, causal=False):
-        super().__init__()
-        self.nheads = nheads
-        self.block_size = block_size
-        self.local_window = local_window
-        self.causal = causal
-
-    def forward(self, q, k, v, pair_bias):
-        if self.block_size < 0:
-            raise RuntimeError("Block-sparse-attn not installed or invalid config.")
-        return q.clone()  # Dummy result
-
-
-def checkpoint_blocks(
-    blocks: List[Callable], args: List[Any], blocks_per_ckpt: Optional[int]
-) -> List[Any]:
-    """Dummy simplified checkpoint_blocks function."""
-    if blocks_per_ckpt is not None and (
-        blocks_per_ckpt < 1 or blocks_per_ckpt > len(blocks)
-    ):
-        raise ValueError("blocks_per_ckpt must be between 1 and len(blocks)")
-
-    # Very simple pass-through that calls each block in sequence
-    current = tuple(args) if not isinstance(args, tuple) else args
-    for b in blocks:
-        current = (b(*current),)
-
-    return list(current)
-
-
 ###############################################################################
 
 
@@ -196,7 +107,7 @@ class TestBlockSparseAttentionOptimized:
         """
         q, k, v, bias, _ = small_tensors
         mod = BlockSparseAttentionOptimized(
-            nheads=q.shape[1], block_size=128, local_window=32
+            config=LocalBlockMaskConfig(block_size=128, num_blocks=2)
         )
         out = mod(q, k, v, bias)
         assert out.shape == q.shape, "Optimized attention output shape mismatch."
@@ -206,7 +117,9 @@ class TestBlockSparseAttentionOptimized:
         If block_size < 0, we mimic the scenario that the library is missing or config is invalid.
         """
         q, k, v, bias, _ = small_tensors
-        mod = BlockSparseAttentionOptimized(nheads=q.shape[1], block_size=-1)
+        mod = BlockSparseAttentionOptimized(
+            config=LocalBlockMaskConfig(block_size=-1, num_blocks=2)
+        )
         with pytest.raises(RuntimeError):
             _ = mod(q, k, v, bias)
 
@@ -228,7 +141,7 @@ class TestBuildLocalBlockMask:
         """
         Tests shape or None return for various N_atom with default config.
         """
-        config = LocalBlockMaskConfig()
+        config = LocalBlockMaskConfig(block_size=128, num_blocks=2)
         mask = build_local_blockmask(n_atom, config)
         if expected_shape is None:
             assert mask is None, "Expected None when N_atom <= 0."
@@ -243,7 +156,7 @@ class TestBuildLocalBlockMask:
         (Here we only check that certain blocks are False).
         """
         config = LocalBlockMaskConfig(
-            block_size=8, local_window=8, nheads=2, causal=True
+            block_size=8, num_blocks=2, overlap=8
         )
         N_atom = 16
         mask = build_local_blockmask(N_atom, config)
