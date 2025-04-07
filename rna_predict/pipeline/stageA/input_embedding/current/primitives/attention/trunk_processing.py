@@ -38,8 +38,8 @@ def _process_tensor_to_trunks(
         # Concatenate slices along the specified dimension (assuming consistent dim for concat)
         # Note: Original code used dim_list[0]. This assumes all tensors in the list
         # should be concatenated along the same dimension after slicing.
-        if sliced_tensors: # Ensure there are tensors to concatenate
-             result.append(torch.cat(sliced_tensors, dim=dim_list[0]))
+        if sliced_tensors:  # Ensure there are tensors to concatenate
+            result.append(torch.cat(sliced_tensors, dim=dim_list[0]))
         # Handle cases where slicing might result in empty lists if logic allows?
         # Current assumption: _apply_trunk_slices returns tensors to be concatenated.
 
