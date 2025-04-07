@@ -162,13 +162,24 @@ class ProtenixDiffusionManager:
         sing_key = "sing"  # Assuming 'sing' is the fallback key name
         s_inputs = trunk_embeddings.get(s_inputs_key)
         if s_inputs is None:
-            s_inputs = trunk_embeddings.get(sing_key)
+            # Fallback: Check override_input_features if provided
+            if override_input_features is not None:
+                s_inputs = override_input_features.get(sing_key)
+            # If still None, check trunk_embeddings as a last resort (original behavior)
+            if s_inputs is None:
+                s_inputs = trunk_embeddings.get(sing_key)
             if s_inputs is not None:
                 # Cache the fallback value as s_inputs for subsequent calls
                 trunk_embeddings[s_inputs_key] = s_inputs
                 if debug_logging:
                     print(f"[DEBUG] Cached '{sing_key}' as '{s_inputs_key}'")
             # else: s_inputs remains None if neither key exists
+
+        # Ensure s_inputs is available, raise error if not found after fallback
+        if s_inputs is None:
+            raise ValueError(
+                f"Required embedding 's_inputs' (or fallback '{sing_key}') not found in trunk_embeddings."
+            )
 
         z_trunk = trunk_embeddings.get("pair", None)
 
