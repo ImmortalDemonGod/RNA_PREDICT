@@ -157,7 +157,7 @@ class ProtenixIntegration:
                     padding = torch.zeros(
                         (N_token - s_inputs.size(0), s_inputs.size(1)),
                         device=s_inputs.device,
-                        dtype=s_inputs.dtype
+                        dtype=s_inputs.dtype,
                     )
                     s_inputs = torch.cat([s_inputs, padding], dim=0)
 
