@@ -6,10 +6,11 @@ import numpy as np
 import torch
 
 # module
-from rna_predict.pipeline.stageC.mp_nerf.massive_pnerf import *
+# Removed star import, using specific imports below
 from rna_predict.pipeline.stageC.mp_nerf.massive_pnerf import (
     get_axis_matrix,
     mp_nerf_torch,
+    MpNerfParams,  # Added explicit import for MpNerfParams
 )
 
 # Import SUPREME_INFO via the package __init__ (which now points to supreme_data)
@@ -24,7 +25,7 @@ from rna_predict.pipeline.stageC.mp_nerf.protein_utils.sidechain_data import (
 # from rna_predict.pipeline.stageC.mp_nerf.protein_utils.structure_utils import (
 #     build_scaffolds_from_scn_angles,
 # )
-from rna_predict.pipeline.stageC.mp_nerf.utils import *
+# Removed unused star import from rna_predict.pipeline.stageC.mp_nerf.utils
 
 
 def scn_cloud_mask(seq, coords=None, strict=False):
