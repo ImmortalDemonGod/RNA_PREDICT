@@ -8,7 +8,8 @@ import numpy as np
 from PIL import Image  # For loading image data
 
 # Local application imports (assuming execution as a module)
-from .config import LOGGING_LEVEL, TEMPLATE_PATH, THRESHOLD as SEARCH_THRESHOLD
+from .config import LOGGING_LEVEL, TEMPLATE_PATH
+from .config import THRESHOLD as SEARCH_THRESHOLD
 from .logger import setup_logger
 from .main import find_template_on_screen
 
@@ -16,6 +17,7 @@ from .main import find_template_on_screen
 # Note: This will be assigned in _setup_global_logger()
 # We assert it's not None before use in other functions or module level.
 logger: logging.Logger
+
 
 def _setup_global_logger() -> logging.Logger:
     """Sets up and returns a logger instance based on config."""
@@ -49,6 +51,7 @@ def _setup_global_logger() -> logging.Logger:
     # Ensure the function returns the created logger instance
     return _logger
     return _logger
+
 
 # Initialize the global logger immediately after imports and function definition
 logger = _setup_global_logger()
