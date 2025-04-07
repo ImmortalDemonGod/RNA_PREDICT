@@ -2,7 +2,7 @@
 Utility functions for processing tensor chunks in dense trunk attention.
 """
 
-from typing import Callable, List, Optional, Tuple, Union
+from typing import List, Optional, Tuple
 
 import torch
 
