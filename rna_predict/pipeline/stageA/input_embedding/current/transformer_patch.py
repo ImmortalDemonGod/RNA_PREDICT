@@ -3,6 +3,7 @@ Specific patch for the transformer module to fix tensor shape compatibility issu
 """
 
 import torch
+from rna_predict.pipeline.stageA.input_embedding.current.utils import broadcast_token_to_atom
 
 
 def patch_transformer():
@@ -32,7 +33,7 @@ def patch_transformer():
             atom_to_token_idx = input_feature_dict.get("atom_to_token_idx", None)
 
             # Process inputs
-            a = self.layernorm_a(r_l)
+            self.layernorm_a(r_l)
 
             # Process token-level inputs
             if s is not None:

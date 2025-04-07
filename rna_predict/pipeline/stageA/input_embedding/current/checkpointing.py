@@ -12,12 +12,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import importlib
 from typing import Any, Callable, List, Optional
 
-deepspeed_is_installed = importlib.util.find_spec("deepspeed") is not None
-if deepspeed_is_installed:
+try:
     import deepspeed
+except ImportError:
+    deepspeed = None
 
 import torch
 import torch.utils.checkpoint
@@ -28,7 +28,7 @@ BLOCK_ARGS = List[BLOCK_ARG]
 
 def get_checkpoint_fn():
     deepspeed_is_configured = (
-        deepspeed_is_installed and deepspeed.checkpointing.is_configured()
+        deepspeed is not None and deepspeed.checkpointing.is_configured()
     )
     if deepspeed_is_configured:
         checkpoint = deepspeed.checkpointing.checkpoint
