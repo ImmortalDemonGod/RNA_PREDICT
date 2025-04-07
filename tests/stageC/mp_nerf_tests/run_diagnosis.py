@@ -11,6 +11,7 @@ This script:
 import logging
 import os
 import sys
+from pathlib import Path
 
 import torch
 
@@ -20,20 +21,17 @@ logging.basicConfig(
 )
 logger = logging.getLogger("mpnerf_fix")
 
-# Add the project root to the Python path if needed
-current_dir = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(os.path.abspath(os.path.join(current_dir, "../../..")))
-
-# Import the diagnostic test functions - use absolute imports
+# Add the current directory to the Python path
+current_dir = str(Path(__file__).parent.absolute())
 sys.path.append(current_dir)
+
 # Import the instrumented MP-NeRF
 from instrumented_massive_pnerf import patch_mp_nerf, restore_mp_nerf
 from test_mpnerf_nan_diagnosis import check_for_nans, run_all_tests
-
 from rna_predict.pipeline.stageC.mp_nerf.final_kb_rna import RNA_BACKBONE_TORSIONS_AFORM
+from rna_predict.pipeline.stageC.stage_c_reconstruction import run_stageC
 
 # Import the functions we might need to fix
-from rna_predict.pipeline.stageC.stage_c_reconstruction import run_stageC
 
 
 def print_section(title):
