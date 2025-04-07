@@ -362,7 +362,7 @@ def broadcast_token_to_atom(
     # Gather using the expanded index
     try:
         # Gather along the N_token dimension (dim=1)
-        x_atom_flat = torch.gather(x_token_flat, dim=1, index=idx_expanded)
+        x_atom_flat = torch.gather(x_token_flat, 1, idx_expanded)
     except RuntimeError as e:
         raise RuntimeError(
             f"torch.gather failed in broadcast_token_to_atom. "
