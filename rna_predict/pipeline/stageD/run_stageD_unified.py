@@ -98,63 +98,15 @@ def validate_and_fix_shapes(
     fixed_input_features = {}
     for key, value in input_features.items():
         if isinstance(value, torch.Tensor):
-            temp_value = value  # Work with temporary variable
-
-            # Ensure batch dimension exists if missing and expected
-            if temp_value.dim() == 1 and key in ["atom_to_token_idx", "ref_space_uid"]:
-                temp_value = temp_value.unsqueeze(0)  # Add batch dim
-            elif temp_value.dim() == 2 and key in [
-                "ref_pos",
-                "ref_charge",
-                "ref_element",
-                "ref_atom_name_chars",
-                "ref_mask",
-                "restype",
-                "profile",
-                "deletion_mean",
-                "sing",
-            ]:  # Added sing
-                temp_value = temp_value.unsqueeze(0)  # Add batch dim
-
-            # Now adjust batch size and sequence/atom length if tensor has at least 2 dims
-            if temp_value.ndim >= 2:
-                if temp_value.shape[0] != batch_size:
-                    warnings.warn(
-                        f"Adjusting batch size for input_feature '{key}' from {temp_value.shape[0]} to {batch_size}"
-                    )
-                    temp_value = temp_value[:batch_size]
-
-                # Adjust sequence/atom dimension (usually dim 1 after batch)
-                if key in [
-                    "atom_to_token_idx",
-                    "ref_pos",
-                    "ref_space_uid",
-                    "ref_charge",
-                    "ref_element",
-                    "ref_atom_name_chars",
-                    "ref_mask",
-                    "deletion_mean",
-                    "sing",
-                ]:  # Added sing
-                    if temp_value.shape[1] != num_atoms:
-                        warnings.warn(
-                            f"Adjusting atom dimension for input_feature '{key}' from {temp_value.shape[1]} to {num_atoms}"
-                        )
-                        temp_value = temp_value[:, :num_atoms]
-                elif key in ["restype", "profile"]:  # Token-level features
-                    if (
-                        temp_value.shape[1] != num_atoms
-                    ):  # Assuming N_token == N_atom here
-                        warnings.warn(
-                            f"Adjusting token dimension for input_feature '{key}' from {temp_value.shape[1]} to {num_atoms}"
-                        )
-                        temp_value = temp_value[:, :num_atoms]
-
-            # Specific shape adjustments
-            if key == "atom_to_token_idx" and temp_value.ndim > 2:
-                temp_value = temp_value.squeeze(-1)  # Ensure [B, N_atom]
-
-            fixed_input_features[key] = temp_value
+            # Handle deletion_mean shape specifically
+            if key == "deletion_mean":
+                if value.dim() == 2:  # If 2D [B, N]
+                    value = value.unsqueeze(-1)  # Make it [B, N, 1]
+                elif (
+                    value.dim() == 3 and value.shape[-1] != 1
+                ):  # If 3D but wrong last dim
+                    value = value[..., :1]  # Take first channel
+            fixed_input_features[key] = value
         else:
             fixed_input_features[key] = value
 
