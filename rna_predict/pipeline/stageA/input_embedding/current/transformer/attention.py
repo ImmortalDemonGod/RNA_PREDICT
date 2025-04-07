@@ -3,7 +3,7 @@ Attention modules for transformer-based RNA structure prediction.
 """
 
 import warnings
-from typing import Optional, cast, Union # Added Union
+from typing import Optional, Union, cast  # Added Union
 
 import torch
 import torch.nn as nn
@@ -159,14 +159,17 @@ class AttentionPairBias(nn.Module):
                     # Extract the core dimensions (N, N, C for z and N, C for a)
                     z_core_dims = z.shape[-3:]  # Should be [N, N, C]
                     a_core_dims = a.shape[-2:]  # Should be [N, C]
-                    
+
                     # Check that the N dimensions match
-                    if z_core_dims[0] != z_core_dims[1] or z_core_dims[0] != a_core_dims[0]:
+                    if (
+                        z_core_dims[0] != z_core_dims[1]
+                        or z_core_dims[0] != a_core_dims[0]
+                    ):
                         raise ValueError(
                             f"For diffusion attention, N dimensions must match. "
                             f"Got z_core_dims={z_core_dims}, a_core_dims={a_core_dims}"
                         )
-                    
+
                     # Check that all sample dimensions match
                     z_sample_dims = z.shape[:-3]
                     a_sample_dims = a.shape[:-2]
@@ -180,8 +183,12 @@ class AttentionPairBias(nn.Module):
                     # Check if the batch and N dimensions match appropriately
                     # z[0] vs a[0] (Batch)
                     # z[2] vs z[3] vs a[1] (N)
-                    if z.shape[0] != a.shape[0] or z.shape[2] != z.shape[3] or z.shape[2] != a.shape[1]:
-                         raise ValueError(
+                    if (
+                        z.shape[0] != a.shape[0]
+                        or z.shape[2] != z.shape[3]
+                        or z.shape[2] != a.shape[1]
+                    ):
+                        raise ValueError(
                             f"Dimension mismatch for 5D z and 3D a. "
                             f"Shapes: z={z.shape}, a={a.shape}"
                         )
@@ -351,7 +358,7 @@ class AttentionPairBias(nn.Module):
         forward_inputs = ForwardInputs(
             q_x=a,
             kv_x=a,
-            attn_bias=bias, # bias is [..., n_heads, N_token, N_token]
+            attn_bias=bias,  # bias is [..., n_heads, N_token, N_token]
             trunked_attn_bias=None,
             n_queries=None,
             n_keys=None,
@@ -372,24 +379,37 @@ class AttentionPairBias(nn.Module):
             # If attention output has more dims than input 'a', check if dim 1 is size 1 and squeeze it.
             if result.ndim > a.ndim:
                 if result.ndim > 1 and result.shape[1] == 1:
-                    warnings.warn(f"Attention output dim ({result.ndim}) > input dim ({a.ndim}) with sample dim size 1. Squeezing dim 1.")
+                    warnings.warn(
+                        f"Attention output dim ({result.ndim}) > input dim ({a.ndim}) with sample dim size 1. Squeezing dim 1."
+                    )
                     result = result.squeeze(1)
                 else:
                     # If the extra dimension is not size 1, we have an unexpected shape propagation.
-                    warnings.warn(f"Attention output dim ({result.ndim}) > input dim ({a.ndim}), but sample dim is not 1 ({result.shape[1]}). Cannot squeeze.")
+                    warnings.warn(
+                        f"Attention output dim ({result.ndim}) > input dim ({a.ndim}), but sample dim is not 1 ({result.shape[1]}). Cannot squeeze."
+                    )
                     # Raise error here? Or let it propagate? Let's let it propagate for now.
 
             # Check dimensions again after potential squeeze
             if result.ndim != a.ndim:
-                 warnings.warn(f"Attention output dim ({result.ndim}) still does not match input dim ({a.ndim}) after potential squeeze.")
-
+                warnings.warn(
+                    f"Attention output dim ({result.ndim}) still does not match input dim ({a.ndim}) after potential squeeze."
+                )
 
             return cast(torch.Tensor, result)
         except Exception as e:
             # Add shapes to error message
-            q_shape = forward_inputs.q_x.shape if forward_inputs.q_x is not None else None
-            kv_shape = forward_inputs.kv_x.shape if forward_inputs.kv_x is not None else None
-            bias_shape = forward_inputs.attn_bias.shape if forward_inputs.attn_bias is not None else None
+            q_shape = (
+                forward_inputs.q_x.shape if forward_inputs.q_x is not None else None
+            )
+            kv_shape = (
+                forward_inputs.kv_x.shape if forward_inputs.kv_x is not None else None
+            )
+            bias_shape = (
+                forward_inputs.attn_bias.shape
+                if forward_inputs.attn_bias is not None
+                else None
+            )
             raise ValueError(
                 f"Attention failed with inputs: q_x={q_shape}, kv_x={kv_shape}, bias={bias_shape}. Error: {str(e)}"
             )
