@@ -1,5 +1,4 @@
 import pytest
-
 import torch
 
 
@@ -17,7 +16,7 @@ def stageB_mock(stageA_out):
     return {
         "s_trunk": torch.randn(1, 10, 384),  # Changed from 'sing' to 's_trunk'
         "pair": torch.randn(1, 10, 10, 32),
-        "s_inputs": torch.randn(1, 10, 384)  # Added s_inputs
+        "s_inputs": torch.randn(1, 10, 384),  # Added s_inputs
     }
 
 
@@ -63,30 +62,14 @@ def test_end_to_end_stageA_to_D():
             "c_s": 384,
             "c_z": 32,
             "c_s_inputs": 384,
-            "c_noise_embedding": 128
+            "c_noise_embedding": 128,
         },
-        "embedder": {
-            "c_atom": 128,
-            "c_atompair": 16,
-            "c_token": 832
-        },
-        "transformer": {
-            "n_blocks": 2,
-            "n_heads": 8
-        },
-        "atom_encoder": {
-            "n_blocks": 2,
-            "n_heads": 8
-        },
-        "atom_decoder": {
-            "n_blocks": 2,
-            "n_heads": 8
-        },
+        "embedder": {"c_atom": 128, "c_atompair": 16, "c_token": 832},
+        "transformer": {"n_blocks": 2, "n_heads": 8},
+        "atom_encoder": {"n_blocks": 2, "n_heads": 8},
+        "atom_decoder": {"n_blocks": 2, "n_heads": 8},
         "initialization": {},
-        "inference": {
-            "N_sample": 1,
-            "num_steps": 10
-        }
+        "inference": {"N_sample": 1, "num_steps": 10},
     }
 
     # 5) run_stageD_diffusion in inference mode

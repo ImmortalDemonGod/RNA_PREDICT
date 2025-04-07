@@ -191,7 +191,9 @@ class TestBuildRnaTokenMetadata(unittest.TestCase):
 
     @given(num_tokens=st.integers(min_value=1, max_value=200))
     @example(num_tokens=1)  # minimal test case
-    @settings(deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    @settings(
+        deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture]
+    )
     def test_build_rna_token_metadata_fuzz(self, num_tokens: int) -> None:
         """
         Fuzzy test to ensure build_rna_token_metadata does not crash for various valid token counts.
@@ -237,7 +239,8 @@ class TestBuildAtomToTokenIdx(unittest.TestCase):
     )
     @settings(
         deadline=None,  # Disable deadline for this flaky test
-        suppress_health_check=[HealthCheck.function_scoped_fixture], max_examples=100
+        suppress_health_check=[HealthCheck.function_scoped_fixture],
+        max_examples=100,
     )
     def test_build_atom_to_token_idx_fuzz(
         self, num_atoms: int, num_tokens: int
@@ -310,7 +313,8 @@ class TestValidateInputFeatures(unittest.TestCase):
     )
     @settings(
         deadline=None,  # Disable deadline for this flaky test
-        suppress_health_check=[HealthCheck.function_scoped_fixture], max_examples=50
+        suppress_health_check=[HealthCheck.function_scoped_fixture],
+        max_examples=50,
     )
     def test_validate_input_features_fuzz(self, input_dict: dict) -> None:
         """
@@ -361,7 +365,9 @@ class TestLoadRnaDataAndFeatures(unittest.TestCase):
         override_num_atoms=st.one_of(st.none(), st.integers(min_value=1, max_value=200))
     )
     @settings(
-        suppress_health_check=[HealthCheck.function_scoped_fixture], max_examples=30, deadline=None
+        suppress_health_check=[HealthCheck.function_scoped_fixture],
+        max_examples=30,
+        deadline=None,
     )
     def test_load_rna_data_and_features_fuzz(self, override_num_atoms):
         """
