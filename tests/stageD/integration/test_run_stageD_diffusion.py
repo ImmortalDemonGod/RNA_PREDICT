@@ -22,7 +22,9 @@ class TestRunStageDDiffusion(unittest.TestCase):
          - diffusion_config: minimal valid config
          - device: typically 'cpu'
         """
-        self.partial_coords = torch.randn(1, 5, 3)  # Use random values for better testing
+        self.partial_coords = torch.randn(
+            1, 5, 3
+        )  # Use random values for better testing
         self.trunk_embeddings = {
             "s_trunk": torch.randn(1, 5, 384),  # shape [B, N_token, 384]
             "pair": torch.randn(1, 5, 5, 32),  # shape [B, N_token, N_token, c_z]
@@ -39,16 +41,12 @@ class TestRunStageDDiffusion(unittest.TestCase):
                 "c_s": 384,
                 "c_z": 32,
                 "c_s_inputs": 384,  # Updated to match s_inputs dimension
-                "c_noise_embedding": 128
+                "c_noise_embedding": 128,
             },
-            "embedder": {
-                "c_atom": 128,
-                "c_atompair": 16,
-                "c_token": 384
-            },
+            "embedder": {"c_atom": 128, "c_atompair": 16, "c_token": 384},
             "inference": {"num_steps": 2, "N_sample": 1},
             "sigma_data": 16.0,  # Required for noise sampling
-            "initialization": {}  # Required by DiffusionModule
+            "initialization": {},  # Required by DiffusionModule
         }
         self.device = "cpu"
         self.input_features = {
@@ -62,62 +60,46 @@ class TestRunStageDDiffusion(unittest.TestCase):
             "restype": torch.zeros(1, 5, 32),
             "profile": torch.zeros(1, 5, 32),
             "deletion_mean": torch.zeros(1, 5, 1),
-            "sing": torch.randn(1, 5, 384)  # Updated to match s_inputs dimension
+            "sing": torch.randn(1, 5, 384),  # Updated to match s_inputs dimension
         }
 
-    @patch("rna_predict.pipeline.stageD.run_stageD_unified.load_rna_data_and_features")
-    def test_inference_mode(self, mock_load_rna):
+    def test_inference_mode(self):
         """
         Test that run_stageD_diffusion works in inference mode and
         returns a tensor of expected shape, given typical embeddings.
-        We mock load_rna_data_and_features to avoid file I/O.
         """
-        # Mock the return to emulate typical shapes from real data
-        mock_load_rna.return_value = (
-            self.input_features,
-            {
-                "restype": self.input_features["restype"],
-                "profile": self.input_features["profile"],
-                "deletion_mean": self.input_features["deletion_mean"]
-            }
-        )
-
         coords_out = run_stageD_diffusion(
             partial_coords=self.partial_coords,
             trunk_embeddings=self.trunk_embeddings,
             diffusion_config=self.diffusion_config,
             mode="inference",
             device=self.device,
-            input_features=self.input_features
+            input_features=self.input_features,
         )
 
         self.assertIsInstance(coords_out, torch.Tensor)
         self.assertTrue(coords_out.dim() >= 3, "Output must have at least 3 dims.")
-        self.assertEqual(coords_out.shape[-1], 3, "Last dimension must be 3 for coordinates.")
-        self.assertEqual(coords_out.shape[1], self.partial_coords.shape[1], "Number of atoms should match input")
+        self.assertEqual(
+            coords_out.shape[-1], 3, "Last dimension must be 3 for coordinates."
+        )
+        self.assertEqual(
+            coords_out.shape[1],
+            self.partial_coords.shape[1],
+            "Number of atoms should match input",
+        )
 
-    @patch("rna_predict.pipeline.stageD.run_stageD_unified.load_rna_data_and_features")
-    def test_train_mode(self, mock_load_rna):
+    def test_train_mode(self):
         """
         Test that run_stageD_diffusion works in train mode and returns
         (x_denoised, sigma, x_gt_augment) with correct shapes/types.
         """
-        mock_load_rna.return_value = (
-            self.input_features,
-            {
-                "restype": self.input_features["restype"],
-                "profile": self.input_features["profile"],
-                "deletion_mean": self.input_features["deletion_mean"]
-            }
-        )
-
         result = run_stageD_diffusion(
             partial_coords=self.partial_coords,
             trunk_embeddings=self.trunk_embeddings,
             diffusion_config=self.diffusion_config,
             mode="train",
             device=self.device,
-            input_features=self.input_features
+            input_features=self.input_features,
         )
 
         self.assertIsInstance(result, tuple)
@@ -143,23 +125,28 @@ class TestRunStageDDiffusion(unittest.TestCase):
                 diffusion_config=self.diffusion_config,
                 mode="unsupported_mode",
                 device=self.device,
-                input_features=self.input_features
+                input_features=self.input_features,
             )
 
-    @patch("rna_predict.pipeline.stageD.run_stageD_unified.load_rna_data_and_features")
-    def test_deletion_mean_handling(self, mock_load_rna):
+    def test_deletion_mean_handling(self):
         """
         Test that code path adjusting deletion_mean shape is covered.
         This ensures lines that handle 'deletion_mean' dimension mismatch are tested.
         """
-        mock_load_rna.return_value = (
-            self.input_features,
-            {
-                "restype": self.input_features["restype"],
-                "profile": self.input_features["profile"],
-                "deletion_mean": torch.zeros(1, 5)  # 2D shape to trigger reshaping
-            }
-        )
+        # Create input features with 2D deletion_mean to trigger reshaping
+        input_features = {
+            "atom_to_token_idx": torch.zeros((1, 5), dtype=torch.long),
+            "ref_pos": self.partial_coords.clone(),
+            "ref_space_uid": torch.arange(5).unsqueeze(0),
+            "ref_charge": torch.zeros(1, 5, 1),
+            "ref_mask": torch.ones(1, 5, 1),
+            "ref_element": torch.zeros(1, 5, 128),
+            "ref_atom_name_chars": torch.zeros(1, 5, 256),
+            "restype": torch.zeros(1, 5, 32),
+            "profile": torch.zeros(1, 5, 32),
+            "deletion_mean": torch.zeros(1, 5),  # 2D shape to trigger reshaping
+            "sing": torch.randn(1, 5, 384),
+        }
 
         coords_out = run_stageD_diffusion(
             partial_coords=self.partial_coords,
@@ -167,26 +154,16 @@ class TestRunStageDDiffusion(unittest.TestCase):
             diffusion_config=self.diffusion_config,
             mode="inference",
             device=self.device,
-            input_features=self.input_features
+            input_features=input_features,
         )
         self.assertIsInstance(coords_out, torch.Tensor)
         self.assertTrue(coords_out.shape[-1] == 3)
 
-    @patch("rna_predict.pipeline.stageD.run_stageD_unified.load_rna_data_and_features")
-    def test_round_trip_diffusion(self, mock_load_rna):
+    def test_round_trip_diffusion(self):
         """
         Example 'round-trip'-style test: call inference mode twice,
         passing the output coordinates back in as input. Checks consistency of shape.
         """
-        mock_load_rna.return_value = (
-            self.input_features,
-            {
-                "restype": self.input_features["restype"],
-                "profile": self.input_features["profile"],
-                "deletion_mean": self.input_features["deletion_mean"]
-            }
-        )
-
         # First inference pass
         coords_out_1 = run_stageD_diffusion(
             partial_coords=self.partial_coords,
@@ -194,7 +171,7 @@ class TestRunStageDDiffusion(unittest.TestCase):
             diffusion_config=self.diffusion_config,
             mode="inference",
             device=self.device,
-            input_features=self.input_features
+            input_features=self.input_features,
         )
 
         self.assertIsInstance(coords_out_1, torch.Tensor)
@@ -213,7 +190,7 @@ class TestRunStageDDiffusion(unittest.TestCase):
             diffusion_config=self.diffusion_config,
             mode="inference",
             device=self.device,
-            input_features=self.input_features
+            input_features=self.input_features,
         )
         self.assertIsInstance(coords_out_2, torch.Tensor)
         self.assertEqual(coords_out_2.shape[-1], 3)
