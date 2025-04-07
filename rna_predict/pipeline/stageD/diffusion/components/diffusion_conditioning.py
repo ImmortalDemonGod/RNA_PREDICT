@@ -114,9 +114,10 @@ class DiffusionConditioning(nn.Module):
             )
             # print(f"[DEBUG] Expanded relpe_output shape: {relpe_output.shape}")
         elif z_trunk.ndim != relpe_output.ndim:
-             # If dimensions still don't match after potential expansion, raise error
-             raise RuntimeError(f"Cannot concatenate z_trunk ({z_trunk.shape}) and relpe_output ({relpe_output.shape}) due to mismatched dimensions.")
-
+            # If dimensions still don't match after potential expansion, raise error
+            raise RuntimeError(
+                f"Cannot concatenate z_trunk ({z_trunk.shape}) and relpe_output ({relpe_output.shape}) due to mismatched dimensions."
+            )
 
         pair_z = torch.cat([z_trunk, relpe_output], dim=-1)
         pair_z = self.linear_no_bias_z(self.layernorm_z(pair_z))
