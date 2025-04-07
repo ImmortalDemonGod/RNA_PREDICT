@@ -196,21 +196,33 @@ class TestPredict3DStructure(unittest.TestCase):
             result = self.predictor.predict_3d_structure(sequence)
             self.assertIn("coords", result)
             self.assertIn("atom_count", result)
-            
+
             # Validate coords tensor
             coords = result["coords"]
             self.assertTrue(torch.is_tensor(coords), "coords should be a tensor")
-            self.assertEqual(coords.dim(), 3, "coords should be 3D tensor [N, atoms, 3]")
-            self.assertEqual(coords.shape[-1], 3, "last dimension should be 3 for x,y,z")
-            
+            self.assertEqual(
+                coords.dim(), 3, "coords should be 3D tensor [N, atoms, 3]"
+            )
+            self.assertEqual(
+                coords.shape[-1], 3, "last dimension should be 3 for x,y,z"
+            )
+
             # Check for NaN/Inf values
-            self.assertFalse(torch.isnan(coords).any(), "coords should not contain NaN values")
-            self.assertFalse(torch.isinf(coords).any(), "coords should not contain Inf values")
-            
+            self.assertFalse(
+                torch.isnan(coords).any(), "coords should not contain NaN values"
+            )
+            self.assertFalse(
+                torch.isinf(coords).any(), "coords should not contain Inf values"
+            )
+
             # Validate atom_count
-            self.assertIsInstance(result["atom_count"], int, "atom_count should be an integer")
-            self.assertGreaterEqual(result["atom_count"], 0, "atom_count should be non-negative")
-            
+            self.assertIsInstance(
+                result["atom_count"], int, "atom_count should be an integer"
+            )
+            self.assertGreaterEqual(
+                result["atom_count"], 0, "atom_count should be non-negative"
+            )
+
         except (RuntimeError, OSError, ValueError, IndexError) as e:
             # If no real model is found or environment lacks GPU, we pass
             if "CUDA" in str(e) or "model" in str(e).lower():
@@ -465,7 +477,7 @@ class TestPredictSubmissionParametricShapes(unittest.TestCase):
         repeats=st.integers(min_value=1, max_value=3),
     )
     @settings(
-        deadline=None, # Disable deadline for this flaky test
+        deadline=None,  # Disable deadline for this flaky test
         suppress_health_check=[HealthCheck.too_slow, HealthCheck.filter_too_much],
         max_examples=5,
     )
