@@ -6,7 +6,23 @@ for standard amino acids.
 Updated to include 'atom_token_mask' and more realistic placeholders.
 """
 
+from typing import TypedDict, List, Dict, cast # Added cast import
+
 import numpy as np
+
+
+class AminoAcidInfo(TypedDict): # Added TypedDict definition
+    """Structure for holding amino acid mask and structural info."""
+    atoms: int
+    sc_torsions: int
+    cloud_mask: List[bool]
+    bond_mask: List[float]
+    theta_mask: List[float]
+    torsion_mask: List[float] # Contains np.nan, so float
+    torsion_mask_filled: List[float]
+    idx_mask: List[List[int]]
+    rigid_idx_mask: List[int]
+    atom_token_mask: List[int]
 
 
 # Placeholder logic for generating realistic-ish masks based on typical atom counts
@@ -62,32 +78,44 @@ def generate_atom_token_ids(aa_code, atoms_present_mask):
     return token_mask.tolist()
 
 
-SUPREME_INFO = {
-    # Amino Acid: Num Atoms, Num Sidechain Torsions (approx for idx_mask)
-    "A": {"atoms": 5, "sc_torsions": 1},
-    "C": {"atoms": 6, "sc_torsions": 1},
-    "D": {"atoms": 8, "sc_torsions": 2},
-    "E": {"atoms": 9, "sc_torsions": 3},
-    "F": {"atoms": 11, "sc_torsions": 2},
-    "G": {
-        "atoms": 4,
-        "sc_torsions": 0,
-    },  # Glycine has no sidechain atoms beyond backbone
-    "H": {"atoms": 10, "sc_torsions": 2},
-    "I": {"atoms": 8, "sc_torsions": 2},
-    "K": {"atoms": 9, "sc_torsions": 4},
-    "L": {"atoms": 8, "sc_torsions": 2},
-    "M": {"atoms": 8, "sc_torsions": 3},
-    "N": {"atoms": 8, "sc_torsions": 2},
-    "P": {"atoms": 7, "sc_torsions": 1},  # Proline is special
-    "Q": {"atoms": 9, "sc_torsions": 3},
-    "R": {"atoms": 11, "sc_torsions": 4},
-    "S": {"atoms": 6, "sc_torsions": 1},
-    "T": {"atoms": 7, "sc_torsions": 1},
-    "V": {"atoms": 7, "sc_torsions": 1},
-    "W": {"atoms": 14, "sc_torsions": 2},
-    "Y": {"atoms": 12, "sc_torsions": 2},
-    "_": {"atoms": 0, "sc_torsions": 0},  # Padding
+SUPREME_INFO: Dict[str, AminoAcidInfo] = { # Added type hint
+    # Initialize with all keys required by AminoAcidInfo
+    # Placeholder values will be overwritten later
+    aa: {
+        "atoms": info["atoms"],
+        "sc_torsions": info["sc_torsions"],
+        "cloud_mask": [False] * 14,
+        "bond_mask": [0.0] * 14,
+        "theta_mask": [0.0] * 14,
+        "torsion_mask": [np.nan] * 14,
+        "torsion_mask_filled": [0.0] * 14,
+        "idx_mask": [[0, 0, 0]] * 11,
+        "rigid_idx_mask": [0, 0, 0],
+        "atom_token_mask": [0] * 14,
+    }
+    for aa, info in {
+        "A": {"atoms": 5, "sc_torsions": 1},
+        "C": {"atoms": 6, "sc_torsions": 1},
+        "D": {"atoms": 8, "sc_torsions": 2},
+        "E": {"atoms": 9, "sc_torsions": 3},
+        "F": {"atoms": 11, "sc_torsions": 2},
+        "G": {"atoms": 4, "sc_torsions": 0},
+        "H": {"atoms": 10, "sc_torsions": 2},
+        "I": {"atoms": 8, "sc_torsions": 2},
+        "K": {"atoms": 9, "sc_torsions": 4},
+        "L": {"atoms": 8, "sc_torsions": 2},
+        "M": {"atoms": 8, "sc_torsions": 3},
+        "N": {"atoms": 8, "sc_torsions": 2},
+        "P": {"atoms": 7, "sc_torsions": 1},
+        "Q": {"atoms": 9, "sc_torsions": 3},
+        "R": {"atoms": 11, "sc_torsions": 4},
+        "S": {"atoms": 6, "sc_torsions": 1},
+        "T": {"atoms": 7, "sc_torsions": 1},
+        "V": {"atoms": 7, "sc_torsions": 1},
+        "W": {"atoms": 14, "sc_torsions": 2},
+        "Y": {"atoms": 12, "sc_torsions": 2},
+        "_": {"atoms": 0, "sc_torsions": 0},  # Padding
+    }.items()
 }
 
 # Populate the full SUPREME_INFO dictionary
@@ -95,6 +123,8 @@ for aa, info in SUPREME_INFO.items():
     num_atoms = info["atoms"]
     sc_torsions = info["sc_torsions"]
     cloud_m = generate_bool_mask(num_atoms)
+    # No need to cast info anymore as it's initialized correctly
+    # typed_info = cast(AminoAcidInfo, info)
     info["cloud_mask"] = cloud_m
     # Generate masks based on the number of atoms
     info["bond_mask"] = generate_mask(
@@ -117,7 +147,8 @@ for aa, info in SUPREME_INFO.items():
     # Filled version has non-zero values for first num_atoms elements, zeros for the rest
     torsion_m_filled = np.zeros(14, dtype=float)  # Initially all zeros
     torsion_m_filled[:num_atoms] = 1.0  # Set ones for existing atoms
-    info["torsion_mask_filled"] = torsion_m_filled.tolist()
+    # Explicitly cast to List[float]
+    info["torsion_mask_filled"] = cast(List[float], torsion_m_filled.tolist())
     # Index masks
     idx_mask = generate_idx_mask(sc_torsions)
     info["idx_mask"] = idx_mask
@@ -128,41 +159,47 @@ for aa, info in SUPREME_INFO.items():
     info["atom_token_mask"] = generate_atom_token_ids(aa, cloud_m)
 
 # Special case for Glycine (G) - Ensure sidechain atoms are masked out
-SUPREME_INFO["G"]["cloud_mask"] = generate_bool_mask(4)
-SUPREME_INFO["G"]["bond_mask"] = generate_mask(4, default_val=0.0, active_val=1.5)
-SUPREME_INFO["G"]["theta_mask"] = generate_mask(
+# No need to cast glycine_info anymore
+glycine_info = SUPREME_INFO["G"]
+glycine_info["cloud_mask"] = generate_bool_mask(4)
+glycine_info["bond_mask"] = generate_mask(4, default_val=0.0, active_val=1.5)
+glycine_info["theta_mask"] = generate_mask(
     4, default_val=0.0, active_val=np.pi * 2 / 3
 )
-SUPREME_INFO["G"]["torsion_mask"] = generate_mask(
+glycine_info["torsion_mask"] = generate_mask(
     4, default_val=np.nan, active_val=0.0
 )  # Backbone only
 torsion_m_filled_g = np.zeros(14, dtype=float)  # Initially all zeros
 torsion_m_filled_g[:4] = 1.0  # Set ones for backbone atoms
-SUPREME_INFO["G"]["torsion_mask_filled"] = torsion_m_filled_g.tolist()
+# Explicitly cast to List[float]
+glycine_info["torsion_mask_filled"] = cast(List[float], torsion_m_filled_g.tolist())
 idx_mask_g = generate_idx_mask(0)  # No sidechain torsions
-SUPREME_INFO["G"]["idx_mask"] = idx_mask_g
-SUPREME_INFO["G"]["rigid_idx_mask"] = (
+glycine_info["idx_mask"] = idx_mask_g
+glycine_info["rigid_idx_mask"] = (
     idx_mask_g[0] if len(idx_mask_g) > 0 else [0, 0, 0]
 )
-SUPREME_INFO["G"]["atom_token_mask"] = generate_atom_token_ids(
-    "G", SUPREME_INFO["G"]["cloud_mask"]
+glycine_info["atom_token_mask"] = generate_atom_token_ids(
+    "G", glycine_info["cloud_mask"]
 )
 
 # Special case for Padding (_) - Ensure all masks are zero/False/NaN appropriately
-SUPREME_INFO["_"]["cloud_mask"] = generate_bool_mask(0)
-SUPREME_INFO["_"]["bond_mask"] = generate_mask(0, default_val=0.0, active_val=0.0)
-SUPREME_INFO["_"]["theta_mask"] = generate_mask(0, default_val=0.0, active_val=0.0)
-SUPREME_INFO["_"]["torsion_mask"] = generate_mask(
+# No need to cast padding_info anymore
+padding_info = SUPREME_INFO["_"]
+padding_info["cloud_mask"] = generate_bool_mask(0)
+padding_info["bond_mask"] = generate_mask(0, default_val=0.0, active_val=0.0)
+padding_info["theta_mask"] = generate_mask(0, default_val=0.0, active_val=0.0)
+padding_info["torsion_mask"] = generate_mask(
     0, default_val=np.nan, active_val=np.nan
 )
-SUPREME_INFO["_"]["torsion_mask_filled"] = generate_mask(
+# Explicitly cast to List[float] for consistency, though generate_mask should be correct
+padding_info["torsion_mask_filled"] = cast(List[float], generate_mask(
     0, default_val=0.0, active_val=0.0
-)
+))
 idx_mask_pad = generate_idx_mask(0)  # This will return all zeros now
-SUPREME_INFO["_"]["idx_mask"] = idx_mask_pad
-SUPREME_INFO["_"]["rigid_idx_mask"] = [0, 0, 0]  # Default rigid idx
-SUPREME_INFO["_"]["atom_token_mask"] = generate_atom_token_ids(
-    "_", SUPREME_INFO["_"]["cloud_mask"]
+padding_info["idx_mask"] = idx_mask_pad
+padding_info["rigid_idx_mask"] = [0, 0, 0]  # Default rigid idx
+padding_info["atom_token_mask"] = generate_atom_token_ids(
+    "_", padding_info["cloud_mask"]
 )
 
 

@@ -1,5 +1,5 @@
 import math
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union # Added Union
 
 import torch
 
@@ -18,11 +18,12 @@ class StageBTorsionBertPredictor:
     Updated to store model_name_or_path and max_length as attributes to satisfy
     test cases referencing them.
     """
+    model: Union[TorsionBertModel, DummyTorsionModel] # Add type hint for self.model
 
     def __init__(
         self,
         model_name_or_path: str = "sayby/rna_torsionbert",
-        device: str = "cpu",
+        device: str = "cpu", # Keep original device string
         angle_mode: str = "sin_cos",
         num_angles: int = 7,
         max_length: int = 512,
@@ -40,19 +41,21 @@ class StageBTorsionBertPredictor:
         self.max_length = max_length
         self.angle_mode = angle_mode
         self.num_angles = num_angles  # user-provided
-        self.device = torch.device(device)
+        self.device = torch.device(device) # Keep torch.device object for internal use if needed elsewhere
 
         # Attempt to create TorsionBertModel; fallback to Dummy if error
         try:
+            # Pass model_name_or_path as first arg, pass device string
             self.model = TorsionBertModel(
-                model_name_or_path=model_name_or_path,
-                device=self.device,
+                model_name_or_path, # Pass as first argument
+                device=device,      # Pass the original device string
                 num_angles=self.num_angles,
                 max_length=self.max_length,
             )
         except Exception:
+             # Pass the original device string
             self.model = DummyTorsionModel(
-                device=str(self.device), num_angles=self.num_angles
+                device=device, num_angles=self.num_angles
             )
 
     def __call__(

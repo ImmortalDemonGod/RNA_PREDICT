@@ -1,9 +1,11 @@
 # Author: Eric Alcaide
 
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, cast, TYPE_CHECKING # Added Any, cast, Tuple, TYPE_CHECKING
 
 import einops
 import numpy as np
+if TYPE_CHECKING:
+    pass # Corrected import location
 import torch
 from torch.nn.utils.rnn import pad_sequence  # Added import
 
@@ -41,28 +43,41 @@ def scn_atom_embedd(seq_list: List[str]) -> torch.Tensor:
     Returns:
         torch.Tensor: Token embeddings for each atom in each sequence, padded to the maximum sequence length. Shape: (batch_size, max_seq_len, 14)
     """
-    # Create a list of tensors for each sequence
-    batch_tokens = []
+    # Create a list to hold the final 2D tensors for each sequence
+    batch_tensors: List[torch.Tensor] = []
     pad_token_id = 0  # Use 0 as padding token ID
+
     for seq in seq_list:
-        token_masks = []
+        # Create a list to hold 1D tensors for the current sequence
+        token_tensors: List[torch.Tensor] = []
         for aa in seq:
             if aa == "_":
                 # Assign padding token ID for '_'
-                token_masks.append(np.full(14, pad_token_id))
+                mask_array = np.full(14, pad_token_id, dtype=np.int64)
+                token_tensors.append(torch.tensor(mask_array, dtype=torch.long))
             elif aa in SUPREME_INFO:
                 # Get token mask from SUPREME_INFO
-                token_masks.append(np.array(SUPREME_INFO[aa]["atom_token_mask"]))
+                mask_array = np.array(SUPREME_INFO[aa]["atom_token_mask"], dtype=np.int64) # type: ignore[assignment]
+                token_tensors.append(torch.tensor(mask_array, dtype=torch.long))
             else:
                 # Handle unexpected characters by using padding
-                token_masks.append(np.full(14, pad_token_id))
-        # Ensure the tensor for each sequence is (seq_len, 14)
-        batch_tokens.append(torch.tensor(np.array(token_masks), dtype=torch.long))
+                mask_array = np.full(14, pad_token_id, dtype=np.int64)
+                token_tensors.append(torch.tensor(mask_array, dtype=torch.long))
 
-    # Pad the sequences to the maximum length in the batch
+        # Stack the list of 1D tensors into a 2D tensor (seq_len, 14)
+        if token_tensors: # Avoid stacking empty list
+            seq_tensor = torch.stack(token_tensors, dim=0)
+            batch_tensors.append(seq_tensor)
+        else:
+            # Handle empty sequence case if necessary, e.g., append an empty tensor
+            # Or decide based on desired behavior for empty sequences
+            batch_tensors.append(torch.empty((0, 14), dtype=torch.long))
+
+    # Pad the sequences to the maximum length in the batch (outside the loop)
     # pad_sequence expects (L, *) input, batch_first=True gives (B, L_max, *) output
+    # Pass the list of 2D tensors directly
     padded_batch = pad_sequence(
-        batch_tokens, batch_first=True, padding_value=pad_token_id
+        batch_tensors, batch_first=True, padding_value=pad_token_id
     )
 
     return padded_batch.long()
@@ -138,9 +153,8 @@ def rename_symmetric_atoms(
         res_char = seq[res_idx]
         if res_char in sym_pairs_info:
             # This residue type has ambiguous atoms
-            for pair_indices in sym_pairs_info[res_char][
-                "indexs"
-            ]:  # e.g., [6, 7] for OD1/OD2 in D
+            # Cast to List[Any] to satisfy mypy's need for an iterable
+            for pair_indices in cast(List[Any], sym_pairs_info[res_char]["indexs"]):  # e.g., [6, 7] for OD1/OD2 in D
                 # Ensure pair_indices are integers
                 pair = list(map(int, pair_indices))
 
@@ -748,11 +762,16 @@ def get_symmetric_atom_pairs(seq: str) -> Dict[str, List[Tuple[int, int]]]:
             # Convert residue index to string key
             key = str(i)
             # Get the pairs of atom indices for this residue
-            pairs = []
-            for pair_indices in AMBIGUOUS[aa]["indexs"]:
-                # Convert to tuple of integers
-                pair = tuple(map(int, pair_indices))
-                pairs.append(pair)
+            pairs: List[Tuple[int, int]] = [] # Explicitly type the list
+            # Cast to List[Any] to satisfy mypy's need for an iterable
+            for pair_indices in cast(List[Any], AMBIGUOUS[aa]["indexs"]):
+                # Convert to tuple of integers and cast to the specific tuple type
+                pair_tuple = tuple(map(int, pair_indices))
+                # Ensure the tuple has exactly two elements before casting
+                if len(pair_tuple) == 2:
+                     pairs.append(cast(Tuple[int, int], pair_tuple))
+                # else: # Optional: handle cases where pair_indices might not have 2 elements
+                #     print(f"Warning: Unexpected pair indices length for {aa} at index {i}: {pair_indices}")
             result[key] = pairs
     return result
 
