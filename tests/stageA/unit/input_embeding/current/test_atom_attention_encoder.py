@@ -7,7 +7,6 @@ import torch
 
 from rna_predict.pipeline.stageA.input_embedding.current.transformer.atom_attention import (
     AtomAttentionEncoder,
-    AtomAttentionConfig,
     EncoderForwardParams,
 )
 
@@ -89,7 +88,7 @@ def test_atom_encoder_no_coords_fixed():
 
     # q_l is actually p_l (pair features) => shape [48, 16] or [1, 48, 16]
     assert q_l.shape[-1] == 16, f"Pair features last dim must be 16, got {q_l.shape}"
-    
+
     # c_l is the atom features => shape [48, 128] or [1, 48, 128]
     assert c_l.shape[-1] == 128, f"Atom features last dim must be 128, got {c_l.shape}"
 
