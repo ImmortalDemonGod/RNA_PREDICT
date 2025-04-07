@@ -239,7 +239,6 @@ class DiffusionModule(nn.Module):
         use_ckpt = self.blocks_per_ckpt is not None and torch.is_grad_enabled()
         # Fine-grained checkpointing might apply to specific modules (e.g., encoder/decoder)
         # Add specific checks if needed, here we use a general flag
-        use_fine_grained = use_ckpt and self.use_fine_grained_checkpoint
 
         # Note: Fine-grained checkpointing logic might need to be more specific
         # depending on how it's implemented within the sub-modules themselves.

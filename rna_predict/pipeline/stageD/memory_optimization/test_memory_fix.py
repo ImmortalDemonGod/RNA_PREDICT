@@ -165,7 +165,7 @@ class TestMemoryFix(unittest.TestCase):
             tracker.update("before_model")
             
             # Run with memory fixes
-            refined_coords = run_stageD_with_memory_fixes(
+            run_stageD_with_memory_fixes(
                 partial_coords=self.partial_coords,
                 trunk_embeddings=self.trunk_embeddings,
                 diffusion_config=self.diffusion_config,
