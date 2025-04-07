@@ -1,6 +1,7 @@
 """
 Feature processing utilities for the AtomAttentionEncoder.
 """
+
 import warnings
 from typing import Optional
 
