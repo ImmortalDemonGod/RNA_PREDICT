@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 
 from rna_predict.pipeline.stageB.pairwise.pairformer import PairformerStack
@@ -64,3 +65,17 @@ class PairformerWrapper(nn.Module):
             z_updated = z_updated[..., : self.c_z]
 
         return s_updated, z_updated
+
+    def adjust_z_dimensions(self, z: torch.Tensor) -> torch.Tensor:
+        if self.c_z_adjusted > self.c_z:
+            # Pad with zeros
+            padding = torch.zeros(
+                *z.shape[:-1],
+                self.c_z_adjusted - self.c_z,
+                dtype=z.dtype,
+            )
+            z_adjusted = torch.cat([z, padding], dim=-1)
+        else:
+            # This case shouldn't happen with our adjustment logic, but for completeness
+            z_adjusted = z[..., :self.c_z_adjusted]
+        return z_adjusted

@@ -105,7 +105,7 @@ class StageBTorsionBertPredictor:
         # Handle special case where cos=0 to avoid getting 0 instead of ±π/2
         # When cos is close to zero, we need to return π/2 * sign(sin)
         eps = 1e-6
-        mask_cos_zero = cos_vals.abs() < eps
+        cos_vals.abs() < eps
 
         # Standard case - use atan2(sin, cos)
         angles = torch.atan2(sin_vals, cos_vals)
