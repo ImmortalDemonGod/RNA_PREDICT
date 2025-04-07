@@ -55,15 +55,15 @@ you want to isolate external dependencies. Adjust these mocks as suits your envi
 Enjoy robust coverage with minimal duplication!
 """
 
-import unittest
-from unittest.mock import patch, PropertyMock
-import tracemalloc
 import gc
-import psutil
 import os
+import tracemalloc
+import unittest
+from typing import Any, Dict, Optional  # Added for type hints in new tests
+from unittest.mock import patch
 
-from typing import Dict, Any, Optional # Added for type hints in new tests
 import numpy as np
+import psutil
 import pytest
 import torch
 from hypothesis import HealthCheck, given, settings
@@ -87,7 +87,6 @@ from rna_predict.pipeline.stageB.pairwise.pairformer import (
     TemplateEmbedder,
     Transition,
 )
-
 from rna_predict.pipeline.stageB.pairwise.pairformer_utils import (
     float_arrays,
     float_mask_arrays,
@@ -155,8 +154,8 @@ def get_memory_usage():
     process = psutil.Process(os.getpid())
     mem_info = process.memory_info()
     return {
-        'rss': mem_info.rss / 1024 / 1024,  # RSS in MB
-        'vms': mem_info.vms / 1024 / 1024,  # VMS in MB
+        "rss": mem_info.rss / 1024 / 1024,  # RSS in MB
+        "vms": mem_info.vms / 1024 / 1024,  # VMS in MB
     }
 
 
@@ -237,68 +236,76 @@ class TestPairformerBlock(unittest.TestCase):
         # Start memory tracking
         tracemalloc.start()
         gc.collect()  # Force garbage collection before test
-        
+
         try:
             s_in, z_in, mask, c_s, c_z = data
-            
+
             # Print initial memory state
             initial_mem = get_memory_usage()
             print("\nInitial memory state:")
             print(f"RSS: {initial_mem['rss']:.2f} MB")
             print(f"VMS: {initial_mem['vms']:.2f} MB")
-            
+
             block = PairformerBlock(n_heads=2, c_z=c_z, c_s=c_s, dropout=0.1)
-            
+
             # Take memory snapshot before forward pass
             snapshot1 = tracemalloc.take_snapshot()
-            
+
             # Print memory state before forward pass
             before_forward_mem = get_memory_usage()
             print("\nMemory before forward pass:")
             print(f"RSS: {before_forward_mem['rss']:.2f} MB")
             print(f"VMS: {before_forward_mem['vms']:.2f} MB")
-            
+
             # Use inplace operations and chunking for memory efficiency
             s_out, z_out = block.forward(
-                s_in, 
-                z_in, 
+                s_in,
+                z_in,
                 mask,
                 inplace_safe=True,
-                chunk_size=32  # Use chunking for memory efficiency
+                chunk_size=32,  # Use chunking for memory efficiency
             )
 
             # Take memory snapshot after forward pass
             snapshot2 = tracemalloc.take_snapshot()
-            
+
             # Print memory state after forward pass
             after_forward_mem = get_memory_usage()
             print("\nMemory after forward pass:")
             print(f"RSS: {after_forward_mem['rss']:.2f} MB")
             print(f"VMS: {after_forward_mem['vms']:.2f} MB")
-            
+
             # Print memory increase
             print("\nMemory increase:")
             print(f"RSS: {after_forward_mem['rss'] - before_forward_mem['rss']:.2f} MB")
             print(f"VMS: {after_forward_mem['vms'] - before_forward_mem['vms']:.2f} MB")
-            
+
             # Compare memory usage
             print("\nDetailed memory usage by line:")
-            top_stats = snapshot2.compare_to(snapshot1, 'lineno')
+            top_stats = snapshot2.compare_to(snapshot1, "lineno")
             for stat in top_stats[:10]:  # Show top 10 memory increases
                 print(stat)
 
             # Print tensor memory info
             print("\nTensor memory info:")
             if s_in is not None:
-                print(f"s_in size: {s_in.element_size() * s_in.nelement() / 1024 / 1024:.2f} MB")
-            print(f"z_in size: {z_in.element_size() * z_in.nelement() / 1024 / 1024:.2f} MB")
+                print(
+                    f"s_in size: {s_in.element_size() * s_in.nelement() / 1024 / 1024:.2f} MB"
+                )
+            print(
+                f"z_in size: {z_in.element_size() * z_in.nelement() / 1024 / 1024:.2f} MB"
+            )
             if s_out is not None:
-                print(f"s_out size: {s_out.element_size() * s_out.nelement() / 1024 / 1024:.2f} MB")
-            print(f"z_out size: {z_out.element_size() * z_out.nelement() / 1024 / 1024:.2f} MB")
+                print(
+                    f"s_out size: {s_out.element_size() * s_out.nelement() / 1024 / 1024:.2f} MB"
+                )
+            print(
+                f"z_out size: {z_out.element_size() * z_out.nelement() / 1024 / 1024:.2f} MB"
+            )
 
             # z_out should match z_in's shape
             self.assertEqual(z_out.shape, z_in.shape)
-            
+
             # If c_s > 0, s_out should match s_in's shape
             if c_s > 0:
                 self.assertEqual(s_out.shape, s_in.shape)
@@ -309,26 +316,30 @@ class TestPairformerBlock(unittest.TestCase):
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
             # Clear any remaining tensors
-            if 's_in' in locals(): del s_in
-            if 'z_in' in locals(): del z_in
-            if 'mask' in locals(): del mask
-            if 's_out' in locals(): del s_out
-            if 'z_out' in locals(): del z_out
+            if "s_in" in locals():
+                del s_in
+            if "z_in" in locals():
+                del z_in
+            if "mask" in locals():
+                del mask
+            if "s_out" in locals():
+                del s_out
+            if "z_out" in locals():
+                del z_out
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
-            
+
             # Print final memory state
             final_mem = get_memory_usage()
             print("\nFinal memory state after cleanup:")
             print(f"RSS: {final_mem['rss']:.2f} MB")
             print(f"VMS: {final_mem['vms']:.2f} MB")
-            
+
             # Stop memory tracking
             tracemalloc.stop()
             gc.collect()  # Force garbage collection after test
 
     @settings(max_examples=10)  # Reduce examples to speed up test
-
     @given(
         data=s_z_mask_draw(c_s_range=(4, 16), c_z_range=(4, 16), n_token_range=(2, 4)),
         inplace_flag=st.booleans(),
@@ -427,28 +438,28 @@ class TestPairformerStack(unittest.TestCase):
         # Use minimal configuration
         stack = PairformerStack(n_blocks=1, c_z=4, c_s=4, n_heads=2)
         stack.eval()  # training=False
-        
+
         # Create small tensors
         n_token = 10  # Small size to avoid memory issues
         s_in = torch.zeros((1, n_token, 4), dtype=torch.float32)
         z_in = torch.zeros((1, n_token, n_token, 4), dtype=torch.float32)
         mask = torch.ones((1, n_token, n_token), dtype=torch.bool)
-        
+
         # Mock the shape check condition in PairformerStack.forward
         def mock_forward(*args, **kwargs):
             # Force clear_cache_between_blocks to True
-            kwargs['clear_cache_between_blocks'] = True
+            kwargs["clear_cache_between_blocks"] = True
             return original_forward(*args, **kwargs)
-        
+
         original_forward = stack._prep_blocks
         stack._prep_blocks = mock_forward
-        
+
         with patch("torch.cuda.empty_cache") as mock_cache:
             s_out, z_out = stack.forward(s_in, z_in, mask)
             mock_cache.assert_called()
             self.assertEqual(z_out.shape, z_in.shape)
             self.assertEqual(s_out.shape, s_in.shape)
-                
+
         # Cleanup
         del s_in, z_in, mask, s_out, z_out, stack
         torch.cuda.empty_cache()
@@ -789,30 +800,37 @@ class TestTemplateEmbedder(unittest.TestCase):
         self.assertEqual(out, 0)
 
 
-
 # --- Tests for sample_msa_feature_dict_random_without_replacement (Added) ---
+
 
 # Helper to create a basic feature dict for sampling tests
 def create_feature_dict_for_sampling(
     n_seqs: int, n_res: int, include_deletions: bool = True, other_key: bool = True
-) -> Dict[str, Optional[Any]]: # Changed Dict[str, Any] to Dict[str, Optional[Any]]
+) -> Dict[str, Optional[Any]]:  # Changed Dict[str, Any] to Dict[str, Optional[Any]]
     """Creates a sample feature dictionary for sampling tests."""
     # ... rest of the function remains the same
-    feature_dict: Dict[str, Optional[Any]] = { # Added explicit type hint for the variable
-        "msa": np.random.rand(n_seqs, n_res, 10).astype(np.float32) # Example shape
+    feature_dict: Dict[
+        str, Optional[Any]
+    ] = {  # Added explicit type hint for the variable
+        "msa": np.random.rand(n_seqs, n_res, 10).astype(np.float32)  # Example shape
     }
     if include_deletions:
-        feature_dict["has_deletion"] = np.random.randint(0, 2, size=(n_seqs, n_res)).astype(np.float32)
-        feature_dict["deletion_value"] = np.random.rand(n_seqs, n_res).astype(np.float32)
+        feature_dict["has_deletion"] = np.random.randint(
+            0, 2, size=(n_seqs, n_res)
+        ).astype(np.float32)
+        feature_dict["deletion_value"] = np.random.rand(n_seqs, n_res).astype(
+            np.float32
+        )
     else:
         # Test case where deletion keys might be None or absent
         feature_dict["has_deletion"] = None
         # Let's assume deletion_value might be absent if has_deletion is None
 
     if other_key:
-        feature_dict["other_data"] = np.array([1, 2, 3]) # Example other data
+        feature_dict["other_data"] = np.array([1, 2, 3])  # Example other data
 
     return feature_dict
+
 
 def test_sample_empty_dict():
     """
@@ -827,6 +845,7 @@ def test_sample_empty_dict():
     # Explicitly check it's the *same* object in this case
     assert id(result) == id(feature_dict)
 
+
 def test_sample_dict_missing_msa():
     """
     Test sampling with a feature dictionary missing the 'msa' key.
@@ -837,12 +856,16 @@ def test_sample_dict_missing_msa():
     n_samples = 5
     result = sample_msa_feature_dict_random_without_replacement(feature_dict, n_samples)
     assert result == feature_dict
-    assert id(result) == id(feature_dict) # Should return the original dict
+    assert id(result) == id(feature_dict)  # Should return the original dict
 
-@pytest.mark.parametrize("n_seqs, n_samples", [
-    (10, 10), # n_seqs == n_samples
-    (5, 10),  # n_seqs < n_samples
-])
+
+@pytest.mark.parametrize(
+    "n_seqs, n_samples",
+    [
+        (10, 10),  # n_seqs == n_samples
+        (5, 10),  # n_seqs < n_samples
+    ],
+)
 def test_sample_n_samples_ge_n_seqs(n_seqs: int, n_samples: int):
     """
     Test sampling when n_samples is >= number of sequences in MSA.
@@ -871,7 +894,9 @@ def test_sample_n_samples_ge_n_seqs(n_seqs: int, n_samples: int):
     # --- END ADDED ASSERTIONS ---
     np.testing.assert_array_equal(result["msa"], feature_dict["msa"])
     np.testing.assert_array_equal(result["has_deletion"], feature_dict["has_deletion"])
-    np.testing.assert_array_equal(result["deletion_value"], feature_dict["deletion_value"])
+    np.testing.assert_array_equal(
+        result["deletion_value"], feature_dict["deletion_value"]
+    )
     np.testing.assert_array_equal(result["other_data"], feature_dict["other_data"])
 
     # Importantly, check it returns the *original* dictionary object
@@ -889,10 +914,12 @@ def test_sample_successful_sampling_all_keys():
     n_seqs = 10
     n_res = 20
     n_samples = 5
-    assert n_seqs > n_samples # Precondition for this test path
+    assert n_seqs > n_samples  # Precondition for this test path
 
-    feature_dict = create_feature_dict_for_sampling(n_seqs, n_res, include_deletions=True, other_key=True)
-    original_other_data = feature_dict["other_data"] # Keep a reference
+    feature_dict = create_feature_dict_for_sampling(
+        n_seqs, n_res, include_deletions=True, other_key=True
+    )
+    original_other_data = feature_dict["other_data"]  # Keep a reference
 
     result = sample_msa_feature_dict_random_without_replacement(feature_dict, n_samples)
 
@@ -904,11 +931,15 @@ def test_sample_successful_sampling_all_keys():
 
     # Check shapes of sampled arrays
     assert result["msa"].shape[0] == n_samples
-    assert result["msa"].shape[1:] == feature_dict["msa"].shape[1:] # Other dims unchanged
+    assert (
+        result["msa"].shape[1:] == feature_dict["msa"].shape[1:]
+    )  # Other dims unchanged
     assert result["has_deletion"].shape[0] == n_samples
     assert result["has_deletion"].shape[1:] == feature_dict["has_deletion"].shape[1:]
     assert result["deletion_value"].shape[0] == n_samples
-    assert result["deletion_value"].shape[1:] == feature_dict["deletion_value"].shape[1:]
+    assert (
+        result["deletion_value"].shape[1:] == feature_dict["deletion_value"].shape[1:]
+    )
 
     # Check other data is untouched (same object ID)
     assert id(result["other_data"]) == id(original_other_data)
@@ -918,7 +949,7 @@ def test_sample_successful_sampling_all_keys():
     # This is hard due to randomness, but we can check if rows exist in the original
     original_msa_rows = [row.tobytes() for row in feature_dict["msa"]]
     sampled_msa_rows = [row.tobytes() for row in result["msa"]]
-    assert len(set(sampled_msa_rows)) == n_samples # Ensure unique rows were sampled
+    assert len(set(sampled_msa_rows)) == n_samples  # Ensure unique rows were sampled
     for row_bytes in sampled_msa_rows:
         assert row_bytes in original_msa_rows
 
@@ -936,9 +967,11 @@ def test_sample_successful_sampling_none_deletion():
     assert n_seqs > n_samples
 
     # Create dict where 'has_deletion' is None, 'deletion_value' might be absent
-    feature_dict = create_feature_dict_for_sampling(n_seqs, n_res, include_deletions=False, other_key=True)
+    feature_dict = create_feature_dict_for_sampling(
+        n_seqs, n_res, include_deletions=False, other_key=True
+    )
     assert feature_dict["has_deletion"] is None
-    assert "deletion_value" not in feature_dict # Based on helper function logic
+    assert "deletion_value" not in feature_dict  # Based on helper function logic
 
     original_other_data = feature_dict["other_data"]
 

@@ -17,8 +17,8 @@ The verification protocol includes:
 Each test is documented with clear assertions and expected outcomes.
 """
 
-import unittest
 import gc
+import unittest
 
 import torch
 import torch.nn as nn
@@ -69,12 +69,12 @@ class TestPairformerWrapperVerification(unittest.TestCase):
         """
         # Clear the model cache
         self._wrapper_cache.clear()
-        
+
         # Clear any stored tensors
         self.s = None
         self.z = None
         self.pair_mask = None
-        
+
         # Force garbage collection
         gc.collect()
         if torch.cuda.is_available():
@@ -88,7 +88,7 @@ class TestPairformerWrapperVerification(unittest.TestCase):
             n_blocks=self.default_n_blocks,
             c_z=self.default_c_z,
             c_s=self.default_c_s,
-            use_checkpoint=self.default_use_checkpoint
+            use_checkpoint=self.default_use_checkpoint,
         )
 
         # Check instance type
@@ -151,7 +151,7 @@ class TestPairformerWrapperVerification(unittest.TestCase):
             n_blocks=self.default_n_blocks,
             c_z=self.default_c_z,
             c_s=self.default_c_s,
-            use_checkpoint=self.default_use_checkpoint
+            use_checkpoint=self.default_use_checkpoint,
         )
 
         # Get parameter count
@@ -165,7 +165,7 @@ class TestPairformerWrapperVerification(unittest.TestCase):
             n_blocks=self.default_n_blocks,
             c_z=self.default_c_z,
             c_s=self.default_c_s,
-            blocks_per_ckpt=1
+            blocks_per_ckpt=1,
         )
         stack_param_count = sum(p.numel() for p in stack.parameters())
 
@@ -187,7 +187,7 @@ class TestPairformerWrapperVerification(unittest.TestCase):
             n_blocks=self.default_n_blocks,
             c_z=self.default_c_z,
             c_s=self.default_c_s,
-            use_checkpoint=self.default_use_checkpoint
+            use_checkpoint=self.default_use_checkpoint,
         )
 
         # Run forward pass
@@ -212,9 +212,9 @@ class TestPairformerWrapperVerification(unittest.TestCase):
         """
         wrapper = PairformerWrapper(
             n_blocks=1,  # Minimum size
-            c_z=16,     # Minimum size
-            c_s=32,     # Minimum size
-            use_checkpoint=True
+            c_z=16,  # Minimum size
+            c_s=32,  # Minimum size
+            use_checkpoint=True,
         )
 
         # Create minimal test tensors
@@ -249,9 +249,9 @@ class TestPairformerWrapperVerification(unittest.TestCase):
         """
         wrapper = PairformerWrapper(
             n_blocks=1,  # Minimum size
-            c_z=16,     # Minimum size
-            c_s=32,     # Minimum size
-            use_checkpoint=True
+            c_z=16,  # Minimum size
+            c_s=32,  # Minimum size
+            use_checkpoint=True,
         )
 
         # Create minimal test tensors
@@ -290,9 +290,9 @@ class TestPairformerWrapperVerification(unittest.TestCase):
         """
         wrapper = PairformerWrapper(
             n_blocks=1,  # Minimum size
-            c_z=16,     # Minimum size
-            c_s=32,     # Minimum size
-            use_checkpoint=True
+            c_z=16,  # Minimum size
+            c_s=32,  # Minimum size
+            use_checkpoint=True,
         )
 
         # Test with a small range of sequence lengths
