@@ -42,7 +42,9 @@ def test_layernorm_basic(shape: Tuple[int, int], eps: float) -> None:
         # Check variance is near 1
         var = out.var(dim=-1, unbiased=False)
         assert torch.allclose(
-            var, torch.ones_like(var), atol=1e-2 # Increased tolerance
+            var,
+            torch.ones_like(var),
+            atol=1e-2,  # Increased tolerance
         ), "layernorm should scale variance to 1."
 
 
@@ -134,7 +136,7 @@ def test_inverse_squared_dist_large():
     )
 )
 @settings(
-    deadline=None, # Disable deadline for this flaky test
+    deadline=None,  # Disable deadline for this flaky test
     suppress_health_check=[HealthCheck.filter_too_much, HealthCheck.too_slow],
     max_examples=20,
 )
