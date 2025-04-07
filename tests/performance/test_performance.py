@@ -4,7 +4,7 @@ import time
 import psutil  # Add psutil
 import torch
 
-from rna_predict.pipeline.stageD.run_stageD_unified import run_stageD_diffusion
+from rna_predict.pipeline.stageD.diffusion.run_stageD_unified import run_stageD_diffusion
 
 
 def get_memory_usage():  # Helper function
