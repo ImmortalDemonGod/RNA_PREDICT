@@ -204,11 +204,15 @@ class ModuleParser(ast.NodeVisitor):
 
     def should_skip_method(self, node: ast.FunctionDef) -> bool:
         """Determine if the method should be skipped based on inheritance or naming."""
-        current_bases = self.class_bases.get(self.current_class, [])
-        if any(base in {"NodeVisitor", "ast.NodeVisitor"} for base in current_bases):
-            if node.name.startswith("visit_"):
-                logger.debug(f"Skipping inherited visit method: {node.name}")
-                return True
+        # Check base classes only if currently inside a class definition
+        if self.current_class:
+            current_bases = self.class_bases.get(self.current_class, [])
+            if any(base in {"NodeVisitor", "ast.NodeVisitor"} for base in current_bases):
+                if node.name.startswith("visit_"):
+                    logger.debug(f"Skipping inherited visit method: {node.name}")
+                    return True
+        
+        # Check common method names to skip regardless of class context
         if node.name in {"__init__", "__str__", "__repr__", "property"}:
             return True
         return False
