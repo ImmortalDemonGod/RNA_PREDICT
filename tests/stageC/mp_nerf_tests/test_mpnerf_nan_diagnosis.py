@@ -7,8 +7,8 @@ in the run_stageC function, with detailed logging to pinpoint the exact source.
 """
 
 import logging
-import os
 import sys
+from pathlib import Path
 
 import torch
 
@@ -18,8 +18,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger("mpnerf_diagnosis")
 
-# Add the project root to the Python path if needed
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../..")))
+# Add the project root to the Python path
+current_dir = str(Path(__file__).parent.absolute())
+sys.path.append(current_dir)
 
 # Import the functions to test
 from rna_predict.pipeline.stageC.mp_nerf.final_kb_rna import (

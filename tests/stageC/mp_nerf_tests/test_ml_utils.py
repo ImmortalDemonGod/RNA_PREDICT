@@ -97,16 +97,16 @@ class TestChain2Atoms(unittest.TestCase):
         """Test basic expansion functionality."""
         x_tensor = torch.tensor(x)
         mask_tensor = None
-        expected_masked_size = x_tensor.shape[0]
+        x_tensor.shape[0]
 
         if mask_input is not None:
             # Create a boolean tensor mask of the correct shape (L,)
             # For simplicity, make it all True or all False based on the input boolean
             mask_tensor = torch.full((x_tensor.shape[0],), mask_input, dtype=torch.bool)
             if mask_input:
-                expected_masked_size = x_tensor.shape[0]
+                x_tensor.shape[0]
             else:
-                expected_masked_size = 0  # If mask is all False, expect 0 rows
+                pass  # If mask is all False, expect 0 rows
 
         result = chain2atoms(x_tensor, mask_tensor, c)
 
@@ -325,24 +325,19 @@ class TestAtomSelector(unittest.TestCase):
 
         # --- New Assertion Logic ---
         # Calculate expected number of atoms per valid (non-padding) residue
-        expected_per_residue = 0
         if isinstance(option, str):
             # Note: This assumes Glycine ('G') handling is implicitly correct within scn_cloud_mask
             # if specific counts are needed per AA, SUPREME_INFO would need to be consulted.
             if option == "backbone":
-                expected_per_residue = 3  # N, CA, C
+                pass  # N, CA, C
             elif option == "backbone-with-oxygen":
-                expected_per_residue = 4  # N, CA, C, O
+                pass  # N, CA, C, O
             elif option == "backbone-with-cbeta":
-                expected_per_residue = (
-                    4  # N, CA, C, CB (G has no CB, handled by scn_cloud_mask)
-                )
+                pass
             elif option == "backbone-with-cbeta-and-oxygen":
-                expected_per_residue = 5  # N, CA, C, O, CB (G has no CB)
+                pass  # N, CA, C, O, CB (G has no CB)
             elif option == "all":
-                expected_per_residue = (
-                    14  # Max atoms, actual count depends on AA via scn_cloud_mask
-                )
+                pass
             # If option is 'all', the exact count depends on the specific amino acid's cloud_mask.
             # We'll assert the total sum based on SUPREME_INFO for 'all' case below.
 
@@ -351,7 +346,7 @@ class TestAtomSelector(unittest.TestCase):
             self.assertEqual(
                 option.shape, (14,), "Option tensor mask should have shape (14,)"
             )
-            expected_per_residue = option.sum().item()
+            option.sum().item()
         else:
             self.fail(
                 f"Invalid option type: {type(option)}"
