@@ -18,7 +18,7 @@ def apply_patches():
     This now imports the unified fixes from the stageD module.
     """
     # Import and apply fixes from the unified script
-    from rna_predict.pipeline.stageD.run_stageD_unified import apply_tensor_fixes
+    from rna_predict.pipeline.stageD.diffusion.run_stageD_unified import apply_tensor_fixes
 
     # Apply all the tensor fixes
     apply_tensor_fixes()
@@ -114,7 +114,7 @@ def patch_gather_pair_embedding():
     Patch the gather_pair_embedding_in_dense_trunk function to handle 3D indices.
     """
     # Import and use the unified fix
-    from rna_predict.pipeline.stageD.run_stageD_unified import fix_gather_pair_embedding
+    from rna_predict.pipeline.stageD.diffusion.run_stageD_unified import fix_gather_pair_embedding
 
     fix_gather_pair_embedding()
 
@@ -125,7 +125,7 @@ def patch_transformer_forward():
     Patch the transformer's forward method to handle tensor shape mismatches.
     """
     # Import and use the unified fixes
-    from rna_predict.pipeline.stageD.run_stageD_unified import (
+    from rna_predict.pipeline.stageD.diffusion.run_stageD_unified import (
         fix_atom_attention_encoder,
         fix_atom_transformer,
     )
