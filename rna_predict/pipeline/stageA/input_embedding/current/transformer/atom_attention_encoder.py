@@ -3,7 +3,6 @@ Atom attention encoder module for RNA structure prediction.
 Refactored version using components from the 'encoder_components' directory.
 """
 
-import warnings
 from typing import Any, Optional, Tuple
 
 import torch
@@ -12,30 +11,30 @@ import torch.nn as nn
 from rna_predict.pipeline.stageA.input_embedding.current.primitives import LinearNoBias
 from rna_predict.pipeline.stageA.input_embedding.current.transformer.common import (
     InputFeatureDict,
-    safe_tensor_access,
 )
+
 from .encoder_components.config import (
     AtomAttentionConfig,
     EncoderForwardParams,
     ProcessInputsParams,
 )
-from .encoder_components.initialization import (
-    setup_feature_dimensions,
-    setup_atom_encoders,
-    setup_distance_encoders,
-    setup_coordinate_components,
-    setup_pair_projections,
-    setup_small_mlp,
-    create_atom_transformer,
-    linear_init,
-)
 from .encoder_components.feature_processing import (
-    extract_atom_features,
     ensure_space_uid,
+    extract_atom_features,
 )
 from .encoder_components.forward_logic import (
     _process_simple_embedding,
     process_inputs_with_coords,
+)
+from .encoder_components.initialization import (
+    create_atom_transformer,
+    linear_init,
+    setup_atom_encoders,
+    setup_coordinate_components,
+    setup_distance_encoders,
+    setup_feature_dimensions,
+    setup_pair_projections,
+    setup_small_mlp,
 )
 
 
@@ -53,7 +52,7 @@ class AtomAttentionEncoder(nn.Module):
             config: Configuration parameters for the encoder
         """
         super(AtomAttentionEncoder, self).__init__()
-        self.config = config # Store config
+        self.config = config  # Store config
         self.has_coords = config.has_coords
         self.c_atom = config.c_atom
         self.c_atompair = config.c_atompair
@@ -62,7 +61,9 @@ class AtomAttentionEncoder(nn.Module):
         self.c_z = config.c_z
         self.n_queries = config.n_queries
         self.n_keys = config.n_keys
-        self.local_attention_method = "local_cross_attention" # Keep as attribute if needed elsewhere
+        self.local_attention_method = (
+            "local_cross_attention"  # Keep as attribute if needed elsewhere
+        )
 
         # Setup components using functions from initialization module
         setup_feature_dimensions(self)
@@ -147,7 +148,7 @@ class AtomAttentionEncoder(nn.Module):
             input_feature_dict=input_feature_dict,
             r_l=r_l,
             s=s,
-            z=z, # z is passed but not explicitly used in process_inputs_with_coords currently
+            z=z,  # z is passed but not explicitly used in process_inputs_with_coords currently
             c_l=c_l,
             chunk_size=chunk_size,
         )
@@ -173,7 +174,7 @@ class AtomAttentionEncoder(nn.Module):
             chunk_size=kwargs.get("chunk_size"),
         )
         # Call the main forward method with unpacked parameters
-        return self.forward(params=params) # Use the 'params' argument style
+        return self.forward(params=params)  # Use the 'params' argument style
 
     # For backward compatibility - creates a config from args
     @classmethod
