@@ -172,6 +172,8 @@ def test_main_end_to_end(temp_checkpoint_folder, monkeypatch):
     real_folder = "RFold/checkpoints"
     if os.path.exists(real_folder):
         backup_folder = "RFold/checkpoints_backup"
+        if os.path.exists(backup_folder):
+            shutil.rmtree(backup_folder)  # Remove any existing backup
         os.rename(real_folder, backup_folder)
     else:
         backup_folder = None
@@ -183,17 +185,19 @@ def test_main_end_to_end(temp_checkpoint_folder, monkeypatch):
     elif os.path.exists(real_folder):
         shutil.rmtree(real_folder)
 
-    os.symlink(temp_checkpoint_folder, real_folder)  # link or rename
+    # Create a symlink from the real path to our temp folder
+    os.symlink(temp_checkpoint_folder, real_folder)
     try:
         main()
         # We can check that the adjacency message was printed, or that a 'test_seq.ct' was created
-        # But we let it pass as an integration test
         assert os.path.exists("test_seq.ct"), "main() should have written a test_seq.ct"
     finally:
         # Clean up
         if os.path.islink(real_folder):
             os.unlink(real_folder)
-        if backup_folder:
+        if backup_folder and os.path.exists(backup_folder):
+            if os.path.exists(real_folder):
+                shutil.rmtree(real_folder)  # Remove any leftover folder
             os.rename(backup_folder, real_folder)
 
 
