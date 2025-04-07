@@ -14,7 +14,6 @@ import torch
 # Imports from local modules within the same package level
 from ..attention_utils import PaddingInfo
 from ..core_transforms import (
-    TrunkInfo,
     _calculate_trunk_info,
     _create_zero_tensor,
     _handle_return_types,
