@@ -1,6 +1,7 @@
 """
 Configuration dataclasses for AtomAttentionEncoder components.
 """
+
 from dataclasses import dataclass
 from typing import Optional
 
