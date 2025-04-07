@@ -303,7 +303,7 @@ class DiffusionModule(nn.Module):
         s_inputs: Optional[
             torch.Tensor
         ],  # Allow None, expected [B, N_sample, N_token, C]
-        s_trunk: torch.Tensor,  # Expected [B, N_sample, N_token, C]
+        s_trunk: Optional[torch.Tensor],  # Allow None, expected [B, N_sample, N_token, C]
         z_trunk: Optional[
             torch.Tensor
         ],  # Allow None, expected [B, N_sample, N_token, N_token, C]
@@ -317,7 +317,7 @@ class DiffusionModule(nn.Module):
         # [DEBUG] Removed internal shape checks and manipulations for clarity
         # print("[DEBUG] Starting f_forward (Refactored)")
         # print(f"[DEBUG] Input shapes - r_noisy: {r_noisy.shape}, t_hat_noise_level: {t_hat_noise_level.shape}")
-        # print(f"[DEBUG] s_trunk shape: {s_trunk.shape}")
+        # if s_trunk is not None: print(f"[DEBUG] s_trunk shape: {s_trunk.shape}")
         # if s_inputs is not None: print(f"[DEBUG] s_inputs shape: {s_inputs.shape}")
         # if z_trunk is not None: print(f"[DEBUG] z_trunk shape: {z_trunk.shape}")
 
