@@ -114,7 +114,9 @@ class AttentionComponents:
             Processed pair features of shape [num_atoms, num_atoms, c_atompair]
         """
         # Project to pair dimension
-        p_l = self.linear_no_bias_cl(c_l) + self.linear_no_bias_cm(m_l)  # [N, c_atompair]
+        p_l = self.linear_no_bias_cl(c_l) + self.linear_no_bias_cm(
+            m_l
+        )  # [N, c_atompair]
 
         # Process through MLP
         p_l = self.small_mlp(p_l)  # [N, c_atompair]
@@ -159,7 +161,7 @@ class AttentionComponents:
         # Ensure pair features have correct dimensions
         if p.shape[-1] != self.c_atompair:
             p = p.unsqueeze(-1).expand(*p.shape[:-1], self.c_atompair)
-            
+
         # Convert mask to float32 if it's a boolean tensor
         if mask.dtype == torch.bool:
             mask = mask.to(dtype=torch.float32)
@@ -169,4 +171,4 @@ class AttentionComponents:
             p,
             mask,
             chunk_size if chunk_size is not None else 0,
-        ) 
+        )
