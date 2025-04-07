@@ -1,6 +1,7 @@
 import os
 from typing import List
 
+
 def count_lines_in_file(filepath: str) -> int:
     """Count the total number of lines in a file.
 
@@ -16,6 +17,7 @@ def count_lines_in_file(filepath: str) -> int:
     except Exception as e:
         print(f"Error reading {filepath}: {e}")
         return 0
+
 
 def find_python_files(directory: str) -> List[str]:
     """Recursively find all .py files in the given directory, excluding specific directories.
@@ -37,6 +39,7 @@ def find_python_files(directory: str) -> List[str]:
             if file.endswith(".py"):
                 python_files.append(os.path.join(root, file))
     return python_files
+
 
 def main(directory: str = ".") -> None:
     """Count lines in all Python files in a directory and save results.
@@ -79,6 +82,7 @@ def main(directory: str = ".") -> None:
         print(f"{filepath}: {count} lines")
 
     print(f"\nResults saved to {output_filename}")
+
 
 if __name__ == "__main__":
     import sys
