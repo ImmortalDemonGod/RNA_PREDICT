@@ -1,7 +1,8 @@
 """
 Initialization logic for the AtomAttentionEncoder.
 """
-from typing import Optional, Any
+
+from typing import Any
 
 import torch
 import torch.nn as nn
@@ -13,12 +14,13 @@ from rna_predict.pipeline.stageA.input_embedding.current.primitives import (
 from rna_predict.pipeline.stageA.input_embedding.current.transformer.atom_transformer import (
     AtomTransformer,
 )
+
 from .config import AtomAttentionConfig
 
 
-def setup_feature_dimensions(encoder: Any) -> None: # Changed nn.Module to Any
+def setup_feature_dimensions(encoder: Any) -> None:  # Changed nn.Module to Any
     """Define expected feature dimensions."""
-    encoder.input_feature = { # type: ignore
+    encoder.input_feature = {  # type: ignore
         "ref_pos": 3,
         "ref_charge": 1,
         "ref_mask": 1,
@@ -27,14 +29,18 @@ def setup_feature_dimensions(encoder: Any) -> None: # Changed nn.Module to Any
     }
 
 
-def setup_atom_encoders(encoder: Any, config: AtomAttentionConfig) -> None: # Changed nn.Module to Any
+def setup_atom_encoders(
+    encoder: Any, config: AtomAttentionConfig
+) -> None:  # Changed nn.Module to Any
     """Set up encoders for atom features."""
     encoder.linear_no_bias_f = LinearNoBias(
         in_features=sum(encoder.input_feature.values()), out_features=config.c_atom
     )
 
 
-def setup_distance_encoders(encoder: Any, config: AtomAttentionConfig) -> None: # Changed nn.Module to Any
+def setup_distance_encoders(
+    encoder: Any, config: AtomAttentionConfig
+) -> None:  # Changed nn.Module to Any
     """Set up encoders for distance-related features."""
     encoder.linear_no_bias_d = LinearNoBias(
         in_features=3, out_features=config.c_atompair
@@ -47,7 +53,9 @@ def setup_distance_encoders(encoder: Any, config: AtomAttentionConfig) -> None: 
     )
 
 
-def setup_coordinate_components(encoder: Any, config: AtomAttentionConfig) -> None: # Changed nn.Module to Any
+def setup_coordinate_components(
+    encoder: Any, config: AtomAttentionConfig
+) -> None:  # Changed nn.Module to Any
     """Set up components used when coordinates are available."""
     # Style normalization and projection
     encoder.layernorm_s = LayerNorm(config.c_s)
@@ -65,7 +73,9 @@ def setup_coordinate_components(encoder: Any, config: AtomAttentionConfig) -> No
     encoder.linear_no_bias_r = LinearNoBias(in_features=3, out_features=config.c_atom)
 
 
-def setup_pair_projections(encoder: Any, config: AtomAttentionConfig) -> None: # Changed nn.Module to Any
+def setup_pair_projections(
+    encoder: Any, config: AtomAttentionConfig
+) -> None:  # Changed nn.Module to Any
     """Set up linear projections for atom features to pair dimension."""
     encoder.linear_no_bias_cl = LinearNoBias(
         in_features=config.c_atom, out_features=config.c_atompair
@@ -75,7 +85,9 @@ def setup_pair_projections(encoder: Any, config: AtomAttentionConfig) -> None: #
     )
 
 
-def setup_small_mlp(encoder: Any, config: AtomAttentionConfig) -> None: # Changed nn.Module to Any
+def setup_small_mlp(
+    encoder: Any, config: AtomAttentionConfig
+) -> None:  # Changed nn.Module to Any
     """Set up small MLP for pair feature processing."""
     encoder.small_mlp = nn.Sequential(
         nn.ReLU(),
@@ -109,7 +121,9 @@ def create_atom_transformer(config: AtomAttentionConfig) -> AtomTransformer:
     )
 
 
-def init_residual_layers(encoder: Any, zero_init: bool) -> None: # Changed nn.Module to Any
+def init_residual_layers(
+    encoder: Any, zero_init: bool
+) -> None:  # Changed nn.Module to Any
     """
     Initialize residual connection layers.
 
@@ -133,7 +147,9 @@ def init_residual_layers(encoder: Any, zero_init: bool) -> None: # Changed nn.Mo
         nn.init.zeros_(encoder.linear_no_bias_r.weight)
 
 
-def init_mlp_layers(encoder: Any, use_he_normal: bool) -> None: # Changed nn.Module to Any
+def init_mlp_layers(
+    encoder: Any, use_he_normal: bool
+) -> None:  # Changed nn.Module to Any
     """
     Initialize MLP layers with He normal initialization.
 
@@ -154,7 +170,9 @@ def init_mlp_layers(encoder: Any, use_he_normal: bool) -> None: # Changed nn.Mod
             )
 
 
-def init_output_layer(encoder: Any, use_he_normal: bool) -> None: # Changed nn.Module to Any
+def init_output_layer(
+    encoder: Any, use_he_normal: bool
+) -> None:  # Changed nn.Module to Any
     """
     Initialize output layer with He normal initialization.
 
@@ -171,7 +189,7 @@ def init_output_layer(encoder: Any, use_he_normal: bool) -> None: # Changed nn.M
 
 
 def linear_init(
-    encoder: Any, # Changed nn.Module to Any
+    encoder: Any,  # Changed nn.Module to Any
     zero_init_atom_encoder_residual_linear: bool = False,
     he_normal_init_atom_encoder_small_mlp: bool = False,
     he_normal_init_atom_encoder_output: bool = False,
