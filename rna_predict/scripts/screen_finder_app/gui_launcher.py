@@ -1,241 +1,278 @@
-# rna_predict/scripts/gui_launcher.py
-import logging
-import os
-from typing import Any, Dict, Optional, Tuple
-
 import dearpygui.dearpygui as dpg
+import logging
+import threading
+import time
+import cv2
 import numpy as np
-from PIL import Image  # For loading image data
+import pyautogui
+import pyperclip
+from mss import mss
+import os
 
-# Local application imports (assuming execution as a module)
-from .config import LOGGING_LEVEL, TEMPLATE_PATH
-from .config import THRESHOLD as SEARCH_THRESHOLD
-from .logger import setup_logger
-from .main import find_template_on_screen
+# Import necessary components from other modules
+from .config import LOG_FILE, LOG_LEVEL # Corrected imports
+from .template_loader import load_and_preload_templates
+from .main import execute_action # Import the action execution logic
 
-# Global logger instance
-# Note: This will be assigned in _setup_global_logger()
-# We assert it's not None before use in other functions or module level.
-logger: logging.Logger
+# --- Global Variables ---
+search_running = False
+search_thread = None
+status_message = "Status: Idle"
+loaded_template_names = [] # To display in the GUI
 
+# --- Logging Setup ---
+log_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+logger.setLevel(LOG_LEVEL) # Use LOG_LEVEL from config
 
-def _setup_global_logger() -> logging.Logger:
-    """Sets up and returns a logger instance based on config."""
-    # Removed 'global logger' as we return the instance to be assigned globally
-    log_level_str: str = "INFO"
-    try:
-        # Ensure LOGGING_LEVEL is treated as str
-        log_level_str = str(LOGGING_LEVEL)
-    except NameError:
-        print("Warning: LOGGING_LEVEL not found in config, using INFO level.")
+# File handler (use the same log file as main.py)
+file_handler = logging.FileHandler(LOG_FILE)
+file_handler.setFormatter(log_formatter)
+logger.addHandler(file_handler)
 
-    log_level_map: Dict[str, int] = {
-        "DEBUG": logging.DEBUG,
-        "INFO": logging.INFO,
-        "WARNING": logging.WARNING,
-        "ERROR": logging.ERROR,
-        "CRITICAL": logging.CRITICAL,
-    }
-    log_level_int = log_level_map.get(log_level_str.upper(), logging.INFO)
+# Console handler
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(log_formatter)
+logger.addHandler(console_handler)
 
-    try:
-        # Assign to a local variable first
-        _logger = setup_logger(level=log_level_int)
-    except NameError:
-        # Fallback if setup_logger is somehow not imported
-        logging.basicConfig(level=log_level_int)
-        _logger = logging.getLogger(__name__)
-        _logger.warning(
-            "setup_logger function not found, using basic logging configuration."
-        )
-    # Ensure the function returns the created logger instance
-    return _logger
-    return _logger
+# --- Core Search Logic (Threaded) ---
+def periodic_search_thread():
+    global search_running, status_message, loaded_template_names
+    logger.info("Periodic search thread started.")
 
-
-# Initialize the global logger immediately after imports and function definition
-logger = _setup_global_logger()
-
-
-# --- Resolve Template Path ---
-full_template_path: Optional[str] = None
-template_load_error: Optional[str] = None
-try:
-    script_dir = os.path.dirname(__file__)
-    # TEMPLATE_PATH is now just the filename, relative to script_dir
-    path1 = os.path.abspath(os.path.join(script_dir, TEMPLATE_PATH))
-
-    logger.info(f"Checking for template at: {path1}")
-    if os.path.exists(path1):
-        full_template_path = path1
-        logger.info(f"Found template at path: {full_template_path}")
-    else:
-        raise FileNotFoundError(f"Template image not found at {path1}")
-
-except FileNotFoundError as e:
-    error_msg = f"Template image not found: {e}"
-    logger.error(error_msg)
-    template_load_error = error_msg
-except NameError:
-    error_msg = "TEMPLATE_PATH configuration variable not found."
-    logger.error(error_msg)
-    template_load_error = error_msg
-except Exception as e:
-    error_msg = f"Error resolving template path: {e}"
-    logger.error(f"Unexpected error resolving template path: {e}", exc_info=True)
-    template_load_error = error_msg
-
-# --- Dear PyGui Setup ---
-dpg.create_context()
-
-# --- Texture Loading ---
-texture_id = None
-texture_width = 0
-texture_height = 0
-
-if full_template_path:
-    try:
-        img = Image.open(full_template_path).convert("RGBA")
-        img_data = np.array(img, dtype=np.float32) / 255.0
-        texture_width = img.width
-        texture_height = img.height
-
-        with dpg.texture_registry(show=False):
-            texture_id = dpg.add_static_texture(
-                width=texture_width,
-                height=texture_height,
-                default_value=img_data.ravel(),  # Flatten the array
-                parent=dpg.last_container(),
-            )
-        logger.info(
-            f"Template image loaded into texture registry (ID: {texture_id}, Size: {texture_width}x{texture_height})."
-        )
-    except Exception as e:
-        error_msg = f"Failed to load template image into texture: {e}"
-        logger.error(error_msg, exc_info=True)
-        template_load_error = error_msg  # Update error message
-        texture_id = None  # Ensure texture_id is None if loading failed
-else:
-    # If template path wasn't resolved initially
-    logger.warning("Skipping texture loading as template path was not resolved.")
-
-
-# --- Callback Function ---
-def search_callback() -> None:
-    logger.info("Search button clicked.")
-    dpg.set_value("-STATUS-", "Searching...")
-
-    if not full_template_path or texture_id is None:
-        status_msg = "Cannot search: Template image not loaded."
-        logger.error(status_msg)
-        dpg.set_value("-STATUS-", status_msg)
-        # Consider adding a Dear PyGui modal/popup for errors later
+    # Load templates once when the thread starts
+    templates = load_and_preload_templates()
+    if not templates:
+        status_message = "Status: Error - No templates loaded. Stopping."
+        logger.error("No templates loaded in search thread.")
+        search_running = False # Stop if templates fail to load
+        # Update GUI status from the main thread later if needed, direct DPG calls from threads are risky
         return
 
-    try:
-        if (
-            "find_template_on_screen" not in globals()
-            and "find_template_on_screen" not in locals()
-        ):
-            raise NameError("find_template_on_screen function not loaded.")
+    # Update template names for GUI display (schedule in main thread)
+    loaded_template_names = [t['name'] for t in templates]
+    # Consider using dpg.set_value for thread-safe GUI updates if directly updating list items
 
-        threshold = (
-            SEARCH_THRESHOLD if "SEARCH_THRESHOLD" in globals() else 0.8
-        )  # Default if not found
-        logger.debug(
-            f"Calling find_template_on_screen with template='{full_template_path}', threshold={threshold}"
-        )
+    logger.info(f"Periodic search active with {len(templates)} templates.")
 
-        result: Dict[str, Any] = find_template_on_screen(
-            logger=logger, template_path=full_template_path, threshold=threshold
-        )
+    with mss() as sct:
+        while search_running:
+            start_time = time.time()
+            interval = dpg.get_value("-INTERVAL-") # Get interval from slider
+            status_message = f"Status: Running - Interval: {interval:.1f}s. Searching..."
+            logger.debug(f"Starting search cycle. Interval: {interval}s")
+            dpg.set_value("-STATUS-", status_message) # Update status at start of cycle
 
-        if result.get("found", False):
-            coords: Tuple[int, int] = result.get("coordinates", (-1, -1))
-            correlation: float = result.get("correlation", 0.0)  # Get correlation score
-            # Get monitor details dictionary and format description string
-            monitor_info = result.get("monitor_info", {})
-            monitor_desc = f"Monitor (L:{monitor_info.get('left', 'N/A')}, T:{monitor_info.get('top', 'N/A')}, W:{monitor_info.get('width', 'N/A')}, H:{monitor_info.get('height', 'N/A')})"
-            # Format status text including correlation and detailed monitor info
-            status_text = f"Found at: ({coords[0]}, {coords[1]}) on {monitor_desc} (Corr: {correlation:.4f})"
-            dpg.set_value("-STATUS-", status_text)
-            logger.info(
-                f"Template found via GUI at {coords} on {monitor_desc} with correlation {correlation:.4f}"
-            )  # Log correlation
-        else:
-            status_text = "Template not found."
-            dpg.set_value("-STATUS-", status_text)
-            logger.info("Template not found via GUI.")
+            found_match_in_cycle = False
+            matches_found_this_cycle = []
 
-    except NameError as e:
-        error_msg = f"Search function unavailable: {e}"
-        dpg.set_value("-STATUS-", error_msg)
-        logger.error(error_msg)
-    except Exception as e:
-        error_msg = f"Search Error: {type(e).__name__} - {e}"
-        dpg.set_value("-STATUS-", error_msg)
-        logger.error(f"Error during template search via GUI: {e}", exc_info=True)
+            try:
+                monitors = sct.monitors[1:] # Exclude the combined virtual screen
+
+                for i, monitor in enumerate(monitors):
+                    sct_img = sct.grab(monitor)
+                    screen_img_bgr = np.array(sct_img)
+                    screen_img_gray = cv2.cvtColor(screen_img_bgr, cv2.COLOR_BGRA2GRAY)
+
+                    for template_data in templates:
+                        if not search_running: # Check flag frequently
+                            break
+
+                        template_name = template_data["name"]
+                        template_img = template_data["image"]
+                        threshold = template_data["threshold"]
+                        action_config = template_data["action"]
+                        tH, tW = template_img.shape[:2]
+
+                        result = cv2.matchTemplate(screen_img_gray, template_img, cv2.TM_CCOEFF_NORMED)
+                        min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
+
+                        if max_val >= threshold:
+                            found_match_in_cycle = True
+                            match_x, match_y = max_loc
+                            center_x_rel = match_x + tW // 2
+                            center_y_rel = match_y + tH // 2
+                            center_x_abs = monitor["left"] + center_x_rel
+                            center_y_abs = monitor["top"] + center_y_rel
+
+                            match_info = f"Found '{template_name}' (Conf: {max_val:.2f}) at ({center_x_abs}, {center_y_abs})"
+                            logger.info(match_info)
+                            matches_found_this_cycle.append(match_info)
+
+                            # Execute action
+                            execute_action(logger, action_config, (center_x_abs, center_y_abs))
+
+                            # Optional: break here if only one action per cycle is desired
+                            # break # Uncomment to stop searching after the first match in the cycle
+
+                    if not search_running: break # Exit monitor loop if stopped
+                if not search_running: break # Exit main loop if stopped
+
+                # Update status after cycle completes
+                cycle_duration = time.time() - start_time
+                if found_match_in_cycle:
+                    status_message = f"Status: Found {len(matches_found_this_cycle)} match(es). Cycle took {cycle_duration:.2f}s. Waiting..."
+                    # Optionally display which templates were found in status
+                    # status_message += " Matches: " + ", ".join([m.split(' ')[1] for m in matches_found_this_cycle])
+                else:
+                    status_message = f"Status: No matches found. Cycle took {cycle_duration:.2f}s. Waiting..."
+
+                logger.debug(f"Search cycle finished in {cycle_duration:.2f} seconds.")
+                dpg.set_value("-STATUS-", status_message)
+
+                # Wait for the next interval
+                sleep_time = max(0, interval - cycle_duration)
+                logger.debug(f"Sleeping for {sleep_time:.2f} seconds.")
+                # Use a loop for sleeping to check the flag more often
+                for _ in range(int(sleep_time * 10)): # Check every 100ms
+                    if not search_running:
+                        break
+                    time.sleep(0.1)
+                if not search_running: break # Exit loop if stopped during sleep
 
 
-# --- GUI Layout ---
-with dpg.window(label="Template Search", tag="Primary Window"):
-    dpg.add_text("Template Search GUI")
+            except Exception as e:
+                status_message = f"Status: Error occurred: {e}"
+                logger.error(f"Error during periodic search: {e}", exc_info=True)
+                dpg.set_value("-STATUS-", status_message)
+                search_running = False # Stop on error
 
-    if texture_id:
-        # Set a fixed width for the image display initially for testing
-        display_width = 300  # Fixed width
-        # Calculate height proportionally, prevent division by zero
-        display_height = (
-            int(texture_height * (display_width / texture_width))
-            if texture_width > 0
-            else 0
-        )
+    logger.info("Periodic search thread finished.")
+    status_message = "Status: Stopped."
+    dpg.set_value("-STATUS-", status_message) # Final status update
 
-        if display_width > 0 and display_height > 0:
-            dpg.add_image(
-                texture_id,
-                width=display_width,
-                height=display_height,
-                tag="-TEMPLATE_IMG-",
-            )
-            logger.info(
-                f"Template image widget added to layout (Display Size: {display_width}x{display_height})."
-            )
-        else:
-            logger.warning(
-                "Template image widget not added due to zero dimensions after calculation."
-            )
-            dpg.add_text(
-                "Error: Could not display template image (invalid dimensions).",
-                color=(255, 0, 0, 255),
-            )
-    elif template_load_error:
-        dpg.add_text(
-            f"Error: {template_load_error}", color=(255, 0, 0, 255)
-        )  # Red color
+
+# --- GUI Callbacks ---
+def start_periodic_search():
+    global search_running, search_thread, status_message
+    if search_running:
+        logger.warning("Search is already running.")
+        return
+
+    search_running = True
+    status_message = "Status: Starting..."
+    dpg.set_value("-STATUS-", status_message)
+    logger.info("Start button clicked.")
+    # Disable start button, enable stop button
+    dpg.configure_item("-START_BUTTON-", enabled=False)
+    dpg.configure_item("-STOP_BUTTON-", enabled=True)
+
+    # Start the search logic in a separate thread
+    search_thread = threading.Thread(target=periodic_search_thread, daemon=True)
+    search_thread.start()
+
+def stop_periodic_search():
+    global search_running, search_thread, status_message
+    if not search_running:
+        logger.warning("Search is not running.")
+        return
+
+    logger.info("Stop button clicked.")
+    status_message = "Status: Stopping..."
+    dpg.set_value("-STATUS-", status_message)
+    search_running = False
+
+    # Wait briefly for the thread to notice the flag (optional)
+    if search_thread and search_thread.is_alive():
+         search_thread.join(timeout=1.0) # Wait max 1 sec
+
+    # Enable start button, disable stop button
+    dpg.configure_item("-START_BUTTON-", enabled=True)
+    dpg.configure_item("-STOP_BUTTON-", enabled=False)
+    status_message = "Status: Stopped." # Ensure final status is set
+    dpg.set_value("-STATUS-", status_message)
+    logger.info("Search stopped.")
+
+def update_template_list():
+    """Updates the listbox with currently loaded template names."""
+    # Clear existing items
+    if dpg.does_item_exist("-TEMPLATE_LIST-"):
+         # Need a way to clear listbox items if DPG doesn't have a direct clear function
+         # For now, we just set the items, replacing the old ones.
+         dpg.configure_item("-TEMPLATE_LIST-", items=loaded_template_names)
     else:
-        dpg.add_text(
-            "Template image path could not be resolved.", color=(255, 0, 0, 255)
-        )
+         logger.warning("Template listbox item not found.")
 
-    dpg.add_spacer(height=10)
-    dpg.add_text("Status: Ready", tag="-STATUS-")
-    dpg.add_spacer(height=10)
-    # Removed horizontal group for simplicity
-    dpg.add_button(label="Start Search", callback=search_callback, tag="-SEARCH-")
-    # Exit is handled by closing the window in Dear PyGui
 
-# --- Viewport and Start ---
-dpg.create_viewport(
-    title="Template Search GUI", width=600, height=500
-)  # Increased height
-dpg.setup_dearpygui()
-dpg.show_viewport()
-dpg.set_primary_window("Primary Window", True)
-logger.info("Starting Dear PyGui application.")
-dpg.start_dearpygui()
+# --- GUI Setup ---
+def setup_gui():
+    dpg.create_context()
 
-# --- Cleanup ---
-logger.info("Dear PyGui application stopped.")
-dpg.destroy_context()
-logger.info("GUI Launcher script finished.")
+    # Load initial templates to populate list (optional, could also load on start)
+    global loaded_template_names
+    try:
+        initial_templates = load_and_preload_templates()
+        loaded_template_names = [t['name'] for t in initial_templates]
+    except Exception as e:
+        logger.error(f"Failed to preload templates for GUI list: {e}")
+        loaded_template_names = ["Error loading templates"]
+
+
+    with dpg.window(label="Screen Finder Control", width=500, height=400, tag="-PRIMARY_WINDOW-"):
+        dpg.add_text("Configure and run timed template searches.")
+        dpg.add_separator()
+
+        # Interval Slider
+        dpg.add_text("Search Interval (seconds):")
+        dpg.add_slider_float(label="Interval", tag="-INTERVAL-", default_value=5.0, min_value=0.5, max_value=60.0, format="%.1f s")
+        dpg.add_separator()
+
+        # Control Buttons
+        with dpg.group(horizontal=True):
+            dpg.add_button(label="Start Timed Search", tag="-START_BUTTON-", callback=start_periodic_search)
+            dpg.add_button(label="Stop Timed Search", tag="-STOP_BUTTON-", callback=stop_periodic_search, enabled=False) # Initially disabled
+        dpg.add_separator()
+
+        # Status Display
+        dpg.add_text(status_message, tag="-STATUS-")
+        dpg.add_separator()
+
+        # Loaded Templates List (Read-only display)
+        dpg.add_text("Loaded Templates:")
+        dpg.add_listbox(items=loaded_template_names, tag="-TEMPLATE_LIST-", num_items=8)
+        # Add a button to refresh this list if needed, or update it via callbacks/threads carefully
+        # dpg.add_button(label="Refresh List", callback=update_template_list)
+
+
+    dpg.create_viewport(title='Screen Finder GUI', width=520, height=440)
+    dpg.setup_dearpygui()
+    dpg.show_viewport()
+
+    # Set primary window after setup
+    dpg.set_primary_window("-PRIMARY_WINDOW-", True)
+
+    # Main GUI loop (check search status for updates)
+    # While loop is better handled by dpg.start_dearpygui()
+    # Need a way to update status from thread: use dpg.set_value called from thread or use a queue
+
+    # dpg.start_dearpygui() # This blocks, run rendering loop manually if needed or use callbacks
+
+    while dpg.is_dearpygui_running():
+        # Manual update of status text (simpler than complex thread-safe calls for this case)
+        # This might miss rapid updates from the thread but avoids direct DPG calls from bg thread
+        # A better approach involves dpg.mvCaptureContext() or thread-safe queues if updates are critical
+        current_status = dpg.get_value("-STATUS-")
+        if current_status != status_message:
+             dpg.set_value("-STATUS-", status_message)
+
+        # Update template list if names change (e.g., after loading)
+        # This check is basic; might need refinement
+        current_list_items = dpg.get_item_configuration("-TEMPLATE_LIST-")["items"]
+        if current_list_items != loaded_template_names:
+             dpg.configure_item("-TEMPLATE_LIST-", items=loaded_template_names)
+
+
+        dpg.render_dearpygui_frame()
+
+    # Cleanup
+    global search_running
+    if search_running:
+        logger.info("GUI closing, stopping search thread...")
+        search_running = False
+        if search_thread and search_thread.is_alive():
+            search_thread.join(timeout=1.0)
+    dpg.destroy_context()
+    logger.info("GUI closed and context destroyed.")
+
+if __name__ == "__main__":
+    setup_gui()
