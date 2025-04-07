@@ -81,7 +81,7 @@ class TestMemoryIssue(unittest.TestCase):
                         module.register_forward_hook(memory_tracking_hook)
             
             # Run the diffusion process
-            refined_coords = run_stageD_diffusion(
+            run_stageD_diffusion(
                 partial_coords=self.partial_coords,
                 trunk_embeddings=self.trunk_embeddings,
                 diffusion_config=self.diffusion_config,
