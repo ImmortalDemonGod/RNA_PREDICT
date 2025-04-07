@@ -108,7 +108,7 @@ class FeatureProcessor:
         ref_charge = safe_tensor_access(input_feature_dict, "ref_charge")  # [N, 1]
 
         # Get number of atoms
-        num_atoms = ref_pos.shape[0]
+        ref_pos.shape[0]
 
         # Process distance features
         d = self.linear_no_bias_d(ref_pos)  # [N, c_atompair]
