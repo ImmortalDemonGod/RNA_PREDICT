@@ -60,4 +60,4 @@ class DecoderForwardParams:
     mask: Optional[torch.Tensor] = None
     atom_mask: Optional[torch.Tensor] = None
     atom_to_token_idx: Optional[torch.Tensor] = None
-    chunk_size: Optional[int] = None 
+    chunk_size: Optional[int] = None
