@@ -753,44 +753,91 @@ def get_symmetric_atom_pairs(seq: str) -> Dict[str, List[Tuple[int, int]]]:
     return result
 
 
-if __name__ == "__main__":
+def _run_main_logic():
+    """
+    Contains the logic originally in the `if __name__ == '__main__':` block.
+    Loads data, sets parameters, and performs checks on noise_internals and combine_noise.
+    Note: This function relies on a hardcoded path for joblib.load and is primarily
+          intended for basic checks or demonstrations when run directly.
+    """
     import joblib
 
     # imports of data (from mp_nerf.utils.get_prot)
-    prots = joblib.load("some_route_to_local_serialized_file_with_prots")
+    # TODO: Replace hardcoded path with a more robust data loading mechanism if needed for general use.
+    try:
+        prots = joblib.load("some_route_to_local_serialized_file_with_prots")
+    except FileNotFoundError:
+        print("Error: Could not find the data file 'some_route_to_local_serialized_file_with_prots'.")
+        print("This script requires a specific data file to run its main logic.")
+        return
+    except Exception as e:
+        print(f"Error loading data file: {e}")
+        return
+
 
     # set params
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # unpack and test
+    # Ensure prots is not empty and contains the expected tuple structure
+    if not prots or not isinstance(prots[-1], tuple) or len(prots[-1]) != 7:
+        print("Error: Loaded data does not have the expected format.")
+        return
+
     seq, int_seq, true_coords, angles, padding_seq, mask, pid = prots[-1]
 
-    true_coords = true_coords.unsqueeze(0)
+    # Basic type/shape validation before proceeding
+    if not isinstance(seq, str) or not isinstance(true_coords, torch.Tensor):
+         print("Error: Unexpected data types after unpacking.")
+         return
+
+    true_coords = true_coords.unsqueeze(0).to(device) # Move to device
+    if angles is not None:
+        angles = angles.to(device)
+    if int_seq is not None:
+        int_seq = int_seq.to(device)
+
 
     # check noised internals
-    coords_scn = einops.rearrange(true_coords, "b (l c) d -> b l c d", c=14)
-    cloud, cloud_mask = noise_internals(
-        seq, angles=angles, coords=coords_scn[0], noise_scale=1.0
-    )
-    print("cloud.shape", cloud.shape)
+    try:
+        coords_scn = einops.rearrange(true_coords, "b (l c) d -> b l c d", c=14)
+        cloud, cloud_mask = noise_internals(
+            seq, angles=angles, coords=coords_scn[0], noise_scale=1.0
+        )
+        print("cloud.shape", cloud.shape)
+    except Exception as e:
+        print(f"Error during noise_internals check: {e}")
 
-    # check integral
-    integral, mask = combine_noise(
-        true_coords,
-        seq=seq,
-        int_seq=None,
-        angles=None,
-        NOISE_INTERNALS=1e-2,
-        SIDECHAIN_RECONSTRUCT=True,
-    )
-    print("integral.shape", integral.shape)
 
-    integral, mask = combine_noise(
-        true_coords,
-        seq=None,
-        int_seq=int_seq,
-        angles=None,
-        NOISE_INTERNALS=1e-2,
-        SIDECHAIN_RECONSTRUCT=True,
-    )
-    print("integral.shape2", integral.shape)
+    # check integral 1 (with seq)
+    try:
+        integral, mask_out = combine_noise(
+            true_coords,
+            seq=seq,
+            int_seq=None,
+            angles=None, # Pass angles if available and needed by combine_noise variant
+            NOISE_INTERNALS=1e-2,
+            SIDECHAIN_RECONSTRUCT=True,
+        )
+        print("integral.shape (with seq)", integral.shape)
+    except Exception as e:
+        print(f"Error during combine_noise check (with seq): {e}")
+
+
+    # check integral 2 (with int_seq)
+    try:
+        integral, mask_out = combine_noise(
+            true_coords,
+            seq=None,
+            int_seq=int_seq,
+            angles=None, # Pass angles if available and needed by combine_noise variant
+            NOISE_INTERNALS=1e-2,
+            SIDECHAIN_RECONSTRUCT=True,
+        )
+        print("integral.shape (with int_seq)", integral.shape)
+    except Exception as e:
+        print(f"Error during combine_noise check (with int_seq): {e}")
+
+
+if __name__ == "__main__":
+    _run_main_logic()

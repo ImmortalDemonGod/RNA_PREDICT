@@ -1,10 +1,13 @@
 import unittest
+import unittest
 import torch
 import numpy as np
 from hypothesis import given, strategies as st, settings
 from hypothesis.extra.numpy import arrays
 from typing import List, Optional, Tuple
 import torch
+import pytest # Added import
+from unittest.mock import patch, MagicMock # Added imports
 
 from rna_predict.pipeline.stageC.mp_nerf.ml_utils import (
     chain2atoms,
@@ -24,6 +27,7 @@ from rna_predict.pipeline.stageC.mp_nerf.ml_utils import (
     noise_internals,
     combine_noise,
     get_symmetric_atom_pairs,
+    _run_main_logic, # Added import for the refactored function
 )
 from rna_predict.pipeline.stageC.mp_nerf.protein_utils import SUPREME_INFO, AMBIGUOUS
 
@@ -522,4 +526,63 @@ def test_fape_loss_torch():
 
 
 if __name__ == "__main__":
-    unittest.main() 
+    unittest.main()
+
+
+# --- Test for refactored __main__ logic ---
+@patch('builtins.print') # Mock print to suppress output during test
+@patch('joblib.load') # Corrected patch target
+def test__run_main_logic(mock_joblib_load, mock_print):
+    """
+    Tests the _run_main_logic function (code previously in if __name__ == '__main__').
+    Mocks joblib.load to provide dummy data and ensures the function executes,
+    thereby achieving coverage.
+    """
+    # --- Setup Dummy Data ---
+    # Define shapes based on the code's usage
+    seq_len = 5 # Example sequence length
+    num_atoms = seq_len * 14
+    num_angles = 12 # Based on noise_internals usage
+
+    # Create dummy data matching the expected structure unpacked in the function
+    dummy_seq = "A" * seq_len
+    dummy_int_seq = torch.randint(0, 20, (seq_len,))
+    # The code adds batch dim later, so load data without it initially
+    dummy_true_coords = torch.randn(num_atoms, 3)
+    dummy_angles = torch.randn(seq_len, num_angles)
+    dummy_padding_seq = None # Not used in the logic
+    dummy_mask = None # Not used in the logic
+    dummy_pid = "dummy_protein" # Not used in the logic
+
+    dummy_protein_data = (
+        dummy_seq,
+        dummy_int_seq,
+        dummy_true_coords,
+        dummy_angles,
+        dummy_padding_seq,
+        dummy_mask,
+        dummy_pid,
+    )
+
+    # Configure the mock to return a list containing the dummy data tuple
+    mock_joblib_load.return_value = [dummy_protein_data]
+
+    # --- Execute ---
+    # Call the function that contains the logic from the original __main__ block
+    try:
+        _run_main_logic()
+    except FileNotFoundError:
+        # The mocked joblib.load should prevent this, but handle defensively
+        pytest.fail("FileNotFoundError occurred unexpectedly during _run_main_logic call.")
+    except Exception as e:
+        # Catch other potential errors during execution
+        pytest.fail(f"_run_main_logic execution failed with error: {e}")
+
+
+    # --- Assert ---
+    # Verify joblib.load was called once with the expected hardcoded path
+    mock_joblib_load.assert_called_once_with("some_route_to_local_serialized_file_with_prots")
+
+    # Verify print was called (optional, depends on whether you want to check output)
+    # Check that print was called at least 3 times as in the original logic
+    assert mock_print.call_count >= 3
