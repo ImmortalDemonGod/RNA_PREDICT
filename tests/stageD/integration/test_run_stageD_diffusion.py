@@ -5,7 +5,7 @@ import torch
 
 # We import the function under test.
 # Adjust this import as needed if your module/package layout differs.
-from rna_predict.pipeline.stageD.run_stageD_unified import run_stageD_diffusion
+from rna_predict.pipeline.stageD.diffusion.run_stageD_unified import run_stageD_diffusion
 
 
 class TestRunStageDDiffusion(unittest.TestCase):
