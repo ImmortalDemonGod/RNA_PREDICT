@@ -23,7 +23,6 @@ from rna_predict.pipeline.stageA.input_embedding.current.primitives import Linea
 from rna_predict.pipeline.stageA.input_embedding.current.transformer import (
     AtomAttentionConfig,  # Import from transformer package
     AtomAttentionEncoder,
-    EncoderForwardParams,  # Import from transformer package
     InputFeatureDict,  # Import the type hint
 )
 
@@ -146,7 +145,7 @@ class InputFeatureEmbedder(nn.Module):
             inplace_safe=inplace_safe,
             chunk_size=chunk_size,
         )
-        print(f"DEBUG [Embedder]: Shape after encoder (a): {a.shape}") # DEBUG
+        print(f"DEBUG [Embedder]: Shape after encoder (a): {a.shape}")  # DEBUG
 
         # Ensure 'a' has at least 3 dimensions [batch, tokens, features]
         if a.dim() == 2:  # [tokens, features]
@@ -186,7 +185,7 @@ class InputFeatureEmbedder(nn.Module):
                 padding = torch.zeros(
                     (a.size(0), N_token - a.size(1), a.size(2)),
                     device=a.device,
-                    dtype=a.dtype
+                    dtype=a.dtype,
                 )
                 a = torch.cat([a, padding], dim=1)
 
@@ -226,13 +225,13 @@ class InputFeatureEmbedder(nn.Module):
                     padding = torch.zeros(
                         (feat.size(0), N_token - feat.size(1), feat.size(-1)),
                         device=feat.device,
-                        dtype=feat.dtype
+                        dtype=feat.dtype,
                     )
                     feat = torch.cat([feat, padding], dim=1)
 
             print(f"DEBUG [Embedder]: {key} shape after processing: {feat.shape}")
             extras.append(feat)
-        
+
         # Now concatenate along the feature dimension
         extras = torch.cat(extras, dim=-1)
         print(f"DEBUG [Embedder]: extras shape before linear: {extras.shape}")
@@ -240,8 +239,12 @@ class InputFeatureEmbedder(nn.Module):
         # Create extras_linear if not already created
         if self.extras_linear is None:
             extras_dim = extras.size(-1)
-            self.extras_linear = LinearNoBias(extras_dim, self.c_token).to(extras.device)
-            print(f"DEBUG [Embedder]: extras_linear weight shape: {self.extras_linear.weight.shape}")
+            self.extras_linear = LinearNoBias(extras_dim, self.c_token).to(
+                extras.device
+            )
+            print(
+                f"DEBUG [Embedder]: extras_linear weight shape: {self.extras_linear.weight.shape}"
+            )
 
         # Project extras to c_token dimension and add to atom embeddings
         extras_proj = self.extras_linear(extras)
