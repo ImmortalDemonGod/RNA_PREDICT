@@ -169,7 +169,7 @@ def sample_diffusion(
     """
     # Ensure noise_schedule is a 1D tensor
     noise_schedule = noise_schedule.flatten()
-    
+
     # Get number of atoms from input_feature_dict
     N_atom = input_feature_dict["atom_to_token_idx"].size(-1)
 
@@ -181,50 +181,60 @@ def sample_diffusion(
     # Determine TRUE batch shape, excluding the sample dimension ONLY if the input tensor is 4D+
     # and the dimension before sequence matches TOTAL N_sample
     base_shape = ref_tensor.shape[:-2]
-    true_batch_shape = base_shape # Default to using all leading dims
+    true_batch_shape = base_shape  # Default to using all leading dims
 
     # Only check for sample dim if input tensor has more than 3 dims (B, N, C)
     if ref_tensor.ndim > 3:
         # Check if the dimension before sequence looks like the TOTAL sample dimension
         if len(base_shape) > 0 and base_shape[-1] == N_sample:
-             true_batch_shape = base_shape[:-1] # Exclude the sample dimension
+            true_batch_shape = base_shape[:-1]  # Exclude the sample dimension
         # else: keep true_batch_shape as base_shape if dim doesn't match N_sample
 
     # Ensure true_batch_shape is a tuple
     if not isinstance(true_batch_shape, tuple):
         true_batch_shape = (true_batch_shape,)
 
-    print(f"[DEBUG] Determined true_batch_shape: {true_batch_shape}") # DEBUG PRINT
+    print(f"[DEBUG] Determined true_batch_shape: {true_batch_shape}")  # DEBUG PRINT
 
-    def _chunk_sample_diffusion(chunk_n_sample: int, inplace_safe: bool) -> torch.Tensor:
+    def _chunk_sample_diffusion(
+        chunk_n_sample: int, inplace_safe: bool
+    ) -> torch.Tensor:
         """Process a chunk of samples."""
         # Initialize noise using the true_batch_shape
         x_l = noise_schedule[0] * torch.randn(
-            size=(*true_batch_shape, chunk_n_sample, N_atom, 3), # Use true_batch_shape
+            size=(*true_batch_shape, chunk_n_sample, N_atom, 3),  # Use true_batch_shape
             device=device,
-            dtype=dtype
+            dtype=dtype,
         )
 
         # Process each step in the noise schedule
-        for step, (c_tau_last, c_tau) in enumerate(zip(noise_schedule[:-1], noise_schedule[1:])):
+        for step, (c_tau_last, c_tau) in enumerate(
+            zip(noise_schedule[:-1], noise_schedule[1:])
+        ):
             # Calculate gamma and t_hat
             gamma = float(gamma0) if c_tau > gamma_min else 0.0
             t_hat = c_tau_last * (gamma + 1.0)
 
             # Add noise for predictor step
-            delta_noise_level = torch.sqrt(torch.clamp(t_hat**2 - c_tau_last**2, min=0.0))
+            delta_noise_level = torch.sqrt(
+                torch.clamp(t_hat**2 - c_tau_last**2, min=0.0)
+            )
             x_noisy = x_l + noise_scale_lambda * delta_noise_level * torch.randn(
-                size=x_l.shape,
-                device=device,
-                dtype=dtype
+                size=x_l.shape, device=device, dtype=dtype
             )
 
             # Reshape t_hat for broadcasting using true_batch_shape
-            t_hat = t_hat.reshape((1,) * (len(true_batch_shape) + 1)).expand(*true_batch_shape, chunk_n_sample).to(dtype)
+            t_hat = (
+                t_hat.reshape((1,) * (len(true_batch_shape) + 1))
+                .expand(*true_batch_shape, chunk_n_sample)
+                .to(dtype)
+            )
 
             # Denoise step
-            print(f"[DEBUG][Generator Loop {step}] Before denoise_net - x_noisy: {x_noisy.shape}, t_hat: {t_hat.shape}") # DEBUG PRINT
-            x_denoised, _ = denoise_net( # Unpack tuple, ignore loss
+            print(
+                f"[DEBUG][Generator Loop {step}] Before denoise_net - x_noisy: {x_noisy.shape}, t_hat: {t_hat.shape}"
+            )  # DEBUG PRINT
+            x_denoised, _ = denoise_net(  # Unpack tuple, ignore loss
                 x_noisy=x_noisy,
                 t_hat_noise_level=t_hat,
                 input_feature_dict=input_feature_dict,
@@ -236,11 +246,15 @@ def sample_diffusion(
             )
 
             # Update x_l using Euler step
-            delta = (x_noisy - x_denoised) / (t_hat[..., None, None] + 1e-8)  # Add epsilon for stability
+            delta = (x_noisy - x_denoised) / (
+                t_hat[..., None, None] + 1e-8
+            )  # Add epsilon for stability
             dt = c_tau - t_hat
             x_l = x_noisy + step_scale_eta * dt[..., None, None] * delta
 
-        print(f"[DEBUG][sample_diffusion] Returning _chunk_sample_diffusion output shape: {x_l.shape}") # DEBUG PRINT
+        print(
+            f"[DEBUG][sample_diffusion] Returning _chunk_sample_diffusion output shape: {x_l.shape}"
+        )  # DEBUG PRINT
         return x_l
 
     # Process all samples or in chunks
@@ -250,19 +264,21 @@ def sample_diffusion(
         # Process in chunks
         n_chunks = (N_sample + diffusion_chunk_size - 1) // diffusion_chunk_size
         results = []
-        
+
         for i in range(n_chunks):
             start_idx = i * diffusion_chunk_size
             end_idx = min((i + 1) * diffusion_chunk_size, N_sample)
             chunk_size = end_idx - start_idx
-            
+
             chunk_result = _chunk_sample_diffusion(chunk_size, inplace_safe)
             results.append(chunk_result)
 
         # Concatenate results along the sample dimension (which follows the true batch dimensions)
         sample_dim_index = len(true_batch_shape)
         final_result = torch.cat(results, dim=sample_dim_index)
-        print(f"[DEBUG][sample_diffusion] Returning chunked output shape: {final_result.shape}") # DEBUG PRINT
+        print(
+            f"[DEBUG][sample_diffusion] Returning chunked output shape: {final_result.shape}"
+        )  # DEBUG PRINT
         return final_result
 
 
