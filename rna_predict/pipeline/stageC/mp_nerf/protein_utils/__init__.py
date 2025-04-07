@@ -3,8 +3,8 @@ Protein utilities package for structure manipulation and mask generation.
 """
 
 from rna_predict.pipeline.stageC.mp_nerf.protein_utils.supreme_data import (
+    SUPREME_INFO,  # <-- Add import from supreme_data
     SUPREME_MASK,
-    SUPREME_INFO, # <-- Add import from supreme_data
 )
 
 from .mask_generators import (
