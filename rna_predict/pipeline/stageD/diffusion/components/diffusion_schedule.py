@@ -1,6 +1,7 @@
 # rna_predict/pipeline/stageD/diffusion/components/diffusion_schedule.py
 import torch
 
+
 class DiffusionSchedule:
     def __init__(
         self,
