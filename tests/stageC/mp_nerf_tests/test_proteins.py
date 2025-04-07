@@ -1,19 +1,21 @@
 import unittest
+
 import torch
-import numpy as np
-from hypothesis import given, settings, strategies as st
+from hypothesis import given, settings
+from hypothesis import strategies as st
+
 from rna_predict.pipeline.stageC.mp_nerf.proteins import (
-    scn_cloud_mask,
-    scn_bond_mask,
-    scn_angle_mask,
-    scn_index_mask,
     build_scaffolds_from_scn_angles,
     modify_angles_mask_with_torsions,
     modify_scaffolds_with_coords,
     protein_fold,
+    scn_angle_mask,
+    scn_bond_mask,
+    scn_cloud_mask,
+    scn_index_mask,
     sidechain_fold,
 )
-from rna_predict.pipeline.stageC.mp_nerf.protein_utils.sidechain_data import SUPREME_INFO
+
 
 class TestScnCloudMask(unittest.TestCase):
     """Test suite for the scn_cloud_mask function."""
@@ -46,6 +48,7 @@ class TestScnCloudMask(unittest.TestCase):
         mask = scn_cloud_mask(self.valid_seq, coords=coords, strict=True)
         self.assertTrue(torch.all(mask == 0))
 
+
 class TestScnBondMask(unittest.TestCase):
     """Test suite for the scn_bond_mask function."""
 
@@ -65,6 +68,7 @@ class TestScnBondMask(unittest.TestCase):
         """Test bond mask values for known amino acids."""
         mask = scn_bond_mask(self.valid_seq)
         self.assertTrue(torch.all(mask >= 0))  # Bond lengths should be non-negative
+
 
 class TestScnAngleMask(unittest.TestCase):
     """Test suite for the scn_angle_mask function."""
@@ -92,6 +96,7 @@ class TestScnAngleMask(unittest.TestCase):
         self.assertEqual(mask.shape[1], 2)
         self.assertEqual(mask.shape[2], 14)
 
+
 class TestScnIndexMask(unittest.TestCase):
     """Test suite for the scn_index_mask function."""
 
@@ -107,6 +112,7 @@ class TestScnIndexMask(unittest.TestCase):
         self.assertEqual(mask.shape[0], 3)  # 3 reference points
         self.assertEqual(mask.shape[1], len(seq))
         self.assertEqual(mask.shape[2], 11)  # 11 atoms (excluding N-CA-C)
+
 
 class TestBuildScaffoldsFromScnAngles(unittest.TestCase):
     """Test suite for the build_scaffolds_from_scn_angles function."""
@@ -130,11 +136,14 @@ class TestBuildScaffoldsFromScnAngles(unittest.TestCase):
 
     def test_scaffold_building_with_angles(self):
         """Test scaffold building with provided angles."""
-        scaffolds = build_scaffolds_from_scn_angles(self.valid_seq, angles=self.valid_angles)
+        scaffolds = build_scaffolds_from_scn_angles(
+            self.valid_seq, angles=self.valid_angles
+        )
         self.assertIsInstance(scaffolds, dict)
         for key in ["cloud_mask", "point_ref_mask", "angles_mask", "bond_mask"]:
             self.assertIn(key, scaffolds)
             self.assertIsInstance(scaffolds[key], torch.Tensor)
+
 
 class TestModifyAnglesMaskWithTorsions(unittest.TestCase):
     """Test suite for the modify_angles_mask_with_torsions function."""
@@ -152,6 +161,7 @@ class TestModifyAnglesMaskWithTorsions(unittest.TestCase):
         )
         self.assertIsInstance(modified_mask, torch.Tensor)
         self.assertEqual(modified_mask.shape, self.valid_angles_mask.shape)
+
 
 class TestModifyScaffoldsWithCoords(unittest.TestCase):
     """Test suite for the modify_scaffolds_with_coords function."""
@@ -173,7 +183,11 @@ class TestModifyScaffoldsWithCoords(unittest.TestCase):
             self.valid_scaffolds, self.valid_coords
         )
         self.assertIsInstance(modified_scaffolds, dict)
-        self.assertEqual(modified_scaffolds["bond_mask"].shape, self.valid_scaffolds["bond_mask"].shape)
+        self.assertEqual(
+            modified_scaffolds["bond_mask"].shape,
+            self.valid_scaffolds["bond_mask"].shape,
+        )
+
 
 class TestProteinFold(unittest.TestCase):
     """Test suite for the protein_fold function."""
@@ -200,6 +214,7 @@ class TestProteinFold(unittest.TestCase):
         self.assertEqual(coords.shape[1], 14)  # atoms
         self.assertEqual(coords.shape[2], 3)  # coordinates
         self.assertEqual(cloud_mask.shape, self.valid_cloud_mask.shape)
+
 
 class TestSidechainFold(unittest.TestCase):
     """Test suite for the sidechain_fold function."""
@@ -240,4 +255,4 @@ class TestSidechainFold(unittest.TestCase):
         )
         self.assertIsInstance(wrapper, torch.Tensor)
         self.assertEqual(wrapper.shape, self.valid_wrapper.shape)
-        self.assertEqual(cloud_mask.shape, self.valid_cloud_mask.shape) 
+        self.assertEqual(cloud_mask.shape, self.valid_cloud_mask.shape)
