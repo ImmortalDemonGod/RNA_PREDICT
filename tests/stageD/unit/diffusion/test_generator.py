@@ -31,10 +31,10 @@ def mock_denoise_net():
         z_trunk: torch.Tensor,
         chunk_size: Optional[int] = None,
         inplace_safe: bool = False,
-    ) -> tuple[torch.Tensor, torch.Tensor]: # Return a tuple (coords, loss)
+    ) -> tuple[torch.Tensor, torch.Tensor]:  # Return a tuple (coords, loss)
         # Return something shaped like x_noisy but offset to test differences
         mock_coords = x_noisy - 0.1  # simple offset
-        mock_loss = torch.tensor(0.0, device=x_noisy.device) # Dummy scalar loss
+        mock_loss = torch.tensor(0.0, device=x_noisy.device)  # Dummy scalar loss
         return mock_coords, mock_loss
 
     return _mock_denoise_net
@@ -193,7 +193,7 @@ class TestSampleDiffusion:
             "restype": torch.zeros(1, 5, 32),
             "profile": torch.zeros(1, 5, 32),
             "deletion_mean": torch.zeros(1, 5, 1),
-            "sing": torch.randn(1, 5, 449)  # Required for s_inputs fallback
+            "sing": torch.randn(1, 5, 449),  # Required for s_inputs fallback
         }
 
     def test_basic_sample_diffusion_no_chunk(
@@ -222,9 +222,15 @@ class TestSampleDiffusion:
         # Expect [batch, N_sample, n_atoms, 3] from sample_diffusion
         assert x_l.ndim == 4, f"Expected 4 dimensions, got {x_l.ndim}"
         assert x_l.shape[0] == 1, f"Expected batch size 1, got {x_l.shape[0]}"
-        assert x_l.shape[1] == 1, f"Expected N_sample 1, got {x_l.shape[1]}" # N_sample=1 was passed
-        assert x_l.shape[2] == 5, f"Expected 5 atoms, got {x_l.shape[2]}"  # Check number of atoms matches
-        assert x_l.shape[3] == 3, f"Expected 3 coordinates, got {x_l.shape[3]}" # Check coordinate dimension
+        assert (
+            x_l.shape[1] == 1
+        ), f"Expected N_sample 1, got {x_l.shape[1]}"  # N_sample=1 was passed
+        assert (
+            x_l.shape[2] == 5
+        ), f"Expected 5 atoms, got {x_l.shape[2]}"  # Check number of atoms matches
+        assert (
+            x_l.shape[3] == 3
+        ), f"Expected 3 coordinates, got {x_l.shape[3]}"  # Check coordinate dimension
 
     def test_sample_diffusion_with_chunk(
         self, mock_denoise_net, basic_input_feature_dict
@@ -252,9 +258,15 @@ class TestSampleDiffusion:
         # Expect [batch, N_sample, n_atoms, 3] from sample_diffusion
         assert x_l.ndim == 4, f"Expected 4 dimensions, got {x_l.ndim}"
         assert x_l.shape[0] == 1, f"Expected batch size 1, got {x_l.shape[0]}"
-        assert x_l.shape[1] == 1, f"Expected N_sample 1, got {x_l.shape[1]}" # N_sample=1 was passed
-        assert x_l.shape[2] == 5, f"Expected 5 atoms, got {x_l.shape[2]}"  # Check number of atoms matches
-        assert x_l.shape[3] == 3, f"Expected 3 coordinates, got {x_l.shape[3]}" # Check coordinate dimension
+        assert (
+            x_l.shape[1] == 1
+        ), f"Expected N_sample 1, got {x_l.shape[1]}"  # N_sample=1 was passed
+        assert (
+            x_l.shape[2] == 5
+        ), f"Expected 5 atoms, got {x_l.shape[2]}"  # Check number of atoms matches
+        assert (
+            x_l.shape[3] == 3
+        ), f"Expected 3 coordinates, got {x_l.shape[3]}"  # Check coordinate dimension
 
     @settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
     @given(
