@@ -1,13 +1,18 @@
 # rna_predict/scripts/screenshot.py
+import logging  # Import logging to access levels like INFO, DEBUG
+from typing import Any, Dict, List
+
+import cv2  # OpenCV is used for converting the image format
 import mss
 import numpy as np
-import cv2  # OpenCV is used for converting the image format
-from .logger import setup_logger # Use relative import within the same package/directory structure
-import logging # Import logging to access levels like INFO, DEBUG
-from typing import List, Dict, Any
+
+from .logger import (
+    setup_logger,
+)  # Use relative import within the same package/directory structure
 
 # Setup logger for this module
 logger = setup_logger(logging.INFO)
+
 
 def capture_all_monitors() -> List[Dict[str, Any]]:
     """
@@ -22,28 +27,30 @@ def capture_all_monitors() -> List[Dict[str, Any]]:
     try:
         with mss.mss() as sct:
             monitors = sct.monitors
-            logger.debug(f"Found {len(monitors) - 1} individual monitors (excluding the combined virtual screen).")
+            logger.debug(
+                f"Found {len(monitors) - 1} individual monitors (excluding the combined virtual screen)."
+            )
 
             # The first monitor in sct.monitors is the combined virtual screen, skip it.
             for i, monitor in enumerate(monitors[1:], start=1):
-                logger.debug(f"Attempting to capture screenshot for monitor {i}: {monitor}")
+                logger.debug(
+                    f"Attempting to capture screenshot for monitor {i}: {monitor}"
+                )
                 # Capture the screen for the current monitor
                 img = sct.grab(monitor)
 
                 # Convert the captured BGRA image to a BGR NumPy array
                 image_np_bgr = cv2.cvtColor(np.array(img), cv2.COLOR_BGRA2BGR)
 
-                screenshots.append({
-                    'monitor_info': monitor,
-                    'image': image_np_bgr
-                })
+                screenshots.append({"monitor_info": monitor, "image": image_np_bgr})
                 logger.info(f"Screenshot captured successfully for monitor {i}.")
 
     except Exception as e:
         logger.error(f"Failed to capture screenshots: {e}", exc_info=True)
-        return [] # Return empty list on failure
+        return []  # Return empty list on failure
 
     return screenshots
+
 
 # Example usage (optional, can be uncommented for testing)
 # if __name__ == '__main__':
