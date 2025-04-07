@@ -5,6 +5,19 @@ from typing import List, Optional, Union
 
 import numpy as np
 import torch
+import importlib.util
+
+# Check if Bio.PDB is available
+bio_pdb_spec = importlib.util.find_spec("Bio.PDB")
+if bio_pdb_spec is not None:
+    from Bio.PDB import MMCIFIO, PDBIO, MMCIFParser, PDBParser
+    from Bio.PDB.Atom import Atom
+    from Bio.PDB.StructureBuilder import StructureBuilder
+
+# Remove unused imports
+# from Bio.PDB.Chain import Chain
+# from Bio.PDB.Model import Model
+# from Bio.PDB.Residue import Residue
 
 # Attempt to import BioPython, handle gracefully if not installed
 try:
