@@ -6,14 +6,14 @@ import torch
 import torch.nn as nn
 
 from rna_predict.pipeline.stageA.input_embedding.current.primitives import LinearNoBias
+from rna_predict.pipeline.stageA.input_embedding.current.transformer.atom_attention.components import (
+    AttentionComponents,
+    CoordinateProcessor,
+    FeatureProcessor,
+)
 from rna_predict.pipeline.stageA.input_embedding.current.transformer.atom_attention.config import (
     AtomAttentionConfig,
     EncoderForwardParams,
-)
-from rna_predict.pipeline.stageA.input_embedding.current.transformer.atom_attention.components import (
-    FeatureProcessor,
-    CoordinateProcessor,
-    AttentionComponents,
 )
 
 
@@ -91,7 +91,9 @@ class AtomAttentionEncoder(nn.Module):
 
         if he_normal_init_atom_encoder_small_mlp:
             for layer in self.attention_components.small_mlp:
-                if isinstance(layer, nn.Linear):  # Changed from LinearNoBias to nn.Linear
+                if isinstance(
+                    layer, nn.Linear
+                ):  # Changed from LinearNoBias to nn.Linear
                     nn.init.kaiming_normal_(layer.weight, nonlinearity="relu")
 
         if he_normal_init_atom_encoder_output:
@@ -142,7 +144,9 @@ class AtomAttentionEncoder(nn.Module):
                 num_tokens = int(restype.shape[1])
             else:
                 # Default to maximum token index + 1
-                num_tokens = int(params.input_feature_dict["atom_to_token_idx"].max().item() + 1)
+                num_tokens = int(
+                    params.input_feature_dict["atom_to_token_idx"].max().item() + 1
+                )
 
         # Aggregate to token level
         a_token = self.feature_processor.aggregate_to_token_level(
@@ -222,4 +226,4 @@ class AtomAttentionEncoder(nn.Module):
             n_keys=n_keys,
             blocks_per_ckpt=blocks_per_ckpt,
         )
-        return cls(config) 
+        return cls(config)
