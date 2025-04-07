@@ -257,16 +257,55 @@ class TestNoiseInternals(unittest.TestCase):
         seq = "AGH"
         L = len(seq)
         # Use protein angles (phi, psi, omega, bond angles, sidechain angles)
-        angles = torch.tensor([
-            # phi, psi, omega, b_angle(n_ca_c), b_angle(ca_c_n), b_angle(c_n_ca), 6_scn_torsions
-            [-np.pi/3, np.pi/3, 0.0, 111.2 * np.pi/180, 116.2 * np.pi/180, 121.7 * np.pi/180, 
-             np.pi/6, np.pi/4, np.pi/3, -np.pi/4, -np.pi/6, -np.pi/3],  # A
-            [-np.pi/4, np.pi/4, 0.0, 111.2 * np.pi/180, 116.2 * np.pi/180, 121.7 * np.pi/180,
-             np.pi/4, np.pi/3, np.pi/2, -np.pi/3, -np.pi/4, -np.pi/2],  # G
-            [-np.pi/6, np.pi/6, 0.0, 111.2 * np.pi/180, 116.2 * np.pi/180, 121.7 * np.pi/180,
-             np.pi/3, np.pi/2, 2*np.pi/3, -np.pi/2, -np.pi/3, -2*np.pi/3],  # H
-        ], dtype=torch.float32)
-        
+        angles = torch.tensor(
+            [
+                # phi, psi, omega, b_angle(n_ca_c), b_angle(ca_c_n), b_angle(c_n_ca), 6_scn_torsions
+                [
+                    -np.pi / 3,
+                    np.pi / 3,
+                    0.0,
+                    111.2 * np.pi / 180,
+                    116.2 * np.pi / 180,
+                    121.7 * np.pi / 180,
+                    np.pi / 6,
+                    np.pi / 4,
+                    np.pi / 3,
+                    -np.pi / 4,
+                    -np.pi / 6,
+                    -np.pi / 3,
+                ],  # A
+                [
+                    -np.pi / 4,
+                    np.pi / 4,
+                    0.0,
+                    111.2 * np.pi / 180,
+                    116.2 * np.pi / 180,
+                    121.7 * np.pi / 180,
+                    np.pi / 4,
+                    np.pi / 3,
+                    np.pi / 2,
+                    -np.pi / 3,
+                    -np.pi / 4,
+                    -np.pi / 2,
+                ],  # G
+                [
+                    -np.pi / 6,
+                    np.pi / 6,
+                    0.0,
+                    111.2 * np.pi / 180,
+                    116.2 * np.pi / 180,
+                    121.7 * np.pi / 180,
+                    np.pi / 3,
+                    np.pi / 2,
+                    2 * np.pi / 3,
+                    -np.pi / 2,
+                    -np.pi / 3,
+                    -2 * np.pi / 3,
+                ],  # H
+            ],
+            dtype=torch.float32,
+        )
+
         out_coords, out_mask = ml_utils.noise_internals(
             seq=seq,
             angles=angles,
