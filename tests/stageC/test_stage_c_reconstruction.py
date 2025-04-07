@@ -241,7 +241,7 @@ class TestRunStageCRnaMpnerf(unittest.TestCase):
             )
         # Code unsqueezes the (5, 3) from mock rna_fold to (5, 1, 3)
         self.assertEqual(result["coords"].shape, (5, 1, 3))
-        self.assertEqual(result["atom_count"], 5) # atom_count is 5*1=5
+        self.assertEqual(result["atom_count"], 5)  # atom_count is 5*1=5
 
     @given(
         seq=st.text(),  # random sequences
