@@ -1,6 +1,7 @@
 """
 Core forward pass logic for the AtomAttentionEncoder.
 """
+
 import warnings
 from typing import Any, Optional, Tuple
 
@@ -15,8 +16,9 @@ from rna_predict.pipeline.stageA.input_embedding.current.utils import (
     aggregate_atom_to_token,
     broadcast_token_to_atom,
 )
+
 from .config import ProcessInputsParams
-from .feature_processing import extract_atom_features, adapt_tensor_dimensions
+from .feature_processing import adapt_tensor_dimensions, extract_atom_features
 from .pair_embedding import create_pair_embedding
 
 
@@ -50,26 +52,32 @@ def _process_simple_embedding(
     restype = safe_tensor_access(input_feature_dict, "restype")
     # --- Start Fix ---
     # Correctly determine token dimension based on restype ndim
-    if restype is not None and hasattr(restype, 'dim'): # Check if restype is a tensor
-        if restype.dim() >= 3: # e.g., [B, N_token, C]
+    if restype is not None and hasattr(restype, "dim"):  # Check if restype is a tensor
+        if restype.dim() >= 3:  # e.g., [B, N_token, C]
             num_tokens = restype.shape[-2]
-        elif restype.dim() == 2: # e.g., [B, N_token] or [N_token, C]
+        elif restype.dim() == 2:  # e.g., [B, N_token] or [N_token, C]
             # Heuristic: Assume the larger dimension is the token dimension if ambiguous
             # Or assume [B, N_token] format is most likely
-            if restype.shape[0] > restype.shape[1] and restype.shape[1] != a_atom.shape[-1]: # Likely [N_token, C]
-                 num_tokens = restype.shape[0]
-            else: # Assume [B, N_token]
-                 num_tokens = restype.shape[-1]
-        elif restype.dim() == 1: # e.g., [N_token]
+            if (
+                restype.shape[0] > restype.shape[1]
+                and restype.shape[1] != a_atom.shape[-1]
+            ):  # Likely [N_token, C]
+                num_tokens = restype.shape[0]
+            else:  # Assume [B, N_token]
+                num_tokens = restype.shape[-1]
+        elif restype.dim() == 1:  # e.g., [N_token]
             num_tokens = restype.shape[0]
-        else: # Fallback if restype is scalar or invalid
-            warnings.warn(f"Could not determine num_tokens from restype shape {restype.shape}. Falling back to a_atom.")
-            num_tokens = a_atom.shape[-2] # Fallback to atom dimension of a_atom
-    else: # Fallback if restype is None or not a tensor
-         warnings.warn(f"restype is None or not a Tensor. Falling back to a_atom shape for num_tokens.")
-         num_tokens = a_atom.shape[-2]
+        else:  # Fallback if restype is scalar or invalid
+            warnings.warn(
+                f"Could not determine num_tokens from restype shape {restype.shape}. Falling back to a_atom."
+            )
+            num_tokens = a_atom.shape[-2]  # Fallback to atom dimension of a_atom
+    else:  # Fallback if restype is None or not a tensor
+        warnings.warn(
+            "restype is None or not a Tensor. Falling back to a_atom shape for num_tokens."
+        )
+        num_tokens = a_atom.shape[-2]
     # --- End Fix ---
-
 
     # Get atom to token mapping
     atom_to_token_idx = safe_tensor_access(input_feature_dict, "atom_to_token_idx")
@@ -89,14 +97,18 @@ def _process_simple_embedding(
         # For now, let's allow _aggregate_to_token_level to handle it (might error there)
         pass
 
-
     # Aggregate atom features to token level
     # Ensure atom_to_token_idx is not None before passing
     if atom_to_token_idx is None:
-         # Create a default index if it's missing, mapping all atoms to token 0
-         warnings.warn("Creating default atom_to_token_idx mapping all atoms to token 0.")
-         atom_to_token_idx = torch.zeros(a_atom.shape[:-1], dtype=torch.long, device=a_atom.device)
-         if num_tokens == 0: num_tokens = 1 # Avoid n_token=0 if using default index
+        # Create a default index if it's missing, mapping all atoms to token 0
+        warnings.warn(
+            "Creating default atom_to_token_idx mapping all atoms to token 0."
+        )
+        atom_to_token_idx = torch.zeros(
+            a_atom.shape[:-1], dtype=torch.long, device=a_atom.device
+        )
+        if num_tokens == 0:
+            num_tokens = 1  # Avoid n_token=0 if using default index
 
     a = _aggregate_to_token_level(encoder, a_atom, atom_to_token_idx, num_tokens)
 
@@ -137,7 +149,7 @@ def _process_style_embedding(
     encoder: Any,
     c_l: torch.Tensor,
     s: Optional[torch.Tensor],
-    atom_to_token_idx: Optional[torch.Tensor], # Allow None
+    atom_to_token_idx: Optional[torch.Tensor],  # Allow None
 ) -> torch.Tensor:
     """
     Process style embedding from token to atom level.
@@ -151,7 +163,7 @@ def _process_style_embedding(
     Returns:
         Updated atom features with style information
     """
-    if s is None or atom_to_token_idx is None: # Check if index is None
+    if s is None or atom_to_token_idx is None:  # Check if index is None
         return c_l
 
     # Broadcast token-level s to atom-level
@@ -204,16 +216,20 @@ def _aggregate_to_token_level(
                 break
         if not squeezed:
             # If no squeezable dim found, check if the first dim can be squeezed (if it's not the only batch dim)
-            if temp_idx.shape[0] == 1 and n_batch_dims_target > 0 and temp_idx.dim() > 2:
-                 temp_idx = temp_idx.squeeze(0)
-                 squeezed = True
+            if (
+                temp_idx.shape[0] == 1
+                and n_batch_dims_target > 0
+                and temp_idx.dim() > 2
+            ):
+                temp_idx = temp_idx.squeeze(0)
+                squeezed = True
 
         if not squeezed:
-             warnings.warn(
-                 f"Could not reduce index dimensions from {temp_idx.dim()} to target {n_batch_dims_target + 1}. "
-                 f"Index shape: {temp_idx.shape}, Original: {original_idx_shape}, Target Batch: {target_batch_shape}"
-             )
-             break # Cannot reduce further
+            warnings.warn(
+                f"Could not reduce index dimensions from {temp_idx.dim()} to target {n_batch_dims_target + 1}. "
+                f"Index shape: {temp_idx.shape}, Original: {original_idx_shape}, Target Batch: {target_batch_shape}"
+            )
+            break  # Cannot reduce further
 
     # Add missing batch dimensions (typically at the start or after first batch dim)
     while temp_idx.dim() < n_batch_dims_target + 1:
@@ -230,7 +246,7 @@ def _aggregate_to_token_level(
                 f"Expanding index atom dimension. Original idx shape: {original_idx_shape}."
             )
             temp_idx = temp_idx.expand(*temp_idx.shape[:-1], n_atom_dim_a)
-            n_atom_dim_idx = temp_idx.shape[-1] # Update after expansion
+            n_atom_dim_idx = temp_idx.shape[-1]  # Update after expansion
         else:
             # If atom dimensions mismatch and index atom dim is not 1, it's an irreconcilable error.
             raise ValueError(
@@ -241,48 +257,53 @@ def _aggregate_to_token_level(
             )
     # --- End Fix ---
 
-
     # Match batch dimension sizes via expand (only if atom dimensions now match)
     current_batch_shape = temp_idx.shape[:-1]
     if target_batch_shape != current_batch_shape:
         # Special case: if target_batch_shape is empty, handle index shape
         if len(target_batch_shape) == 0:
             # If no batch dims in target, index should be 1D [N_atom]
-            if temp_idx.dim() > 1: # Only reshape if it has extra dims
-                 # If it was expanded (e.g., from [N_atom, 1] to [N_atom, N_atom]), take the diagonal
-                 if temp_idx.shape[0] == n_atom_dim_a and temp_idx.shape[1] == n_atom_dim_a:
-                     temp_idx = torch.diag(temp_idx)
-                 else:
-                     # Otherwise, try viewing (might fail if size mismatch)
-                     try:
-                         temp_idx = temp_idx.view(n_atom_dim_a)
-                     except RuntimeError as e:
-                          raise RuntimeError(
-                              f"Failed to reshape temp_idx to [{n_atom_dim_a}] when target_batch_shape is empty. "
-                              f"Current shape: {temp_idx.shape}. Original idx shape: {original_idx_shape}. Error: {e}"
-                          ) from e
+            if temp_idx.dim() > 1:  # Only reshape if it has extra dims
+                # If it was expanded (e.g., from [N_atom, 1] to [N_atom, N_atom]), take the diagonal
+                if (
+                    temp_idx.shape[0] == n_atom_dim_a
+                    and temp_idx.shape[1] == n_atom_dim_a
+                ):
+                    temp_idx = torch.diag(temp_idx)
+                else:
+                    # Otherwise, try viewing (might fail if size mismatch)
+                    try:
+                        temp_idx = temp_idx.view(n_atom_dim_a)
+                    except RuntimeError as e:
+                        raise RuntimeError(
+                            f"Failed to reshape temp_idx to [{n_atom_dim_a}] when target_batch_shape is empty. "
+                            f"Current shape: {temp_idx.shape}. Original idx shape: {original_idx_shape}. Error: {e}"
+                        ) from e
         else:
             # Check if expansion is possible (target dim == current dim OR current dim == 1)
             can_expand = all(
-                t == c or c == 1 for t, c in zip(target_batch_shape, current_batch_shape)
+                t == c or c == 1
+                for t, c in zip(target_batch_shape, current_batch_shape)
             )
             # Also need to ensure the number of dimensions is compatible for expansion
             # (temp_idx might have fewer batch dims than target after squeezing)
             if len(current_batch_shape) <= len(target_batch_shape) and can_expand:
-                 target_idx_shape = target_batch_shape + (n_atom_dim_a,) # Use the matched atom dim size
-                 try:
-                     # Expand to the target shape (handles adding dimensions implicitly if needed)
-                     temp_idx = temp_idx.expand(target_idx_shape)
-                 except RuntimeError as e:
-                     # This expansion should ideally not fail if the checks above passed, but catch just in case
-                     raise RuntimeError(
-                         f"Failed to expand atom_to_token_idx batch dimensions from {current_batch_shape} "
-                         f"to {target_batch_shape} (target index shape: {target_idx_shape}). "
-                         f"Original idx shape: {original_idx_shape}. Error: {e}"
-                     ) from e
-            else: # Expansion is not possible
-                 # Refined error message for clarity
-                 raise ValueError(
+                target_idx_shape = target_batch_shape + (
+                    n_atom_dim_a,
+                )  # Use the matched atom dim size
+                try:
+                    # Expand to the target shape (handles adding dimensions implicitly if needed)
+                    temp_idx = temp_idx.expand(target_idx_shape)
+                except RuntimeError as e:
+                    # This expansion should ideally not fail if the checks above passed, but catch just in case
+                    raise RuntimeError(
+                        f"Failed to expand atom_to_token_idx batch dimensions from {current_batch_shape} "
+                        f"to {target_batch_shape} (target index shape: {target_idx_shape}). "
+                        f"Original idx shape: {original_idx_shape}. Error: {e}"
+                    ) from e
+            else:  # Expansion is not possible
+                # Refined error message for clarity
+                raise ValueError(
                     f"Cannot expand index batch dimensions {current_batch_shape} to target {target_batch_shape}. "
                     f"Expansion possible: {can_expand}, Dim lengths compatible: {len(current_batch_shape) <= len(target_batch_shape)}. "
                     f"Original idx shape: {original_idx_shape}. Aggregation impossible."
@@ -291,8 +312,8 @@ def _aggregate_to_token_level(
 
     # Final check before aggregation (should always pass if logic above is correct)
     if temp_idx.shape[:-1] != a_atom.shape[:-2] or temp_idx.shape[-1] != n_atom_dim_a:
-         # This path indicates a bug in the reshaping/expansion logic itself.
-         raise AssertionError(
+        # This path indicates a bug in the reshaping/expansion logic itself.
+        raise AssertionError(
             f"Internal logic error: Shape mismatch persists before aggregation despite checks. "
             f"a_atom shape {a_atom.shape}, atom_to_token_idx shape {temp_idx.shape}. "
             f"Original idx shape was {original_idx_shape}."
@@ -300,7 +321,7 @@ def _aggregate_to_token_level(
 
     # Ensure atom_to_token_idx doesn't exceed num_tokens to prevent out-of-bounds
     if num_tokens <= 0:
-         raise ValueError(f"num_tokens must be positive, but got {num_tokens}.")
+        raise ValueError(f"num_tokens must be positive, but got {num_tokens}.")
     if temp_idx.numel() > 0:
         max_idx = temp_idx.max()
         if max_idx >= num_tokens:
@@ -362,11 +383,15 @@ def process_inputs_with_coords(
         # Pass 3D or 5D tensors directly
         p_for_transformer = p_lm
     elif p_lm is None:
-        warnings.warn("p_lm is None in process_inputs_with_coords. AtomTransformer might fail.")
-        p_for_transformer = None # Explicitly set to None
+        warnings.warn(
+            "p_lm is None in process_inputs_with_coords. AtomTransformer might fail."
+        )
+        p_for_transformer = None  # Explicitly set to None
     else:
         # Raise error for unexpected dimensions like 1D, 2D, or > 5D
-        raise ValueError(f"Unexpected p_lm dimensions ({p_lm.dim()}) received in process_inputs_with_coords. Shape: {p_lm.shape}")
+        raise ValueError(
+            f"Unexpected p_lm dimensions ({p_lm.dim()}) received in process_inputs_with_coords. Shape: {p_lm.shape}"
+        )
 
     # Pass the original token-level 's' for conditioning, not the atom-level 'c_l'
     # Also ensure s is not None before passing
@@ -383,14 +408,21 @@ def process_inputs_with_coords(
             num_tokens = restype.shape[1]  # [B, N_tokens, ...]
         else:
             # Fallback to atom_to_token_idx if restype not available
-            num_tokens = int(atom_to_token_idx.max().item()) + 1 if atom_to_token_idx is not None else q_l.shape[-2]
+            num_tokens = (
+                int(atom_to_token_idx.max().item()) + 1
+                if atom_to_token_idx is not None
+                else q_l.shape[-2]
+            )
 
         s_for_transformer = torch.zeros(
             *batch_dims, num_tokens, encoder.c_s, device=q_l.device, dtype=q_l.dtype
         )
 
     q_l = encoder.atom_transformer(
-        q=q_l, s=s_for_transformer, p=p_for_transformer, chunk_size=params.chunk_size # Use aligned p
+        q=q_l,
+        s=s_for_transformer,
+        p=p_for_transformer,
+        chunk_size=params.chunk_size,  # Use aligned p
     )
 
     # Project to token dimension with ReLU
@@ -401,7 +433,11 @@ def process_inputs_with_coords(
         num_tokens = restype.shape[1]  # [B, N_tokens, ...]
     else:
         # Fallback to atom_to_token_idx if restype not available
-        num_tokens = int(atom_to_token_idx.max().item()) + 1 if atom_to_token_idx is not None else q_l.shape[-2]
+        num_tokens = (
+            int(atom_to_token_idx.max().item()) + 1
+            if atom_to_token_idx is not None
+            else q_l.shape[-2]
+        )
 
     # Aggregate to token level
     a = _aggregate_to_token_level(encoder, a_atom, atom_to_token_idx, num_tokens)
