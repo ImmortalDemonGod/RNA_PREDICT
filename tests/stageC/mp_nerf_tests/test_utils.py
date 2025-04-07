@@ -56,15 +56,13 @@ try:
     # Patch the IO classes used in save_structure
     patch_pdb_io = patch("rna_predict.pipeline.stageC.mp_nerf.utils.PDBIO")
     patch_cif_io = patch("rna_predict.pipeline.stageC.mp_nerf.utils.MMCIFIO")
-    # Patch Atom class used in save_structure
+    # Patch Atom class where it's imported/used in utils.py
     patch_atom_cls = patch("rna_predict.pipeline.stageC.mp_nerf.utils.Atom")
-    # Patch Residue class used in save_structure
-    patch_residue_cls = patch("rna_predict.pipeline.stageC.mp_nerf.utils.Residue")
-    # Patch Chain class used in save_structure
-    patch_chain_cls = patch("rna_predict.pipeline.stageC.mp_nerf.utils.Chain")
-    # Patch Model class used in save_structure
-    patch_model_cls = patch("rna_predict.pipeline.stageC.mp_nerf.utils.Model")
-    # Patch StructureBuilder used in save_structure
+    # Remove patches for classes not directly imported/used by name in utils.save_structure
+    # patch_residue_cls = patch("Bio.PDB.Residue.Residue") # Removed
+    # patch_chain_cls = patch("Bio.PDB.Chain.Chain")       # Removed
+    # patch_model_cls = patch("Bio.PDB.Model.Model")       # Removed
+    # Patch StructureBuilder where it's imported/used in utils.py
     patch_builder_cls = patch(
         "rna_predict.pipeline.stageC.mp_nerf.utils.StructureBuilder"
     )
@@ -300,9 +298,7 @@ def test_get_device_cuda_not_available(mock_cuda_available):
 # Test save_structure (Lines 135-154, 159)
 # Use mocks for Bio.PDB classes to avoid actual file writing and dependency
 @patch_builder_cls
-@patch_model_cls
-@patch_chain_cls
-@patch_residue_cls
+# Removed unused decorators: @patch_model_cls, @patch_chain_cls, @patch_residue_cls
 @patch_atom_cls
 @patch_pdb_io
 @patch_cif_io
@@ -310,9 +306,6 @@ def test_save_structure_3d_input_pdb(
     mock_cifio_cls,
     mock_pdbio_cls,
     mock_atom_cls,
-    mock_residue_cls,
-    mock_chain_cls,
-    mock_model_cls,
     mock_builder_cls,
     tmp_path: Path,
 ):
@@ -331,12 +324,14 @@ def test_save_structure_3d_input_pdb(
     mock_pdbio_inst = mock_pdbio_cls.return_value
     mock_builder_inst = mock_builder_cls.return_value
     mock_structure = mock_builder_inst.get_structure.return_value
-    mock_model_inst = mock_model_cls.return_value
-    mock_chain_inst = mock_chain_cls.return_value
+    # Removed references to unused mocks: mock_model_cls, mock_chain_cls
+    # mock_model_inst = mock_model_cls.return_value # Removed
+    # mock_chain_inst = mock_chain_cls.return_value # Removed
 
-    # Configure mock hierarchy returns
-    mock_structure.__getitem__.return_value = mock_model_inst
-    mock_model_inst.__getitem__.return_value = mock_chain_inst
+    # Configure mock hierarchy returns - Mock the necessary hierarchy directly if needed
+    # For this test, mocking the builder methods called within save_structure is sufficient
+    # mock_structure.__getitem__.return_value = mock_model_inst # Removed
+    # mock_model_inst.__getitem__.return_value = mock_chain_inst # Removed
 
     utils.save_structure(
         coords, str(output_file), atom_types=atom_types, res_names=res_names
@@ -373,9 +368,7 @@ def test_save_structure_3d_input_pdb(
 
 
 @patch_builder_cls
-@patch_model_cls
-@patch_chain_cls
-@patch_residue_cls
+# Removed unused decorators: @patch_model_cls, @patch_chain_cls, @patch_residue_cls
 @patch_atom_cls
 @patch_pdb_io
 @patch_cif_io
@@ -383,9 +376,7 @@ def test_save_structure_2d_input_cif(
     mock_cifio_cls,
     mock_pdbio_cls,
     mock_atom_cls,
-    mock_residue_cls,
-    mock_chain_cls,
-    mock_model_cls,
+    # Removed unused mock arguments: mock_residue_cls, mock_chain_cls, mock_model_cls
     mock_builder_cls,
     tmp_path: Path,
 ):
@@ -402,12 +393,14 @@ def test_save_structure_2d_input_cif(
     mock_cifio_inst = mock_cifio_cls.return_value
     mock_builder_inst = mock_builder_cls.return_value
     mock_structure = mock_builder_inst.get_structure.return_value
-    mock_model_inst = mock_model_cls.return_value
-    mock_chain_inst = mock_chain_cls.return_value
+    # Removed references to unused mocks: mock_model_cls, mock_chain_cls
+    # mock_model_inst = mock_model_cls.return_value # Removed
+    # mock_chain_inst = mock_chain_cls.return_value # Removed
 
-    # Configure mock hierarchy returns
-    mock_structure.__getitem__.return_value = mock_model_inst
-    mock_model_inst.__getitem__.return_value = mock_chain_inst
+    # Configure mock hierarchy returns - Mock the necessary hierarchy directly if needed
+    # For this test, mocking the builder methods called within save_structure is sufficient
+    # mock_structure.__getitem__.return_value = mock_model_inst # Removed
+    # mock_model_inst.__getitem__.return_value = mock_chain_inst # Removed
 
     utils.save_structure(
         coords, str(output_file), atom_types=atom_types, res_names=res_names

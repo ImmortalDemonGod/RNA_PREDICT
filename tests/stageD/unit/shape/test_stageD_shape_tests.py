@@ -15,7 +15,7 @@ from rna_predict.pipeline.stageD.diffusion.run_stageD_unified import run_stageD_
 
 def test_single_sample_shape_expansion():
     """
-    Ensures single-sample usage no longer triggers "Shape mismatch" assertion failures.
+    Ensures single-sample usage no longer  triggers "Shape mismatch" assertion failures.
     We forcibly make s_trunk 4D for single-sample, then rely on the updated logic
     to expand atom_to_token_idx from [B,N_atom] to [B,1,N_atom].
     """
@@ -49,13 +49,14 @@ def test_single_sample_shape_expansion():
         "restype": torch.zeros(1, 5, 32),
         "profile": torch.zeros(1, 5, 32),
         "deletion_mean": torch.zeros(1, 5, 1),
-        "sing": torch.randn(1, 5, 449),  # Required for s_inputs fallback
+        "sing": torch.randn(1, 5, 384),  # Required for s_inputs fallback, match c_s_inputs
     }
 
     # trunk_embeddings forcibly uses [B,1,N_token,c_s] and [B,1,N_token,N_token,c_z]
     trunk_embeddings = {
         "s_trunk": torch.randn(1, 1, 5, 384),
         "pair": torch.randn(1, 1, 5, 5, 32),  # Added sample dimension to match s_trunk
+        "sing": torch.randn(1, 5, 384),  # Required for s_inputs fallback, match conditioning['c_s_inputs']
     }
 
     inference_params = {"N_sample": 1, "num_steps": 2}
@@ -215,7 +216,7 @@ def test_local_trunk_small_natom_memory_efficient():
             "c_s": 384,
             "c_z": 32,
             "c_token": 384,
-            "c_s_inputs": 449,
+            # "c_s_inputs": 449, # This contradicts conditioning['c_s_inputs'], remove or align. Using conditioning value (384).
             "transformer": {"n_blocks": 1, "n_heads": 2},  # Reduced from original
             "conditioning": {
                 "c_s": 384,
