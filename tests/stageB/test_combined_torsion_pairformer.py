@@ -70,7 +70,7 @@ class TestCombinedTorsionPairformer(unittest.TestCase):
 
         # Check shapes
         N = len(self.sequence)
-        angle_dim = result["torsion_angles"].shape[
+        result["torsion_angles"].shape[
             1
         ]  # Could be 7 or 14 depending on mode
 
@@ -102,7 +102,7 @@ class TestCombinedTorsionPairformer(unittest.TestCase):
         # Check that z_embeddings have some correlation with adjacency
         # This is a heuristic test - higher values where adjacency=1
         z_emb = result["z_embeddings"]
-        N = len(self.sequence)
+        len(self.sequence)
 
         # Calculate mean magnitude where adjacency=1 vs adjacency=0
         adj_mask = self.adjacency > 0

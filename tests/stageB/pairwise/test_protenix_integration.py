@@ -16,7 +16,7 @@ def test_residue_index_squeeze_fix():
     N_token = 5
     N_atom = 4 * N_token
     atoms_per_token = 4
-    atom_to_token_idx = torch.arange(N_atom).unsqueeze(-1)
+    torch.arange(N_atom).unsqueeze(-1)
 
     # Create minimal input features with 2D shapes [batch, feat_dim]
     input_features = {
