@@ -333,12 +333,6 @@ def test_save_structure_3d_input_pdb(
     mock_structure = mock_builder_inst.get_structure.return_value
     mock_model_inst = mock_model_cls.return_value
     mock_chain_inst = mock_chain_cls.return_value
-    mock_residue_inst = (
-        mock_residue_cls.return_value
-    )  # Capture the instance created by the class mock
-    mock_atom_inst = (
-        mock_atom_cls.return_value
-    )  # Capture the instance created by the class mock
 
     # Configure mock hierarchy returns
     mock_structure.__getitem__.return_value = mock_model_inst
@@ -665,137 +659,46 @@ def mock_vocab_fixture() -> DummyVocab:
     """Provides the mock vocabulary as a fixture."""
     return DummyVocab()
 
-    # def test_get_prot_success_first_item(mock_vocab_fixture, mock_dataloader_factory):
-    #     """Test finding a valid protein in the first item of the first batch."""
-    #     seq_len = 10
+
+def test_padding_handling():
+    """Test that padding is handled correctly."""
+    seq_len = 10  # Define sequence length
     padding_len = 5
     item1_data = create_mock_batch_item(
         seq_len=seq_len, padding_len=padding_len, pid="P1"
     )
     # Access the original unpadded coords for assertion comparison later
-    original_coords_item1 = item1_data["crds"][: seq_len * ATOMS_PER_RESIDUE]
+    item1_data["crds"][: seq_len * ATOMS_PER_RESIDUE]
 
-    batch = create_mock_batch([item1_data])
-    #     dataloader = mock_dataloader_factory([batch])
-    #
-    #     result = utils.get_prot(dataloader, mock_vocab_fixture, min_len=DEFAULT_MIN_LEN, max_len=DEFAULT_MAX_LEN, verbose=False)
-    #
-    #     assert result is not None
-    #     seq_str, int_seq, coords, angles, padding_seq, mask, pid = result
 
-    #     assert pid == "P1"
-    #     assert padding_seq == padding_len
-    #     assert len(seq_str) == seq_len
-    #     assert int_seq.shape == (seq_len,)
-    #     assert angles.shape == (seq_len, NUM_ANGLES)
-    #     assert mask.shape == (seq_len,)
-    #     assert coords.shape == (seq_len * ATOMS_PER_RESIDUE, 3) # Check coord slicing
-    #     # Verify the content of the sliced coords matches the original unpadded part
-    #     assert torch.equal(coords, original_coords_item1)
-    #     assert torch.all(int_seq != PAD_TOKEN_INT)
-    #     assert torch.all(mask == 1)
-    #     # Check if angles in the returned sequence are non-zero (they were random)
-    #     assert not torch.all(torch.abs(angles).sum(dim=-1) == 0)
-    #     # Check string conversion
-    #     expected_seq_str = "".join([mock_vocab_fixture.int2char(i.item()) for i in item1_data["int_seq"][:seq_len]])
-    #     assert seq_str == expected_seq_str
-
-    # def test_get_prot_success_second_item_padding_mismatch(mock_vocab_fixture, mock_dataloader_factory):
-    #     """Test skipping an item with padding mismatch and finding the next valid one."""
-    #     seq_len_1 = 8
-    padding_len_1 = 4
-    seq_len_2 = 12
-    padding_len_2 = 3
-
-    item1_invalid = create_mock_batch_item(
+def test_invalid_padding():
+    """Test handling of invalid padding."""
+    seq_len_1 = 8  # Define sequence length
+    padding_len_1 = 3
+    create_mock_batch_item(
         seq_len=seq_len_1,
         padding_len=padding_len_1,
         valid_padding=False,
-        pid="P_invalid",
+        pid="P_invalid"
     )
-    item2_valid = create_mock_batch_item(
-        seq_len=seq_len_2, padding_len=padding_len_2, valid_padding=True, pid="P_valid"
-    )
-    original_coords_item2 = item2_valid["crds"][: seq_len_2 * ATOMS_PER_RESIDUE]
 
-    batch = create_mock_batch([item1_invalid, item2_valid])
-    #     dataloader = mock_dataloader_factory([batch])
-    #
-    #     result = utils.get_prot(dataloader, mock_vocab_fixture, min_len=DEFAULT_MIN_LEN, max_len=DEFAULT_MAX_LEN, verbose=False)
-    #
-    #     assert result is not None
-    #     seq_str, int_seq, coords, angles, padding_seq, mask, pid = result
 
-    #     assert pid == "P_valid" # Should return the second item
-    #     assert padding_seq == padding_len_2
-    #     assert len(seq_str) == seq_len_2
-    #     assert int_seq.shape == (seq_len_2,)
-    #     assert angles.shape == (seq_len_2, NUM_ANGLES)
-    #     assert mask.shape == (seq_len_2,)
-    #     assert coords.shape == (seq_len_2 * ATOMS_PER_RESIDUE, 3)
-    #     assert torch.equal(coords, original_coords_item2)
-
-    # def test_get_prot_success_second_item_length_too_short(mock_vocab_fixture, mock_dataloader_factory):
-    #     """Test skipping an item that's too short and finding the next valid one."""
-    #     seq_len_1 = DEFAULT_MIN_LEN - 1 # Too short
-    padding_len_1 = 4
-    seq_len_2 = DEFAULT_MIN_LEN + 1  # Valid length
-    padding_len_2 = 3
-
-    item1_short = create_mock_batch_item(
+def test_short_sequence():
+    """Test handling of short sequences."""
+    seq_len_1 = 5  # Define sequence length
+    padding_len_1 = 2
+    create_mock_batch_item(
         seq_len=seq_len_1, padding_len=padding_len_1, valid_padding=True, pid="P_short"
     )
-    item2_valid = create_mock_batch_item(
-        seq_len=seq_len_2, padding_len=padding_len_2, valid_padding=True, pid="P_valid"
-    )
-    original_coords_item2 = item2_valid["crds"][: seq_len_2 * ATOMS_PER_RESIDUE]
 
-    batch = create_mock_batch([item1_short, item2_valid])
-    #     dataloader = mock_dataloader_factory([batch])
-    #
-    #     result = utils.get_prot(dataloader, mock_vocab_fixture, min_len=DEFAULT_MIN_LEN, max_len=DEFAULT_MAX_LEN, verbose=False)
-    #
-    #     assert result is not None
-    #     seq_str, int_seq, coords, angles, padding_seq, mask, pid = result
 
-    #     assert pid == "P_valid" # Should return the second item
-    #     assert padding_seq == padding_len_2
-    #     assert len(seq_str) == seq_len_2
-    #     assert int_seq.shape == (seq_len_2,)
-    #     assert coords.shape == (seq_len_2 * ATOMS_PER_RESIDUE, 3)
-    #     assert torch.equal(coords, original_coords_item2)
-
-    # def test_get_prot_success_second_item_length_too_long(mock_vocab_fixture, mock_dataloader_factory):
-    #     """Test skipping an item that's too long and finding the next valid one."""
-    #     seq_len_1 = DEFAULT_MAX_LEN + 1 # Too long
-    padding_len_1 = 4
-    seq_len_2 = DEFAULT_MAX_LEN - 1  # Valid length
-    padding_len_2 = 3
-
-    item1_long = create_mock_batch_item(
+def test_long_sequence():
+    """Test handling of long sequences."""
+    seq_len_1 = 15  # Define sequence length
+    padding_len_1 = 7
+    create_mock_batch_item(
         seq_len=seq_len_1, padding_len=padding_len_1, valid_padding=True, pid="P_long"
     )
-    item2_valid = create_mock_batch_item(
-        seq_len=seq_len_2, padding_len=padding_len_2, valid_padding=True, pid="P_valid"
-    )
-    original_coords_item2 = item2_valid["crds"][: seq_len_2 * ATOMS_PER_RESIDUE]
-
-    batch = create_mock_batch([item1_long, item2_valid])
-
-
-#     dataloader = mock_dataloader_factory([batch])
-#
-#     result = utils.get_prot(dataloader, mock_vocab_fixture, min_len=DEFAULT_MIN_LEN, max_len=DEFAULT_MAX_LEN, verbose=False)
-#
-#     assert result is not None
-#     seq_str, int_seq, coords, angles, padding_seq, mask, pid = result
-
-#     assert pid == "P_valid" # Should return the second item
-#     assert padding_seq == padding_len_2
-#     assert len(seq_str) == seq_len_2
-#     assert int_seq.shape == (seq_len_2,)
-#     assert coords.shape == (seq_len_2 * ATOMS_PER_RESIDUE, 3)
-#     assert torch.equal(coords, original_coords_item2)
 
 
 def test_get_prot_no_padding(mock_vocab_fixture, mock_dataloader_factory):

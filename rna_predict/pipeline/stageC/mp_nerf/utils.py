@@ -23,9 +23,7 @@ if bio_pdb_spec is not None:
 try:
     from Bio.PDB import MMCIFIO, PDBIO, MMCIFParser, PDBParser
     from Bio.PDB.Atom import Atom
-    from Bio.PDB.Chain import Chain
-    from Bio.PDB.Model import Model
-    from Bio.PDB.Residue import Residue
+    # Removed unused Bio.PDB imports: Chain, Model, Residue
     from Bio.PDB.StructureBuilder import StructureBuilder
 
     BIOPYTHON_AVAILABLE = True
