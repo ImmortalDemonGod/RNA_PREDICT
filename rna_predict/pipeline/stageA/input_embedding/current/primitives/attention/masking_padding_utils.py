@@ -8,7 +8,6 @@ from typing import List, Tuple, Union
 import torch
 
 from ..attention_utils import PaddingInfo
-from ..core_transforms import TrunkInfo
 from .config_types import MaskConfigParams, PaddingInfoParams, TrunkDimensionsParams
 from .mask_operations import (
     MaskCreationConfig,
@@ -138,7 +137,11 @@ def _prepare_padding_info(
                 n_queries=params.n_queries,
                 n_keys=params.n_keys,
                 # Ensure device is correctly inferred or passed
-                device=params.q_list[0].device if params.q_list else (params.k_list[0].device if params.k_list else torch.device('cpu')),
+                device=params.q_list[0].device
+                if params.q_list
+                else (
+                    params.k_list[0].device if params.k_list else torch.device("cpu")
+                ),
             )
 
             q_mask_value, k_mask_value, mask_trunked_value = create_tensor_masks(
