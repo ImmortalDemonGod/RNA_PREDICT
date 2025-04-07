@@ -98,12 +98,12 @@ def generate_synthetic_features(
     f["ref_space_uid"] = torch.zeros(1, N_atom, 1, dtype=torch.int64, device=device)
     # Add ref_mask to indicate all atoms are valid
     f["ref_mask"] = torch.ones(1, N_atom, 1, device=device)
-    
+
     # Token-level features
     f["restype"] = torch.randn(1, N_token, 32, device=device)
     f["profile"] = 2 * torch.rand(1, N_token, 32, device=device) - 1
     f["deletion_mean"] = torch.randn(1, N_token, device=device)
-    
+
     return f
 
 
