@@ -12,6 +12,11 @@ from pathlib import Path
 
 import torch
 
+# Local/Project imports (moved for E402)
+from rna_predict.pipeline.stageC.mp_nerf.final_kb_rna import RNA_BACKBONE_TORSIONS_AFORM
+from rna_predict.pipeline.stageC.stage_c_reconstruction import run_stageC
+
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -22,9 +27,7 @@ logger = logging.getLogger("verify_fix")
 current_dir = str(Path(__file__).parent.absolute())
 sys.path.append(current_dir)
 
-# Import the functions to test
-from rna_predict.pipeline.stageC.mp_nerf.final_kb_rna import RNA_BACKBONE_TORSIONS_AFORM
-from rna_predict.pipeline.stageC.stage_c_reconstruction import run_stageC
+# Imports moved to top of file (E402 fix)
 
 
 def check_for_nans(tensor, name):

@@ -15,6 +15,13 @@ from pathlib import Path
 
 import torch
 
+
+# Local/Project imports (moved for E402)
+from instrumented_massive_pnerf import patch_mp_nerf, restore_mp_nerf
+from test_mpnerf_nan_diagnosis import check_for_nans, run_all_tests
+from rna_predict.pipeline.stageC.mp_nerf.final_kb_rna import RNA_BACKBONE_TORSIONS_AFORM
+from rna_predict.pipeline.stageC.stage_c_reconstruction import run_stageC
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -25,11 +32,8 @@ logger = logging.getLogger("mpnerf_fix")
 current_dir = str(Path(__file__).parent.absolute())
 sys.path.append(current_dir)
 
-# Import the instrumented MP-NeRF
-from instrumented_massive_pnerf import patch_mp_nerf, restore_mp_nerf
-from test_mpnerf_nan_diagnosis import check_for_nans, run_all_tests
-from rna_predict.pipeline.stageC.mp_nerf.final_kb_rna import RNA_BACKBONE_TORSIONS_AFORM
-from rna_predict.pipeline.stageC.stage_c_reconstruction import run_stageC
+# Imports moved to top of file (E402 fix)
+
 
 # Import the functions we might need to fix
 

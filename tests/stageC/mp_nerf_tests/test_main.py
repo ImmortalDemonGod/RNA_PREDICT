@@ -27,7 +27,7 @@ def test_nerf_and_dihedral():
     theta = np.arccos(np.dot(v2, v3) / (np.linalg.norm(v2) * np.linalg.norm(v3)))
 
     # Calculate bond length and bond angle (theta)
-    l = torch.tensor(np.linalg.norm(v3))
+    bond_length = torch.tensor(np.linalg.norm(v3))
     theta = torch.tensor(theta)  # Already calculated using np.arccos
 
     # Calculate dihedral angle (chi) using the imported function for correct sign
@@ -35,12 +35,12 @@ def test_nerf_and_dihedral():
 
     # reconstruct
     # The comment about scn angle might be outdated or related to a different issue.
-    # We now use standard geometric calculations for l, theta and a signed chi.
+    # We now use standard geometric calculations for bond_length, theta and a signed chi.
     params = MpNerfParams(
         a=a,
         b=b,
         c=c,
-        bond_length=l,
+        bond_length=bond_length,
         theta=torch.tensor(np.pi) - theta,  # Pass pi - theta
         chi=chi,  # Use chi from get_dihedral
     )

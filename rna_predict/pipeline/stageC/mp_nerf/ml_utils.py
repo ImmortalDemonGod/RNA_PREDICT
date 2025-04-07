@@ -23,10 +23,10 @@ from rna_predict.pipeline.stageC.mp_nerf.proteins import (
     modify_scaffolds_with_coords,
     protein_fold,
     scn_cloud_mask,
-    to_zero_two_pi,
+    sidechain_fold,
 )
 from rna_predict.pipeline.stageC.mp_nerf.utils import (
-    sidechain_fold,
+    to_zero_two_pi,  # Import from utils
     # Add other specific imports as needed
 )
 

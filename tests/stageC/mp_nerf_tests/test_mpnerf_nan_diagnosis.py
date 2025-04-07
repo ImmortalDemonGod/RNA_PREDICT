@@ -12,17 +12,7 @@ from pathlib import Path
 
 import torch
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
-logger = logging.getLogger("mpnerf_diagnosis")
-
-# Add the project root to the Python path
-current_dir = str(Path(__file__).parent.absolute())
-sys.path.append(current_dir)
-
-# Import the functions to test
+# Local/Project imports (moved for E402)
 from rna_predict.pipeline.stageC.mp_nerf.final_kb_rna import (
     RNA_BACKBONE_TORSIONS_AFORM,
     get_bond_angle,
@@ -34,6 +24,19 @@ from rna_predict.pipeline.stageC.mp_nerf.rna import (
     rna_fold,
 )
 from rna_predict.pipeline.stageC.stage_c_reconstruction import run_stageC
+
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger("mpnerf_diagnosis")
+
+# Add the project root to the Python path
+current_dir = str(Path(__file__).parent.absolute())
+sys.path.append(current_dir)
+
+# Imports moved to top of file (E402 fix)
 
 
 def print_section(title):
@@ -84,7 +87,7 @@ def test_hypothesis_1_zero_vector_normalization():
         [2.0, 0.0, 0.0], device="cpu"
     )  # Collinear with b-a, will cause zero cross product
 
-    l = torch.tensor(1.5, device="cpu")  # Bond length
+    bond_length = torch.tensor(1.5, device="cpu")  # Bond length
     theta = torch.tensor(1.0, device="cpu")  # Bond angle in radians
     chi = torch.tensor(0.5, device="cpu")  # Dihedral angle in radians
 
@@ -93,7 +96,7 @@ def test_hypothesis_1_zero_vector_normalization():
     )
 
     try:
-        result = mp_nerf_torch(a, b, c, l, theta, chi)
+        result = mp_nerf_torch(a, b, c, bond_length, theta, chi)
         logger.info(f"Result shape: {result.shape}")
         has_nan = check_for_nans(result, "mp_nerf_torch result")
 
