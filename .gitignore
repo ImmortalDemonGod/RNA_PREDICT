@@ -157,3 +157,4 @@ coverage.json
 prev_coverage.json
 memory_logs/*
 memory_usage.csv
+vscode-diagnostics-exporter/
