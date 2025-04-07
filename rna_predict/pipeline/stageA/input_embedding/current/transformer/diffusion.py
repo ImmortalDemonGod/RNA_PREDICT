@@ -294,7 +294,9 @@ class DiffusionTransformer(nn.Module):
         )
 
         # Set blocks_per_ckpt to the number of blocks if not specified
-        blocks_per_ckpt = self.blocks_per_ckpt if self.blocks_per_ckpt is not None else len(blocks)
+        blocks_per_ckpt = (
+            self.blocks_per_ckpt if self.blocks_per_ckpt is not None else len(blocks)
+        )
 
         # Process through blocks with checkpointing
         a, s, z = checkpoint_blocks(blocks, (a, s, z), blocks_per_ckpt)
