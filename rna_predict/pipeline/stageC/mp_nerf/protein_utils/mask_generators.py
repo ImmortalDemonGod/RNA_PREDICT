@@ -69,14 +69,24 @@ def make_torsion_mask(aa: str, fill: bool = False) -> np.ndarray:
     Returns:
         np.ndarray: Mask containing dihedral angles for each atom (shape 14,)
     """
-    mask_key = "torsion_mask_filled" if fill else "torsion_mask"
+    # mask_key = "torsion_mask_filled" if fill else "torsion_mask" # Removed variable key
     if aa == "_":
         # Ensure underscore returns float array even if values are 0 or nan
-        return np.array(SUPREME_INFO["_"][mask_key], dtype=float)
+        if fill:
+            mask_data = SUPREME_INFO["_"]["torsion_mask_filled"]
+        else:
+            mask_data = SUPREME_INFO["_"]["torsion_mask"]
+        return np.array(mask_data, dtype=float)
+
     if aa not in SUPREME_INFO:
         raise KeyError(f"Invalid amino acid code: {aa}")
+
     # Ensure return type is float, handling potential NaNs
-    return np.array(SUPREME_INFO[aa][mask_key], dtype=float)
+    if fill:
+        mask_data = SUPREME_INFO[aa]["torsion_mask_filled"]
+    else:
+        mask_data = SUPREME_INFO[aa]["torsion_mask"]
+    return np.array(mask_data, dtype=float)
 
 
 def make_idx_mask(aa: str) -> np.ndarray:

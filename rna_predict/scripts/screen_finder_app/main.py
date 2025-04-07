@@ -1,120 +1,144 @@
-# rna_predict/scripts/main.py
 import logging
+import os
+import cv2
+import numpy as np
+import pyautogui
+import pyperclip
+from mss import mss
+from .config import LOG_FILE, LOG_LEVEL
+from .template_loader import load_and_preload_templates
+import time
+import subprocess
 
-from .config import LOGGING_LEVEL, TEMPLATE_PATH, THRESHOLD
+# Setup logging
+log_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+logger.setLevel(LOG_LEVEL)
 
-# Import local modules using relative paths
-from .logger import setup_logger
+# File handler
+file_handler = logging.FileHandler(LOG_FILE)
+file_handler.setFormatter(log_formatter)
+logger.addHandler(file_handler)
 
-# from .region_selector import select_region # Keep commented out
-from .screenshot import capture_all_monitors  # Updated import
-from .template_matching import validate_and_match_template
+# Console handler (optional, for seeing logs in console)
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(log_formatter)
+logger.addHandler(console_handler)
 
-
-def find_template_on_screen(logger, template_path, threshold):
+def execute_action(logger, action_config: dict, coordinates: tuple) -> None:
     """
-    Captures screenshots of all monitors and searches for a template image.
-
-    Args:
-        logger: The configured logger instance.
-        template_path (str): Path to the template image file.
-        threshold (float): The matching threshold for template detection.
-
-    Returns:
-        dict: A dictionary containing the result.
-              If found: {'found': True, 'coordinates': (abs_x, abs_y), 'monitor_info': monitor_info, 'correlation': max_val}
-              If not found: {'found': False}
+    Performs the user-defined action (click, text input, clipboard, etc.) at the given coordinates.
     """
-    logger.info("Attempting to find template on screen...")
-    logger.info("Capturing screenshots for all monitors.")
-    monitor_screenshots = capture_all_monitors()
+    import pyautogui  # Lazy import to avoid overhead if actions are never used
+    action_type = action_config.get("action", "")
+    logger.info(f"Executing action '{action_type}' at {coordinates} with config: {action_config}")
 
-    if not monitor_screenshots:
-        logger.error("Failed to capture screenshots from any monitor.")
-        return {"found": False}
+    if action_type == "click":
+        pyautogui.click(x=coordinates[0], y=coordinates[1])
+        time.sleep(0.5)  # Wait for click to register
 
-    logger.info(f"Captured screenshots from {len(monitor_screenshots)} monitor(s).")
+    elif action_type == "text_input":
+        text = action_config.get("text", "")
+        pyautogui.click(x=coordinates[0], y=coordinates[1])
+        time.sleep(0.5)  # Wait for click to register
+        pyautogui.typewrite(text, interval=0.05)
 
-    for i, monitor_data in enumerate(monitor_screenshots):
-        monitor_info = monitor_data["monitor_info"]
-        screenshot_img = monitor_data["image"]
-        monitor_dims_str = f"Monitor {i + 1} (Top: {monitor_info['top']}, Left: {monitor_info['left']}, W: {monitor_info['width']}, H: {monitor_info['height']})"
+    elif action_type == "clipboard":
+        operation = action_config.get("operation", "copy")
+        pyautogui.click(x=coordinates[0], y=coordinates[1])
+        time.sleep(0.5)  # Wait for click to register
+        if operation == "copy":
+            pyautogui.hotkey('command', 'c')
+            time.sleep(0.5)  # Wait for copy to complete
+        elif operation == "paste":
+            pyautogui.hotkey('command', 'v')
+            time.sleep(0.5)  # Wait for paste to complete
 
-        logger.info(f"Processing {monitor_dims_str}")
+    elif action_type == "double_click":
+        pyautogui.doubleClick(x=coordinates[0], y=coordinates[1])
+        time.sleep(0.5)  # Wait for double click to register
 
-        # Optionally save each monitor's screenshot for debugging
-        # save_path = f"captured_monitor_{i+1}.png"
-        # cv2.imwrite(save_path, screenshot_img)
-        # logger.debug(f"Saved screenshot for {monitor_dims_str} to {save_path}")
-
-        logger.info(
-            f"Performing template matching on {monitor_dims_str} using template: '{template_path}' with threshold: {threshold}"
-        )
-        # validate_and_match_template now returns a tuple: (location, correlation_score) or None
-        match_result = validate_and_match_template(
-            screenshot=screenshot_img, template_path=template_path, threshold=threshold
-        )
-
-        if match_result:
-            match_location_relative, correlation_score = (
-                match_result  # Unpack the result
-            )
-            # Calculate absolute coordinates by adding monitor offset
-            abs_x = monitor_info["left"] + match_location_relative[0]
-            abs_y = monitor_info["top"] + match_location_relative[1]
-            absolute_match_location = (abs_x, abs_y)
-            logger.info(
-                f"Template found on {monitor_dims_str} at relative coordinates {match_location_relative}, absolute coordinates {absolute_match_location} with correlation {correlation_score:.4f}"
-            )
-            # Return the full monitor_info dictionary along with coordinates and correlation
-            return {
-                "found": True,
-                "coordinates": absolute_match_location,
-                "monitor_info": monitor_info,
-                "correlation": correlation_score,
-            }
-
-    logger.info("Template not found on any monitor within the specified threshold.")
-    return {"found": False}
-
+    else:
+        logger.info(f"No recognized action for '{action_type}'. Doing nothing.")
 
 def main():
-    """
-    Main function to set up logging and initiate the template finding process.
-    """
-    # Convert LOGGING_LEVEL string from config to logging level constant
-    log_level_str = LOGGING_LEVEL.upper()
-    log_level = getattr(
-        logging, log_level_str, logging.INFO
-    )  # Default to INFO if invalid
-    logger = setup_logger(level=log_level)
+    """Main function to load templates, search screens, and execute actions."""
+    logger.info("Starting screen finder process.")
 
-    logger.info("Application started.")
-    logger.debug(
-        f"Configuration: TEMPLATE_PATH='{TEMPLATE_PATH}', THRESHOLD={THRESHOLD}, LOGGING_LEVEL='{log_level_str}'"
-    )
+    # Load templates and their configurations
+    loaded_templates = load_and_preload_templates()
+    if not loaded_templates:
+        logger.error("No templates loaded. Exiting.")
+        return
 
-    # Call the refactored function
-    result = find_template_on_screen(logger, TEMPLATE_PATH, THRESHOLD)
+    logger.info(f"Loaded {len(loaded_templates)} templates.")
 
-    # Process the result from the function
-    if result["found"]:
-        coords = result["coordinates"]
-        monitor_info = result["monitor_info"]
-        monitor_dims_str = f"Monitor (Top: {monitor_info['top']}, Left: {monitor_info['left']}, W: {monitor_info['width']}, H: {monitor_info['height']})"  # Reconstruct description if needed
-        logger.info(
-            f"Template successfully found on {monitor_dims_str} at absolute screen coordinates: {coords}"
-        )
-        print(
-            f"Success: Template found on {monitor_dims_str} at absolute screen coordinates: {coords}"
-        )
-    else:
-        logger.info("Template not found on any monitor.")
-        print("Result: Template not found on any screen.")
+    try:
+        with mss() as sct:
+            # Get information about all monitors
+            monitors = sct.monitors[1:] # Index 0 is the combined virtual screen
+            logger.info(f"Detected {len(monitors)} monitors.")
 
-    logger.info("Application finished.")
+            found_match_in_cycle = False # Flag to track if any match was found
+
+            # Capture screenshot for each monitor
+            for i, monitor in enumerate(monitors):
+                logger.debug(f"Processing Monitor {i+1}: {monitor}")
+                # Capture the screen of the current monitor
+                sct_img = sct.grab(monitor)
+                # Convert to an OpenCV image (BGRA to BGR, then to Grayscale)
+                screen_img_bgr = np.array(sct_img)
+                screen_img_gray = cv2.cvtColor(screen_img_bgr, cv2.COLOR_BGRA2GRAY)
+
+                # Iterate through each loaded template
+                for template_data in loaded_templates:
+                    template_name = template_data["name"]
+                    template_img = template_data["image"]
+                    threshold = template_data["threshold"]
+                    action_config = template_data["action"]
+                    tH, tW = template_img.shape[:2]
+
+                    logger.debug(f"Searching for template '{template_name}' on Monitor {i+1}...")
+
+                    # Perform template matching
+                    # TM_CCOEFF_NORMED is generally robust
+                    result = cv2.matchTemplate(screen_img_gray, template_img, cv2.TM_CCOEFF_NORMED)
+                    min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
+
+                    logger.debug(f"Template '{template_name}' - Max match value: {max_val:.4f} (Threshold: {threshold})")
+
+                    # Check if the match exceeds the threshold
+                    if max_val >= threshold:
+                        found_match_in_cycle = True
+                        # Get the top-left corner of the matched area
+                        match_x, match_y = max_loc
+                        # Calculate the center coordinates relative to the monitor
+                        center_x_rel = match_x + tW // 2
+                        center_y_rel = match_y + tH // 2
+                        # Convert to absolute screen coordinates
+                        center_x_abs = monitor["left"] + center_x_rel
+                        center_y_abs = monitor["top"] + center_y_rel
+
+                        logger.info(f"Match found for '{template_name}' on Monitor {i+1} at relative ({match_x}, {match_y}), "
+                                    f"absolute center ({center_x_abs}, {center_y_abs}) with confidence {max_val:.4f}")
+
+                        # Execute the configured action
+                        execute_action(logger, action_config, (center_x_abs, center_y_abs))
+
+                        # Optional: break after first match per template or continue searching?
+                        # For now, we execute action for the best match found on this monitor.
+                        # If multiple instances are needed, the logic needs adjustment (e.g., find all matches above threshold).
+
+            if not found_match_in_cycle:
+                logger.info("No matches found in this cycle across all monitors.")
+
+    except Exception as e:
+        logger.error(f"An error occurred during the screen capture or matching process: {e}", exc_info=True)
+
+    logger.info("Screen finder process finished cycle.")
 
 
 if __name__ == "__main__":
-    # This block allows the script to be run directly for testing.
+    # This allows running the script directly for a single search cycle.
+    # For timed loops, the GUI launcher or another script should call main() repeatedly.
     main()
