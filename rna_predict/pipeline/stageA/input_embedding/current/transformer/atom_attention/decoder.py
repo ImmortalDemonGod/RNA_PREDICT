@@ -6,14 +6,14 @@ import torch
 import torch.nn as nn
 
 from rna_predict.pipeline.stageA.input_embedding.current.primitives import LinearNoBias
+from rna_predict.pipeline.stageA.input_embedding.current.transformer.atom_attention.components import (
+    AttentionComponents,
+    CoordinateProcessor,
+    FeatureProcessor,
+)
 from rna_predict.pipeline.stageA.input_embedding.current.transformer.atom_attention.config import (
     AtomAttentionConfig,
     DecoderForwardParams,
-)
-from rna_predict.pipeline.stageA.input_embedding.current.transformer.atom_attention.components import (
-    FeatureProcessor,
-    CoordinateProcessor,
-    AttentionComponents,
 )
 
 
@@ -165,4 +165,4 @@ class AtomAttentionDecoder(nn.Module):
             n_keys=n_keys,
             blocks_per_ckpt=blocks_per_ckpt,
         )
-        return cls(config) 
+        return cls(config)
