@@ -150,7 +150,11 @@ def mp_nerf_torch(params: MpNerfParams) -> torch.Tensor:
     # Validate inputs
     if torch.isnan(a).any() or torch.isnan(b).any() or torch.isnan(c).any():
         raise ValueError("Input coordinates contain NaN values")
-    if torch.isnan(bond_length).any() or torch.isnan(theta).any() or torch.isnan(chi).any():
+    if (
+        torch.isnan(bond_length).any()
+        or torch.isnan(theta).any()
+        or torch.isnan(chi).any()
+    ):
         raise ValueError("Input angles or bond length contain NaN values")
 
     # safety check for theta
