@@ -198,7 +198,9 @@ class TestGenerateSyntheticFeatures(unittest.TestCase):
         self.assertIn("ref_pos", f)
         self.assertEqual(f["ref_pos"].shape, (1, N_atom, 3))
         self.assertIn("ref_charge", f)
-        self.assertEqual(f["ref_charge"].shape, (1, N_atom, 1))  # Corrected expected shape
+        self.assertEqual(
+            f["ref_charge"].shape, (1, N_atom, 1)
+        )  # Corrected expected shape
         self.assertIn("ref_element", f)
         self.assertEqual(f["ref_element"].shape, (1, N_atom, 128))
         self.assertIn("ref_atom_name_chars", f)
