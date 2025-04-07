@@ -13,6 +13,11 @@ setup(
         "biopython>=1.81",
         "pandas>=1.3.0",
         "tqdm>=4.65.0",
+        "opencv-python>=4.5.0",
+        "Pillow>=8.0.0",
+        "mss>=6.1.0",
+        "PySimpleGUI>=4.60.0",
+        "pyautogui>=0.9.53",
     ],
     extras_require={
         "dev": [
@@ -21,6 +26,7 @@ setup(
             "black>=22.0.0",
             "isort>=5.0.0",
             "flake8>=4.0.0",
+            "hypothesis>=6.0.0",
         ],
     },
     python_requires=">=3.8",
