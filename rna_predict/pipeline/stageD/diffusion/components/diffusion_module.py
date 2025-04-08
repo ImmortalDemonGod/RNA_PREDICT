@@ -488,6 +488,33 @@ class DiffusionModule(nn.Module):
                 s_trunk = s_trunk.unsqueeze(1).expand(-1, N_sample, -1, -1)
             if z_trunk is not None and z_trunk.ndim == 4:
                 z_trunk = z_trunk.unsqueeze(1).expand(-1, N_sample, -1, -1, -1)
+            # Expand relevant tensors within input_feature_dict as well
+            if "atom_to_token_idx" in input_feature_dict:
+                atom_idx = input_feature_dict["atom_to_token_idx"]
+                if isinstance(atom_idx, torch.Tensor) and atom_idx.ndim == 2: # Shape [B, N_token]
+                    input_feature_dict["atom_to_token_idx"] = atom_idx.unsqueeze(1).expand(-1, N_sample, -1)
+
+            if "restype" in input_feature_dict:
+                res_type = input_feature_dict["restype"]
+                if isinstance(res_type, torch.Tensor) and res_type.ndim == 2: # Shape [B, N_token]
+                    input_feature_dict["restype"] = res_type.unsqueeze(1).expand(-1, N_sample, -1)
+
+            # Note: Other features like ref_mask, ref_charge, ref_element might also need expansion
+            # depending on how they are used downstream. Add expansion here if necessary.
+            # Example for ref_mask (assuming it's [B, N_token, 1]):
+            # if "ref_mask" in input_feature_dict:
+            #     mask = input_feature_dict["ref_mask"]
+
+            if "ref_mask" in input_feature_dict:
+                mask = input_feature_dict["ref_mask"]
+                # Assuming ref_mask is [B, N_token, 1] or similar 3D shape
+                if isinstance(mask, torch.Tensor) and mask.ndim == 3:
+                    input_feature_dict["ref_mask"] = mask.unsqueeze(1).expand(-1, N_sample, -1, -1)
+
+            # Note: Other features like ref_charge, ref_element might also need expansion
+            # depending on how they are used downstream. Add expansion here if necessary.
+            #     if isinstance(mask, torch.Tensor) and mask.ndim == 3:
+            #         input_feature_dict["ref_mask"] = mask.unsqueeze(1).expand(-1, N_sample, -1, -1)
         # If N_sample is 1, assume conditioning tensors might be [B, ...] or [B, 1, ...]
         # Submodules should handle broadcasting from [B, ...] or explicit [B, 1, ...]
 
