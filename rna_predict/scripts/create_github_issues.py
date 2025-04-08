@@ -24,6 +24,7 @@ import os
 import re
 import subprocess
 import sys
+from typing import Tuple
 
 import requests
 
@@ -40,7 +41,7 @@ def load_issues(json_path: str):
     return issues
 
 
-def get_repo_from_git() -> (str, str):
+def get_repo_from_git() -> Tuple[str, str]:
     """
     Parse 'owner' and 'repo' from the local git remote URL.
     E.g.:
