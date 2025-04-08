@@ -185,12 +185,22 @@ class AttentionComponents:
         if mask.dtype == torch.bool:
             mask = mask.to(dtype=torch.float32)
 
+        # Create a token-level style/conditioning tensor with zeros
+        # This is needed for the AtomTransformer.forward method
+        batch_dims = a.shape[:-2]
+        n_tokens = a.shape[-2]  # Use the same number of tokens as in 'a'
+        s = torch.zeros(*batch_dims, n_tokens, self.atom_transformer.c_s,
+                        device=a.device, dtype=a.dtype)
+
         # Use local attention with n_queries and n_keys
+        # Pass arguments as keyword arguments to match the expected signature:
+        # def forward(self, q: torch.Tensor, s: torch.Tensor, p: torch.Tensor, **kwargs)
         return self.atom_transformer(
-            a,
-            p,
-            mask,
-            chunk_size if chunk_size is not None else 0,
+            q=a,                # First positional arg: atom features
+            s=s,                # Second positional arg: token/style features
+            p=p,                # Third positional arg: pair features
+            mask=mask,          # Keyword arg: attention mask
+            chunk_size=chunk_size if chunk_size is not None else 0,
             n_queries=self.n_queries,  # Pass n_queries explicitly
             n_keys=self.n_keys,        # Pass n_keys explicitly
         )
