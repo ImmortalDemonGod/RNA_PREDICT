@@ -238,6 +238,50 @@ class DiffusionConditioning(nn.Module):
             s_inputs = create_zero_tensor_like(
                 s_trunk, (*batch_dims, s_trunk.shape[-2], self.c_s_inputs)
             )
-        single_s = self._process_single_features(s_trunk, s_inputs, inplace_safe)
+
+        # --- Start Shape Alignment Fix ---
+        # Ensure s_trunk and s_inputs have compatible shapes before processing
+        # Expected shapes: s_trunk [B, N_sample, N, C_s], s_inputs [B, N_sample, N, C_s_inputs] or [B, N, C_s_inputs]
+
+        processed_s_inputs = s_inputs
+        processed_s_trunk = s_trunk
+
+        # 1. Ensure s_inputs is 4D if s_trunk is 4D
+        if processed_s_trunk.ndim == 4 and processed_s_inputs.ndim == 3:
+            processed_s_inputs = processed_s_inputs.unsqueeze(1) # Add N_sample dim
+
+        # 2. Ensure N_sample dimension (dim 1) matches
+        if processed_s_trunk.ndim == 4 and processed_s_inputs.ndim == 4:
+            n_sample_trunk = processed_s_trunk.shape[1]
+            n_sample_inputs = processed_s_inputs.shape[1]
+
+            if n_sample_trunk != n_sample_inputs:
+                if n_sample_inputs == 1:
+                    # Expand s_inputs to match s_trunk's N_sample
+                    processed_s_inputs = processed_s_inputs.expand(
+                        -1, n_sample_trunk, -1, -1
+                    )
+                elif n_sample_trunk == 1:
+                     # Expand s_trunk to match s_inputs' N_sample (less likely but possible)
+                     processed_s_trunk = processed_s_trunk.expand(
+                         -1, n_sample_inputs, -1, -1
+                     )
+                else:
+                    # If both have N_sample > 1 but they differ, it's an unexpected state
+                    raise RuntimeError(
+                        f"N_sample dimension mismatch cannot be resolved by expansion. "
+                        f"s_trunk: {processed_s_trunk.shape}, s_inputs: {processed_s_inputs.shape}"
+                    )
+        elif processed_s_trunk.ndim != processed_s_inputs.ndim:
+             # If dimensions still don't match after unsqueeze attempt
+             raise RuntimeError(
+                 f"Dimension mismatch after unsqueeze attempt. "
+                 f"s_trunk: {processed_s_trunk.shape}, s_inputs: {processed_s_inputs.shape}"
+             )
+
+        # --- End Shape Alignment Fix ---
+
+        # Call _process_single_features with aligned tensors
+        single_s = self._process_single_features(processed_s_trunk, processed_s_inputs, inplace_safe)
 
         return single_s, pair_z
