@@ -1,6 +1,7 @@
 import torch
 from torch import nn
 
+
 class DummyTorsionModel(nn.Module):
     """
     A dummy model that returns zeros for torsion angles.

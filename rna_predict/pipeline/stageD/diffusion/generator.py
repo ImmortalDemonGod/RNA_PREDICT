@@ -167,55 +167,74 @@ def sample_diffusion(
         torch.Tensor: the denoised coordinates of x in inference stage
             [..., N_sample, N_atom, 3]
     """
+    # Ensure noise_schedule is a 1D tensor
+    noise_schedule = noise_schedule.flatten()
+
+    # Get number of atoms from input_feature_dict
     N_atom = input_feature_dict["atom_to_token_idx"].size(-1)
-    
-    # Handle the case when s_inputs is None
-    if s_inputs is None:
-        # Use s_trunk for shape and device information
-        batch_shape = s_trunk.shape[:-2]
-        device = s_trunk.device
-        dtype = s_trunk.dtype
-    else:
-        batch_shape = s_inputs.shape[:-2]
-        device = s_inputs.device
-        dtype = s_inputs.dtype
 
-    def _chunk_sample_diffusion(chunk_n_sample, inplace_safe):
-        # init noise
-        # [..., N_sample, N_atom, 3]
+    # Determine device/dtype from inputs
+    ref_tensor = s_inputs if s_inputs is not None else s_trunk
+    device = ref_tensor.device
+    dtype = ref_tensor.dtype
+
+    # Determine TRUE batch shape, excluding the sample dimension ONLY if the input tensor is 4D+
+    # and the dimension before sequence matches TOTAL N_sample
+    base_shape = ref_tensor.shape[:-2]
+    true_batch_shape = base_shape  # Default to using all leading dims
+
+    # Only check for sample dim if input tensor has more than 3 dims (B, N, C)
+    if ref_tensor.ndim > 3:
+        # Check if the dimension before sequence looks like the TOTAL sample dimension
+        if len(base_shape) > 0 and base_shape[-1] == N_sample:
+            true_batch_shape = base_shape[:-1]  # Exclude the sample dimension
+        # else: keep true_batch_shape as base_shape if dim doesn't match N_sample
+
+    # Ensure true_batch_shape is a tuple
+    if not isinstance(true_batch_shape, tuple):
+        true_batch_shape = (true_batch_shape,)
+
+    print(f"[DEBUG] Determined true_batch_shape: {true_batch_shape}")  # DEBUG PRINT
+
+    def _chunk_sample_diffusion(
+        chunk_n_sample: int, inplace_safe: bool
+    ) -> torch.Tensor:
+        """Process a chunk of samples."""
+        # Initialize noise using the true_batch_shape
         x_l = noise_schedule[0] * torch.randn(
-            size=(*batch_shape, chunk_n_sample, N_atom, 3), device=device, dtype=dtype
-        )  # NOTE: set seed in distributed training
+            size=(*true_batch_shape, chunk_n_sample, N_atom, 3),  # Use true_batch_shape
+            device=device,
+            dtype=dtype,
+        )
 
-        for _, (c_tau_last, c_tau) in enumerate(
+        # Process each step in the noise schedule
+        for step, (c_tau_last, c_tau) in enumerate(
             zip(noise_schedule[:-1], noise_schedule[1:])
         ):
-            # [..., N_sample, N_atom, 3]
-            x_l = (
-                centre_random_augmentation(x_input_coords=x_l, N_sample=1)
-                .squeeze(dim=-3)
-                .to(dtype)
+            # Calculate gamma and t_hat
+            gamma = float(gamma0) if c_tau > gamma_min else 0.0
+            t_hat = c_tau_last * (gamma + 1.0)
+
+            # Add noise for predictor step
+            delta_noise_level = torch.sqrt(
+                torch.clamp(t_hat**2 - c_tau_last**2, min=0.0)
             )
-
-            # Denoise with a predictor-corrector sampler
-            # 1. Add noise to move x_{c_tau_last} to x_{t_hat}
-            gamma = float(gamma0) if c_tau > gamma_min else 0
-            t_hat = c_tau_last * (gamma + 1)
-
-            delta_noise_level = torch.sqrt(t_hat**2 - c_tau_last**2)
             x_noisy = x_l + noise_scale_lambda * delta_noise_level * torch.randn(
                 size=x_l.shape, device=device, dtype=dtype
             )
 
-            # 2. Denoise from x_{t_hat} to x_{c_tau}
-            # Euler step only
+            # Reshape t_hat for broadcasting using true_batch_shape
             t_hat = (
-                t_hat.reshape((1,) * (len(batch_shape) + 1))
-                .expand(*batch_shape, chunk_n_sample)
+                t_hat.reshape((1,) * (len(true_batch_shape) + 1))
+                .expand(*true_batch_shape, chunk_n_sample)
                 .to(dtype)
             )
 
-            x_denoised = denoise_net(
+            # Denoise step
+            print(
+                f"[DEBUG][Generator Loop {step}] Before denoise_net - x_noisy: {x_noisy.shape}, t_hat: {t_hat.shape}"
+            )  # DEBUG PRINT
+            x_denoised, _ = denoise_net(  # Unpack tuple, ignore loss
                 x_noisy=x_noisy,
                 t_hat_noise_level=t_hat,
                 input_feature_dict=input_feature_dict,
@@ -226,33 +245,41 @@ def sample_diffusion(
                 inplace_safe=inplace_safe,
             )
 
-            delta = (x_noisy - x_denoised) / t_hat[
-                ..., None, None
-            ]  # Line 9 of AF3 uses 'x_l_hat' instead, which we believe  is a typo.
+            # Update x_l using Euler step
+            delta = (x_noisy - x_denoised) / (
+                t_hat[..., None, None] + 1e-8
+            )  # Add epsilon for stability
             dt = c_tau - t_hat
             x_l = x_noisy + step_scale_eta * dt[..., None, None] * delta
 
+        print(
+            f"[DEBUG][sample_diffusion] Returning _chunk_sample_diffusion output shape: {x_l.shape}"
+        )  # DEBUG PRINT
         return x_l
 
+    # Process all samples or in chunks
     if diffusion_chunk_size is None:
-        x_l = _chunk_sample_diffusion(N_sample, inplace_safe=inplace_safe)
+        return _chunk_sample_diffusion(N_sample, inplace_safe)
     else:
-        x_l = []
-        no_chunks = N_sample // diffusion_chunk_size + (
-            N_sample % diffusion_chunk_size != 0
-        )
-        for i in range(no_chunks):
-            chunk_n_sample = (
-                diffusion_chunk_size
-                if i < no_chunks - 1
-                else N_sample - i * diffusion_chunk_size
-            )
-            chunk_x_l = _chunk_sample_diffusion(
-                chunk_n_sample, inplace_safe=inplace_safe
-            )
-            x_l.append(chunk_x_l)
-        x_l = torch.cat(x_l, -3)  # [..., N_sample, N_atom, 3]
-    return x_l
+        # Process in chunks
+        n_chunks = (N_sample + diffusion_chunk_size - 1) // diffusion_chunk_size
+        results = []
+
+        for i in range(n_chunks):
+            start_idx = i * diffusion_chunk_size
+            end_idx = min((i + 1) * diffusion_chunk_size, N_sample)
+            chunk_size = end_idx - start_idx
+
+            chunk_result = _chunk_sample_diffusion(chunk_size, inplace_safe)
+            results.append(chunk_result)
+
+        # Concatenate results along the sample dimension (which follows the true batch dimensions)
+        sample_dim_index = len(true_batch_shape)
+        final_result = torch.cat(results, dim=sample_dim_index)
+        print(
+            f"[DEBUG][sample_diffusion] Returning chunked output shape: {final_result.shape}"
+        )  # DEBUG PRINT
+        return final_result
 
 
 def sample_diffusion_training(
@@ -301,13 +328,17 @@ def sample_diffusion_training(
 
     # Add independent noise to each structure
     # sigma: independent noise-level [..., N_sample]
-    sigma = noise_sampler(size=(*batch_size_shape, N_sample), device=device).to(dtype)
+    # Ensure the size argument is passed as torch.Size, constructing it explicitly
+    sigma_size_list = list(batch_size_shape) + [N_sample]
+    sigma_size = torch.Size(sigma_size_list)
+    sigma = noise_sampler(size=sigma_size, device=device).to(dtype)
     # noise: [..., N_sample, N_atom, 3]
     noise = torch.randn_like(x_gt_augment, dtype=dtype) * sigma[..., None, None]
 
     # Get denoising outputs [..., N_sample, N_atom, 3]
     if diffusion_chunk_size is None:
-        x_denoised = denoise_net(
+        # Unpack the tuple: coordinates and loss (ignored)
+        x_denoised, _ = denoise_net(
             x_noisy=x_gt_augment + noise,
             t_hat_noise_level=sigma,
             input_feature_dict=input_feature_dict,
@@ -327,7 +358,8 @@ def sample_diffusion_training(
             t_hat_noise_level_i = sigma[
                 ..., i * diffusion_chunk_size : (i + 1) * diffusion_chunk_size
             ]
-            x_denoised_i = denoise_net(
+            # Unpack the tuple: coordinates and loss (ignored)
+            x_denoised_i, _ = denoise_net(
                 x_noisy=x_noisy_i,
                 t_hat_noise_level=t_hat_noise_level_i,
                 input_feature_dict=input_feature_dict,

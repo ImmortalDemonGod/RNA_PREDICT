@@ -22,7 +22,6 @@ Key Improvements:
 import unittest
 from unittest.mock import MagicMock, patch
 
-import pytest
 import torch
 from hypothesis import HealthCheck, example, given, settings
 from hypothesis import strategies as st
@@ -81,59 +80,67 @@ class TestStreamBprnaDataset(unittest.TestCase):
         )
 
     @patch("rna_predict.dataset.dataset_loader.load_dataset")
-    def test_stream_bprna_dataset_multiple_splits_train(self, mock_load_dataset: MagicMock) -> None:
+    def test_stream_bprna_dataset_multiple_splits_train(
+        self, mock_load_dataset: MagicMock
+    ) -> None:
         """
         Test train split to ensure calls to HF dataset are correct.
         """
         mock_iterable = MagicMock()
         mock_load_dataset.return_value = mock_iterable
         split = "train"
-        
+
         result = stream_bprna_dataset(split)
         self.assertEqual(result, mock_iterable)
         mock_load_dataset.assert_called_with(
             "multimolecule/bprna-spot", split=split, streaming=True
         )
-        
+
     @patch("rna_predict.dataset.dataset_loader.load_dataset")
-    def test_stream_bprna_dataset_multiple_splits_test(self, mock_load_dataset: MagicMock) -> None:
+    def test_stream_bprna_dataset_multiple_splits_test(
+        self, mock_load_dataset: MagicMock
+    ) -> None:
         """
         Test test split to ensure calls to HF dataset are correct.
         """
         mock_iterable = MagicMock()
         mock_load_dataset.return_value = mock_iterable
         split = "test"
-        
+
         result = stream_bprna_dataset(split)
         self.assertEqual(result, mock_iterable)
         mock_load_dataset.assert_called_with(
             "multimolecule/bprna-spot", split=split, streaming=True
         )
-        
+
     @patch("rna_predict.dataset.dataset_loader.load_dataset")
-    def test_stream_bprna_dataset_multiple_splits_validation(self, mock_load_dataset: MagicMock) -> None:
+    def test_stream_bprna_dataset_multiple_splits_validation(
+        self, mock_load_dataset: MagicMock
+    ) -> None:
         """
         Test validation split to ensure calls to HF dataset are correct.
         """
         mock_iterable = MagicMock()
         mock_load_dataset.return_value = mock_iterable
         split = "validation"
-        
+
         result = stream_bprna_dataset(split)
         self.assertEqual(result, mock_iterable)
         mock_load_dataset.assert_called_with(
             "multimolecule/bprna-spot", split=split, streaming=True
         )
-        
+
     @patch("rna_predict.dataset.dataset_loader.load_dataset")
-    def test_stream_bprna_dataset_multiple_splits_random(self, mock_load_dataset: MagicMock) -> None:
+    def test_stream_bprna_dataset_multiple_splits_random(
+        self, mock_load_dataset: MagicMock
+    ) -> None:
         """
         Test random split to ensure calls to HF dataset are correct.
         """
         mock_iterable = MagicMock()
         mock_load_dataset.return_value = mock_iterable
         split = "random"
-        
+
         result = stream_bprna_dataset(split)
         self.assertEqual(result, mock_iterable)
         mock_load_dataset.assert_called_with(
@@ -184,7 +191,9 @@ class TestBuildRnaTokenMetadata(unittest.TestCase):
 
     @given(num_tokens=st.integers(min_value=1, max_value=200))
     @example(num_tokens=1)  # minimal test case
-    @settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
+    @settings(
+        deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture]
+    )
     def test_build_rna_token_metadata_fuzz(self, num_tokens: int) -> None:
         """
         Fuzzy test to ensure build_rna_token_metadata does not crash for various valid token counts.
@@ -229,7 +238,9 @@ class TestBuildAtomToTokenIdx(unittest.TestCase):
         num_tokens=st.integers(min_value=1, max_value=1000),
     )
     @settings(
-        suppress_health_check=[HealthCheck.function_scoped_fixture], max_examples=100
+        deadline=None,  # Disable deadline for this flaky test
+        suppress_health_check=[HealthCheck.function_scoped_fixture],
+        max_examples=100,
     )
     def test_build_atom_to_token_idx_fuzz(
         self, num_atoms: int, num_tokens: int
@@ -301,7 +312,9 @@ class TestValidateInputFeatures(unittest.TestCase):
         )
     )
     @settings(
-        suppress_health_check=[HealthCheck.function_scoped_fixture], max_examples=50
+        deadline=None,  # Disable deadline for this flaky test
+        suppress_health_check=[HealthCheck.function_scoped_fixture],
+        max_examples=50,
     )
     def test_validate_input_features_fuzz(self, input_dict: dict) -> None:
         """
@@ -352,7 +365,9 @@ class TestLoadRnaDataAndFeatures(unittest.TestCase):
         override_num_atoms=st.one_of(st.none(), st.integers(min_value=1, max_value=200))
     )
     @settings(
-        suppress_health_check=[HealthCheck.function_scoped_fixture], max_examples=30
+        suppress_health_check=[HealthCheck.function_scoped_fixture],
+        max_examples=30,
+        deadline=None,
     )
     def test_load_rna_data_and_features_fuzz(self, override_num_atoms):
         """

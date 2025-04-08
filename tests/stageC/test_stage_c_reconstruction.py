@@ -194,9 +194,11 @@ class TestRunStageCRnaMpnerf(unittest.TestCase):
         self.assertIsInstance(result, dict)
         self.assertIn("coords", result)
         self.assertIn("atom_count", result)
-        # place_bases mock => shape (2,3), so atom_count=6
-        self.assertEqual(result["coords"].shape, (2, 3))
-        self.assertEqual(result["atom_count"], 6)
+        # place_rna_bases mock returns (2,3), but run_stageC_rna_mpnerf unsqueezes to 3D
+        # Expect shape (2, 1, 3)
+        self.assertEqual(result["coords"].shape, (2, 1, 3))
+        # atom_count is calculated from final shape (2, 1, 3) => 2 * 1 = 2
+        self.assertEqual(result["atom_count"], 2)
 
     def test_mpnerf_without_bases(self):
         """
@@ -204,17 +206,28 @@ class TestRunStageCRnaMpnerf(unittest.TestCase):
         should not occur. The final coords come directly from rna_fold.
         """
         place_rna_bases_mock = MagicMock()
-        with patch("rna_predict.pipeline.stageC.mp_nerf.rna.build_scaffolds_rna_from_torsions", 
-                  return_value={"angles_mask": torch.ones((4,))}), \
-             patch("rna_predict.pipeline.stageC.mp_nerf.rna.skip_missing_atoms", 
-                  side_effect=lambda seq, scf: scf), \
-             patch("rna_predict.pipeline.stageC.mp_nerf.rna.handle_mods", 
-                  side_effect=lambda seq, scf: scf), \
-             patch("rna_predict.pipeline.stageC.mp_nerf.rna.rna_fold", 
-                  return_value=torch.ones((5, 3))), \
-             patch("rna_predict.pipeline.stageC.mp_nerf.rna.place_rna_bases", 
-                  place_rna_bases_mock):
-            
+        with (
+            patch(
+                "rna_predict.pipeline.stageC.mp_nerf.rna.build_scaffolds_rna_from_torsions",
+                return_value={"angles_mask": torch.ones((4,))},
+            ),
+            patch(
+                "rna_predict.pipeline.stageC.mp_nerf.rna.skip_missing_atoms",
+                side_effect=lambda seq, scf: scf,
+            ),
+            patch(
+                "rna_predict.pipeline.stageC.mp_nerf.rna.handle_mods",
+                side_effect=lambda seq, scf: scf,
+            ),
+            patch(
+                "rna_predict.pipeline.stageC.mp_nerf.rna.rna_fold",
+                return_value=torch.ones((5, 3)),
+            ),
+            patch(
+                "rna_predict.pipeline.stageC.mp_nerf.rna.place_rna_bases",
+                place_rna_bases_mock,
+            ),
+        ):
             result = scr.run_stageC_rna_mpnerf(
                 sequence=self.sequence,
                 predicted_torsions=self.default_torsions,
@@ -226,9 +239,9 @@ class TestRunStageCRnaMpnerf(unittest.TestCase):
             self.assertFalse(
                 place_rna_bases_mock.called, "place_rna_bases must not be called."
             )
-        # shape from rna_fold => (5,3), so atom_count=15
-        self.assertEqual(result["coords"].shape, (5, 3))
-        self.assertEqual(result["atom_count"], 15)
+        # Code unsqueezes the (5, 3) from mock rna_fold to (5, 1, 3)
+        self.assertEqual(result["coords"].shape, (5, 1, 3))
+        self.assertEqual(result["atom_count"], 5)  # atom_count is 5*1=5
 
     @given(
         seq=st.text(),  # random sequences

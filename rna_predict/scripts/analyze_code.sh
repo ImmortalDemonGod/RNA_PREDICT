@@ -10,13 +10,18 @@ set -eo pipefail
 # - Coverage run if test file found
 # - Auto-switch to --test prompt if coverage < 100%
 # - Robust coverage line parsing to avoid integer expression errors
+# - Option to skip test execution with --no-tests flag
 
 ###############################################################################
 # 0. Usage & Flag Parsing
 ###############################################################################
 
 usage() {
-    echo "Usage: $0 [--test] [--output-dir DIR] /path/to/your/script.py"
+    echo "Usage: $0 [--test] [--no-tests] [--output-dir DIR] /path/to/your/script.py"
+    echo "Options:"
+    echo "  --test      Enable test generation mode"
+    echo "  --no-tests  Skip running tests and coverage analysis"
+    echo "  --output-dir DIR  Specify output directory for analysis results"
     exit 1
 }
 
@@ -25,8 +30,9 @@ debug_log() {
     echo "DEBUG: $*" >&2
 }
 
-# Default: Not in test mode
+# Default: Not in test mode and tests are enabled
 TEST_MODE=false
+SKIP_TESTS=false
 
 # Simple argument parsing
 if [ "$#" -eq 0 ]; then
@@ -37,6 +43,10 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --test)
             TEST_MODE=true
+            shift
+            ;;
+        --no-tests)
+            SKIP_TESTS=true
             shift
             ;;
         --output-dir)
@@ -92,7 +102,7 @@ if ! command -v cs >/dev/null 2>&1; then
     echo "cs (CodeScene CLI) not found. Attempting to install..."
     echo "Installing CodeScene CLI using the official script..."
     # Per CodeScene docs: this script attempts to place 'cs' in ~/.local/bin
-    # If ~/.local/bin isn’t in PATH, it tries to add it for common shells.
+    # If ~/.local/bin isn't in PATH, it tries to add it for common shells.
     # On Windows or other OS, user might need a manual approach.
     
     if command -v curl >/dev/null 2>&1; then
@@ -274,47 +284,48 @@ fi
 ###############################################################################
 # 4.5 Coverage Check for a Matching Test File
 ###############################################################################
-BASENAME="$(basename "$FILE_PATH" .py)"
-TEST_FILE=""
+if [ "$SKIP_TESTS" = false ]; then
+    BASENAME="$(basename "$FILE_PATH" .py)"
+    TEST_FILE=""
 
-# Use 'find' to locate a matching test file anywhere under the project.
-FOUND_TEST="$(find "$PROJECT_ROOT" -type f \( -name "test_${BASENAME}.py" -o -name "${BASENAME}_test.py" \) | head -n 1)"
+    # Use 'find' to locate a matching test file anywhere under the project.
+    FOUND_TEST="$(find "$PROJECT_ROOT" -type f \( -name "test_${BASENAME}.py" -o -name "${BASENAME}_test.py" \) | head -n 1)"
 
-if [ -n "$FOUND_TEST" ]; then
-    TEST_FILE="$FOUND_TEST"
-fi
+    if [ -n "$FOUND_TEST" ]; then
+        TEST_FILE="$FOUND_TEST"
+    fi
 
-COVERAGE_UNDER_100=false
+    COVERAGE_UNDER_100=false
 
-if [ -z "$TEST_FILE" ]; then
-    echo "No test file found for $FILE_PATH. Skipping coverage." | tee -a "$COMBINED_OUTPUT"
-else
-    echo "=== TEST FILE DETECTED ===" >> "$COMBINED_OUTPUT"
-    echo "Found test file at $TEST_FILE" | tee -a "$COMBINED_OUTPUT"
-    if ! command -v coverage >/dev/null 2>&1; then
-        echo "Warning: 'coverage' is not installed or not in PATH. Please install coverage." | tee -a "$COMBINED_OUTPUT"
+    if [ -z "$TEST_FILE" ]; then
+        echo "No test file found for $FILE_PATH. Skipping coverage." | tee -a "$COMBINED_OUTPUT"
     else
-        echo "Running coverage on $TEST_FILE..." | tee -a "$COMBINED_OUTPUT"
-        # Run coverage, do not exit on test failures
-        # Compute a relative path via Python (instead of realpath --relative-to, which isn't on macOS)
-        RELATIVE_PATH="$(uv run python -c "import os; print(os.path.relpath('$FILE_PATH', '$PROJECT_ROOT'))")"
-        echo "Using Python-based relpath: $RELATIVE_PATH" | tee -a "$COMBINED_OUTPUT"
-        
-        # Run coverage from project root, including our source tree
-        coverage run --source="$PROJECT_ROOT" -m pytest "$TEST_FILE" || {
-            echo "Tests failed under coverage. Proceeding with other steps." | tee -a "$COMBINED_OUTPUT"
-        }
-        
-        # Limit coverage report to that single file
-        coverage report -m --include="$RELATIVE_PATH" > "$TEMP_DIR/coverage_report.txt" || true
-        coverage xml -o "$TEMP_DIR/coverage_report.xml" --include="$RELATIVE_PATH" || true
-        
-        # Also generate JSON coverage to extract exact missing lines
-        coverage json -o "$TEMP_DIR/coverage.json" --include="$RELATIVE_PATH" || true
-        
-        # Parse missing lines from coverage.json and dump them with code references
-        echo -e "\\n=== UNCOVERED LINES DETAIL ===" >> "$TEMP_DIR/coverage_report.txt"
-        uv run python -c "
+        echo "=== TEST FILE DETECTED ===" >> "$COMBINED_OUTPUT"
+        echo "Found test file at $TEST_FILE" | tee -a "$COMBINED_OUTPUT"
+        if ! command -v coverage >/dev/null 2>&1; then
+            echo "Warning: 'coverage' is not installed or not in PATH. Please install coverage." | tee -a "$COMBINED_OUTPUT"
+        else
+            echo "Running coverage on $TEST_FILE..." | tee -a "$COMBINED_OUTPUT"
+            # Run coverage, do not exit on test failures
+            # Compute a relative path via Python (instead of realpath --relative-to, which isn't on macOS)
+            RELATIVE_PATH="$(uv run python -c "import os; print(os.path.relpath('$FILE_PATH', '$PROJECT_ROOT'))")"
+            echo "Using Python-based relpath: $RELATIVE_PATH" | tee -a "$COMBINED_OUTPUT"
+            
+            # Run coverage from project root, including our source tree
+            coverage run --source="$PROJECT_ROOT" -m pytest "$TEST_FILE" || {
+                echo "Tests failed under coverage. Proceeding with other steps." | tee -a "$COMBINED_OUTPUT"
+            }
+            
+            # Limit coverage report to that single file
+            coverage report -m --include="$RELATIVE_PATH" > "$TEMP_DIR/coverage_report.txt" || true
+            coverage xml -o "$TEMP_DIR/coverage_report.xml" --include="$RELATIVE_PATH" || true
+            
+            # Also generate JSON coverage to extract exact missing lines
+            coverage json -o "$TEMP_DIR/coverage.json" --include="$RELATIVE_PATH" || true
+            
+            # Parse missing lines from coverage.json and dump them with code references
+            echo -e "\\n=== UNCOVERED LINES DETAIL ===" >> "$TEMP_DIR/coverage_report.txt"
+            uv run python -c "
 import json, sys, os
 
 json_path = r'$TEMP_DIR/coverage.json'
@@ -357,77 +368,78 @@ with open(report_file, 'a', encoding='utf-8') as rf:
         else:
             rf.write(f'Line {line_num}: [Index out of range]\\n')
     rf.write('--- End missing lines detail ---\\n')
-        "
-        
-        # Append coverage text to combined output
-        if [ -f "$TEMP_DIR/coverage_report.txt" ]; then
-            echo -e "\\n=== TEST COVERAGE REPORT ===" >> "$COMBINED_OUTPUT"
-            cat "$TEMP_DIR/coverage_report.txt" >> "$COMBINED_OUTPUT"
-        fi
-        
-        # Attempt to parse coverage for the specific file by looking for $RELATIVE_PATH
-        COVERAGE_LINE=$(grep "$RELATIVE_PATH" "$TEMP_DIR/coverage_report.txt" || true)
+            "
+            
+            # Append coverage text to combined output
+            if [ -f "$TEMP_DIR/coverage_report.txt" ]; then
+                echo -e "\\n=== TEST COVERAGE REPORT ===" >> "$COMBINED_OUTPUT"
+                cat "$TEMP_DIR/coverage_report.txt" >> "$COMBINED_OUTPUT"
+            fi
+            
+            # Attempt to parse coverage for the specific file by looking for $RELATIVE_PATH
+            COVERAGE_LINE=$(grep "$RELATIVE_PATH" "$TEMP_DIR/coverage_report.txt" || true)
 
-        # Example coverage line format (depends on coverage version):
-        # quick-fixes/tasks/lifelines_models.py  163  21  88%  91
-        # Name    Stmts   Miss  Cover   Missing
-        # lifelines_models.py  20  2  90%   10-11
-        if [ -n "$COVERAGE_LINE" ]; then
-            # Break the line into an array of fields
-            read -ra FIELDS <<< "$COVERAGE_LINE"
+            # Example coverage line format (depends on coverage version):
+            # quick-fixes/tasks/lifelines_models.py  163  21  88%  91
+            # Name    Stmts   Miss  Cover   Missing
+            # lifelines_models.py  20  2  90%   10-11
+            if [ -n "$COVERAGE_LINE" ]; then
+                # Break the line into an array of fields
+                read -ra FIELDS <<< "$COVERAGE_LINE"
 
-            # We want to find the field that ends with '%'
-            COVERAGE_PERCENT_RAW=""
-            for field in "${FIELDS[@]}"; do
-                if [[ "$field" == *"%"* ]]; then
-                    COVERAGE_PERCENT_RAW="$field"
-                    break
-                fi
-            done
+                # We want to find the field that ends with '%'
+                COVERAGE_PERCENT_RAW=""
+                for field in "${FIELDS[@]}"; do
+                    if [[ "$field" == *"%"* ]]; then
+                        COVERAGE_PERCENT_RAW="$field"
+                        break
+                    fi
+                done
 
-            if [ -n "$COVERAGE_PERCENT_RAW" ]; then
-                COVERAGE_INT=$(echo "$COVERAGE_PERCENT_RAW" | tr -d '%')
-                # Remove decimals, if any
-                COVERAGE_INT=$(echo "$COVERAGE_INT" | sed 's/\..*//')
+                if [ -n "$COVERAGE_PERCENT_RAW" ]; then
+                    COVERAGE_INT=$(echo "$COVERAGE_PERCENT_RAW" | tr -d '%')
+                    # Remove decimals, if any
+                    COVERAGE_INT=$(echo "$COVERAGE_INT" | sed 's/\..*//')
 
-                echo "Coverage for $TARGET_BASENAME is ${COVERAGE_PERCENT_RAW}." \
-                     "Parsed integer coverage: $COVERAGE_INT%" >> "$COMBINED_OUTPUT"
+                    echo "Coverage for $TARGET_BASENAME is ${COVERAGE_PERCENT_RAW}." \
+                         "Parsed integer coverage: $COVERAGE_INT%" >> "$COMBINED_OUTPUT"
 
-                if [[ "$COVERAGE_INT" =~ ^[0-9]+$ ]]; then
-                    if [ "$COVERAGE_INT" -lt 100 ]; then
+                    if [[ "$COVERAGE_INT" =~ ^[0-9]+$ ]]; then
+                        if [ "$COVERAGE_INT" -lt 100 ]; then
+                            COVERAGE_UNDER_100=true
+                        fi
+                    else
+                        echo "Warning: coverage percentage not parseable. Auto-flagging coverage < 100%." >> "$COMBINED_OUTPUT"
                         COVERAGE_UNDER_100=true
                     fi
                 else
-                    echo "Warning: coverage percentage not parseable. Auto-flagging coverage < 100%." >> "$COMBINED_OUTPUT"
+                    echo "No percentage field found in coverage line." >> "$COMBINED_OUTPUT"
                     COVERAGE_UNDER_100=true
                 fi
             else
-                echo "No percentage field found in coverage line." >> "$COMBINED_OUTPUT"
+                echo "No specific coverage data found for $TARGET_BASENAME. Possibly 0% coverage." >> "$COMBINED_OUTPUT"
                 COVERAGE_UNDER_100=true
             fi
-        else
-            echo "No specific coverage data found for $TARGET_BASENAME. Possibly 0% coverage." >> "$COMBINED_OUTPUT"
-            COVERAGE_UNDER_100=true
         fi
     fi
-fi
 
-# If coverage is incomplete, we can auto-switch to test mode if not already set
-if [ "$COVERAGE_UNDER_100" = true ] && [ "$TEST_MODE" = false ]; then
-    echo "Coverage < 100% for $FILE_PATH. Auto-activating TEST_MODE..." | tee -a "$COMBINED_OUTPUT"
-    TEST_MODE=true
-fi
+    # If coverage is incomplete, we can auto-switch to test mode if not already set
+    if [ "$COVERAGE_UNDER_100" = true ] && [ "$TEST_MODE" = false ]; then
+        echo "Coverage < 100% for $FILE_PATH. Auto-activating TEST_MODE..." | tee -a "$COMBINED_OUTPUT"
+        TEST_MODE=true
+    fi
 
-###############################################################################
-# 4.6 Append Full Test File (if found) to the Combined Output
-###############################################################################
-if [ -n "$TEST_FILE" ]; then
-    echo -e "\\n=== FULL TEST FILE CONTENT ===\\n" >> "$COMBINED_OUTPUT"
-    echo "Test File Path: $TEST_FILE" >> "$COMBINED_OUTPUT"
-    if [ -f "$TEST_FILE" ]; then
-        cat "$TEST_FILE" >> "$COMBINED_OUTPUT"
-    else
-        echo "Error: Could not read test file: $TEST_FILE" >> "$COMBINED_OUTPUT"
+    ###############################################################################
+    # 4.6 Append Full Test File (if found) to the Combined Output
+    ###############################################################################
+    if [ -n "$TEST_FILE" ]; then
+        echo -e "\\n=== FULL TEST FILE CONTENT ===\\n" >> "$COMBINED_OUTPUT"
+        echo "Test File Path: $TEST_FILE" >> "$COMBINED_OUTPUT"
+        if [ -f "$TEST_FILE" ]; then
+            cat "$TEST_FILE" >> "$COMBINED_OUTPUT"
+        else
+            echo "Error: Could not read test file: $TEST_FILE" >> "$COMBINED_OUTPUT"
+        fi
     fi
 fi
 

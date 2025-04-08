@@ -20,7 +20,7 @@ class ProtenixIntegration:
 
     def __init__(
         self,
-        c_token=384,
+        c_token=449,
         restype_dim=32,
         profile_dim=32,
         c_atom=128,
@@ -94,14 +94,22 @@ class ProtenixIntegration:
             )
 
         # Iterate through each key in input_features to ensure proper dimensions for each feature.
-        for key in input_features.keys():
+        keys_to_process = list(input_features.keys()) # Create a list to iterate over as dict size might change
+        for key in keys_to_process:
+            # Skip processing if key was removed (e.g., if atom_to_token was copied to atom_to_token_idx and then removed)
+            if key not in input_features:
+                continue
             val = input_features[key]
-            # If the feature is 1D, unsqueeze to add a second dimension.
-            if val.dim() == 1:
+
+            # If the feature is 1D, unsqueeze to add a second dimension,
+            # UNLESS it's the atom_to_token_idx which should remain 1D [N_atom].
+            if val.dim() == 1 and key != "atom_to_token_idx":
                 val = val.unsqueeze(-1)
                 input_features[key] = val
+            # If it IS atom_to_token_idx and 1D, leave it as is.
 
             # Special handling for 'ref_atom_name_chars': ensure it has a fixed length of 256.
+            # This needs to happen *after* potential unsqueezing if it was 1D (unlikely but possible).
             if key == "ref_atom_name_chars":
                 if val.size(1) < 256:
                     pad_len = 256 - val.size(1)
@@ -112,8 +120,9 @@ class ProtenixIntegration:
                     )
                 input_features[key] = val
 
-            # Verify that each feature has exactly 2 dimensions.
-            if val.dim() != 2:
+            # Verify that each feature has exactly 2 dimensions,
+            # UNLESS it's atom_to_token_idx which should remain 1D.
+            if key != "atom_to_token_idx" and val.dim() != 2:
                 raise ValueError(
                     f"Expected feature '{key}' to have 2D shape [batch, feat_dim], "
                     f"but got {val.shape}."
@@ -125,21 +134,51 @@ class ProtenixIntegration:
         if s_inputs.dim() == 3 and s_inputs.size(0) == 1:
             s_inputs = s_inputs.squeeze(0)
 
+        # Extract the number of tokens from restype or profile
+        if "restype" in input_features:
+            restype = input_features["restype"]
+            if restype.dim() == 2:
+                N_token = restype.size(0)
+            else:
+                N_token = restype.size(1)
+        elif "profile" in input_features:
+            profile = input_features["profile"]
+            if profile.dim() == 2:
+                N_token = profile.size(0)
+            else:
+                N_token = profile.size(1)
+        else:
+            # Fallback to atom_to_token if neither restype nor profile is available
+            atom_to_token = input_features["atom_to_token"]
+            if atom_to_token.dim() == 2:
+                N_token = atom_to_token.size(0)
+            else:
+                N_token = atom_to_token.max().item() + 1
+
+        # Ensure s_inputs has the correct number of tokens
+        if s_inputs.dim() == 2:
+            if s_inputs.size(0) != N_token:
+                # If s_inputs has more tokens than needed, truncate
+                if s_inputs.size(0) > N_token:
+                    s_inputs = s_inputs[:N_token, :]
+                # If s_inputs has fewer tokens than needed, pad with zeros
+                else:
+                    padding = torch.zeros(
+                        (N_token - s_inputs.size(0), s_inputs.size(1)),
+                        device=s_inputs.device,
+                        dtype=s_inputs.dtype,
+                    )
+                    s_inputs = torch.cat([s_inputs, padding], dim=0)
+
         # Step 2: Generate pair embeddings using relative positional encoding.
         # Determine residue indices: use provided 'residue_index' if available, otherwise create a default range.
         if "residue_index" in input_features:
             res_idx = input_features["residue_index"].to(self.device)
-            # Squeeze out the trailing dimension if it's [N_token, 1]
+            # Only squeeze if shape is [N_token, 1]
             if res_idx.dim() == 2 and res_idx.shape[1] == 1:
                 res_idx = res_idx.squeeze(-1)
         else:
-            N_token = s_inputs.shape[0]
             res_idx = torch.arange(N_token, device=self.device)
-
-        N_token = res_idx.size(0)
-
-        # Now we can safely expand to a [N_token, N_token] matrix
-        res_idx_matrix = res_idx.unsqueeze(0).expand(N_token, N_token)
 
         # Compute the initial pair embedding (z_init) using the relative position encoding module.
         z_init = self.rel_pos_encoding(
@@ -151,10 +190,10 @@ class ProtenixIntegration:
                 "token_index": res_idx,
             }
         )
-        
+
         # If z_init has 4 dimensions [1, N_token, N_token, c_z], squeeze out the batch dimension
         if z_init.dim() == 4:
             z_init = z_init.squeeze(0)
-        
+
         # Return the computed single-token and pair embeddings.
         return {"s_inputs": s_inputs, "z_init": z_init}

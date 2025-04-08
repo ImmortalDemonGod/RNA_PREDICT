@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=66.0.0", "wheel"]
+requires = ["setuptools>=66.0.0", "wheel>=0.40.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -24,6 +24,11 @@ dependencies = [
     "ruff>=0.11.2",
     "torch>=2.0.1, <2.6.0",
     "transformers>=4.49.0",
+    "pyautogui>=0.9.54",
+    "opencv-python>=4.8.0",
+    "Pillow>=10.0.0",
+    "mss>=9.0.1",
+    "dearpygui>=1.10",
 ]
 
 # If you have optional (dev) dependencies:
@@ -38,6 +43,7 @@ dev = [
     "mypy>=1.15.0",
     "pytest>=8.3.5",
     "pytest-cov>=6.0.0",
+    "pytest-xdist>=3.5.0",
     "pymdown-extensions",
 ]
 gpu = [
@@ -53,7 +59,11 @@ dev = [
     "mkdocs>=1.6.1",
     "pytest-asyncio>=0.25.3",
     "pytest-cov>=6.0.0",
+    "pytest-faulthandler>=2.0.1",
+    "pytest-memprof>=0.2.0",
+    "pytest-timeout>=2.3.1",
     "snoop>=0.6.0",
+    "types-requests>=2.32.0.20250328",
 ]
 
 [tool.setuptools.packages.find]
@@ -69,3 +79,16 @@ override-dependencies = [
 [tool.pytest.ini_options]
 asyncio_mode = "strict"
 asyncio_default_fixture_loop_scope = "function"
+
+
+# Mypy configuration
+[tool.mypy]
+# Ignore missing stubs for specific libraries
+[[tool.mypy.overrides]]
+module = "cv2"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "dearpygui.*"
+ignore_missing_imports = true
+

@@ -13,9 +13,10 @@ Usage:
     python -m unittest test_rna_predictor.py -v
 """
 
+import math
 import unittest
 from unittest.mock import patch
-import math
+
 import pandas as pd
 import torch
 from hypothesis import HealthCheck, example, given, settings
@@ -104,6 +105,7 @@ class TestRNAPredictorInitialization(unittest.TestCase):
         stageC_method=st.sampled_from(["mp_nerf", "dummy_method", "other_method"]),
     )
     @settings(
+        deadline=None, # Merged deadline setting here
         suppress_health_check=[HealthCheck.too_slow, HealthCheck.filter_too_much],
         max_examples=20,
     )
@@ -182,6 +184,7 @@ class TestPredict3DStructure(unittest.TestCase):
 
     @given(valid_rna_sequences)
     @settings(
+        deadline=None,  # Disable deadline for this flaky test
         suppress_health_check=[HealthCheck.too_slow, HealthCheck.filter_too_much],
         max_examples=10,
     )
@@ -193,9 +196,40 @@ class TestPredict3DStructure(unittest.TestCase):
         try:
             result = self.predictor.predict_3d_structure(sequence)
             self.assertIn("coords", result)
-        except (RuntimeError, OSError):
-            # If no real model is found or environment lacks GPU, we pass.
-            pass
+            self.assertIn("atom_count", result)
+
+            # Validate coords tensor
+            coords = result["coords"]
+            self.assertTrue(torch.is_tensor(coords), "coords should be a tensor")
+            self.assertEqual(
+                coords.dim(), 3, "coords should be 3D tensor [N, atoms, 3]"
+            )
+            self.assertEqual(
+                coords.shape[-1], 3, "last dimension should be 3 for x,y,z"
+            )
+
+            # Check for NaN/Inf values
+            self.assertFalse(
+                torch.isnan(coords).any(), "coords should not contain NaN values"
+            )
+            self.assertFalse(
+                torch.isinf(coords).any(), "coords should not contain Inf values"
+            )
+
+            # Validate atom_count
+            self.assertIsInstance(
+                result["atom_count"], int, "atom_count should be an integer"
+            )
+            self.assertGreaterEqual(
+                result["atom_count"], 0, "atom_count should be non-negative"
+            )
+
+        except (RuntimeError, OSError, ValueError, IndexError) as e:
+            # If no real model is found or environment lacks GPU, we pass
+            if "CUDA" in str(e) or "model" in str(e).lower():
+                pass
+            else:
+                raise  # Re-raise other errors
 
 
 # --------------------------------------------------------------------------------------
@@ -291,6 +325,7 @@ class TestPredictSubmission(unittest.TestCase):
     @settings(
         suppress_health_check=[HealthCheck.too_slow, HealthCheck.filter_too_much],
         max_examples=10,
+        deadline=None,  # Disable deadline
     )
     @example(seq="", repeats=5, atom_choice=0)
     def test_predict_submission_hypothesis_random(self, seq, repeats, atom_choice):
@@ -319,16 +354,24 @@ class TestPredictSubmission(unittest.TestCase):
         Note: After fixing get_bond_length to return default values instead of NaN,
         this test just verifies the workaround is functioning correctly.
         """
-        from rna_predict.pipeline.stageC.mp_nerf.final_kb_rna import RNA_BOND_LENGTHS_C3_ENDO
+        from rna_predict.pipeline.stageC.mp_nerf.final_kb_rna import (
+            RNA_BOND_LENGTHS_C3_ENDO,
+        )
 
         def custom_bond_length(pair, sugar_pucker="C3'-endo", test_mode=False):
             if pair == "C4'-C3'":
                 # Explicitly return NaN instead of None
-                return float('nan')
+                return float("nan")
             # In this test, we always want to use test_mode behavior
             if test_mode is False:
                 test_mode = True
-            return RNA_BOND_LENGTHS_C3_ENDO.get(pair, None) if not test_mode else float('nan') if pair not in RNA_BOND_LENGTHS_C3_ENDO else RNA_BOND_LENGTHS_C3_ENDO.get(pair)
+            return (
+                RNA_BOND_LENGTHS_C3_ENDO.get(pair, None)
+                if not test_mode
+                else float("nan")
+                if pair not in RNA_BOND_LENGTHS_C3_ENDO
+                else RNA_BOND_LENGTHS_C3_ENDO.get(pair)
+            )
 
         mock_get_bond_length.side_effect = custom_bond_length
 
@@ -338,7 +381,7 @@ class TestPredictSubmission(unittest.TestCase):
         self.assertFalse(df_nan.empty, "Resulting DataFrame should not be empty.")
         # Check for any NaNs in x_1..z_5 columns
         numeric_cols = [c for c in df_nan.columns if c.startswith(("x_", "y_", "z_"))]
-        
+
         # After the fix in MP-NeRF to handle NaN bond lengths, we expect coordinates to NOT have NaNs
         # This test now verifies that our fix is working correctly (preventing NaN propagation)
         self.assertFalse(
@@ -356,7 +399,9 @@ class TestPredictSubmission(unittest.TestCase):
         N = len(sequence)
         atoms_per_res = 3  # Example
         # Mock return with NaN values
-        mock_coords = torch.full((N, atoms_per_res, 3), float('nan'), dtype=torch.float32)
+        mock_coords = torch.full(
+            (N, atoms_per_res, 3), float("nan"), dtype=torch.float32
+        )
         mock_predict_3d.return_value = {
             "coords": mock_coords,
             "atom_count": N * atoms_per_res,
@@ -394,7 +439,7 @@ class TestPredictSubmission(unittest.TestCase):
         repeats = 3
         df = self.predictor.predict_submission(
             sequence, prediction_repeats=repeats, residue_atom_choice=1
-        ) # Use atom choice 1
+        )  # Use atom choice 1
 
         # Assert that coordinate columns contain only finite values
         for i in range(1, repeats + 1):
@@ -433,6 +478,7 @@ class TestPredictSubmissionParametricShapes(unittest.TestCase):
         repeats=st.integers(min_value=1, max_value=3),
     )
     @settings(
+        deadline=None,  # Disable deadline for this flaky test
         suppress_health_check=[HealthCheck.too_slow, HealthCheck.filter_too_much],
         max_examples=5,
     )

@@ -1,10 +1,12 @@
 import math
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union # Added Union
 
 import torch
 
 from rna_predict.pipeline.stageB.torsion.dummy_torsion_model import DummyTorsionModel
 from rna_predict.pipeline.stageB.torsion.torsionbert_inference import TorsionBertModel
+
+
 class StageBTorsionBertPredictor:
     """
     Stage B: predict RNA torsion angles using TorsionBERT.
@@ -16,11 +18,12 @@ class StageBTorsionBertPredictor:
     Updated to store model_name_or_path and max_length as attributes to satisfy
     test cases referencing them.
     """
+    model: Union[TorsionBertModel, DummyTorsionModel] # Add type hint for self.model
 
     def __init__(
         self,
         model_name_or_path: str = "sayby/rna_torsionbert",
-        device: str = "cpu",
+        device: str = "cpu", # Keep original device string
         angle_mode: str = "sin_cos",
         num_angles: int = 7,
         max_length: int = 512,
@@ -38,19 +41,21 @@ class StageBTorsionBertPredictor:
         self.max_length = max_length
         self.angle_mode = angle_mode
         self.num_angles = num_angles  # user-provided
-        self.device = torch.device(device)
+        self.device = torch.device(device) # Keep torch.device object for internal use if needed elsewhere
 
         # Attempt to create TorsionBertModel; fallback to Dummy if error
         try:
+            # Pass model_name_or_path as first arg, pass device string
             self.model = TorsionBertModel(
-                model_name_or_path=model_name_or_path,
-                device=self.device,
+                model_name_or_path, # Pass as first argument
+                device=device,      # Pass the original device string
                 num_angles=self.num_angles,
                 max_length=self.max_length,
             )
         except Exception:
+             # Pass the original device string
             self.model = DummyTorsionModel(
-                device=str(self.device), num_angles=self.num_angles
+                device=device, num_angles=self.num_angles
             )
 
     def __call__(
@@ -99,17 +104,17 @@ class StageBTorsionBertPredictor:
         num_angles = dim // 2
         sin_vals = sincos[:, :num_angles]  # First half contains sin values
         cos_vals = sincos[:, num_angles:]  # Second half contains cos values
-        
+
         # Handle special case where cos=0 to avoid getting 0 instead of ±π/2
         # When cos is close to zero, we need to return π/2 * sign(sin)
         eps = 1e-6
-        mask_cos_zero = cos_vals.abs() < eps
-        
+        cos_vals.abs() < eps
+
         # Standard case - use atan2(sin, cos)
         angles = torch.atan2(sin_vals, cos_vals)
-        
+
         # Correct quadrants when both sin and cos are very small
         mask_both_small = (sin_vals.abs() < eps) & (cos_vals.abs() < eps)
         angles = torch.where(mask_both_small, torch.zeros_like(angles), angles)
-        
+
         return angles

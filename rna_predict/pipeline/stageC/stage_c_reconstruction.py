@@ -1,5 +1,6 @@
 import torch
 
+
 class StageCReconstruction:
     """
     Legacy fallback approach for Stage C. Used if method != 'mp_nerf'.
@@ -10,6 +11,7 @@ class StageCReconstruction:
         N = torsion_angles.size(0)
         coords = torch.zeros((N * 3, 3))
         return {"coords": coords, "atom_count": coords.size(0)}
+
 
 # @snoop
 def run_stageC_rna_mpnerf(
@@ -69,7 +71,16 @@ def run_stageC_rna_mpnerf(
     else:
         coords_full = coords_bb
 
+    # Ensure coords_full is 3D
+    if coords_full.dim() == 2:
+        # If 2D, reshape to 3D [L, 1, 3]
+        coords_full = coords_full.unsqueeze(1)
+
+    # Calculate total atoms (first dimension * second dimension)
     total_atoms = coords_full.shape[0] * coords_full.shape[1]
+
+    # Ensure coords_full is 3D before returning
+    assert coords_full.dim() == 3, f"Expected 3D tensor, got shape {coords_full.shape}"
     return {"coords": coords_full, "atom_count": total_atoms}
 
 

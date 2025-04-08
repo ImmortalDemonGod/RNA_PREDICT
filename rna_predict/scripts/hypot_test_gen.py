@@ -1,7 +1,6 @@
 import ast
 
 # Removed unused: from hypothesis import strategies as st
-import importlib.util  # For dynamic imports
 import logging
 import os
 import subprocess
@@ -176,18 +175,11 @@ class ModuleParser(ast.NodeVisitor):
             self.add_function_entity(node)
 
     def process_method(self, node: ast.FunctionDef) -> None:
-        """Process a method within a class"""
-        if self.should_skip_method(node):
-            return
-
+        """Process a method node and add it to the entities list."""
+        method_name = node.name
         is_instance_method = self.determine_instance_method(node)
-        entity_type = "instance_method" if is_instance_method else "method"
-
-        # The method path should include the class
-        method_name = (
-            f"{self.current_class}.{node.name}" if self.current_class else node.name
-        )
-
+        entity_type: Literal["method", "instance_method"] = "instance_method" if is_instance_method else "method"
+        
         self.entities.append(
             TestableEntity(
                 name=node.name,
@@ -211,14 +203,17 @@ class ModuleParser(ast.NodeVisitor):
         return True
 
     def should_skip_method(self, node: ast.FunctionDef) -> bool:
-        """Determine if the method should be skipped based on inheritance or naming"""
-        current_bases = self.class_bases.get(self.current_class, [])
-        if any(base in {"NodeVisitor", "ast.NodeVisitor"} for base in current_bases):
-            if node.name.startswith("visit_"):
-                logger.debug(f"Skipping inherited visit method: {node.name}")
-                return True
+        """Determine if the method should be skipped based on inheritance or naming."""
+        # Check base classes only if currently inside a class definition
+        if self.current_class:
+            current_bases = self.class_bases.get(self.current_class, [])
+            if any(base in {"NodeVisitor", "ast.NodeVisitor"} for base in current_bases):
+                if node.name.startswith("visit_"):
+                    logger.debug(f"Skipping inherited visit method: {node.name}")
+                    return True
+        
+        # Check common method names to skip regardless of class context
         if node.name in {"__init__", "__str__", "__repr__", "property"}:
-            logger.debug(f"Skipping magic or property method: {node.name}")
             return True
         return False
 
@@ -605,18 +600,15 @@ class TestGenerator:
         print()
 
     def _get_object(self, path: str) -> Optional[Any]:
-        """Get the actual object from its module path"""
+        """Get an object from a path string."""
         try:
-            module_parts = path.split(".")
-            module_path = ".".join(module_parts[:-1])
-            obj_name = module_parts[-1]
-
-            spec = importlib.util.find_spec(module_path)
-            if spec and spec.loader:
-                module = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(module)
-                return getattr(module, obj_name, None)
-        except Exception:
+            parts = path.split('.')
+            obj = globals()[parts[0]]
+            for part in parts[1:]:
+                obj = getattr(obj, part)
+            return obj
+        except (KeyError, AttributeError):
+            logger.warning(f"Could not find object at path: {path}")
             return None
 
     def generate_method_variants(self, entity: TestableEntity) -> List[Dict[str, str]]:

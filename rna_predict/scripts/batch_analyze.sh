@@ -40,8 +40,8 @@ find "$TARGET_DIR" -type f -name "*.py" | while read -r pyfile; do
   echo "Analyzing: $pyfile"
   echo "--------------------------------------------------"
   
-  # Call our analyze_code.sh script with output-dir
-  "$ANALYZE_SCRIPT" --output-dir "$OUTPUT_DIR" "$pyfile"
+  # Call our analyze_code.sh script with output-dir and no-tests flag
+  "$ANALYZE_SCRIPT" --output-dir "$OUTPUT_DIR" --no-tests "$pyfile"
 
   # Optionally, if you want a small wait between each analysis:
   # sleep 1

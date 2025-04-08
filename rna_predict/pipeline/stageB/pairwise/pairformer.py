@@ -513,7 +513,7 @@ class MSABlock(nn.Module):
         use_lma: bool = False,
         inplace_safe: bool = False,
         chunk_size: Optional[int] = None,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[Optional[torch.Tensor], torch.Tensor]:
         """
         Args:
             m (torch.Tensor): msa embedding
@@ -605,7 +605,7 @@ class MSAModule(nn.Module):
         # Default configs
         if msa_configs is None:
             msa_configs = {}
-            
+
         # Set up msa_configs with defaults
         self.msa_configs = {
             "enable": msa_configs.get("enable", False),
@@ -615,17 +615,25 @@ class MSAModule(nn.Module):
             "train_lowerb": 1,
             "test_lowerb": 1,
         }
-        
+
         # Override defaults with provided values if they exist
         if "sample_cutoff" in msa_configs:
             sample_cutoff = msa_configs.get("sample_cutoff", {})
-            self.msa_configs["train_cutoff"] = sample_cutoff.get("train", self.msa_configs["train_cutoff"])
-            self.msa_configs["test_cutoff"] = sample_cutoff.get("test", self.msa_configs["test_cutoff"])
-            
+            self.msa_configs["train_cutoff"] = sample_cutoff.get(
+                "train", self.msa_configs["train_cutoff"]
+            )
+            self.msa_configs["test_cutoff"] = sample_cutoff.get(
+                "test", self.msa_configs["test_cutoff"]
+            )
+
         if "min_size" in msa_configs:
             min_size = msa_configs.get("min_size", {})
-            self.msa_configs["train_lowerb"] = min_size.get("train", self.msa_configs["train_lowerb"])
-            self.msa_configs["test_lowerb"] = min_size.get("test", self.msa_configs["test_lowerb"])
+            self.msa_configs["train_lowerb"] = min_size.get(
+                "train", self.msa_configs["train_lowerb"]
+            )
+            self.msa_configs["test_lowerb"] = min_size.get(
+                "test", self.msa_configs["test_lowerb"]
+            )
 
         self.linear_no_bias_m = LinearNoBias(
             in_features=32 + 1 + 1, out_features=self.c_m
@@ -721,18 +729,12 @@ class MSAModule(nn.Module):
             pair_mask = pair_mask.float()
         msa_feat = sample_msa_feature_dict_random_without_replacement(
             feat_dict=input_feature_dict,
-            dim_dict={feat_name: -2 for feat_name in self.input_feature},
-            cutoff=(
+            # dim_dict removed as it's not an accepted argument
+            sample_size=(
                 self.msa_configs["train_cutoff"]
                 if self.training
                 else self.msa_configs["test_cutoff"]
-            ),
-            lower_bound=(
-                self.msa_configs["train_lowerb"]
-                if self.training
-                else self.msa_configs["test_lowerb"]
-            ),
-            strategy=self.msa_configs["strategy"],
+            )
         )
         # pylint: disable=E1102
         msa_feat["msa"] = torch.nn.functional.one_hot(
@@ -752,7 +754,9 @@ class MSAModule(nn.Module):
             # Reshape to [*target_shape, dim]
             x = x.reshape(*target_shape, dim)
             feat_list.append(x)
-        msa_sample = torch.cat(feat_list, dim=-1)  # [n_msa, n_token, 32+1+1] = [n_msa, n_token, 34]
+        msa_sample = torch.cat(
+            feat_list, dim=-1
+        )  # [n_msa, n_token, 32+1+1] = [n_msa, n_token, 34]
         # Line2
         msa_sample = self.linear_no_bias_m(msa_sample)
 
@@ -847,7 +851,7 @@ class TemplateEmbedder(nn.Module):
         self,
         input_feature_dict: dict[str, Any],
         z: torch.Tensor,  # pylint: disable=W0613
-        pair_mask: torch.Tensor = None,  # pylint: disable=W0613
+        pair_mask: Optional[torch.Tensor] = None,  # pylint: disable=W0613
         use_memory_efficient_kernel: bool = False,  # pylint: disable=W0613
         use_deepspeed_evo_attention: bool = False,  # pylint: disable=W0613
         use_lma: bool = False,  # pylint: disable=W0613
@@ -866,7 +870,12 @@ class TemplateEmbedder(nn.Module):
             torch.Tensor: the template feature
                 [..., N_token, N_token, c_z]
         """
-        # In this version, we do not use TemplateEmbedder by setting n_blocks=0
+        # Per Algorithm 16 and typical usage, return 0 if templates aren't used or n_blocks is 0.
         if "template_restype" not in input_feature_dict or self.n_blocks < 1:
-            return 0
-        return 0
+            return torch.zeros_like(z)  # Return zero tensor with same shape as z
+
+        # If templates are present but logic isn't fully implemented,
+        # also return 0 for now, consistent with the original behavior's intent.
+        # TODO: Implement the actual template embedding logic here when ready.
+        # For now, maintain the behavior of returning 0 if the main condition isn't met.
+        return torch.zeros_like(z)  # Return zero tensor with same shape as z
