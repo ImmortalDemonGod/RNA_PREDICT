@@ -105,35 +105,48 @@ class DiffusionConditioning(nn.Module):
             else:
                 relpe_output = relpe_output[..., : z_trunk.shape[-1]]
 
-        # --- Start Batch Dimension Alignment Fix ---
-        # Ensure relpe_output has the same number of leading dimensions as z_trunk
-        # Typically, z_trunk is [B, N, N, C] or [B, S, N, N, C]
-        # relpe_output is likely [N, N, C] or [1, N, N, C] initially
-        while relpe_output.ndim < z_trunk.ndim:
-             relpe_output = relpe_output.unsqueeze(0)
-
-        # Expand batch dimension (dim 0) if necessary
-        if relpe_output.shape[0] == 1 and z_trunk.shape[0] > 1:
-            relpe_output = relpe_output.expand(z_trunk.shape[0], *relpe_output.shape[1:])
-        # --- End Batch Dimension Alignment Fix ---
-
-
-        # Ensure relpe_output has the N_sample dimension if z_trunk does (Original logic)
-        # This might need adjustment depending on how batch/sample dims are handled consistently
+        # --- Start Dimension Alignment (Batch & Sample) ---
+        # Ensure relpe_output has the same number of dimensions as z_trunk
+        # If z_trunk is 5D ([B, S, N, N, C]) and relpe_output is 4D ([B, N, N, C]),
+        # add the sample dimension at index 1.
         if z_trunk.ndim == 5 and relpe_output.ndim == 4:
-            # Assume N_sample is the second dimension in z_trunk [B, N_sample, N, N, C]
-            # Add the sample dimension to relpe_output at dim 1
-            relpe_output = relpe_output.unsqueeze(1).expand(
-                -1, z_trunk.shape[1], -1, -1, -1
-            )
-            # print(f"[DEBUG] Expanded relpe_output shape: {relpe_output.shape}")
-        elif z_trunk.ndim != relpe_output.ndim:
-            # If dimensions still don't match after potential expansion, raise error
-            raise RuntimeError(
-                f"Cannot concatenate z_trunk ({z_trunk.shape}) and relpe_output ({relpe_output.shape}) due to mismatched dimensions."
-            )
+            # Add sample dimension of size 1 at index 1
+            relpe_output = relpe_output.unsqueeze(1) # Shape becomes [B, 1, N, N, C]
+        elif relpe_output.ndim < z_trunk.ndim:
+             # Fallback for other dimension mismatches (less common)
+             # This might need adjustment based on expected scenarios
+             while relpe_output.ndim < z_trunk.ndim:
+                 relpe_output = relpe_output.unsqueeze(0) # Add leading dimensions
 
-        print(f"[DEBUG PRE-CAT] z_trunk shape: {z_trunk.shape}, relpe_output shape: {relpe_output.shape}")
+        # Expand batch dimension (dim 0) if necessary (only if added via fallback)
+        # This check might be redundant if the primary case (5D vs 4D) handles batch correctly.
+        if relpe_output.shape[0] == 1 and z_trunk.shape[0] > 1 and relpe_output.ndim == z_trunk.ndim:
+             relpe_output = relpe_output.expand(z_trunk.shape[0], *relpe_output.shape[1:])
+        # --- End Dimension Alignment ---
+
+        # --- Start Sample Dimension Alignment Fix ---
+        # Handle cases where both are 5D but sample dimension (dim 1) might mismatch
+        if z_trunk.ndim == 5 and relpe_output.ndim == 5:
+            # If sample dimensions don't match, assume relpe_output's dim 1 was added
+            # artificially and needs expansion to match z_trunk's sample dimension.
+            if relpe_output.shape[1] != z_trunk.shape[1]:
+                # Expand relpe_output's sample dimension to match z_trunk
+                try: # Add try-except for safety, although expand should work if shapes are compatible otherwise
+                    relpe_output = relpe_output.expand(-1, z_trunk.shape[1], -1, -1, -1)
+                except RuntimeError as e:
+                     raise RuntimeError(
+                         f"Failed to expand relpe_output sample dimension ({relpe_output.shape}) to match z_trunk ({z_trunk.shape}). Error: {e}"
+                     )
+
+        # Final check before concatenation
+        if z_trunk.shape[:-1] != relpe_output.shape[:-1]:
+             raise RuntimeError(
+                 f"Shape mismatch before concatenation (excluding last dim). "
+                 f"z_trunk: {z_trunk.shape}, relpe_output: {relpe_output.shape}"
+             )
+        # --- End Sample Dimension Alignment Fix ---
+
+        print(f"[DEBUG PRE-CAT] z_trunk shape: {z_trunk.shape}, relpe_output shape: {relpe_output.shape}") # Keep for verification
         pair_z = torch.cat([z_trunk, relpe_output], dim=-1)
         pair_z = self.linear_no_bias_z(self.layernorm_z(pair_z))
 

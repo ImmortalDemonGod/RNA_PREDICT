@@ -105,7 +105,13 @@ class FeatureProcessor:
         """
         # Extract distance features
         ref_pos = safe_tensor_access(input_feature_dict, "ref_pos")  # [N, 3]
-        ref_charge = safe_tensor_access(input_feature_dict, "ref_charge")  # [N, 1]
+
+        # Try to get ref_charge, but use a default if not available
+        try:
+            ref_charge = safe_tensor_access(input_feature_dict, "ref_charge")  # [N, 1]
+        except ValueError:
+            # Create a default ref_charge tensor with zeros
+            ref_charge = torch.zeros((ref_pos.shape[0], 1), device=ref_pos.device)
 
         # Get number of atoms
         ref_pos.shape[0]
