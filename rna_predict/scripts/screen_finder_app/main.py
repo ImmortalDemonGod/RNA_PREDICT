@@ -1,14 +1,11 @@
 import logging
-import os
 import cv2
 import numpy as np
 import pyautogui
-import pyperclip
 from mss import mss
 from .config import LOG_FILE, LOG_LEVEL
 from .template_loader import load_and_preload_templates
 import time
-import subprocess
 
 # Setup logging
 log_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -29,7 +26,6 @@ def execute_action(logger, action_config: dict, coordinates: tuple) -> None:
     """
     Performs the user-defined action (click, text input, clipboard, etc.) at the given coordinates.
     """
-    import pyautogui  # Lazy import to avoid overhead if actions are never used
     action_type = action_config.get("action", "")
     logger.info(f"Executing action '{action_type}' at {coordinates} with config: {action_config}")
 

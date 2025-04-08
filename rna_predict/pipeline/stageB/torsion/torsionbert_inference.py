@@ -48,8 +48,8 @@ class TorsionBertModel(nn.Module):
         self.return_dict = return_dict
 
         # Initialize tokenizer and model
-        self.tokenizer = AutoTokenizer.from_pretrained(model_path)
-        self.model = AutoModel.from_pretrained(model_path).to(self.device)
+        self.tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
+        self.model = AutoModel.from_pretrained(model_path, trust_remote_code=True).to(self.device)
 
         # If model is mocked (for testing), replace with dummy model
         if isinstance(self.model, MagicMock):
@@ -58,8 +58,14 @@ class TorsionBertModel(nn.Module):
     def forward(self, inputs: Dict[str, torch.Tensor]) -> Any:
         """Forward pass through the model."""
         outputs = self.model(inputs)
+        if isinstance(outputs, dict):
+            return outputs  # Return as is if already a dictionary
         if self.return_dict:
-            return {"logits": outputs.logits}
+            # Handle both cases where outputs might have logits or last_hidden_state
+            if hasattr(outputs, 'logits'):
+                return {"logits": outputs.logits}
+            else:
+                return {"logits": outputs.last_hidden_state}
         return outputs
 
     def _preprocess_sequence(self, rna_sequence: str) -> tuple[str, int]:
@@ -122,9 +128,17 @@ class TorsionBertModel(nn.Module):
         Returns:
             Tensor containing raw sin/cos values
         """
-        if isinstance(outputs, dict) and "logits" in outputs:
-            return outputs["logits"]
-        return outputs.last_hidden_state
+        if isinstance(outputs, dict):
+            if "logits" in outputs:
+                return outputs["logits"]
+            elif "last_hidden_state" in outputs:
+                return outputs["last_hidden_state"]
+            # If neither key exists, return the first tensor value
+            for value in outputs.values():
+                if isinstance(value, torch.Tensor):
+                    return value
+            raise ValueError("No tensor output found in model outputs")
+        return outputs.last_hidden_state if hasattr(outputs, "last_hidden_state") else outputs.logits
 
     def _fill_result(self, raw_sincos: torch.Tensor, seq_len: int) -> torch.Tensor:
         """
