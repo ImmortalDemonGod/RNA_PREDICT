@@ -192,132 +192,48 @@ def _aggregate_to_token_level(
     Returns:
         Token-level aggregated features [..., N_token, C]
     """
-    # Ensure atom_to_token_idx has compatible batch dimensions with a_atom
-    # Target shape for index: [*a_atom.shape[:-2], N_atom]
-
+    # --- Start Revised Dimension Alignment ---
+    target_batch_shape = a_atom.shape[:-2] # e.g., (B, S) or (B,)
+    n_atom_dim_a = a_atom.shape[-2]
     original_idx_shape = atom_to_token_idx.shape
-    target_batch_shape = a_atom.shape[:-2]  # e.g., [B] or [B, N_sample]
-    n_batch_dims_target = len(target_batch_shape)
-    n_atom_dim_a = a_atom.shape[-2]  # N_atom dimension from a_atom
-
-    # Ensure index has at least batch_dims + 1 dimensions (batch + atom)
     temp_idx = atom_to_token_idx
-    while temp_idx.dim() < n_batch_dims_target + 1:
-        temp_idx = temp_idx.unsqueeze(0)
 
-    # Match the number of batch dimensions by squeezing/unsqueezing index
-    while temp_idx.dim() > n_batch_dims_target + 1:
-        squeezed = False
-        # Try squeezing dimensions between the first batch dim and the last (atom) dim
-        for i in range(1, temp_idx.dim() - 1):
-            if temp_idx.shape[i] == 1:
-                temp_idx = temp_idx.squeeze(i)
-                squeezed = True
-                break
-        if not squeezed:
-            # If no squeezable dim found, check if the first dim can be squeezed (if it's not the only batch dim)
-            if (
-                temp_idx.shape[0] == 1
-                and n_batch_dims_target > 0
-                and temp_idx.dim() > 2
-            ):
-                temp_idx = temp_idx.squeeze(0)
-                squeezed = True
-
-        if not squeezed:
-            warnings.warn(
-                f"Could not reduce index dimensions from {temp_idx.dim()} to target {n_batch_dims_target + 1}. "
-                f"Index shape: {temp_idx.shape}, Original: {original_idx_shape}, Target Batch: {target_batch_shape}"
-            )
-            break  # Cannot reduce further
-
-    # Add missing batch dimensions (typically at the start or after first batch dim)
-    while temp_idx.dim() < n_batch_dims_target + 1:
-        # Add dimensions after the potential first batch dim
-        temp_idx = temp_idx.unsqueeze(1 if n_batch_dims_target > 0 else 0)
-
-    # --- Start Fix: Check atom dimension compatibility BEFORE batch expansion ---
+    # 1. Check atom dimension match (must match exactly)
     n_atom_dim_idx = temp_idx.shape[-1]
     if n_atom_dim_idx != n_atom_dim_a:
-        # Attempt to expand atom dimension only if it's 1
-        if n_atom_dim_idx == 1:
-            warnings.warn(
-                f"Atom dimension mismatch: a_atom has {n_atom_dim_a} atoms, index has 1. "
-                f"Expanding index atom dimension. Original idx shape: {original_idx_shape}."
-            )
-            temp_idx = temp_idx.expand(*temp_idx.shape[:-1], n_atom_dim_a)
-            n_atom_dim_idx = temp_idx.shape[-1]  # Update after expansion
+        # If index atom dim is 1, try expanding it
+        if n_atom_dim_idx == 1 and temp_idx.ndim == len(target_batch_shape) + 1:
+             warnings.warn(
+                 f"Atom dimension mismatch: a_atom has {n_atom_dim_a} atoms, index has 1. "
+                 f"Expanding index atom dimension. Original idx shape: {original_idx_shape}."
+             )
+             temp_idx = temp_idx.expand(*temp_idx.shape[:-1], n_atom_dim_a)
         else:
-            # If atom dimensions mismatch and index atom dim is not 1, it's an irreconcilable error.
+             raise ValueError(
+                 f"Irreconcilable atom dimension mismatch in _aggregate_to_token_level. "
+                 f"a_atom shape: {a_atom.shape} (N_atom={n_atom_dim_a}), "
+                 f"atom_to_token_idx shape: {temp_idx.shape} (N_atom={n_atom_dim_idx}). "
+                 f"Original index shape was {original_idx_shape}. Cannot aggregate."
+             )
+
+    # 2. Align number of dimensions by adding leading singleton dims if needed
+    while temp_idx.dim() < len(target_batch_shape) + 1:
+        temp_idx = temp_idx.unsqueeze(0)
+
+    # 3. Expand batch dimensions to match target using broadcast rules
+    target_idx_shape = target_batch_shape + (n_atom_dim_a,) # Full target shape including atom dim
+    if temp_idx.shape != target_idx_shape:
+        try:
+            # Use expand to match the target shape. Handles broadcasting.
+            temp_idx = temp_idx.expand(target_idx_shape)
+        except RuntimeError as e:
+            # If expand fails, the shapes are incompatible
             raise ValueError(
-                f"Irreconcilable atom dimension mismatch in _aggregate_to_token_level. "
-                f"a_atom shape: {a_atom.shape} (N_atom={n_atom_dim_a}), "
-                f"processed atom_to_token_idx shape: {temp_idx.shape} (N_atom={n_atom_dim_idx}). "
-                f"Original index shape was {original_idx_shape}. Cannot aggregate."
-            )
-    # --- End Fix ---
+                f"Cannot expand index batch dimensions {temp_idx.shape[:-1]} to target {target_batch_shape}. "
+                f"Original idx shape: {original_idx_shape}. Aggregation impossible. Error: {e}"
+            ) from e
+    # --- End Revised Dimension Alignment ---
 
-    # Match batch dimension sizes via expand (only if atom dimensions now match)
-    current_batch_shape = temp_idx.shape[:-1]
-    if target_batch_shape != current_batch_shape:
-        # Special case: if target_batch_shape is empty, handle index shape
-        if len(target_batch_shape) == 0:
-            # If no batch dims in target, index should be 1D [N_atom]
-            if temp_idx.dim() > 1:  # Only reshape if it has extra dims
-                # If it was expanded (e.g., from [N_atom, 1] to [N_atom, N_atom]), take the diagonal
-                if (
-                    temp_idx.shape[0] == n_atom_dim_a
-                    and temp_idx.shape[1] == n_atom_dim_a
-                ):
-                    temp_idx = torch.diag(temp_idx)
-                else:
-                    # Otherwise, try viewing (might fail if size mismatch)
-                    try:
-                        temp_idx = temp_idx.view(n_atom_dim_a)
-                    except RuntimeError as e:
-                        raise RuntimeError(
-                            f"Failed to reshape temp_idx to [{n_atom_dim_a}] when target_batch_shape is empty. "
-                            f"Current shape: {temp_idx.shape}. Original idx shape: {original_idx_shape}. Error: {e}"
-                        ) from e
-        else:
-            # Check if expansion is possible (target dim == current dim OR current dim == 1)
-            can_expand = all(
-                t == c or c == 1
-                for t, c in zip(target_batch_shape, current_batch_shape)
-            )
-            # Also need to ensure the number of dimensions is compatible for expansion
-            # (temp_idx might have fewer batch dims than target after squeezing)
-            if len(current_batch_shape) <= len(target_batch_shape) and can_expand:
-                target_idx_shape = target_batch_shape + (
-                    n_atom_dim_a,
-                )  # Use the matched atom dim size
-                try:
-                    # Expand to the target shape (handles adding dimensions implicitly if needed)
-                    temp_idx = temp_idx.expand(target_idx_shape)
-                except RuntimeError as e:
-                    # This expansion should ideally not fail if the checks above passed, but catch just in case
-                    raise RuntimeError(
-                        f"Failed to expand atom_to_token_idx batch dimensions from {current_batch_shape} "
-                        f"to {target_batch_shape} (target index shape: {target_idx_shape}). "
-                        f"Original idx shape: {original_idx_shape}. Error: {e}"
-                    ) from e
-            else:  # Expansion is not possible
-                # Refined error message for clarity
-                raise ValueError(
-                    f"Cannot expand index batch dimensions {current_batch_shape} to target {target_batch_shape}. "
-                    f"Expansion possible: {can_expand}, Dim lengths compatible: {len(current_batch_shape) <= len(target_batch_shape)}. "
-                    f"Original idx shape: {original_idx_shape}. Aggregation impossible."
-                )
-    # If shapes already match, do nothing and proceed.
-
-    # Final check before aggregation (should always pass if logic above is correct)
-    if temp_idx.shape[:-1] != a_atom.shape[:-2] or temp_idx.shape[-1] != n_atom_dim_a:
-        # This path indicates a bug in the reshaping/expansion logic itself.
-        raise AssertionError(
-            f"Internal logic error: Shape mismatch persists before aggregation despite checks. "
-            f"a_atom shape {a_atom.shape}, atom_to_token_idx shape {temp_idx.shape}. "
-            f"Original idx shape was {original_idx_shape}."
-        )
 
     # Ensure atom_to_token_idx doesn't exceed num_tokens to prevent out-of-bounds
     if num_tokens <= 0:
@@ -440,6 +356,11 @@ def process_inputs_with_coords(
         )
 
     # Aggregate to token level
+    # --- DEBUG PRINT ---
+    print(f"[DEBUG AGG] a_atom shape: {a_atom.shape}")
+    print(f"[DEBUG AGG] atom_to_token_idx shape: {atom_to_token_idx.shape}")
+    print(f"[DEBUG AGG] num_tokens: {num_tokens}")
+    # --- END DEBUG PRINT ---
     a = _aggregate_to_token_level(encoder, a_atom, atom_to_token_idx, num_tokens)
 
     return a, q_l, c_l, p_lm

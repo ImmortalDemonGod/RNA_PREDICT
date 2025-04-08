@@ -8,21 +8,15 @@ class TestDiffusionConditioning(unittest.TestCase):
         self.c_s = 64  # Single feature dimension
         self.c_s_inputs = 449  # Expected input feature dimension
         self.c_z = 32  # Pair feature dimension
-        self.c_hidden = 128  # Hidden dimension
-        self.n_heads = 4  # Number of attention heads
-        self.n_blocks = 2  # Number of transformer blocks
-        self.dropout = 0.1
-        self.blocks_per_ckpt = None
-        
+        # Removed unused attributes: c_hidden, n_heads, n_blocks, dropout, blocks_per_ckpt
+        self.c_noise_embedding = 256 # Added required arg
+
         self.module = DiffusionConditioning(
             c_s=self.c_s,
             c_s_inputs=self.c_s_inputs,
             c_z=self.c_z,
-            c_hidden=self.c_hidden,
-            n_heads=self.n_heads,
-            n_blocks=self.n_blocks,
-            dropout=self.dropout,
-            blocks_per_ckpt=self.blocks_per_ckpt
+            # Removed unexpected arguments: c_hidden, n_heads, n_blocks, dropout, blocks_per_ckpt
+            c_noise_embedding=self.c_noise_embedding # Added required arg
         )
 
     def test_shape_validation_single_features(self):
@@ -74,23 +68,50 @@ class TestDiffusionConditioning(unittest.TestCase):
     def test_batch_size_handling(self):
         """Test handling of different batch sizes"""
         seq_len = 24
-        
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu") # Ensure tensors are on same device
+        self.module.to(device) # Ensure module is on the same device
+
         # Test with batch size 1
-        s_trunk = torch.randn(1, seq_len, self.c_s)
-        s_inputs = torch.randn(1, seq_len, self.c_s_inputs)
-        z_pair = torch.randn(1, seq_len, seq_len, self.c_z)
-        
-        # Should not raise error
-        self.module.forward(s_trunk, s_inputs, z_pair, inplace_safe=True)
-        
+        batch_size_1 = 1
+        s_trunk_1 = torch.randn(batch_size_1, seq_len, self.c_s, device=device)
+        s_inputs_1 = torch.randn(batch_size_1, seq_len, self.c_s_inputs, device=device)
+        z_pair_1 = torch.randn(batch_size_1, seq_len, seq_len, self.c_z, device=device)
+        t_hat_1 = torch.rand(batch_size_1, device=device) # Dummy noise level
+        input_features_1 = {} # Dummy input features
+
+        # Should not raise error - Use keyword arguments
+        try:
+            self.module.forward(
+                t_hat_noise_level=t_hat_1,
+                input_feature_dict=input_features_1,
+                s_inputs=s_inputs_1,
+                s_trunk=s_trunk_1,
+                z_trunk=z_pair_1, # Pass z_pair as z_trunk
+                inplace_safe=True
+            )
+        except Exception as e:
+            self.fail(f"forward failed with batch_size=1: {e}")
+
         # Test with larger batch size
-        batch_size = 4
-        s_trunk = torch.randn(batch_size, seq_len, self.c_s)
-        s_inputs = torch.randn(batch_size, seq_len, self.c_s_inputs)
-        z_pair = torch.randn(batch_size, seq_len, seq_len, self.c_z)
-        
-        # Should not raise error
-        self.module.forward(s_trunk, s_inputs, z_pair, inplace_safe=True)
+        batch_size_4 = 4
+        s_trunk_4 = torch.randn(batch_size_4, seq_len, self.c_s, device=device)
+        s_inputs_4 = torch.randn(batch_size_4, seq_len, self.c_s_inputs, device=device)
+        z_pair_4 = torch.randn(batch_size_4, seq_len, seq_len, self.c_z, device=device)
+        t_hat_4 = torch.rand(batch_size_4, device=device) # Dummy noise level
+        input_features_4 = {} # Dummy input features
+
+        # Should not raise error - Use keyword arguments
+        try:
+            self.module.forward(
+                t_hat_noise_level=t_hat_4,
+                input_feature_dict=input_features_4,
+                s_inputs=s_inputs_4,
+                s_trunk=s_trunk_4,
+                z_trunk=z_pair_4, # Pass z_pair as z_trunk
+                inplace_safe=True
+            )
+        except Exception as e:
+            self.fail(f"forward failed with batch_size=4: {e}")
 
 if __name__ == '__main__':
-    unittest.main() 
+    unittest.main()

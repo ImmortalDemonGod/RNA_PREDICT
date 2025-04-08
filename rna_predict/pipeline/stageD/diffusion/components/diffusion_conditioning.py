@@ -105,7 +105,21 @@ class DiffusionConditioning(nn.Module):
             else:
                 relpe_output = relpe_output[..., : z_trunk.shape[-1]]
 
-        # Ensure relpe_output has the N_sample dimension if z_trunk does
+        # --- Start Batch Dimension Alignment Fix ---
+        # Ensure relpe_output has the same number of leading dimensions as z_trunk
+        # Typically, z_trunk is [B, N, N, C] or [B, S, N, N, C]
+        # relpe_output is likely [N, N, C] or [1, N, N, C] initially
+        while relpe_output.ndim < z_trunk.ndim:
+             relpe_output = relpe_output.unsqueeze(0)
+
+        # Expand batch dimension (dim 0) if necessary
+        if relpe_output.shape[0] == 1 and z_trunk.shape[0] > 1:
+            relpe_output = relpe_output.expand(z_trunk.shape[0], *relpe_output.shape[1:])
+        # --- End Batch Dimension Alignment Fix ---
+
+
+        # Ensure relpe_output has the N_sample dimension if z_trunk does (Original logic)
+        # This might need adjustment depending on how batch/sample dims are handled consistently
         if z_trunk.ndim == 5 and relpe_output.ndim == 4:
             # Assume N_sample is the second dimension in z_trunk [B, N_sample, N, N, C]
             # Add the sample dimension to relpe_output at dim 1
@@ -119,6 +133,7 @@ class DiffusionConditioning(nn.Module):
                 f"Cannot concatenate z_trunk ({z_trunk.shape}) and relpe_output ({relpe_output.shape}) due to mismatched dimensions."
             )
 
+        print(f"[DEBUG PRE-CAT] z_trunk shape: {z_trunk.shape}, relpe_output shape: {relpe_output.shape}")
         pair_z = torch.cat([z_trunk, relpe_output], dim=-1)
         pair_z = self.linear_no_bias_z(self.layernorm_z(pair_z))
 

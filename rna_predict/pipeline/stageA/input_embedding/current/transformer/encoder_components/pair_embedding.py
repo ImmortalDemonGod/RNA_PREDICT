@@ -113,6 +113,7 @@ def _process_charges(
             charge_product = charge_query * charge_key
 
             # Add to charge products
+            # Unsqueeze charge_product to match target slice dimensions [..., 1]
             charge_products[..., query_idx, key_idx, 0] = charge_product
 
     # Apply volume encoding to charge products

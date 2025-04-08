@@ -118,8 +118,28 @@ def extract_atom_features(
     if not features:
         raise ValueError("No valid features found in input dictionary.")
 
-    # Concatenate features along last dimension
-    cat_features = torch.cat(features, dim=-1)
+    # --- Start Dimension Alignment Fix ---
+    # Find the maximum number of dimensions among the features
+    max_dims = 0
+    for f in features:
+        max_dims = max(max_dims, f.ndim)
+
+    aligned_features = []
+    for f in features:
+        # Add singleton dimensions (usually for sample dim S=1) if needed
+        current_dims = f.ndim
+        temp_f = f
+        while current_dims < max_dims:
+            # Typically add sample dimension at index 1: [B, N, C] -> [B, 1, N, C]
+            temp_f = temp_f.unsqueeze(1)
+            current_dims += 1
+            warnings.warn(f"Unsqueezed feature tensor from {f.shape} to {temp_f.shape} to align dimensions for concatenation.")
+        aligned_features.append(temp_f)
+    # --- End Dimension Alignment Fix ---
+
+
+    # Concatenate aligned features along last dimension
+    cat_features = torch.cat(aligned_features, dim=-1) # Use aligned_features
 
     # Ensure encoder.linear_no_bias_f is callable before calling
     if not hasattr(encoder, "linear_no_bias_f") or not callable(
