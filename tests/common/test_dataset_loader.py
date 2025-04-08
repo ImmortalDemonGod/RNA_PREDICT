@@ -36,7 +36,16 @@ from rna_predict.dataset.dataset_loader import (
 
 
 class TestDatasetLoader(unittest.TestCase):
-    def test_stream_bprna_dataset(self):
+    @patch("rna_predict.dataset.dataset_loader.load_dataset")
+    def test_stream_bprna_dataset(self, mock_load_dataset: MagicMock):
+        # Set up the mock to return a mock iterable
+        mock_iterable = MagicMock()
+        mock_load_dataset.return_value = mock_iterable
+        
+        # Set up the mock to handle iteration
+        mock_item = {"sequence": "AUGC", "structure": "((..))"}
+        mock_iterable.__iter__.return_value = iter([mock_item])
+        
         ds_iter = stream_bprna_dataset("train")
         self.assertIsNotNone(
             ds_iter, "The returned dataset iterator should not be None."
@@ -48,6 +57,11 @@ class TestDatasetLoader(unittest.TestCase):
         self.assertIsNotNone(
             first_item,
             "Should be able to retrieve at least one record from the dataset.",
+        )
+        
+        # Verify the mock was called correctly
+        mock_load_dataset.assert_called_once_with(
+            "multimolecule/bprna-spot", split="train", streaming=True
         )
 
 
