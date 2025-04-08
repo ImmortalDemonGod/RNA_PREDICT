@@ -3,9 +3,12 @@ import sys
 from datetime import datetime
 import os
 
+# Determine the project root directory (assuming this script is in <root>/rna_predict/scripts)
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 def run_python_file(file_path, output_file):
     """Run a Python file and capture its output."""
-    rel_path = os.path.relpath(file_path) # Get relative path early for error message
+    rel_path = os.path.relpath(file_path, PROJECT_ROOT) # Get relative path for cleaner output
     try:
         # Write the file header to the output file
         with open(output_file, 'a') as f:
@@ -15,10 +18,11 @@ def run_python_file(file_path, output_file):
             f.write(f"{'='*80}\n\n")
         
         # Run the Python file and capture output
-        result = subprocess.run([sys.executable, file_path], 
-                              capture_output=True, 
+        result = subprocess.run([sys.executable, file_path],
+                              capture_output=True,
                               text=True,
-                              check=False) # Set check=False to handle non-zero exit codes manually
+                              check=False, # Set check=False to handle non-zero exit codes manually
+                              cwd=PROJECT_ROOT) # <--- Set Current Working Directory
         
         # Append the output to the file
         with open(output_file, 'a') as f:
@@ -52,15 +56,16 @@ def run_python_file(file_path, output_file):
 
 def main():
     # List of Python files to run
+    # Use paths relative to PROJECT_ROOT for robustness
     python_files = [
-        "/Users/tomriddle1/RNA_PREDICT/rna_predict/pipeline/stageA/run_stageA.py",
-        "/Users/tomriddle1/RNA_PREDICT/rna_predict/pipeline/stageB/main.py",
-        "/Users/tomriddle1/RNA_PREDICT/rna_predict/pipeline/stageC/stage_c_reconstruction.py",
-        "/Users/tomriddle1/RNA_PREDICT/rna_predict/pipeline/stageD/run_stageD.py",
-        "/Users/tomriddle1/RNA_PREDICT/rna_predict/interface.py",
-        "/Users/tomriddle1/RNA_PREDICT/rna_predict/main.py",
-        "/Users/tomriddle1/RNA_PREDICT/rna_predict/print_rna_pipeline_output.py",
-        "/Users/tomriddle1/RNA_PREDICT/rna_predict/run_full_pipeline.py" # Note: Original comment about recursion was incorrect.
+        os.path.join(PROJECT_ROOT, "rna_predict/pipeline/stageA/run_stageA.py"),
+        os.path.join(PROJECT_ROOT, "rna_predict/pipeline/stageB/main.py"),
+        os.path.join(PROJECT_ROOT, "rna_predict/pipeline/stageC/stage_c_reconstruction.py"),
+        os.path.join(PROJECT_ROOT, "rna_predict/pipeline/stageD/run_stageD.py"),
+        os.path.join(PROJECT_ROOT, "rna_predict/interface.py"),
+        os.path.join(PROJECT_ROOT, "rna_predict/main.py"),
+        os.path.join(PROJECT_ROOT, "rna_predict/print_rna_pipeline_output.py"),
+        # os.path.join(PROJECT_ROOT, "rna_predict/run_full_pipeline.py") # Avoid running itself
     ]
     
     # Output file path
@@ -77,21 +82,21 @@ def main():
     for file_path in python_files:
         # Check if file exists before trying to run
         if not os.path.exists(file_path):
-            print(f"Skipping {os.path.relpath(file_path)}: File not found.")
+            print(f"Skipping {os.path.relpath(file_path, PROJECT_ROOT)}: File not found.")
             with open(output_file, 'a') as f:
                 f.write(f"\n{'='*80}\n")
-                f.write(f"Skipped: {os.path.relpath(file_path)} (File not found)\n")
+                f.write(f"Skipped: {os.path.relpath(file_path, PROJECT_ROOT)} (File not found)\n")
                 f.write(f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
                 f.write(f"{'='*80}\n\n")
             all_success = False # Mark overall run as failed if any file is skipped
             continue # Move to the next file
             
-        print(f"Running {os.path.relpath(file_path)}...") # Use relative path for cleaner console output
+        print(f"Running {os.path.relpath(file_path, PROJECT_ROOT)}...") # Use relative path for cleaner console output
         success = run_python_file(file_path, output_file)
         if success:
-            print(f"Successfully ran {os.path.relpath(file_path)}")
+            print(f"Successfully ran {os.path.relpath(file_path, PROJECT_ROOT)}")
         else:
-            print(f"Failed to run {os.path.relpath(file_path)}")
+            print(f"Failed to run {os.path.relpath(file_path, PROJECT_ROOT)}")
             all_success = False # Mark overall run as failed
             # Optional: Stop execution on first failure
             # print("Stopping pipeline due to failure.")
