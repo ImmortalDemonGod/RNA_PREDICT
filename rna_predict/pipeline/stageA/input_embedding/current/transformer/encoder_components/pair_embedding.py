@@ -98,6 +98,13 @@ def _process_charges(
     # n_queries = pair_embed.shape[-3] # No longer using fixed n_queries/n_keys here
     # n_keys = pair_embed.shape[-2]
 
+    # --- Start Dimension Alignment Fix ---
+    # Ensure ref_charge has the same leading dimensions as pair_embed (e.g., sample dim)
+    aligned_ref_charge = ref_charge
+    while aligned_ref_charge.ndim < pair_embed.ndim - 1: # Compare up to atom dims
+        aligned_ref_charge = aligned_ref_charge.unsqueeze(1) # Assume missing dim is sample dim (dim 1)
+    # --- End Dimension Alignment Fix ---
+
     # Process charge products between atom pairs
     # Iterate up to the actual number of atoms (N_atom)
     for query_idx in range(num_atoms_in_ref_charge):
@@ -106,14 +113,15 @@ def _process_charges(
             # Add bounds check just in case ref_charge is smaller than expected by pair_embed init
             if query_idx >= pair_embed.shape[-3] or key_idx >= pair_embed.shape[-2]:
                 continue
-            charge_query = ref_charge[..., query_idx, 0]
-            charge_key = ref_charge[..., key_idx, 0]
+            # Use aligned_ref_charge here
+            charge_query = aligned_ref_charge[..., query_idx, 0]
+            charge_key = aligned_ref_charge[..., key_idx, 0]
 
             # Calculate charge product
             charge_product = charge_query * charge_key
 
             # Add to charge products
-            # Unsqueeze charge_product to match target slice dimensions [..., 1]
+            # Rely on PyTorch broadcasting to handle potential dimension differences
             charge_products[..., query_idx, key_idx, 0] = charge_product
 
     # Apply volume encoding to charge products
