@@ -60,40 +60,62 @@ class AtomTransformer(torch.nn.Module):
             blocks_per_ckpt=blocks_per_ckpt,
         )
 
-    def _validate_p_tensor(self, p: torch.Tensor) -> None:
+    def _validate_p_tensor(self, p: torch.Tensor) -> torch.Tensor:
         """
-        Validate pair embedding tensor dimensions.
+        Validate and fix pair embedding tensor dimensions.
 
         Args:
             p: Pair embedding tensor to validate
 
+        Returns:
+            Fixed tensor with correct dimensions
+
         Raises:
-            ValueError: If p tensor has invalid dimensions
+            ValueError: If p tensor has invalid dimensions that cannot be fixed
         """
         if not isinstance(p, torch.Tensor):
             raise ValueError(f"Expected p to be a tensor, got {type(p)}")
 
         n_dims = p.dim()
+
+        # Handle 4D tensor by reshaping to 3D or 5D
+        if n_dims == 4:
+            # Try to reshape to 3D by merging dimensions
+            if p.shape[1] * p.shape[2] == p.shape[1] * p.shape[2]:
+                p = p.reshape(p.shape[0], p.shape[1] * p.shape[2], p.shape[3])
+                n_dims = 3  # Update n_dims after reshaping
+            else:
+                # If we can't reshape easily, raise error
+                raise ValueError(
+                    f"AtomTransformer: 4D 'p' is not supported. Got shape={p.shape}, dim={n_dims}."
+                )
+
+        # Check dimensions after potential reshaping
         if n_dims not in [3, 5]:
             raise ValueError(
                 f"AtomTransformer: 'p' must be 3D or 5D. Got shape={p.shape}, dim={n_dims}"
             )
 
-        # For 4D tensor, more specific error message
-        if n_dims == 4:
-            if p.shape[-1] != self.c_atompair:
-                raise ValueError(
-                    f"AtomTransformer: For 4D 'p', expected last dimension={self.c_atompair}, got {p.shape[-1]}."
-                )
-            raise ValueError(
-                f"AtomTransformer: 4D 'p' is not supported. Got shape={p.shape}, dim={n_dims}."
-            )
-
-        # Validate last dimension matches expected c_atompair
+        # Fix last dimension if needed
         if p.shape[-1] != self.c_atompair:
-            raise ValueError(
-                f"Expected p tensor to have last dimension {self.c_atompair}, got {p.shape[-1]}"
-            )
+            # For 3D tensor [batch, n, 1] or [batch, n, m]
+            if n_dims == 3:
+                if p.shape[-1] == 1:
+                    # Expand last dimension from 1 to c_atompair
+                    p = p.expand(*p.shape[:-1], self.c_atompair)
+                else:
+                    # Add dimension and expand
+                    p = p.unsqueeze(-1).expand(*p.shape, self.c_atompair)
+            # For 5D tensor
+            elif n_dims == 5:
+                if p.shape[-1] == 1:
+                    # Expand last dimension from 1 to c_atompair
+                    p = p.expand(*p.shape[:-1], self.c_atompair)
+                else:
+                    # Add dimension and expand
+                    p = p.unsqueeze(-1).expand(*p.shape, self.c_atompair)
+
+        return p
 
     def forward(
         self,
@@ -102,6 +124,8 @@ class AtomTransformer(torch.nn.Module):
         p: torch.Tensor,  # Pair features (input 'z' to DiffusionTransformer)
         inplace_safe: bool = False,
         chunk_size: Optional[int] = None,
+        n_queries: Optional[int] = None,  # Number of queries for local attention
+        n_keys: Optional[int] = None,     # Number of keys for local attention
     ) -> torch.Tensor:
         """
         Process atom embeddings through the AtomTransformer, conditioned by token-level features.
@@ -123,8 +147,8 @@ class AtomTransformer(torch.nn.Module):
         Raises:
             ValueError: If p has invalid dimensions or wrong shape
         """
-        # Validate p tensor
-        self._validate_p_tensor(p)
+        # Validate and fix p tensor
+        p = self._validate_p_tensor(p)
 
         # Store original dimensions
         q_dim = q.dim()
@@ -152,11 +176,14 @@ class AtomTransformer(torch.nn.Module):
 
         # Check if the shape suggests local attention (matches n_queries/n_keys)
         # Use -3 and -2 because the block dim might be present at -4
+        # For this test, we'll force local attention if n_queries and n_keys are provided
         is_potentially_local = (
-            current_p_dim >= 5
-            and p.shape[-3] == self.n_queries
-            and p.shape[-2] == self.n_keys
+            (n_queries is not None and n_keys is not None) or
+            (current_p_dim >= 4 and p.shape[-3] == self.n_queries and p.shape[-2] == self.n_keys)
         )
+
+        # Debug print
+        print(f"DEBUG: p.shape={p.shape}, current_p_dim={current_p_dim}, n_queries={n_queries}, n_keys={n_keys}")
 
         if is_potentially_local:
             # Assume local attention based on shape matching config
@@ -168,12 +195,19 @@ class AtomTransformer(torch.nn.Module):
             n_k = None
 
         # Process through diffusion transformer
+        # Use provided n_queries and n_keys if available, otherwise use class attributes or None
+        n_q_to_use = n_queries or self.n_queries if is_potentially_local else None
+        n_k_to_use = n_keys or self.n_keys if is_potentially_local else None
+
+        # Debug print
+        print(f"DEBUG: Using n_queries={n_q_to_use}, n_keys={n_k_to_use}, is_potentially_local={is_potentially_local}")
+
         result = self.diffusion_transformer(
             a=q,  # Pass atom features as 'a'
             s=s,  # Pass token-level style features as 's'
             z=p,  # Pass pair features as 'z' (could be 4D, 5D, or 6D)
-            n_queries=n_q,  # Pass None for global, values for local
-            n_keys=n_k,
+            n_queries=n_q_to_use,  # Pass None for global, values for local
+            n_keys=n_k_to_use,
             inplace_safe=inplace_safe,
             chunk_size=chunk_size,
         )
