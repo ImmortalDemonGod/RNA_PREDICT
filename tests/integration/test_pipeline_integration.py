@@ -16,7 +16,7 @@ def stageB_mock(stageA_out):
     return {
         "s_trunk": torch.randn(1, 10, 384),  # Changed from 'sing' to 's_trunk'
         "pair": torch.randn(1, 10, 10, 32),
-        "s_inputs": torch.randn(1, 10, 384),  # Added s_inputs
+        "s_inputs": torch.randn(1, 10, 449),  # Changed from 384 to 449
     }
 
 

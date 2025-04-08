@@ -872,10 +872,10 @@ class TemplateEmbedder(nn.Module):
         """
         # Per Algorithm 16 and typical usage, return 0 if templates aren't used or n_blocks is 0.
         if "template_restype" not in input_feature_dict or self.n_blocks < 1:
-            return 0 # Return integer 0 as expected by tests and docstring
+            return torch.zeros_like(z)  # Return zero tensor with same shape as z
 
         # If templates are present but logic isn't fully implemented,
         # also return 0 for now, consistent with the original behavior's intent.
         # TODO: Implement the actual template embedding logic here when ready.
         # For now, maintain the behavior of returning 0 if the main condition isn't met.
-        return 0 # Return integer 0
+        return torch.zeros_like(z)  # Return zero tensor with same shape as z
