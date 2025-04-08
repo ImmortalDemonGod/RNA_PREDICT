@@ -106,15 +106,7 @@ class AdaptiveLayerNorm(nn.Module):
 
             return conditioned_a
 
-        except RuntimeError:
-            # warnings.warn( # Commented out to suppress log noise
-            #     f"WARNING: Skipping adaptive layernorm conditioning due to shape mismatch: {e}"
-            # )
-            # warnings.warn( # Commented out to suppress log noise
-            #     f"         a shape (original): {a_original_shape}, s shape: {s.shape}"
-            # )
-            # === # This line seems misplaced, removing it.
-            #          except RuntimeError as e: # Duplicate except block start? Removing.
+        except RuntimeError as e:
             # warnings.warn( # Commented out to suppress log noise
             #     f"WARNING: Skipping adaptive layernorm conditioning due to shape mismatch: {e}"
             # )
