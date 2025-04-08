@@ -28,8 +28,12 @@ class AttentionBiasConfig:
     n_q_trunks: int
     n_queries: int
     n_q_pad: int
-    original_length: int
+    original_length: int # Original query length
     inf: float = 1e10
+    # Add fields needed for key padding/reshaping
+    n_k_trunks: int = 0 # Default to 0 if not provided? Or make mandatory? Let's make mandatory for clarity.
+    n_keys: int = 0
+    n_k_pad: int = 0
 
 
 @dataclass
