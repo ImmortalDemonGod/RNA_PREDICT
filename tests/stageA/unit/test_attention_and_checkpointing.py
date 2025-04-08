@@ -258,7 +258,7 @@ class TestCheckpointBlocks:
                  # If no blocks, output should be the initial args tuple
                  assert out == args_tuple, "Expected output to be initial args tuple when no blocks"
 
-        except TypeError as e:
+        except TypeError:
             # Allow TypeErrors that might occur if Hypothesis generates a block
             # incompatible with the generated args. This is acceptable in fuzzing.
             # Example: block expects int, args is ('text',)
