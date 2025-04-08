@@ -11,7 +11,7 @@ from rna_predict.pipeline.stageA.input_embedding.current.transformer.atom_attent
 from rna_predict.pipeline.stageA.input_embedding.current.transformer.atom_attention.decoder import (
     AtomAttentionDecoder,
 )
-from rna_predict.pipeline.stageA.input_embedding.current.primitives import LinearNoBias
+# No need to import LinearNoBias as we're just checking isinstance(decoder.linear_no_bias_a, nn.Linear)
 from rna_predict.pipeline.stageA.input_embedding.current.transformer.atom_attention.components import (
     AttentionComponents,
     CoordinateProcessor,
@@ -63,7 +63,7 @@ def forward_params_minimal(default_decoder_config: AtomAttentionConfig) -> Decod
     n_tokens = 10
     n_atoms = 25 # Must be >= n_tokens if atom_to_token_idx is used later
     c_token = default_decoder_config.c_token
-    c_atom = default_decoder_config.c_atom
+    # c_atom not used directly
 
     # Input tensor 'a' has token dimension initially
     a = torch.randn(batch_size, n_tokens, c_token)
@@ -80,7 +80,7 @@ def forward_params_full(default_decoder_config: AtomAttentionConfig) -> DecoderF
     n_tokens = 10
     n_atoms = 25
     c_token = default_decoder_config.c_token
-    c_atom = default_decoder_config.c_atom
+    # c_atom not used directly
     c_extra = 5 # Dimension for extra_feats
 
     a = torch.randn(batch_size, n_tokens, c_token)
@@ -152,7 +152,7 @@ def test_forward_minimal(decoder: AtomAttentionDecoder, forward_params_minimal: 
     """
     params = forward_params_minimal
     batch_size, n_tokens, _ = params.a.shape
-    _, n_atoms, _ = params.r_l.shape # Use n_atoms from r_l as 'a' is not broadcasted here
+    # n_atoms not used in this test
 
     output = decoder(params)
 
@@ -172,6 +172,8 @@ def test_forward_with_atom_to_token_idx(decoder: AtomAttentionDecoder, forward_p
     params.chunk_size = None
 
     batch_size, _, _ = params.a.shape
+    # Ensure atom_to_token_idx is not None before accessing shape
+    assert params.atom_to_token_idx is not None
     _, n_atoms = params.atom_to_token_idx.shape
 
     output = decoder(params)
@@ -192,7 +194,7 @@ def test_forward_with_extra_feats(decoder: AtomAttentionDecoder, forward_params_
     params.chunk_size = None
 
     batch_size, n_tokens, _ = params.a.shape
-    _, n_atoms, _ = params.r_l.shape
+    # n_atoms not used in this test
 
     output = decoder(params)
 
@@ -213,6 +215,8 @@ def test_forward_with_mask(decoder: AtomAttentionDecoder, forward_params_full: D
     params.extra_feats = None
     params.chunk_size = None
 
+    # Ensure mask is not None before accessing shape
+    assert params.mask is not None
     batch_size, n_atoms = params.mask.shape
 
     output = decoder(params)
