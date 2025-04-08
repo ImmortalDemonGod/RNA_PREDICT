@@ -135,7 +135,8 @@ def _prepare_padding_info(
         first_q = params.q_list[0]
         first_q_dim_idx = 0 # Index within dim_q_list
         first_q_dim = params.dim_q_list[first_q_dim_idx]
-        if first_q_dim < 0: first_q_dim += first_q.ndim
+        if first_q_dim < 0:
+            first_q_dim += first_q.ndim
         if 0 <= first_q_dim < first_q.ndim:
             rep_total_q = first_q.shape[first_q_dim]
             rep_n_q_trunks = math.ceil(rep_total_q / params.n_queries) if rep_total_q > 0 else 0
@@ -144,7 +145,8 @@ def _prepare_padding_info(
         first_k = params.k_list[0]
         first_k_dim_idx = 0 # Index within dim_k_list
         first_k_dim = params.dim_k_list[first_k_dim_idx]
-        if first_k_dim < 0: first_k_dim += first_k.ndim
+        if first_k_dim < 0:
+            first_k_dim += first_k.ndim
         if 0 <= first_k_dim < first_k.ndim:
             rep_total_k = first_k.shape[first_k_dim]
             rep_n_k_trunks = math.ceil(rep_total_k / params.n_keys) if rep_total_k > 0 else 0
