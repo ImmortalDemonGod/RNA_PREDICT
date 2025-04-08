@@ -192,48 +192,48 @@ def _aggregate_to_token_level(
     Returns:
         Token-level aggregated features [..., N_token, C]
     """
-    # --- Start Revised Dimension Alignment ---
-    target_batch_shape = a_atom.shape[:-2] # e.g., (B, S) or (B,)
+    # --- Start Dimension Alignment v3 ---
+    target_batch_shape = a_atom.shape[:-2]  # e.g., (B, S) or (B,)
     n_atom_dim_a = a_atom.shape[-2]
     original_idx_shape = atom_to_token_idx.shape
     temp_idx = atom_to_token_idx
 
-    # 1. Check atom dimension match (must match exactly)
+    # 1. Ensure atom dimension matches (must match exactly)
     n_atom_dim_idx = temp_idx.shape[-1]
     if n_atom_dim_idx != n_atom_dim_a:
-        # If index atom dim is 1, try expanding it
         if n_atom_dim_idx == 1 and temp_idx.ndim == len(target_batch_shape) + 1:
-             warnings.warn(
-                 f"Atom dimension mismatch: a_atom has {n_atom_dim_a} atoms, index has 1. "
-                 f"Expanding index atom dimension. Original idx shape: {original_idx_shape}."
-             )
-             temp_idx = temp_idx.expand(*temp_idx.shape[:-1], n_atom_dim_a)
+            warnings.warn(
+                f"Atom dimension mismatch: a_atom has {n_atom_dim_a} atoms, index has 1. "
+                f"Expanding index atom dimension. Original idx shape: {original_idx_shape}."
+            )
+            temp_idx = temp_idx.expand(*temp_idx.shape[:-1], n_atom_dim_a)
         else:
-             raise ValueError(
-                 f"Irreconcilable atom dimension mismatch in _aggregate_to_token_level. "
-                 f"a_atom shape: {a_atom.shape} (N_atom={n_atom_dim_a}), "
-                 f"atom_to_token_idx shape: {temp_idx.shape} (N_atom={n_atom_dim_idx}). "
-                 f"Original index shape was {original_idx_shape}. Cannot aggregate."
-             )
+            raise ValueError(
+                f"Irreconcilable atom dimension mismatch in _aggregate_to_token_level. "
+                f"a_atom shape: {a_atom.shape} (N_atom={n_atom_dim_a}), "
+                f"atom_to_token_idx shape: {temp_idx.shape} (N_atom={n_atom_dim_idx}). "
+                f"Original index shape was {original_idx_shape}. Cannot aggregate."
+            )
 
-    # 2. Align number of dimensions by adding leading singleton dims if needed
-    while temp_idx.dim() < len(target_batch_shape) + 1:
-        temp_idx = temp_idx.unsqueeze(0)
+    # 2. Add Sample dimension (dim 1) if a_atom has it but temp_idx doesn't
+    # a_atom shape: [B, S, N_atom, C], temp_idx shape: [B, N_atom] -> [B, 1, N_atom]
+    if len(target_batch_shape) == 2 and temp_idx.ndim == 2:
+        temp_idx = temp_idx.unsqueeze(1)
+    # Handle cases where a_atom might be [B, N_atom, C] but idx is [1, B, N_atom] - less likely
+    elif len(target_batch_shape) == 1 and temp_idx.ndim == 3 and temp_idx.shape[0] == 1:
+         temp_idx = temp_idx.squeeze(0) # Remove leading singleton dim
 
-    # 3. Expand batch dimensions to match target using broadcast rules
+    # 3. Expand remaining batch dimensions to match target
     target_idx_shape = target_batch_shape + (n_atom_dim_a,) # Full target shape including atom dim
     if temp_idx.shape != target_idx_shape:
         try:
-            # Use expand to match the target shape. Handles broadcasting.
             temp_idx = temp_idx.expand(target_idx_shape)
         except RuntimeError as e:
-            # If expand fails, the shapes are incompatible
             raise ValueError(
                 f"Cannot expand index batch dimensions {temp_idx.shape[:-1]} to target {target_batch_shape}. "
                 f"Original idx shape: {original_idx_shape}. Aggregation impossible. Error: {e}"
             ) from e
-    # --- End Revised Dimension Alignment ---
-
+    # --- End Dimension Alignment v3 ---
 
     # Ensure atom_to_token_idx doesn't exceed num_tokens to prevent out-of-bounds
     if num_tokens <= 0:

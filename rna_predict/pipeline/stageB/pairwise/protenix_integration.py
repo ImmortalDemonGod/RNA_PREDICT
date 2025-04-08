@@ -94,14 +94,22 @@ class ProtenixIntegration:
             )
 
         # Iterate through each key in input_features to ensure proper dimensions for each feature.
-        for key in input_features.keys():
+        keys_to_process = list(input_features.keys()) # Create a list to iterate over as dict size might change
+        for key in keys_to_process:
+            # Skip processing if key was removed (e.g., if atom_to_token was copied to atom_to_token_idx and then removed)
+            if key not in input_features:
+                continue
             val = input_features[key]
-            # If the feature is 1D, unsqueeze to add a second dimension.
-            if val.dim() == 1:
+
+            # If the feature is 1D, unsqueeze to add a second dimension,
+            # UNLESS it's the atom_to_token_idx which should remain 1D [N_atom].
+            if val.dim() == 1 and key != "atom_to_token_idx":
                 val = val.unsqueeze(-1)
                 input_features[key] = val
+            # If it IS atom_to_token_idx and 1D, leave it as is.
 
             # Special handling for 'ref_atom_name_chars': ensure it has a fixed length of 256.
+            # This needs to happen *after* potential unsqueezing if it was 1D (unlikely but possible).
             if key == "ref_atom_name_chars":
                 if val.size(1) < 256:
                     pad_len = 256 - val.size(1)
@@ -112,8 +120,9 @@ class ProtenixIntegration:
                     )
                 input_features[key] = val
 
-            # Verify that each feature has exactly 2 dimensions.
-            if val.dim() != 2:
+            # Verify that each feature has exactly 2 dimensions,
+            # UNLESS it's atom_to_token_idx which should remain 1D.
+            if key != "atom_to_token_idx" and val.dim() != 2:
                 raise ValueError(
                     f"Expected feature '{key}' to have 2D shape [batch, feat_dim], "
                     f"but got {val.shape}."
