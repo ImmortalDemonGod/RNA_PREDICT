@@ -113,6 +113,13 @@ def build_predictor(
 def main() -> None:
     # 1) Prepare environment
     os.makedirs("RFold", exist_ok=True)
+    os.makedirs("RFold/checkpoints", exist_ok=True)
+
+    # Download checkpoint if needed
+    checkpoint_url = "https://www.dropbox.com/s/l04l9bf3v6z2tfd/checkpoints.zip?dl=1"
+    checkpoint_zip = "RFold/checkpoints.zip"
+    download_file(checkpoint_url, checkpoint_zip)
+    unzip_file(checkpoint_zip, "RFold")
 
     ckp_folder = "RFold/checkpoints"
 
