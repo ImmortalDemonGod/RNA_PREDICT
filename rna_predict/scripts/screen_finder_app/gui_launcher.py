@@ -4,10 +4,7 @@ import threading
 import time
 import cv2
 import numpy as np
-import pyautogui
-import pyperclip
 from mss import mss
-import os
 
 # Import necessary components from other modules
 from .config import LOG_FILE, LOG_LEVEL # Corrected imports
@@ -15,10 +12,10 @@ from .template_loader import load_and_preload_templates
 from .main import execute_action # Import the action execution logic
 
 # --- Global Variables ---
-search_running = False
-search_thread = None
-status_message = "Status: Idle"
-loaded_template_names = [] # To display in the GUI
+search_running: bool = False
+search_thread: threading.Thread | None = None
+status_message: str = "Status: Idle"
+loaded_template_names: list[str] = [] # To display in the GUI
 
 # --- Logging Setup ---
 log_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -75,7 +72,7 @@ def periodic_search_thread():
                     screen_img_gray = cv2.cvtColor(screen_img_bgr, cv2.COLOR_BGRA2GRAY)
 
                     for template_data in templates:
-                        if not search_running: # Check flag frequently
+                        if not search_running:
                             break
 
                         template_name = template_data["name"]
@@ -105,8 +102,10 @@ def periodic_search_thread():
                             # Optional: break here if only one action per cycle is desired
                             # break # Uncomment to stop searching after the first match in the cycle
 
-                    if not search_running: break # Exit monitor loop if stopped
-                if not search_running: break # Exit main loop if stopped
+                    if not search_running:
+                        break  # Exit monitor loop if stopped
+                if not search_running:
+                    break  # Exit main loop if stopped
 
                 # Update status after cycle completes
                 cycle_duration = time.time() - start_time
@@ -128,7 +127,8 @@ def periodic_search_thread():
                     if not search_running:
                         break
                     time.sleep(0.1)
-                if not search_running: break # Exit loop if stopped during sleep
+                if not search_running:
+                    break  # Exit loop if stopped during sleep
 
 
             except Exception as e:
