@@ -126,8 +126,13 @@ class AttentionComponents:
         p_j = p_l.unsqueeze(0)  # [1, N, c_atompair]
         p_ij = p_i + p_j  # [N, N, c_atompair]
 
-        # Ensure the tensor has the correct dtype
+        # Ensure the tensor has the correct dtype and shape
         p_ij = p_ij.to(dtype=torch.float32)
+
+        # Ensure the tensor has the correct last dimension
+        if p_ij.shape[-1] != self.c_atompair:
+            # This should not happen normally, but handle it just in case
+            p_ij = p_ij.expand(*p_ij.shape[:-1], self.c_atompair)
 
         return p_ij
 
@@ -158,17 +163,46 @@ class AttentionComponents:
         if mask.dim() == 2:
             mask = mask.unsqueeze(-1)
 
+        # Debug prints for tensor shapes
+        print(f"DEBUG: In apply_transformer: a.shape={a.shape}, p.shape={p.shape}, mask.shape={mask.shape}")
+        print(f"DEBUG: c_atompair={self.c_atompair}, n_queries={self.n_queries}, n_keys={self.n_keys}")
+
         # Ensure pair features have correct dimensions
         if p.shape[-1] != self.c_atompair:
-            p = p.unsqueeze(-1).expand(*p.shape[:-1], self.c_atompair)
+            # If p is a 3D tensor with last dim of 1, expand it to c_atompair
+            if p.dim() == 3 and p.shape[-1] == 1:
+                p = p.expand(*p.shape[:-1], self.c_atompair)
+            # If p doesn't have a last dimension, add one and expand
+            elif p.dim() < 3 or p.shape[-1] == 0:
+                p = p.unsqueeze(-1).expand(*p.shape, self.c_atompair)
+            # Otherwise just expand the last dimension
+            else:
+                p = p.unsqueeze(-1).expand(*p.shape[:-1], self.c_atompair)
+
+        print(f"DEBUG: After fixing dimensions: p.shape={p.shape}")
 
         # Convert mask to float32 if it's a boolean tensor
         if mask.dtype == torch.bool:
             mask = mask.to(dtype=torch.float32)
 
+        # Create a token-level style/conditioning tensor with zeros
+        # This is needed for the AtomTransformer.forward method
+        batch_dims = a.shape[:-2]
+        n_tokens = a.shape[-2]  # Use the same number of tokens as in 'a'
+        s = torch.zeros(*batch_dims, n_tokens, self.atom_transformer.c_s,
+                        device=a.device, dtype=a.dtype)
+
+        # Use local attention with n_queries and n_keys
+        # Pass arguments as keyword arguments to match the expected signature:
+        # def forward(self, q: torch.Tensor, s: torch.Tensor, p: torch.Tensor, **kwargs)
         return self.atom_transformer(
-            a,
-            p,
-            mask,
-            chunk_size if chunk_size is not None else 0,
+            q=a,                # First positional arg: atom features
+            s=s,                # Second positional arg: token/style features
+            p=p,                # Third positional arg: pair features
+            mask=mask,          # Keyword arg: attention mask
+            chunk_size=chunk_size if chunk_size is not None else 0,
+            n_queries=self.n_queries,  # Pass n_queries explicitly
+            n_keys=self.n_keys,        # Pass n_keys explicitly
         )
+
+# TODO: Refactor this file to improve code quality score - needs work on complexity and argument count

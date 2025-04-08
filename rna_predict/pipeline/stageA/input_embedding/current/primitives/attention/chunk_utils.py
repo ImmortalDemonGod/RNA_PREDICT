@@ -147,40 +147,73 @@ def _process_keys_values_chunks(
     v_list = []
     attn_bias_list = []
 
-    # Process each key/value trunk
-    for i in range(params.n_k_trunks):
-        # Get chunk information
-        chunk_info = _get_chunk_info(i, params.n_keys, params.k.shape[-2])
+    # Check for zero sequence length early
+    k_seq_len = params.k.shape[-2] if params.k.ndim >= 2 else 0
+    v_seq_len = params.v.shape[-2] if params.v.ndim >= 2 else 0 # Assuming V follows K shape convention
 
-        # Process key chunk
-        k_chunk = _process_chunk(
-            params.k, chunk_info, params.n_keys, params.k.dtype, params.k.device
-        )
-        k_list.append(k_chunk)
+    # If K sequence length is 0, no trunks are processed.
+    if k_seq_len == 0:
+        # Create empty tensors with the expected output rank and dimensions,
+        # but with the trunk dimension size set to 0.
+        # Expected output shape: (B, ..., n_k_trunks=0, n_keys, D)
+        k_shape = list(params.k.shape)
+        v_shape = list(params.v.shape)
 
-        # Process value chunk
-        v_chunk = _process_chunk(
-            params.v, chunk_info, params.n_keys, params.v.dtype, params.v.device
-        )
-        v_list.append(v_chunk)
+        # Assume B is dim 0, S is dim -2, D is dim -1
+        # Target shape: [B] + [...] + [0, n_keys, D]
+        k_empty_shape = k_shape[:-2] + [0, params.n_keys, k_shape[-1]]
+        v_empty_shape = v_shape[:-2] + [0, params.n_keys, v_shape[-1]]
 
-        # Process bias chunk if provided
-        if params.attn_bias is not None:
-            bias_chunk = _process_bias_chunk(
-                params.attn_bias,
-                chunk_info,
-                params.n_keys,
-                params.inf,
-                params.attn_bias.device,
+        k_trunked = torch.empty(k_empty_shape, dtype=params.k.dtype, device=params.k.device)
+        v_trunked = torch.empty(v_empty_shape, dtype=params.v.dtype, device=params.v.device)
+
+        # Bias list remains empty
+        attn_bias_output = None # Or empty list if downstream expects list? Let's return None.
+
+    else:
+        # Process each key/value trunk (original logic)
+        for i in range(params.n_k_trunks):
+            # Get chunk information
+            chunk_info = _get_chunk_info(i, params.n_keys, k_seq_len) # Use k_seq_len
+
+            # Process key chunk
+            k_chunk = _process_chunk(
+                params.k, chunk_info, params.n_keys, params.k.dtype, params.k.device
             )
-            attn_bias_list.append(bias_chunk)
+            k_list.append(k_chunk)
 
-    # Stack chunks
-    k_trunked = torch.stack(k_list, dim=-3)
-    v_trunked = torch.stack(v_list, dim=-3)
+            # Process value chunk - use same chunk_info based on K
+            # Need to handle potential V length mismatch if logic allows it
+            # Assuming V length matches K length for chunking purposes here
+            v_chunk_info = _get_chunk_info(i, params.n_keys, v_seq_len) # Use v_seq_len for slicing V
+            v_chunk = _process_chunk(
+                 params.v, v_chunk_info, params.n_keys, params.v.dtype, params.v.device
+            )
+            # Ensure v_chunk has the same sequence length as k_chunk after padding
+            # This might require adjusting the padding logic if V len differs significantly
+            # For now, assume padding handles it based on params.n_keys.
+            v_list.append(v_chunk)
+
+            # Process bias chunk if provided
+            if params.attn_bias is not None:
+                # Bias chunking depends on K dimension
+                bias_chunk = _process_bias_chunk(
+                    params.attn_bias,
+                    chunk_info, # Use K's chunk_info for bias slicing along K dim
+                    params.n_keys,
+                    params.inf,
+                    params.attn_bias.device,
+                )
+                attn_bias_list.append(bias_chunk)
+
+        # Stack non-empty chunks
+        k_trunked = torch.stack(k_list, dim=-3)
+        v_trunked = torch.stack(v_list, dim=-3)
+        attn_bias_output = attn_bias_list if params.attn_bias is not None else None
+
 
     return (
         k_trunked,
         v_trunked,
-        attn_bias_list if params.attn_bias is not None else None,
+        attn_bias_output,
     )
