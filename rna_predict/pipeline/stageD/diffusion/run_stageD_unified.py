@@ -19,34 +19,24 @@ from rna_predict.pipeline.stageD.tensor_fixes import apply_tensor_fixes
 def validate_and_fix_shapes(
     partial_coords: torch.Tensor,
     trunk_embeddings: Dict[str, torch.Tensor],
-    input_features: Dict[str, Any],
+    input_features: Dict[str, Any] | None = None,
+    debug_logging: bool = False,
 ) -> Tuple[torch.Tensor, Dict[str, torch.Tensor], Dict[str, Any]]:
     """
-    Validate and fix tensor shapes to ensure compatibility.
-
-    Args:
-        partial_coords: Initial coordinates [B, N_atom, 3]
-        trunk_embeddings: Dictionary with trunk embeddings
-        input_features: Dictionary of input features
-
-    Returns:
-        Tuple of (fixed_partial_coords, fixed_trunk_embeddings, fixed_input_features)
+    Validate and fix shapes of tensors for compatibility.
+    Returns potentially modified copies of the inputs.
     """
-    # Fix partial_coords shape
-    if partial_coords.dim() == 4:
-        partial_coords = partial_coords.squeeze(1)
-    elif partial_coords.dim() == 5:
-        partial_coords = partial_coords.squeeze(0).squeeze(0)
+    if input_features is None:
+        input_features = {}
 
-    # Get batch size and number of atoms
+    # Get batch size and number of atoms from partial_coords
     batch_size = partial_coords.shape[0]
     num_atoms = partial_coords.shape[1]
 
     # Fix trunk embeddings
     fixed_trunk_embeddings = {}
     for key, value in trunk_embeddings.items():
-        if value is None:
-            fixed_trunk_embeddings[key] = None  # Keep None values
+        if not isinstance(value, torch.Tensor):
             continue
 
         temp_value = value  # Work with a temporary variable
@@ -68,7 +58,17 @@ def validate_and_fix_shapes(
                 warnings.warn(
                     f"Adjusting sequence length for {key} from {temp_value.shape[1]} to {num_atoms}"
                 )
-                temp_value = temp_value[:, :num_atoms]
+                # If the sequence length is less than num_atoms, repeat the sequence
+                if temp_value.shape[1] < num_atoms:
+                    # Calculate how many times to repeat the sequence
+                    repeat_factor = num_atoms // temp_value.shape[1] + (1 if num_atoms % temp_value.shape[1] != 0 else 0)
+                    # Repeat the sequence
+                    temp_value = temp_value.repeat(1, repeat_factor, 1)
+                    # Truncate to the desired length
+                    temp_value = temp_value[:, :num_atoms]
+                else:
+                    # If the sequence length is greater than num_atoms, truncate
+                    temp_value = temp_value[:, :num_atoms]
 
             fixed_trunk_embeddings[key] = temp_value
 
@@ -88,11 +88,28 @@ def validate_and_fix_shapes(
                 warnings.warn(
                     f"Adjusting sequence lengths for {key} from ({temp_value.shape[1]}, {temp_value.shape[2]}) to ({num_atoms}, {num_atoms})"
                 )
-                temp_value = temp_value[:, :num_atoms, :num_atoms]
+                # If the sequence length is less than num_atoms, repeat the sequence
+                if temp_value.shape[1] < num_atoms or temp_value.shape[2] < num_atoms:
+                    # Calculate how many times to repeat the sequence
+                    repeat_factor1 = num_atoms // temp_value.shape[1] + (1 if num_atoms % temp_value.shape[1] != 0 else 0)
+                    repeat_factor2 = num_atoms // temp_value.shape[2] + (1 if num_atoms % temp_value.shape[2] != 0 else 0)
+                    # Repeat the sequence
+                    temp_value = temp_value.repeat(1, repeat_factor1, repeat_factor2, 1)
+                    # Truncate to the desired length
+                    temp_value = temp_value[:, :num_atoms, :num_atoms]
+                else:
+                    # If the sequence length is greater than num_atoms, truncate
+                    temp_value = temp_value[:, :num_atoms, :num_atoms]
 
             fixed_trunk_embeddings[key] = temp_value
         else:  # Keep other keys as is
             fixed_trunk_embeddings[key] = temp_value
+    
+    # Convert 'sing' to 's_inputs' if 'sing' exists and 's_inputs' doesn't
+    if 'sing' in fixed_trunk_embeddings and 's_inputs' not in fixed_trunk_embeddings:
+        fixed_trunk_embeddings['s_inputs'] = fixed_trunk_embeddings['sing']
+        if debug_logging:
+            print("[DEBUG] Converted 'sing' to 's_inputs' in trunk_embeddings")
 
     # Fix input features
     fixed_input_features = {}
@@ -189,7 +206,7 @@ def run_stageD_diffusion(
     # Validate and fix shapes - NOTE: This returns potentially modified copies
     # Pass the original trunk_embeddings ref to validate_and_fix_shapes
     partial_coords, trunk_embeddings_internal, input_features = validate_and_fix_shapes(
-        partial_coords, original_trunk_embeddings_ref, input_features
+        partial_coords, original_trunk_embeddings_ref, input_features, debug_logging=True
     )
 
     # Run diffusion
