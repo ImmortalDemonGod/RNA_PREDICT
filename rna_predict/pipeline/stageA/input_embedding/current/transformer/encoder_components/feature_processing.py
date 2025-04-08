@@ -124,21 +124,53 @@ def extract_atom_features(
     for f in features:
         max_dims = max(max_dims, f.ndim)
 
+    # Determine the target sample dimension size (usually from tensors already having max_dims)
+    target_sample_dim = 1
+    # Check dims >= 3 assuming shape [B, S, N...] where S=target_sample_dim is at index 1
+    if max_dims >= 3:
+        for f in features:
+            if f.ndim == max_dims:
+                target_sample_dim = max(target_sample_dim, f.shape[1])
+
     aligned_features = []
     for f in features:
-        # Add singleton dimensions (usually for sample dim S=1) if needed
-        current_dims = f.ndim
         temp_f = f
-        while current_dims < max_dims:
-            # Typically add sample dimension at index 1: [B, N, C] -> [B, 1, N, C]
-            temp_f = temp_f.unsqueeze(1)
-            current_dims += 1
-            warnings.warn(f"Unsqueezed feature tensor from {f.shape} to {temp_f.shape} to align dimensions for concatenation.")
+        # 1. Align number of dimensions by adding singleton sample dim at index 1 if needed
+        # Handles common case like [B, N, C] needing to become [B, S, N, C]
+        if temp_f.ndim == max_dims - 1 and max_dims >= 3:
+             temp_f = temp_f.unsqueeze(1) # Add sample dim -> [B, 1, N, C]
+        elif temp_f.ndim < max_dims:
+             # Fallback for other potential dimension mismatches (e.g., missing batch dim)
+             warnings.warn(f"Unexpected dimension mismatch for feature {f.shape}, target ndim {max_dims}. Attempting leading unsqueeze.")
+             while temp_f.ndim < max_dims:
+                 temp_f = temp_f.unsqueeze(0) # Add leading dims
+
+        # 2. Expand the sample dimension (dim 1) if it's a singleton and needs to match target_sample_dim
+        # Ensure the dimension exists before checking its size
+        if temp_f.ndim == max_dims and max_dims >= 3 and temp_f.shape[1] == 1 and target_sample_dim > 1:
+             try:
+                 # Create target shape for expansion, only changing dim 1
+                 expand_shape = list(temp_f.shape)
+                 expand_shape[1] = target_sample_dim
+                 temp_f = temp_f.expand(expand_shape)
+             except RuntimeError as e:
+                 raise RuntimeError(f"Failed to expand sample dimension for feature from {f.shape} to match target sample dim {target_sample_dim}. Current shape: {temp_f.shape}. Error: {e}")
+
         aligned_features.append(temp_f)
     # --- End Dimension Alignment Fix ---
 
 
     # Concatenate aligned features along last dimension
+    # Add check to ensure shapes are compatible before concatenation
+    if len(aligned_features) > 1:
+        first_shape_prefix = aligned_features[0].shape[:-1]
+        for i, t in enumerate(aligned_features[1:], 1):
+            if t.shape[:-1] != first_shape_prefix:
+                 raise RuntimeError(f"Shape mismatch before final concatenation in extract_atom_features. "
+                                  f"Tensor 0 shape prefix: {first_shape_prefix}, "
+                                  f"Tensor {i} shape prefix: {t.shape[:-1]}. "
+                                  f"Original feature name likely: {encoder.input_feature.keys()[i] if hasattr(encoder, 'input_feature') else 'unknown'}") # type: ignore
+
     cat_features = torch.cat(aligned_features, dim=-1) # Use aligned_features
 
     # Ensure encoder.linear_no_bias_f is callable before calling

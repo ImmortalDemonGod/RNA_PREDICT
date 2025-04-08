@@ -139,8 +139,12 @@ class AtomAttentionDecoder(nn.Module):
             )  # Add extra features to the projected token features
 
         # Apply atom mask if provided
+        # Ensure atom_mask has a trailing singleton dimension for broadcasting
+        if params.atom_mask is not None and params.atom_mask.shape[-1] != 1:
+            params.atom_mask = params.atom_mask.unsqueeze(-1)
         if params.atom_mask is not None:
-            q = q * params.atom_mask.unsqueeze(-1)
+            # The mask should have shape [B, N_atom, 1] to broadcast correctly
+            q = q * params.atom_mask # Removed .unsqueeze(-1)
 
         # Process through atom transformer
         # Pass q (projected token features + extra_feats),
@@ -188,7 +192,8 @@ class AtomAttentionDecoder(nn.Module):
 
         # Apply token mask if provided (Note: q is now atom-level, mask should be atom_mask)
         if params.atom_mask is not None:  # Changed from params.mask
-            q = q * params.atom_mask.unsqueeze(-1)
+            # Mask shape [B, N_atom, 1] should broadcast correctly with q [B, N_atom, C]
+            q = q * params.atom_mask # Removed .unsqueeze(-1)
 
         # Project to 3D coordinates
         r = self.linear_no_bias_out(self.layernorm_q(q))
