@@ -68,6 +68,10 @@ class LocalBlockSparseAttentionNaive(torch.autograd.Function):
 
         import torch
 
+        # Validate shapes
+        if q.shape[0] != k.shape[0]:
+            raise RuntimeError(f"Shape mismatch: q.shape[0]={q.shape[0]}, k.shape[0]={k.shape[0]}")
+        
         N_atom, n_heads, c_per_head = q.shape
         saved_neighbors = []
         saved_attn_weights = []

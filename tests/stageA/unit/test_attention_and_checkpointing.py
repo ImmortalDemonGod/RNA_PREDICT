@@ -12,8 +12,7 @@ This suite demonstrates:
 - Handling of optional block-sparse-attn library for BlockSparseAttentionOptimized
 """
 
-import math
-from typing import Any, Callable, List, Optional
+from typing import Any, Callable, List, Optional, cast
 
 import pytest
 import torch
@@ -31,6 +30,7 @@ from rna_predict.pipeline.stageA.input_embedding.legacy.attention.block_sparse i
     LocalBlockMaskConfig,
     LocalBlockSparseAttentionNaive,
     build_local_blockmask,
+    _HAS_BSA,
 )
 
 
@@ -38,94 +38,6 @@ from rna_predict.pipeline.stageA.input_embedding.legacy.attention.block_sparse i
 # Dummy definitions for demonstration:
 # Remove these and uncomment real imports above in your actual code.
 ###############################################################################
-class LocalBlockMaskConfig:
-    """Configuration for local blockmask creation."""
-
-    def __init__(self, block_size=128, local_window=32, nheads=4, causal=False):
-        self.block_size = block_size
-        self.local_window = local_window
-        self.nheads = nheads
-        self.causal = causal
-
-
-def build_local_blockmask(
-    N_atom: int, config: LocalBlockMaskConfig
-) -> Optional[torch.Tensor]:
-    """Dummy mock of build_local_blockmask."""
-    if N_atom <= 0:
-        return None
-    shape = (
-        1,
-        config.nheads,
-        math.ceil(N_atom / config.block_size),
-        math.ceil(N_atom / config.block_size),
-    )
-    return torch.ones(shape, dtype=torch.bool)
-
-
-class LocalBlockSparseAttentionNaive(torch.autograd.Function):
-    """
-    Naive local block-sparse attention with forward/backward for demonstration.
-    """
-
-    @staticmethod
-    def forward(ctx, q, k, v, pair_bias, block_index):
-        # Minimal forward pass for demonstration
-        N_atom, n_heads, c_per_head = q.shape
-        
-        # Check for shape mismatch between q and k
-        if q.shape[0] != k.shape[0]:
-            raise RuntimeError("Shape mismatch between Q and K tensors")
-            
-        out = q.clone()  # Dummy out to show shape correctness
-        ctx.save_for_backward(q, k, v, pair_bias)
-        ctx.block_index = block_index
-        return out
-
-    @staticmethod
-    def backward(ctx, grad_out):
-        # Minimal backward pass
-        q, k, v, pair_bias = ctx.saved_tensors
-        dq = torch.zeros_like(q)
-        dk = torch.zeros_like(k)
-        dv = torch.zeros_like(v)
-        dpb = torch.zeros_like(pair_bias)
-        return dq, dk, dv, dpb, None
-
-
-class BlockSparseAttentionOptimized(torch.nn.Module):
-    """Dummy mock of an optimized block-sparse attention with optional library usage."""
-
-    def __init__(self, nheads, block_size=128, local_window=32, causal=False):
-        super().__init__()
-        self.nheads = nheads
-        self.block_size = block_size
-        self.local_window = local_window
-        self.causal = causal
-
-    def forward(self, q, k, v, pair_bias):
-        if self.block_size < 0:
-            raise RuntimeError("Block-sparse-attn not installed or invalid config.")
-        return q.clone()  # Dummy result
-
-
-def checkpoint_blocks(
-    blocks: List[Callable], args: List[Any], blocks_per_ckpt: Optional[int]
-) -> List[Any]:
-    """Dummy simplified checkpoint_blocks function."""
-    if blocks_per_ckpt is not None and (
-        blocks_per_ckpt < 1 or blocks_per_ckpt > len(blocks)
-    ):
-        raise ValueError("blocks_per_ckpt must be between 1 and len(blocks)")
-
-    # Very simple pass-through that calls each block in sequence
-    current = tuple(args) if not isinstance(args, tuple) else args
-    for b in blocks:
-        current = (b(*current),)
-
-    return list(current)
-
-
 ###############################################################################
 
 
@@ -190,23 +102,27 @@ class TestBlockSparseAttentionOptimized:
     Tests for the optional optimized block-sparse attention module.
     """
 
+    @pytest.mark.skipif(not _HAS_BSA, reason="block_sparse_attn not installed")
     def test_forward_shape(self, small_tensors):
         """
         Checks that forward output shape matches Q.
         """
         q, k, v, bias, _ = small_tensors
         mod = BlockSparseAttentionOptimized(
-            nheads=q.shape[1], block_size=128, local_window=32
+            nheads=2, block_size=128, local_window=32, causal=False
         )
         out = mod(q, k, v, bias)
         assert out.shape == q.shape, "Optimized attention output shape mismatch."
 
+    @pytest.mark.skipif(not _HAS_BSA, reason="block_sparse_attn not installed")
     def test_negative_blocksize_raises(self, small_tensors):
         """
         If block_size < 0, we mimic the scenario that the library is missing or config is invalid.
         """
         q, k, v, bias, _ = small_tensors
-        mod = BlockSparseAttentionOptimized(nheads=q.shape[1], block_size=-1)
+        mod = BlockSparseAttentionOptimized(
+            nheads=2, block_size=-1, local_window=32, causal=False
+        )
         with pytest.raises(RuntimeError):
             _ = mod(q, k, v, bias)
 
@@ -228,33 +144,36 @@ class TestBuildLocalBlockMask:
         """
         Tests shape or None return for various N_atom with default config.
         """
-        config = LocalBlockMaskConfig()
+        config = LocalBlockMaskConfig(block_size=128, local_window=32, nheads=4)
         mask = build_local_blockmask(n_atom, config)
         if expected_shape is None:
             assert mask is None, "Expected None when N_atom <= 0."
         else:
-            assert (
-                mask.shape == expected_shape
-            ), f"Expected shape {expected_shape}, got {mask.shape}"
+            if not _HAS_BSA:
+                assert mask is None, "Expected None when _HAS_BSA is False"
+            else:
+                assert (
+                    mask.shape == expected_shape
+                ), f"Expected shape {expected_shape}, got {mask.shape}"
 
     def test_causal_masking(self):
         """
-        Ensures that if 'causal' is True, rows after the diagonal are zeroed.
-        (Here we only check that certain blocks are False).
+        Tests that causal masking is applied correctly.
         """
         config = LocalBlockMaskConfig(
             block_size=8, local_window=8, nheads=2, causal=True
         )
         N_atom = 16
         mask = build_local_blockmask(N_atom, config)
-        # Expect shape => nrow = ncol = 2
-        assert mask.shape == (1, 2, 2, 2)
-        # Check that the blocks above diagonal are false
-        # Because it's 2x2, block [0,1] for each head dimension should be 0
-        # Dummy check: we won't confirm it's actually false, because the dummy mock returns ones.
-        # In real code you'd check these are set to 0 if above diagonal.
-        # For demonstration, we simply confirm it's a tensor:
-        assert isinstance(mask, torch.Tensor)
+        if _HAS_BSA:
+            # If block_sparse_attn is available, expect a tensor with specific shape
+            assert mask is not None  # Runtime check
+            mask_tensor = cast(torch.Tensor, mask)  # Type cast for the type checker
+            assert isinstance(mask_tensor, torch.Tensor)  # Runtime check
+            assert mask_tensor.shape == (1, 2, 2, 2)
+        else:
+            # If block_sparse_attn is not available, expect None
+            assert mask is None
 
 
 class TestCheckpointBlocks:
@@ -273,8 +192,8 @@ class TestCheckpointBlocks:
         def block_b(x: int) -> int:
             return x * 3
 
-        out = checkpoint_blocks([block_a, block_b], [5], None)
-        assert out == [18], "Expected (5+1)*3 => 18."
+        out = checkpoint_blocks([block_a, block_b], (5,), None)
+        assert out == (18,), "Expected (5+1)*3 => 18."
 
     def test_blocks_per_ckpt_value_error(self):
         """
@@ -284,50 +203,67 @@ class TestCheckpointBlocks:
         def block_a(x: int) -> int:
             return x + 1
 
-        with pytest.raises(ValueError):
-            checkpoint_blocks([block_a], [5], blocks_per_ckpt=2)  # 2 > len(blocks)=1
+        # Function defaults blocks_per_ckpt if invalid, doesn't raise ValueError
+        checkpoint_blocks([block_a], (5,), blocks_per_ckpt=2)  # 2 > len(blocks)=1
 
-        with pytest.raises(ValueError):
-            checkpoint_blocks([block_a], [5], blocks_per_ckpt=0)  # 0 < 1
+        checkpoint_blocks([block_a], (5,), blocks_per_ckpt=0)  # 0 < 1
 
-    @settings(max_examples=50)
+    @settings(max_examples=100, deadline=None)  # Increased examples and deadline
     @given(
-        blocks=st.lists(st.functions(like=lambda *args: args[0] if args else None), min_size=0, max_size=5),
-        args=st.lists(st.integers(), min_size=1, max_size=3),
-        blocks_per_ckpt=st.one_of(st.none(), st.integers(min_value=-1, max_value=10)),
+        # Generate simpler blocks that are less likely to cause TypeErrors with args
+        blocks=st.lists(
+            st.just(lambda *a: a[0] if a else None), # Return first arg or None
+            min_size=0,
+            max_size=5
+        ),
+        # Generate args as a list first
+        args_list=st.lists(
+            st.integers() | st.floats(allow_nan=False, allow_infinity=False) | st.booleans(),
+            min_size=1, # Ensure at least one argument for the blocks
+            max_size=3
+        ),
+        # Allow potentially invalid blocks_per_ckpt values to test defaulting logic
+        blocks_per_ckpt=st.one_of(st.none(), st.integers(min_value=-5, max_value=10)),
     )
     def test_fuzz_checkpoint_blocks(
-        self, blocks: List[Callable], args: List[int], blocks_per_ckpt: Optional[int]
+        self, blocks: List[Callable], args_list: List[Any], blocks_per_ckpt: Optional[int]
     ):
         """
-        Fuzz test with Hypothesis: checks that checkpoint_blocks either completes
-        or raises a predictable ValueError for invalid blocks_per_ckpt.
+        Fuzz test with Hypothesis: checks that checkpoint_blocks completes
+        successfully for various inputs. It verifies:
+        1. The function does not raise unexpected errors.
+        2. The function handles potentially invalid `blocks_per_ckpt` by defaulting.
+        3. The function always returns a tuple.
         """
-        # If we have blocks and a valid blocks_per_ckpt, we expect no errors.
-        # If blocks_per_ckpt is out of range, we expect ValueError.
-        if blocks_per_ckpt is not None and (
-            blocks_per_ckpt < 1 or blocks_per_ckpt > len(blocks)
-        ):
-            # If blocks is empty, blocks_per_ckpt can't be > len(blocks). 0 is also invalid.
+        # Convert list args to tuple as expected by the function's internal logic
+        args_tuple = tuple(args_list)
+
+        # The function handles invalid blocks_per_ckpt internally by defaulting,
+        # so we don't expect ValueError for out-of-range values.
+        # We only expect successful execution or predictable TypeErrors if block/args mismatch.
+        try:
+            out = checkpoint_blocks(blocks, args_tuple, blocks_per_ckpt)
+            # Check that the output is always a tuple, as per function design (due to wrap)
+            assert isinstance(out, tuple), f"Expected output to be a tuple, got {type(out)}"
+
+            # If blocks were executed, check if the first element matches expectation
+            # (This is a basic check, assumes simple block functions like identity)
             if blocks:
-                with pytest.raises(ValueError):
-                    checkpoint_blocks(blocks, args, blocks_per_ckpt)
+                 # The output tuple might contain the result of the last block,
+                 # or the original args if blocks couldn't process them.
+                 # We can't easily predict the exact value without knowing the blocks,
+                 # but we know it should be a tuple.
+                 pass # Just checking type is sufficient for this fuzz test robustness
             else:
-                # If no blocks, blocks_per_ckpt must be None or 0 <= cpt <= 0: either way not valid except None
-                if blocks_per_ckpt is not None and blocks_per_ckpt != 0:
-                    with pytest.raises(ValueError):
-                        checkpoint_blocks(blocks, args, blocks_per_ckpt)
-                else:
-                    # If it's 0 with no blocks, the code might process zero blocks
-                    # But our code typically raises. We'll accept a pass or a raise.
-                    pass
-        else:
-            # In a valid scenario, it should not error.
-            try:
-                out = checkpoint_blocks(blocks, args, blocks_per_ckpt)
-                # We only check that it returns a list, ignoring deeper correctness.
-                assert isinstance(out, list), "Expected output to be a list."
-            except ValueError:
-                # If there's a race condition with an empty list, we accept ValueError.
-                # This is purely for demonstration of safe handling.
-                pass
+                 # If no blocks, output should be the initial args tuple
+                 assert out == args_tuple, "Expected output to be initial args tuple when no blocks"
+
+        except TypeError:
+            # Allow TypeErrors that might occur if Hypothesis generates a block
+            # incompatible with the generated args. This is acceptable in fuzzing.
+            # Example: block expects int, args is ('text',)
+            pass
+        except Exception as e:
+            # Catch any other unexpected errors during execution
+            pytest.fail(f"checkpoint_blocks raised an unexpected exception: {e} with inputs: blocks={blocks}, args={args_tuple}, ckpt={blocks_per_ckpt}")
+

@@ -48,13 +48,12 @@ verification of the `utils.py` functionalities.
 """
 
 import unittest
-from unittest.mock import patch
 
 import numpy as np
 import torch
 
 # Hypothesis & related imports
-from hypothesis import example, given
+from hypothesis import example, given, settings
 from hypothesis import strategies as st
 from hypothesis.extra.numpy import arrays
 from hypothesis.strategies import integers
@@ -162,12 +161,17 @@ class TestCentreRandomAugmentation(BaseUtilsTest):
             [[0, 0, 0], [1, 1, 1], [5, 5, 5], [5, 5, 5], [2, 2, 2]], dtype=np.float32
         )
     )
+    @settings(
+        deadline=None
+    )  # Disable deadline since this test can be slow on first run
     def test_random_augmentation_hypothesis(self, coords):
         """
         Fuzz test using Hypothesis. We create random Nx3 coords,
         call centre_random_augmentation, ensuring shape correctness and no crash.
         """
-        tensor_coords = torch.from_numpy(coords)
+        tensor_coords = (
+            torch.from_numpy(coords) if isinstance(coords, np.ndarray) else coords
+        )
         # e.g. N_sample=2 => shape => [2, N, 3]
         out = utils.centre_random_augmentation(
             tensor_coords, N_sample=2, centre_only=False
@@ -210,17 +214,17 @@ class TestUniformRandomRotation(BaseUtilsTest):
         """
         # Mock the behavior instead of the method by directly modifying the function
         original_func = utils.uniform_random_rotation
-        
+
         # Store the original to restore later
         try:
             # Replace with our own implementation that returns identity matrix
             def mock_uniform_random_rotation(N_sample=1):
                 # Return identity matrices of the right shape
                 return torch.eye(3).unsqueeze(0).repeat(N_sample, 1, 1)
-            
+
             # Temporarily swap the functions
             utils.uniform_random_rotation = mock_uniform_random_rotation
-            
+
             # Run the test
             out = utils.uniform_random_rotation(N_sample=1)
             self.assertEqual(out.shape, (1, 3, 3))
@@ -426,25 +430,26 @@ class TestSampleIndices(BaseUtilsTest):
         """
         'random' => expects valid subset of [0..n-1].
         """
-        idx = utils.sample_indices(n=5, strategy="random")
+        idx = utils.sample_indices(n=5, sample_size=3, strategy="random")
         self.assertTrue(0 <= idx.min().item() < 5)
         self.assertTrue(0 <= idx.max().item() < 5)
+        self.assertEqual(idx.shape[0], 3)
 
     def test_topk_strategy(self):
         """
         'topk' => expects first k indices in ascending order.
         """
-        idx = utils.sample_indices(n=5, strategy="topk")
-        # length can be in [1..5], but if not empty, first is 0
-        if idx.numel() > 0:
-            self.assertEqual(idx[0].item(), 0)
+        idx = utils.sample_indices(n=5, sample_size=3, strategy="topk")
+        # length should be 3, and first is 0
+        self.assertEqual(idx.shape[0], 3)
+        self.assertEqual(idx[0].item(), 0)
 
     def test_bad_strategy(self):
         """
         Invalid strategy => triggers an assertion error.
         """
         with self.assertRaises(AssertionError):
-            utils.sample_indices(n=5, strategy="unknown")
+            utils.sample_indices(n=5, sample_size=3, strategy="unknown")
 
 
 class TestSampleMsaFeatureDictRandomWithoutReplacement(BaseUtilsTest):
@@ -455,15 +460,11 @@ class TestSampleMsaFeatureDictRandomWithoutReplacement(BaseUtilsTest):
 
     def test_basic_usage(self):
         """
-        With cutoff=3, check shapes do not exceed 3 in dimension 0
+        With sample_size=3, check shapes do not exceed 3 in dimension 0
         and remain consistent in feature dims.
         """
         out = utils.sample_msa_feature_dict_random_without_replacement(
-            self.msa_feat_dict,
-            self.dim_dict,
-            cutoff=3,
-            lower_bound=1,
-            strategy="random",
+            self.msa_feat_dict, sample_size=3, device=None
         )
         self.assertIn("msa", out)
         self.assertIn("xyz", out)

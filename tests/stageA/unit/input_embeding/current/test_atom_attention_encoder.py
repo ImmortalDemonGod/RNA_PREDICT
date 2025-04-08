@@ -1,8 +1,13 @@
+"""
+Tests for the atom attention encoder.
+"""
+
 import pytest
 import torch
 
-from rna_predict.pipeline.stageA.input_embedding.current.transformer import (
+from rna_predict.pipeline.stageA.input_embedding.current.transformer.atom_attention import (
     AtomAttentionEncoder,
+    EncoderForwardParams,
 )
 
 
@@ -14,7 +19,7 @@ def test_atom_encoder_no_coords_original_fail():
     Original test that incorrectly sets atom_to_token_idx in [0..47]
     for only 12 tokens, guaranteeing an out-of-bounds error during scatter.
     """
-    encoder = AtomAttentionEncoder(
+    encoder = AtomAttentionEncoder.from_args(
         has_coords=False,
         c_atom=128,
         c_atompair=16,
@@ -36,7 +41,8 @@ def test_atom_encoder_no_coords_original_fail():
     }
 
     # This call triggers the out-of-bounds error
-    a, q_l, c_l, p_lm = encoder(input_feature_dict)
+    params = EncoderForwardParams(input_feature_dict=input_feature_dict)
+    a, q_l, c_l, p_lm = encoder(params)
     # We won't reach here if the aggregator does scatter_add_ with index >= 12
 
 
@@ -45,7 +51,7 @@ def test_atom_encoder_no_coords_fixed():
     Corrected version: ensures each of the 48 atoms maps to an index in [0..11].
     We have 48 atoms, 12 tokens => 4 atoms per token. No out-of-bounds in scatter.
     """
-    encoder = AtomAttentionEncoder(
+    encoder = AtomAttentionEncoder.from_args(
         has_coords=False,
         c_atom=128,
         c_atompair=16,
@@ -56,20 +62,23 @@ def test_atom_encoder_no_coords_fixed():
     token_map = torch.repeat_interleave(torch.arange(12), 4)  # shape [48]
     assert token_map.shape[0] == 48
 
+    # Create input features with correct dimensions
+    num_atoms = 48
     input_feature_dict = {
         "atom_to_token_idx": token_map.unsqueeze(-1),  # shape [48, 1], all in [0..11]
-        "ref_pos": torch.randn(48, 3),
-        "ref_charge": torch.zeros(48, 1),
-        "ref_mask": torch.ones(48, 1, dtype=torch.bool),
-        "ref_element": torch.zeros(48, 128),
-        "ref_atom_name_chars": torch.zeros(48, 256),
-        "ref_space_uid": torch.zeros(48, 1),
+        "ref_pos": torch.randn(num_atoms, 3),  # [48, 3]
+        "ref_charge": torch.zeros(num_atoms, 1),  # [48, 1]
+        "ref_mask": torch.ones(num_atoms, 1, dtype=torch.bool),  # [48, 1]
+        "ref_element": torch.zeros(num_atoms, 128),  # [48, 128]
+        "ref_atom_name_chars": torch.zeros(num_atoms, 256),  # [48, 256]
+        "ref_space_uid": torch.zeros(num_atoms, 1),  # [48, 1]
         "restype": torch.zeros(1, 12, 32),  # batch=1, 12 tokens
         "profile": torch.zeros(1, 12, 32),
         "deletion_mean": torch.zeros(1, 12, 1),
     }
 
-    a, q_l, c_l, p_lm = encoder(input_feature_dict)
+    params = EncoderForwardParams(input_feature_dict=input_feature_dict)
+    a, q_l, c_l, p_lm = encoder(params)
 
     # With has_coords=False, trunk logic is skipped => p_lm should be None
     assert p_lm is None, "Expected no trunk-based aggregator when has_coords=False"
@@ -77,8 +86,10 @@ def test_atom_encoder_no_coords_fixed():
     # a => shape [1, 12, 384] or [12, 384], check last dimension
     assert a.shape[-1] == 384, f"Token embedding last dim must be 384, got {a.shape}"
 
-    # q_l, c_l => per-atom embeddings => shape [48,128] or [1,48,128]
-    assert q_l.shape[-1] == 128
-    assert c_l.shape[-1] == 128
+    # q_l is actually p_l (pair features) => shape [48, 16] or [1, 48, 16]
+    assert q_l.shape[-1] == 16, f"Pair features last dim must be 16, got {q_l.shape}"
+
+    # c_l is the atom features => shape [48, 128] or [1, 48, 128]
+    assert c_l.shape[-1] == 128, f"Atom features last dim must be 128, got {c_l.shape}"
 
     print("test_atom_encoder_no_coords_fixed: PASS - no out-of-bounds error.")

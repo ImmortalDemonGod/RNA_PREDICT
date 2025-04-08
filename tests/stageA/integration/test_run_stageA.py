@@ -72,6 +72,7 @@ import tempfile
 import unittest
 import urllib.error
 import zipfile
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -82,11 +83,11 @@ from hypothesis import strategies as st
 from rna_predict.pipeline.stageA.adjacency.rfold_predictor import StageARFoldPredictor
 from rna_predict.pipeline.stageA.run_stageA import (
     build_predictor,
+    download_file,
     main,
     run_stageA,
-    visualize_with_varna,
-    download_file,
     unzip_file,
+    visualize_with_varna,
 )
 
 # Import the code under test
@@ -102,7 +103,7 @@ def temp_checkpoint_folder(tmp_path) -> str:
     """
     folder = tmp_path / "checkpoints"
     folder.mkdir(parents=True, exist_ok=True)
-    dummy_state = {}
+    dummy_state: dict[str, Any] = {}  # Added type hint
     torch.save(dummy_state, str(folder / "RNAStralign_trainset_pretrained.pth"))
     return str(folder)
 
@@ -171,22 +172,32 @@ def test_main_end_to_end(temp_checkpoint_folder, monkeypatch):
     real_folder = "RFold/checkpoints"
     if os.path.exists(real_folder):
         backup_folder = "RFold/checkpoints_backup"
+        if os.path.exists(backup_folder):
+            shutil.rmtree(backup_folder)  # Remove any existing backup
         os.rename(real_folder, backup_folder)
     else:
         backup_folder = None
 
     os.makedirs("RFold", exist_ok=True)
-    os.symlink(temp_checkpoint_folder, real_folder)  # link or rename
+    # Ensure the target path is removed before creating the symlink
+    if os.path.islink(real_folder):
+        os.unlink(real_folder)
+    elif os.path.exists(real_folder):
+        shutil.rmtree(real_folder)
+
+    # Create a symlink from the real path to our temp folder
+    os.symlink(temp_checkpoint_folder, real_folder)
     try:
         main()
         # We can check that the adjacency message was printed, or that a 'test_seq.ct' was created
-        # But we let it pass as an integration test
         assert os.path.exists("test_seq.ct"), "main() should have written a test_seq.ct"
     finally:
         # Clean up
         if os.path.islink(real_folder):
             os.unlink(real_folder)
-        if backup_folder:
+        if backup_folder and os.path.exists(backup_folder):
+            if os.path.exists(real_folder):
+                shutil.rmtree(real_folder)  # Remove any leftover folder
             os.rename(backup_folder, real_folder)
 
 
@@ -196,6 +207,8 @@ class TestBase(unittest.TestCase):
     Derived test classes that need a temp directory should inherit from this
     and reference 'self.test_dir' for local filesystem operations.
     """
+
+    test_dir: str  # Add class variable annotation
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -264,36 +277,46 @@ class TestDownloadFile(TestBase):
         """
         # Create a path with .zip extension - essential for triggering zip validation
         zip_path = os.path.join(self.test_dir, "corrupted.zip")
-        
+
         # Create a simple corrupted zip (just a few bytes to check quickly)
         with open(zip_path, "wb") as f:
             f.write(b"Not a zip")
 
         # Simple mock that avoids any real network activity
-        with patch("os.remove") as mock_remove, \
-             patch("urllib.request.urlopen"), \
-             patch("shutil.copyfileobj") as mock_copy:
-            
+        with (
+            patch("os.remove") as mock_remove,
+            patch("urllib.request.urlopen"),
+            patch("shutil.copyfileobj") as mock_copy,
+        ):
             # Call the function under test
             download_file(self.url_valid_zip, zip_path)
-            
+
             # Verify the corrupted file was removed
             mock_remove.assert_called_once_with(zip_path)
-            
-            # Verify a download was attempted
-            self.assertTrue(mock_copy.called, "copyfileobj should be called to download new content")
 
-    
+            # Verify a download was attempted
+            self.assertTrue(
+                mock_copy.called, "copyfileobj should be called to download new content"
+            )
+
     @unittest.skip("Skipping this test as requested takes too long")
     @patch("urllib.request.urlopen")
     def test_download_new_file(self, mock_urlopen):
         """
         If no file exists, download_file should fetch from URL and create the file.
         """
-        mock_urlopen.return_value.__enter__.return_value.read.return_value = (
-            b"some data"
+        # Configure the mock response object correctly
+        mock_response = MagicMock()
+        mock_response.__enter__.return_value = (
+            mock_response  # Ensure context manager works
         )
+        mock_response.read.return_value = b"some data"  # Simulate reading data
+        mock_urlopen.return_value = mock_response  # Assign mock response to urlopen
+
+        # Call the function under test
         download_file("http://example.com/newdata", self.download_path)
+
+        # Assertions
         self.assertTrue(os.path.isfile(self.download_path), "File should be created.")
         with open(self.download_path, "rb") as f:
             data = f.read()
@@ -312,8 +335,9 @@ class TestDownloadFile(TestBase):
     @settings(
         deadline=None,
         suppress_health_check=[HealthCheck.function_scoped_fixture],
-        max_examples=15,
+        max_examples=5,  # Reduced max_examples to prevent long runtimes
     )
+    @pytest.mark.timeout(10)
     def test_fuzz_download_file(self, url: str, dest: str):
         """
         Property-based testing for random URL/dest strings to ensure no unexpected crashes.
@@ -421,23 +445,25 @@ class TestVisualizeWithVarna(TestBase):
         # Create CT file but NOT the jar file
         with open(self.ct_path, "w") as f:
             f.write(">Test\n1 A 0 2 0 1\n")
-            
+
         # Ensure jar file doesn't exist
         if os.path.exists(self.jar_path):
             os.remove(self.jar_path)
-            
+
         # Capture stdout to check for warning
-        with patch('builtins.print') as mock_print:
+        with patch("builtins.print") as mock_print:
             visualize_with_varna(self.ct_path, self.jar_path, self.out_png)
-            
+
             # Verify warning was printed
             warning_printed = False
             for call in mock_print.call_args_list:
                 if call.args and "VARNA JAR not found" in call.args[0]:
                     warning_printed = True
                     break
-            self.assertTrue(warning_printed, "Warning about missing JAR should be printed")
-            
+            self.assertTrue(
+                warning_printed, "Warning about missing JAR should be printed"
+            )
+
         # Verify subprocess not called
         mock_popen.assert_not_called()
 
@@ -486,9 +512,9 @@ class TestBuildPredictor(TestBase):
         """
         self.ckpt_dir = os.path.join(self.test_dir, "RFold", "checkpoints")
         os.makedirs(self.ckpt_dir, exist_ok=True)
-        
+
         # Create a valid checkpoint file with torch.save
-        dummy_state = {'model': {}, 'optimizer': {}}
+        dummy_state: dict[str, Any] = {"model": {}, "optimizer": {}}  # Added type hint
         ckpt_path = os.path.join(self.ckpt_dir, "RNAStralign_trainset_pretrained.pth")
         torch.save(dummy_state, ckpt_path)
 

@@ -29,6 +29,8 @@ jobs:
 
       - name: Install dependencies
         run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install nvidia-cublas-cu12
           make install
           pip install ruff
 
@@ -77,11 +79,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install project
-        run: make install
-      - name: Install ruff
-        run: pip install ruff
-
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install nvidia-cublas-cu12
+          make install
+          pip install ruff
       - name: Run tests
         run: make test
       - name: "Upload coverage to Codecov"
@@ -104,10 +107,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install project
-        run: make install
-      - name: Install ruff
-        run: pip install ruff
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install nvidia-cublas-cu12
+          make install
+          pip install ruff
       - name: Run tests
         run: make test
 
@@ -124,9 +129,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install Pip
-        run: pip install --user --upgrade pip
-      - name: Install project
-        run: pip install -e .[dev]
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install nvidia-cublas-cu12
+          pip install -e .[dev]
+          make install
+          pip install ruff
       - name: run tests
         run: pytest -s -vvvv -l --tb=long tests

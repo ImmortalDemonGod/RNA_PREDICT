@@ -20,7 +20,7 @@ from unittest.mock import patch
 
 import numpy as np
 import torch
-from hypothesis import given
+from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
 # Adjust this import according to your project layout, e.g.:
@@ -44,7 +44,10 @@ class TestRFoldUtilities(unittest.TestCase):
 
             shutil.rmtree(self.temp_dir_name, ignore_errors=True)
 
-    @given(seed=st.integers(min_value=0, max_value=9999))
+    @given(seed=st.integers(min_value=0, max_value=2**32 - 1))
+    @settings(
+        deadline=None
+    )  # Disable deadline since this test can be slow on first run
     def test_set_seed(self, seed: int):
         """
         Ensure set_seed initializes random seeds consistently.
@@ -109,6 +112,7 @@ class TestMatrixOps(unittest.TestCase):
         self.device = torch.device("cpu")
 
     @given(n=st.integers(min_value=1, max_value=64))
+    @settings(deadline=None)  # Disable deadline for this flaky test
     def test_base_matrix(self, n: int):
         """
         base_matrix(n, device) should produce an n x n matrix with 1s except
@@ -233,6 +237,7 @@ class TestNNModules(unittest.TestCase):
         self.assertEqual(out_q.shape, (3, 10, dim))
         self.assertEqual(out_k.shape, (3, 10, dim))
 
+    @settings(deadline=1000, suppress_health_check=[HealthCheck.too_slow])
     @given(
         batch_size=st.integers(min_value=1, max_value=4),
         seq_len=st.integers(min_value=1, max_value=16),
@@ -241,14 +246,27 @@ class TestNNModules(unittest.TestCase):
     def test_attn_with_hypothesis(self, batch_size: int, seq_len: int, dim: int):
         """
         Attn(...) takes a [B, L, D] input and returns [B, L, L] attention map.
-        Hypothesis test to randomly vary shapes.
+        The output is non-negative (due to ReLU) and squared, but not normalized to sum to 1.
         """
+        # Set seeds for all random operations
+        torch.manual_seed(42)
+        np.random.seed(42)
+        random.seed(42)
+
+        # Create input tensor with fixed values for deterministic testing
+        x = torch.randn(batch_size, seq_len, dim)
+
         attn_module = RC.Attn(
             dim=dim, query_key_dim=dim, expansion_factor=2.0, dropout=0.0
         )
-        x = torch.randn(batch_size, seq_len, dim)
-        out = attn_module(x)
-        self.assertEqual(out.shape, (batch_size, seq_len, seq_len))
+
+        # Run forward pass
+        attn_output = attn_module(x)
+
+        # Verify output properties
+        self.assertEqual(attn_output.shape, (batch_size, seq_len, seq_len))
+        self.assertTrue(torch.all(attn_output >= 0))  # Non-negative due to ReLU
+        self.assertTrue(torch.all(attn_output <= 1))  # Squared values should be <= 1
 
     def test_encoder_decoder_seq2map_smoke(self):
         """

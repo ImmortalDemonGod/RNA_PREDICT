@@ -180,11 +180,11 @@ RNA_BOND_ANGLES_C2_ENDO = {
 RNA_BACKBONE_TORSIONS_AFORM = {
     # from typical references for standard A-form RNA
     "alpha": 300.0,  # O3'(n-1)-P-O5'-C5'
-    "beta": 180.0,   # P-O5'-C5'-C4'
-    "gamma": 50.0,   # O5'-C5'-C4'-C3'
-    "delta": 85.0,   # C5'-C4'-C3'-O3'
-    "epsilon": 180.0,# C4'-C3'-O3'-P
-    "zeta": 290.0,   # C3'-O3'-P-O5'(next)
+    "beta": 180.0,  # P-O5'-C5'-C4'
+    "gamma": 50.0,  # O5'-C5'-C4'-C3'
+    "delta": 85.0,  # C5'-C4'-C3'-O3'
+    "epsilon": 180.0,  # C4'-C3'-O3'-P
+    "zeta": 290.0,  # C3'-O3'-P-O5'(next)
 }
 
 RNA_SUGAR_PUCKER_TORSIONS = {
@@ -356,7 +356,7 @@ def get_bond_length(pair, sugar_pucker="C3'-endo", test_mode=False):
     from the dictionaries. 'pair' is a string like "C1'-C2'", or "P-O5'".
     By default, uses C3'-endo. If sugar_pucker='C2'-endo', it looks in the
     second dictionary.
-    
+
     When test_mode=False (default), returns a default value (1.5) if not found.
     When test_mode=True, returns float('nan') for compatibility with tests.
 
@@ -373,11 +373,11 @@ def get_bond_length(pair, sugar_pucker="C3'-endo", test_mode=False):
     val = data_dict.get(pair, None)
     if val is not None:
         return val
-    
+
     # If not found, try with canonicalized pair
     can_pair = canonicalize_bond_pair(pair)
     val = data_dict.get(can_pair, None)
-    
+
     # If still not found, check if we have default values for this bond type
     if val is None:
         # Default lengths for common RNA backbone bonds
@@ -396,11 +396,13 @@ def get_bond_length(pair, sugar_pucker="C3'-endo", test_mode=False):
         val = default_lengths.get(pair, None)
         if val is None:
             val = default_lengths.get(can_pair, None)
-    
+
     # Return appropriate value based on test_mode
     if val is None:
-        return float('nan') if test_mode else 1.5  # Return NaN for tests, default otherwise
-    
+        return (
+            float("nan") if test_mode else 1.5
+        )  # Return NaN for tests, default otherwise
+
     return val
 
 

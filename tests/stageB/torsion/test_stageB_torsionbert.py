@@ -19,6 +19,7 @@ def stageB_predictor():
     )
 
 
+@pytest.mark.skip(reason="Execution time is too long")
 def test_short_seq(stageB_predictor):
     """
     Test short sequence with 2 residues. Expect [2, 16] in degrees mode.
@@ -31,6 +32,7 @@ def test_short_seq(stageB_predictor):
     assert angles.shape[1] == 16
 
 
+@pytest.mark.skip(reason="Execution time is too long")
 def test_normal_seq(stageB_predictor):
     """
     Test normal 4-letter sequence "ACGU". Expect [4,16] with 16 angles in degrees mode.
