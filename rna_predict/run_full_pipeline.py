@@ -303,9 +303,12 @@ if __name__ == "__main__":
             "c_atom": 128,
             "c_atompair": 16,
             "c_token": 768,
-            "c_s": 64,
-            "c_z": 32,
-            "c_s_inputs": 384,
+            "conditioning": { # <-- Added nesting
+                "c_s": 64,
+                "c_z": 32,
+                "c_s_inputs": 449, # Changed back from 384 to 449
+                "c_noise_embedding": 256, # Assuming default is needed here too
+            },
             "atom_encoder": {"n_blocks": 1, "n_heads": 2},
             "transformer": {"n_blocks": 1, "n_heads": 2},
             "atom_decoder": {"n_blocks": 1, "n_heads": 2},

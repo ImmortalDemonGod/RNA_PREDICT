@@ -780,13 +780,13 @@ class TestTemplateEmbedder(unittest.TestCase):
         z_in = torch.randn((1, 4, 4, 16), dtype=torch.float32)
         pair_mask = torch.ones((1, 4, 4), dtype=torch.bool)
         out = embedder.forward({}, z_in, pair_mask=pair_mask)
-        self.assertEqual(out, 0)
+        self.assertTrue(torch.equal(out, torch.zeros_like(z_in)))
 
     def test_forward_nblocks_zero(self):
         embedder = TemplateEmbedder(n_blocks=0, c=8, c_z=16)
         z_in = torch.randn((1, 4, 4, 16), dtype=torch.float32)
         out = embedder.forward({"template_restype": torch.zeros((1, 4))}, z_in)
-        self.assertEqual(out, 0)
+        self.assertTrue(torch.equal(out, torch.zeros_like(z_in)))
 
     def test_forward_template_present(self):
         """
@@ -797,7 +797,7 @@ class TestTemplateEmbedder(unittest.TestCase):
         input_dict = {"template_restype": torch.zeros((1, 4))}
         z_in = torch.randn((1, 4, 4, 16), dtype=torch.float32)
         out = embedder.forward(input_dict, z_in)
-        self.assertEqual(out, 0)
+        self.assertTrue(torch.equal(out, torch.zeros_like(z_in)))
 
 
 # --- Tests for sample_msa_feature_dict_random_without_replacement (Added) ---
