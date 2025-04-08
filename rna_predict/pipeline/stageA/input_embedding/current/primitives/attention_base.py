@@ -111,12 +111,12 @@ class AdaptiveLayerNorm(nn.Module):
             return conditioned_a
 
         except RuntimeError as e:
-            warnings.warn(
-                f"WARNING: Skipping adaptive layernorm conditioning due to shape mismatch: {e}"
-            )
-            warnings.warn(
-                f"         a shape (original): {a_original_shape}, s shape: {s.shape}"
-            )
+            # warnings.warn( # Commented out to suppress log noise
+            #     f"WARNING: Skipping adaptive layernorm conditioning due to shape mismatch: {e}"
+            # )
+            # warnings.warn( # Commented out to suppress log noise
+            #     f"         a shape (original): {a_original_shape}, s shape: {s.shape}"
+            # )
             # Return original 'a' (without the added dimension if unsqueezing happened and failed)
             # If unsqueezing happened but the error occurred later, a still has the extra dim.
             # --- Start Fix ---
