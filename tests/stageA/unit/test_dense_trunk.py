@@ -2,11 +2,10 @@
 import pytest
 import torch
 import math
-from typing import List, Union, Tuple, Dict # Added Dict
+from typing import List, Union, Tuple # Added Dict
 
 # Hypothesis imports
 from hypothesis import given, strategies as st, assume, settings
-from hypothesis.extra.numpy import arrays
 
 # Local imports
 # Corrected import path if attention_utils is directly under primitives
@@ -276,8 +275,10 @@ def test_rearrange_qk_to_dense_trunk_specific_cases( # Renamed slightly
     expected_q_shape = (total_batch_size, num_q_trunks, n_queries, d_head)
     expected_k_shape = (total_batch_size, num_k_trunks, n_keys, d_head)
 
-    if num_q_trunks == 0: expected_q_shape = (total_batch_size, 0, n_queries, d_head)
-    if num_k_trunks == 0: expected_k_shape = (total_batch_size, 0, n_keys, d_head)
+    if num_q_trunks == 0:
+        expected_q_shape = (total_batch_size, 0, n_queries, d_head)
+    if num_k_trunks == 0:
+        expected_k_shape = (total_batch_size, 0, n_keys, d_head)
 
     # Assert output types are always Tensors
     assert isinstance(q_trunked, torch.Tensor)
@@ -298,11 +299,13 @@ def test_rearrange_qk_to_dense_trunk_specific_cases( # Renamed slightly
     if q_padding > 0 and num_q_trunks > 0:
         assert q_trunked.numel() > 0
         assert torch.all(q_trunked[:, -1, -q_padding:, :] == 0.0)
-        if n_queries - q_padding > 0: assert torch.any(q_trunked[:, -1, :-q_padding, :] != 0.0)
+        if n_queries - q_padding > 0:
+            assert torch.any(q_trunked[:, -1, :-q_padding, :] != 0.0)
     if k_padding > 0 and num_k_trunks > 0:
         assert k_trunked.numel() > 0
         assert torch.all(k_trunked[:, -1, -k_padding:, :] == 0.0)
-        if n_keys - k_padding > 0: assert torch.any(k_trunked[:, -1, :-k_padding, :] != 0.0)
+        if n_keys - k_padding > 0:
+            assert torch.any(k_trunked[:, -1, :-k_padding, :] != 0.0)
     if q_padding == 0 and q_len > 0 and num_q_trunks > 0:
         assert q_trunked.numel() > 0
         assert torch.any(q_trunked[:, -1, :, :] != 0.0)
@@ -443,7 +446,8 @@ def test_hypothesis_rearrange_to_dense_trunk(
     # Check padding values (should be zero for Q, K, V in padded area)
     if q_padding > 0 and num_q_trunks > 0:
         assert torch.all(q_trunked[:, -1, -q_padding:, :] == 0.0)
-        if n_queries - q_padding > 0: assert torch.any(q_trunked[:, -1, :-q_padding, :] != 0.0)
+        if n_queries - q_padding > 0:
+            assert torch.any(q_trunked[:, -1, :-q_padding, :] != 0.0)
     if k_padding > 0 and num_k_trunks > 0: # K and V share padding logic
         assert torch.all(k_trunked[:, -1, -k_padding:, :] == 0.0)
         assert torch.all(v_trunked[:, -1, -k_padding:, :] == 0.0)
@@ -563,7 +567,8 @@ def test_rearrange_to_dense_trunk_specific_cases( # Renamed slightly
     assert attn_bias_trunked.shape == torch.Size(expected_attn_bias_shape)
     assert padding_length == q_padding
 
-    if q_padding > 0 and num_q_trunks > 0: assert torch.all(q_trunked[:, -1, -q_padding:, :] == 0.0)
+    if q_padding > 0 and num_q_trunks > 0:
+        assert torch.all(q_trunked[:, -1, -q_padding:, :] == 0.0)
     if k_padding > 0 and num_k_trunks > 0:
         assert torch.all(k_trunked[:, -1, -k_padding:, :] == 0.0)
         assert torch.all(v_trunked[:, -1, -k_padding:, :] == 0.0)

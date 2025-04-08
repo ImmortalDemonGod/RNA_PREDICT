@@ -49,7 +49,8 @@ def _process_tensor_to_trunks(
              try:
                  example_tensor = next(t for t in tensor_list if t.numel() > 0)
                  example_dim = dim_list[tensor_list.index(example_tensor)]
-                 if example_dim < 0: example_dim += example_tensor.ndim
+                 if example_dim < 0:
+                     example_dim += example_tensor.ndim
                  d_head = example_tensor.shape[-1] # Assume last dim is feature dim
                  # Shape: (0, num_trunks=0, items_per_trunk, d_head) - num_trunks is 0 for seq_len 0
                  empty_trunked = torch.empty(
