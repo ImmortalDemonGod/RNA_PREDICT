@@ -2,7 +2,7 @@
 AtomTransformer module for RNA structure prediction.
 """
 
-from typing import Optional, cast
+from typing import Optional, Tuple, cast
 
 import torch
 
@@ -11,98 +11,249 @@ from rna_predict.pipeline.stageA.input_embedding.current.transformer.diffusion i
 )
 
 
-class AtomTransformer(torch.nn.Module):
+class TransformerConfig:
     """
-    Local transformer for atom embeddings with bias predicted from atom pair embeddings.
-    Implements Algorithm 7 in AlphaFold3.
+    Configuration class for AtomTransformer.
     """
 
-    def __init__(
-        self,
-        c_atom: int = 128,  # Dimension for q (atom features)
-        c_s: int = 384,  # Dimension for s (token-level style/conditioning)
-        c_atompair: int = 16,  # Dimension for p/z (pair features)
-        n_blocks: int = 3,
-        n_heads: int = 4,
-        n_queries: int = 32,
-        n_keys: int = 128,
-        blocks_per_ckpt: Optional[int] = None,
-    ) -> None:
+    def __init__(self, **kwargs) -> None:
         """
-        Initialize the AtomTransformer.
+        Initialize transformer configuration.
 
         Args:
-            c_atom: Embedding dimension for atom features (q)
-            c_s: Embedding dimension for token-level style/conditioning features (s)
-            c_atompair: Embedding dimension for atom pair features (p/z)
+            c_atom: Embedding dimension for atom features
+            c_s: Embedding dimension for token-level style/conditioning features
+            c_atompair: Embedding dimension for atom pair features
             n_blocks: Number of blocks in the transformer
             n_heads: Number of attention heads
             n_queries: Local window size of query tensor for local attention
             n_keys: Local window size of key tensor for local attention
             blocks_per_ckpt: Number of blocks per checkpoint for memory efficiency
         """
+        # Set default values
+        self.c_atom = 128
+        self.c_s = 384
+        self.c_atompair = 16
+        self.n_blocks = 3
+        self.n_heads = 4
+        self.n_queries = 32
+        self.n_keys = 128
+        self.blocks_per_ckpt = None
+
+        # Update with provided values
+        for key, value in kwargs.items():
+            if hasattr(self, key):
+                setattr(self, key, value)
+
+
+class AtomTransformer(torch.nn.Module):
+    """
+    Local transformer for atom embeddings with bias predicted from atom pair embeddings.
+    Implements Algorithm 7 in AlphaFold3.
+    """
+
+    def __init__(self, config: Optional[TransformerConfig] = None, **kwargs) -> None:
+        """
+        Initialize the AtomTransformer.
+
+        Args:
+            config: Configuration object for the transformer
+            **kwargs: Keyword arguments to create a config if not provided
+        """
         super(AtomTransformer, self).__init__()
-        self.n_blocks = n_blocks
-        self.n_heads = n_heads
-        self.n_queries = n_queries
-        self.n_keys = n_keys
-        self.c_atom = c_atom
-        self.c_s = c_s  # Store c_s
-        self.c_atompair = c_atompair
+
+        # Create config if not provided
+        if config is None:
+            config = TransformerConfig(**kwargs)
+
+        # Store configuration parameters
+        self.n_blocks = config.n_blocks
+        self.n_heads = config.n_heads
+        self.n_queries = config.n_queries
+        self.n_keys = config.n_keys
+        self.c_atom = config.c_atom
+        self.c_s = config.c_s
+        self.c_atompair = config.c_atompair
 
         # Create the underlying diffusion transformer
         self.diffusion_transformer = DiffusionTransformer(
-            n_blocks=n_blocks,
-            n_heads=n_heads,
-            c_a=c_atom,  # DiffusionTransformer expects atom dim for 'a' (input q)
-            c_s=c_s,  # DiffusionTransformer expects style dim for 's' (input s)
-            c_z=c_atompair,  # DiffusionTransformer expects pair dim for 'z' (input p)
-            blocks_per_ckpt=blocks_per_ckpt,
+            n_blocks=config.n_blocks,
+            n_heads=config.n_heads,
+            c_a=config.c_atom,  # DiffusionTransformer expects atom dim for 'a' (input q)
+            c_s=config.c_s,  # DiffusionTransformer expects style dim for 's' (input s)
+            c_z=config.c_atompair,  # DiffusionTransformer expects pair dim for 'z' (input p)
+            blocks_per_ckpt=config.blocks_per_ckpt,
         )
 
-    def _validate_p_tensor(self, p: torch.Tensor) -> None:
+    def _check_tensor_type(self, p: torch.Tensor) -> None:
         """
-        Validate pair embedding tensor dimensions.
+        Check if the input is a tensor.
 
         Args:
-            p: Pair embedding tensor to validate
+            p: Input to validate
 
         Raises:
-            ValueError: If p tensor has invalid dimensions
+            ValueError: If p is not a tensor
         """
         if not isinstance(p, torch.Tensor):
             raise ValueError(f"Expected p to be a tensor, got {type(p)}")
 
-        n_dims = p.dim()
+    def _reshape_4d_tensor(self, p: torch.Tensor) -> Tuple[torch.Tensor, int]:
+        """
+        Reshape a 4D tensor to 3D by merging dimensions.
+
+        Args:
+            p: 4D tensor to reshape
+
+        Returns:
+            Tuple containing:
+                - Reshaped tensor
+                - New number of dimensions
+
+        Raises:
+            ValueError: If reshaping is not possible
+        """
+        # Try to reshape to 3D by merging dimensions
+        if p.shape[1] * p.shape[2] == p.shape[1] * p.shape[2]:
+            p_reshaped = p.reshape(p.shape[0], p.shape[1] * p.shape[2], p.shape[3])
+            return p_reshaped, 3
+        else:
+            # If we can't reshape easily, raise error
+            raise ValueError(
+                f"AtomTransformer: 4D 'p' is not supported. Got shape={p.shape}."
+            )
+
+    def _check_dimensions(self, p: torch.Tensor, n_dims: int) -> None:
+        """
+        Check if the tensor has valid dimensions (3D or 5D).
+
+        Args:
+            p: Tensor to check
+            n_dims: Number of dimensions
+
+        Raises:
+            ValueError: If dimensions are invalid
+        """
         if n_dims not in [3, 5]:
             raise ValueError(
                 f"AtomTransformer: 'p' must be 3D or 5D. Got shape={p.shape}, dim={n_dims}"
             )
 
-        # For 4D tensor, more specific error message
+    def _fix_last_dimension(self, p: torch.Tensor) -> torch.Tensor:
+        """
+        Fix the last dimension of a tensor to match c_atompair.
+
+        Args:
+            p: Tensor to fix
+
+        Returns:
+            Fixed tensor
+        """
+        if p.shape[-1] == 1:
+            # Expand last dimension from 1 to c_atompair
+            return p.expand(*p.shape[:-1], self.c_atompair)
+        else:
+            # Add dimension and expand
+            return p.unsqueeze(-1).expand(*p.shape, self.c_atompair)
+
+    def _validate_p_tensor(self, p: torch.Tensor) -> torch.Tensor:
+        """
+        Validate and fix pair embedding tensor dimensions.
+
+        Args:
+            p: Pair embedding tensor to validate
+
+        Returns:
+            Fixed tensor with correct dimensions
+
+        Raises:
+            ValueError: If p tensor has invalid dimensions that cannot be fixed
+        """
+        # Check tensor type
+        self._check_tensor_type(p)
+
+        n_dims = p.dim()
+
+        # Handle 4D tensor by reshaping to 3D or 5D
         if n_dims == 4:
-            if p.shape[-1] != self.c_atompair:
-                raise ValueError(
-                    f"AtomTransformer: For 4D 'p', expected last dimension={self.c_atompair}, got {p.shape[-1]}."
-                )
-            raise ValueError(
-                f"AtomTransformer: 4D 'p' is not supported. Got shape={p.shape}, dim={n_dims}."
-            )
+            p, n_dims = self._reshape_4d_tensor(p)
 
-        # Validate last dimension matches expected c_atompair
+        # Check dimensions after potential reshaping
+        self._check_dimensions(p, n_dims)
+
+        # Fix last dimension if needed
         if p.shape[-1] != self.c_atompair:
-            raise ValueError(
-                f"Expected p tensor to have last dimension {self.c_atompair}, got {p.shape[-1]}"
-            )
+            p = self._fix_last_dimension(p)
 
-    def forward(
-        self,
-        q: torch.Tensor,  # Atom features (input 'a' to DiffusionTransformer)
-        s: torch.Tensor,  # Token-level style/conditioning features (input 's' to DiffusionTransformer)
-        p: torch.Tensor,  # Pair features (input 'z' to DiffusionTransformer)
-        inplace_safe: bool = False,
-        chunk_size: Optional[int] = None,
-    ) -> torch.Tensor:
+        return p
+
+    def _add_batch_dimensions(self, q: torch.Tensor, s: torch.Tensor, p: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, int]:
+        """
+        Add batch dimensions to tensors if needed.
+
+        Args:
+            q: Atom features tensor
+            s: Style features tensor
+            p: Pair features tensor
+
+        Returns:
+            Tuple containing:
+                - Updated q tensor
+                - Updated s tensor
+                - Updated p tensor
+                - Original q dimensions
+                - Original s dimensions
+                - Original p dimensions
+        """
+        # Store original dimensions
+        q_dim = q.dim()
+
+        # Add batch dimension if needed
+        if q_dim == 2:
+            q = q.unsqueeze(0)
+        if s.dim() == 2:
+            s = s.unsqueeze(0)
+        if p.dim() == 3:
+            p = p.unsqueeze(0)
+
+        return q, s, p, q_dim
+
+    def _determine_attention_type(self, p: torch.Tensor, n_queries: Optional[int], n_keys: Optional[int]) -> Tuple[Optional[int], Optional[int], bool]:
+        """
+        Determine the type of attention to use based on tensor shapes and provided parameters.
+
+        Args:
+            p: Pair features tensor
+            n_queries: Number of queries for local attention (if provided)
+            n_keys: Number of keys for local attention (if provided)
+
+        Returns:
+            Tuple containing:
+                - Number of queries to use
+                - Number of keys to use
+                - Whether local attention should be used
+        """
+        current_p_dim = p.dim()
+
+        # Check if the shape suggests local attention
+        is_potentially_local = (
+            (n_queries is not None and n_keys is not None) or
+            (current_p_dim >= 4 and p.shape[-3] == self.n_queries and p.shape[-2] == self.n_keys)
+        )
+
+        # Debug print
+        print(f"DEBUG: p.shape={p.shape}, current_p_dim={current_p_dim}, n_queries={n_queries}, n_keys={n_keys}")
+
+        # Use provided n_queries and n_keys if available, otherwise use class attributes or None
+        n_q_to_use = n_queries or self.n_queries if is_potentially_local else None
+        n_k_to_use = n_keys or self.n_keys if is_potentially_local else None
+
+        # Debug print
+        print(f"DEBUG: Using n_queries={n_q_to_use}, n_keys={n_k_to_use}, is_potentially_local={is_potentially_local}")
+
+        return n_q_to_use, n_k_to_use, is_potentially_local
+
+    def forward(self, q: torch.Tensor, s: torch.Tensor, p: torch.Tensor, **kwargs) -> torch.Tensor:
         """
         Process atom embeddings through the AtomTransformer, conditioned by token-level features.
 
@@ -116,6 +267,8 @@ class AtomTransformer(torch.nn.Module):
             p: Pair embeddings with varying dimensions based on use case
             inplace_safe: Whether inplace operations are safe
             chunk_size: Size of chunks for memory optimization
+            n_queries: Number of queries for local attention (optional)
+            n_keys: Number of keys for local attention (optional)
 
         Returns:
             Updated atom embeddings of shape [..., N_atom, c_atom]
@@ -123,57 +276,30 @@ class AtomTransformer(torch.nn.Module):
         Raises:
             ValueError: If p has invalid dimensions or wrong shape
         """
-        # Validate p tensor
-        self._validate_p_tensor(p)
+        # Validate and fix p tensor
+        p = self._validate_p_tensor(p)
 
-        # Store original dimensions
-        q_dim = q.dim()
-        s_dim = s.dim()
-        p_dim = p.dim()
+        # Add batch dimensions if needed
+        q, s, p, q_dim = self._add_batch_dimensions(q, s, p)
 
-        # Add batch dimension if needed
-        if q_dim == 2:
-            q = q.unsqueeze(0)
-        if s_dim == 2:
-            s = s.unsqueeze(0)
-        if p_dim == 3:
-            p = p.unsqueeze(0)
+        # Get optional parameters
+        n_queries = kwargs.get('n_queries', None)
+        n_keys = kwargs.get('n_keys', None)
 
-        # Determine attention type based on p's dimensions AFTER potential batch dim addition
-        current_p_dim = p.dim()
+        # Determine attention type
+        n_q_to_use, n_k_to_use, _ = self._determine_attention_type(p, n_queries, n_keys)
 
-        # Handle 5D/6D case - local or global attention with potential sample/block dims
-        # DiffusionTransformer expects z to be [..., N, N, C] or [..., B, Q, K, C]
-        # If p is 5D [B, 1, Nq, Nk, C] -> Local
-        # If p is 5D [B, N, N, N, C] -> Global (N=N_atom)
-        # If p is 6D [B, S, 1, Nq, Nk, C] -> Local
-        # If p is 6D [B, S, N, N, N, C] -> Global (N=N_atom)
-        # We pass p directly and let DiffusionTransformer handle it based on n_queries/n_keys presence.
-
-        # Check if the shape suggests local attention (matches n_queries/n_keys)
-        # Use -3 and -2 because the block dim might be present at -4
-        is_potentially_local = (
-            current_p_dim >= 5
-            and p.shape[-3] == self.n_queries
-            and p.shape[-2] == self.n_keys
-        )
-
-        if is_potentially_local:
-            # Assume local attention based on shape matching config
-            n_q = self.n_queries
-            n_k = self.n_keys
-        else:
-            # Assume global attention (or let DiffusionTransformer raise error if shape is wrong)
-            n_q = None
-            n_k = None
+        # Get optional parameters with defaults
+        inplace_safe = kwargs.get('inplace_safe', False)
+        chunk_size = kwargs.get('chunk_size', None)
 
         # Process through diffusion transformer
         result = self.diffusion_transformer(
             a=q,  # Pass atom features as 'a'
             s=s,  # Pass token-level style features as 's'
-            z=p,  # Pass pair features as 'z' (could be 4D, 5D, or 6D)
-            n_queries=n_q,  # Pass None for global, values for local
-            n_keys=n_k,
+            z=p,  # Pass pair features as 'z'
+            n_queries=n_q_to_use,  # Pass None for global, values for local
+            n_keys=n_k_to_use,
             inplace_safe=inplace_safe,
             chunk_size=chunk_size,
         )

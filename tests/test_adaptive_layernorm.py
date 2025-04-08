@@ -1,5 +1,4 @@
 import torch
-import pytest
 import warnings
 from rna_predict.pipeline.stageA.input_embedding.current.primitives.attention_base import AdaptiveLayerNorm
 
