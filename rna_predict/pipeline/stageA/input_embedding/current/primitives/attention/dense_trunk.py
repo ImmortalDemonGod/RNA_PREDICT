@@ -21,8 +21,7 @@ from ..core_transforms import (
     # _handle_return_types, # Remove this import
     _prepare_tensor_lists,
     _validate_dimensions,
-    _validate_input_types,
-    TrunkInfo, # Import TrunkInfo dataclass
+    _validate_input_types, # Import TrunkInfo dataclass
 )
 
 # Imports from the newly created sub-modules
@@ -347,7 +346,7 @@ def _rearrange_to_dense_trunk_impl(
 
     # Calculate number of key trunks (V follows K)
     k_seq_len = config.k.shape[-2]
-    v_seq_len = config.v.shape[-2] # Use actual V length
+    config.v.shape[-2] # Use actual V length
     n_k_trunks = math.ceil(k_seq_len / config.n_keys) if k_seq_len > 0 else 0
     # V trunking depends on K's trunking structure
     # Padded length for K determines V's effective length for trunking
