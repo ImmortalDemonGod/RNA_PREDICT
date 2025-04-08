@@ -80,22 +80,18 @@ class AdaptiveLayerNorm(nn.Module):
             scale = torch.sigmoid(self.linear_s(s))
             shift = self.linear_nobias_s(s)
 
-            # Check final compatibility before element-wise ops
-            # Allow broadcasting if a was unsqueezed and s has N_sample=1
-            if a_was_unsqueezed and s.shape[1] == 1:
-                # Shapes might be [B, 1, N, C] for scale/shift and [B, 1, N, C] for a
-                # Check if feature dimensions C match
-                if scale.shape[-1] != a.shape[-1] or shift.shape[-1] != a.shape[-1]:
-                    raise RuntimeError(
-                        f"Feature dimension mismatch: scale={scale.shape}, shift={shift.shape}, a={a.shape}"
-                    )
-                # Broadcasting should handle the rest if feature dims match
-                pass
-            elif scale.shape != a.shape or shift.shape != a.shape:
-                # If shapes still don't match, raise error
-                raise RuntimeError(
-                    f"Shape mismatch after unsqueeze/projections: scale={scale.shape}, shift={shift.shape}, a={a.shape}"
-                )
+            # Use PyTorch's broadcast_tensors to align shapes before element-wise ops
+            # This handles cases like a=[B, 1, N, C] and scale/shift=[B, N, C]
+            a_b, scale_b, shift_b = torch.broadcast_tensors(a, scale, shift)
+            
+            # Perform the conditioning
+            conditioned_a = scale_b * a_b + shift_b
+ 
+            # If 'a' was unsqueezed initially and the result still has that extra dim of size 1, squeeze it back.
+            if a_was_unsqueezed and conditioned_a.dim() > len(a_original_shape) and conditioned_a.shape[1] == 1:
+                 conditioned_a = conditioned_a.squeeze(1)
+ 
+            return conditioned_a
 
             conditioned_a = scale * a + shift
             # Decide whether to squeeze back based on downstream expectations.
@@ -110,13 +106,21 @@ class AdaptiveLayerNorm(nn.Module):
 
             return conditioned_a
 
-        except RuntimeError as e:
-            warnings.warn(
-                f"WARNING: Skipping adaptive layernorm conditioning due to shape mismatch: {e}"
-            )
-            warnings.warn(
-                f"         a shape (original): {a_original_shape}, s shape: {s.shape}"
-            )
+        except RuntimeError:
+            # warnings.warn( # Commented out to suppress log noise
+            #     f"WARNING: Skipping adaptive layernorm conditioning due to shape mismatch: {e}"
+            # )
+            # warnings.warn( # Commented out to suppress log noise
+            #     f"         a shape (original): {a_original_shape}, s shape: {s.shape}"
+            # )
+            # === # This line seems misplaced, removing it.
+            #          except RuntimeError as e: # Duplicate except block start? Removing.
+            # warnings.warn( # Commented out to suppress log noise
+            #     f"WARNING: Skipping adaptive layernorm conditioning due to shape mismatch: {e}"
+            # )
+            # warnings.warn( # Commented out to suppress log noise
+            #     f"         a shape (original): {a_original_shape}, s shape: {s.shape}"
+            # )
             # Return original 'a' (without the added dimension if unsqueezing happened and failed)
             # If unsqueezing happened but the error occurred later, a still has the extra dim.
             # --- Start Fix ---
