@@ -39,13 +39,21 @@ def test_layernorm_basic(shape: Tuple[int, int], eps: float) -> None:
     # Skip variance check for dimension size 1 - mathematically it doesn't make sense
     # to normalize a single value to have variance 1
     if shape[-1] > 1:
-        # Check variance is near 1
-        var = out.var(dim=-1, unbiased=False)
+        # Calculate the variance of the input tensor
+        input_var = x.var(dim=-1, unbiased=False, keepdim=True)
+        # Calculate the theoretically expected variance of the output
+        # Var(out) = Var(x) / (Var(x) + eps)
+        expected_out_var = input_var.squeeze(-1) / (input_var.squeeze(-1) + eps)
+
+        # Calculate the actual variance of the output tensor
+        actual_out_var = out.var(dim=-1, unbiased=False)
+
+        # Assert that the actual output variance is close to the expected variance
         assert torch.allclose(
-            var,
-            torch.ones_like(var),
-            atol=1e-2,  # Increased tolerance
-        ), "layernorm should scale variance to 1."
+            actual_out_var,
+            expected_out_var,
+            atol=1e-5,  # Use a smaller tolerance for comparing against expected value
+        ), f"Output variance ({actual_out_var}) not close to expected variance ({expected_out_var})."
 
 
 def test_layernorm_one_dim() -> None:
