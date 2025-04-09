@@ -11,7 +11,7 @@ from typing import Any, List, Optional, Tuple, TypedDict, Union
 
 import torch
 
-from .attention_base import AttentionInputs, _attention
+from .attention_core import AttentionInputs, attention as _attention
 
 
 @dataclass

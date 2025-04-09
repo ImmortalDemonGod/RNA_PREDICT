@@ -15,8 +15,9 @@ warnings.filterwarnings("always")
 sys.path.append(".")
 
 # Import the relevant modules
-from rna_predict.pipeline.stageA.input_embedding.current.primitives.attention_base import AdaptiveLayerNorm, _attention
-from rna_predict.pipeline.stageA.input_embedding.current.primitives.attention_base import AttentionInputs
+from rna_predict.pipeline.stageA.input_embedding.current.primitives.attention_base import AdaptiveLayerNorm
+from rna_predict.pipeline.stageA.input_embedding.current.primitives.attention_core import attention as _attention
+from rna_predict.pipeline.stageA.input_embedding.current.primitives.attention_core import AttentionInputs
 
 def test_adaptive_layernorm_shape_mismatch():
     """Test to reproduce the AdaptiveLayerNorm shape mismatch warning."""
