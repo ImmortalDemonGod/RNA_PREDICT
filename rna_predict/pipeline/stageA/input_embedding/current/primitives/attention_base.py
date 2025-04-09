@@ -30,8 +30,9 @@ class AdaptiveLayerNorm(nn.Module):
             c_s (int, optional): hidden dim [for single embedding]. Defaults to 384.
         """
         super(AdaptiveLayerNorm, self).__init__()
-        self.layernorm_a = nn.LayerNorm(c_a, elementwise_affine=False, bias=False)
+        self.c_a = c_a  # Store c_a for reference
         self.c_s = c_s  # Store c_s for reference
+        self.layernorm_a = nn.LayerNorm(c_a, elementwise_affine=False, bias=False)
         self.linear_s = Linear(in_features=c_s, out_features=c_a)
         self.linear_nobias_s = LinearNoBias(in_features=c_s, out_features=c_a)
 
@@ -50,46 +51,47 @@ class AdaptiveLayerNorm(nn.Module):
             s (torch.Tensor): normalized single embedding
 
         Returns:
-            torch.Tensor: conditioned tensor or original if shapes don't match
+            torch.Tensor: conditioned tensor with proper shape adjustment
         """
+        from rna_predict.utils.shape_utils import adjust_tensor_feature_dim
+
         a_original_shape = a.shape
         a_was_unsqueezed = False
+
+        # Simplified check: If s has one more dim than a, and batch dim matches,
+        # assume 'a' is missing the sample dimension at dim 1.
+        if (
+            s.dim() > a.dim()
+            and s.dim() == a.dim() + 1
+            and s.shape[0] == a.shape[0]
+        ):
+            # Check if the remaining dimensions of s (ignoring sample dim 1) match a's dimensions
+            s_dims_to_match = s.shape[2:]
+            a_dims_to_match = a.shape[1:]
+            if s_dims_to_match == a_dims_to_match:
+                # Unsqueeze 'a' at dim 1 to add the sample dimension
+                a = a.unsqueeze(1)
+                a_was_unsqueezed = True
+                warnings.warn(
+                    f"INFO: Unsqueezed 'a' in AdaptiveLayerNorm to match 's'. New 'a' shape: {a.shape}"
+                )
+
+        # Ensure s has the correct feature dimension (self.c_s)
+        s = adjust_tensor_feature_dim(s, self.c_s, tensor_name="AdaLN conditioning 's'")
+
+        # Now shapes should be compatible for linear layers and element-wise ops
+        scale = torch.sigmoid(self.linear_s(s))
+        shift = self.linear_nobias_s(s)
+
+        # Explicitly add singleton dimension to match 'a's shape [B, 1, N, C_a]
+        # This ensures broadcasting works as intended for the element-wise op.
+        if a.dim() == 4 and scale.dim() == 3 and a.shape[0] == scale.shape[0] and a.shape[2:] == scale.shape[1:]:
+            scale = scale.unsqueeze(1) # Shape [B, 1, N, C_a]
+            shift = shift.unsqueeze(1) # Shape [B, 1, N, C_a]
+
+        # Use PyTorch's broadcast_tensors to align shapes before element-wise ops
+        # This handles cases like a=[B, 1, N, C] and scale/shift=[B, N, C]
         try:
-            # Simplified check: If s has one more dim than a, and batch dim matches,
-            # assume 'a' is missing the sample dimension at dim 1.
-            if (
-                s.dim() > a.dim()
-                and s.dim() == a.dim() + 1
-                and s.shape[0] == a.shape[0]
-            ):
-                # Check if the remaining dimensions of s (ignoring sample dim 1) match a's dimensions
-                s_dims_to_match = s.shape[2:]
-                a_dims_to_match = a.shape[1:]
-                if s_dims_to_match == a_dims_to_match:
-                    # Unsqueeze 'a' at dim 1 to add the sample dimension
-                    a = a.unsqueeze(1)
-                    a_was_unsqueezed = True
-                    warnings.warn(
-                        f"INFO: Unsqueezed 'a' in AdaptiveLayerNorm to match 's'. New 'a' shape: {a.shape}"
-                    )
-                else:
-                    # Don't unsqueeze if other dimensions don't match
-                    pass
-
-            # Now shapes should be compatible for linear layers and element-wise ops
-            scale = torch.sigmoid(self.linear_s(s))
-            shift = self.linear_nobias_s(s)
-
-            # --- START FIX ---
-            # Explicitly add singleton dimension to match 'a's shape [B, 1, N, C_a]
-            # This ensures broadcasting works as intended for the element-wise op.
-            if a.dim() == 4 and scale.dim() == 3 and a.shape[0] == scale.shape[0] and a.shape[2:] == scale.shape[1:]:
-                scale = scale.unsqueeze(1) # Shape [B, 1, N, C_a]
-                shift = shift.unsqueeze(1) # Shape [B, 1, N, C_a]
-            # --- END FIX ---
-
-            # Use PyTorch's broadcast_tensors to align shapes before element-wise ops
-            # This handles cases like a=[B, 1, N, C] and scale/shift=[B, N, C]
             a_b, scale_b, shift_b = torch.broadcast_tensors(a, scale, shift)
 
             # Perform the conditioning
@@ -97,43 +99,54 @@ class AdaptiveLayerNorm(nn.Module):
 
             # If 'a' was unsqueezed initially and the result still has that extra dim of size 1, squeeze it back.
             if a_was_unsqueezed and conditioned_a.dim() > len(a_original_shape) and conditioned_a.shape[1] == 1:
-                 conditioned_a = conditioned_a.squeeze(1)
+                conditioned_a = conditioned_a.squeeze(1)
 
             return conditioned_a
 
-            # NOTE: The following block seems unreachable due to the return statement above.
-            # It was present in the original file structure before the faulty diff application.
-            # conditioned_a = scale * a + shift
-            # # Decide whether to squeeze back based on downstream expectations.
-            # # If the layer norm is expected to output the same number of dims as the original 'a',
-            # # then we should squeeze back if we unsqueezed.
-            # # Let's try squeezing back if N_sample was 1.
-            # if a_was_unsqueezed and conditioned_a.shape[1] == 1:
-            #     conditioned_a = conditioned_a.squeeze(1)
-            #     warnings.warn(
-            #         f"INFO: Squeezing conditioned_a back. Shape: {conditioned_a.shape}"
-            #     )
-            # return conditioned_a
+        except RuntimeError as e:
+            # If broadcasting still fails, log the error and try a more direct approach
+            warnings.warn(f"Broadcasting failed in AdaptiveLayerNorm: {e}. Attempting direct shape adjustment.")
 
-        except RuntimeError:
-            # warnings.warn( # Commented out to suppress log noise
-            #     f"WARNING: Skipping adaptive layernorm conditioning due to shape mismatch: {e}"
-            # )
-            # warnings.warn( # Commented out to suppress log noise
-            #     f"         a shape (original): {a_original_shape}, s shape: {s.shape}"
-            # )
-            # Return original 'a' (without the added dimension if unsqueezing happened and failed)
-            # If unsqueezing happened but the error occurred later, a still has the extra dim.
-            if (
-                a.shape != a_original_shape and a.dim() == len(a_original_shape) + 1
-            ):  # Use len() for a_original_shape
-                a = a.squeeze(
-                    1
-                )  # Squeeze back to original dims if conditioning failed after unsqueeze
-                warnings.warn(
-                    f"INFO: Squeezing 'a' back to original dims after failed conditioning. Shape: {a.shape}"
-                )
-            return a
+            # Ensure scale and shift have compatible shapes with a
+            # Handle different sequence lengths by interpolating
+            if scale.shape[1] != a.shape[1]:
+                # Interpolate along sequence dimension
+                scale = torch.nn.functional.interpolate(
+                    scale.transpose(1, 2),  # [B, C, S]
+                    size=a.shape[1],
+                    mode='nearest'
+                ).transpose(1, 2)  # [B, S, C]
+
+                shift = torch.nn.functional.interpolate(
+                    shift.transpose(1, 2),  # [B, C, S]
+                    size=a.shape[1],
+                    mode='nearest'
+                ).transpose(1, 2)  # [B, S, C]
+
+            # Handle other dimension mismatches with expand
+            if scale.shape != a.shape:
+                # Try to expand remaining dimensions
+                try:
+                    scale = scale.expand_as(a)
+                except RuntimeError:
+                    # If expansion fails, reshape to match exactly
+                    scale = scale.reshape(*a.shape)
+
+            if shift.shape != a.shape:
+                try:
+                    shift = shift.expand_as(a)
+                except RuntimeError:
+                    # If expansion fails, reshape to match exactly
+                    shift = shift.reshape(*a.shape)
+
+            # Direct element-wise operations
+            conditioned_a = scale * a + shift
+
+            # If 'a' was unsqueezed initially and the result still has that extra dim of size 1, squeeze it back.
+            if a_was_unsqueezed and conditioned_a.dim() > len(a_original_shape) and conditioned_a.shape[1] == 1:
+                conditioned_a = conditioned_a.squeeze(1)
+
+            return conditioned_a
 
     def forward(self, a: torch.Tensor, s: torch.Tensor) -> torch.Tensor:
         """
@@ -147,6 +160,11 @@ class AdaptiveLayerNorm(nn.Module):
             torch.Tensor: the updated a from AdaLN
                 [..., N_token, c_a]
         """
+        from rna_predict.utils.shape_utils import adjust_tensor_feature_dim
+
+        # Ensure a has the correct feature dimension (self.c_a)
+        a = adjust_tensor_feature_dim(a, self.c_a, tensor_name="AdaLN input 'a'")
+
         # Normalize inputs
         a_norm = self.layernorm_a(a)
 
@@ -718,16 +736,11 @@ class Attention(nn.Module):
 
         # Add bias if provided
         if bias is not None:
-            # Ensure bias has compatible shape
-            if bias.shape[-2:] != scores.shape[-2:]:
-                warnings.warn(
-                    f"Selected bias shape mismatch in _process_small_tensors. "
-                    f"Expected size: {scores.shape[-2] * scores.shape[-1]}, "
-                    f"actual size: {bias.shape[-2] * bias.shape[-1]} "
-                    f"(from {bias.shape}). Skipping bias application for stability."
-                )
-            else:
-                scores = scores + bias
+            from rna_predict.utils.shape_utils import adjust_attention_bias
+
+            # Adjust bias to match scores shape
+            adjusted_bias = adjust_attention_bias(bias, scores.shape, tensor_name="attention_bias")
+            scores = scores + adjusted_bias
 
         # Apply mask if provided
         if mask is not None:

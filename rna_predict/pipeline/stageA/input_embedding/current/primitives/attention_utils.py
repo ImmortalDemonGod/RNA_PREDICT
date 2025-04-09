@@ -311,16 +311,19 @@ def _process_small_tensors(inputs: LocalAttentionInputs) -> Optional[torch.Tenso
                     )
                     processed_bias = bias_to_process.reshape(target_bias_shape)
 
-                # If sizes don't match, broadcasting might still work, but let's warn and proceed without bias
-                # as the original code did, to maintain stability for now.
-                # A more robust solution might try broadcasting directly in _attention.
+                # If sizes don't match, use shape_utils to adjust the bias
                 elif expected_size != actual_size:
-                    print(  # Keep the print for debugging visibility
-                        f"Warning: Selected bias shape mismatch in _process_small_tensors. "
-                        f"Expected size: {expected_size}, actual size: {actual_size} (from {bias_to_process.shape}). "
-                        f"Skipping bias application for stability."
+                    from rna_predict.utils.shape_utils import adjust_attention_bias
+
+                    # Create target shape for scores based on query and key dimensions
+                    target_scores_shape = (*bias_to_process.shape[:-2], inputs.q.shape[-2], inputs.k.shape[-2])
+
+                    # Adjust bias to match the target scores shape
+                    processed_bias = adjust_attention_bias(
+                        bias_to_process,
+                        target_scores_shape,
+                        tensor_name="trunked_attention_bias"
                     )
-                    processed_bias = None  # Explicitly set to None if check fails
 
             except (RuntimeError, ValueError) as e:
                 # If reshaping fails, skip using the bias
@@ -332,12 +335,31 @@ def _process_small_tensors(inputs: LocalAttentionInputs) -> Optional[torch.Tenso
                     else "Unknown (None)"
                 )
                 # --- End Mypy Fix ---
-                print(
+                warnings.warn(
                     f"Warning: Couldn't reshape selected bias from {bias_shape} to match query/key dimensions. "
                     f"q shape: {inputs.q.shape}, k shape: {inputs.k.shape}. Error: {e}. "
-                    f"Skipping bias application for stability."
+                    f"Attempting to adjust bias using shape_utils."
                 )
-                processed_bias = None
+
+                try:
+                    from rna_predict.utils.shape_utils import adjust_attention_bias
+
+                    # Create target shape for scores based on query and key dimensions
+                    target_scores_shape = (1, 1, inputs.q.shape[-2], inputs.k.shape[-2])
+
+                    # If bias_to_process is None, create a zero bias tensor
+                    if bias_to_process is None:
+                        bias_to_process = torch.zeros(target_scores_shape, device=inputs.q.device)
+
+                    # Adjust bias to match the target scores shape
+                    processed_bias = adjust_attention_bias(
+                        bias_to_process,
+                        target_scores_shape,
+                        tensor_name="fallback_attention_bias"
+                    )
+                except Exception as fallback_error:
+                    warnings.warn(f"Fallback bias adjustment also failed: {fallback_error}. Proceeding without bias.")
+                    processed_bias = None
         # --- End Fix ---
 
         # Convert to AttentionInputs for compatibility
