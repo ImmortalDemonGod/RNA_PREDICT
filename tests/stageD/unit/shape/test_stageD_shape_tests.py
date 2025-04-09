@@ -13,23 +13,14 @@ from rna_predict.pipeline.stageD.diffusion.run_stageD_unified import run_stageD_
 # Test: Single-sample shape expansion using multi_step_inference
 
 
-@pytest.mark.xfail(reason="This test requires deeper integration of shape_utils in the diffusion module")
-def test_single_sample_shape_expansion():
+def _create_diffusion_config():
     """
-    Ensures single-sample usage no longer triggers "Shape mismatch" assertion failures.
-    We forcibly make s_trunk 4D for single-sample, then rely on the updated logic
-    to expand atom_to_token_idx from [B,N_atom] to [B,1,N_atom].
+    Create a minimal diffusion configuration for testing.
 
-    This test now uses the shape_utils module to adjust tensor shapes.
-
-    Note: This test is marked as xfail because it requires deeper integration
-    of shape_utils in the diffusion module, which is beyond the scope of the
-    current fix for issue #14.
+    Returns:
+        Dictionary with diffusion configuration parameters
     """
-    # Import the shape_utils module
-    from rna_predict.utils.shape_utils import adjust_tensor_feature_dim, adjust_attention_bias
-
-    diffusion_config = {
+    return {
         "c_atom": 128,
         "c_s": 384,
         "c_z": 32,
@@ -46,41 +37,108 @@ def test_single_sample_shape_expansion():
         "sigma_data": 16.0,
         "initialization": {},
     }
-    manager = ProtenixDiffusionManager(diffusion_config, device="cpu")
 
-    input_feature_dict = {
-        "atom_to_token_idx": torch.arange(5).unsqueeze(0),  # [1,5]
-        "ref_pos": torch.randn(1, 5, 3),  # [1,5,3]
-        "ref_space_uid": torch.arange(5).unsqueeze(0),  # [1,5]
-        "ref_charge": torch.zeros(1, 5, 1),
-        "ref_element": torch.zeros(1, 5, 128),
-        "ref_atom_name_chars": torch.zeros(1, 5, 256),
-        "ref_mask": torch.ones(1, 5, 1),
-        "restype": torch.zeros(1, 5, 32),
-        "profile": torch.zeros(1, 5, 32),
-        "deletion_mean": torch.zeros(1, 5, 1),
-        "sing": torch.randn(1, 5, 384),  # Required for s_inputs fallback, match c_s_inputs
+
+def _create_input_features(num_atoms=5):
+    """
+    Create input feature dictionary for diffusion model.
+
+    Args:
+        num_atoms: Number of atoms to include in features
+
+    Returns:
+        Dictionary with input features
+    """
+    return {
+        "atom_to_token_idx": torch.arange(num_atoms).unsqueeze(0),  # [1,num_atoms]
+        "ref_pos": torch.randn(1, num_atoms, 3),  # [1,num_atoms,3]
+        "ref_space_uid": torch.arange(num_atoms).unsqueeze(0),  # [1,num_atoms]
+        "ref_charge": torch.zeros(1, num_atoms, 1),
+        "ref_element": torch.zeros(1, num_atoms, 128),
+        "ref_atom_name_chars": torch.zeros(1, num_atoms, 256),
+        "ref_mask": torch.ones(1, num_atoms, 1),
+        "restype": torch.zeros(1, num_atoms, 32),
+        "profile": torch.zeros(1, num_atoms, 32),
+        "deletion_mean": torch.zeros(1, num_atoms, 1),
+        "sing": torch.randn(1, num_atoms, 384),  # Required for s_inputs fallback
     }
 
-    # Create trunk embeddings with potentially mismatched shapes
-    s_trunk = torch.randn(1, 1, 5, 256)  # Intentionally wrong feature dimension (should be 384)
-    pair = torch.randn(1, 1, 5, 5, 16)   # Intentionally wrong feature dimension (should be 32)
-    sing = torch.randn(1, 5, 256)        # Intentionally wrong feature dimension (should be 384)
 
-    # Use shape_utils to adjust tensor dimensions
+def _create_mismatched_trunk_embeddings(num_atoms=5):
+    """
+    Create trunk embeddings with intentionally mismatched shapes.
+
+    Args:
+        num_atoms: Number of atoms to include
+
+    Returns:
+        Dictionary with adjusted trunk embeddings
+    """
+    from rna_predict.utils.shape_utils import adjust_tensor_feature_dim
+
+    # Create tensors with wrong feature dimensions
+    s_trunk = torch.randn(1, 1, num_atoms, 256)  # Should be 384
+    pair = torch.randn(1, 1, num_atoms, num_atoms, 16)  # Should be 32
+    sing = torch.randn(1, num_atoms, 256)  # Should be 384
+
+    # Adjust tensor dimensions to correct values
     s_trunk = adjust_tensor_feature_dim(s_trunk, 384, "s_trunk")
     pair = adjust_tensor_feature_dim(pair, 32, "pair")
     sing = adjust_tensor_feature_dim(sing, 384, "sing")
 
-    # trunk_embeddings uses the adjusted tensors
-    trunk_embeddings = {
+    return {
         "s_trunk": s_trunk,
         "pair": pair,
         "sing": sing,
     }
 
+
+def _validate_output_coordinates(coords, expected_num_atoms=5):
+    """
+    Validate the output coordinates from diffusion model.
+
+    Args:
+        coords: Output coordinate tensor
+        expected_num_atoms: Expected number of atoms
+
+    Raises:
+        AssertionError: If validation fails
+    """
+    # Check dimensions
+    assert coords.size(-2) == expected_num_atoms, \
+        f"Final coords should have {expected_num_atoms} atoms (second-to-last dimension)"
+    assert coords.size(-1) == 3, "Final coords should have 3 coordinates (last dimension)"
+
+    # Check for invalid values
+    assert not torch.isnan(coords).any(), "Output contains NaN values"
+    assert not torch.isinf(coords).any(), "Output contains infinity values"
+
+
+@pytest.mark.xfail(reason="This test requires deeper integration of shape_utils in the diffusion module")
+def test_single_sample_shape_expansion():
+    """
+    Ensures single-sample usage no longer triggers "Shape mismatch" assertion failures.
+    We forcibly make s_trunk 4D for single-sample, then rely on the updated logic
+    to expand atom_to_token_idx from [B,N_atom] to [B,1,N_atom].
+
+    This test now uses the shape_utils module to adjust tensor shapes.
+
+    Note: This test is marked as xfail because it requires deeper integration
+    of shape_utils in the diffusion module, which is beyond the scope of the
+    current fix for issue #14.
+    """
+    # Create configuration and manager
+    diffusion_config = _create_diffusion_config()
+    manager = ProtenixDiffusionManager(diffusion_config, device="cpu")
+
+    # Create input features and trunk embeddings
+    num_atoms = 5
+    input_feature_dict = _create_input_features(num_atoms)
+    trunk_embeddings = _create_mismatched_trunk_embeddings(num_atoms)
+
+    # Run inference
     inference_params = {"N_sample": 1, "num_steps": 2}
-    coords_init = torch.randn(1, 5, 3)
+    coords_init = torch.randn(1, num_atoms, 3)
     coords_final = manager.multi_step_inference(
         coords_init=coords_init,
         trunk_embeddings=trunk_embeddings,
@@ -89,19 +147,8 @@ def test_single_sample_shape_expansion():
         debug_logging=True,
     )
 
-    # The model may return coordinates with extra batch dimensions
-    # Check that the output has the correct final dimensions
-    assert (
-        coords_final.size(-2) == 5
-    ), "Final coords should have 5 atoms (second-to-last dimension)"
-    assert (
-        coords_final.size(-1) == 3
-    ), "Final coords should have 3 coordinates (last dimension)"
-
-    # Check that the output contains valid values
-    assert not torch.isnan(coords_final).any(), "Output contains NaN values"
-    assert not torch.isinf(coords_final).any(), "Output contains infinity values"
-
+    # Validate output
+    _validate_output_coordinates(coords_final, num_atoms)
     print(f"Test passed with coords shape = {coords_final.shape}")
 
 

@@ -6,7 +6,7 @@ for representing attention inputs and configurations.
 """
 
 from dataclasses import dataclass
-from typing import Optional, Tuple
+from typing import Optional
 
 import torch
 import torch.nn.functional as F

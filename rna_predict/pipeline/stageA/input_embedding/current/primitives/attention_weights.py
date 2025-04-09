@@ -7,7 +7,6 @@ the actual attention weights.
 """
 
 import math
-import warnings
 from typing import Optional, Tuple
 
 import torch
@@ -76,11 +75,11 @@ def _handle_bias_dimension_mismatch(
 ) -> torch.Tensor:
     """
     Handle dimension mismatch between attention weights and bias.
-    
+
     Args:
         attn_weight: Attention weight tensor
         attn_bias: Attention bias tensor
-        
+
     Returns:
         Adjusted attention bias tensor
     """
@@ -97,8 +96,22 @@ def _handle_bias_dimension_mismatch(
                 attn_bias.size(3),
                 attn_bias.size(4),
             )
-    
+
     return attn_bias
+
+
+def _get_dimension_sizes(tensor: torch.Tensor, dim_index: int) -> Optional[int]:
+    """
+    Safely get the size of a specific dimension in a tensor.
+
+    Args:
+        tensor: Input tensor
+        dim_index: Dimension index to check
+
+    Returns:
+        Size of the dimension or None if dimension doesn't exist
+    """
+    return tensor.size(dim_index) if tensor.dim() > dim_index else None
 
 
 def _handle_dim2_mismatch(
@@ -106,31 +119,31 @@ def _handle_dim2_mismatch(
 ) -> torch.Tensor:
     """
     Handle mismatch at dimension 2 between attention weights and bias.
-    
+
     Args:
         attn_weight: Attention weight tensor
         attn_bias: Attention bias tensor
-        
+
     Returns:
         Adjusted attention bias tensor
     """
-    if attn_weight.dim() >= 3 and attn_bias.dim() >= 3:
-        dim_2_weight = attn_weight.size(2) if attn_weight.dim() > 2 else None
-        dim_2_bias = attn_bias.size(2) if attn_bias.dim() > 2 else None
+    # Early return if tensors don't have enough dimensions
+    if attn_weight.dim() < 3 or attn_bias.dim() < 3:
+        return attn_bias
 
-        if (
-            dim_2_weight is not None
-            and dim_2_bias is not None
-            and dim_2_weight != dim_2_bias
-        ):
-            # We have a mismatch at dimension 2
-            # Create a new tensor with the right shape
-            if attn_bias.dim() == 5:  # 5D case
-                return _handle_5d_bias_mismatch(attn_bias, dim_2_weight, dim_2_bias)
-            else:  # Handle other dimensionality cases
-                return _handle_other_bias_mismatch(attn_bias, dim_2_weight, dim_2_bias)
-    
-    return attn_bias
+    # Get dimension sizes
+    dim_2_weight = _get_dimension_sizes(attn_weight, 2)
+    dim_2_bias = _get_dimension_sizes(attn_bias, 2)
+
+    # Check for dimension mismatch
+    if dim_2_weight is None or dim_2_bias is None or dim_2_weight == dim_2_bias:
+        return attn_bias
+
+    # Handle mismatch based on tensor dimensionality
+    if attn_bias.dim() == 5:
+        return _handle_5d_bias_mismatch(attn_bias, dim_2_weight, dim_2_bias)
+    else:
+        return _handle_other_bias_mismatch(attn_bias, dim_2_weight, dim_2_bias)
 
 
 def _handle_5d_bias_mismatch(
@@ -138,12 +151,12 @@ def _handle_5d_bias_mismatch(
 ) -> torch.Tensor:
     """
     Handle 5D bias tensor mismatch.
-    
+
     Args:
         attn_bias: 5D attention bias tensor
         dim_2_weight: Target dimension size from weight tensor
         dim_2_bias: Current dimension size in bias tensor
-        
+
     Returns:
         Adjusted 5D bias tensor
     """
@@ -157,7 +170,7 @@ def _handle_5d_bias_mismatch(
         device=attn_bias.device,
         dtype=attn_bias.dtype,
     )
-    
+
     # Copy the data from the original bias (up to the smaller dimension)
     min_dim = min(dim_2_weight, dim_2_bias)
 
@@ -180,12 +193,12 @@ def _handle_other_bias_mismatch(
 ) -> torch.Tensor:
     """
     Handle non-5D bias tensor mismatch.
-    
+
     Args:
         attn_bias: Attention bias tensor (not 5D)
         dim_2_weight: Target dimension size from weight tensor
         dim_2_bias: Current dimension size in bias tensor
-        
+
     Returns:
         Adjusted bias tensor
     """
@@ -196,15 +209,66 @@ def _handle_other_bias_mismatch(
     new_bias = torch.zeros(
         new_shape, device=attn_bias.device, dtype=attn_bias.dtype
     )
-    
+
     # Copy the data from the original bias (up to the smaller dimension)
     min_dim = min(dim_2_weight, dim_2_bias)
     if len(new_shape) == 3:
         new_bias[:, :, :min_dim] = attn_bias[:, :, :min_dim]
     elif len(new_shape) == 4:
         new_bias[:, :, :min_dim, :] = attn_bias[:, :, :min_dim, :]
-    
+
     return new_bias
+
+
+def _create_bias_with_target_shape(attn_bias: torch.Tensor, target_shape: list) -> torch.Tensor:
+    """
+    Create a new bias tensor with the target shape and copy data from original bias.
+
+    Args:
+        attn_bias: Original attention bias tensor
+        target_shape: Target shape for the new bias tensor
+
+    Returns:
+        New bias tensor with target shape
+    """
+    # Create a new bias tensor with the target shape
+    new_bias = torch.zeros(
+        target_shape, device=attn_bias.device, dtype=attn_bias.dtype
+    )
+
+    # Copy data from the original bias as much as possible
+    for idx in range(min(len(target_shape), len(attn_bias.shape))):
+        # Skip dimensions that can be broadcast
+        if idx < len(attn_bias.shape) and attn_bias.shape[idx] == 1:
+            continue
+
+        # Handle dimensions that need reshaping
+        if idx < len(attn_bias.shape) and attn_bias.shape[idx] != target_shape[idx]:
+            # Use the first elements up to the smaller size
+            min_size = min(attn_bias.shape[idx], target_shape[idx])
+            _copy_bias_slice(new_bias, attn_bias, idx, min_size)
+
+    return new_bias
+
+
+def _copy_bias_slice(new_bias: torch.Tensor, original_bias: torch.Tensor, dim_idx: int, size: int) -> None:
+    """
+    Copy a slice of the original bias to the new bias tensor along a specific dimension.
+
+    Args:
+        new_bias: Target bias tensor
+        original_bias: Source bias tensor
+        dim_idx: Dimension index to slice
+        size: Size of the slice to copy
+    """
+    if dim_idx == 0:
+        new_bias[:size] = original_bias[:size]
+    elif dim_idx == 1:
+        new_bias[:, :size] = original_bias[:, :size]
+    elif dim_idx == 2:
+        new_bias[:, :, :size] = original_bias[:, :, :size]
+    elif dim_idx == 3:
+        new_bias[:, :, :, :size] = original_bias[:, :, :, :size]
 
 
 def _handle_direct_bias_addition(
@@ -212,11 +276,11 @@ def _handle_direct_bias_addition(
 ) -> torch.Tensor:
     """
     Handle direct addition of bias to attention weights with error handling.
-    
+
     Args:
         attn_weight: Attention weight tensor
         attn_bias: Attention bias tensor
-        
+
     Returns:
         Attention weight tensor with bias added
     """
@@ -226,54 +290,24 @@ def _handle_direct_bias_addition(
     except RuntimeError as e:
         # If we still have a shape mismatch, print detailed information and try to fix it
         print(f"WARNING: Shape mismatch in attention: {e}")
-        print(
-            f"attn_weight.shape={attn_weight.shape}, attn_bias.shape={attn_bias.shape}"
-        )
+        print(f"attn_weight.shape={attn_weight.shape}, attn_bias.shape={attn_bias.shape}")
 
-        # Try to reshape the bias to match the weight
-        if "must match" in str(e).lower():
-            # Get the target shape from the weight tensor
+        # Only handle shape mismatch errors
+        if "must match" not in str(e).lower():
+            raise
+
+        try:
+            # Get the target shape from the weight tensor and create a new bias
             target_shape = list(attn_weight.shape)
-
-            # Create a new bias tensor with the target shape
-            new_bias = torch.zeros(
-                target_shape, device=attn_bias.device, dtype=attn_bias.dtype
-            )
-
-            # Copy data from the original bias as much as possible
-            try:
-                # Try to broadcast the original bias to the new shape
-                for idx in range(min(len(target_shape), len(attn_bias.shape))):
-                    if idx < len(attn_bias.shape) and attn_bias.shape[idx] == 1:
-                        # This dimension can be broadcast
-                        continue
-                    elif (
-                        idx < len(attn_bias.shape)
-                        and attn_bias.shape[idx] != target_shape[idx]
-                    ):
-                        # This dimension needs to be reshaped
-                        # We'll just use the first elements up to the smaller size
-                        min_size = min(attn_bias.shape[idx], target_shape[idx])
-                        if idx == 0:
-                            new_bias[:min_size] = attn_bias[:min_size]
-                        elif idx == 1:
-                            new_bias[:, :min_size] = attn_bias[:, :min_size]
-                        elif idx == 2:
-                            new_bias[:, :, :min_size] = attn_bias[:, :, :min_size]
-                        elif idx == 3:
-                            new_bias[:, :, :, :min_size] = attn_bias[
-                                :, :, :, :min_size
-                            ]
-            except Exception as copy_error:
-                print(
-                    f"WARNING: Failed to copy data to new bias tensor: {copy_error}"
-                )
+            new_bias = _create_bias_with_target_shape(attn_bias, target_shape)
 
             # Use the new bias tensor
             return attn_weight + new_bias
-        else:
-            # If it's not a shape mismatch, re-raise the exception
-            raise
+        except Exception as copy_error:
+            print(f"WARNING: Failed to copy data to new bias tensor: {copy_error}")
+            # Create a simple zero bias with the target shape as last resort
+            zero_bias = torch.zeros_like(attn_weight)
+            return attn_weight + zero_bias
 
 
 def compute_attention_weights(

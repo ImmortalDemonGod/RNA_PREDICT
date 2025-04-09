@@ -255,6 +255,183 @@ def _get_attention_bias(
     return create_local_attn_bias(bias_inputs)
 
 
+def _select_attention_bias(inputs: LocalAttentionInputs) -> Optional[torch.Tensor]:
+    """
+    Select and prepare the appropriate attention bias tensor.
+
+    Args:
+        inputs (LocalAttentionInputs): Input parameters
+
+    Returns:
+        Optional[torch.Tensor]: Processed bias tensor or None if not applicable
+    """
+    # Prioritize attn_bias, fall back to trunked_attn_bias
+    bias_to_process = inputs.attn_bias
+
+    # If no direct bias, try trunked bias
+    if bias_to_process is None:
+        bias_to_process = inputs.trunked_attn_bias
+
+        # Handle 5D trunked bias case
+        if bias_to_process is not None and bias_to_process.ndim == 5:
+            # If the block dimension is 1, we can safely squeeze it
+            if bias_to_process.shape[-3] == 1:
+                bias_to_process = bias_to_process.squeeze(-3)
+            else:
+                # This case is ambiguous, proceed without bias
+                warnings.warn(
+                    f"Trunked bias has unexpected 5D shape {bias_to_process.shape} "
+                    f"with block dim != 1. Cannot safely adapt for small tensor processing. Skipping bias."
+                )
+                bias_to_process = None
+
+    return bias_to_process
+
+
+def _reshape_bias_tensor(bias: torch.Tensor, q_shape: Tuple[int, ...], k_shape: Tuple[int, ...]) -> Optional[torch.Tensor]:
+    """
+    Reshape bias tensor to match query and key dimensions.
+
+    Args:
+        bias: Attention bias tensor
+        q_shape: Shape of query tensor
+        k_shape: Shape of key tensor
+
+    Returns:
+        Optional[torch.Tensor]: Reshaped bias tensor or None if reshaping fails
+    """
+    try:
+        expected_size = q_shape[-2] * k_shape[-2]
+        actual_size = bias.numel()
+
+        # If total elements match, we can reshape directly
+        if expected_size == actual_size:
+            target_bias_shape = (*bias.shape[:-2], q_shape[-2], k_shape[-2])
+            return bias.reshape(target_bias_shape)
+
+        # If sizes don't match, use shape_utils to adjust
+        from rna_predict.utils.shape_utils import adjust_attention_bias
+        target_scores_shape = (*bias.shape[:-2], q_shape[-2], k_shape[-2])
+        return adjust_attention_bias(
+            bias,
+            target_scores_shape,
+            tensor_name="trunked_attention_bias"
+        )
+    except (RuntimeError, ValueError):
+        # Reshaping failed
+        return None
+
+
+def _apply_fallback_bias_adjustment(bias: Optional[torch.Tensor], q_shape: Tuple[int, ...], k_shape: Tuple[int, ...], device: torch.device) -> Optional[torch.Tensor]:
+    """
+    Apply fallback bias adjustment when primary reshaping fails.
+
+    Args:
+        bias: Original bias tensor (may be None)
+        q_shape: Shape of query tensor
+        k_shape: Shape of key tensor
+        device: Device for tensor creation
+
+    Returns:
+        Optional[torch.Tensor]: Adjusted bias tensor or None if adjustment fails
+    """
+    try:
+        from rna_predict.utils.shape_utils import adjust_attention_bias
+
+        # Create target shape for scores
+        target_scores_shape = (1, 1, q_shape[-2], k_shape[-2])
+
+        # If bias is None, create a zero bias tensor
+        if bias is None:
+            bias = torch.zeros(target_scores_shape, device=device)
+
+        # Adjust bias to match target shape
+        return adjust_attention_bias(
+            bias,
+            target_scores_shape,
+            tensor_name="fallback_attention_bias"
+        )
+    except Exception as fallback_error:
+        warnings.warn(f"Fallback bias adjustment failed: {fallback_error}. Proceeding without bias.")
+        return None
+
+
+def _create_expanded_bias_tensor(bias: torch.Tensor, target_dim_size: int) -> torch.Tensor:
+    """
+    Create a new bias tensor with expanded dimension 2.
+
+    Args:
+        bias: Original bias tensor
+        target_dim_size: Target size for dimension 2
+
+    Returns:
+        torch.Tensor: New bias tensor with expanded dimension 2
+    """
+    if bias.dim() == 5:  # 5D case
+        new_bias = torch.zeros(
+            bias.shape[0],
+            bias.shape[1],
+            target_dim_size,
+            bias.shape[3],
+            bias.shape[4],
+            device=bias.device,
+            dtype=bias.dtype
+        )
+    else:  # Other dimensionality cases
+        new_shape = list(bias.shape)
+        new_shape[2] = target_dim_size
+        new_bias = torch.zeros(new_shape, device=bias.device, dtype=bias.dtype)
+
+    return new_bias
+
+
+def _copy_bias_data(new_bias: torch.Tensor, bias: torch.Tensor, source_dim_size: int) -> torch.Tensor:
+    """
+    Copy data from original bias to new bias tensor.
+
+    Args:
+        new_bias: Target bias tensor
+        bias: Source bias tensor
+        source_dim_size: Size of dimension 2 in source tensor
+
+    Returns:
+        torch.Tensor: New bias tensor with copied data
+    """
+    if new_bias.dim() == 3:
+        new_bias[:, :, :source_dim_size] = bias
+    elif new_bias.dim() == 4:
+        new_bias[:, :, :source_dim_size, :] = bias
+    elif new_bias.dim() == 5:
+        new_bias[:, :, :source_dim_size] = bias
+
+    return new_bias
+
+
+def _fix_dimension_mismatch(bias: torch.Tensor, q_dim_2: int, bias_dim_2: int) -> torch.Tensor:
+    """
+    Fix dimension mismatch between query and bias tensors at dimension 2.
+
+    Args:
+        bias: Attention bias tensor
+        q_dim_2: Size of dimension 2 in query tensor
+        bias_dim_2: Size of dimension 2 in bias tensor
+
+    Returns:
+        torch.Tensor: Adjusted bias tensor
+    """
+    # Case 1: Expand bias from dimension 4 to 5
+    if q_dim_2 == 5 and bias_dim_2 == 4:
+        new_bias = _create_expanded_bias_tensor(bias, 5)
+        return _copy_bias_data(new_bias, bias, bias_dim_2)
+
+    # Case 2: Slice bias from dimension 5 to 4
+    if q_dim_2 == 4 and bias_dim_2 == 5:
+        return bias[:, :, :4] if bias.dim() >= 3 else bias
+
+    # Default: return original bias if no specific case matches
+    return bias
+
+
 def _process_small_tensors(inputs: LocalAttentionInputs) -> Optional[torch.Tensor]:
     """
     Process small tensors directly without chunking.
@@ -266,185 +443,51 @@ def _process_small_tensors(inputs: LocalAttentionInputs) -> Optional[torch.Tenso
         Optional[torch.Tensor]: Processed attention output or None if not applicable
     """
     # Check if tensors are small enough to process directly
-    if inputs.q.shape[-2] <= inputs.n_queries and inputs.k.shape[-2] <= inputs.n_keys:
-        # --- Start Fix: Select the correct bias ---
-        # Prioritize attn_bias, fall back to trunked_attn_bias
-        bias_to_process = inputs.attn_bias
-        if bias_to_process is None:
-            bias_to_process = inputs.trunked_attn_bias
-            # If trunked_attn_bias is used, it might be 5D [..., H, B, Q, K]
-            # We need to adapt it for the expected 4D [..., H, Q, K] in _attention
-            if bias_to_process is not None and bias_to_process.ndim == 5:
-                # Assuming the extra dim is the block dim at index -3
-                # Squeeze it out if it's size 1, otherwise raise error or warn
-                if bias_to_process.shape[-3] == 1:
-                    bias_to_process = bias_to_process.squeeze(-3)
-                else:
-                    # This case is ambiguous, maybe log and proceed without bias
-                    warnings.warn(
-                        f"Trunked bias has unexpected 5D shape {bias_to_process.shape} "
-                        f"with block dim != 1. Cannot safely adapt for small tensor processing. Skipping bias."
-                    )
-                    bias_to_process = None
+    if not (inputs.q.shape[-2] <= inputs.n_queries and inputs.k.shape[-2] <= inputs.n_keys):
+        return None
 
-        processed_bias = None  # Initialize bias to pass to _attention as None
-        if bias_to_process is not None:
-            # Apply size check and reshape logic to the selected bias
-            try:
-                # --- Start Mypy Fix ---
-                assert bias_to_process is not None  # Add assertion for type checker
-                # --- End Mypy Fix ---
-                expected_size = inputs.q.shape[-2] * inputs.k.shape[-2]
-                actual_size = bias_to_process.numel()
+    # Step 1: Select the appropriate bias tensor
+    bias_to_process = _select_attention_bias(inputs)
+    processed_bias = None
 
-                # Check if the total number of elements matches.
-                # This is less strict than exact shape match and allows for broadcasting.
-                if expected_size == actual_size:
-                    # Reshape if the total element count matches
-                    # Target shape for bias in _attention is typically [..., H, N_q, N_kv]
-                    # We need to infer H (num_heads) if possible, or assume broadcasting works.
-                    # Let's try reshaping to the direct query/key dims first.
-                    target_bias_shape = (
-                        *bias_to_process.shape[:-2],
-                        inputs.q.shape[-2],
-                        inputs.k.shape[-2],
-                    )
-                    processed_bias = bias_to_process.reshape(target_bias_shape)
+    # Step 2: Process the bias if present
+    if bias_to_process is not None:
+        # Try to reshape the bias tensor
+        processed_bias = _reshape_bias_tensor(bias_to_process, inputs.q.shape, inputs.k.shape)
 
-                # If sizes don't match, use shape_utils to adjust the bias
-                elif expected_size != actual_size:
-                    from rna_predict.utils.shape_utils import adjust_attention_bias
+        # If reshaping failed, log the issue and try fallback method
+        if processed_bias is None:
+            bias_shape = bias_to_process.shape if bias_to_process is not None else "Unknown (None)"
+            warnings.warn(
+                f"Warning: Couldn't reshape bias from {bias_shape} to match query/key dimensions. "
+                f"q shape: {inputs.q.shape}, k shape: {inputs.k.shape}. "
+                f"Attempting fallback bias adjustment."
+            )
+            processed_bias = _apply_fallback_bias_adjustment(
+                bias_to_process, inputs.q.shape, inputs.k.shape, inputs.q.device
+            )
 
-                    # Create target shape for scores based on query and key dimensions
-                    target_scores_shape = (*bias_to_process.shape[:-2], inputs.q.shape[-2], inputs.k.shape[-2])
+    # Step 3: Fix dimension mismatches if needed
+    if processed_bias is not None and inputs.q.dim() >= 3 and processed_bias.dim() >= 3:
+        # Check for dimension mismatch at dim 2 (common issue in tests)
+        q_dim_2 = inputs.q.size(2) if inputs.q.dim() > 2 else None
+        bias_dim_2 = processed_bias.size(2) if processed_bias.dim() > 2 else None
 
-                    # Adjust bias to match the target scores shape
-                    processed_bias = adjust_attention_bias(
-                        bias_to_process,
-                        target_scores_shape,
-                        tensor_name="trunked_attention_bias"
-                    )
+        if q_dim_2 is not None and bias_dim_2 is not None and q_dim_2 != bias_dim_2:
+            processed_bias = _fix_dimension_mismatch(processed_bias, q_dim_2, bias_dim_2)
 
-            except (RuntimeError, ValueError) as e:
-                # If reshaping fails, skip using the bias
-                # --- Start Mypy Fix ---
-                # Ensure bias_to_process is not None before accessing shape in error message
-                bias_shape = (
-                    bias_to_process.shape
-                    if bias_to_process is not None
-                    else "Unknown (None)"
-                )
-                # --- End Mypy Fix ---
-                warnings.warn(
-                    f"Warning: Couldn't reshape selected bias from {bias_shape} to match query/key dimensions. "
-                    f"q shape: {inputs.q.shape}, k shape: {inputs.k.shape}. Error: {e}. "
-                    f"Attempting to adjust bias using shape_utils."
-                )
+    # Step 4: Create attention inputs and process
+    attention_inputs = AttentionInputs(
+        q=inputs.q,
+        k=inputs.k,
+        v=inputs.v,
+        attn_bias=processed_bias,
+        use_efficient_implementation=inputs.use_efficient_implementation,
+        attn_weight_dropout_p=inputs.attn_weight_dropout_p,
+        inplace_safe=inputs.inplace_safe,
+    )
 
-                try:
-                    from rna_predict.utils.shape_utils import adjust_attention_bias
-
-                    # Create target shape for scores based on query and key dimensions
-                    target_scores_shape = (1, 1, inputs.q.shape[-2], inputs.k.shape[-2])
-
-                    # If bias_to_process is None, create a zero bias tensor
-                    if bias_to_process is None:
-                        bias_to_process = torch.zeros(target_scores_shape, device=inputs.q.device)
-
-                    # Adjust bias to match the target scores shape
-                    processed_bias = adjust_attention_bias(
-                        bias_to_process,
-                        target_scores_shape,
-                        tensor_name="fallback_attention_bias"
-                    )
-                except Exception as fallback_error:
-                    warnings.warn(f"Fallback bias adjustment also failed: {fallback_error}. Proceeding without bias.")
-                    processed_bias = None
-        # --- End Fix ---
-
-        # Fix for the specific dimension mismatch at dimension 2 (5 vs 4)
-        # This handles the case seen in the failing tests
-        q = inputs.q
-        k = inputs.k
-        v = inputs.v
-
-        # Check if we have the specific dimension mismatch
-        if processed_bias is not None and q.dim() >= 3 and processed_bias.dim() >= 3:
-            # Check for dimension mismatch at dim 2 (common issue in tests)
-            q_dim_2 = q.size(2) if q.dim() > 2 else None
-            bias_dim_2 = processed_bias.size(2) if processed_bias.dim() > 2 else None
-
-            if q_dim_2 is not None and bias_dim_2 is not None and q_dim_2 != bias_dim_2:
-                # We have a mismatch at dimension 2
-                if q_dim_2 == 5 and bias_dim_2 == 4:
-                    # Create a new tensor with the right shape instead of using expand
-                    # This handles the case where the bias has shape [1, 1, 4, 5, 5] and we need [1, 1, 5, 5, 5]
-                    if processed_bias.dim() == 5:  # 5D case
-                        # Create a new tensor with zeros
-                        new_bias = torch.zeros(
-                            processed_bias.shape[0],
-                            processed_bias.shape[1],
-                            5,  # Use 5 instead of 4
-                            processed_bias.shape[3],
-                            processed_bias.shape[4],
-                            device=processed_bias.device,
-                            dtype=processed_bias.dtype
-                        )
-                        # Copy the data from the original bias
-                        new_bias[:, :, :bias_dim_2] = processed_bias
-                        # Use the new bias
-                        processed_bias = new_bias
-                    else:  # Handle other dimensionality cases
-                        # Create a new tensor with the right shape
-                        old_shape = processed_bias.shape
-                        new_shape = list(old_shape)
-                        new_shape[2] = 5
-                        new_bias = torch.zeros(new_shape, device=processed_bias.device, dtype=processed_bias.dtype)
-                        # Copy the data from the original bias
-                        if len(new_shape) == 3:
-                            new_bias[:, :, :bias_dim_2] = processed_bias
-                        elif len(new_shape) == 4:
-                            new_bias[:, :, :bias_dim_2, :] = processed_bias
-                        processed_bias = new_bias
-                elif q_dim_2 == 4 and bias_dim_2 == 5:
-                    # Instead of expanding q, k, v, we'll reshape the bias to match them
-                    # This is safer than trying to expand the tensors
-                    if processed_bias.dim() == 5:  # 5D case
-                        # Create a new tensor with the right shape
-                        new_bias = torch.zeros(
-                            processed_bias.shape[0],
-                            processed_bias.shape[1],
-                            4,  # Use 4 instead of 5
-                            processed_bias.shape[3],
-                            processed_bias.shape[4],
-                            device=processed_bias.device,
-                            dtype=processed_bias.dtype
-                        )
-                        # Copy the data from the original bias (just use the first 4 elements)
-                        new_bias = processed_bias[:, :, :4]
-                        processed_bias = new_bias
-                    else:  # Handle other dimensionality cases
-                        # Create a new tensor with the right shape
-                        old_shape = processed_bias.shape
-                        new_shape = list(old_shape)
-                        new_shape[2] = 4
-                        # Just slice the bias to get the first 4 elements
-                        processed_bias = processed_bias[:, :, :4]
-
-        # Convert to AttentionInputs for compatibility
-        attention_inputs = AttentionInputs(
-            q=q,
-            k=k,
-            v=v,
-            attn_bias=processed_bias,  # Pass the potentially reshaped or None bias
-            use_efficient_implementation=inputs.use_efficient_implementation,
-            attn_weight_dropout_p=inputs.attn_weight_dropout_p,
-            inplace_safe=inputs.inplace_safe,
-        )
-
-        return _attention(attention_inputs)
-
-    return None
+    return _attention(attention_inputs)
 
 
 def _get_bias_slice(
