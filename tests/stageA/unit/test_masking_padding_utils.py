@@ -9,7 +9,6 @@ import math
 from typing import List, Tuple
 from unittest.mock import patch
 
-import pytest
 import torch
 
 from rna_predict.pipeline.stageA.input_embedding.current.primitives.attention.masking_padding_utils import (

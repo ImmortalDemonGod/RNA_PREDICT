@@ -29,8 +29,10 @@ from .attention.dense_trunk import (
 from .attention_base import (
     AdaptiveLayerNorm,
     Attention,
-    _attention,
 )
+
+# From attention_core.py
+from .attention_core import attention as _attention
 
 # From attention_utils.py
 from .attention_utils import (
