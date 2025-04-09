@@ -6,7 +6,6 @@ This module provides fixes for tensor shape compatibility issues in the Stage D 
 
 from functools import wraps
 import torch
-import einops
 
 def _extract_mismatch_dimension(error_msg: str) -> int | None:
     """

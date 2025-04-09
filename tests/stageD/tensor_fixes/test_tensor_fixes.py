@@ -1,4 +1,3 @@
-import pytest
 import torch
 import einops
 from rna_predict.pipeline.stageD.tensor_fixes import (
@@ -27,7 +26,8 @@ def test_handle_attention_bias_mismatch():
     # Create tensors with 4 and 5 dimensions at the specified mismatch dimension
     t1 = torch.randn(2, 3, 4, 10)  # tensor with size 4 at dim 2
     t2 = torch.randn(2, 3, 5, 10)  # tensor with size 5 at dim 2
-    mock_add = lambda x, y: x + y  # Simple mock add function
+    def mock_add(x, y):
+        return x + y  # Simple mock add function
 
     # Test 4-to-5 dimension expansion
     result = _handle_attention_bias_mismatch(t1, t2, 2, mock_add)

@@ -4,7 +4,7 @@ Local attention implementation.
 This module contains functions for performing local attention operations.
 """
 
-from typing import Optional, Tuple
+from typing import Optional
 
 import torch
 

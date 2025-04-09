@@ -5,7 +5,7 @@ This module contains data structures and type definitions used in attention oper
 """
 
 from dataclasses import dataclass
-from typing import Any, List, Optional, Tuple, TypedDict, Union
+from typing import List, Optional, TypedDict, Union
 
 import torch
 
