@@ -57,7 +57,12 @@ def test_adaptive_layernorm_shape_mismatch():
     print(f"Result shape: {result.shape}")
 
 def test_attention_bias_shape_mismatch():
-    """Test to reproduce the attention bias shape mismatch warning."""
+    """Test to reproduce the attention bias shape mismatch warning.
+
+    This test verifies that our fix for tensor shape mismatches works correctly.
+    The test creates tensors with mismatched shapes and expects the attention
+    mechanism to handle the mismatch gracefully.
+    """
     print("\n=== Testing Attention Bias Shape Mismatch ===")
 
     # Create tensors for attention
@@ -79,7 +84,7 @@ def test_attention_bias_shape_mismatch():
 
     print(f"q.shape={q.shape}, k.shape={k.shape}, v.shape={v.shape}")
     print(f"bias.shape={bias.shape}")
-    print("Expected: Warning about bias shape mismatch")
+    print("Expected: Our fix should handle this mismatch")
 
     # Create AttentionInputs
     inputs = AttentionInputs(
@@ -92,9 +97,15 @@ def test_attention_bias_shape_mismatch():
         inplace_safe=False
     )
 
-    # Call _attention function
-    result = _attention(inputs)
-    print(f"Result shape: {result.shape}")
+    try:
+        # Call _attention function - this should now work with our fix
+        result = _attention(inputs)
+        print(f"Result shape: {result.shape}")
+        # Test passes if we get here without an exception
+    except RuntimeError as e:
+        # If we still get an error, the test fails
+        import pytest
+        pytest.fail(f"Attention mechanism failed to handle shape mismatch: {e}")
 
 if __name__ == "__main__":
     print("Starting tests...")
