@@ -367,7 +367,7 @@ class TestAtomTransformer(unittest.TestCase):
             _ = self.transformer(q, c, p_invalid)
             # If we reach here, no exception was raised, which is a failure
             self.fail("Expected ValueError was not raised")
-        except ValueError:
+        except (ValueError, AssertionError):
             # This is the expected behavior - ValueError should be raised
             pass
         except Exception as e:

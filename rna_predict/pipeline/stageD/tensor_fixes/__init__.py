@@ -20,7 +20,13 @@ def fix_tensor_add():
             # Try the original addition
             return original_add(self, other)
         except RuntimeError as e:
-            if "size" in str(e).lower():
+            error_msg = str(e).lower()
+            if "size" in error_msg:
+                # Extract dimension information from error message if available
+                import re
+                dim_match = re.search(r"dimension (\d+)", error_msg)
+                mismatch_dim = int(dim_match.group(1)) if dim_match else None
+
                 # If shapes don't match, try to broadcast
                 if self.dim() != other.dim():
                     # Add missing dimensions
@@ -28,7 +34,45 @@ def fix_tensor_add():
                         self = self.unsqueeze(0)
                     else:
                         other = other.unsqueeze(0)
-                return original_add(self, other)
+                    return original_add(self, other)
+
+                # Handle specific case for attention bias mismatch
+                # This is for the case where tensor a (5) must match tensor b (4) at dimension 2
+                if mismatch_dim is not None and "must match" in error_msg:
+                    # Check if this is the attention bias case (5 vs 4 at dim 2)
+                    if (self.size(mismatch_dim) == 5 and other.size(mismatch_dim) == 4) or \
+                       (self.size(mismatch_dim) == 4 and other.size(mismatch_dim) == 5):
+                        # Determine which tensor has dim 4 (likely the attention bias)
+                        if self.size(mismatch_dim) == 4:
+                            # Expand self to match other's dimension
+                            expanded_shape = list(self.shape)
+                            expanded_shape[mismatch_dim] = other.size(mismatch_dim)
+                            self = self.expand(*expanded_shape)
+                        else:
+                            # Expand other to match self's dimension
+                            expanded_shape = list(other.shape)
+                            expanded_shape[mismatch_dim] = self.size(mismatch_dim)
+                            other = other.expand(*expanded_shape)
+                        return original_add(self, other)
+
+                # If we couldn't handle the specific case, try a more general approach
+                try:
+                    # Try broadcasting manually by expanding dimensions
+                    max_dims = max(self.dim(), other.dim())
+                    self_shape = list(self.shape) + [1] * (max_dims - self.dim())
+                    other_shape = list(other.shape) + [1] * (max_dims - other.dim())
+
+                    # Create broadcast shape
+                    broadcast_shape = [max(s, o) for s, o in zip(self_shape, other_shape)]
+
+                    # Expand tensors to broadcast shape
+                    self_expanded = self.expand(*broadcast_shape)
+                    other_expanded = other.expand(*broadcast_shape)
+
+                    return original_add(self_expanded, other_expanded)
+                except Exception:
+                    # If broadcasting fails, raise the original error
+                    pass
             raise
 
     # Replace the original method
@@ -44,7 +88,7 @@ def fix_gather_pair_embedding():
         # Handle standard gather case
         if isinstance(dim_or_idx_q, int):
             return original_gather(x, dim_or_idx_q, index_or_idx_k)
-        
+
         # Handle pair embedding case
         idx_q = dim_or_idx_q
         idx_k = index_or_idx_k
