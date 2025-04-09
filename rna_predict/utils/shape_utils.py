@@ -8,7 +8,7 @@ which helps prevent shape mismatch errors in operations like LayerNorm and atten
 import logging
 import torch
 import torch.nn.functional as F
-from typing import Tuple, Optional
+from typing import Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -107,7 +107,8 @@ def adjust_attention_bias(
             # Pad with zeros
             pad_keys = n_keys - bias.shape[-1]
             # We want to pad the last dimension on the right
-            padding = (0, pad_keys)
+            # Create padding tuple for F.pad: (left_last, right_last, left_second_last, right_second_last)
+            padding = (0, pad_keys, 0, 0)
             bias = F.pad(bias, padding, mode='constant', value=0)
         elif bias.shape[-1] > n_keys:
             # Slice to match

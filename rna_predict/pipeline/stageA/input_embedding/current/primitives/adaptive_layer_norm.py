@@ -36,6 +36,54 @@ class AdaptiveLayerNorm(nn.Module):
         nn.init.zeros_(self.linear_s.bias)
         nn.init.zeros_(self.linear_nobias_s.weight)
 
+    def _has_compatible_dimensions(self, a: torch.Tensor, s: torch.Tensor) -> bool:
+        """
+        Check if tensors have compatible dimensions for sample dimension addition.
+
+        Args:
+            a: Input tensor to be conditioned
+            s: Conditioning tensor
+
+        Returns:
+            Boolean indicating whether dimensions are compatible
+        """
+        return (s.dim() > a.dim() and
+                s.dim() == a.dim() + 1 and
+                s.shape[0] == a.shape[0])
+
+    def _has_matching_feature_dimensions(self, a: torch.Tensor, s: torch.Tensor) -> bool:
+        """
+        Check if feature dimensions match between tensors.
+
+        Args:
+            a: Input tensor to be conditioned
+            s: Conditioning tensor
+
+        Returns:
+            Boolean indicating whether feature dimensions match
+        """
+        s_dims_to_match = s.shape[2:]
+        a_dims_to_match = a.shape[1:]
+        return s_dims_to_match == a_dims_to_match
+
+    def _should_add_sample_dimension(self, a: torch.Tensor, s: torch.Tensor) -> bool:
+        """
+        Determine if tensor 'a' needs a sample dimension added to match 's'.
+
+        Args:
+            a: Input tensor to be conditioned
+            s: Conditioning tensor
+
+        Returns:
+            Boolean indicating whether to add a sample dimension
+        """
+        # First check if dimensions are compatible for adding a sample dimension
+        if not self._has_compatible_dimensions(a, s):
+            return False
+
+        # Then check if feature dimensions match
+        return self._has_matching_feature_dimensions(a, s)
+
     def _check_and_adjust_dimensions(
         self, a: torch.Tensor, s: torch.Tensor
     ) -> tuple[torch.Tensor, bool]:
@@ -51,25 +99,35 @@ class AdaptiveLayerNorm(nn.Module):
         """
         a_was_unsqueezed = False
 
-        # Check if s has one more dimension than a (missing sample dimension)
-        has_extra_dim = s.dim() > a.dim()
-        is_one_dim_difference = s.dim() == a.dim() + 1
-        matching_batch_dim = s.shape[0] == a.shape[0]
-
-        if has_extra_dim and is_one_dim_difference and matching_batch_dim:
-            # Check if remaining dimensions match (ignoring sample dim)
-            s_dims_to_match = s.shape[2:]
-            a_dims_to_match = a.shape[1:]
-
-            if s_dims_to_match == a_dims_to_match:
-                # Add missing sample dimension to a
-                a = a.unsqueeze(1)
-                a_was_unsqueezed = True
-                warnings.warn(
-                    f"INFO: Unsqueezed 'a' in AdaptiveLayerNorm to match 's'. New 'a' shape: {a.shape}"
-                )
+        # Check if we need to add a sample dimension
+        if self._should_add_sample_dimension(a, s):
+            # Add missing sample dimension to a
+            a = a.unsqueeze(1)
+            a_was_unsqueezed = True
+            warnings.warn(
+                f"INFO: Unsqueezed 'a' in AdaptiveLayerNorm to match 's'. New 'a' shape: {a.shape}"
+            )
 
         return a, a_was_unsqueezed
+
+    def _needs_singleton_dimension(self, a: torch.Tensor, scale: torch.Tensor) -> bool:
+        """
+        Check if scale and shift tensors need a singleton dimension for broadcasting.
+
+        Args:
+            a: Target tensor for shape reference
+            scale: Scale tensor to check
+
+        Returns:
+            Boolean indicating whether to add a singleton dimension
+        """
+        # Check if we need to add a singleton dimension for broadcasting
+        return (
+            a.dim() == 4 and
+            scale.dim() == 3 and
+            a.shape[0] == scale.shape[0] and
+            a.shape[2:] == scale.shape[1:]
+        )
 
     def _prepare_scale_and_shift(
         self, s: torch.Tensor, a: torch.Tensor
@@ -94,12 +152,7 @@ class AdaptiveLayerNorm(nn.Module):
         shift = self.linear_nobias_s(s)
 
         # Add singleton dimension if needed for broadcasting
-        if (
-            a.dim() == 4
-            and scale.dim() == 3
-            and a.shape[0] == scale.shape[0]
-            and a.shape[2:] == scale.shape[1:]
-        ):
+        if self._needs_singleton_dimension(a, scale):
             scale = scale.unsqueeze(1)  # Shape [B, 1, N, C_a]
             shift = shift.unsqueeze(1)  # Shape [B, 1, N, C_a]
 
@@ -209,6 +262,24 @@ class AdaptiveLayerNorm(nn.Module):
 
         return scale, shift
 
+    def _should_squeeze_tensor(self, tensor: torch.Tensor, original_shape: tuple, was_unsqueezed: bool) -> bool:
+        """
+        Determine if tensor should be squeezed to restore original shape.
+
+        Args:
+            tensor: Input tensor
+            original_shape: Original shape to restore to
+            was_unsqueezed: Whether the tensor was unsqueezed
+
+        Returns:
+            Boolean indicating whether to squeeze the tensor
+        """
+        return (
+            was_unsqueezed and
+            tensor.dim() > len(original_shape) and
+            tensor.shape[1] == 1
+        )
+
     def _restore_original_shape(
         self, tensor: torch.Tensor, original_shape: tuple, was_unsqueezed: bool
     ) -> torch.Tensor:
@@ -223,11 +294,7 @@ class AdaptiveLayerNorm(nn.Module):
         Returns:
             Tensor with original shape restored if needed
         """
-        if (
-            was_unsqueezed
-            and tensor.dim() > len(original_shape)
-            and tensor.shape[1] == 1
-        ):
+        if self._should_squeeze_tensor(tensor, original_shape, was_unsqueezed):
             return tensor.squeeze(1)
         return tensor
 
