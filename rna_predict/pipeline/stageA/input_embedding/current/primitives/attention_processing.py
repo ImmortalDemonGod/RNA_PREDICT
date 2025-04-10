@@ -7,22 +7,25 @@ including handling different query-key-value configurations and small tensor pro
 
 import math
 import warnings
-from typing import Optional
+from typing import NamedTuple, Optional
 
 import torch
 import torch.nn.functional as F
 
 from .attention_core import (
     AttentionInputs,
-    ProcessQueryInputs,
     ProcessDifferentQueryInputs,
+    ProcessQueryInputs,
     attention,
 )
 
 
-def process_same_query_keyvalue(inputs: ProcessQueryInputs, num_heads: int,
-                               attn_weight_dropout_p: float,
-                               use_efficient_implementation: bool) -> torch.Tensor:
+def process_same_query_keyvalue(
+    inputs: ProcessQueryInputs,
+    num_heads: int,
+    attn_weight_dropout_p: float,
+    use_efficient_implementation: bool,
+) -> torch.Tensor:
     """
     Process attention when query and key/value are the same.
 
@@ -58,61 +61,84 @@ def process_same_query_keyvalue(inputs: ProcessQueryInputs, num_heads: int,
             pass
 
     # Otherwise use batch matmul
-    return _process_with_batch_matmul(
-        q, k, v, inputs.attn_bias, num_heads,
-        attn_weight_dropout_p, use_efficient_implementation,
-        inputs.inplace_safe
+    # Create parameter object
+    tensor_inputs = TensorInputs(q=q, k=k, v=v)
+    config = AttentionConfig(
+        num_heads=num_heads,
+        attn_weight_dropout_p=attn_weight_dropout_p,
+        use_efficient_implementation=use_efficient_implementation,
+        inplace_safe=inputs.inplace_safe,
     )
+    params = BatchMatmulParams(
+        tensors=tensor_inputs, attn_bias=inputs.attn_bias, config=config
+    )
+    return _process_with_batch_matmul(params)
 
 
-def _process_with_batch_matmul(
-    q: torch.Tensor,
-    k: torch.Tensor,
-    v: torch.Tensor,
-    attn_bias: Optional[torch.Tensor],
-    num_heads: int,
-    attn_weight_dropout_p: float,
-    use_efficient_implementation: bool,
+class TensorInputs(NamedTuple):
+    """
+    Base class for tensor inputs.
+    """
+
+    q: torch.Tensor
+    k: torch.Tensor
+    v: torch.Tensor
+
+
+class AttentionConfig(NamedTuple):
+    """
+    Configuration for attention processing.
+    """
+
+    num_heads: int
+    attn_weight_dropout_p: float
+    use_efficient_implementation: bool
     inplace_safe: bool
-) -> torch.Tensor:
+
+
+class BatchMatmulParams(NamedTuple):
+    """
+    Parameter object for batch matrix multiplication attention processing.
+    Uses NamedTuple for immutability and reduced overhead.
+    """
+
+    tensors: TensorInputs
+    attn_bias: Optional[torch.Tensor]
+    config: AttentionConfig
+
+
+def _process_with_batch_matmul(params: BatchMatmulParams) -> torch.Tensor:
     """
     Process attention using batch matrix multiplication.
 
     Args:
-        q: Query tensor
-        k: Key tensor
-        v: Value tensor
-        attn_bias: Optional attention bias
-        num_heads: Number of attention heads
-        attn_weight_dropout_p: Dropout probability
-        use_efficient_implementation: Whether to use efficient implementation
-        inplace_safe: Whether inplace operations are safe
+        params: Parameter object containing all necessary inputs
 
     Returns:
         torch.Tensor: Processed attention output
     """
-    bsz = q.shape[0]
-    q = q.reshape(-1, *q.shape[-2:])
-    k = k.reshape(-1, *k.shape[-2:])
-    v = v.reshape(-1, *v.shape[-2:])
+    bsz = params.tensors.q.shape[0]
+    q = params.tensors.q.reshape(-1, *params.tensors.q.shape[-2:])
+    k = params.tensors.k.reshape(-1, *params.tensors.k.shape[-2:])
+    v = params.tensors.v.reshape(-1, *params.tensors.v.shape[-2:])
 
     # Get attention scores
-    reshaped_bias = _reshape_attention_bias(attn_bias, num_heads)
+    reshaped_bias = _reshape_attention_bias(params.attn_bias, params.config.num_heads)
 
     attention_inputs = AttentionInputs(
         q=q,
         k=k,
         v=v,
         attn_bias=reshaped_bias,
-        use_efficient_implementation=use_efficient_implementation,
-        attn_weight_dropout_p=attn_weight_dropout_p,
-        inplace_safe=inplace_safe,
+        use_efficient_implementation=params.config.use_efficient_implementation,
+        attn_weight_dropout_p=params.config.attn_weight_dropout_p,
+        inplace_safe=params.config.inplace_safe,
     )
 
     attn_output = attention(attention_inputs)
 
     # Reshape back
-    h = num_heads
+    h = params.config.num_heads
     attn_output = attn_output.reshape(bsz, h, *attn_output.shape[-2:])
 
     # [..., h, n_q, d_h] -> [..., n_q, h, d_h]
@@ -157,7 +183,7 @@ def process_different_query_keyvalue(
     inputs: ProcessDifferentQueryInputs,
     use_efficient_implementation: bool,
     attn_weight_dropout_p: float,
-    local_attention_method: str
+    local_attention_method: str,
 ) -> torch.Tensor:
     """
     Process attention when query and key/value are different.
@@ -216,60 +242,52 @@ def process_different_query_keyvalue(
         return attention(attention_inputs)
 
 
-class SmallTensorParams:
+class SmallTensorParams(NamedTuple):
     """
     Parameter object for small tensor attention processing.
+    Uses NamedTuple for immutability and reduced overhead.
     """
-    def __init__(
-        self,
-        q: torch.Tensor,
-        k: torch.Tensor,
-        v: torch.Tensor,
-        bias: Optional[torch.Tensor],
-        mask: Optional[torch.Tensor]
-    ):
-        """
-        Initialize parameters for small tensor processing.
 
-        Args:
-            q: Query tensor
-            k: Key tensor
-            v: Value tensor
-            bias: Optional attention bias
-            mask: Optional attention mask
-        """
-        self.q = q
-        self.k = k
-        self.v = v
-        self.bias = bias
-        self.mask = mask
+    tensors: TensorInputs
+    bias: Optional[torch.Tensor] = None
+    mask: Optional[torch.Tensor] = None
 
 
-def _ensure_batch_dimensions(params: SmallTensorParams) -> None:
+def _ensure_batch_dimensions(params: SmallTensorParams) -> TensorInputs:
     """
     Ensure all tensors have the same batch dimensions.
 
     Args:
         params: Parameter object containing tensors
+
+    Returns:
+        TensorInputs: Tensors with consistent batch dimensions
     """
-    batch_dims = params.q.shape[:-2]
-    for t_name in ['k', 'v']:
-        t = getattr(params, t_name)
-        if t.shape[:-2] != batch_dims:
-            setattr(params, t_name, t.expand(*batch_dims, *t.shape[-2:]))
+    batch_dims = params.tensors.q.shape[:-2]
+    q, k, v = params.tensors.q, params.tensors.k, params.tensors.v
+
+    # Expand k and v if needed
+    if k.shape[:-2] != batch_dims:
+        k = k.expand(*batch_dims, *k.shape[-2:])
+    if v.shape[:-2] != batch_dims:
+        v = v.expand(*batch_dims, *v.shape[-2:])
+
+    return TensorInputs(q=q, k=k, v=v)
 
 
-def _compute_attention_scores(params: SmallTensorParams) -> torch.Tensor:
+def _compute_attention_scores(tensors: TensorInputs) -> torch.Tensor:
     """
     Compute attention scores between query and key tensors.
 
     Args:
-        params: Parameter object containing tensors
+        tensors: Object containing query and key tensors
 
     Returns:
         torch.Tensor: Attention scores
     """
-    return torch.matmul(params.q, params.k.transpose(-2, -1)) / math.sqrt(params.q.size(-1))
+    return torch.matmul(tensors.q, tensors.k.transpose(-2, -1)) / math.sqrt(
+        tensors.q.size(-1)
+    )
 
 
 def _apply_attention_bias(scores: torch.Tensor, bias: torch.Tensor) -> torch.Tensor:
@@ -284,7 +302,10 @@ def _apply_attention_bias(scores: torch.Tensor, bias: torch.Tensor) -> torch.Ten
         torch.Tensor: Scores with bias applied
     """
     from rna_predict.utils.shape_utils import adjust_attention_bias
-    adjusted_bias = adjust_attention_bias(bias, scores.shape, tensor_name="attention_bias")
+
+    adjusted_bias = adjust_attention_bias(
+        bias, scores.shape, tensor_name="attention_bias"
+    )
     return scores + adjusted_bias
 
 
@@ -305,34 +326,39 @@ def _apply_attention_mask(scores: torch.Tensor, mask: torch.Tensor) -> torch.Ten
     return scores.masked_fill(~mask, float("-inf"))
 
 
-def process_small_tensors(
-    q: torch.Tensor,
-    k: torch.Tensor,
-    v: torch.Tensor,
-    bias: Optional[torch.Tensor] = None,
-    mask: Optional[torch.Tensor] = None,
-) -> torch.Tensor:
+class SmallTensorInputs(NamedTuple):
+    """
+    Input parameters for small tensor processing.
+    """
+
+    q: torch.Tensor
+    k: torch.Tensor
+    v: torch.Tensor
+    bias: Optional[torch.Tensor] = None
+    mask: Optional[torch.Tensor] = None
+
+
+def process_small_tensors(inputs: SmallTensorInputs) -> torch.Tensor:
     """
     Process attention for small tensors that fit in memory.
 
     Args:
-        q: Query tensor [..., N_q, d]
-        k: Key tensor [..., N_k, d]
-        v: Value tensor [..., N_k, d]
-        bias: Optional attention bias [..., N_q, N_k]
-        mask: Optional attention mask [..., N_q, N_k]
+        inputs: Input parameters containing query, key, value tensors and optional bias/mask
 
     Returns:
         Output tensor [..., N_q, d]
     """
-    # Create a parameter object to reduce the number of arguments
-    params = SmallTensorParams(q, k, v, bias, mask)
+    # Create a parameter object to reduce the number of arguments in internal functions
+    tensor_inputs = TensorInputs(q=inputs.q, k=inputs.k, v=inputs.v)
+    params = SmallTensorParams(
+        tensors=tensor_inputs, bias=inputs.bias, mask=inputs.mask
+    )
 
     # Ensure all tensors have same batch dimensions
-    _ensure_batch_dimensions(params)
+    adjusted_tensors = _ensure_batch_dimensions(params)
 
     # Compute attention scores
-    scores = _compute_attention_scores(params)
+    scores = _compute_attention_scores(adjusted_tensors)
 
     # Add bias if provided
     if params.bias is not None:
@@ -344,4 +370,4 @@ def process_small_tensors(
 
     # Apply attention
     attn = F.softmax(scores, dim=-1)
-    return torch.matmul(attn, params.v)
+    return torch.matmul(attn, adjusted_tensors.v)

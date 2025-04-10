@@ -1,6 +1,6 @@
 import torch
 
-from rna_predict.pipeline.stageC.mp_nerf.protein_utils.structure_utils import (
+from rna_predict.pipeline.stageC.mp_nerf.protein_utils.scaffold_builders import ( # Ensure import is from scaffold_builders
     modify_angles_mask_with_torsions,
 )
 
