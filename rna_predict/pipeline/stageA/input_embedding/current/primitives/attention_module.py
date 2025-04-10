@@ -5,28 +5,41 @@ This module contains the main Attention class that implements multi-head attenti
 with support for various attention mechanisms.
 """
 
-from typing import Optional
+from typing import NamedTuple, Optional
 
 import torch
 import torch.nn as nn
 from torch.nn import Linear
 
-from .linear_primitives import LinearNoBias
 from .attention_core import (
     AttentionConfig,
-    ProcessQueryInputs,
-    ProcessDifferentQueryInputs,
     ForwardInputs,
+    ProcessDifferentQueryInputs,
+    ProcessQueryInputs,
 )
 from .attention_processing import (
-    process_same_query_keyvalue,
+    SmallTensorInputs as ProcessingSmallTensorInputs,
+)
+from .attention_processing import (
     process_different_query_keyvalue,
-    process_small_tensors as process_small_tensors_func
+    process_same_query_keyvalue,
+)
+from .attention_processing import (
+    process_small_tensors as process_small_tensors_func,
 )
 from .attention_utils_internal import (
+    GatingTensors,
+    HeadConfig,
+    PrepQKVParams,
+    ProjectionModules,
+    TensorInputs,
+    WrapUpConfig,
+    WrapUpModules,
+    WrapUpParams,
     prep_qkv,
     wrap_up,
 )
+from .linear_primitives import LinearNoBias
 
 
 class Attention(nn.Module):
@@ -94,14 +107,6 @@ class Attention(nn.Module):
             nn.init.zeros_(self.gating_linear.weight)
             nn.init.zeros_(self.gating_linear.bias)
 
-
-
-
-
-
-
-
-
     def forward(self, inputs: ForwardInputs) -> torch.Tensor:
         """
         Computes multi-head attention output for the provided inputs.
@@ -118,16 +123,19 @@ class Attention(nn.Module):
             torch.Tensor: The resulting attention output.
         """
         # Prepare query, key, value
-        q, k, v = prep_qkv(
-            inputs.q_x,
-            inputs.kv_x,
-            self.to_q,
-            self.to_k,
-            self.to_v,
-            self.num_heads,
-            self.head_dim,
+        tensor_inputs = TensorInputs(q_x=inputs.q_x, kv_x=inputs.kv_x)
+        projection_modules = ProjectionModules(
+            to_q=self.to_q, to_k=self.to_k, to_v=self.to_v
+        )
+        head_config = HeadConfig(
+            num_heads=self.num_heads,
+            head_dim=self.head_dim,
             apply_scale=(inputs.q_x is inputs.kv_x and inputs.q_x.ndim == 3),
         )
+        prep_params = PrepQKVParams(
+            tensors=tensor_inputs, modules=projection_modules, config=head_config
+        )
+        q, k, v = prep_qkv(prep_params)
 
         # Handle case when query and key/value are the same
         if inputs.q_x is inputs.kv_x and inputs.q_x.ndim == 3:
@@ -143,7 +151,7 @@ class Attention(nn.Module):
                 process_inputs,
                 self.num_heads,
                 self.attn_weight_dropout_p,
-                self.use_efficient_implementation
+                self.use_efficient_implementation,
             )
         else:
             # Different query/key-value processing
@@ -164,27 +172,36 @@ class Attention(nn.Module):
                 diff_process_inputs,
                 self.use_efficient_implementation,
                 self.attn_weight_dropout_p,
-                self.local_attention_method
+                self.local_attention_method,
             )
 
-        return wrap_up(
-            attn_output,
-            inputs.q_x,
-            self.c_hidden,
-            self.to_out,
-            self.gating,
-            self.gating_linear,
-            self.gating_bias
+        # Create parameter objects for wrap_up
+        gating_tensors = GatingTensors(o=attn_output, q_x=inputs.q_x)
+        wrap_config = WrapUpConfig(c_hidden=self.c_hidden, gating=self.gating)
+        wrap_modules = WrapUpModules(
+            to_out=self.to_out,
+            gating_linear=self.gating_linear,
+            gating_bias=self.gating_bias,
         )
+        wrap_params = WrapUpParams(
+            tensors=gating_tensors, config=wrap_config, modules=wrap_modules
+        )
+        return wrap_up(wrap_params)
 
-    def process_small_tensors(
-        self,
-        q: torch.Tensor,
-        k: torch.Tensor,
-        v: torch.Tensor,
-        bias: Optional[torch.Tensor] = None,
-        mask: Optional[torch.Tensor] = None,
-    ) -> torch.Tensor:
+    # Use the imported ProcessingSmallTensorInputs class instead of defining our own
+
+    class SmallTensorArgs(NamedTuple):
+        """
+        Arguments for small tensor processing.
+        """
+
+        q: torch.Tensor
+        k: torch.Tensor
+        v: torch.Tensor
+        bias: Optional[torch.Tensor] = None
+        mask: Optional[torch.Tensor] = None
+
+    def process_small_tensors(self, *args, **kwargs) -> torch.Tensor:
         """
         Process attention for small tensors that fit in memory.
 
@@ -198,4 +215,33 @@ class Attention(nn.Module):
         Returns:
             Output tensor [..., N_q, d]
         """
-        return process_small_tensors_func(q, k, v, bias, mask)
+        # Extract arguments
+        if len(args) >= 3:
+            q, k, v = args[0], args[1], args[2]
+            bias = args[3] if len(args) > 3 else kwargs.get("bias")
+            mask = args[4] if len(args) > 4 else kwargs.get("mask")
+        else:
+            q = kwargs.get("q")
+            k = kwargs.get("k")
+            v = kwargs.get("v")
+            bias = kwargs.get("bias")
+            mask = kwargs.get("mask")
+
+        # Create a parameter object and delegate to the function
+        tensor_args = self.SmallTensorArgs(q=q, k=k, v=v, bias=bias, mask=mask)
+        return self._process_small_tensors_impl(tensor_args)
+
+    def _process_small_tensors_impl(self, args: SmallTensorArgs) -> torch.Tensor:
+        """
+        Implementation helper to reduce function argument count.
+
+        Args:
+            args: Named tuple containing all tensor arguments
+
+        Returns:
+            Processed attention output
+        """
+        inputs = ProcessingSmallTensorInputs(
+            q=args.q, k=args.k, v=args.v, bias=args.bias, mask=args.mask
+        )
+        return process_small_tensors_func(inputs)

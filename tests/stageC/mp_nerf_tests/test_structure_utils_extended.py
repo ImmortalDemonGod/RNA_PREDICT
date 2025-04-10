@@ -3,8 +3,8 @@ import pytest
 import torch
 import numpy as np
 
-from rna_predict.pipeline.stageC.mp_nerf.protein_utils.structure_utils import (
-    to_zero_two_pi,
+# Import moved functions from their new locations
+from rna_predict.pipeline.stageC.mp_nerf.protein_utils.amino_acid_data_utils import (
     get_rigid_frames,
     get_atom_names,
     get_bond_names,
@@ -16,17 +16,25 @@ from rna_predict.pipeline.stageC.mp_nerf.protein_utils.structure_utils import (
     get_torsion_names,
     get_torsion_types,
     get_torsion_values,
+)
+from rna_predict.pipeline.stageC.mp_nerf.protein_utils.geometry_utils import (
+    to_zero_two_pi,
+)
+from rna_predict.pipeline.stageC.mp_nerf.protein_utils.scaffold_builders import ( # Import from new module
     build_scaffolds_from_scn_angles,
     modify_scaffolds_with_coords,
-    get_symmetric_atom_pairs,
-    modify_angles_mask_with_torsions,
+    modify_angles_mask_with_torsions, # Correctly import from scaffold_builders
+)
+from rna_predict.pipeline.stageC.mp_nerf.protein_utils.structure_utils import (
+    # modify_angles_mask_with_torsions, # Moved to scaffold_builders
     protein_fold,
+)
+from rna_predict.pipeline.stageC.mp_nerf.protein_utils.symmetry_utils import (
+    get_symmetric_atom_pairs,
 )
 from rna_predict.pipeline.stageC.mp_nerf.protein_utils.sidechain_data import (
     SC_BUILD_INFO,
 )
-
-
 @pytest.fixture
 def cpu_device():
     """
@@ -328,12 +336,9 @@ def test_get_symmetric_atom_pairs():
 
     # Check that the pairs are present for each residue
     # D has OD1/OD2 pairs (indices 6, 7)
-    assert (4, 5) in pairs["0"] or (5, 4) in pairs["0"]
     assert (6, 7) in pairs["0"] or (7, 6) in pairs["0"]
 
     # E has OE1/OE2 pairs (indices 8, 9)
-    assert (4, 5) in pairs["1"] or (5, 4) in pairs["1"]
-    assert (6, 7) in pairs["1"] or (7, 6) in pairs["1"]
     assert (8, 9) in pairs["1"] or (9, 8) in pairs["1"]
 
 

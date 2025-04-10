@@ -5,17 +5,18 @@ This module contains the AdaptiveLayerNorm class which implements Algorithm 26 i
 """
 
 import warnings
+
 import torch
 import torch.nn as nn
 from torch.nn import Linear
 
-from .linear_primitives import LinearNoBias
 from .adaptive_layer_norm_utils import (
+    adjust_tensor_shapes,
     check_and_adjust_dimensions,
     needs_singleton_dimension,
-    adjust_tensor_shapes,
-    restore_original_shape
+    restore_original_shape,
 )
+from .linear_primitives import LinearNoBias
 
 
 class AdaptiveLayerNorm(nn.Module):
@@ -46,8 +47,6 @@ class AdaptiveLayerNorm(nn.Module):
         nn.init.zeros_(self.linear_s.weight)
         nn.init.zeros_(self.linear_s.bias)
         nn.init.zeros_(self.linear_nobias_s.weight)
-
-
 
     def _prepare_scale_and_shift(
         self, s: torch.Tensor, a: torch.Tensor
@@ -107,8 +106,6 @@ class AdaptiveLayerNorm(nn.Module):
         """
         a_b, scale_b, shift_b = torch.broadcast_tensors(a, scale, shift)
         return scale_b * a_b + shift_b
-
-
 
     def _apply_conditioning(self, a: torch.Tensor, s: torch.Tensor) -> torch.Tensor:
         """
