@@ -42,7 +42,14 @@ def device():
 )
 def test_process_same_query_keyvalue(use_efficient_implementation, sdpa_raises, device):
     """
-    Test process_same_query_keyvalue with different configurations.
+    Tests process_same_querykeyvalue under various configurations.
+    
+    This test simulates scenarios by toggling the use of an efficient attention implementation and by forcing a simulated error in the scaled dot product attention function. It verifies that when the efficient implementation is enabled without errors, the function bypasses the fallback batch matrix multiplication, and when an error is simulated, it appropriately falls back to the alternative path. The test asserts that the output tensor has the expected shape and that the correct internal function is invoked with the proper parameters.
+    
+    Args:
+        use_efficient_implementation: Flag to choose the efficient attention path.
+        sdpa_raises: Flag to simulate a RuntimeError from the scaled dot product attention.
+        device: The device (e.g., CPU) on which the tensors are allocated.
     """
     batch_size = 2
     n_heads = 4
@@ -67,6 +74,30 @@ def test_process_same_query_keyvalue(use_efficient_implementation, sdpa_raises, 
     # Mock F.scaled_dot_product_attention
 
     def mock_sdpa(query, key, value, attn_mask=None, dropout_p=0.0, is_causal=False):
+        """
+        Mock implementation of scaled dot-product attention.
+        
+        This function simulates scaled dot-product attention by returning a random tensor
+        with the same shape as the query tensor. It accepts query, key, and value tensors,
+        as well as optional parameters for attention masking, dropout probability, and causal
+        attention. These additional parameters are retained for interface compatibility and
+        do not affect the output. If the global flag sdpa_raises is set, a RuntimeError is raised
+        to simulate an SDPA error.
+        
+        Parameters:
+            query: Tensor containing the query data.
+            key: Tensor containing the key data.
+            value: Tensor containing the value data.
+            attn_mask: Optional tensor representing an attention mask.
+            dropout_p: Dropout probability (ignored in this mock).
+            is_causal: Boolean flag indicating causal attention (ignored in this mock).
+        
+        Returns:
+            A tensor with the same shape as `query` containing random values.
+        
+        Raises:
+            RuntimeError: If the global flag sdpa_raises is True.
+        """
         if sdpa_raises:
             raise RuntimeError("Simulated SDPA error")
         # Return a tensor with the expected shape
