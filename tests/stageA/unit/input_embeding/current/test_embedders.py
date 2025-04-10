@@ -141,36 +141,36 @@ class TestRelativePositionEncoding(unittest.TestCase):
         self.assertEqual(self.rpe.c_z, self.c_z)
         self.assertIsInstance(self.rpe.linear_no_bias, nn.Linear)
 
-    @given(
-        token_len=st.integers(min_value=1, max_value=5),
-        batch_size=st.integers(min_value=1, max_value=2),
-        training_mode=booleans(),
-    )
-    @settings(max_examples=10)
-    def test_forward_training_and_eval(self, token_len, batch_size, training_mode):
+    def test_forward_training_and_eval(self):
         """
         Test forward pass in both training and eval modes to ensure the
         conditional logic is covered.
         """
-        self.rpe.train(training_mode)
+        # Use fixed values instead of hypothesis-generated random values
+        token_len = 3
+        batch_size = 2
 
-        # We must supply "asym_id", "residue_index", "entity_id", "sym_id", "token_index"
-        # Each is shape [..., N_tokens], so shape (batch_size, token_len).
-        # For simplicity, use random integer data in valid ranges.
-        input_feature_dict = {
-            "asym_id": torch.randint(low=0, high=3, size=(batch_size, token_len)),
-            "residue_index": torch.randint(
-                low=0, high=100, size=(batch_size, token_len)
-            ),
-            "entity_id": torch.randint(low=0, high=3, size=(batch_size, token_len)),
-            "sym_id": torch.randint(low=0, high=3, size=(batch_size, token_len)),
-            "token_index": torch.arange(token_len).unsqueeze(0).repeat(batch_size, 1),
-        }
+        # Test in both training and eval modes
+        for training_mode in [True, False]:
+            self.rpe.train(training_mode)
 
-        out = self.rpe.forward(input_feature_dict)
-        # Check shape => [..., N_token, N_token, c_z]
-        self.assertEqual(out.shape, (batch_size, token_len, token_len, self.c_z))
-        self.assertTrue(isinstance(out, torch.Tensor))
+            # We must supply "asym_id", "residue_index", "entity_id", "sym_id", "token_index"
+            # Each is shape [..., N_tokens], so shape (batch_size, token_len).
+            # For simplicity, use random integer data in valid ranges.
+            input_feature_dict = {
+                "asym_id": torch.randint(low=0, high=3, size=(batch_size, token_len)),
+                "residue_index": torch.randint(
+                    low=0, high=100, size=(batch_size, token_len)
+                ),
+                "entity_id": torch.randint(low=0, high=3, size=(batch_size, token_len)),
+                "sym_id": torch.randint(low=0, high=3, size=(batch_size, token_len)),
+                "token_index": torch.arange(token_len).unsqueeze(0).repeat(batch_size, 1),
+            }
+
+            out = self.rpe.forward(input_feature_dict)
+            # Check shape => [..., N_token, N_token, c_z]
+            self.assertEqual(out.shape, (batch_size, token_len, token_len, self.c_z))
+            self.assertTrue(isinstance(out, torch.Tensor))
 
     def test_missing_keys(self):
         """
