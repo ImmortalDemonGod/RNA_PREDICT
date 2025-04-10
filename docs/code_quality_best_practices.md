@@ -661,4 +661,117 @@ This comprehensive document is designed to serve as a technical guide for teams 
 
 
 
+CodeScene Command Reference
+cs delta
+
+DESCRIPTION
+  Run a delta analysis. A delta analysis compares your current work against a
+  previous state of your code. See also `cs docs git-hooks`.
+
+USAGE
+  $ cs delta [<options>] [<branch> [<branch>]]
+
+OPTIONS
+      --staged        Examine only staged content.
+      --interactive   Run command with interactive mode, forcing user input for findings.  For more info try `cs docs interactive`.
+      --git-hook      Run as a git hook. For more info try `cs docs git-hooks`.
+      --output-format Output in json or edn format. Default is human-readable.
+      --pretty        Use in conjunction with --format to pretty-print the output.
+      --verbose       Verbose output
+  -h, --help          Show this help
+
+EXAMPLES
+  $ cs delta                       Analyse all non-committed changes
+  $ cs delta --output-format json  As above, but output in json format. Note that
+                                   specifying any output-format will report new issues
+                                   only - i.e. no improvents or explanations
+  $ cs delta main                  Analyse changes against the main branch
+  $ cs delta main feat             Analyse changes between two branches
+  $ cs delta main~30 main          Analyse the latest 30 commits on main
+
+cs review
+
+DESCRIPTION
+  Check a file for code health issues and print the results in a JSON structure
+
+USAGE
+  $ cs review [<options>] [<file>]
+
+OPTIONS
+      --file-name     Specify the file-name when reading from stdin
+      --output-format Output in json or edn format. Default is human-readable.
+      --pretty        Use in conjunction with --format to pretty-print the output.
+      --verbose       Verbose output
+  -h, --help          Show this help
+
+EXAMPLES
+  $ cs review test.c                       Check the file test.c
+  $ cs review master:./test.c              Check the file test.c on the master branch
+  $ cs review 801b0c0f:./test.c            Check the file test.c at the given commit
+  $ cs review --file-name test.c < test.c  Read file data from stdin
+
+cs check
+
+DESCRIPTION
+  Check a file for code health issues and print the results in a lint-like manner.
+
+USAGE
+  $ cs check [<options>] [<file>]
+
+OPTIONS
+      --file-name Specify the file-type/extension when reading from stdin
+      --verbose   Verbose output
+  -h, --help      Show this help
+
+EXAMPLES
+  $ cs check test.c                       Check the file test.c
+  $ cs check master:./test.c              Check the file test.c on the master branch
+  $ cs check 801b0c0f:./test.c            Check the file test.c at the given commit
+  $ cs check --file-name test.c < test.c  Read file data from stdin
+
+DESCRIPTION
+  CodeScene CLI documentation topics
+
+cs docs
+
+USAGE
+  $ cs docs <topic>
+  example `cs docs git-hooks`
+
+AVAILABLE TOPICS
+
+  Delta analysis
+   📄 git-hooks                Using the delta command in a git hook
+   📄 interactive          Using the delta command in interactive mode to prompt user input
+   📄 interactive-pre-commit-hook-example  Outputs an example pre-commit hook using interactive
+
+   📄 pre-commit-hook-example  Outputs an example pre-commit hook
+
+  Editor integration
+   📄 vim  Integrating the "check" command in (neo)vim
+
+  Miscellaneous
+   📄 license                     Setting up a license
+   📄 file-name                   File-name and language support
+   📄 code-health-rules           Customizing code health rules
+   📄 code-health-rules-template  Outputs a code health rules template
+
+cs check-rules
+
+DESCRIPTION
+  Find out which of your custom rules, if any, matches the given file
+  This use useful when creating custom code-health-rules.json
+
+USAGE
+  $ cs check-rules [<file>]
+
+EXAMPLES
+  $ cs check-rules test.c             Check which code health rule that matches test.c
+
+cs version
+
+DESCRIPTION
+  Displays the version
+
+
 

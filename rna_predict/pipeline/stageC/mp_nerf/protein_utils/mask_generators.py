@@ -5,13 +5,34 @@ Functions for generating various masks and indices for protein structure manipul
 Updated to correctly handle '_' and use SUPREME_INFO.
 """
 
+from typing import Optional
+
 import numpy as np
+import numpy.typing as npt
 
 from .sidechain_data import BB_BUILD_INFO
 from .supreme_data import SUPREME_INFO
 
 
-def make_cloud_mask(aa: str) -> np.ndarray:
+def _get_mask_data(aa: str, mask_key: str) -> list:
+    """Helper function to get mask data from SUPREME_INFO.
+
+    Args:
+        aa: Amino acid code (single uppercase letter or '_')
+        mask_key: Key for the mask in SUPREME_INFO
+
+    Returns:
+        list: Mask data from SUPREME_INFO
+    """
+    if aa not in SUPREME_INFO:
+        raise KeyError(f"Invalid amino acid code: {aa}")
+
+    # Use type ignore to handle the TypedDict key warning
+    # The mask_key is validated by the calling functions
+    return SUPREME_INFO[aa][mask_key]  # type: ignore
+
+
+def make_cloud_mask(aa: str) -> npt.NDArray[np.bool_]:
     """Generate cloud mask for a given amino acid.
 
     Args:
@@ -20,14 +41,11 @@ def make_cloud_mask(aa: str) -> np.ndarray:
     Returns:
         np.ndarray: Mask containing True for atoms that should be included in the cloud (shape 14,)
     """
-    if aa == "_":
-        return np.array(SUPREME_INFO["_"]["cloud_mask"], dtype=bool)
-    if aa not in SUPREME_INFO:
-        raise KeyError(f"Invalid amino acid code: {aa}")
-    return np.array(SUPREME_INFO[aa]["cloud_mask"], dtype=bool)
+    mask_data = _get_mask_data(aa, "cloud_mask")
+    return np.array(mask_data, dtype=bool)
 
 
-def make_bond_mask(aa: str) -> np.ndarray:
+def make_bond_mask(aa: str) -> npt.NDArray[np.float64]:
     """Generate bond mask for a given amino acid.
 
     Args:
@@ -36,14 +54,11 @@ def make_bond_mask(aa: str) -> np.ndarray:
     Returns:
         np.ndarray: Mask containing bond lengths for each atom (shape 14,)
     """
-    if aa == "_":
-        return np.array(SUPREME_INFO["_"]["bond_mask"], dtype=float)
-    if aa not in SUPREME_INFO:
-        raise KeyError(f"Invalid amino acid code: {aa}")
-    return np.array(SUPREME_INFO[aa]["bond_mask"], dtype=float)
+    mask_data = _get_mask_data(aa, "bond_mask")
+    return np.array(mask_data, dtype=float)
 
 
-def make_theta_mask(aa: str) -> np.ndarray:
+def make_theta_mask(aa: str) -> npt.NDArray[np.float64]:
     """Generate theta mask for a given amino acid (bond angles).
 
     Args:
@@ -52,14 +67,11 @@ def make_theta_mask(aa: str) -> np.ndarray:
     Returns:
         np.ndarray: Mask containing bond angles for each atom (shape 14,)
     """
-    if aa == "_":
-        return np.array(SUPREME_INFO["_"]["theta_mask"], dtype=float)
-    if aa not in SUPREME_INFO:
-        raise KeyError(f"Invalid amino acid code: {aa}")
-    return np.array(SUPREME_INFO[aa]["theta_mask"], dtype=float)
+    mask_data = _get_mask_data(aa, "theta_mask")
+    return np.array(mask_data, dtype=float)
 
 
-def make_torsion_mask(aa: str, fill: bool = False) -> np.ndarray:
+def make_torsion_mask(aa: str, fill: bool = False) -> npt.NDArray[np.float64]:
     """Generate torsion mask for a given amino acid (dihedral angles).
 
     Args:
@@ -69,27 +81,12 @@ def make_torsion_mask(aa: str, fill: bool = False) -> np.ndarray:
     Returns:
         np.ndarray: Mask containing dihedral angles for each atom (shape 14,)
     """
-    # mask_key = "torsion_mask_filled" if fill else "torsion_mask" # Removed variable key
-    if aa == "_":
-        # Ensure underscore returns float array even if values are 0 or nan
-        if fill:
-            mask_data = SUPREME_INFO["_"]["torsion_mask_filled"]
-        else:
-            mask_data = SUPREME_INFO["_"]["torsion_mask"]
-        return np.array(mask_data, dtype=float)
-
-    if aa not in SUPREME_INFO:
-        raise KeyError(f"Invalid amino acid code: {aa}")
-
-    # Ensure return type is float, handling potential NaNs
-    if fill:
-        mask_data = SUPREME_INFO[aa]["torsion_mask_filled"]
-    else:
-        mask_data = SUPREME_INFO[aa]["torsion_mask"]
+    mask_key = "torsion_mask_filled" if fill else "torsion_mask"
+    mask_data = _get_mask_data(aa, mask_key)
     return np.array(mask_data, dtype=float)
 
 
-def make_idx_mask(aa: str) -> np.ndarray:
+def make_idx_mask(aa: str) -> npt.NDArray[np.int_]:
     """Generate index mask for a given amino acid (NeRF references).
 
     Args:
@@ -98,16 +95,11 @@ def make_idx_mask(aa: str) -> np.ndarray:
     Returns:
         np.ndarray: Mask containing indices for each atom (shape 11, 3)
     """
-    if aa == "_":
-        # Return the default index mask for underscore
-        return np.array(SUPREME_INFO["_"]["idx_mask"], dtype=int)
-    if aa not in SUPREME_INFO:
-        raise KeyError(f"Invalid amino acid code: {aa}")
-    # Return as integer array
-    return np.array(SUPREME_INFO[aa]["idx_mask"], dtype=int)
+    mask_data = _get_mask_data(aa, "idx_mask")
+    return np.array(mask_data, dtype=int)
 
 
-def make_atom_token_mask(aa: str) -> np.ndarray:
+def make_atom_token_mask(aa: str) -> npt.NDArray[np.int_]:
     """Generate atom token mask for a given amino acid.
 
     Args:
@@ -116,16 +108,11 @@ def make_atom_token_mask(aa: str) -> np.ndarray:
     Returns:
         np.ndarray: Mask containing token IDs for each atom (shape 14,)
     """
-    if aa == "_":
-        # Return the all-zero mask for underscore
-        return np.array(SUPREME_INFO["_"]["atom_token_mask"], dtype=int)
-    if aa not in SUPREME_INFO:
-        raise KeyError(f"Invalid amino acid code: {aa}")
-    # Return integer array of token IDs
-    return np.array(SUPREME_INFO[aa]["atom_token_mask"], dtype=int)
+    mask_data = _get_mask_data(aa, "atom_token_mask")
+    return np.array(mask_data, dtype=int)
 
 
-def scn_angle_mask(seq: str) -> np.ndarray:
+def scn_angle_mask(seq: str) -> npt.NDArray[np.float64]:
     """Generate SideChainNet angle mask for a sequence.
     (Potentially legacy or needs update based on SUPREME_INFO usage)
     Args:
@@ -162,7 +149,7 @@ def scn_angle_mask(seq: str) -> np.ndarray:
     return mask
 
 
-def scn_bond_mask(seq: str) -> np.ndarray:
+def scn_bond_mask(seq: str) -> npt.NDArray[np.float64]:
     """Generate SideChainNet bond mask for a sequence.
     (Potentially legacy or needs update based on SUPREME_INFO usage)
     Args:
@@ -185,13 +172,15 @@ def scn_bond_mask(seq: str) -> np.ndarray:
     return mask
 
 
-def scn_cloud_mask(seq: str, coords=None, strict=False) -> np.ndarray:
+def scn_cloud_mask(
+    seq: str, coords: Optional[npt.NDArray[np.float64]] = None, strict: bool = False
+) -> npt.NDArray[np.bool_]:
     """Generate SideChainNet cloud mask for a sequence.
     (Now delegates to make_cloud_mask for consistency)
     Args:
         seq: Amino acid sequence
-        coords: Optional coordinates tensor (currently unused in delegation)
-        strict: Optional strict flag (currently unused in delegation)
+        coords: Optional coordinates tensor (kept for API compatibility, unused)
+        strict: Optional strict flag (kept for API compatibility, unused)
     Returns:
         np.ndarray: Mask containing True for atoms that should be included (shape L, 14)
     """
@@ -200,7 +189,7 @@ def scn_cloud_mask(seq: str, coords=None, strict=False) -> np.ndarray:
     return np.array(masks, dtype=bool)
 
 
-def scn_index_mask(seq: str) -> np.ndarray:
+def scn_index_mask(seq: str) -> npt.NDArray[np.int_]:
     """Generate SideChainNet index mask for a sequence.
     (Now delegates to make_idx_mask for consistency)
     Args:
@@ -213,12 +202,12 @@ def scn_index_mask(seq: str) -> np.ndarray:
     return np.array(masks, dtype=int)
 
 
-def scn_rigid_index_mask(seq: str, c_alpha: bool = False) -> np.ndarray:
+def scn_rigid_index_mask(seq: str, c_alpha: bool = False) -> npt.NDArray[np.int_]:
     """Generate SideChainNet rigid index mask for a sequence.
     (Now delegates to make_idx_mask and extracts the first row)
     Args:
         seq: Amino acid sequence
-        c_alpha: (Currently ignored in delegation)
+        c_alpha: Whether to use C-alpha based rigid frames (kept for API compatibility, unused)
     Returns:
         np.ndarray: Mask containing rigid frame indices for each residue (shape L, 3)
     """

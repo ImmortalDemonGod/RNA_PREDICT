@@ -12,10 +12,8 @@ from rna_predict.pipeline.stageC.mp_nerf.protein_utils.mask_generators import (
 from rna_predict.pipeline.stageC.mp_nerf.protein_utils.sidechain_data import (
     BB_BUILD_INFO,
 )
-from rna_predict.pipeline.stageC.mp_nerf.protein_utils.structure_utils import (
-    build_scaffolds_from_scn_angles,
-    protein_fold,
-)
+from rna_predict.pipeline.stageC.mp_nerf.protein_utils.structure_utils import protein_fold
+from rna_predict.pipeline.stageC.mp_nerf.protein_utils.scaffold_builders import build_scaffolds_from_scn_angles
 
 # Import angle/dihedral functions used in modify_scaffolds_with_coords and protein_fold
 from rna_predict.pipeline.stageC.mp_nerf.utils import get_dihedral
