@@ -30,8 +30,7 @@ from .sidechain_data import (
     SIDECHAIN_MASK,
     # SUPREME_INFO, # <-- Removed import from sidechain_data
 )
-from .structure_utils import (
-    build_scaffolds_from_scn_angles,
+from .amino_acid_data_utils import (  # Import data accessors from new module
     get_angle_names,
     get_angle_types,
     get_angle_values,
@@ -40,12 +39,17 @@ from .structure_utils import (
     get_bond_types,
     get_bond_values,
     get_rigid_frames,
-    get_symmetric_atom_pairs,
     get_torsion_names,
     get_torsion_types,
     get_torsion_values,
+)
+from .symmetry_utils import get_symmetric_atom_pairs  # Import from new module
+from .scaffold_builders import ( # Import scaffold builders from new module
+    build_scaffolds_from_scn_angles,
     modify_angles_mask_with_torsions,
     modify_scaffolds_with_coords,
+)
+from .structure_utils import (  # Keep remaining imports from structure_utils
     protein_fold,
 )
 
@@ -69,11 +73,11 @@ __all__ = [
     "get_torsion_names",
     "get_torsion_types",
     "get_torsion_values",
-    "build_scaffolds_from_scn_angles",
-    "modify_scaffolds_with_coords",
-    "get_symmetric_atom_pairs",
-    "modify_angles_mask_with_torsions",
-    "protein_fold",
+    "build_scaffolds_from_scn_angles", # Now imported directly
+    "modify_scaffolds_with_coords", # Now imported directly
+    # "get_symmetric_atom_pairs", # Removed from __all__ as it's imported directly
+    "modify_angles_mask_with_torsions", # Now imported directly
+    "protein_fold", # Remains from structure_utils
     "SUPREME_MASK",
     "make_cloud_mask",
     "make_bond_mask",

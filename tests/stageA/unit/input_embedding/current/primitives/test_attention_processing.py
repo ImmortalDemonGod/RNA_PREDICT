@@ -17,6 +17,8 @@ from rna_predict.pipeline.stageA.input_embedding.current.primitives.attention_pr
     process_different_query_keyvalue,
     process_small_tensors,
     SmallTensorParams,
+    TensorInputs,
+    SmallTensorInputs,
     _ensure_batch_dimensions,
     _compute_attention_scores,
     _apply_attention_bias,
@@ -101,15 +103,15 @@ def test_process_same_query_keyvalue(use_efficient_implementation, sdpa_raises, 
             # Batch matmul should have been called
             assert mock_batch_matmul.call_count == 1
             # Check arguments
-            call_args = mock_batch_matmul.call_args[0]
-            assert call_args[0].shape == (batch_size, n_heads, n_queries, d_head)  # q transposed
-            assert call_args[1].shape == (batch_size, n_heads, n_queries, d_head)  # k transposed
-            assert call_args[2].shape == (batch_size, n_heads, n_queries, d_head)  # v transposed
-            assert call_args[3] is attn_bias  # attn_bias
-            assert call_args[4] == n_heads  # num_heads
-            assert call_args[5] == 0.1  # attn_weight_dropout_p
-            assert call_args[6] == use_efficient_implementation  # use_efficient_implementation
-            assert call_args[7] is True  # inplace_safe
+            call_args = mock_batch_matmul.call_args[0][0]  # Get the BatchMatmulParams object
+            assert call_args.tensors.q.shape == (batch_size, n_heads, n_queries, d_head)  # q transposed
+            assert call_args.tensors.k.shape == (batch_size, n_heads, n_queries, d_head)  # k transposed
+            assert call_args.tensors.v.shape == (batch_size, n_heads, n_queries, d_head)  # v transposed
+            assert call_args.attn_bias is attn_bias  # attn_bias
+            assert call_args.config.num_heads == n_heads  # num_heads
+            assert call_args.config.attn_weight_dropout_p == 0.1  # attn_weight_dropout_p
+            assert call_args.config.use_efficient_implementation == use_efficient_implementation  # use_efficient_implementation
+            assert call_args.config.inplace_safe is True  # inplace_safe
 
 
 # --- Tests for _process_with_batch_matmul ---
@@ -143,10 +145,25 @@ def test_process_with_batch_matmul(device):
         attn_output = torch.randn(batch_size * n_heads, n_queries, d_head, device=device)
         mock_attention.return_value = attn_output
 
-        # Call the function
-        result = _process_with_batch_matmul(
-            q, k, v, attn_bias, n_heads, 0.1, True, True
+        # Create parameter object
+        from rna_predict.pipeline.stageA.input_embedding.current.primitives.attention_processing import (
+            TensorInputs, AttentionConfig, BatchMatmulParams
         )
+        tensor_inputs = TensorInputs(q=q, k=k, v=v)
+        config = AttentionConfig(
+            num_heads=n_heads,
+            attn_weight_dropout_p=0.1,
+            use_efficient_implementation=True,
+            inplace_safe=True
+        )
+        params = BatchMatmulParams(
+            tensors=tensor_inputs,
+            attn_bias=attn_bias,
+            config=config
+        )
+
+        # Call the function
+        result = _process_with_batch_matmul(params)
 
         # Check if the result has the expected shape
         assert result.shape == (batch_size, n_queries, n_heads, d_head)
@@ -323,16 +340,20 @@ def test_ensure_batch_dimensions(device):
     bias = None
     mask = None
 
-    params = SmallTensorParams(q, k, v, bias, mask)
+    # Create TensorInputs object first
+    from rna_predict.pipeline.stageA.input_embedding.current.primitives.attention_processing import TensorInputs
+    tensor_inputs = TensorInputs(q=q, k=k, v=v)
+    params = SmallTensorParams(tensors=tensor_inputs, bias=bias, mask=mask)
 
     # Call the function
     _ensure_batch_dimensions(params)
 
     # Check if k and v have been expanded to match q's batch dimensions
-    assert params.k.shape[:-2] == q.shape[:-2]
-    assert params.v.shape[:-2] == q.shape[:-2]
-    assert params.k.shape[-2:] == (10, 16)  # N_k and d should remain unchanged
-    assert params.v.shape[-2:] == (10, 16)  # N_k and d should remain unchanged
+    adjusted_tensors = _ensure_batch_dimensions(params)
+    assert adjusted_tensors.k.shape[:-2] == q.shape[:-2]
+    assert adjusted_tensors.v.shape[:-2] == q.shape[:-2]
+    assert adjusted_tensors.k.shape[-2:] == (10, 16)  # N_k and d should remain unchanged
+    assert adjusted_tensors.v.shape[-2:] == (10, 16)  # N_k and d should remain unchanged
 
 
 def test_compute_attention_scores(device):
@@ -346,10 +367,13 @@ def test_compute_attention_scores(device):
     bias = None
     mask = None
 
-    params = SmallTensorParams(q, k, v, bias, mask)
+    # Create TensorInputs object first
+    from rna_predict.pipeline.stageA.input_embedding.current.primitives.attention_processing import TensorInputs
+    tensor_inputs = TensorInputs(q=q, k=k, v=v)
+    params = SmallTensorParams(tensors=tensor_inputs, bias=bias, mask=mask)
 
     # Call the function
-    scores = _compute_attention_scores(params)
+    scores = _compute_attention_scores(params.tensors)
 
     # Check if scores have the expected shape
     assert scores.shape == (2, 8, 10)  # [B, N_q, N_k]
@@ -443,7 +467,8 @@ def test_process_small_tensors(has_bias, has_mask, device):
 
     # Set up mocks for helper functions
     with patch(
-        "rna_predict.pipeline.stageA.input_embedding.current.primitives.attention_processing._ensure_batch_dimensions"
+        "rna_predict.pipeline.stageA.input_embedding.current.primitives.attention_processing._ensure_batch_dimensions",
+        return_value=TensorInputs(q=q, k=k, v=v)
     ) as mock_ensure_batch, patch(
         "rna_predict.pipeline.stageA.input_embedding.current.primitives.attention_processing._compute_attention_scores",
         return_value=torch.randn(2, 8, 10, device=device)
@@ -454,16 +479,20 @@ def test_process_small_tensors(has_bias, has_mask, device):
         "rna_predict.pipeline.stageA.input_embedding.current.primitives.attention_processing._apply_attention_mask",
         return_value=torch.randn(2, 8, 10, device=device)
     ) as mock_apply_mask:
+        # Create input object
+        inputs = SmallTensorInputs(q=q, k=k, v=v, bias=bias, mask=mask)
+
         # Call the function
-        result = process_small_tensors(q, k, v, bias, mask)
+        result = process_small_tensors(inputs)
 
         # Check if the result has the expected shape
         assert result.shape == (2, 8, 16)  # [B, N_q, d]
 
         # Check if the appropriate functions were called
         mock_ensure_batch.assert_called_once()
-        mock_compute_scores.assert_called_once()
 
+        # Verify the calls to the mocked functions
+        mock_compute_scores.assert_called_once()
         if has_bias:
             mock_apply_bias.assert_called_once()
         else:
