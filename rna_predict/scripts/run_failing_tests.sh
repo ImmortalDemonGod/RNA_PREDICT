@@ -30,7 +30,7 @@ mkdir -p coverage
 # =========================================================================
 
 # Kaggle competition dates
-COMPETITION_START="2025-02-27"
+# These dates are used for reference but actual dates are loaded from config
 LEADERBOARD_REFRESH="2025-04-23"
 FINAL_SUBMISSION="2025-05-29"
 FUTURE_DATA_PHASE_START="2025-06-01"
@@ -149,8 +149,7 @@ get_coverage_goal() {
             fi
         fi
 
-        # Get base coverage and target coverage for current phase
-        BASE_COVERAGE=$(jq -r ".base_coverage" "$CONFIG_FILE")
+        # Get current and target coverage for current phase
         CURRENT_COVERAGE=$(jq -r ".current_coverage" "$CONFIG_FILE")
         TARGET_COVERAGE=$(jq -r ".phase_coverage.$CURRENT_PHASE.overall" "$CONFIG_FILE")
 
@@ -183,25 +182,36 @@ get_coverage_goal() {
 
         # Calculate days until next milestone and total phase duration
         if [[ "$OSTYPE" == "darwin"* ]]; then
-            # macOS date command - simplified to avoid format issues
-            # Just calculate a rough estimate based on month differences
-            NEXT_MONTH=$(echo $NEXT_DATE | cut -d'-' -f2)
-            NEXT_DAY=$(echo $NEXT_DATE | cut -d'-' -f3)
-            CURRENT_MONTH=$(echo $CURRENT_DATE | cut -d'-' -f2)
-            CURRENT_DAY=$(echo $CURRENT_DATE | cut -d'-' -f3)
+            # Check if GNU date (gdate) is available
+            if command -v gdate >/dev/null 2>&1; then
+                # Use GNU date for consistent calculations
+                DAYS_UNTIL_NEXT=$(( ($(gdate -d "$NEXT_DATE" +%s) - $(gdate -d "$CURRENT_DATE" +%s)) / 86400 ))
+                DAYS_SINCE_PHASE_START=$(( ($(gdate -d "$CURRENT_DATE" +%s) - $(gdate -d "$PHASE_START_DATE" +%s)) / 86400 ))
+                TOTAL_PHASE_DAYS=$(( ($(gdate -d "$PHASE_END_DATE" +%s) - $(gdate -d "$PHASE_START_DATE" +%s)) / 86400 ))
+            else
+                # macOS date command - simplified to avoid format issues
+                # Just calculate a rough estimate based on month differences
+                NEXT_MONTH=$(echo $NEXT_DATE | cut -d'-' -f2)
+                NEXT_DAY=$(echo $NEXT_DATE | cut -d'-' -f3)
+                CURRENT_MONTH=$(echo $CURRENT_DATE | cut -d'-' -f2)
+                CURRENT_DAY=$(echo $CURRENT_DATE | cut -d'-' -f3)
 
-            # Simple calculation: (next_month - current_month) * 30 + (next_day - current_day)
-            DAYS_UNTIL_NEXT=$(( (10#$NEXT_MONTH - 10#$CURRENT_MONTH) * 30 + (10#$NEXT_DAY - 10#$CURRENT_DAY) ))
+                # Simple calculation: (next_month - current_month) * 30 + (next_day - current_day)
+                DAYS_UNTIL_NEXT=$(( (10#$NEXT_MONTH - 10#$CURRENT_MONTH) * 30 + (10#$NEXT_DAY - 10#$CURRENT_DAY) ))
 
-            # Calculate phase start and current date difference
-            PHASE_START_MONTH=$(echo $PHASE_START_DATE | cut -d'-' -f2)
-            PHASE_START_DAY=$(echo $PHASE_START_DATE | cut -d'-' -f3)
-            DAYS_SINCE_PHASE_START=$(( (10#$CURRENT_MONTH - 10#$PHASE_START_MONTH) * 30 + (10#$CURRENT_DAY - 10#$PHASE_START_DAY) ))
+                # Calculate phase start and current date difference
+                PHASE_START_MONTH=$(echo $PHASE_START_DATE | cut -d'-' -f2)
+                PHASE_START_DAY=$(echo $PHASE_START_DATE | cut -d'-' -f3)
+                DAYS_SINCE_PHASE_START=$(( (10#$CURRENT_MONTH - 10#$PHASE_START_MONTH) * 30 + (10#$CURRENT_DAY - 10#$PHASE_START_DAY) ))
 
-            # Calculate total phase duration
-            PHASE_END_MONTH=$(echo $PHASE_END_DATE | cut -d'-' -f2)
-            PHASE_END_DAY=$(echo $PHASE_END_DATE | cut -d'-' -f3)
-            TOTAL_PHASE_DAYS=$(( (10#$PHASE_END_MONTH - 10#$PHASE_START_MONTH) * 30 + (10#$PHASE_END_DAY - 10#$PHASE_START_DAY) ))
+                # Calculate total phase duration
+                PHASE_END_MONTH=$(echo $PHASE_END_DATE | cut -d'-' -f2)
+                PHASE_END_DAY=$(echo $PHASE_END_DATE | cut -d'-' -f3)
+                TOTAL_PHASE_DAYS=$(( (10#$PHASE_END_MONTH - 10#$PHASE_START_MONTH) * 30 + (10#$PHASE_END_DAY - 10#$PHASE_START_DAY) ))
+
+                echo "Note: For more accurate date calculations on macOS, consider installing GNU coreutils:"
+                echo "  brew install coreutils"
+            fi
 
             # Ensure values aren't negative
             if [ $DAYS_UNTIL_NEXT -lt 0 ]; then
@@ -353,7 +363,7 @@ if [ "$RUN_MODULE_SPECIFIC" = true ]; then
             echo "Testing $category with coverage goal: $CATEGORY_TARGET%"
 
             # Get modules in this category
-            modules=$(jq -r ".module_categories.$category[]" "$CONFIG_FILE")
+            modules=$(jq -r ".module_categories.${category}[]" "$CONFIG_FILE")
 
             for module in $modules; do
                 echo "Testing module: $module"
@@ -372,7 +382,7 @@ if [ "$RUN_MODULE_SPECIFIC" = true ]; then
                 pytest $module_tests -v -n $NUM_WORKERS --dist=loadfile --timeout=300 \
                     --memray --most-allocations=10 --stacks=5 \
                     --cov=$module \
-                    --cov-report=html:coverage/$(basename $module_path) \
+                    --cov-report=html:"coverage/$(basename $module_path)" \
                     --cov-report=term-missing \
                     --cov-fail-under=$CATEGORY_TARGET
 

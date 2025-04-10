@@ -18,10 +18,10 @@ The system is aligned with the Stanford RNA 3D Folding Competition timeline:
 
 | Phase | Date Range | Description |
 |-------|------------|-------------|
-| **Exploration** | Feb 27 - Mar 27, 2025 | Initial exploration and model development |
-| **Development** | Mar 28 - Apr 22, 2025 | Core implementation and refinement |
-| **Optimization** | Apr 23 - May 15, 2025 | Performance tuning after leaderboard refresh |
-| **Final Submission** | May 16 - May 29, 2025 | Final preparations for submission |
+| **Exploration** | Feb 27 – Mar 27, 2025 | Initial exploration and model development |
+| **Development** | Mar 28 – Apr 22, 2025 | Core implementation and refinement |
+| **Optimization** | Apr 23 – May 15, 2025 | Performance tuning after leaderboard refresh |
+| **Final Submission** | May 16 – May 29, 2025 | Final preparations for submission |
 
 ## Coverage Goals by Phase
 
@@ -92,6 +92,7 @@ This file is automatically created if it doesn't exist, but can be manually edit
 
 - `jq` command-line JSON processor (for parsing the configuration)
 - `bc` command-line calculator (for calculating coverage goals)
+- For macOS users: GNU coreutils (`brew install coreutils`) for accurate date calculations
 - `pytest` with the following plugins:
   - `pytest-xdist` (for parallel testing)
   - `pytest-cov` (for coverage reporting)
