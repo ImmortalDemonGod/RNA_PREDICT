@@ -38,30 +38,42 @@ def save_config(config):
 
     print(f"Configuration saved to {CONFIG_FILE}")
 
-def list_modules(config):
-    """List all modules in the configuration."""
-    print("\nCurrent Coverage Status:")
+def _print_section_header(title):
+    """Print a section header with consistent formatting."""
+    print(f"\n{title}")
     print("=" * 50)
+
+def _print_coverage_status(config):
+    """Print the current coverage status."""
+    _print_section_header("Current Coverage Status")
     print(f"Base Coverage: {config['base_coverage']}%")
     print(f"Current Coverage: {config['current_coverage']}%")
     print(f"Maximum Coverage: {config['max_coverage']}%")
 
-    print("\nCurrent Module Categorization:")
-    print("=" * 50)
+def _print_module_categories(config):
+    """Print the current module categorization."""
+    _print_section_header("Current Module Categorization")
 
     for category, modules in config["module_categories"].items():
         print(f"\n{category.replace('_', ' ').title()}:")
         for module in modules:
             print(f"  - {module}")
 
-    print("\nCurrent Coverage Goals by Phase:")
-    print("=" * 50)
+def _print_phase_goals(config):
+    """Print the coverage goals for each phase."""
+    _print_section_header("Current Coverage Goals by Phase")
 
     for phase, details in config["phase_coverage"].items():
         print(f"\n{phase.replace('_', ' ').title()} Phase ({details['start_date']} to {details['end_date']}):")
         for key, value in details.items():
             if key not in ["start_date", "end_date"]:
                 print(f"  - {key.replace('_', ' ').title()}: {value}%")
+
+def list_modules(config):
+    """List all modules in the configuration."""
+    _print_coverage_status(config)
+    _print_module_categories(config)
+    _print_phase_goals(config)
 
 def add_module(config, module_name, category):
     """Add a module to a category."""
@@ -85,36 +97,58 @@ def add_module(config, module_name, category):
 
     return config
 
-def update_phase(config, phase_name, overall=None, critical=None, standard=None, utility=None):
-    """Update coverage goals for a phase."""
+class CoverageGoals:
+    """Class to hold coverage goal values."""
+    def __init__(self, overall=None, critical=None, standard=None, utility=None):
+        self.overall = overall
+        self.critical = critical
+        self.standard = standard
+        self.utility = utility
+
+def validate_coverage_value(name, value):
+    """Validate that a coverage value is within the valid range."""
+    if value is not None and not (0 <= value <= 100):
+        print(f"Error: {name} coverage must be between 0 and 100, got {value}")
+        sys.exit(1)
+    return value
+
+def update_phase(config, phase_name, goals=None, **kwargs):
+    """Update coverage goals for a phase.
+
+    Args:
+        config: The configuration dictionary
+        phase_name: The name of the phase to update
+        goals: A CoverageGoals object containing the goals to update
+        **kwargs: Alternative way to specify goals (overall, critical, standard, utility)
+    """
     if phase_name not in config["phase_coverage"]:
         print(f"Error: Phase '{phase_name}' not found. Valid phases are: {', '.join(config['phase_coverage'].keys())}")
         sys.exit(1)
 
-    # Validate coverage values are within valid range
-    for name, value in [("overall", overall), ("critical", critical),
-                      ("standard", standard), ("utility", utility)]:
-        if value is not None and not (0 <= value <= 100):
-            print(f"Error: {name} coverage must be between 0 and 100, got {value}")
-            sys.exit(1)
+    # Create goals object if individual parameters were provided
+    if goals is None:
+        goals = CoverageGoals(
+            overall=kwargs.get("overall"),
+            critical=kwargs.get("critical"),
+            standard=kwargs.get("standard"),
+            utility=kwargs.get("utility")
+        )
 
-    if overall is not None:
-        config["phase_coverage"][phase_name]["overall"] = overall
-        print(f"Updated overall coverage goal for {phase_name} to {overall}%")
-
-    if critical is not None:
-        config["phase_coverage"][phase_name]["critical_modules"] = critical
-        print(f"Updated critical modules coverage goal for {phase_name} to {critical}%")
-
-    if standard is not None:
-        config["phase_coverage"][phase_name]["standard_modules"] = standard
-        print(f"Updated standard modules coverage goal for {phase_name} to {standard}%")
-
-    if utility is not None:
-        config["phase_coverage"][phase_name]["utility_modules"] = utility
-        print(f"Updated utility modules coverage goal for {phase_name} to {utility}%")
+    # Update the configuration with validated values
+    _update_phase_goal(config, phase_name, "overall", goals.overall)
+    _update_phase_goal(config, phase_name, "critical_modules", goals.critical)
+    _update_phase_goal(config, phase_name, "standard_modules", goals.standard)
+    _update_phase_goal(config, phase_name, "utility_modules", goals.utility)
 
     return config
+
+def _update_phase_goal(config, phase_name, goal_key, value):
+    """Helper function to update a specific goal for a phase."""
+    if value is not None:
+        validate_coverage_value(goal_key.replace("_modules", ""), value)
+        config["phase_coverage"][phase_name][goal_key] = value
+        display_name = goal_key.replace("_modules", "").title()
+        print(f"Updated {display_name} coverage goal for {phase_name} to {value}%")
 
 def update_base_coverage(config, base_coverage=None, current_coverage=None):
     """Update base and current coverage values."""
@@ -163,7 +197,13 @@ def main():
         return
 
     if args.update_phase:
-        config = update_phase(config, args.update_phase, args.overall, args.critical, args.standard, args.utility)
+        goals = CoverageGoals(
+            overall=args.overall,
+            critical=args.critical,
+            standard=args.standard,
+            utility=args.utility
+        )
+        config = update_phase(config, args.update_phase, goals=goals)
         save_config(config)
         return
 
