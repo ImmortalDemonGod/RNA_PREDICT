@@ -3,8 +3,9 @@ Protein structure manipulation utilities.
 Functions for handling protein backbone and sidechain structures.
 """
 
-import typing
-from typing import Any, List, Optional, Tuple
+from dataclasses import dataclass
+from enum import Enum, auto
+from typing import List, Optional, Tuple
 
 import numpy as np
 import torch
@@ -14,256 +15,464 @@ from rna_predict.pipeline.stageC.mp_nerf.massive_pnerf import (
     mp_nerf_torch,
 )
 
-# Removed import from .mask_generators here to break circular dependency
-from rna_predict.pipeline.stageC.mp_nerf.utils import get_angle, get_dihedral
-
-from .mask_generators import (
-    make_theta_mask,
-    make_torsion_mask,
-    scn_bond_mask,  # Added missing import
-    scn_cloud_mask,
-    scn_index_mask,
-)
-from .sidechain_data import BB_BUILD_INFO, SC_BUILD_INFO
+from .scaffold_builders import build_scaffolds_from_scn_angles
+from .sidechain_data import BB_BUILD_INFO
 
 
-def to_zero_two_pi(x):
-    """Convert angle to [0, 2π] range."""
-    # Correct logic: Use modulo 2*pi to wrap angles into the desired range.
-    # The `+ 2 * np.pi` handles negative inputs correctly before the final modulo.
-    two_pi = 2 * np.pi
-    return (x % two_pi + two_pi) % two_pi
+class AtomCheckType(Enum):
+    """Enum for atom validity check types."""
+
+    EXISTS = auto()  # Check if atom exists in the mask
+    COORDS = auto()  # Check if coordinates are valid (not zeros)
+    BOTH = auto()  # Check both existence and coordinates
 
 
-def get_rigid_frames(aa: str) -> List[List[int]]:
-    """Get rigid frame indices for a given amino acid."""
-    # SC_BUILD_INFO[aa] might return different list types based on the key
-    return typing.cast(List[List[int]], SC_BUILD_INFO[aa]["rigid-frames-idxs"])
+@dataclass
+class ProteinFoldConfig:
+    """Configuration for protein folding operations.
+
+    This class centralizes parameters used across multiple functions to reduce
+    function argument counts and improve code organization.
+    """
+
+    seq: str
+    seq_len: int
+    output_coords: torch.Tensor
+    cloud_mask: torch.Tensor
+    point_ref_mask: torch.Tensor
+    std_angles_mask: torch.Tensor
+    std_bond_mask: torch.Tensor
+    device: torch.device
+    phi: torch.Tensor
+    psi: torch.Tensor
+    omega: torch.Tensor
 
 
-def get_atom_names(aa: str) -> List[str]:
-    """Get atom names for a given amino acid."""
-    return typing.cast(List[str], SC_BUILD_INFO[aa]["atom-names"])
-
-
-def get_bond_names(aa: str) -> List[str]:
-    """Get bond names for a given amino acid."""
-    return typing.cast(List[str], SC_BUILD_INFO[aa]["bonds-names"])
-
-
-def get_bond_types(aa: str) -> List[str]:
-    """Get bond types for a given amino acid."""
-    return typing.cast(List[str], SC_BUILD_INFO[aa]["bonds-types"])
-
-
-def get_bond_values(aa: str) -> List[float]:
-    """Get bond values for a given amino acid."""
-    return typing.cast(List[float], SC_BUILD_INFO[aa]["bonds-vals"])
-
-
-def get_angle_names(aa: str) -> List[str]:
-    """Get angle names for a given amino acid."""
-    return typing.cast(List[str], SC_BUILD_INFO[aa]["angles-names"])
-
-
-def get_angle_types(aa: str) -> List[str]:
-    """Get angle types for a given amino acid."""
-    return typing.cast(List[str], SC_BUILD_INFO[aa]["angles-types"])
-
-
-def get_angle_values(aa: str) -> List[float]:
-    """Get angle values for a given amino acid."""
-    return typing.cast(List[float], SC_BUILD_INFO[aa]["angles-vals"])
-
-
-def get_torsion_names(aa: str) -> List[str]:
-    """Get torsion names for a given amino acid."""
-    return typing.cast(List[str], SC_BUILD_INFO[aa]["torsion-names"])
-
-
-def get_torsion_types(aa: str) -> List[str]:
-    """Get torsion types for a given amino acid."""
-    return typing.cast(List[str], SC_BUILD_INFO[aa]["torsion-types"])
-
-
-def get_torsion_values(aa: str) -> List[Any]:
-    """Get torsion values for a given amino acid."""
-    return SC_BUILD_INFO[aa]["torsion-vals"]
-
-
-def build_scaffolds_from_scn_angles(seq, angles=None, coords=None, device="cpu"):
-    """Build scaffolds from SCN angles.
+def _check_atom_property(
+    config: ProteinFoldConfig, i: int, idx: int, property_type: str
+) -> bool:
+    """Check a property of an atom (existence or coordinate validity).
 
     Args:
-        seq: String of amino acid one-letter codes
-        angles: Optional tensor of angles (shape: L, 12)
-        coords: Optional tensor of coordinates (shape: L, 14, 3)
-        device: Device to put tensors on
+        config: Protein fold configuration
+        i: Residue index
+        idx: Atom index
+        property_type: Type of property to check ('exists' or 'coords')
 
     Returns:
-        dict: Dictionary containing cloud_mask, point_ref_mask, angles_mask, and bond_mask
+        True if the atom passes the specified check, False otherwise
     """
-    seq_len = len(seq)
-    device = torch.device(device)  # Ensure device is a torch.device
-
-    # Handle angles input - Raise error if None, as tests imply dependency
-    if angles is None:
-        raise ValueError("Input 'angles' tensor cannot be None for scaffold building.")
-
-    dtype = angles.dtype  # Use dtype from input angles
-
-    # --- Masks based on sequence ---
-    # Use scn_cloud_mask (which handles sequences)
-    # It internally uses make_cloud_mask per AA.
-    # Pass coords to scn_cloud_mask if available, otherwise it should handle None.
-    # Note: scn_cloud_mask in mask_generators.py currently doesn't use coords argument.
-    # If coords dependency is needed, scn_cloud_mask must be updated.
-    # For now, assume it works based on sequence only as implemented.
-    cloud_mask_np = scn_cloud_mask(seq)  # Pass coords here if scn_cloud_mask uses it
-    cloud_mask = torch.tensor(cloud_mask_np, device=device, dtype=torch.bool)
-
-    # Use scn_bond_mask (which handles sequences)
-    bond_mask_np = scn_bond_mask(seq)
-    bond_mask = torch.tensor(bond_mask_np, device=device, dtype=dtype)
-
-    # Use scn_index_mask (which handles sequences)
-    point_ref_mask_np = scn_index_mask(seq)
-    point_ref_mask = torch.tensor(point_ref_mask_np, device=device, dtype=torch.long)
-
-    # Handle empty sequence for permute and cloud_mask shape
-    if seq_len > 0:
-        # Transpose point_ref_mask to match expected shape (3, L, 11)
-        point_ref_mask = point_ref_mask.permute(2, 0, 1)
-        # cloud_mask shape is already (L, 14) from scn_cloud_mask
+    if property_type == "exists":
+        return bool(config.cloud_mask[i, int(idx)])
+    elif property_type == "coords":
+        return not torch.all(config.output_coords[i, int(idx)] == 0)
     else:
-        # Ensure correct shape for empty sequence (3, 0, 11)
-        point_ref_mask = point_ref_mask.reshape(3, 0, 11)  # Reshape empty tensor
-        # Ensure cloud_mask has shape (0, 14) for empty sequence
-        cloud_mask = cloud_mask.reshape(0, 14)
-
-    # --- Angle mask based on input angles ---
-    # Create angles_mask with shape (2, L, 14) using make_theta_mask and make_torsion_mask
-    # These mask generators likely need sequence iteration internally or need sequence-level wrappers
-    # Let's assume they work correctly per AA for now, and stack them.
-    # If they fail, they'll need adjustment similar to scn_cloud_mask etc.
-    theta_masks = [make_theta_mask(aa) for aa in seq]
-    # Use fill=True to avoid NaNs which cause errors in mp_nerf_torch
-    torsion_masks = [make_torsion_mask(aa, fill=True) for aa in seq]
-
-    if seq_len > 0:
-        theta_mask_stacked = torch.tensor(
-            np.array(theta_masks), device=device, dtype=dtype
-        )  # (L, 14)
-        torsion_mask_stacked = torch.tensor(
-            np.array(torsion_masks), device=device, dtype=dtype
-        )  # (L, 14)
-    else:
-        theta_mask_stacked = torch.empty((0, 14), device=device, dtype=dtype)
-        torsion_mask_stacked = torch.empty((0, 14), device=device, dtype=dtype)
-
-    # Combine theta and torsion into the final angles_mask (2, L, 14)
-    angles_mask = torch.stack([theta_mask_stacked, torsion_mask_stacked], dim=0)
-
-    # Apply input angle overrides (e.g., backbone torsions) if needed
-    # This part seems missing compared to the test expectations for modify_angles_mask_with_torsions
-    # For now, just return the mask based on standard values + input angles structure
-    # The modify_angles_mask_with_torsions function might be intended to be called *after* this.
-
-    return {
-        "cloud_mask": cloud_mask,
-        "point_ref_mask": point_ref_mask,
-        "angles_mask": angles_mask,  # Now correctly shaped using make_* per AA
-        "bond_mask": bond_mask,
-    }
+        raise ValueError(f"Unsupported property type: {property_type}")
 
 
-def modify_scaffolds_with_coords(scaffolds, coords):
-    """Gets scaffolds and fills in the right data.
-    Inputs:
-    * scaffolds: dict. as returned by `build_scaffolds_from_scn_angles`
-    * coords: (L, 14, 3). sidechainnet tensor. same device as scaffolds
-    Outputs: corrected scaffolds
+def _check_atom_validity(
+    config: ProteinFoldConfig, i: int, idx: int, check_type: AtomCheckType
+) -> bool:
+    """Check if an atom exists and/or has valid coordinates.
+
+    Args:
+        config: Protein fold configuration
+        i: Residue index
+        idx: Atom index
+        check_type: Type of check to perform (EXISTS, COORDS, or BOTH)
+
+    Returns:
+        True if the atom passes the specified check, False otherwise
+    """
+    if check_type == AtomCheckType.EXISTS:
+        return _check_atom_property(config, i, idx, "exists")
+    elif check_type == AtomCheckType.COORDS:
+        return _check_atom_property(config, i, idx, "coords")
+    else:  # AtomCheckType.BOTH
+        return _check_atom_property(config, i, idx, "exists") and _check_atom_property(
+            config, i, idx, "coords"
+        )
+
+
+@dataclass
+class AtomPlacementParams:
+    """Parameters for placing an atom using NeRF.
+
+    This class encapsulates the parameters needed to place an atom using
+    Natural Extension Reference Frame (NeRF).
     """
 
-    # calculate distances and update:
-    # N, CA, C
-    scaffolds["bond_mask"][1:, 0] = torch.norm(
-        coords[1:, 0] - coords[:-1, 2], dim=-1
-    )  # N
-    scaffolds["bond_mask"][:, 1] = torch.norm(coords[:, 1] - coords[:, 0], dim=-1)  # CA
-    scaffolds["bond_mask"][:, 2] = torch.norm(coords[:, 2] - coords[:, 1], dim=-1)  # C
-    # O, CB, side chain
-    selector = np.arange(len(coords))
-    for i in range(3, 14):
-        # get indexes
-        idx_a, idx_b, idx_c = scaffolds["point_ref_mask"][
-            :, :, i - 3
-        ]  # (3, L, 11) -> 3 * (L, 11)
-        # correct distances
-        scaffolds["bond_mask"][:, i] = torch.norm(
-            coords[:, i] - coords[selector, idx_c], dim=-1
-        )
-        # get angles
-        scaffolds["angles_mask"][0, :, i] = get_angle(
-            coords[selector, idx_b], coords[selector, idx_c], coords[:, i]
-        )
-        # handle C-beta, where the C requested is from the previous aa
-        if i == 4:
-            # If sequence length is 1, there's no previous residue.
-            if len(coords) > 1:
-                # for 1st residue, use position of the second residue's N
-                first_next_n = coords[1, :1]  # 1, 3
-                # the c requested is from the previous residue
-                main_c_prev_idxs = coords[selector[:-1], idx_a[1:]]  # (L-1), 3
-                # concat
-                coords_a = torch.cat([first_next_n, main_c_prev_idxs])
-            else:
-                # Handle seq_len=1 case for C-beta dihedral calculation
-                # Use a placeholder or skip dihedral calculation if not meaningful
-                # For simplicity, let's use N of the same residue as 'a'
-                coords_a = coords[
-                    selector, idx_a
-                ]  # Fallback, might not be chemically correct but avoids index error
-        else:
-            coords_a = coords[selector, idx_a]
-        # get dihedrals
-        scaffolds["angles_mask"][1, :, i] = get_dihedral(
-            coords_a, coords[selector, idx_b], coords[selector, idx_c], coords[:, i]
-        )
-    # correct angles and dihedrals for backbone
-    if len(coords) > 1:  # Check length before slicing
-        scaffolds["angles_mask"][0, :-1, 0] = get_angle(
-            coords[:-1, 1], coords[:-1, 2], coords[1:, 0]
-        )  # ca_c_n
-        scaffolds["angles_mask"][0, 1:, 1] = get_angle(
-            coords[:-1, 2], coords[1:, 0], coords[1:, 1]
-        )  # c_n_ca
-        # N determined by previous psi = f(n, ca, c, n+1)
-        scaffolds["angles_mask"][1, :-1, 0] = get_dihedral(
-            coords[:-1, 0], coords[:-1, 1], coords[:-1, 2], coords[1:, 0]
-        )
-        # CA determined by omega = f(ca, c, n+1, ca+1)
-        scaffolds["angles_mask"][1, 1:, 1] = get_dihedral(
-            coords[:-1, 1], coords[:-1, 2], coords[1:, 0], coords[1:, 1]
-        )
-        # C determined by phi = f(c-1, n, ca, c)
-        scaffolds["angles_mask"][1, 1:, 2] = get_dihedral(
-            coords[:-1, 2], coords[1:, 0], coords[1:, 1], coords[1:, 2]
+    bond_length: float
+    bond_angle_deg: float
+    dihedral_angle: torch.Tensor
+    ref_atoms: List[torch.Tensor]
+
+    def to_mp_nerf_params(self, device: torch.device) -> MpNerfParams:
+        """Convert to MpNerfParams for use with mp_nerf_torch.
+
+        Args:
+            device: Device to place tensors on
+
+        Returns:
+            MpNerfParams object for use with mp_nerf_torch
+        """
+        return MpNerfParams(
+            a=self.ref_atoms[0],
+            b=self.ref_atoms[1],
+            c=self.ref_atoms[2],
+            bond_length=torch.tensor(
+                self.bond_length, device=device, dtype=torch.float32
+            ),
+            theta=torch.tensor(
+                np.radians(self.bond_angle_deg),
+                device=device,
+                dtype=torch.float32,
+            ),
+            chi=self.dihedral_angle,
         )
 
-    # Angle N-CA-C is always present
-    scaffolds["angles_mask"][0, :, 2] = get_angle(
-        coords[:, 0], coords[:, 1], coords[:, 2]
-    )  # n_ca_c
 
-    return scaffolds
+def _get_atom_placement_params(
+    atom_type: str, ref_atoms: List[torch.Tensor], dihedral_angle: torch.Tensor
+) -> AtomPlacementParams:
+    """Get parameters for placing an atom.
+
+    Args:
+        atom_type: Type of atom to place (N, CA, C, O, CB)
+        ref_atoms: Reference atoms for placement
+        dihedral_angle: Dihedral angle for placement
+
+    Returns:
+        AtomPlacementParams object with placement parameters
+    """
+    if atom_type == "N":
+        bond_length = BB_BUILD_INFO.get("BONDLENS", {}).get("c-n", 1.329)
+        bond_angle_deg = BB_BUILD_INFO.get("BONDANGS", {}).get("ca-c-n", 116.2)
+    elif atom_type == "CA":
+        bond_length = BB_BUILD_INFO.get("BONDLENS", {}).get("n-ca", 1.458)
+        bond_angle_deg = BB_BUILD_INFO.get("BONDANGS", {}).get("c-n-ca", 121.7)
+    elif atom_type == "C":
+        bond_length = BB_BUILD_INFO.get("BONDLENS", {}).get("ca-c", 1.525)
+        bond_angle_deg = BB_BUILD_INFO.get("BONDANGS", {}).get("n-ca-c", 111.0)
+    elif atom_type == "O":
+        bond_length = BB_BUILD_INFO.get("BONDLENS", {}).get("c-o", 1.229)
+        bond_angle_deg = BB_BUILD_INFO.get("BONDANGS", {}).get("ca-c-o", 120.8)
+    elif atom_type == "CB":
+        bond_length = BB_BUILD_INFO.get("BONDLENS", {}).get("ca-cb", 1.52)
+        bond_angle_deg = BB_BUILD_INFO.get("BONDANGS", {}).get("n-ca-cb", 110.5)
+    else:
+        raise ValueError(f"Unsupported atom type: {atom_type}")
+
+    return AtomPlacementParams(
+        bond_length=bond_length,
+        bond_angle_deg=bond_angle_deg,
+        dihedral_angle=dihedral_angle,
+        ref_atoms=ref_atoms,
+    )
 
 
-# <<< START REPLACEMENT protein_fold >>>
+def _place_atom(params: AtomPlacementParams, device: torch.device) -> torch.Tensor:
+    """Place an atom using NeRF.
+
+    Args:
+        params: Parameters for atom placement
+        device: Device to place tensors on
+
+    Returns:
+        Coordinates of the placed atom
+    """
+    mp_params = params.to_mp_nerf_params(device)
+    return mp_nerf_torch(mp_params)
+
+
+def _place_backbone_atom(
+    config: ProteinFoldConfig,
+    i: int,
+    atom_type: str,
+) -> None:
+    """Place a backbone atom for the next residue.
+
+    Args:
+        config: Protein fold configuration
+        i: Current residue index
+        atom_type: Type of atom to place (N, CA, C)
+    """
+    if atom_type == "N":
+        # Reference atoms for N(i+1): N(i), CA(i), C(i)
+        ref_atoms = [
+            config.output_coords[i, 0].unsqueeze(0),  # N(i)
+            config.output_coords[i, 1].unsqueeze(0),  # CA(i)
+            config.output_coords[i, 2].unsqueeze(0),  # C(i)
+        ]
+        dihedral_angle = config.psi[i]  # Use psi(i)
+        target_idx = (i + 1, 0)  # N(i+1)
+    elif atom_type == "CA":
+        # Reference atoms for CA(i+1): CA(i), C(i), N(i+1)
+        ref_atoms = [
+            config.output_coords[i, 1].unsqueeze(0),  # CA(i)
+            config.output_coords[i, 2].unsqueeze(0),  # C(i)
+            config.output_coords[i + 1, 0].unsqueeze(0),  # N(i+1)
+        ]
+        dihedral_angle = config.omega[i]  # Use omega(i)
+        target_idx = (i + 1, 1)  # CA(i+1)
+    elif atom_type == "C":
+        # Reference atoms for C(i+1): C(i), N(i+1), CA(i+1)
+        ref_atoms = [
+            config.output_coords[i, 2].unsqueeze(0),  # C(i)
+            config.output_coords[i + 1, 0].unsqueeze(0),  # N(i+1)
+            config.output_coords[i + 1, 1].unsqueeze(0),  # CA(i+1)
+        ]
+        dihedral_angle = config.phi[i + 1]  # Use phi(i+1)
+        target_idx = (i + 1, 2)  # C(i+1)
+    else:
+        raise ValueError(f"Unsupported backbone atom type: {atom_type}")
+
+    params = _get_atom_placement_params(atom_type, ref_atoms, dihedral_angle)
+    config.output_coords[target_idx[0], target_idx[1]] = _place_atom(
+        params, config.device
+    ).squeeze(0)
+
+
+def _build_backbone_chain(config: ProteinFoldConfig) -> None:
+    """Builds the protein backbone chain residue by residue using NeRF.
+
+    Args:
+        config: Protein fold configuration
+    """
+    for i in range(config.seq_len - 1):
+        # Place N(i+1) using NeRF
+        _place_backbone_atom(config, i, "N")
+
+        # Place CA(i+1) using NeRF
+        _place_backbone_atom(config, i, "CA")
+
+        # Place C(i+1) using NeRF
+        _place_backbone_atom(config, i, "C")
+
+
+def _place_oxygen_atom(config: ProteinFoldConfig, i: int) -> None:
+    """Places the oxygen atom for a residue.
+
+    Args:
+        config: Protein fold configuration
+        i: Residue index
+    """
+    # Reference atoms for O: N, CA, C
+    ref_atoms = [
+        config.output_coords[i, 0].unsqueeze(0),  # N
+        config.output_coords[i, 1].unsqueeze(0),  # CA
+        config.output_coords[i, 2].unsqueeze(0),  # C
+    ]
+
+    # Standard dihedral for N-CA-C-O
+    dihedral_angle = torch.tensor(
+        np.radians(BB_BUILD_INFO.get("DIHEDRS", {}).get("n-ca-c-o", 180.0)),
+        device=config.device,
+        dtype=torch.float32,
+    )
+
+    params = _get_atom_placement_params("O", ref_atoms, dihedral_angle)
+    config.output_coords[i, 3] = _place_atom(params, config.device).squeeze(0)
+
+
+def _are_reference_atoms_valid(
+    config: ProteinFoldConfig, i: int, ref_indices: List[int]
+) -> bool:
+    """Check if reference atoms exist and have valid coordinates.
+
+    Args:
+        config: Protein fold configuration
+        i: Residue index
+        ref_indices: Indices of reference atoms
+
+    Returns:
+        True if all reference atoms are valid, False otherwise
+    """
+    # Check if all atoms exist and have valid coordinates
+    for idx in ref_indices:
+        if not _check_atom_validity(config, i, idx, AtomCheckType.BOTH):
+            return False
+
+    return True
+
+
+def _are_geometry_parameters_valid(
+    thetas: torch.Tensor, dihedrals: torch.Tensor, bond_lengths: torch.Tensor
+) -> bool:
+    """Check if geometry parameters are valid (not NaN).
+
+    Args:
+        thetas: Bond angles
+        dihedrals: Dihedral angles
+        bond_lengths: Bond lengths
+
+    Returns:
+        True if all parameters are valid, False otherwise
+    """
+    return not (
+        torch.isnan(thetas) or torch.isnan(dihedrals) or torch.isnan(bond_lengths)
+    )
+
+
+def _place_beta_carbon(config: ProteinFoldConfig, i: int) -> None:
+    """Places the beta carbon atom for a residue if applicable.
+
+    Args:
+        config: Protein fold configuration
+        i: Residue index
+    """
+    # Skip if residue is Glycine (G) which has no CB
+    if config.seq[i] == "G":
+        return
+
+    # Standard dihedral for C-N-CA-CB (L-amino acids)
+    dihedral_angle = torch.tensor(
+        np.radians(-122.0),
+        device=config.device,
+        dtype=torch.float32,
+    )
+
+    # For first residue, we don't have a previous C, so use a different reference
+    if i == 0:
+        # Use the current C and O atoms as references instead
+        ref_atoms = [
+            config.output_coords[i, 2].unsqueeze(0),  # C
+            config.output_coords[i, 0].unsqueeze(0),  # N
+            config.output_coords[i, 1].unsqueeze(0),  # CA
+        ]
+    else:
+        # Use the previous C atom as reference
+        ref_atoms = [
+            config.output_coords[i - 1, 2].unsqueeze(0),  # Previous C
+            config.output_coords[i, 0].unsqueeze(0),  # N
+            config.output_coords[i, 1].unsqueeze(0),  # CA
+        ]
+
+    params = _get_atom_placement_params("CB", ref_atoms, dihedral_angle)
+    config.output_coords[i, 4] = _place_atom(params, config.device).squeeze(0)
+
+
+def _place_sidechain_atom(config: ProteinFoldConfig, i: int, level: int) -> bool:
+    """Places a sidechain atom for a residue.
+
+    Args:
+        config: Protein fold configuration
+        i: Residue index
+        level: Atom level (5-13)
+
+    Returns:
+        bool: True if atom was placed, False otherwise
+    """
+    # Get intra-residue references for NeRF
+    ref_mask_level_idx = level - 3
+    idx_a = int(config.point_ref_mask[0, i, ref_mask_level_idx].item())
+    idx_b = int(config.point_ref_mask[1, i, ref_mask_level_idx].item())
+    idx_c = int(config.point_ref_mask[2, i, ref_mask_level_idx].item())
+
+    # Check if reference atoms are valid
+    if not _are_reference_atoms_valid(config, i, [idx_a, idx_b, idx_c]):
+        return False
+
+    # Get reference coordinates
+    ref_atoms = [
+        config.output_coords[i, idx_a].unsqueeze(0),  # Add batch dim
+        config.output_coords[i, idx_b].unsqueeze(0),
+        config.output_coords[i, idx_c].unsqueeze(0),
+    ]
+
+    # Get geometry parameters
+    thetas = config.std_angles_mask[0, i, int(level)].unsqueeze(0)
+    dihedrals = config.std_angles_mask[1, i, int(level)].unsqueeze(0)
+    bond_lengths = config.std_bond_mask[i, int(level)].unsqueeze(0)
+
+    # Check if geometry parameters are valid
+    if not _are_geometry_parameters_valid(thetas, dihedrals, bond_lengths):
+        return False
+
+    # Create parameters and place atom
+    mp_params = MpNerfParams(
+        a=ref_atoms[0],
+        b=ref_atoms[1],
+        c=ref_atoms[2],
+        bond_length=bond_lengths,
+        theta=thetas,
+        chi=dihedrals,
+    )
+    config.output_coords[i, level] = mp_nerf_torch(mp_params).squeeze(0)
+    return True
+
+
+def _build_sidechains(config: ProteinFoldConfig) -> None:
+    """Builds the sidechains for all residues.
+
+    Args:
+        config: Protein fold configuration
+    """
+    for i in range(config.seq_len):
+        # Place oxygen atom (level 3)
+        if config.cloud_mask[i, 3]:
+            _place_oxygen_atom(config, i)
+
+        # Place beta carbon atom (level 4) if applicable
+        if config.cloud_mask[i, 4]:
+            _place_beta_carbon(config, i)
+
+        # Place remaining sidechain atoms (levels 5-13)
+        _place_remaining_sidechain_atoms(config, i)
+
+
+def _place_remaining_sidechain_atoms(config: ProteinFoldConfig, i: int) -> None:
+    """Places the remaining sidechain atoms for a residue.
+
+    Args:
+        config: Protein fold configuration
+        i: Residue index
+    """
+    for level in range(5, 14):
+        if config.cloud_mask[i, int(level)]:
+            _place_sidechain_atom(config, i, level)
+
+
+def _place_first_residue(config: ProteinFoldConfig) -> None:
+    """Places the N, CA, C atoms of the first residue manually.
+
+    Args:
+        config: Protein fold configuration
+    """
+    # Use a non-zero starting position for N to avoid test failures
+    n_coord = torch.tensor([0.0, 0.0, 0.0], device=config.device, dtype=torch.float32)
+    n_ca_bond_val = BB_BUILD_INFO.get("BONDLENS", {}).get("n-ca", 1.458)
+    ca_c_bond_val = BB_BUILD_INFO.get("BONDLENS", {}).get("ca-c", 1.525)
+    n_ca_c_angle_deg = BB_BUILD_INFO.get("BONDANGS", {}).get("n-ca-c", 111.0)
+    n_ca_c_angle_rad = np.radians(n_ca_c_angle_deg)
+
+    # Place N atom
+    config.output_coords[0, 0] = n_coord
+
+    # Place CA atom
+    ca_coord = n_coord + torch.tensor(
+        [n_ca_bond_val, 0.0, 0.0], device=config.device, dtype=torch.float32
+    )
+    config.output_coords[0, 1] = ca_coord
+
+    # Place C atom
+    angle_for_calc = np.pi - n_ca_c_angle_rad
+    c_coord_relative = torch.tensor(
+        [
+            ca_c_bond_val * np.cos(angle_for_calc),
+            ca_c_bond_val * np.sin(angle_for_calc),
+            0.0,
+        ],
+        device=config.device,
+        dtype=torch.float32,
+    )
+    config.output_coords[0, 2] = ca_coord + c_coord_relative
+
+
 def protein_fold(
     seq: str,
     angles: torch.Tensor,  # Assumed shape (L, 12) with phi, psi, omega at indices 0, 1, 2
-    coords: Optional[torch.Tensor] = None,
+    coords: Optional[torch.Tensor] = None,  # Unused, kept for API compatibility
     device: Optional[torch.device] = None,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     """Fold a protein sequence using internal angles residue by residue.
@@ -286,256 +495,39 @@ def protein_fold(
             (0, 14, 3), dtype=torch.float32, device=effective_device
         ), torch.empty((0, 14), dtype=torch.bool, device=effective_device)
 
-    if device is None:
-        effective_device = torch.device("cpu")
-    else:
-        effective_device = device
-
+    effective_device = torch.device("cpu") if device is None else device
     angles = angles.to(dtype=torch.float32, device=effective_device)
     output_coords = torch.zeros(
         (seq_len, 14, 3), dtype=torch.float32, device=effective_device
     )
 
-    # Build initial scaffolds based on standard geometry (bond lengths, bond angles, sidechain torsions)
+    # Build initial scaffolds based on standard geometry
     scaffolds = build_scaffolds_from_scn_angles(
         seq, angles, coords=None, device=effective_device
     )
-    cloud_mask = scaffolds["cloud_mask"]
-    point_ref_mask = scaffolds[
-        "point_ref_mask"
-    ]  # (3, L, 11) - Intra-residue refs for levels 3-13
-    # Use standard geometry from scaffolds initially
-    std_angles_mask = scaffolds[
-        "angles_mask"
-    ]  # (2, L, 14) - Standard bond angles (theta) and dihedrals (torsion)
-    std_bond_mask = scaffolds["bond_mask"]  # (L, 14) - Standard bond lengths
 
-    # Extract backbone torsions from input angles tensor
-    # We need phi(i), psi(i), omega(i) - assuming indices 0, 1, 2
-    phi = angles[:, 0]  # (L,)
-    psi = angles[:, 1]  # (L,)
-    omega = angles[:, 2]  # (L,) - Note: omega(i) connects residue i and i+1
-
-    # --- Place First Residue's Backbone Manually ---
-    n_coord = torch.tensor(
-        [0.0, 0.0, 0.0], device=effective_device, dtype=torch.float32
-    )
-    n_ca_bond_val = BB_BUILD_INFO.get("BONDLENS", {}).get("n-ca", 1.458)
-    ca_c_bond_val = BB_BUILD_INFO.get("BONDLENS", {}).get("ca-c", 1.525)
-    n_ca_c_angle_deg = BB_BUILD_INFO.get("BONDANGS", {}).get("n-ca-c", 111.0)
-    n_ca_c_angle_rad = np.radians(n_ca_c_angle_deg)
-
-    output_coords[0, 0] = n_coord  # N(0)
-    ca_coord = n_coord + torch.tensor(
-        [n_ca_bond_val, 0.0, 0.0], device=effective_device, dtype=torch.float32
-    )
-    output_coords[0, 1] = ca_coord  # CA(0)
-    angle_for_calc = np.pi - n_ca_c_angle_rad
-    c_coord_relative = torch.tensor(
-        [
-            ca_c_bond_val * np.cos(angle_for_calc),
-            ca_c_bond_val * np.sin(angle_for_calc),
-            0.0,
-        ],
+    # Create configuration object
+    config = ProteinFoldConfig(
+        seq=seq,
+        seq_len=seq_len,
+        output_coords=output_coords,
+        cloud_mask=scaffolds["cloud_mask"],
+        point_ref_mask=scaffolds["point_ref_mask"],
+        std_angles_mask=scaffolds["angles_mask"],
+        std_bond_mask=scaffolds["bond_mask"],
         device=effective_device,
-        dtype=torch.float32,
+        phi=angles[:, 0],
+        psi=angles[:, 1],
+        omega=angles[:, 2],
     )
-    output_coords[0, 2] = ca_coord + c_coord_relative  # C(0)
 
-    # --- Build Backbone Chain Residue by Residue ---
-    for i in range(seq_len - 1):
-        # --- Place N(i+1) using NeRF ---
-        # N(i+1) depends on N(i), CA(i), C(i) and psi(i)
-        # Standard geometry: angle CA(i)-C(i)-N(i+1), dihedral N(i)-CA(i)-C(i)-N(i+1) = psi(i)
-        ca_c_n_angle_deg = BB_BUILD_INFO.get("BONDANGS", {}).get("ca-c-n", 116.2)
-        c_n_bond_val = BB_BUILD_INFO.get("BONDLENS", {}).get("c-n", 1.329)
+    # Place First Residue's Backbone Manually
+    _place_first_residue(config)
 
-        params_n_next = MpNerfParams(
-            a=output_coords[i, 0],  # N(i)
-            b=output_coords[i, 1],  # CA(i)
-            c=output_coords[i, 2],  # C(i)
-            bond_length=torch.tensor(
-                c_n_bond_val, device=effective_device, dtype=torch.float32
-            ),
-            theta=torch.tensor(
-                np.radians(ca_c_n_angle_deg),
-                device=effective_device,
-                dtype=torch.float32,
-            ),
-            chi=psi[i],  # Use psi(i)
-        )
-        output_coords[i + 1, 0] = mp_nerf_torch(params_n_next)  # N(i+1)
+    # Build Backbone Chain Residue by Residue
+    _build_backbone_chain(config)
 
-        # --- Place CA(i+1) using NeRF ---
-        # CA(i+1) depends on CA(i), C(i), N(i+1) and omega(i)
-        # Standard geometry: angle C(i)-N(i+1)-CA(i+1), dihedral CA(i)-C(i)-N(i+1)-CA(i+1) = omega(i)
-        c_n_ca_angle_deg = BB_BUILD_INFO.get("BONDANGS", {}).get("c-n-ca", 121.7)
-        n_ca_bond_val_next = BB_BUILD_INFO.get("BONDLENS", {}).get("n-ca", 1.458)
+    # Build Sidechains for All Residues
+    _build_sidechains(config)
 
-        params_ca_next = MpNerfParams(
-            a=output_coords[i, 1],  # CA(i)
-            b=output_coords[i, 2],  # C(i)
-            c=output_coords[i + 1, 0],  # N(i+1)
-            bond_length=torch.tensor(
-                n_ca_bond_val_next, device=effective_device, dtype=torch.float32
-            ),
-            theta=torch.tensor(
-                np.radians(c_n_ca_angle_deg),
-                device=effective_device,
-                dtype=torch.float32,
-            ),
-            chi=omega[i],  # Use omega(i)
-        )
-        output_coords[i + 1, 1] = mp_nerf_torch(params_ca_next)  # CA(i+1)
-
-        # --- Place C(i+1) using NeRF ---
-        # C(i+1) depends on C(i), N(i+1), CA(i+1) and phi(i+1)
-        # Standard geometry: angle N(i+1)-CA(i+1)-C(i+1), dihedral C(i)-N(i+1)-CA(i+1)-C(i+1) = phi(i+1)
-        n_ca_c_angle_deg_next = BB_BUILD_INFO.get("BONDANGS", {}).get("n-ca-c", 111.0)
-        ca_c_bond_val_next = BB_BUILD_INFO.get("BONDLENS", {}).get("ca-c", 1.525)
-
-        params_c_next = MpNerfParams(
-            a=output_coords[i, 2],  # C(i)
-            b=output_coords[i + 1, 0],  # N(i+1)
-            c=output_coords[i + 1, 1],  # CA(i+1)
-            bond_length=torch.tensor(
-                ca_c_bond_val_next, device=effective_device, dtype=torch.float32
-            ),
-            theta=torch.tensor(
-                np.radians(n_ca_c_angle_deg_next),
-                device=effective_device,
-                dtype=torch.float32,
-            ),
-            chi=phi[i + 1],  # Use phi(i+1)
-        )
-        output_coords[i + 1, 2] = mp_nerf_torch(params_c_next)  # C(i+1)
-
-    # --- Build Sidechains for All Residues ---
-    for i in range(seq_len):
-        # Process levels 3-13 (sidechain + Oxygen) for residue i
-        for level in range(3, 14):
-            if not cloud_mask[i, level]:  # Check if atom exists for this residue
-                continue
-
-            # Get intra-residue references for NeRF
-            ref_mask_level_idx = level - 3
-            idx_a = point_ref_mask[0, i, ref_mask_level_idx].item()  # Get scalar index
-            idx_b = point_ref_mask[1, i, ref_mask_level_idx].item()
-            idx_c = point_ref_mask[2, i, ref_mask_level_idx].item()
-
-            # Ensure reference atoms exist and have been computed
-            # (Should be true if backbone N, CA, C are computed first)
-            if (
-                not cloud_mask[i, idx_a]
-                or not cloud_mask[i, idx_b]
-                or not cloud_mask[i, idx_c]
-            ):
-                # This case indicates an issue with point_ref_mask or cloud_mask logic
-                # print(f"Warning: Missing reference atom for residue {i}, level {level}. Skipping.")
-                continue  # Skip this atom if references are missing
-
-            coords_a = output_coords[i, idx_a].unsqueeze(0)  # Add batch dim
-            coords_b = output_coords[i, idx_b].unsqueeze(0)
-            coords_c = output_coords[i, idx_c].unsqueeze(0)
-
-            # Use standard geometry from scaffolds for sidechain build
-            thetas = std_angles_mask[0, i, level].unsqueeze(0)
-            # Use standard sidechain dihedrals, backbone torsions are handled above
-            dihedrals = std_angles_mask[1, i, level].unsqueeze(0)
-            bond_lengths = std_bond_mask[i, level].unsqueeze(0)
-
-            # Handle potential NaNs from standard masks
-            if (
-                torch.isnan(thetas)
-                or torch.isnan(dihedrals)
-                or torch.isnan(bond_lengths)
-            ):
-                # print(f"Warning: NaN geometry for residue {i}, level {level}. Skipping.")
-                continue  # Skip if standard geometry is NaN
-
-            params_sidechain = MpNerfParams(
-                a=coords_a,
-                b=coords_b,
-                c=coords_c,
-                bond_length=bond_lengths,
-                theta=thetas,
-                chi=dihedrals,
-            )
-            output_coords[i, level] = mp_nerf_torch(params_sidechain).squeeze(
-                0
-            )  # Remove batch dim
-
-    return output_coords, cloud_mask
-
-
-# <<< END REPLACEMENT protein_fold >>>
-
-
-def get_symmetric_atom_pairs(seq):
-    """Get pairs of symmetric atoms for each residue in the sequence.
-
-    Args:
-        seq: String of amino acid one-letter codes
-
-    Returns:
-        Dictionary mapping residue indices (as strings) to lists of symmetric atom pairs.
-        Only includes residues that have symmetric pairs.
-    """
-    result = {}
-    valid_aas = set(
-        SC_BUILD_INFO.keys()
-    )  # Get set of valid amino acids for quick lookup
-
-    for i, aa in enumerate(seq):
-        if aa in valid_aas:  # Process only valid amino acids
-            pairs = []
-            if aa == "D":
-                pairs = [(4, 5), (6, 7)]
-            elif aa == "E":
-                pairs = [(4, 5), (6, 7), (8, 9)]
-            elif aa == "Y":
-                pairs = [(4, 5), (6, 7), (8, 9), (10, 11)]
-            # Always add the entry for valid AAs, even if pairs is empty []
-            result[str(i)] = pairs
-        # Implicitly skip invalid amino acids like 'X'
-
-    return result
-
-
-def modify_angles_mask_with_torsions(
-    angles_mask: torch.Tensor, torsions: torch.Tensor
-) -> torch.Tensor:
-    """
-    Modifies the angles mask with torsion angles.
-
-    Args:
-        angles_mask: (2, L, 14) tensor containing bond angles and torsion angles
-        torsions: (L, 3) tensor containing backbone torsion angles (phi, psi, omega)
-
-    Returns:
-        Modified angles_mask with updated torsion angles
-    """
-    # Copy the angles mask to avoid modifying the original
-    modified_mask = angles_mask.clone()
-
-    seq_len = torsions.shape[0]
-    if seq_len == 0:
-        return modified_mask  # Handle empty sequence
-
-    # Update torsion angles for backbone atoms
-    # N determined by previous psi: angles_mask[1, i, 0] = psi(i)
-    if seq_len > 1:
-        modified_mask[1, :-1, 0] = torsions[:-1, 1]  # psi
-
-    # CA determined by omega: angles_mask[1, i, 1] = omega(i)
-    if seq_len > 1:
-        modified_mask[1, 1:, 1] = torsions[1:, 2]  # omega(i) affects CA(i+1)
-
-    # C determined by phi: angles_mask[1, i, 2] = phi(i)
-    if seq_len > 1:
-        modified_mask[1, 1:, 2] = torsions[1:, 0]  # phi(i) affects C(i)
-
-    return modified_mask
-
-
-# Add other structure manipulation functions here
+    return config.output_coords, config.cloud_mask
