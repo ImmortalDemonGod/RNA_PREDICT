@@ -475,16 +475,28 @@ def protein_fold(
     coords: Optional[torch.Tensor] = None,  # Unused, kept for API compatibility
     device: Optional[torch.device] = None,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
-    """Fold a protein sequence using internal angles residue by residue.
-
+    """
+    Fold a protein sequence into three-dimensional coordinates.
+    
+    This function constructs the 3D structure of a protein using an iterative NeRF
+    approach based on its internal torsion angles (phi, psi, omega) and standard
+    bond geometries. The backbone atoms (N, CA, C) for the first residue are initialized
+    manually, and subsequent residues are placed by applying NeRF with the appropriate
+    angles. Sidechain atoms are then built using scaffold data, with special handling
+    for the oxygen atom (level 3) and the beta-carbon (CB, level 4) for non-glycine residues.
+    A cloud mask is maintained to indicate the valid placement of atoms.
+    
     Args:
-        seq (str): Amino acid sequence
-        angles (torch.Tensor): Internal angles tensor (L, 12).
-        coords (torch.Tensor, optional): Coordinates tensor (unused for folding).
-        device (torch.device, optional): Device to put tensors on.
-
+        seq (str): Amino acid sequence.
+        angles (torch.Tensor): Tensor of internal angles with shape (L, 12), where L is the number
+            of residues.
+        coords (torch.Tensor, optional): Unused placeholder for coordinate input.
+        device (torch.device, optional): Device on which to perform computations; defaults to CPU.
+    
     Returns:
-        Tuple[torch.Tensor, torch.Tensor]: Tuple of (coordinates, cloud mask)
+        Tuple[torch.Tensor, torch.Tensor]: A tuple containing:
+            - A coordinate tensor of shape (L, 14, 3) representing the folded protein.
+            - A cloud mask tensor of shape (L, 14) indicating the presence of atoms.
     """
     seq_len = len(seq)
     if seq_len == 0:

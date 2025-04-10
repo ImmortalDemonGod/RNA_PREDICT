@@ -23,7 +23,13 @@ def device():
 
 @pytest.fixture
 def basic_config():
-    """Fixture to provide a basic configuration for the encoder."""
+    """
+    Returns a basic configuration for the AtomAttentionEncoder.
+    
+    This fixture constructs an AtomAttentionConfig instance with predefined
+    parameters for testing, including enabled coordinate support and set dimensions for
+    tokens, atoms, atom pairs, and related hyperparameters.
+    """
     return AtomAttentionConfig(
         has_coords=True,
         c_token=128,
@@ -41,13 +47,42 @@ def basic_config():
 
 @pytest.fixture
 def encoder(basic_config):
-    """Fixture to provide an initialized encoder."""
+    """
+    Provides an AtomAttentionEncoder instance for testing.
+    
+    This fixture initializes and returns an AtomAttentionEncoder using the provided
+    basic configuration, which contains the necessary parameters for setting up the encoder.
+    """
     return AtomAttentionEncoder(basic_config)
 
 
 @pytest.fixture
 def input_feature_dict(device):
-    """Fixture to provide a basic input feature dictionary."""
+    """
+    Generates a dictionary of mock input features for testing the encoder.
+    
+    This fixture constructs a dictionary with predefined tensors that simulate various input
+    features required by the AtomAttentionEncoder. It includes an atom-to-token mapping,
+    random reference positions, charges, masks, element data, atom name characters, unique
+    space identifiers, residue types, profile features, and deletion statistics, all
+    allocated on the specified device.
+    
+    Args:
+        device: The torch device on which tensors are created.
+    
+    Returns:
+        A dictionary with the following keys:
+          - "atom_to_token_idx": Tensor of shape (16, 1) mapping each atom to its token.
+          - "ref_pos": Tensor of shape (16, 3) with random values representing atomic positions.
+          - "ref_charge": Tensor of shape (16, 1) filled with zeros for atomic charges.
+          - "ref_mask": Boolean tensor of shape (16, 1) indicating valid atoms.
+          - "ref_element": Tensor of shape (16, 128) filled with zeros representing element data.
+          - "ref_atom_name_chars": Tensor of shape (16, 256) filled with zeros for atom name encoding.
+          - "ref_space_uid": Tensor of shape (16, 1) filled with zeros for unique space identifiers.
+          - "restype": Tensor of shape (1, 4, 32) filled with zeros representing residue types.
+          - "profile": Tensor of shape (1, 4, 32) filled with zeros for profile features.
+          - "deletion_mean": Tensor of shape (1, 4, 1) filled with zeros for deletion statistics.
+    """
     n_atom = 16
     n_token = 4
 
@@ -174,7 +209,14 @@ def test_encoder_forward_with_coords(encoder, input_feature_dict, device):
 
 
 def test_encoder_forward_without_coords(basic_config, input_feature_dict, device):
-    """Test the forward pass of the encoder without coordinate information."""
+    """
+    Test the encoder's forward pass when coordinate data is not provided.
+    
+    This test verifies that the AtomAttentionEncoder handles input without
+    coordinate information by ensuring the forward method returns a tuple of
+    four elements, where the final element is None. It also confirms that the
+    feature extraction and attention transformation routines are invoked as expected.
+    """
     # Create an encoder without coordinate information
     config = basic_config
     config.has_coords = False

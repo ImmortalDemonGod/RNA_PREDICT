@@ -90,7 +90,13 @@ class Attention(nn.Module):
         self._initialize_parameters()
 
     def _initialize_parameters(self) -> None:
-        """Initialize weights and biases to zeros."""
+        """
+        Zero out the parameters of the attention module.
+        
+        Initializes the weights and biases for the query, key, value, and output
+        projection layers to zero. If gating is enabled and a gating linear layer is
+        present, its weights and biases are also set to zero.
+        """
         nn.init.zeros_(self.to_q.weight)
         nn.init.zeros_(self.to_k.weight)
         nn.init.zeros_(self.to_v.weight)
@@ -103,13 +109,18 @@ class Attention(nn.Module):
 
     def forward(self, inputs: ForwardInputs) -> torch.Tensor:
         """
-        Forward pass of the attention module.
-
+        Computes multi-head attention output for the provided inputs.
+        
+        This method projects the query, key, and value tensors from the input and selects an attention
+        computation pathway based on whether the query tensor is shared with the key/value tensor.
+        After computing the attention, it applies an output projection and, if enabled, an optional
+        gating mechanism.
+        
         Args:
-            inputs (ForwardInputs): Input parameters for attention
-
+            inputs (ForwardInputs): A container with all necessary tensors and settings for the attention computation.
+        
         Returns:
-            torch.Tensor: output tensor
+            torch.Tensor: The resulting attention output.
         """
         # Prepare query, key, value
         tensor_inputs = TensorInputs(q_x=inputs.q_x, kv_x=inputs.kv_x)

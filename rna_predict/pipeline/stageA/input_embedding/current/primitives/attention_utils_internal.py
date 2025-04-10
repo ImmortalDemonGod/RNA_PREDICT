@@ -129,13 +129,30 @@ class GatingParams(NamedTuple):
 
 def apply_gating(params: GatingParams) -> torch.Tensor:
     """
+
+    Applies gating modulation to the output tensor based on the query input.
+    
+    If gating is enabled and both gating_linear and gating_bias are provided, this
+    function computes a gating signal using a linear transformation of the query,
+    adds the bias, applies a sigmoid activation, and multiplies it element-wise
+    with the output tensor. If gating is disabled or the gating parameters are missing,
+    the original output tensor is returned.
+    
+    Args:
+        o (torch.Tensor): The output tensor to potentially modulate.
+        q_x (torch.Tensor): The query tensor used for computing the gating signal.
+        gating (bool): Whether to apply gating.
+        gating_linear (Optional[nn.Linear]): Linear layer for computing the gating signal.
+        gating_bias (Optional[nn.Parameter]): Bias parameter for the gating computation.
+    
+
     Apply gating to the output if enabled.
 
     Args:
         params: Parameter object containing tensors, modules, and gating flag
 
     Returns:
-        torch.Tensor: Gated output
+        torch.Tensor: The gated output tensor if gating is applied; otherwise, the original output.
     """
     if not has_gating(
         params.gating, params.modules.gating_linear, params.modules.gating_bias
@@ -183,13 +200,27 @@ class WrapUpParams(NamedTuple):
 
 def wrap_up(params: WrapUpParams) -> torch.Tensor:
     """
-    Process the output of attention.
-
+    Finalize multi-head attention output by reshaping, projecting, and optionally applying gating.
+    
+    This function reshapes the multi-head attention output tensor to match the original hidden
+    dimension, applies an output projection via a linear layer, and, if gating is enabled, modulates
+    the projected output using the provided gating linear layer and bias.
+    
     Args:
+
+        o (torch.Tensor): Attention output tensor in multi-head format.
+        q_x (torch.Tensor): Original query tensor.
+        c_hidden (int): Hidden dimension size used for reshaping the tensor.
+        to_out (nn.Linear): Linear layer used to project the reshaped tensor to the output dimension.
+        gating (bool): Flag indicating whether to apply gating.
+        gating_linear (Optional[nn.Linear]): Gating linear layer used to compute the gating signal, if gating is enabled.
+        gating_bias (Optional[nn.Parameter]): Bias parameter for the gating signal, if gating is enabled.
+    
+
         params: Parameter object containing tensors, configuration, and modules
 
     Returns:
-        torch.Tensor: final processed output
+        torch.Tensor: Final processed attention output tensor.
     """
     # Reshape from multi-head back to batch
     o = params.tensors.o.reshape(*params.tensors.o.shape[:-2], params.config.c_hidden)

@@ -37,7 +37,12 @@ from rna_predict.pipeline.stageC.mp_nerf.protein_utils.sidechain_data import (
 )
 @pytest.fixture
 def cpu_device():
-    """Fixture to provide CPU device."""
+    """
+    Provides a CPU device for tensor operations.
+    
+    This fixture returns a PyTorch device instance configured for CPU use, ensuring
+    that tensor operations in tests are executed on the CPU.
+    """
     return torch.device("cpu")
 
 
@@ -55,7 +60,12 @@ def cpu_device():
     ],
 )
 def test_to_zero_two_pi(angle, expected):
-    """Test to_zero_two_pi function."""
+    """
+    Test that the to_zero_two_pi function normalizes angles to the range [0, 2π].
+    
+    This test verifies that a given angle is correctly wrapped into the 0 to 2π range by
+    comparing the function's output with the expected normalized value using np.isclose.
+    """
     result = to_zero_two_pi(angle)
     assert np.isclose(result, expected)
 

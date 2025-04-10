@@ -27,17 +27,23 @@ def process_same_query_keyvalue(
     use_efficient_implementation: bool,
 ) -> torch.Tensor:
     """
-    Process attention when query and key/value are the same.
-
-    Args:
-        inputs (ProcessQueryInputs): Input parameters
-        num_heads (int): Number of attention heads
-        attn_weight_dropout_p (float): Dropout probability for attention weights
-        use_efficient_implementation (bool): Whether to use efficient implementation
-
-    Returns:
-        torch.Tensor: processed attention output
-    """
+                               Processes attention when the query and key/value tensors are identical.
+                               
+                               Transposes the input query, key, and value tensors to align their dimensions with the 
+                               standard attention computation. When efficient PyTorch scaled dot product attention is 
+                               enabled and available, it is used; otherwise, the function falls back to a manual 
+                               implementation based on batch matrix multiplication.
+                               
+                               Args:
+                                   inputs (ProcessQueryInputs): Container for query, key, value tensors, optional attention 
+                                       bias, and a flag indicating in-place safety.
+                                   num_heads (int): The number of attention heads.
+                                   attn_weight_dropout_p (float): Dropout probability for the attention weights.
+                                   use_efficient_implementation (bool): Whether to attempt the efficient scaled dot product attention.
+                                   
+                               Returns:
+                                   torch.Tensor: The output attention tensor with dimensions rearranged to match the input format.
+                               """
     # Move head dimension for standard attention calculation
     # [..., n_q, h, d_h] -> [..., h, n_q, d_h]
     q = inputs.q.transpose(-2, -3)
@@ -109,13 +115,19 @@ class BatchMatmulParams(NamedTuple):
 
 def _process_with_batch_matmul(params: BatchMatmulParams) -> torch.Tensor:
     """
-    Process attention using batch matrix multiplication.
-
+    Processes attention using batch matrix multiplication.
+    
+    Reshapes the query, key, and value tensors to merge batch dimensions and applies an optional
+    attention bias adjusted to match the specified number of attention heads. Constructs an input
+    configuration for computing the attention output via batch matrix multiplication. Finally, the
+    output is reshaped to restore the original batch and head dimensions with an appropriate axis
+    transposition.
+    
     Args:
         params: Parameter object containing all necessary inputs
 
     Returns:
-        torch.Tensor: Processed attention output
+        A tensor representing the computed attention output.
     """
     bsz = params.tensors.q.shape[0]
     q = params.tensors.q.reshape(-1, *params.tensors.q.shape[-2:])
@@ -149,14 +161,20 @@ def _reshape_attention_bias(
     attn_bias: Optional[torch.Tensor], num_heads: int
 ) -> Optional[torch.Tensor]:
     """
-    Reshape attention bias to match attention weights.
-
+    Reshape an attention bias tensor to match the attention weights.
+    
+    This function ensures that the bias tensor has the required number of attention heads.
+    If the tensor's head dimension does not equal the specified num_heads, the tensor is expanded
+    to duplicate the bias across the necessary heads and then reshaped by merging the batch and head dimensions.
+    If the input bias is None or if a reshaping error occurs, the function returns None.
+      
     Args:
-        attn_bias: Original attention bias
-        num_heads: Number of attention heads
-
+        attn_bias: The original attention bias tensor, or None.
+        num_heads: The required number of attention heads.
+      
     Returns:
-        Optional[torch.Tensor]: Reshaped bias or None if reshaping fails
+        The reshaped attention bias tensor with merged batch and head dimensions,
+        or None if the input is None or reshaping fails.
     """
     if attn_bias is None:
         return None
@@ -186,16 +204,23 @@ def process_different_query_keyvalue(
     local_attention_method: str,
 ) -> torch.Tensor:
     """
-    Process attention when query and key/value are different.
-
+    Process attention when query and key/value tensors differ.
+    
+    Depending on the specified local_attention_method, this function applies either an advanced
+    local attention mechanism with bias handling or a standard attention computation. When using
+    global attention with bias, the number of queries and keys is inferred from the input tensors
+    if not explicitly provided.
+    
     Args:
-        inputs (ProcessDifferentQueryInputs): Input parameters
-        use_efficient_implementation (bool): Whether to use efficient implementation
-        attn_weight_dropout_p (float): Dropout probability for attention weights
-        local_attention_method (str): Method to use for local attention
-
+        inputs (ProcessDifferentQueryInputs): Container for query, key, and value tensors along with
+            optional attention bias parameters.
+        use_efficient_implementation (bool): Flag to enable an efficient attention computation.
+        attn_weight_dropout_p (float): Dropout probability applied to the attention weights.
+        local_attention_method (str): Specifies the attention method; use "global_attention_with_bias" for
+            bias-aware local attention, otherwise standard attention is used.
+    
     Returns:
-        torch.Tensor: processed attention output
+        torch.Tensor: The computed attention output.
     """
     # For other cases, import the local attention function
     from .attention_utils import LocalAttentionInputs, _local_attention
@@ -255,8 +280,12 @@ class SmallTensorParams(NamedTuple):
 
 def _ensure_batch_dimensions(params: SmallTensorParams) -> TensorInputs:
     """
-    Ensure all tensors have the same batch dimensions.
-
+    Ensures that the key and value tensors have the same batch dimensions as the query tensor.
+    
+    This function extracts the batch dimensions from the query tensor and checks the key and
+    value tensors. If their batch dimensions do not match, they are expanded to align with the query's
+    batch dimensions, ensuring consistency for subsequent attention computations.
+    
     Args:
         params: Parameter object containing tensors
 
@@ -277,13 +306,17 @@ def _ensure_batch_dimensions(params: SmallTensorParams) -> TensorInputs:
 
 def _compute_attention_scores(tensors: TensorInputs) -> torch.Tensor:
     """
-    Compute attention scores between query and key tensors.
-
+    Compute scaled dot-product attention scores.
+    
+    This function computes the attention scores by multiplying the query tensor with
+    the transposed key tensor and scaling the result by the square root of the size
+    of the query's last dimension. It assumes that the provided SmallTensorParams
+    instance contains matching query (q) and key (k) tensors.
+    
     Args:
         tensors: Object containing query and key tensors
-
     Returns:
-        torch.Tensor: Attention scores
+        torch.Tensor: The computed, scaled attention scores.
     """
     return torch.matmul(tensors.q, tensors.k.transpose(-2, -1)) / math.sqrt(
         tensors.q.size(-1)
@@ -292,14 +325,17 @@ def _compute_attention_scores(tensors: TensorInputs) -> torch.Tensor:
 
 def _apply_attention_bias(scores: torch.Tensor, bias: torch.Tensor) -> torch.Tensor:
     """
-    Apply attention bias to scores.
-
+    Applies a bias to attention scores.
+    
+    This function adjusts the shape of the provided bias tensor to match the score's
+    dimensions using an external utility and then adds the adjusted bias to the scores.
+    
     Args:
-        scores: Attention scores
-        bias: Attention bias
-
+        scores: The attention scores tensor.
+        bias: The tensor representing attention bias, which may be reshaped to fit the scores.
+    
     Returns:
-        torch.Tensor: Scores with bias applied
+        The attention scores with the adjusted bias applied.
     """
     from rna_predict.utils.shape_utils import adjust_attention_bias
 
@@ -311,14 +347,18 @@ def _apply_attention_bias(scores: torch.Tensor, bias: torch.Tensor) -> torch.Ten
 
 def _apply_attention_mask(scores: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
     """
-    Apply attention mask to scores.
-
+    Apply the attention mask to the attention scores.
+    
+    If the mask's last two dimensions do not match those of scores, it is expanded accordingly.
+    Positions where the mask is False are set to negative infinity, preventing them from affecting
+    the subsequent attention computation.
+    
     Args:
-        scores: Attention scores
-        mask: Attention mask
-
+        scores (torch.Tensor): The attention scores tensor.
+        mask (torch.Tensor): A boolean tensor where False indicates positions to mask out.
+    
     Returns:
-        torch.Tensor: Scores with mask applied
+        torch.Tensor: The scores tensor with masked positions set to -∞.
     """
     # Ensure mask has compatible shape
     if mask.shape[-2:] != scores.shape[-2:]:
@@ -340,13 +380,20 @@ class SmallTensorInputs(NamedTuple):
 
 def process_small_tensors(inputs: SmallTensorInputs) -> torch.Tensor:
     """
-    Process attention for small tensors that fit in memory.
-
+    Compute scaled dot-product attention for small tensors.
+    
+    This function computes the attention output for small tensors that fit in memory.
+    It first ensures that the query (q), key (k), and value (v) tensors have consistent
+    batch dimensions. It then calculates the attention scores via a dot-product between q and k,
+    optionally adds an attention bias, and applies a mask if provided before normalizing the scores
+    with softmax. The final output is obtained by computing the weighted sum of v using these
+    attention weights.
+    
     Args:
         inputs: Input parameters containing query, key, value tensors and optional bias/mask
 
     Returns:
-        Output tensor [..., N_q, d]
+        Tensor of shape [..., N_q, d] representing the computed attention output.
     """
     # Create a parameter object to reduce the number of arguments in internal functions
     tensor_inputs = TensorInputs(q=inputs.q, k=inputs.k, v=inputs.v)

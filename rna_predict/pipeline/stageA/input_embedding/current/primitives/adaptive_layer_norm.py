@@ -38,7 +38,12 @@ class AdaptiveLayerNorm(nn.Module):
         self.linear_nobias_s = LinearNoBias(in_features=c_s, out_features=c_a)
 
     def zero_init(self) -> None:
-        """Initialize the weights and biases to zero."""
+        """Zero-initialize conditioning layer parameters.
+        
+        Zeroes out the weights and biases of the linear conditioning layer `linear_s`
+        and the weights of the bias-less layer `linear_nobias_s` to ensure that the
+        conditioning mechanism starts with no initial influence.
+        """
         nn.init.zeros_(self.linear_s.weight)
         nn.init.zeros_(self.linear_s.bias)
         nn.init.zeros_(self.linear_nobias_s.weight)
@@ -47,14 +52,21 @@ class AdaptiveLayerNorm(nn.Module):
         self, s: torch.Tensor, a: torch.Tensor
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """
-        Prepare scale and shift tensors from the conditioning tensor s.
-
+        Prepares scale and shift factors for adaptive layer normalization.
+        
+        Adjusts the feature dimension of the normalized conditioning tensor s to match the
+        expected hidden size and computes the corresponding scale and shift tensors. The
+        scale tensor is generated using a sigmoid-activated linear transformation, and the
+        shift tensor is produced using a linear transformation without bias. If the target
+        tensor a requires an additional singleton dimension for proper broadcasting, this
+        function unsqueezes the scale and shift tensors accordingly.
+        
         Args:
-            s: Conditioning tensor (already normalized)
-            a: Target tensor for shape reference
-
+            s: Normalized conditioning tensor whose feature dimension is adjusted to match the hidden size.
+            a: Target tensor used to infer the required shape for broadcasting.
+        
         Returns:
-            Tuple of (scale tensor, shift tensor)
+            A tuple (scale, shift) containing the tensors used for adaptive layer normalization.
         """
         from rna_predict.utils.shape_utils import adjust_tensor_feature_dim
 
@@ -76,32 +88,40 @@ class AdaptiveLayerNorm(nn.Module):
         self, a: torch.Tensor, scale: torch.Tensor, shift: torch.Tensor
     ) -> torch.Tensor:
         """
-        Try to use PyTorch's broadcasting to align tensor shapes.
-
+        Attempts to broadcast the input, scale, and shift tensors and apply conditioning.
+        
+        This function aligns the shapes of the given tensors using PyTorch's broadcasting and
+        computes the conditioned tensor as (scale * a) + shift.
+        
         Args:
-            a: Input tensor
-            scale: Scale tensor
-            shift: Shift tensor
-
+            a: The tensor to be conditioned.
+            scale: The tensor of scaling factors.
+            shift: The tensor of shifting values.
+        
         Returns:
-            Conditioned tensor if broadcasting succeeds
-
+            The conditioned tensor computed using the broadcasted values of a, scale, and shift.
+        
         Raises:
-            RuntimeError: If broadcasting fails
+            RuntimeError: If broadcasting the tensors to a common shape is not possible.
         """
         a_b, scale_b, shift_b = torch.broadcast_tensors(a, scale, shift)
         return scale_b * a_b + shift_b
 
     def _apply_conditioning(self, a: torch.Tensor, s: torch.Tensor) -> torch.Tensor:
         """
-        Apply conditioning from s to a.
-
+        Condition a normalized tensor using a conditioning embedding.
+        
+        Adjusts the input tensor's dimensions and computes scaling and shifting factors from
+        the conditioning tensor. The method first attempts to apply the conditioning via
+        broadcasting; if that fails, it falls back to direct shape adjustment after issuing a
+        warning. The final output is restored to the original input shape.
+          
         Args:
-            a (torch.Tensor): normalized representation
-            s (torch.Tensor): normalized single embedding
-
+            a (torch.Tensor): Normalized representation tensor.
+            s (torch.Tensor): Normalized conditioning embedding.
+          
         Returns:
-            torch.Tensor: conditioned tensor with proper shape adjustment
+            torch.Tensor: The conditioned tensor with the original shape.
         """
         # Store original shape for later restoration
         a_original_shape = a.shape
