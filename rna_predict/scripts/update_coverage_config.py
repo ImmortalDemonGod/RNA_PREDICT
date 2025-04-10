@@ -17,7 +17,8 @@ import os
 import sys
 from datetime import datetime
 
-CONFIG_FILE = ".coverage_config.json"
+DEFAULT_CONFIG_FILE = ".coverage_config.json"
+CONFIG_FILE = DEFAULT_CONFIG_FILE  # Will be updated in main() if --config is provided
 
 def load_config():
     """Load the coverage configuration file."""
@@ -90,6 +91,13 @@ def update_phase(config, phase_name, overall=None, critical=None, standard=None,
         print(f"Error: Phase '{phase_name}' not found. Valid phases are: {', '.join(config['phase_coverage'].keys())}")
         sys.exit(1)
 
+    # Validate coverage values are within valid range
+    for name, value in [("overall", overall), ("critical", critical),
+                      ("standard", standard), ("utility", utility)]:
+        if value is not None and not (0 <= value <= 100):
+            print(f"Error: {name} coverage must be between 0 and 100, got {value}")
+            sys.exit(1)
+
     if overall is not None:
         config["phase_coverage"][phase_name]["overall"] = overall
         print(f"Updated overall coverage goal for {phase_name} to {overall}%")
@@ -122,6 +130,8 @@ def update_base_coverage(config, base_coverage=None, current_coverage=None):
 
 def main():
     parser = argparse.ArgumentParser(description="Update coverage configuration")
+    parser.add_argument("--config", default=DEFAULT_CONFIG_FILE,
+                       help=f"Path to configuration file (default: {DEFAULT_CONFIG_FILE})")
     parser.add_argument("--list-modules", action="store_true", help="List all modules in the configuration")
     parser.add_argument("--add-module", help="Add a module to a category")
     parser.add_argument("--category", choices=["critical_modules", "standard_modules", "utility_modules"],
@@ -136,6 +146,10 @@ def main():
     parser.add_argument("--current-coverage", type=int, help="Current coverage percentage")
 
     args = parser.parse_args()
+
+    # Update global CONFIG_FILE if custom path provided
+    global CONFIG_FILE
+    CONFIG_FILE = args.config
 
     config = load_config()
 
