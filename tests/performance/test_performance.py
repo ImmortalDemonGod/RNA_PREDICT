@@ -5,6 +5,7 @@ import psutil  # Add psutil
 import torch
 
 from rna_predict.pipeline.stageD.diffusion.run_stageD_unified import run_stageD_diffusion
+from rna_predict.pipeline.stageD.diffusion.utils import DiffusionConfig  # Import DiffusionConfig
 
 
 def get_memory_usage():  # Helper function
@@ -67,14 +68,16 @@ def test_diffusion_single_embed_caching():
     # 1) First call
     print(f"Memory before 1st call: {get_memory_usage():.2f} MB")
     t1_start = time.time()
-    coords_final_1 = run_stageD_diffusion(
-        partial_coords,
-        trunk_embeddings,
-        diffusion_config,
+    # Create DiffusionConfig object
+    config1 = DiffusionConfig(
+        partial_coords=partial_coords,
+        trunk_embeddings=trunk_embeddings,
+        diffusion_config=diffusion_config,
         mode="inference",
         device="cpu",
         input_features=input_features,  # Pass input features
     )
+    coords_final_1 = run_stageD_diffusion(config=config1)
     print(f"Memory after 1st call: {get_memory_usage():.2f} MB")
     t1_end = time.time()
 
@@ -85,13 +88,16 @@ def test_diffusion_single_embed_caching():
     # 2) Second call, trunk_embeddings now has "s_inputs"
     print(f"Memory before 2nd call: {get_memory_usage():.2f} MB")
     t2_start = time.time()
-    coords_final_2 = run_stageD_diffusion(
-        partial_coords,
-        trunk_embeddings,
-        diffusion_config,
+    # Create DiffusionConfig object
+    config2 = DiffusionConfig(
+        partial_coords=partial_coords,
+        trunk_embeddings=trunk_embeddings,
+        diffusion_config=diffusion_config,
         mode="inference",
         device="cpu",
+        input_features=None,  # No need to pass input_features again
     )
+    coords_final_2 = run_stageD_diffusion(config=config2)
     t2_end = time.time()
 
     assert isinstance(coords_final_2, torch.Tensor)

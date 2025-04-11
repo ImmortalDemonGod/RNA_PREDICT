@@ -5,7 +5,9 @@ This module provides fixes for tensor shape compatibility issues in the Stage D 
 """
 
 from functools import wraps
+
 import torch
+
 
 def _extract_mismatch_dimension(error_msg: str) -> int | None:
     """
@@ -18,11 +20,14 @@ def _extract_mismatch_dimension(error_msg: str) -> int | None:
         Dimension index or None if not found
     """
     import re
+
     dim_match = re.search(r"dimension (\d+)", error_msg)
     return int(dim_match.group(1)) if dim_match else None
 
 
-def _handle_dimension_count_mismatch(self: torch.Tensor, other: torch.Tensor, original_add):
+def _handle_dimension_count_mismatch(
+    self: torch.Tensor, other: torch.Tensor, original_add
+):
     """
     Handle case where tensors have different number of dimensions.
 
@@ -57,7 +62,9 @@ def _has_dim_size(tensor: torch.Tensor, dim: int, size: int) -> bool:
     return tensor.size(dim) == size
 
 
-def _is_attention_bias_mismatch(self: torch.Tensor, other: torch.Tensor, mismatch_dim: int) -> bool:
+def _is_attention_bias_mismatch(
+    self: torch.Tensor, other: torch.Tensor, mismatch_dim: int
+) -> bool:
     """
     Check if the mismatch is the specific attention bias case (5 vs 4).
 
@@ -70,15 +77,21 @@ def _is_attention_bias_mismatch(self: torch.Tensor, other: torch.Tensor, mismatc
         Boolean indicating whether this is an attention bias mismatch
     """
     # Case 1: self has size 5, other has size 4
-    case1 = _has_dim_size(self, mismatch_dim, 5) and _has_dim_size(other, mismatch_dim, 4)
+    case1 = _has_dim_size(self, mismatch_dim, 5) and _has_dim_size(
+        other, mismatch_dim, 4
+    )
 
     # Case 2: self has size 4, other has size 5
-    case2 = _has_dim_size(self, mismatch_dim, 4) and _has_dim_size(other, mismatch_dim, 5)
+    case2 = _has_dim_size(self, mismatch_dim, 4) and _has_dim_size(
+        other, mismatch_dim, 5
+    )
 
     return case1 or case2
 
 
-def _expand_tensor_dimension(tensor: torch.Tensor, mismatch_dim: int, target_size: int) -> torch.Tensor:
+def _expand_tensor_dimension(
+    tensor: torch.Tensor, mismatch_dim: int, target_size: int
+) -> torch.Tensor:
     """
     Expand or reduce a tensor along a specific dimension to match a target size.
     Uses interpolation for dimension reduction and repetition for expansion.
@@ -123,8 +136,7 @@ def _expand_tensor_dimension(tensor: torch.Tensor, mismatch_dim: int, target_siz
     else:
         # Reduction case: use adaptive average pooling
         tensor = torch.nn.functional.adaptive_avg_pool1d(
-            tensor.transpose(1, 2),
-            target_size
+            tensor.transpose(1, 2), target_size
         ).transpose(1, 2)
 
     # Update the target dimension size in original shape
@@ -134,7 +146,9 @@ def _expand_tensor_dimension(tensor: torch.Tensor, mismatch_dim: int, target_siz
     return tensor.reshape(orig_shape)
 
 
-def _handle_attention_bias_mismatch(self: torch.Tensor, other: torch.Tensor, mismatch_dim: int, original_add):
+def _handle_attention_bias_mismatch(
+    self: torch.Tensor, other: torch.Tensor, mismatch_dim: int, original_add
+):
     """
     Handle specific case for attention bias dimension mismatch (5 vs 4).
 
@@ -261,7 +275,9 @@ def fix_tensor_add():
 
             # Strategy 2: Handle attention bias specific case
             if mismatch_dim is not None and "must match" in error_msg:
-                result = _handle_attention_bias_mismatch(self, other, mismatch_dim, original_add)
+                result = _handle_attention_bias_mismatch(
+                    self, other, mismatch_dim, original_add
+                )
                 if result is not None:
                     return result
 
@@ -275,6 +291,7 @@ def fix_tensor_add():
 
     # Replace the original method
     torch.Tensor.__add__ = patched_add
+
 
 def fix_gather_pair_embedding():
     """Fix the gather operation for pair embeddings."""
@@ -298,13 +315,18 @@ def fix_gather_pair_embedding():
     # Replace the original method
     torch.gather = patched_gather
 
+
 def fix_rearrange_qk_to_dense_trunk():
     """Fix the rearrange operation for QK to dense trunk."""
     # Import the actual function we want to use
-    from rna_predict.pipeline.stageA.input_embedding.current.primitives.attention.dense_trunk import rearrange_qk_to_dense_trunk as original_func
+    from rna_predict.pipeline.stageA.input_embedding.current.primitives.attention.dense_trunk import (
+        rearrange_qk_to_dense_trunk as original_func,
+    )
 
     @wraps(original_func)
-    def patched_rearrange(q, k, dim_q, dim_k, n_queries=32, n_keys=128, compute_mask=True):
+    def patched_rearrange(
+        q, k, dim_q, dim_k, n_queries=32, n_keys=128, compute_mask=True
+    ):
         # Handle the case where q or k is a list
         if isinstance(q, list):
             q = torch.stack(q)
@@ -313,11 +335,14 @@ def fix_rearrange_qk_to_dense_trunk():
         # Call the original function with the processed inputs
         # The original function returns a tuple (q_tensor, k_tensor, padding_info)
         # But the test expects just a tensor, so return the first element
-        q_tensor, _, _ = original_func(q, k, dim_q, dim_k, n_queries, n_keys, compute_mask)
+        q_tensor, _, _ = original_func(
+            q, k, dim_q, dim_k, n_queries, n_keys, compute_mask
+        )
         return q_tensor
 
     # Create a new attribute on torch for our custom function
     torch.rearrange = patched_rearrange
+
 
 def fix_linear_forward():
     """Fix the linear layer forward pass."""
@@ -338,6 +363,7 @@ def fix_linear_forward():
     # Replace the original method
     torch.nn.Linear.forward = patched_linear
 
+
 def fix_atom_transformer():
     """Fix the atom transformer forward pass."""
     # Store the original forward method
@@ -356,29 +382,16 @@ def fix_atom_transformer():
     # Replace the original method
     torch.nn.Module.forward = patched_forward
 
-def fix_atom_attention_encoder():
-    """Fix the atom attention encoder forward pass."""
-    # Store the original forward method
-    original_forward = torch.nn.Module.forward
 
-    @wraps(original_forward)
-    def patched_forward(self, input_feature_dict, r_l=None, s=None, z=None, inplace_safe=False, chunk_size=None):
-        # Handle the case where input features have inconsistent shapes
-        if r_l is not None and s is not None:
-            if r_l.shape[1] != s.shape[1]:
-                # Pad or truncate to match shapes
-                min_len = min(r_l.shape[1], s.shape[1])
-                r_l = r_l[:, :min_len]
-                s = s[:, :min_len]
-        return original_forward(self, input_feature_dict, r_l, s, z, inplace_safe, chunk_size)
+# The fix_atom_attention_encoder function has been removed as it's now handled by the residue-to-atom bridging function
 
-    # Replace the original method
-    torch.nn.Module.forward = patched_forward
 
 def fix_rearrange_to_dense_trunk():
     """Fix the rearrange operation for dense trunk."""
     # Import the actual function we want to use
-    from rna_predict.pipeline.stageA.input_embedding.current.primitives.attention.dense_trunk import rearrange_to_dense_trunk as original_func
+    from rna_predict.pipeline.stageA.input_embedding.current.primitives.attention.dense_trunk import (
+        rearrange_to_dense_trunk as original_func,
+    )
 
     @wraps(original_func)
     def patched_rearrange(q, k, v, n_queries, n_keys, attn_bias=None, inf=1e10):
@@ -398,6 +411,7 @@ def fix_rearrange_to_dense_trunk():
     # Create a new attribute on torch for our custom function
     torch.rearrange = patched_rearrange
 
+
 def apply_tensor_fixes():
     """Apply all tensor fixes."""
     fix_tensor_add()
@@ -405,5 +419,5 @@ def apply_tensor_fixes():
     fix_rearrange_qk_to_dense_trunk()
     fix_linear_forward()
     fix_atom_transformer()
-    fix_atom_attention_encoder()
+    # fix_atom_attention_encoder() - Removed as it's now handled by the residue-to-atom bridging function
     fix_rearrange_to_dense_trunk()
