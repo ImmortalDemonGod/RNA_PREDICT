@@ -8,6 +8,7 @@ from rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager import (
     ProtenixDiffusionManager,
 )
 from rna_predict.pipeline.stageD.diffusion.run_stageD_unified import run_stageD_diffusion
+from rna_predict.pipeline.stageD.diffusion.utils import DiffusionConfig # Import needed class
 
 # ------------------------------------------------------------------------------
 # Test: Single-sample shape expansion using multi_step_inference
@@ -187,13 +188,15 @@ def test_broadcast_token_multisample_fail():
     with pytest.raises(
         AssertionError, match="Shape mismatch in broadcast_token_to_atom"
     ):
-        _ = run_stageD_diffusion(
-            partial_coords=partial_coords,
-            trunk_embeddings=trunk_embeddings,
-            diffusion_config=diffusion_config,
-            mode="inference",
-            device="cpu",
-        )
+        test_config = DiffusionConfig(
+             partial_coords=partial_coords,
+             trunk_embeddings=trunk_embeddings,
+             diffusion_config=diffusion_config,
+             mode="inference",
+             device="cpu",
+             input_features=None, # Assuming None as it wasn't provided
+         )
+        _ = run_stageD_diffusion(config=test_config)
 
 
 # ------------------------------------------------------------------------------
@@ -233,13 +236,15 @@ def test_multi_sample_shape_mismatch():
     with pytest.raises(
         AssertionError, match="Shape mismatch in broadcast_token_to_atom"
     ):
-        _ = run_stageD_diffusion(
+        test_config = DiffusionConfig(
             partial_coords=partial_coords,
             trunk_embeddings=trunk_embeddings,
             diffusion_config=diffusion_config,
             mode="inference",
             device="cpu",
+            input_features=None, # Assuming None
         )
+        _ = run_stageD_diffusion(config=test_config)
 
 
 # ------------------------------------------------------------------------------
@@ -326,7 +331,7 @@ def test_local_trunk_small_natom_memory_efficient():
         gc.collect()
         torch.cuda.empty_cache() if torch.cuda.is_available() else None
 
-        coords_out = run_stageD_diffusion(
+        test_config = DiffusionConfig(
             partial_coords=partial_coords,
             trunk_embeddings=trunk_embeddings,
             diffusion_config=diffusion_config,
@@ -334,6 +339,7 @@ def test_local_trunk_small_natom_memory_efficient():
             device=device,
             input_features=input_features,
         )
+        coords_out = run_stageD_diffusion(config=test_config)
 
         current_memory = get_memory_usage()
         print(f"Memory after run_stageD_diffusion: {current_memory:.2f} MB")
@@ -390,13 +396,15 @@ def test_shape_mismatch_c_token_832_vs_833():
     with pytest.raises(
         RuntimeError, match=r"normalized_shape=\[833\].*got input of size.*1664"
     ):
-        run_stageD_diffusion(
-            partial_coords,
-            trunk_embeddings,
-            diffusion_config,
-            mode="inference",
-            device="cpu",
-        )
+        test_config = DiffusionConfig(
+             partial_coords=partial_coords,
+             trunk_embeddings=trunk_embeddings,
+             diffusion_config=diffusion_config,
+             mode="inference",
+             device="cpu",
+             input_features=None, # Assuming None
+         )
+        run_stageD_diffusion(config=test_config)
 
 
 @pytest.mark.slow  # Added mark
@@ -495,14 +503,15 @@ def test_transformer_size_memory_threshold():
             }
 
             # Try to run with this config
-            _ = run_stageD_diffusion(
-                partial_coords=partial_coords,
-                trunk_embeddings=trunk_embeddings,
-                diffusion_config=diffusion_config,
-                mode="inference",
-                device=device,
-                input_features=input_features,  # Pass minimal features if needed
-            )
+            test_config = DiffusionConfig(
+                 partial_coords=partial_coords,
+                 trunk_embeddings=trunk_embeddings,
+                 diffusion_config=diffusion_config,
+                 mode="inference",
+                 device=device,
+                 input_features=input_features,
+             )
+            _ = run_stageD_diffusion(config=test_config)
 
             current_memory = get_memory_usage()
             memory_increase = current_memory - initial_memory
@@ -588,13 +597,15 @@ def test_tensor_shape_memory_impact():
             partial_coords = torch.randn(1, 5, 3)
 
             # Try to run with these shapes
-            _ = run_stageD_diffusion(
-                partial_coords=partial_coords,
-                trunk_embeddings=trunk_embeddings,
-                diffusion_config=base_config,
-                mode="inference",
-                device="cpu",
-            )
+            test_config = DiffusionConfig(
+                 partial_coords=partial_coords,
+                 trunk_embeddings=trunk_embeddings,
+                 diffusion_config=base_config,
+                 mode="inference",
+                 device="cpu",
+                 input_features=None, # Assuming None
+             )
+            _ = run_stageD_diffusion(config=test_config)
 
             current_memory = get_memory_usage()
             memory_increase = current_memory - initial_memory
