@@ -1,338 +1,167 @@
 """
-Unified RNA Stage D module with tensor shape compatibility fixes.
+Unified RNA Stage D module with residue-to-atom bridging.
 
-This module implements the diffusion-based refinement with built-in fixes
-for tensor shape compatibility issues.
+This module implements the diffusion-based refinement with systematic
+residue-to-atom bridging for tensor shape compatibility.
 """
 
-import warnings  # Ensure warnings is imported
-from typing import Any, Dict, Tuple, Union
+import logging
+from typing import Tuple, Union
 
 import torch
 
+from rna_predict.pipeline.stageD.diffusion.bridging import (
+    bridge_residue_to_atom,
+    BridgingInput,  # Import the new dataclass
+)
+from rna_predict.pipeline.stageD.diffusion.inference import run_inference_mode
 from rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager import (
     ProtenixDiffusionManager,
 )
+from rna_predict.pipeline.stageD.diffusion.training import run_training_mode
+from rna_predict.pipeline.stageD.diffusion.utils import (
+    DiffusionConfig,
+    create_fallback_input_features,
+)
 from rna_predict.pipeline.stageD.tensor_fixes import apply_tensor_fixes
 
-
-def validate_and_fix_shapes(
-    partial_coords: torch.Tensor,
-    trunk_embeddings: Dict[str, torch.Tensor],
-    input_features: Dict[str, Any] | None = None,
-    debug_logging: bool = False,
-) -> Tuple[torch.Tensor, Dict[str, torch.Tensor], Dict[str, Any]]:
-    """
-    Validate and fix shapes of tensors for compatibility.
-    Returns potentially modified copies of the inputs.
-    """
-    if input_features is None:
-        input_features = {}
-
-    # Get batch size and number of atoms from partial_coords
-    batch_size = partial_coords.shape[0]
-    num_atoms = partial_coords.shape[1]
-
-    # Fix trunk embeddings
-    fixed_trunk_embeddings = {}
-    for key, value in trunk_embeddings.items():
-        if not isinstance(value, torch.Tensor):
-            continue
-
-        temp_value = value  # Work with a temporary variable
-
-        if key in ["s_trunk", "s_inputs", "sing"]:  # Added 'sing'
-            if temp_value.dim() == 4:
-                temp_value = temp_value.squeeze(1)
-            elif temp_value.dim() == 5:
-                temp_value = temp_value.squeeze(0).squeeze(0)
-            # Ensure batch size matches
-            if temp_value.shape[0] != batch_size:
-                warnings.warn(
-                    f"Adjusting batch size for {key} from {temp_value.shape[0]} to {batch_size}"
-                )
-                temp_value = temp_value[:batch_size]
-            # Ensure sequence length matches num_atoms (assuming 1-1 mapping for simplicity here)
-            # A more robust check might use atom_to_token_idx max value + 1
-            if temp_value.shape[1] != num_atoms:
-                warnings.warn(
-                    f"Adjusting sequence length for {key} from {temp_value.shape[1]} to {num_atoms}"
-                )
-                # If the sequence length is less than num_atoms, repeat the sequence
-                if temp_value.shape[1] < num_atoms:
-                    # Calculate how many times to repeat the sequence
-                    repeat_factor = num_atoms // temp_value.shape[1] + (1 if num_atoms % temp_value.shape[1] != 0 else 0)
-                    # Repeat the sequence
-                    temp_value = temp_value.repeat(1, repeat_factor, 1)
-                    # Truncate to the desired length
-                    temp_value = temp_value[:, :num_atoms]
-                else:
-                    # If the sequence length is greater than num_atoms, truncate
-                    temp_value = temp_value[:, :num_atoms]
-
-            fixed_trunk_embeddings[key] = temp_value
-
-        elif key == "pair":
-            if temp_value.dim() == 5:
-                temp_value = temp_value.squeeze(1)
-            elif temp_value.dim() == 6:
-                temp_value = temp_value.squeeze(0).squeeze(0)
-            # Ensure batch size matches
-            if temp_value.shape[0] != batch_size:
-                warnings.warn(
-                    f"Adjusting batch size for {key} from {temp_value.shape[0]} to {batch_size}"
-                )
-                temp_value = temp_value[:batch_size]
-            # Ensure sequence lengths match num_atoms
-            if temp_value.shape[1] != num_atoms or temp_value.shape[2] != num_atoms:
-                warnings.warn(
-                    f"Adjusting sequence lengths for {key} from ({temp_value.shape[1]}, {temp_value.shape[2]}) to ({num_atoms}, {num_atoms})"
-                )
-                # If the sequence length is less than num_atoms, repeat the sequence
-                if temp_value.shape[1] < num_atoms or temp_value.shape[2] < num_atoms:
-                    # Calculate how many times to repeat the sequence
-                    repeat_factor1 = num_atoms // temp_value.shape[1] + (1 if num_atoms % temp_value.shape[1] != 0 else 0)
-                    repeat_factor2 = num_atoms // temp_value.shape[2] + (1 if num_atoms % temp_value.shape[2] != 0 else 0)
-                    # Repeat the sequence
-                    temp_value = temp_value.repeat(1, repeat_factor1, repeat_factor2, 1)
-                    # Truncate to the desired length
-                    temp_value = temp_value[:, :num_atoms, :num_atoms]
-                else:
-                    # If the sequence length is greater than num_atoms, truncate
-                    temp_value = temp_value[:, :num_atoms, :num_atoms]
-
-            fixed_trunk_embeddings[key] = temp_value
-        else:  # Keep other keys as is
-            fixed_trunk_embeddings[key] = temp_value
-    
-    # Convert 'sing' to 's_inputs' if 'sing' exists and 's_inputs' doesn't
-    if 'sing' in fixed_trunk_embeddings and 's_inputs' not in fixed_trunk_embeddings:
-        fixed_trunk_embeddings['s_inputs'] = fixed_trunk_embeddings['sing']
-        if debug_logging:
-            print("[DEBUG] Converted 'sing' to 's_inputs' in trunk_embeddings")
-
-    # Fix input features
-    fixed_input_features = {}
-    for key, value in input_features.items():
-        if isinstance(value, torch.Tensor):
-            # Handle deletion_mean shape specifically
-            if key == "deletion_mean":
-                if value.dim() == 2:  # If 2D [B, N]
-                    value = value.unsqueeze(-1)  # Make it [B, N, 1]
-                elif (
-                    value.dim() == 3 and value.shape[-1] != 1
-                ):  # If 3D but wrong last dim
-                    value = value[..., :1]  # Take first channel
-            fixed_input_features[key] = value
-        else:
-            fixed_input_features[key] = value
-
-    # Ensure ref_pos uses the potentially fixed partial_coords
-    fixed_input_features["ref_pos"] = partial_coords
-
-    return partial_coords, fixed_trunk_embeddings, fixed_input_features
+logger = logging.getLogger(__name__)
 
 
 def run_stageD_diffusion(
-    partial_coords: torch.Tensor,
-    trunk_embeddings: Dict[str, torch.Tensor],
-    diffusion_config: Dict[str, Any],
-    mode: str = "inference",
-    device: str = "cpu",
-    input_features: Dict[str, Any] | None = None,
+    config: DiffusionConfig,
+) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor, torch.Tensor]]:
+    """
+    Wrapper function accepting a DiffusionConfig object directly.
+
+    Args:
+        config: Configuration object containing all necessary parameters.
+
+    Returns:
+        Refined coordinates or training outputs depending on config.mode.
+    """
+    # Config object is now passed directly as an argument
+    # Note: Callers of this function must now instantiate and pass
+    # the DiffusionConfig object instead of individual arguments.
+    # Ensure tests cover the instantiation and passing of DiffusionConfig.
+    return _run_stageD_diffusion_impl(config)
+
+
+def _run_stageD_diffusion_impl(
+    config: DiffusionConfig,
 ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor, torch.Tensor]]:
     """
     Run Stage D diffusion refinement.
 
     Args:
-        partial_coords: Initial coordinates [B, N_atom, 3]
-        trunk_embeddings: Dictionary with trunk embeddings (e.g., s_trunk, pair)
-                          This dictionary might be modified in-place to cache 's_inputs'.
-        diffusion_config: Configuration for diffusion components
-        mode: Either "inference" or "training"
-        device: Device to run on
-        input_features: Optional pre-computed input feature dictionary
+        config: Configuration object containing all parameters for the diffusion process
 
     Returns:
-        If mode == "inference":
+        If config.mode == "inference":
             Refined coordinates [B, N_atom, 3]
-        If mode == "train":
+        If config.mode == "train":
             Tuple of (x_denoised, x_gt_out, sigma)
     """
-    if mode not in ["inference", "train"]:
-        raise ValueError(f"Unsupported mode: {mode}. Must be 'inference' or 'train'.")
-
-    if device is None:
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if config.mode not in ["inference", "train"]:
+        raise ValueError(
+            f"Unsupported mode: {config.mode}. Must be 'inference' or 'train'."
+        )
 
     # Store reference to the original dictionary for potential updates
-    original_trunk_embeddings_ref = trunk_embeddings
+    original_trunk_embeddings_ref = config.trunk_embeddings
 
     # Apply tensor shape compatibility fixes
-    apply_tensor_fixes()  # <<< RESTORED
+    apply_tensor_fixes()  # type: ignore [no-untyped-call]
 
     # Create and initialize the diffusion manager
     diffusion_manager = ProtenixDiffusionManager(
-        diffusion_config=diffusion_config,
-        device=device,
+        diffusion_config=config.diffusion_config,
+        device=config.device,
     )
 
     # Prepare input features if not provided (basic fallback)
+    input_features = config.input_features
     if input_features is None:
-        warnings.warn(
+        logger.warning(
             "input_features not provided, using basic fallback based on partial_coords."
         )
-        N = partial_coords.shape[1]
-        # --- Corrected Fallback Input Features ---
-        input_features = {
-            "atom_to_token_idx": torch.arange(N, device=device).unsqueeze(0),
-            "ref_pos": partial_coords.to(device),  # Use provided coords
-            "ref_space_uid": torch.arange(N, device=device).unsqueeze(0),
-            "ref_charge": torch.zeros(1, N, 1, device=device),
-            "ref_element": torch.zeros(1, N, 128, device=device),  # Assuming c_atom=128
-            "ref_atom_name_chars": torch.zeros(
-                1, N, 256, device=device
-            ),  # Assuming size
-            "ref_mask": torch.ones(1, N, 1, device=device),
-            "restype": torch.zeros(1, N, 32, device=device),  # Assuming size
-            "profile": torch.zeros(1, N, 32, device=device),  # Assuming size
-            "deletion_mean": torch.zeros(1, N, 1, device=device),
-            "sing": torch.zeros(
-                1, N, diffusion_config.get("c_s_inputs", 449), device=device
-            ),  # Use config or default
-        }
-        # --- End Correction ---
+        input_features = create_fallback_input_features(
+            config.partial_coords, config.diffusion_config, config.device
+        )
 
-    # Validate and fix shapes - NOTE: This returns potentially modified copies
-    # Pass the original trunk_embeddings ref to validate_and_fix_shapes
-    partial_coords, trunk_embeddings_internal, input_features = validate_and_fix_shapes(
-        partial_coords, original_trunk_embeddings_ref, input_features, debug_logging=True
+    # Bridge residue-level embeddings to atom-level embeddings
+    # This replaces the previous validate_and_fix_shapes function with a more systematic approach
+    # Create the parameter object
+    bridging_data = BridgingInput(
+        partial_coords=config.partial_coords,
+        trunk_embeddings=original_trunk_embeddings_ref,
+        input_features=input_features,
+        sequence=None,  # Pass None; bridge_residue_to_atom handles extraction
+    )
+    # Call with the parameter object
+    partial_coords, trunk_embeddings_internal, input_features = bridge_residue_to_atom(
+        bridging_input=bridging_data,
+        debug_logging=config.debug_logging,
     )
 
-    # Run diffusion
-    if mode == "inference":
-        # Set N_sample to 1 in inference params to avoid extra dimensions
-        inference_params = diffusion_config.get("inference", {})
-        inference_params["N_sample"] = 1
+    # Store the processed embeddings in the config for potential reuse
+    config.trunk_embeddings_internal = trunk_embeddings_internal
 
-        # Pass the internal (potentially fixed) copy to the manager
-        coords = diffusion_manager.multi_step_inference(
-            coords_init=partial_coords.to(device),
-            trunk_embeddings=trunk_embeddings_internal,
-            inference_params=inference_params,
-            override_input_features=input_features,
-            debug_logging=True,  # Keep debug logging for now
+    # Run diffusion based on mode
+    if config.mode == "inference":
+        from rna_predict.pipeline.stageD.diffusion.inference.inference_mode import InferenceContext
+
+        # Create the inference context
+        inference_context = InferenceContext(
+            diffusion_manager=diffusion_manager,
+            partial_coords=partial_coords,
+            trunk_embeddings_internal=trunk_embeddings_internal,
+            original_trunk_embeddings_ref=original_trunk_embeddings_ref,
+            diffusion_config=config.diffusion_config,
+            input_features=input_features,
+            device=config.device,
         )
 
-        # Debug print after the call
-        print(
-            f"[DEBUG] After inference call: 's_inputs' in internal? {'s_inputs' in trunk_embeddings_internal}, 's_inputs' in original? {'s_inputs' in original_trunk_embeddings_ref}"
-        )
+        return run_inference_mode(inference_context)
 
-        # Update the original trunk_embeddings dict with cached s_inputs if it was added
-        # Check the internal dict used by multi_step_inference
-        if (
-            "s_inputs" in trunk_embeddings_internal
-            and "s_inputs" not in original_trunk_embeddings_ref
-        ):
-            print(
-                "[DEBUG] Copying cached 's_inputs' back to original dictionary."
-            )  # DEBUG PRINT
-            original_trunk_embeddings_ref["s_inputs"] = trunk_embeddings_internal[
-                "s_inputs"
-            ]
+    # mode == "train"
+    from rna_predict.pipeline.stageD.diffusion.training.training_mode import TrainingContext
 
-        return coords
-    else:  # mode == "train"
-        # For training mode
-        label_dict = {
-            "coordinate": partial_coords.to(device),
-            "coordinate_mask": torch.ones_like(partial_coords[..., 0], device=device),
-        }
+    # Create the training context
+    training_context = TrainingContext(
+        diffusion_manager=diffusion_manager,
+        partial_coords=partial_coords,
+        trunk_embeddings_internal=trunk_embeddings_internal,
+        original_trunk_embeddings_ref=original_trunk_embeddings_ref,
+        diffusion_config=config.diffusion_config,
+        input_features=input_features,
+        device=config.device,
+    )
 
-        # Ensure s_inputs and z_trunk are tensors within the internal copy
-        s_inputs = trunk_embeddings_internal.get("s_inputs")
-        if s_inputs is None:
-            # Try to get s_inputs from input_features (using 'sing' as fallback key)
-            s_inputs = input_features.get("sing")
-            if s_inputs is None:
-                warnings.warn(
-                    "'s_inputs' not found in trunk_embeddings or input_features ('sing') for training mode. Using fallback."
-                )
-                # Create a fallback s_inputs with the right shape
-                n_tokens = trunk_embeddings_internal["s_trunk"].shape[1]
-                # --- Corrected Config Access ---
-                conditioning_config_nested = diffusion_config.get("conditioning", {})
-                c_s_inputs_dim = diffusion_config.get(
-                    "c_s_inputs", conditioning_config_nested.get("c_s_inputs", 449)
-                )
-                # --- End Correction ---
-                s_inputs = torch.zeros((1, n_tokens, c_s_inputs_dim), device=device)
-
-            # Update the internal copy
-            trunk_embeddings_internal["s_inputs"] = s_inputs
-            # Also update the original reference if it wasn't there initially
-            if "s_inputs" not in original_trunk_embeddings_ref:
-                print(
-                    "[DEBUG] Copying generated 's_inputs' back to original dictionary (train mode)."
-                )  # DEBUG PRINT
-                original_trunk_embeddings_ref["s_inputs"] = s_inputs
-
-        z_trunk = trunk_embeddings_internal.get("pair")
-        # Fallback for z_trunk if needed
-        if z_trunk is None:
-            warnings.warn("Fallback: Creating dummy 'z_trunk' for training.")
-            n_tokens = trunk_embeddings_internal["s_trunk"].shape[1]
-            # --- Corrected Config Access ---
-            conditioning_config_nested = diffusion_config.get("conditioning", {})
-            c_z_dim = diffusion_config.get(
-                "c_z", conditioning_config_nested.get("c_z", 128)
-            )
-            # --- End Correction ---
-            z_trunk = torch.zeros((1, n_tokens, n_tokens, c_z_dim), device=device)
-            # Update the internal copy
-            trunk_embeddings_internal["pair"] = z_trunk
-            # Also update the original reference if it wasn't there initially
-            if "pair" not in original_trunk_embeddings_ref:
-                print(
-                    "[DEBUG] Copying generated 'pair' back to original dictionary (train mode)."
-                )  # DEBUG PRINT
-                original_trunk_embeddings_ref["pair"] = z_trunk
-
-        # Run training step using the internal copy
-        x_denoised_tuple = diffusion_manager.train_diffusion_step(
-            label_dict=label_dict,
-            input_feature_dict=input_features,
-            s_inputs=trunk_embeddings_internal["s_inputs"],  # Use from internal copy
-            s_trunk=trunk_embeddings_internal["s_trunk"],  # Use from internal copy
-            z_trunk=trunk_embeddings_internal["pair"],  # Use from internal copy
-            sampler_params={"sigma_data": diffusion_config["sigma_data"]},
-            N_sample=1,
-        )
-
-        # Unpack the results - x_gt_augment, x_denoised, sigma
-        x_gt_augment, x_denoised, sigma = x_denoised_tuple
-        # Ensure sigma is a scalar tensor
-        if sigma.dim() > 0:
-            sigma = sigma.mean().squeeze()  # Take mean and remove all dimensions
-        return x_denoised, sigma, x_gt_augment
+    return run_training_mode(training_context)
 
 
-def demo_run_diffusion():
+def demo_run_diffusion() -> Union[
+    torch.Tensor, Tuple[torch.Tensor, torch.Tensor, torch.Tensor]
+]:
     """
     Demo function to run the diffusion stage with a simple example.
     """
     # Set device
     device = "mps"  # Use MPS for Mac
-    
+
     # Create partial coordinates with smaller sequence length
     partial_coords = torch.randn(1, 25, 3, device=device)  # [batch, seq_len, 3]
 
     # Create trunk embeddings with smaller dimensions
     trunk_embeddings = {
-        "s_inputs": torch.randn(1, 25, 449, device=device),  # [batch, seq_len, c_s_inputs]
+        "s_inputs": torch.randn(
+            1, 25, 449, device=device
+        ),  # [batch, seq_len, c_s_inputs]
         "s_trunk": torch.randn(1, 25, 384, device=device),  # [batch, seq_len, c_s]
-        "z_trunk": torch.randn(1, 25, 25, 64, device=device),  # [batch, seq_len, seq_len, pair_dim]
+        "z_trunk": torch.randn(
+            1, 25, 25, 64, device=device
+        ),  # [batch, seq_len, seq_len, pair_dim]
     }
 
     # Create diffusion config with memory-optimized settings
@@ -356,13 +185,15 @@ def demo_run_diffusion():
         "chunk_size": 5,
     }
 
-    # Run diffusion with memory optimizations
-    refined_coords = run_stageD_diffusion(
+    # Create config object for the demo run
+    demo_config = DiffusionConfig(
         partial_coords=partial_coords,
         trunk_embeddings=trunk_embeddings,
         diffusion_config=diffusion_config,
         mode="inference",
-        device=device
+        device=device,
+        input_features=None,  # Assuming None for demo as it wasn't provided
     )
+    refined_coords = run_stageD_diffusion(config=demo_config)
 
     return refined_coords

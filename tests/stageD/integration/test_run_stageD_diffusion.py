@@ -5,6 +5,7 @@ import torch
 # We import the function under test.
 # Adjust this import as needed if your module/package layout differs.
 from rna_predict.pipeline.stageD.diffusion.run_stageD_unified import run_stageD_diffusion
+from rna_predict.pipeline.stageD.diffusion.utils import DiffusionConfig  # Import needed class
 
 
 class TestRunStageDDiffusion(unittest.TestCase):
@@ -67,7 +68,7 @@ class TestRunStageDDiffusion(unittest.TestCase):
         Test that run_stageD_diffusion works in inference mode and
         returns a tensor of expected shape, given typical embeddings.
         """
-        coords_out = run_stageD_diffusion(
+        test_config = DiffusionConfig(
             partial_coords=self.partial_coords,
             trunk_embeddings=self.trunk_embeddings,
             diffusion_config=self.diffusion_config,
@@ -75,6 +76,7 @@ class TestRunStageDDiffusion(unittest.TestCase):
             device=self.device,
             input_features=self.input_features,
         )
+        coords_out = run_stageD_diffusion(config=test_config)
 
         self.assertIsInstance(coords_out, torch.Tensor)
         self.assertTrue(coords_out.dim() >= 3, "Output must have at least 3 dims.")
@@ -92,7 +94,7 @@ class TestRunStageDDiffusion(unittest.TestCase):
         Test that run_stageD_diffusion works in train mode and returns
         (x_denoised, sigma, x_gt_augment) with correct shapes/types.
         """
-        result = run_stageD_diffusion(
+        test_config = DiffusionConfig(
             partial_coords=self.partial_coords,
             trunk_embeddings=self.trunk_embeddings,
             diffusion_config=self.diffusion_config,
@@ -100,6 +102,7 @@ class TestRunStageDDiffusion(unittest.TestCase):
             device=self.device,
             input_features=self.input_features,
         )
+        result = run_stageD_diffusion(config=test_config)
 
         self.assertIsInstance(result, tuple)
         self.assertEqual(len(result), 3)
@@ -118,7 +121,7 @@ class TestRunStageDDiffusion(unittest.TestCase):
         Test that running with an unsupported mode raises ValueError.
         """
         with self.assertRaises(ValueError):
-            run_stageD_diffusion(
+            test_config = DiffusionConfig(
                 partial_coords=self.partial_coords,
                 trunk_embeddings=self.trunk_embeddings,
                 diffusion_config=self.diffusion_config,
@@ -126,6 +129,7 @@ class TestRunStageDDiffusion(unittest.TestCase):
                 device=self.device,
                 input_features=self.input_features,
             )
+            run_stageD_diffusion(config=test_config)
 
     def test_deletion_mean_handling(self):
         """
@@ -147,14 +151,15 @@ class TestRunStageDDiffusion(unittest.TestCase):
             "sing": torch.randn(1, 5, 384),
         }
 
-        coords_out = run_stageD_diffusion(
+        test_config = DiffusionConfig(
             partial_coords=self.partial_coords,
             trunk_embeddings=self.trunk_embeddings,
             diffusion_config=self.diffusion_config,
             mode="inference",
             device=self.device,
-            input_features=input_features,
+            input_features=input_features, # Use local var
         )
+        coords_out = run_stageD_diffusion(config=test_config)
         self.assertIsInstance(coords_out, torch.Tensor)
         self.assertTrue(coords_out.shape[-1] == 3)
 
@@ -164,7 +169,7 @@ class TestRunStageDDiffusion(unittest.TestCase):
         passing the output coordinates back in as input. Checks consistency of shape.
         """
         # First inference pass
-        coords_out_1 = run_stageD_diffusion(
+        test_config_1 = DiffusionConfig(
             partial_coords=self.partial_coords,
             trunk_embeddings=self.trunk_embeddings,
             diffusion_config=self.diffusion_config,
@@ -172,6 +177,7 @@ class TestRunStageDDiffusion(unittest.TestCase):
             device=self.device,
             input_features=self.input_features,
         )
+        coords_out_1 = run_stageD_diffusion(config=test_config_1)
 
         self.assertIsInstance(coords_out_1, torch.Tensor)
         self.assertEqual(coords_out_1.shape[-1], 3)
@@ -183,14 +189,16 @@ class TestRunStageDDiffusion(unittest.TestCase):
             input_coords = coords_out_1  # Already [B, N_atom, 3]
 
         # Second inference pass, reusing the output of the first
-        coords_out_2 = run_stageD_diffusion(
-            partial_coords=input_coords,
+        # Update config for second pass using coords from first pass
+        test_config_2 = DiffusionConfig(
+            partial_coords=input_coords, # Use output from first pass
             trunk_embeddings=self.trunk_embeddings,
             diffusion_config=self.diffusion_config,
             mode="inference",
             device=self.device,
             input_features=self.input_features,
         )
+        coords_out_2 = run_stageD_diffusion(config=test_config_2)
         self.assertIsInstance(coords_out_2, torch.Tensor)
         self.assertEqual(coords_out_2.shape[-1], 3)
         self.assertEqual(coords_out_2.shape[1], input_coords.shape[1])

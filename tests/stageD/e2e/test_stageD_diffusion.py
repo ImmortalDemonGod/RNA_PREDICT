@@ -5,6 +5,7 @@ from rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager import (
     ProtenixDiffusionManager,
 )
 from rna_predict.pipeline.stageD.diffusion.run_stageD_unified import run_stageD_diffusion
+from rna_predict.pipeline.stageD.diffusion.utils import DiffusionConfig  # Import needed class
 
 
 @pytest.fixture(scope="function")
@@ -68,14 +69,17 @@ def test_run_stageD_diffusion_inference(
         trunk_embeddings["s_inputs"] = torch.randn(1, 5, 384)
 
     try:
-        out_coords = run_stageD_diffusion(
+        # Create the config object using the variables available in the test scope
+        test_config = DiffusionConfig(
             partial_coords=partial_coords,
             trunk_embeddings=trunk_embeddings,
             diffusion_config=minimal_diffusion_config,
             mode="inference",
             device="cpu",
-            input_features=minimal_input_features,  # Provide input features
+            input_features=minimal_input_features,
         )
+        # Call the refactored function with the config object
+        out_coords = run_stageD_diffusion(config=test_config)
 
         assert isinstance(out_coords, torch.Tensor)
         assert out_coords.ndim == 3  # [batch, n_atoms, 3]
