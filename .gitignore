@@ -184,3 +184,4 @@ tasks/
 .cursor
 scripts/
 run-task-master.js
+.coverage_config.json
