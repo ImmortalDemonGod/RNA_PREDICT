@@ -107,7 +107,15 @@ class TestRunPipeline:
     @patch("rna_predict.pipeline.stageB.main.StageBTorsionBertPredictor")
     @patch("rna_predict.pipeline.stageB.main.StageCReconstruction")
     def test_run_pipeline_long_sequence(self, mock_stageC, mock_stageB, mock_stageA):
-        """Test run_pipeline with a long sequence."""
+        """
+        Test run_pipeline with a long RNA sequence.
+        
+        This test verifies that run_pipeline processes a long RNA sequence correctly by invoking
+        the expected prediction and reconstruction stages. Mocks simulate StageA's adjacency
+        prediction, StageB's torsion angle prediction, and StageC's coordinate reconstruction.
+        The test asserts that each stage is instantiated and called once with the correct
+        parameters for a 100-character input sequence.
+        """
         # Set up mocks
         mock_stageA_instance = mock_stageA.return_value
         mock_stageA_instance.predict_adjacency.return_value = torch.ones((100, 100)).numpy()
@@ -145,7 +153,12 @@ class TestRunStageBCombined:
     """Tests for the run_stageB_combined function."""
 
     def setup_method(self):
-        """Set up test fixtures."""
+        """
+        Initialize test fixtures for RNA prediction pipeline tests.
+        
+        Sets up a sample RNA sequence, a dummy adjacency matrix, and mocked model 
+        instances for torsion prediction and pairformer behavior, along with the device.
+        """
         self.sequence = "ACGUACGU"
         self.adjacency_matrix = torch.ones((8, 8))
         self.torsion_bert_model = MagicMock(spec=StageBTorsionBertPredictor)

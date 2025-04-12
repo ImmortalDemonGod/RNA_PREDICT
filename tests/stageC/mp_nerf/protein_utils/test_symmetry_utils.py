@@ -59,7 +59,12 @@ class TestGetSymmetricAtomPairs:
         assert (7, 9) in result["0"]  # CE1/CD2
 
     def test_tyrosine(self):
-        """Test with Tyrosine (Y) which has symmetric atoms in the ring."""
+        """
+        Verifies the symmetric atom pairs for tyrosine.
+        
+        For the input "Y", this test confirms that get_symmetric_atom_pairs returns a dictionary with a single key "0"
+        mapping to a list including the symmetric pairs (6, 10) and (7, 9), which correspond to the expected aromatic ring atoms.
+        """
         result = get_symmetric_atom_pairs("Y")
         assert isinstance(result, dict)
         assert len(result) == 1
@@ -230,7 +235,13 @@ class TestSymmetryUtilsIntegration:
     """Integration tests for symmetry_utils module."""
 
     def test_integration_with_sc_build_info(self):
-        """Test integration with SC_BUILD_INFO."""
+        """
+        Test integration of get_symmetric_atom_pairs with SC_BUILD_INFO.
+        
+        For each amino acid in SC_BUILD_INFO, verifies that the function returns a
+        dictionary with a single key ("0") and that each symmetric atom index is within
+        the expected range (0 to 19).
+        """
         # This test verifies that the function works with the actual SC_BUILD_INFO
         # and that the indices are valid for all amino acids
         for aa in SC_BUILD_INFO.keys():

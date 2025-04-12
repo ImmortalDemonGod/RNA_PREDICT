@@ -17,14 +17,20 @@ def _prepare_sequence_and_counts(
     atom_counts_map: Optional[Dict[str, int]] = None,
 ) -> Tuple[List[str], Dict[str, int], int]:
     """
-    Prepare sequence and atom counts map for residue-atom mapping.
-
+    Prepares the RNA sequence list and atom counts mapping.
+    
+    Converts the input sequence to a list of residues and calculates the total number of residues.
+    If no atom counts map is provided, a default mapping based on standard RNA atoms is used.
+    
     Args:
-        sequence: RNA sequence as string or list of residue types
-        atom_counts_map: Optional mapping from residue type to atom count
-
+        sequence: RNA sequence provided as a string of residue types or as a list.
+        atom_counts_map: Optional mapping from residue type to expected atom count.
+    
     Returns:
-        Tuple of (sequence_list, atom_counts_map, n_residues)
+        A tuple containing:
+          - The sequence as a list of residue types.
+          - The atom counts mapping.
+          - The total number of residues.
     """
     # Convert sequence to list if it's a string
     sequence_list = list(sequence) if isinstance(sequence, str) else sequence
@@ -44,6 +50,14 @@ class MetadataMapConfig:
         sequence_list: List[str],
         n_residues: int,
     ) -> None:
+        """
+        Initializes the metadata map configuration.
+        
+        Args:
+            residue_indices (Union[List[int], torch.Tensor]): Residue indices for mapping.
+            sequence_list (List[str]): List of residue names in order.
+            n_residues (int): The total number of residues.
+        """
         self.residue_indices = residue_indices
         self.sequence_list = sequence_list
         self.n_residues = n_residues
@@ -99,11 +113,14 @@ def _validate_residue_atom_map(
     sequence_list: List[str],
 ) -> None:
     """
-    Validate that all residues have at least one atom.
-
+    Validates that each residue has at least one atom.
+    
+    Checks each residue in the residue-atom map and logs a warning if a residue is assigned no atoms.
+    The associated residue type from the sequence list is included in the warning message.
+    
     Args:
-        residue_atom_map: Mapping from residue indices to atom indices
-        sequence_list: List of residue types
+        residue_atom_map: Mapping from residue indices to lists of atom indices.
+        sequence_list: List of residue types corresponding to each residue in the map.
     """
     for res_idx, atom_indices in enumerate(residue_atom_map):
         if not atom_indices:
@@ -191,14 +208,19 @@ def _adjust_counts_to_match_total(
     n_atoms: int,
 ) -> List[int]:
     """
-    Adjust atom counts to match the total number of atoms.
-
+    Proportionally adjust residue atom counts to match a target total.
+    
+    Scales each residue's expected atom count based on the ratio of the target total to the
+    sum of expected counts. The counts are rounded down to integers, and any rounding error is
+    compensated by adjusting the last residue's count. If the total of expected counts is zero
+    or negative, the original counts are returned.
+     
     Args:
-        expected_atom_counts: List of expected atom counts for each residue
-        n_atoms: Target total number of atoms
-
+        expected_atom_counts: Expected atom counts for each residue.
+        n_atoms: Target total number of atoms.
+    
     Returns:
-        Adjusted list of atom counts
+        A list of adjusted atom counts that sum exactly to n_atoms.
     """
     expected_total_atoms = sum(expected_atom_counts)
 
@@ -222,18 +244,22 @@ def _calculate_expected_atom_counts(
     n_atoms: Optional[int] = None,
 ) -> List[int]:
     """
-    Calculate expected atom counts for each residue with optional adjustment.
-
+    Calculates the expected number of atoms for each residue in a sequence.
+    
+    The function computes atom counts for each residue based on the provided counts_map.
+    If a total atom count (n_atoms) is provided and differs from the sum of these counts,
+    the list is adjusted so that the total matches n_atoms.
+    
     Args:
-        sequence_list: List of residue types
-        counts_map: Mapping from residue type to atom count
-        n_atoms: Optional total number of atoms to adjust counts to
-
+        sequence_list: List of residue types.
+        counts_map: Dictionary mapping residue types to their standard atom counts.
+        n_atoms: Optional total number of atoms to which the calculated counts are adjusted.
+    
     Returns:
-        List[int]: List of expected atom counts for each residue
-
+        A list of integers representing the expected atom counts for each residue.
+    
     Raises:
-        KeyError: If a residue type is not found in counts_map
+        KeyError: If a residue type from sequence_list is not found in counts_map.
     """
     # Get atom counts for each residue in the sequence
     expected_atom_counts = _get_counts_for_sequence(sequence_list, counts_map)
@@ -254,16 +280,21 @@ def _get_atom_count_from_coords(
     partial_coords: torch.Tensor,
 ) -> int:
     """
-    Get atom count from partial coordinates tensor.
-
+    Extracts the atom count from a tensor of partial 3D coordinates.
+    
+    This function returns the number of atoms represented in the input tensor. If the tensor has three dimensions 
+    (with shape [B, N_atom, 3]), it returns the size of the second dimension. If it has two dimensions (with shape 
+    [N_atom, 3]), it returns the size of the first dimension. A ValueError is raised for any other tensor shape.
+    
     Args:
-        partial_coords: Tensor of partial coordinates
-
+        partial_coords: A tensor containing partial 3D coordinates, expected to have shape [B, N_atom, 3] 
+                        for batched data or [N_atom, 3] for a single instance.
+    
     Returns:
-        Number of atoms
-
+        The number of atoms as an integer.
+    
     Raises:
-        ValueError: If partial_coords has unexpected shape
+        ValueError: If partial_coords does not have 2 or 3 dimensions.
     """
     if partial_coords.dim() == 3:  # [B, N_atom, 3]
         return partial_coords.shape[1]
@@ -277,13 +308,19 @@ def _create_residue_atom_map_from_counts(
     expected_atom_counts: List[int],
 ) -> ResidueAtomMap:
     """
-    Create residue-atom map from expected atom counts.
-
+    Assigns contiguous atom indices to residues based on expected atom counts.
+    
+    Constructs a mapping in which each residue is assigned a sequence of consecutive
+    atom indices. The indices start at 0 and are allocated according to the number of
+    atoms expected for each residue.
+    
     Args:
-        expected_atom_counts: List of expected atom counts for each residue
-
+        expected_atom_counts: A list of integers representing the expected number of
+            atoms for each residue.
+    
     Returns:
-        Mapping from residue indices to atom indices
+        A list of lists, where each inner list contains the atom indices assigned to a
+        corresponding residue.
     """
     residue_atom_map = []
     current_atom_idx = 0
@@ -303,37 +340,29 @@ def derive_residue_atom_map(
     atom_counts_map: Optional[Dict[str, int]] = None  # Fallback: {'A': 22, 'U': 20, ...} derived from STANDARD_RNA_ATOMS
 ) -> ResidueAtomMap:
     """
-    Derives the mapping from residue index to a list of corresponding global atom indices.
-
-    This helper function determines how atoms are grouped by residue, which is essential
-    for the `residue_to_atoms` bridging function.
-
+    Derive a mapping from residues to global atom indices.
+    
+    This function groups atoms by their associated residue using one of three methods:
+    1. If explicit atom metadata is provided (with a 'residue_indices' key), it uses this data.
+    2. If partial coordinates are provided, it infers the total number of atoms from the tensor's shape and
+       assumes contiguous ordering based on standard residue atom counts.
+    3. Otherwise, it falls back to using a provided atom counts map alongside the sequence.
+    
     Args:
-        sequence (Union[str, List[str]]): The RNA sequence (e.g., "AUCG" or ['A', 'U', 'C', 'G']).
-                                         Length must match N_residue.
-        partial_coords (Optional[torch.Tensor]): Atom coordinates, potentially used to infer N_atom.
-                                                Shape [B, N_atom, 3] or [N_atom, 3].
-        atom_metadata (Optional[Dict]): Explicit metadata linking atoms to residues.
-                                       Expected keys might include 'residue_indices'
-                                       (list/tensor of length N_atom mapping each atom to its residue index).
-        atom_counts_map (Optional[Dict[str, int]]): A fallback map providing the number of atoms for each
-                                                   standard residue type (e.g., derived from STANDARD_RNA_ATOMS).
-                                                   Used when `partial_coords` and `atom_metadata` are insufficient.
-
-    Priority for Derivation:
-    1. Use `atom_metadata` if provided (most explicit and reliable).
-    2. Use `partial_coords` shape and assume contiguous block ordering based on `sequence` and standard atom counts
-       if `atom_metadata` is missing. Requires validation that total inferred atoms match `partial_coords.shape[-2]`.
-    3. Use `atom_counts_map` (e.g., from STANDARD_RNA_ATOMS lengths) and `sequence` if coordinates and metadata
-       are both missing. Assumes contiguous blocks.
-
+        sequence (Union[str, List[str]]): The RNA sequence as a string (e.g., "AUCG") or a list of residues.
+        partial_coords (Optional[torch.Tensor]): Atom coordinates that, if provided, help determine the total
+            atom count. Expected shape is either [B, N_atom, 3] or [N_atom, 3].
+        atom_metadata (Optional[Dict[str, Union[List[str], List[int], torch.Tensor]]]): Metadata linking atoms to
+            residues. Must include 'residue_indices' that maps each atom to its residue index.
+        atom_counts_map (Optional[Dict[str, int]]): A fallback mapping of residue types to their expected atom counts.
+    
     Returns:
-        ResidueAtomMap: Map where index `i` contains the list of global atom indices for residue `i`.
-
+        ResidueAtomMap: A mapping where each residue index maps to a list of corresponding global atom indices.
+    
     Raises:
-        ValueError: If insufficient information is provided, inputs are inconsistent (e.g., sequence length mismatch,
-                   atom count mismatch), or assumptions (like contiguous order) are violated based on available data.
-        KeyError: If a residue in `sequence` is not found in `atom_counts_map` when operating in fallback mode (Method 3).
+        ValueError: If inputs are insufficient, inconsistent (e.g., a mismatch between sequence and atom counts),
+            or if assumptions about contiguous ordering are violated.
+        KeyError: If a residue in the sequence is not found in the atom counts map when using fallback mode.
     """
     # Prepare sequence and atom counts
     sequence_list, counts_map, n_residues = _prepare_sequence_and_counts(sequence, atom_counts_map)

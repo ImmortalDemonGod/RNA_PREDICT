@@ -51,16 +51,19 @@ def _run_stageD_diffusion_impl(
     config: DiffusionConfig,
 ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor, torch.Tensor]]:
     """
-    Run Stage D diffusion refinement.
-
-    Args:
-        config: Configuration object containing all parameters for the diffusion process
-
+    Perform Stage D diffusion refinement based on the provided configuration.
+    
+    This function adjusts tensor shapes and bridges residue-level embeddings into atom-level
+    embeddings before executing the diffusion process. It supports two modes:
+    "inference" returns refined atomic coordinates, while "train" returns a tuple consisting
+    of denoised coordinates, ground truth output, and the noise scale (sigma).
+    
+    Raises:
+        ValueError: If config.mode is neither "inference" nor "train".
+    
     Returns:
-        If config.mode == "inference":
-            Refined coordinates [B, N_atom, 3]
-        If config.mode == "train":
-            Tuple of (x_denoised, x_gt_out, sigma)
+        torch.Tensor: Refined coordinates with shape [B, N_atom, 3] in "inference" mode.
+        Tuple[torch.Tensor, torch.Tensor, torch.Tensor]: (x_denoised, x_gt_out, sigma) in "train" mode.
     """
     if config.mode not in ["inference", "train"]:
         raise ValueError(
@@ -145,7 +148,13 @@ def demo_run_diffusion() -> Union[
     torch.Tensor, Tuple[torch.Tensor, torch.Tensor, torch.Tensor]
 ]:
     """
-    Demo function to run the diffusion stage with a simple example.
+    Demonstrates a simple example of running diffusion stage refinement.
+    
+    This function creates random partial coordinates and trunk embeddings, sets
+    up a memory-efficient diffusion configuration for inference mode, and builds a
+    DiffusionConfig object. It then invokes the diffusion process and returns the
+    refined coordinates, which may be a single tensor or a tuple of tensors based on
+    the underlying mode.
     """
     # Set device
     device = "mps"  # Use MPS for Mac

@@ -54,8 +54,12 @@ def test_run_stageD_diffusion_inference(
     missing_s_inputs, minimal_diffusion_config, minimal_input_features
 ):
     """
-    Calls run_stageD_diffusion in 'inference' mode with partial trunk_embeddings.
-    If missing_s_inputs=True, we omit 's_inputs' to see if it is auto-computed.
+    Test run_stageD_diffusion in inference mode.
+    
+    This test verifies that run_stageD_diffusion computes diffusion inference as expected when
+    provided with a valid DiffusionConfig in inference mode. It ensures that the output tensor has
+    the shape [batch, n_atoms, 3] corresponding to the input partial coordinates. When missing_s_inputs
+    is True, the 's_inputs' field is omitted from trunk embeddings to test auto-computation of that input.
     """
     # Use smaller tensors for testing
     partial_coords = torch.randn(1, 5, 3)  # batch=1, 5 atoms, 3 coords
