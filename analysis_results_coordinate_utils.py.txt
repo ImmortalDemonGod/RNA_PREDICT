@@ -1,0 +1,324 @@
+
+=== CODESCENE ANALYSIS ===
+Please systematically review the following CodeScene analysis results and provide a detailed summary of the findings. Then plan out the necessary refactoring steps based on the CodeScene analysis.
+
+{"score":10.0,"review":[]}
+=== MYPY ANALYSIS ===
+
+<?xml-stylesheet type="text/xsl" href="mypy-html.xslt"?><mypy-report-index name="index"><file module="rna_predict.pipeline.stageA.input_embedding.current.utils.coordinate_utils" name="rna_predict/pipeline/stageA/input_embedding/current/utils/coordinate_utils.py" total="272" any="7" empty="181" imprecise="10" precise="74" unanalyzed="0"/></mypy-report-index>
+=== RUFF FIX OUTPUT ===
+
+All checks passed!
+
+=======
+PROMPT:
+**=======**
+REFACTOR:
+=======
+The major types of code refactoring mentioned include:
+
+1. **Extract Function**: Extracting code into a function or method (also referred to as Extract Method).
+2. **Extract Variable**: Extracting code into a variable.
+3. **Inline Function**: The inverse of Extract Function, where a function is inlined back into its calling code.
+4. **Inline Variable**: The inverse of Extract Variable, where a variable is inlined back into its usage.
+5. **Change Function Declaration**: Changing the names or arguments of functions.
+6. **Rename Variable**: Renaming variables for clarity.
+7. **Encapsulate Variable**: Encapsulating a variable to manage its visibility.
+8. **Introduce Parameter Object**: Combining common arguments into a single object.
+9. **Combine Functions into Class**: Grouping functions with the data they operate on into a class.
+10. **Combine Functions into Transform**: Merging functions particularly useful with read-only data.
+11. **Split Phase**: Organizing modules into distinct processing phases.
+
+These refactorings focus on improving code clarity and maintainability without altering its observable behavior.
+
+For more detailed information, you might consider using tools that could provide further insights or examples related to these refactoring types.
+
+
+====
+FULL CODE:
+====
+show the full file dont drop comments or existing functionality
+
+**====**
+FULL CODE:
+**====**
+# protenix/model/utils.py
+# Copyright 2024 ByteDance and/or its affiliates.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""
+Coordinate and atom processing utility functions for RNA structure prediction.
+"""
+
+import warnings
+from typing import Optional
+
+import torch
+from protenix.utils.scatter_utils import scatter
+
+
+class BroadcastConfig:
+    """Configuration for broadcasting token-level embeddings to atom-level."""
+
+    def __init__(self, x_token: torch.Tensor, atom_to_token_idx: torch.Tensor):
+        # Store dimensions
+        self.original_leading_dims = x_token.shape[:-2]
+        self.n_atom = atom_to_token_idx.shape[-1]
+        self.n_features = x_token.shape[-1]
+        self.n_token = x_token.shape[-2]
+
+        # Flatten leading dimensions
+        self.x_token_flat = x_token.reshape(-1, self.n_token, self.n_features)
+        self.b_flat = self.x_token_flat.shape[0]
+
+
+def _check_dimension_match(idx_leading_dims: tuple, config_dims: tuple) -> bool:
+    """Check if dimensions already match.
+
+    Args:
+        idx_leading_dims: Leading dimensions of the index tensor
+        config_dims: Original leading dimensions from the configuration
+
+    Returns:
+        True if dimensions match, False otherwise
+    """
+    return idx_leading_dims == config_dims
+
+
+def _check_dimension_count(idx_leading_dims: tuple, config_dims: tuple) -> None:
+    """Check if index tensor has more dimensions than the configuration.
+
+    Args:
+        idx_leading_dims: Leading dimensions of the index tensor
+        config_dims: Original leading dimensions from the configuration
+
+    Raises:
+        ValueError: If index tensor has more dimensions than the configuration
+    """
+    if len(idx_leading_dims) > len(config_dims):
+        raise ValueError(
+            f"atom_to_token_idx shape with leading dims {idx_leading_dims} has more dimensions "
+            f"than x_token {config_dims}."
+        )
+
+
+def _check_dimension_compatibility(idx_leading_dims: tuple, config_dims: tuple) -> None:
+    """Check if dimensions are compatible for expansion.
+
+    Args:
+        idx_leading_dims: Leading dimensions of the index tensor
+        config_dims: Original leading dimensions from the configuration
+
+    Raises:
+        ValueError: If dimensions are not compatible for expansion
+    """
+    can_expand = all(
+        i_s == o_s or i_s == 1 for i_s, o_s in zip(idx_leading_dims, config_dims)
+    )
+
+    if not can_expand:
+        raise ValueError(
+            f"Cannot expand atom_to_token_idx shape with leading dims {idx_leading_dims} "
+            f"to match x_token leading dims {config_dims}."
+        )
+
+
+def _validate_and_expand_indices(
+    atom_to_token_idx: torch.Tensor, config: BroadcastConfig
+) -> torch.Tensor:
+    """Validate and expand atom_to_token_idx to match x_token leading dimensions.
+
+    Args:
+        atom_to_token_idx: Index map [..., N_atom]
+        config: Broadcast configuration
+
+    Returns:
+        Expanded atom_to_token_idx with compatible leading dimensions
+    """
+    idx_leading_dims = atom_to_token_idx.shape[:-1]
+    config_dims = config.original_leading_dims
+
+    # If dimensions already match, no expansion needed
+    if _check_dimension_match(idx_leading_dims, config_dims):
+        return atom_to_token_idx
+
+    # Validate dimensions
+    _check_dimension_count(idx_leading_dims, config_dims)
+    _check_dimension_compatibility(idx_leading_dims, config_dims)
+
+    # Expand dimensions
+    try:
+        return atom_to_token_idx.expand(*config_dims, config.n_atom)
+    except RuntimeError as e:
+        raise RuntimeError(
+            f"Expansion failed for atom_to_token_idx from {atom_to_token_idx.shape} "
+            f"to {(*config_dims, config.n_atom)}. Error: {e}"
+        ) from e
+
+
+def _validate_and_clamp_indices(
+    atom_to_token_idx_flat: torch.Tensor, config: BroadcastConfig
+) -> torch.Tensor:
+    """Validate and clamp indices to be within valid range.
+
+    Args:
+        atom_to_token_idx_flat: Flattened index map [B_flat, N_atom]
+        config: Broadcast configuration
+
+    Returns:
+        Clamped indices within valid range
+    """
+    # Skip validation for empty tensors
+    if atom_to_token_idx_flat.numel() == 0:
+        return atom_to_token_idx_flat
+
+    result = atom_to_token_idx_flat
+
+    # Check and clamp upper bound
+    max_idx = atom_to_token_idx_flat.max()
+    if max_idx >= config.n_token:
+        warnings.warn(
+            f"Clipping atom_to_token_idx: max index {max_idx} >= N_token {config.n_token}."
+        )
+        result = torch.clamp(result, max=config.n_token - 1)
+
+    # Check and clamp lower bound
+    min_idx = atom_to_token_idx_flat.min()
+    if min_idx < 0:
+        warnings.warn(f"Clipping atom_to_token_idx: min index {min_idx} < 0.")
+        result = torch.clamp(result, min=0)
+
+    return result
+
+
+def _perform_gather(
+    atom_to_token_idx_flat: torch.Tensor, config: BroadcastConfig
+) -> torch.Tensor:
+    """Perform gather operation to broadcast token features to atom level.
+
+    Args:
+        atom_to_token_idx_flat: Flattened and validated index map [B_flat, N_atom]
+        config: Broadcast configuration
+
+    Returns:
+        Gathered atom features [B_flat, N_atom, C]
+    """
+    # Expand indices to match feature dimension for gather
+    idx_expanded = atom_to_token_idx_flat.unsqueeze(-1).expand(
+        config.b_flat, config.n_atom, config.n_features
+    )
+
+    try:
+        # Gather along the N_token dimension (dim=1)
+        return torch.gather(config.x_token_flat, 1, idx_expanded)
+    except RuntimeError as e:
+        raise RuntimeError(
+            f"torch.gather failed in broadcast_token_to_atom. "
+            f"x_token_flat shape: {config.x_token_flat.shape}, "
+            f"idx_expanded shape: {idx_expanded.shape}. Error: {e}"
+        ) from e
+
+
+def broadcast_token_to_atom(
+    x_token: torch.Tensor, atom_to_token_idx: torch.Tensor
+) -> torch.Tensor:
+    """
+    Broadcast token-level embeddings to atom-level embeddings using gather.
+    Handles arbitrary leading batch/sample dimensions.
+
+    Args:
+        x_token (torch.Tensor): Token features [..., N_token, C]
+        atom_to_token_idx (torch.Tensor): Index map [..., N_atom]
+
+    Returns:
+        torch.Tensor: Atom features [..., N_atom, C]
+    """
+    # Create configuration object
+    config = BroadcastConfig(x_token, atom_to_token_idx)
+
+    # Validate and expand indices to match leading dimensions
+    atom_to_token_idx = _validate_and_expand_indices(atom_to_token_idx, config)
+
+    # Flatten indices
+    atom_to_token_idx_flat = atom_to_token_idx.reshape(config.b_flat, config.n_atom)
+
+    # Validate and clamp indices
+    atom_to_token_idx_flat = _validate_and_clamp_indices(atom_to_token_idx_flat, config)
+
+    # Perform gather operation
+    x_atom_flat = _perform_gather(atom_to_token_idx_flat, config)
+
+    # Reshape back to original dimensions
+    return x_atom_flat.reshape(
+        *config.original_leading_dims, config.n_atom, config.n_features
+    )
+
+
+def aggregate_atom_to_token(
+    x_atom: torch.Tensor,
+    atom_to_token_idx: torch.Tensor,
+    n_token: Optional[int] = None,
+    reduce: str = "mean",
+) -> torch.Tensor:
+    """Aggregate atom embedding to obtain token embedding
+
+    Args:
+        x_atom (torch.Tensor): atom-level embedding
+            [..., N_atom, d]
+        atom_to_token_idx (torch.Tensor): map atom to token idx
+            [..., N_atom] or [N_atom]
+        n_token (int, optional): number of tokens in total. Defaults to None.
+        reduce (str, optional): aggregation method. Defaults to "mean".
+
+    Returns:
+        torch.Tensor: token-level embedding
+            [..., N_token, d]
+    """
+    # Squeeze last dim of index if it's 1 and index has more than 1 dimension
+    if atom_to_token_idx.ndim > 1 and atom_to_token_idx.shape[-1] == 1:
+        atom_to_token_idx = atom_to_token_idx.squeeze(-1)
+
+    # Ensure index has compatible leading dimensions with x_atom's non-feature dimensions
+    # Expected shapes: x_atom [..., N_atom, d], atom_to_token_idx [..., N_atom]
+    idx_shape = atom_to_token_idx.shape  # Shape of index up to N_atom dim
+    atom_prefix_shape = x_atom.shape[:-1]  # Shape of x_atom up to N_atom dim
+
+    if idx_shape != atom_prefix_shape:
+        # Check if expansion is possible (index dims must be broadcastable to atom prefix dims)
+        try:
+            # This will raise an error if shapes are not broadcast compatible
+            target_idx_shape = torch.broadcast_shapes(idx_shape, atom_prefix_shape)
+            # If compatible, expand index to match atom prefix dims for scatter operation
+            atom_to_token_idx = atom_to_token_idx.expand(target_idx_shape)
+        except RuntimeError as e:
+            raise ValueError(
+                f"Cannot broadcast atom_to_token_idx shape {idx_shape} to match x_atom prefix shape {atom_prefix_shape} for scatter. Error: {e}"
+            ) from e
+        # Note: Removed the check `if len(idx_shape) <= len(atom_prefix_shape):` as torch.broadcast_shapes handles it.
+        # Also removed the `else` block raising error for index having more leading dims, as broadcast_shapes covers this.
+
+    # Determine the scatter dimension (the N_atom dimension)
+    # This should be the dimension *before* the feature dimension in x_atom
+    scatter_dim = x_atom.ndim - 2
+
+    # Perform scatter operation
+    out = scatter(
+        src=x_atom,
+        index=atom_to_token_idx,
+        dim=scatter_dim,
+        dim_size=n_token,
+        reduce=reduce,
+    )
+
+    return out
