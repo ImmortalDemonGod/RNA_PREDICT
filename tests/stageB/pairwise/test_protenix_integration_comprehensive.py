@@ -8,10 +8,9 @@ pair embeddings from raw features.
 
 import unittest
 from unittest.mock import patch, MagicMock
-import pytest
 import torch
 import gc
-from hypothesis import given, strategies as st, settings, example
+from hypothesis import given, strategies as st, settings
 
 from rna_predict.pipeline.stageB.pairwise.protenix_integration import ProtenixIntegration
 

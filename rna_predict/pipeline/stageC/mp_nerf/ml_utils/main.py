@@ -2,7 +2,7 @@
 Main module for running ml_utils functionality directly.
 """
 
-from typing import Dict, List, Optional, Tuple, Union
+from typing import List, Optional, Tuple
 import einops
 import torch
 

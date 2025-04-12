@@ -4,12 +4,7 @@ Tests specifically designed to improve coverage for the ml_utils module.
 
 import unittest
 import torch
-import numpy as np
-import einops
-import os
-import sys
-from typing import List, Tuple
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 from rna_predict.pipeline.stageC.mp_nerf.ml_utils import (
     atom_selector,
@@ -18,7 +13,6 @@ from rna_predict.pipeline.stageC.mp_nerf.ml_utils import (
     process_coordinates,
 )
 from rna_predict.pipeline.stageC.mp_nerf.ml_utils.main import _run_main_logic
-from rna_predict.pipeline.stageC.mp_nerf.protein_utils import AAS2INDEX
 
 
 class TestAtomSelectorCoverage(unittest.TestCase):
@@ -171,7 +165,7 @@ class TestProcessCoordinatesCoverage(unittest.TestCase):
             # If it doesn't raise an exception, the test still passes
             # because we're testing the error handling code
             self.assertIsInstance(result, torch.Tensor)
-        except Exception as e:
+        except Exception:
             # If it raises an exception, that's also fine
             # We just want to make sure the function is called
             pass

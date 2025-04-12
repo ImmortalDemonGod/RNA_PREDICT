@@ -3,7 +3,7 @@ Loss functions for RNA structure prediction.
 """
 
 from dataclasses import dataclass
-from typing import Callable, List, Optional, Tuple, Union
+from typing import Callable, List, Optional
 
 import einops
 import torch

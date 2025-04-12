@@ -6,7 +6,7 @@ between residue-level and atom-level representations.
 """
 
 import torch
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Union
 
 from .types import ResidueAtomMap, logger
 from .validation import get_dimensions, validate_atom_indices

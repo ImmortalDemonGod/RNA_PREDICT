@@ -6,7 +6,6 @@ This module tests the residue-to-atom bridging functions.
 
 import pytest
 import torch
-import numpy as np
 
 from rna_predict.utils.tensor_utils import (
     derive_residue_atom_map,
