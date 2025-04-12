@@ -60,7 +60,7 @@ class TestSCNAtomEmbedd(unittest.TestCase):
         self.assertEqual(tokens.shape[0], 2, "Batch size mismatch")
         self.assertEqual(tokens.shape[1], 3, "Seq length mismatch")
         self.assertEqual(tokens.shape[2], 14, "Atom dimension mismatch")
-        
+
         # Verify that the tokens are valid (non-negative integers)
         self.assertTrue((tokens >= 0).all(), "Token values should be non-negative")
         self.assertTrue((tokens < 28).all(), "Token values should be less than 28 (max token ID)")
@@ -308,12 +308,14 @@ class TestNoiseInternals(unittest.TestCase):
             dtype=torch.float32,
         )
 
+        # Create a NoiseConfig object for the noise parameters
+        from rna_predict.pipeline.stageC.mp_nerf.ml_utils.coordinate_transforms import NoiseConfig
+        noise_config = NoiseConfig(noise_scale=0.1, theta_scale=0.2, verbose=0)
+
         out_coords, out_mask = ml_utils.noise_internals(
             seq=seq,
             angles=angles,
-            noise_scale=0.1,
-            theta_scale=0.2,
-            verbose=0,
+            config=noise_config
         )
         assert out_coords.shape == (L, 14, 3)
         assert out_mask.shape == (L, 14)
@@ -354,12 +356,12 @@ class TestCombineNoise(unittest.TestCase):
             seq=self.seq,
             int_seq=None,
             angles=None,
-            NOISE_INTERNALS=0.0,
-            SIDECHAIN_RECONSTRUCT=False,
+            noise_internals=0.0,
+            sidechain_reconstruct=False,
         )
         self.assertEqual(noised_coords.shape, (1, 6, 3))
         self.assertEqual(mask.shape, (1, 6))
-        # With NOISE_INTERNALS=0, we expect no changes
+        # With noise_internals=0, we expect no changes
         self.assertTrue(
             torch.allclose(noised_coords, self.coords.unsqueeze(0), atol=1e-6)
         )
@@ -377,8 +379,8 @@ class TestCombineNoise(unittest.TestCase):
             seq=None,
             int_seq=int_seq,
             angles=None,
-            NOISE_INTERNALS=0.0,
-            SIDECHAIN_RECONSTRUCT=False,
+            noise_internals=0.0,
+            sidechain_reconstruct=False,
         )
         self.assertEqual(noised_coords.shape, (1, 6, 3))
         self.assertEqual(mask.shape, (1, 6))
@@ -431,30 +433,30 @@ class TestBinaryOperationCombineNoise(unittest.TestCase):
         b_seq_c, _ = ml_utils.combine_noise(
             coords_b,
             seq=seq_c,
-            NOISE_INTERNALS=noise_scale,
-            SIDECHAIN_RECONSTRUCT=sidechain,
+            noise_internals=noise_scale,
+            sidechain_reconstruct=sidechain,
         )
         # feed that result as seq to combine_noise(a, seq=...)
         left, _ = ml_utils.combine_noise(
             coords_a,
             seq=b_seq_c,
-            NOISE_INTERNALS=noise_scale,
-            SIDECHAIN_RECONSTRUCT=sidechain,
+            noise_internals=noise_scale,
+            sidechain_reconstruct=sidechain,
         )
 
         # 2) combine_noise(a, seq=b)
         a_seq_b, _ = ml_utils.combine_noise(
             coords_a,
             seq=seq_b,
-            NOISE_INTERNALS=noise_scale,
-            SIDECHAIN_RECONSTRUCT=sidechain,
+            noise_internals=noise_scale,
+            sidechain_reconstruct=sidechain,
         )
         # feed that to combine_noise(..., seq=c)
         right, _ = ml_utils.combine_noise(
             a_seq_b,
             seq=seq_c,
-            NOISE_INTERNALS=noise_scale,
-            SIDECHAIN_RECONSTRUCT=sidechain,
+            noise_internals=noise_scale,
+            sidechain_reconstruct=sidechain,
         )
 
         self.assertEqual(left.shape, (1, length, 3))
@@ -481,14 +483,14 @@ class TestBinaryOperationCombineNoise(unittest.TestCase):
         left, _ = ml_utils.combine_noise(
             coords_a,
             seq=seq_b,
-            NOISE_INTERNALS=noise_scale,
-            SIDECHAIN_RECONSTRUCT=sidechain,
+            noise_internals=noise_scale,
+            sidechain_reconstruct=sidechain,
         )
         right, _ = ml_utils.combine_noise(
             coords_b,
             seq=seq_a,
-            NOISE_INTERNALS=noise_scale,
-            SIDECHAIN_RECONSTRUCT=sidechain,
+            noise_internals=noise_scale,
+            sidechain_reconstruct=sidechain,
         )
         self.assertEqual(left.shape, (1, length, 3))
         self.assertEqual(right.shape, (1, length, 3))
@@ -512,8 +514,8 @@ class TestBinaryOperationCombineNoise(unittest.TestCase):
             coords_a,
             seq=None,
             int_seq=None,
-            NOISE_INTERNALS=noise_scale,
-            SIDECHAIN_RECONSTRUCT=sidechain,
+            noise_internals=noise_scale,
+            sidechain_reconstruct=sidechain,
             _allow_none_for_test=True,  # Special flag to allow None inputs in test
         )
         self.assertEqual(result.shape, (1, length, 3))
