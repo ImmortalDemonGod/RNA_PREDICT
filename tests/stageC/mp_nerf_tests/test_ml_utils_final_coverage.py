@@ -5,8 +5,7 @@ This targets the remaining uncovered lines identified in the coverage report.
 
 import unittest
 import torch
-import numpy as np
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 from rna_predict.pipeline.stageC.mp_nerf.ml_utils import (
     atom_selector,
@@ -19,9 +18,6 @@ from rna_predict.pipeline.stageC.mp_nerf.ml_utils.atom_utils import (
     rename_symmetric_atoms,
     get_symmetric_atom_pairs,
 )
-from rna_predict.pipeline.stageC.mp_nerf.ml_utils.coordinate_transforms import (
-    noise_internals,
-)
 from rna_predict.pipeline.stageC.mp_nerf.ml_utils.angle_utils import (
     torsion_angle_loss,
 )
@@ -30,7 +26,6 @@ from rna_predict.pipeline.stageC.mp_nerf.ml_utils.tensor_ops import (
     chain2atoms,
     process_coordinates,
 )
-from rna_predict.pipeline.stageC.mp_nerf.protein_utils import AAS2INDEX
 
 
 class TestAtomUtilsFinalCoverage(unittest.TestCase):
@@ -308,7 +303,7 @@ class TestTensorOpsFinalCoverage(unittest.TestCase):
             process_coordinates(noised_coords, scaffolds)
             # If we get here, the test fails
             self.fail("Expected EinopsError but no exception was raised")
-        except Exception as e:
+        except Exception:
             # If it raises any exception, the test passes
             # We're just testing that the function handles invalid inputs
             pass

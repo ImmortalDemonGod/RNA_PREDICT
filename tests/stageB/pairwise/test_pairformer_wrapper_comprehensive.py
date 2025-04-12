@@ -15,10 +15,8 @@ The tests cover:
 
 import unittest
 import torch
-import torch.nn as nn
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock
 
-from rna_predict.pipeline.stageB.pairwise.pairformer import PairformerStack
 from rna_predict.pipeline.stageB.pairwise.pairformer_wrapper import PairformerWrapper
 
 

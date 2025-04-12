@@ -7,11 +7,10 @@ scatter_mean, and broadcast functions.
 """
 
 import unittest
-from typing import Tuple, List, Any
+from typing import Tuple
 
-import pytest
 import torch
-from hypothesis import HealthCheck, given, settings, example
+from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from rna_predict.utils.scatter_utils import (
@@ -305,9 +304,8 @@ class TestScatterMean(unittest.TestCase):
         """Test scatter_mean with torch_scatter if available."""
         try:
             import torch_scatter  # noqa: F401
-            has_torch_scatter = True
         except ImportError:
-            has_torch_scatter = False
+            pass
 
         src = torch.tensor([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]], dtype=torch.float32)
         index = torch.tensor([0, 1, 1, 0], dtype=torch.long)

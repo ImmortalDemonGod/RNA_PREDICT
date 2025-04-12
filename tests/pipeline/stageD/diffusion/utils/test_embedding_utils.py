@@ -4,10 +4,9 @@ Tests for embedding_utils.py module.
 This module tests the embedding utility functions for Stage D diffusion.
 """
 
-import logging
 import pytest
 import torch
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 from rna_predict.pipeline.stageD.diffusion.utils.embedding_utils import (
     ensure_s_inputs,
