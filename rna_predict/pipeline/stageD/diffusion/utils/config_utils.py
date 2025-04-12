@@ -12,15 +12,19 @@ def get_embedding_dimension(
     diffusion_config: Dict[str, Any], key: str, default_value: int
 ) -> int:
     """
-    Get embedding dimension from diffusion config with fallback.
-
+    Retrieves the embedding dimension from a diffusion configuration.
+    
+    This function looks for the specified key in the provided configuration dictionary.
+    It first checks the top level and then within the nested "conditioning" dictionary.
+    If the key is missing in both, the given default value is returned.
+    
     Args:
-        diffusion_config: Configuration dictionary
-        key: Key to look for in config
-        default_value: Default value if key not found
-
+        diffusion_config: A dictionary of diffusion configuration settings.
+        key: The key to locate the embedding dimension.
+        default_value: The fallback value if the key is not present.
+    
     Returns:
-        Embedding dimension
+        The embedding dimension as an integer.
     """
     conditioning_config = diffusion_config.get("conditioning", {})
     return diffusion_config.get(key, conditioning_config.get(key, default_value))
@@ -30,15 +34,24 @@ def create_fallback_input_features(
     partial_coords: torch.Tensor, diffusion_config: Dict[str, Any], device: str
 ) -> Dict[str, Any]:
     """
-    Create fallback input features when none are provided.
-
+    Create a dictionary of fallback input features for the diffusion process.
+    
+    This function generates a collection of tensors to serve as fallback input features when
+    no explicit features are provided. The tensors are configured based on the number of atoms,
+    derived from the second dimension of the provided partial coordinates tensor. It creates
+    tensors for atom-to-token indexing, reference positions, unique identifiers, charges, element
+    representations, atom name characters, masks, residue types, profiles, deletion means, and a
+    'sing' feature whose last dimension is determined by the "c_s_inputs" key in the diffusion
+    configuration (defaulting to 449 if not specified). All tensors are allocated on the given device.
+    
     Args:
-        partial_coords: Partial coordinates tensor [B, N_atom, 3]
-        diffusion_config: Configuration for diffusion components
-        device: Device to run on
-
+        partial_coords: Tensor with shape [B, N_atom, 3] representing partial atomic coordinates.
+        diffusion_config: Dictionary containing configuration settings for diffusion components.
+        device: The device (e.g., 'cpu' or 'cuda') on which tensors are allocated.
+    
     Returns:
-        Dict of fallback input features
+        A dictionary mapping feature names to tensors initialized based on the partial coordinates and
+        diffusion configuration.
     """
     N = partial_coords.shape[1]
     return {

@@ -28,7 +28,13 @@ class TestPairformerWrapperComprehensive(unittest.TestCase):
     """
 
     def setUp(self):
-        """Set up common test parameters."""
+        """
+        Initialize test parameters and create input tensors.
+        
+        This method sets up shared attributes for the unit tests, including batch size, sequence length, and channel
+        dimensions. It creates random tensors representing sequence features, pairwise features, and pair masks, as
+        well as a tensor with a channel dimension that is not a multiple of 16 to test dimension adjustment logic.
+        """
         # Test parameters
         self.batch_size = 1
         self.seq_length = 8
@@ -74,7 +80,14 @@ class TestPairformerWrapperComprehensive(unittest.TestCase):
         self.assertEqual(z_updated.shape[-1], 30)
 
     def test_forward_with_c_z_adjustment_truncation(self):
-        """Test forward pass with c_z that needs truncation (edge case)."""
+        """
+        Test forward pass when c_z requires truncation.
+        
+        This test forces an edge case by manually setting the wrapper's adjusted c_z to 16,
+        ensuring that the forward pass truncates the input z tensor's last dimension to match.
+        It replaces the internal stack's forward method with a mock to isolate the truncation logic
+        and verifies that the output shapes are as expected.
+        """
         # This is an edge case that shouldn't happen with the current implementation,
         # but we test it for completeness
 
@@ -131,7 +144,14 @@ class TestPairformerWrapperComprehensive(unittest.TestCase):
         self.assertTrue(torch.all(z_adjusted[..., 30:] == 0))
 
     def test_adjust_z_dimensions_truncation(self):
-        """Test the adjust_z_dimensions method with truncation."""
+        """
+        Tests adjust_z_dimensions for proper truncation when the adjusted channel size is smaller.
+        
+        This test sets the adjusted channel dimension to a smaller value than the input tensor's original 
+        channel size to force a truncation. It verifies that the method returns a tensor with the last 
+        dimension matching the adjusted value and that the output tensor contains the truncated portion 
+        of the input.
+        """
         wrapper = PairformerWrapper(n_blocks=2, c_z=32, c_s=64)
 
         # Manually set c_z_adjusted to a smaller value to force truncation path
@@ -150,7 +170,14 @@ class TestPairformerWrapperComprehensive(unittest.TestCase):
         ))
 
     def test_forward_with_mock_stack(self):
-        """Test forward pass with a mocked PairformerStack to isolate the wrapper logic."""
+        """
+        Tests the forward pass using a mocked PairformerStack to validate dimension adjustments.
+        
+        This test verifies that PairformerWrapper adjusts the z tensor's channel dimensions by padding
+        it to 32 channels before passing it to the stack's forward method and then truncating the output
+        back to the original size of 30 channels. It also asserts that the output s tensor maintains the
+        same shape as the input.
+        """
         # Create a wrapper
         wrapper = PairformerWrapper(n_blocks=2, c_z=30, c_s=64)
 
@@ -182,7 +209,10 @@ class TestPairformerWrapperComprehensive(unittest.TestCase):
             wrapper.stack.forward = original_stack_forward
 
     def test_device_consistency(self):
-        """Test that the wrapper handles device placement correctly."""
+        """Verifies that the PairformerWrapper returns outputs on the same device as the inputs.
+        
+        This test moves the input tensors and model to CUDA (if available) and confirms that the forward pass
+        produces output tensors on the same device with shapes matching the inputs."""
         if not torch.cuda.is_available():
             self.skipTest("CUDA not available, skipping device test")
 
@@ -206,7 +236,11 @@ class TestPairformerWrapperComprehensive(unittest.TestCase):
         self.assertEqual(z_updated.shape, z_gpu.shape)
 
     def test_dtype_consistency_in_adjust_dimensions(self):
-        """Test that adjust_z_dimensions handles different dtypes correctly."""
+        """Check that adjust_z_dimensions preserves tensor dtype and adjusts dimensions.
+        
+        Converts a tensor to float64 before adjustment and verifies that the output retains the
+        float64 dtype and has the expected last dimension size of 32.
+        """
         # Create tensors with float64 dtype
         z_float64 = self.z_non_multiple.to(torch.float64)
 

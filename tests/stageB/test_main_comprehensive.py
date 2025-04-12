@@ -145,7 +145,14 @@ class TestRunStageBCombined:
     """Tests for the run_stageB_combined function."""
 
     def setup_method(self):
-        """Set up test fixtures."""
+        """
+        Initialize test fixture attributes for model testing.
+        
+        Sets up a sample RNA sequence and its corresponding 8x8 adjacency matrix.
+        Creates mock instances for the torsion BERT predictor and pairformer wrapper with
+        preset configurations to simulate model outputs, and assigns the computation
+        device.
+        """
         self.sequence = "ACGUACGU"
         self.adjacency_matrix = torch.ones((8, 8))
         self.torsion_bert_model = MagicMock(spec=StageBTorsionBertPredictor)
@@ -244,7 +251,13 @@ class TestRunStageBCombined:
         assert result["z_embeddings"].shape[0] == 0
 
     def test_run_stageB_combined_device_handling(self):
-        """Test that run_stageB_combined handles device correctly."""
+        """
+        Verify that run_stageB_combined assigns the correct device to the models.
+        
+        This test ensures that both the torsion model's internal model and the pairformer model
+        are moved to the specified device by calling their respective to() methods with the
+        device argument.
+        """
         # Create new mocks with the necessary attributes
         torsion_model = MagicMock()
         torsion_model.model = MagicMock()

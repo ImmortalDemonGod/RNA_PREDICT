@@ -38,13 +38,22 @@ def run_training_mode(
     context: TrainingContext,
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """
-    Run diffusion in training mode.
-
+    Executes a diffusion training step using the specified training context.
+    
+    This function prepares label and embedding contexts from the provided partial
+    coordinates, diffusion configuration, and input features, ensuring that the
+    required embeddings exist. It then runs a training step via the diffusion manager
+    and processes the resulting sigma value to ensure it is a scalar tensor.
+    
     Args:
-        context: Training context with all required parameters
-
+        context: TrainingContext encapsulating parameters and embeddings for diffusion
+            training, including configuration settings and target device.
+    
     Returns:
-        Tuple of (x_denoised, sigma, x_gt_augment)
+        A tuple containing:
+            - x_denoised: The denoised output tensor from the training step.
+            - sigma: A scalar tensor representing the sigma value.
+            - x_gt_augment: The augmented ground truth tensor.
     """
     # Create label dictionary
     label_dict = {

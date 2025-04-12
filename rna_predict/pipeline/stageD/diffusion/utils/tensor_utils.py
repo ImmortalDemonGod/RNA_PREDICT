@@ -12,14 +12,18 @@ logger = logging.getLogger(__name__)
 
 def normalize_tensor_dimensions(tensor: torch.Tensor, batch_size: int) -> torch.Tensor:
     """
-    Normalize tensor dimensions by squeezing extra dimensions and ensuring batch size matches.
-
+    Normalize tensor dimensions by removing extra singleton dimensions and enforcing the target batch size.
+    
+    For a 4-D tensor, the function squeezes the second dimension; for a 5-D tensor, it squeezes the first two dimensions.
+    If the tensor's first dimension (batch size) does not match the specified target, a warning is logged and the tensor
+    is sliced to match the target batch size.
+    
     Args:
-        tensor: Input tensor to normalize
-        batch_size: Target batch size
-
+        tensor: Input tensor to normalize, expected to have 4 or 5 dimensions.
+        batch_size: Desired batch size for the output tensor.
+    
     Returns:
-        Normalized tensor
+        The normalized tensor with adjusted dimensions and batch size.
     """
     # Handle dimension normalization (squeeze extra dimensions)
     if tensor.dim() == 4:

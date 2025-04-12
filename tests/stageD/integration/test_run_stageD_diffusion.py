@@ -91,8 +91,11 @@ class TestRunStageDDiffusion(unittest.TestCase):
 
     def test_train_mode(self):
         """
-        Test that run_stageD_diffusion works in train mode and returns
-        (x_denoised, sigma, x_gt_augment) with correct shapes/types.
+        Test run_stageD_diffusion in training mode.
+        
+        Verifies that the diffusion function returns a tuple containing three tensors:
+        x_denoised, a tensor with at least three dimensions and a final dimension of 3;
+        sigma, a scalar tensor; and x_gt_augment, an additional tensor.
         """
         test_config = DiffusionConfig(
             partial_coords=self.partial_coords,

@@ -9,6 +9,15 @@ from rna_predict.pipeline.stageD.diffusion.utils import DiffusionConfig  # Impor
 
 
 def get_memory_usage():  # Helper function
+    """
+    Returns the current process memory usage in megabytes.
+    
+    This helper function retrieves the resident set size (RSS) of the current process using the
+    psutil library and converts it from bytes to megabytes.
+    
+    Returns:
+        float: The memory usage of the current process in MB.
+    """
     process = psutil.Process(os.getpid())
     return process.memory_info().rss / 1024 / 1024  # in MB
 
@@ -17,9 +26,11 @@ def get_memory_usage():  # Helper function
 # @pytest.mark.skip(reason="Causes excessive memory usage") # Temporarily unskipped
 def test_diffusion_single_embed_caching():
     """
-    Quick check that calling run_stageD_diffusion multiple times
-    reuses s_inputs from trunk_embeddings, skipping repeated embedding creation.
-    We'll measure rough timing: second call should be faster.
+    Test that cached s_inputs in trunk_embeddings are reused across diffusion calls.
+    
+    This test verifies that after the first call to run_stageD_diffusion, the computed s_inputs
+    in trunk_embeddings are cached and reused in a subsequent call, reducing redundant embedding
+    creation and potentially resulting in faster execution.
     """
     initial_memory = get_memory_usage()
     print(f"\nInitial memory usage: {initial_memory:.2f} MB")

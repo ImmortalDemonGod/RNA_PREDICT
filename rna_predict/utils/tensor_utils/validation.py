@@ -73,7 +73,12 @@ def _count_atom_occurrences(
 
 
 def _compare_equal(count: int, target: int) -> bool:
-    """Compare if count equals target."""
+    """
+    Return True if count equals the target.
+    
+    Returns:
+        bool: True if count is equal to target; otherwise, False.
+    """
     return count == target
 
 
@@ -83,7 +88,9 @@ def _compare_less(count: int, target: int) -> bool:
 
 
 def _compare_greater(count: int, target: int) -> bool:
-    """Compare if count is greater than target."""
+    """
+    Return True if count is greater than target, otherwise False.
+    """
     return count > target
 
 
@@ -93,7 +100,12 @@ def _compare_less_equal(count: int, target: int) -> bool:
 
 
 def _compare_greater_equal(count: int, target: int) -> bool:
-    """Compare if count is greater than or equal to target."""
+    """
+    Return True if count is greater than or equal to target.
+    
+    This function compares two integer values and returns a boolean indicating
+    whether count meets or exceeds the target value.
+    """
     return count >= target
 
 
@@ -155,14 +167,18 @@ def validate_atom_indices(
     n_atom: int,
 ) -> None:
     """
-    Validate atom indices in residue_atom_map.
-
+    Validates that each atom index in the residue-atom mapping appears exactly once.
+    
+    This function counts occurrences of each atom index (within the range defined by n_atom)
+    in the residue_atom_map and verifies that no atom index is missing or duplicated.
+    A ValueError is raised if any index is absent or occurs more than once.
+    
     Args:
-        residue_atom_map: Mapping from residue indices to atom indices
-        n_atom: Total number of atoms
-
+        residue_atom_map: A mapping from residue indices to atom indices.
+        n_atom: Total number of atoms, defining the valid index range.
+        
     Raises:
-        ValueError: If atom indices are invalid, missing, or duplicated
+        ValueError: If any atom index is missing or appears more than once.
     """
     # Count occurrences of each atom index
     atom_count = _count_atom_occurrences(residue_atom_map, n_atom)
@@ -182,13 +198,19 @@ def get_embedding_dimensions(
     s_emb: torch.Tensor,
 ) -> Tuple[int, int, bool]:
     """
-    Get dimensions from residue embeddings tensor.
-
+    Extract dimensions from a residue embeddings tensor.
+    
+    Determines if the tensor is batched by checking its dimensionality. For a batched
+    tensor, the shape is assumed to be (batch, n_residue, c_s); for an unbatched tensor,
+    the shape is (n_residue, c_s).
+    
     Args:
-        s_emb: Residue embeddings tensor
-
+        s_emb: Residue embeddings tensor.
+    
     Returns:
-        Tuple of (n_residue, c_s, is_batched)
+        A tuple (n_residue, c_s, is_batched) where n_residue is the number of residues,
+        c_s is the embedding size, and is_batched is True if the tensor includes a batch
+        dimension, otherwise False.
     """
     # Check if s_emb is batched
     is_batched = s_emb.dim() == 3
@@ -206,13 +228,16 @@ def get_atom_count_from_map(
     residue_atom_map: ResidueAtomMap,
 ) -> int:
     """
-    Get total atom count from residue-atom map.
-
+    Compute total atom count from a residue-atom mapping.
+    
+    Determines the total number of atoms by finding the maximum atom index and adding one.
+    Returns 0 if no atom indices are present.
+    
     Args:
-        residue_atom_map: Mapping from residue indices to atom indices
-
+        residue_atom_map: An iterable where each element is a list of atom indices for a residue.
+    
     Returns:
-        Total number of atoms
+        The total number of atoms, computed as max(atom indices) + 1.
     """
     all_atom_indices = []
     for atom_indices in residue_atom_map:
@@ -229,17 +254,25 @@ def get_dimensions(
     residue_atom_map: ResidueAtomMap,
 ) -> Tuple[int, int, int, bool]:
     """
-    Get dimensions from input tensors.
-
+    Extract and validate dimensions from residue embeddings and residue-atom mapping.
+    
+    This function extracts the number of residues, the embedding size, and a batched flag from the
+    residue embeddings tensor. It then verifies that the number of residues matches the length of
+    the residue-to-atom mapping and computes the total number of atoms based on the mapping.
+    
     Args:
-        s_emb: Residue embeddings tensor
-        residue_atom_map: Mapping from residue indices to atom indices
-
+        s_emb: Residue embeddings tensor which may include a batch dimension.
+        residue_atom_map: Mapping from residue indices to atom indices.
+    
     Returns:
-        Tuple of (n_residue, n_atom, c_s, is_batched)
-
+        A tuple (n_residue, n_atom, c_s, is_batched) where:
+          - n_residue is the number of residues,
+          - n_atom is the total number of atoms (one more than the maximum atom index),
+          - c_s is the size of the residue embeddings,
+          - is_batched indicates whether the tensor includes a batch dimension.
+    
     Raises:
-        ValueError: If residue_atom_map length doesn't match s_emb residue dimension
+        ValueError: If the length of residue_atom_map does not match the number of residues in s_emb.
     """
     # Get embedding dimensions
     n_residue, c_s, is_batched = get_embedding_dimensions(s_emb)

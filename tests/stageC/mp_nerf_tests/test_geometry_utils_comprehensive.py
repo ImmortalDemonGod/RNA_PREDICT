@@ -24,7 +24,13 @@ class TestToZeroTwoPi(unittest.TestCase):
     """Tests for the to_zero_two_pi function."""
 
     def setUp(self):
-        """Set up test fixtures."""
+        """
+        Initialize test fixtures with predefined angle conversion test cases.
+        
+        Sets up a list of (input, expected) float angle pairs used to verify that angles are correctly
+        normalized into the range [0, 2π). Each tuple represents an angle before normalization and its
+        expected result after applying the normalization function.
+        """
         # Define common test cases as (input, expected) pairs
         self.test_cases_float: List[Tuple[float, float]] = [
             (0.0, 0.0),  # Zero remains zero
@@ -74,7 +80,13 @@ class TestToZeroTwoPi(unittest.TestCase):
         np.testing.assert_allclose(result, expected, rtol=1e-10)
 
     def test_torch_tensor_inputs(self):
-        """Test to_zero_two_pi with torch tensor inputs."""
+        """
+        Verifies that to_zero_two_pi correctly processes PyTorch tensor inputs.
+        
+        This test creates a torch.FloatTensor of angle values from preset test cases,
+        applies to_zero_two_pi, and asserts that the output is a torch.Tensor with
+        values matching the expected results within the defined tolerance.
+        """
         # Create a torch tensor from the test cases
         inputs = torch.tensor([case[0] for case in self.test_cases_float], dtype=torch.float32)
         expected = torch.tensor([case[1] for case in self.test_cases_float], dtype=torch.float32)
@@ -85,7 +97,12 @@ class TestToZeroTwoPi(unittest.TestCase):
         torch.testing.assert_close(result, expected, rtol=1e-5, atol=1e-5)
 
     def test_multidimensional_numpy_array(self):
-        """Test to_zero_two_pi with multidimensional numpy arrays."""
+        """
+        Tests the conversion of multidimensional numpy arrays by to_zero_two_pi.
+        
+        This test verifies that a 2D numpy array of angles is correctly wrapped within the
+        range [0, 2π), ensuring that each element of the array is transformed accurately.
+        """
         # Create a 2D numpy array
         inputs_2d = np.array([
             [0.0, np.pi, 2 * np.pi],
@@ -140,7 +157,12 @@ class TestToZeroTwoPi(unittest.TestCase):
     @given(x=st.floats(min_value=-100 * np.pi, max_value=100 * np.pi, allow_nan=False, allow_infinity=False))
     @settings(deadline=None)
     def test_property_modular_equivalence(self, x: float):
-        """Test that input and output are equivalent modulo 2π."""
+        """
+        Test that the to_zero_two_pi function returns an angle that is modularly equivalent to the input.
+        
+        Verifies that for a given angle x, the sine and cosine of the normalized angle closely
+        match those of x, confirming that the conversion preserves the angle's value modulo 2π.
+        """
         result = to_zero_two_pi(x)
         # Check that sin and cos of both angles are the same (modular equivalence)
         self.assertAlmostEqual(np.sin(x), np.sin(result), places=10)
@@ -192,7 +214,13 @@ class TestToZeroTwoPi(unittest.TestCase):
         torch.testing.assert_close(torch.cos(tensor_x), torch.cos(result), rtol=1e-5, atol=1e-5)
 
     def test_edge_cases(self):
-        """Test edge cases for to_zero_two_pi."""
+        """
+        Tests extreme input angles for to_zero_two_pi.
+        
+        This test verifies that very large positive and negative angles are normalized
+        to a value within [0, 2π), and that inputs of exactly 2π and -2π are correctly
+        wrapped to 0.
+        """
         # Very large positive number
         large_pos = 1000 * np.pi
         result_large_pos = to_zero_two_pi(large_pos)

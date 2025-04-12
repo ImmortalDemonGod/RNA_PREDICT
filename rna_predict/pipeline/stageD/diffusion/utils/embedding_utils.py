@@ -30,13 +30,12 @@ def ensure_s_inputs(
     context: EmbeddingContext,
 ) -> None:
     """
-    Ensure s_inputs exists in trunk_embeddings_internal, creating it if needed.
-
-    Args:
-        trunk_embeddings_internal: Processed trunk embeddings
-        original_trunk_embeddings_ref: Original trunk embeddings reference
-        input_features: Input features dictionary
-        context: Embedding context with configuration and device
+    Ensure the "s_inputs" tensor is present in trunk embeddings.
+    
+    If "s_inputs" is missing in the processed embeddings, the function first attempts to retrieve it from the input
+    features using the key "sing". If absent, it logs a warning and creates a fallback tensor of zeros with a shape
+    determined by the token count in "s_trunk" and an embedding dimension from the diffusion configuration. The tensor
+    is then added to both the internal embeddings and the original reference.
     """
     s_inputs = trunk_embeddings_internal.get("s_inputs")
     if s_inputs is None:
@@ -69,12 +68,14 @@ def ensure_z_trunk(
     context: EmbeddingContext,
 ) -> None:
     """
-    Ensure z_trunk (pair) exists in trunk_embeddings_internal, creating it if needed.
-
-    Args:
-        trunk_embeddings_internal: Processed trunk embeddings
-        original_trunk_embeddings_ref: Original trunk embeddings reference
-        context: Embedding context with configuration and device
+    Ensures the 'z_trunk' embedding is present in the trunk embeddings.
+    
+    If the trunk embeddings dictionary does not contain the key 'pair' (used for the
+    'z_trunk' embedding), this function creates a fallback tensor of zeros. The tensor
+    has shape (1, n_tokens, n_tokens, c_z_dim), where n_tokens is derived from the 's_trunk'
+    tensor's second dimension and c_z_dim is obtained from the diffusion configuration (defaulting
+    to 128 if unspecified). The generated tensor is then added to both the internal embeddings
+    dictionary and the original reference.
     """
     z_trunk = trunk_embeddings_internal.get("pair")
     if z_trunk is None:

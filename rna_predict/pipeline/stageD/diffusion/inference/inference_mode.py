@@ -34,13 +34,12 @@ def run_inference_mode(
     context: InferenceContext,
 ) -> torch.Tensor:
     """
-    Run diffusion in inference mode.
-
-    Args:
-        context: Inference context with all required parameters
-
+    Run diffusion inference using the provided context.
+    
+    This function adjusts the inference configuration by setting the sample count to one, ensuring the correct tensor dimensions. It then executes multi-step inference through the diffusion manager with the initial coordinates, trunk embeddings, and input features specified in the context. If cached 's_inputs' are found in the internal trunk embeddings and missing from the original reference, they are restored to preserve state consistency.
+    
     Returns:
-        Refined coordinates tensor
+        torch.Tensor: The refined coordinates tensor resulting from the diffusion process.
     """
     # Set N_sample to 1 in inference params to avoid extra dimensions
     inference_params = context.diffusion_config.get("inference", {})

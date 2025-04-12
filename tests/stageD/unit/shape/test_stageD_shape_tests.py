@@ -162,10 +162,11 @@ def test_single_sample_shape_expansion():
 
 @pytest.mark.xfail(reason="Broadcast shape mismatch before the fix.")
 def test_broadcast_token_multisample_fail():
-    """
-    Reproduces the shape mismatch by giving s_trunk an extra dimension for 'samples'
-    while leaving atom_to_token_idx at simpler shape [B, N_atom].
-    Expects an assertion failure unless the fix is applied.
+    """Test that a shape mismatch error is raised when trunk embeddings have an extra sample dimension.
+    
+    This test constructs a diffusion configuration where the 's_trunk' tensor in trunk embeddings includes an additional
+    dimension for samples, while the atom-to-token indices remain at a simpler [B, N_atom] shape. An AssertionError with a
+    message matching "Shape mismatch in broadcast_token_to_atom" is expected during diffusion inference.
     """
     partial_coords = torch.randn(1, 10, 3)  # [B=1, N_atom=10, 3]
 
@@ -209,8 +210,11 @@ def test_broadcast_token_multisample_fail():
 # @pytest.mark.skip(reason="Causes excessive memory usage") # Ensuring it stays commented
 def test_multi_sample_shape_mismatch():
     """
-    Deliberately provides multi-sample trunk embeddings while leaving
-    atom_to_token_idx at a smaller batch dimension, expecting an assertion.
+    Ensures a shape mismatch between trunk embeddings and token indexing raises an error.
+    
+    This test constructs trunk embeddings with an extra sample dimension relative to other inputs,
+    resulting in a broadcast mismatch. Running the diffusion stage with this discrepancy triggers an
+    AssertionError with a message matching "Shape mismatch in broadcast_token_to_atom".
     """
     partial_coords = torch.randn(1, 10, 3)
     s_trunk = torch.randn(2, 10, 384)  # extra sample dimension
@@ -375,9 +379,11 @@ def test_local_trunk_small_natom_memory_efficient():
 )
 def test_shape_mismatch_c_token_832_vs_833():
     """
-    Reproduces the 'RuntimeError: Given normalized_shape=[833],
-    expected input with shape [*, 833], but got input of size [1, 10, 1664].'
-    Usually triggered by mismatch in c_token vs. layernorm shape.
+    Tests that a mismatched c_token dimension triggers a RuntimeError.
+    
+    This test verifies that if the trunk embeddings provide an incompatible c_token
+    shape relative to the expected layer normalization dimensions, a RuntimeError
+    is raised with a message indicating the normalized shape mismatch (expected [833]).
     """
     diffusion_config = {
         "c_atom": 128,
@@ -410,9 +416,12 @@ def test_shape_mismatch_c_token_832_vs_833():
 @pytest.mark.slow  # Added mark
 def test_transformer_size_memory_threshold():
     """
-    Experiment to find the memory threshold for transformer configuration.
-    Tests progressively larger transformer sizes until memory issues occur.
-    Uses reduced embedding dimensions and limited inference steps for efficiency. # Updated docstring
+    Tests transformer configurations to determine the memory usage threshold.
+    
+    This test iterates over a set of transformer configurations with increasing complexity,
+    using reduced embedding dimensions and a minimal number of inference steps for efficiency.
+    It measures memory usage before and after inference, reporting any increase and halting
+    the test upon the first encountered error.
     """
 
     def get_memory_usage():

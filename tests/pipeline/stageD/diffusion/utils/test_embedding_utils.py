@@ -457,7 +457,14 @@ class TestPropertyBasedTests:
         ],
     )
     def test_ensure_z_trunk_various_shapes(self, batch_size, seq_len, c_s, c_z):
-        """Test ensure_z_trunk with various tensor shapes."""
+        """
+        Verify that ensure_z_trunk produces a 'pair' tensor with a fixed batch size.
+        
+        This test confirms that regardless of the input tensor's batch size,
+        ensure_z_trunk inserts a 'pair' key into the trunk embeddings with a shape
+        of (1, seq_len, seq_len, c_z), ensuring consistent behavior across various
+        tensor dimensions.
+        """
         # Arrange
         trunk_embeddings_internal = {"s_trunk": torch.zeros((batch_size, seq_len, c_s))}
         original_trunk_embeddings_ref = {}

@@ -27,18 +27,24 @@ def run_stageD(
     device="cuda",
     input_features=None,
 ):
-    """Run Stage D with memory optimizations.
-
+    """
+    Run Stage D of the RNA prediction pipeline with memory optimizations.
+    
+    This function bridges residue-level embeddings to atom-level representations and applies 
+    memory fixes to the diffusion configuration before executing the final Stage D process. The 
+    resulting refined coordinates tensor reflects adjustments from both bridging and memory 
+    optimization steps.
+    
     Args:
-        partial_coords: Input coordinates tensor
-        trunk_embeddings: Dictionary of trunk embeddings
-        diffusion_config: Configuration dictionary
-        mode: Running mode ("inference" or "training")
-        device: Device to run on ("cuda" or "cpu")
-        input_features: Optional dictionary of input features
-
+        partial_coords: Input tensor of initial coordinates.
+        trunk_embeddings: Dictionary of trunk embeddings.
+        diffusion_config: Configuration dictionary for the diffusion process.
+        mode: Running mode, either "inference" or "training".
+        device: Device on which to run the computations ("cuda" or "cpu").
+        input_features: Optional dictionary of additional input features.
+    
     Returns:
-        Refined coordinates tensor
+        A tensor of refined coordinates.
     """
     # Bridge residue-level embeddings to atom-level embeddings
     # Create the parameter object

@@ -332,6 +332,15 @@ class TestScatterMean(unittest.TestCase):
 
         # Mock the import to raise ImportError for torch_scatter
         def mock_import(name, *args, **kwargs):
+            """
+            Simulates an ImportError for 'torch_scatter'.
+            
+            If the requested module is 'torch_scatter', raises an ImportError with a mock message.
+            For any other module, defers to the original import function with the provided arguments.
+            
+            Raises:
+                ImportError: If the module name is 'torch_scatter'.
+            """
             if name == 'torch_scatter':
                 raise ImportError("Mocked ImportError for torch_scatter")
             return original_import(name, *args, **kwargs)
@@ -444,7 +453,11 @@ class TestBroadcast(unittest.TestCase):
         self.assertTrue(torch.all(result == 5))
 
     def test_broadcast_higher_dims(self):
-        """Test broadcast with higher dimensional tensors."""
+        """
+        Tests broadcasting with higher-dimensional tensors.
+        
+        This test validates that when a source tensor of shape [2, 1, 3] is broadcast against a target tensor with shape [2, 4, 3] along dimension 1, the broadcast function preserves the scatter dimension such that the output retains the source tensor’s shape and values.
+        """
         # src: [2, 1, 3], other: [2, 4, 3], dim=1
         src = torch.tensor([[[0, 1, 2]], [[3, 4, 5]]])
         other = torch.randn(2, 4, 3)

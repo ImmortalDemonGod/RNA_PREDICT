@@ -202,7 +202,11 @@ class TestGetSymmetricAtomPairs:
         assert len(lower_result) == 0  # Lowercase 'd' is not recognized
 
     def test_non_string_input(self):
-        """Test with non-string input."""
+        """
+        Tests get_symmetric_atom_pairs with non-string inputs.
+        
+        Verifies that passing a non-iterable numeric value raises a TypeError and that providing a list of amino acid codes is handled correctly, returning a dictionary with expected symmetric atom pairs.
+        """
         # The function raises TypeError for non-string inputs that can't be iterated
         with pytest.raises(TypeError, match="'int' object is not iterable"):
             get_symmetric_atom_pairs(123)

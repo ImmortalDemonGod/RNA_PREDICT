@@ -32,13 +32,21 @@ def run_stageD_diffusion(
     config: DiffusionConfig,
 ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor, torch.Tensor]]:
     """
-    Wrapper function accepting a DiffusionConfig object directly.
-
+    Run Stage D diffusion refinement using the given configuration.
+    
+    This function wraps the underlying diffusion process implementation by accepting a
+    DiffusionConfig object that encapsulates all necessary parameters, including the mode.
+    Depending on the mode (either "inference" or "train"), the function returns refined
+    coordinates or a tuple of training outputs.
+    
     Args:
-        config: Configuration object containing all necessary parameters.
-
+        config: A DiffusionConfig object containing the diffusion parameters and mode settings.
+    
     Returns:
-        Refined coordinates or training outputs depending on config.mode.
+        Refined coordinates when mode is "inference", or a tuple of training outputs when mode is "train".
+    
+    Raises:
+        ValueError: If the diffusion mode specified in the config is unsupported.
     """
     # Config object is now passed directly as an argument
     # Note: Callers of this function must now instantiate and pass
@@ -51,16 +59,21 @@ def _run_stageD_diffusion_impl(
     config: DiffusionConfig,
 ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor, torch.Tensor]]:
     """
-    Run Stage D diffusion refinement.
-
+    Perform Stage D diffusion refinement using the provided configuration.
+    
+    This function applies tensor shape compatibility fixes and bridges residue-level embeddings to
+    atom-level embeddings before executing the diffusion process. In inference mode, it returns refined
+    coordinates; in training mode, it returns a tuple of denoised output, ground truth output, and sigma.
+    
+    Raises:
+        ValueError: If the mode specified in the configuration is not "inference" or "train".
+    
     Args:
-        config: Configuration object containing all parameters for the diffusion process
-
+        config: DiffusionConfig object containing all parameters for the diffusion process.
+    
     Returns:
-        If config.mode == "inference":
-            Refined coordinates [B, N_atom, 3]
-        If config.mode == "train":
-            Tuple of (x_denoised, x_gt_out, sigma)
+        torch.Tensor: Refined coordinates with shape [B, N_atom, 3] in inference mode.
+        Tuple[torch.Tensor, torch.Tensor, torch.Tensor]: A tuple (x_denoised, x_gt_out, sigma) in training mode.
     """
     if config.mode not in ["inference", "train"]:
         raise ValueError(
@@ -145,7 +158,14 @@ def demo_run_diffusion() -> Union[
     torch.Tensor, Tuple[torch.Tensor, torch.Tensor, torch.Tensor]
 ]:
     """
-    Demo function to run the diffusion stage with a simple example.
+    Demonstrates Stage D diffusion refinement using a demo configuration.
+    
+    This function creates a diffusion configuration with randomized partial coordinates and trunk
+    embeddings, sets the mode to inference, and assigns "mps" as the device. It then runs the
+    diffusion refinement process and returns the refined coordinates.
+    
+    Returns:
+        torch.Tensor: The refined coordinates produced by the diffusion process.
     """
     # Set device
     device = "mps"  # Use MPS for Mac

@@ -25,7 +25,12 @@ class TestPrintTensorExample(unittest.TestCase):
     """Tests for the print_tensor_example function."""
 
     def setUp(self):
-        """Set up test fixtures."""
+        """
+        Sets up the test environment by redirecting standard output.
+        
+        Replaces sys.stdout with a StringIO buffer to capture printed output during tests,
+        while backing up the original stdout for later restoration.
+        """
         # Redirect stdout to capture print output
         self.stdout_backup = sys.stdout
         self.captured_output = io.StringIO()
@@ -163,7 +168,11 @@ class TestStageAPredictor(unittest.TestCase):
     """Tests for the DummyStageAPredictor class defined in setup_pipeline."""
 
     def setUp(self):
-        """Set up test fixtures."""
+        """Initialize test fixtures with the Stage A predictor.
+        
+        Retrieves the pipeline configuration using setup_pipeline and assigns the 
+        DummyStageAPredictor from the configuration to self.predictor for use in Stage A tests.
+        """
         # Get the DummyStageAPredictor from setup_pipeline
         config, _ = setup_pipeline()
         self.predictor = config["stageA_predictor"]
@@ -210,7 +219,14 @@ class TestStageAPredictor(unittest.TestCase):
     @given(seq=st.text(alphabet="AUGC", min_size=0, max_size=20))
     @settings(deadline=None)
     def test_predict_adjacency_hypothesis(self, seq):
-        """Test predict_adjacency with random sequences using Hypothesis."""
+        """
+        Test the predict_adjacency method with random input sequences.
+        
+        This test verifies that the adjacency matrix returned by predict_adjacency has the correct dimensions (n x n, where n is the sequence length). For non-empty sequences, it asserts that each diagonal element is approximately 1.0, that adjacent elements are about 0.8 (for sequences longer than one), and that for sequences longer than four the interaction between the first and last elements is approximately 0.5.
+        
+        Args:
+            seq: A random sequence used to generate the adjacency matrix.
+        """
         adj = self.predictor.predict_adjacency(seq)
 
         # Check shape

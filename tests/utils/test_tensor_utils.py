@@ -129,7 +129,14 @@ class TestResidueToAtoms:
                 assert torch.allclose(atom_embs[atom_idx], s_emb[res_idx])
 
     def test_batched_expansion(self):
-        """Test expansion with batched residue embeddings."""
+        """
+        Test batched expansion of residue embeddings to atom embeddings.
+        
+        This test verifies that the residue_to_atoms function correctly expands a batched
+        residue embedding tensor into an atom embedding tensor using a provided residue-to-atom
+        mapping. It asserts that the output tensor has the expected shape and that each atom
+        embedding matches the corresponding residue embedding.
+        """
         # Create a batched residue embedding tensor
         batch_size = 2
         n_residue = 4
@@ -226,7 +233,14 @@ class TestIntegration:
                 assert torch.allclose(atom_embs[atom_idx], s_emb[res_idx])
 
     def test_with_partial_coords(self):
-        """Test the full process with partial coordinates."""
+        """
+        Tests residue-to-atom mapping and embedding expansion with partial coordinates.
+        
+        This test verifies the complete workflow starting from a sample RNA sequence and its residue
+        embeddings. It creates partial atomic coordinates based on standard residue atom definitions,
+        derives the mapping between residues and atoms, and expands the residue embeddings to atom
+        embeddings. The test confirms that the final atom embeddings tensor has the expected shape.
+        """
         # Create a sequence and residue embeddings
         sequence = ["A", "U", "G", "C"]
         n_residue = len(sequence)
