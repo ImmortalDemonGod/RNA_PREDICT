@@ -75,7 +75,7 @@ __all__ = [
     "get_torsion_values",
     "build_scaffolds_from_scn_angles", # Now imported directly
     "modify_scaffolds_with_coords", # Now imported directly
-    # "get_symmetric_atom_pairs", # Removed from __all__ as it's imported directly
+    "get_symmetric_atom_pairs",
     "modify_angles_mask_with_torsions", # Now imported directly
     "protein_fold", # Remains from structure_utils
     "SUPREME_MASK",
