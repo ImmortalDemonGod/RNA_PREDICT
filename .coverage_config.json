@@ -1,0 +1,56 @@
+{
+  "last_updated": "2025-04-10",
+  "base_coverage": 80,
+  "current_coverage": 80.5,
+  "max_coverage": 95,
+  "phase_coverage": {
+    "exploration": {
+      "start_date": "2025-02-27",
+      "end_date": "2025-03-27",
+      "overall": 80,
+      "critical_modules": 85,
+      "standard_modules": 75,
+      "utility_modules": 70
+    },
+    "development": {
+      "start_date": "2025-03-28",
+      "end_date": "2025-04-22",
+      "overall": 85,
+      "critical_modules": 90,
+      "standard_modules": 85,
+      "utility_modules": 75
+    },
+    "optimization": {
+      "start_date": "2025-04-23",
+      "end_date": "2025-05-15",
+      "overall": 90,
+      "critical_modules": 95,
+      "standard_modules": 90,
+      "utility_modules": 80
+    },
+    "final_submission": {
+      "start_date": "2025-05-16",
+      "end_date": "2025-05-29",
+      "overall": 95,
+      "critical_modules": 98,
+      "standard_modules": 95,
+      "utility_modules": 85
+    }
+  },
+  "module_categories": {
+    "critical_modules": [
+      "rna_predict.pipeline.stageB",
+      "rna_predict.pipeline.stageD.diffusion"
+    ],
+    "standard_modules": [
+      "rna_predict.pipeline.stageA",
+      "rna_predict.pipeline.stageC",
+      "rna_predict.pipeline.stageD.tensor_fixes"
+    ],
+    "utility_modules": [
+      "rna_predict.utils",
+      "rna_predict.scripts",
+      "rna_predict.dataset"
+    ]
+  }
+}
