@@ -8,6 +8,85 @@ extra_javascript:
   - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
 
 nav:
-  - Home: index.md
-  - Development:
-    - Code Quality: code_quality_best_practices.md
+  - Home: README.md
+  - Guides:
+    - Getting Started:
+      - Overview: guides/getting_started/index.md
+      - Windows Compatibility: guides/getting_started/windows_compatibility_plan.md
+    - Best Practices:
+      - Code Quality: guides/best_practices/code_quality_best_practices.md
+      - Testing:
+        - Coverage Strategy: guides/best_practices/testing/test_coverage_strategy.md
+        - Progressive Coverage: guides/best_practices/testing/progressive_coverage.md
+        - Test Generation: guides/best_practices/testing/test_generation_prompt.md
+      - Debugging:
+        - Comprehensive Guide: guides/best_practices/debugging/comprehensive_debugging_guide.md
+  - Pipeline:
+    - Overview:
+      - Core Framework: pipeline/overview/core_framework.md
+      - Comprehensive Design: pipeline/overview/Integrated_RNA_3D_Prediction_Pipeline_Final_Comprehensive_Design.md
+      - Full Specification: pipeline/overview/full_pipeline_specification.md
+      - Multi-Stage Plan: pipeline/overview/Multi_Stage_Implementation_Plan.md
+    - Integration:
+      - Design: pipeline/integration/Integrated_RNA_3D_Prediction_Pipeline_Final_Comprehensive_Design.md
+      - Full Specification: pipeline/integration/full_pipeline_specification.md
+      - Hydra Integration:
+        - Tutorial: pipeline/integration/hydra_integration/hydra_tutorial.md
+        - Gap Analysis: pipeline/integration/hydra_integration/hydra_integration_gap_analysis.md
+        - Master Document: pipeline/integration/hydra_integration/hydra_integration_master_document.md
+        - Components:
+          - Stage A: pipeline/integration/hydra_integration/components/stageA/StageA_2D_Adjacency.md
+          - Stage B: pipeline/integration/hydra_integration/components/stageB/StageB_Torsion_Pairwise.md
+          - Stage C: pipeline/integration/hydra_integration/components/stageC/StageC_3D_Reconstruction.md
+          - Stage D: pipeline/integration/hydra_integration/components/stageD/StageD_Diffusion_Refinement.md
+          - Unified Latent: pipeline/integration/hydra_integration/components/unified_latent/UnifiedLatentMerger.md
+    - Stage A:
+      - Overview: pipeline/stageA/StageA_RFold.md
+      - RFold Code: pipeline/stageA/RFold_code.md
+      - RFold Paper: pipeline/stageA/RFold_paper.md
+      - Demo: pipeline/stageA/rfold-demo.md
+      - Extra Notes: pipeline/stageA/stage_a_extra.md
+    - Stage B:
+      - Overview: pipeline/stageB/Stage_B.md
+      - TorsionBERT:
+        - Overview: pipeline/stageB/torsionBert.md
+        - Code: pipeline/stageB/torsionbert_code.md
+        - Paper: pipeline/stageB/torsionBert_full_paper.md
+    - Stage C:
+      - Overview: pipeline/stageC/Stage_C.md
+      - Geometry & Reconstruction: pipeline/stageC/Integrated_RNA_Geometry_and_3D_Reconstruction.md
+      - MP-NeRF Integration: pipeline/stageC/Unified, Comprehensive Plan for Integrating MP-NeRF into Stage C.md
+      - MP-NeRF Details: pipeline/stageC/mp_nerf.md
+    - Unified Latent:
+      - Perceiver IO: pipeline/unified_latent/Perceiver_IO.md
+    - Energy & MD: pipeline/Energy_Minimization_&_Molecular_Dynamics_(MD)_for_RNA_Structure_Refinement.md
+    - Testing:
+      - Time Scaling: pipeline/test_time_scaling.md
+    - Kaggle:
+      - Competition: pipeline/kaggle_info/kaggle_competition.md
+      - M2 Plan: pipeline/kaggle_info/M2_Plan.md
+  - Reference:
+    - Advanced Methods:
+      - AlphaFold 3:
+        - Paper: reference/advanced_methods/af3/AF3_paper.md
+        - Progress: reference/advanced_methods/af3/AlphaFold3_progress.md
+        - Distance Prediction: reference/advanced_methods/af3/Pairwise_Distance_Based_Prediction.md
+      - Diffusion:
+        - S4 Diffusion: reference/advanced_methods/diffusion/s4_diffusion.md
+        - Time Scaling: reference/advanced_methods/diffusion/test_time_scaling.md
+      - Isosteric Substitutions: reference/advanced_methods/isosteric_substitutions/RNA_isostericity.md
+    - External Literature:
+      - 2D Structure: reference/external_lit/2d_structure_prediction_papers.md
+      - RNA Papers: reference/external_lit/RNA_papers.md
+    - Residue Atom Bridging:
+      - Audit Report: reference/residue_atom_bridging/audit_report.md
+      - Design Spec: reference/residue_atom_bridging/design_spec.md
+      - Documentation: reference/residue_atom_bridging/documentation_draft.md
+      - Implementation: reference/residue_atom_bridging/implementation_notes.md
+      - Refactoring: reference/residue_atom_bridging/refactoring_plan.md
+      - Guidelines: reference/residue_atom_bridging/bridging_caveats_guidelines.md
+    - Torsion Calculations:
+      - Introduction: reference/torsion_calculations/torsion_angles_intro.md
+      - Bond Lengths & Angles: reference/torsion_calculations/Standard_Bond_Lengths_and_Angles_in_RNA_Nucleotides.md
+      - 3D Coordinates: reference/torsion_calculations/Torsion_Angles_3D_Coordinates_RNA_Structure.md
+      - Latent Manifold: reference/torsion_calculations/torsion_angle_Latent_Manifold_Representation.md
