@@ -7,6 +7,7 @@ This module provides functions for running training in the Stage D diffusion pro
 import logging
 import torch
 from typing import Any, Dict, Tuple
+from dataclasses import dataclass
 
 from rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager import (
     ProtenixDiffusionManager,
@@ -18,8 +19,6 @@ from rna_predict.pipeline.stageD.diffusion.utils.embedding_utils import (
 
 logger = logging.getLogger(__name__)
 
-
-from dataclasses import dataclass
 
 
 @dataclass

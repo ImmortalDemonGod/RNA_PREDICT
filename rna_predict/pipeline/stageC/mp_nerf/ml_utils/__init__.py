@@ -5,16 +5,19 @@ angle calculations, coordinate transformations, and loss functions.
 """
 
 # Re-export all functions for backward compatibility
-from .tensor_ops import chain2atoms, process_coordinates
+from .tensor_ops import chain2atoms as chain2atoms, process_coordinates as process_coordinates
 from .atom_utils import (
-    rename_symmetric_atoms,
-    get_symmetric_atom_pairs,
-    atom_selector,
-    scn_atom_embedd,
+    rename_symmetric_atoms as rename_symmetric_atoms,
+    get_symmetric_atom_pairs as get_symmetric_atom_pairs,
+    atom_selector as atom_selector,
+    scn_atom_embedd as scn_atom_embedd,
 )
-from .angle_utils import torsion_angle_loss
-from .coordinate_transforms import noise_internals_legacy as noise_internals, combine_noise_legacy as combine_noise
-from .loss_functions import fape_torch
+from .angle_utils import torsion_angle_loss as torsion_angle_loss
+from .coordinate_transforms import (
+    noise_internals_legacy as noise_internals_legacy, # Explicit re-export original
+    combine_noise_legacy as combine_noise_legacy,     # Explicit re-export original
+)
+from .loss_functions import fape_torch as fape_torch
 from .main import _run_main_logic
 
 # For backward compatibility, if this module is run directly

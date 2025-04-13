@@ -25,33 +25,29 @@ New code should import directly from the utils submodules.
 
 # Re-export all functions for backward compatibility
 from .rotation import (
-    centre_random_augmentation,
-    uniform_random_rotation,
-    rot_vec_mul,
+    centre_random_augmentation as centre_random_augmentation,
+    uniform_random_rotation as uniform_random_rotation,
+    rot_vec_mul as rot_vec_mul,
 )
-
 from .tensor_ops import (
-    permute_final_dims,
-    flatten_final_dims,
-    one_hot,
-    batched_gather,
-    expand_at_dim,
-    pad_at_dim,
-    reshape_at_dim,
-    move_final_dim_to_dim,
+    permute_final_dims as permute_final_dims,
+    flatten_final_dims as flatten_final_dims,
+    one_hot as one_hot,
+    batched_gather as batched_gather,
+    expand_at_dim as expand_at_dim,
+    pad_at_dim as pad_at_dim,
+    reshape_at_dim as reshape_at_dim,
+    move_final_dim_to_dim as move_final_dim_to_dim,
 )
-
 from .coordinate_utils import (
-    broadcast_token_to_atom,
-    aggregate_atom_to_token,
+    broadcast_token_to_atom as broadcast_token_to_atom,
+    aggregate_atom_to_token as aggregate_atom_to_token,
 )
-
 from .general import (
-    sample_indices,
-    sample_msa_feature_dict_random_without_replacement,
-    simple_merge_dict_list,
+    sample_indices as sample_indices,
+    sample_msa_feature_dict_random_without_replacement as sample_msa_feature_dict_random_without_replacement,
+    simple_merge_dict_list as simple_merge_dict_list,
 )
-
 # For backward compatibility, if this module is run directly
 if __name__ == "__main__":
     print("This module is not meant to be run directly.")

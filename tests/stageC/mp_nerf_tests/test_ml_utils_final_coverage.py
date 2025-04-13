@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 from rna_predict.pipeline.stageC.mp_nerf.ml_utils import (
     atom_selector,
-    combine_noise,
+    combine_noise_legacy as combine_noise,
     fape_torch,
     process_coordinates,
 )
@@ -24,7 +24,6 @@ from rna_predict.pipeline.stageC.mp_nerf.ml_utils.angle_utils import (
 from rna_predict.pipeline.stageC.mp_nerf.ml_utils.main import _run_main_logic
 from rna_predict.pipeline.stageC.mp_nerf.ml_utils.tensor_ops import (
     chain2atoms,
-    process_coordinates,
 )
 
 
@@ -116,22 +115,47 @@ class TestCoordinateTransformsFinalCoverage(unittest.TestCase):
         angles = torch.randn(3, 6)  # 3 residues, 6 angles per residue
 
         # Import the actual function directly from the module
-        from rna_predict.pipeline.stageC.mp_nerf.ml_utils.coordinate_transforms import NoiseInternalsConfig, noise_internals as direct_noise_internals
+        from rna_predict.pipeline.stageC.mp_nerf.ml_utils.coordinate_transforms import NoiseConfig, noise_internals_legacy as direct_noise_internals
 
-        # Create config object
-        config = NoiseInternalsConfig(
+        # Create config object with angles
+        noise_config = NoiseConfig(
+            noise_scale=0.01,
+            theta_scale=0.5,
+            verbose=0
+        )
+        
+        # Call noise_internals with valid parameters
+        noised_coords, mask = direct_noise_internals(
             seq="AAA",
             angles=angles,
-            coords=coords,
-            noise_scale=0.01
+            coords=None,
+            config=noise_config
         )
-
-        # Call noise_internals with valid parameters
-        noised_coords, mask = direct_noise_internals(config)
 
         # Verify the output shape
         self.assertEqual(noised_coords.shape, (3, 14, 3))
         self.assertEqual(mask.shape, (3, 14))
+
+        # Test with coords instead of angles
+        noised_coords, mask = direct_noise_internals(
+            seq="AAA",
+            angles=None,
+            coords=coords,
+            config=noise_config
+        )
+
+        # Verify the output shape
+        self.assertEqual(noised_coords.shape, (3, 14, 3))
+        self.assertEqual(mask.shape, (3, 14))
+
+        # Test that providing neither angles nor coords raises an error
+        with self.assertRaises(AssertionError):
+            direct_noise_internals(
+                seq="AAA",
+                angles=None,
+                coords=None,
+                config=noise_config
+            )
 
     def test_combine_noise_error_handling(self):
         """Test error handling in combine_noise function (lines 164->166, 216->226, 219-221, etc.)."""
@@ -139,7 +163,7 @@ class TestCoordinateTransformsFinalCoverage(unittest.TestCase):
         true_coords = torch.randn(1, 42, 3)  # 3 residues * 14 atoms
         seq = "AAA"  # 3 residues
 
-        # Call combine_noise with valid parameters
+        # Call combine_noise_legacy with valid parameters
         noised_coords, mask = combine_noise(
             true_coords=true_coords,
             seq=seq,

@@ -605,7 +605,16 @@ def _apply_internal_noise(
             coords=noised_coords,
             noise_scale=config.noise_internals_scale * config.internals_scn_scale,
         )
-        noised_coords, _ = noise_internals(noise_config)
+        noised_coords, _ = noise_internals_legacy(
+            seq=noise_config.seq,
+            angles=noise_config.angles,
+            coords=noise_config.coords,
+            config=NoiseConfig(
+                noise_scale=noise_config.noise_scale,
+                theta_scale=noise_config.theta_scale,
+                verbose=noise_config.verbose
+            )
+        )
 
     return noised_coords
 
