@@ -8,10 +8,11 @@ import torch
 
 from .coordinate_transforms import (
     CombineNoiseConfig,
-    NoiseInternalsConfig,
+    NoiseConfig,
     combine_noise,
-    noise_internals,
+    noise_internals_legacy,
 )
+from rna_predict.pipeline.stageC.mp_nerf.ml_utils import combine_noise_legacy
 
 
 def _load_protein_data(data_path: str) -> Optional[List]:
@@ -117,16 +118,20 @@ def _test_noise_internals(
     try:
         coords_scn = einops.rearrange(true_coords, "b (l c) d -> b l c d", c=14)
         
-        # Create configuration
-        config = NoiseInternalsConfig(
-            seq=seq,
-            angles=angles,
-            coords=coords_scn[0],
+        # Create configuration for noise parameters
+        noise_config = NoiseConfig(
             noise_scale=1.0,
+            theta_scale=0.5,
+            verbose=0
         )
         
         # Call noise_internals with config
-        cloud, cloud_mask = noise_internals(config)
+        cloud, cloud_mask = noise_internals_legacy(
+            seq=seq,
+            angles=angles,
+            coords=coords_scn[0],
+            config=noise_config
+        )
         print("cloud.shape", cloud.shape)
     except Exception as e:
         print(f"Error during noise_internals check: {e}")
@@ -159,7 +164,14 @@ def _test_combine_noise(
         )
         
         # Call combine_noise with config
-        integral, mask_out = combine_noise(config)
+        integral, mask_out = combine_noise_legacy(
+            true_coords=config.true_coords,
+            seq=config.seq,
+            int_seq=config.int_seq,
+            angles=config.angles,
+            noise_internals=config.noise_internals_scale,
+            sidechain_reconstruct=config.sidechain_reconstruct,
+        )
         print(f"integral.shape (with {input_type})", integral.shape)
     except Exception as e:
         print(f"Error during combine_noise check (with {input_type}): {e}")

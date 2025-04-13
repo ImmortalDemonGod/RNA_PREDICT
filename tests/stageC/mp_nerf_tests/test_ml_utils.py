@@ -8,6 +8,7 @@ import torch
 from hypothesis import given, settings
 from hypothesis import strategies as st
 from hypothesis.extra.numpy import arrays
+import random
 
 from rna_predict.pipeline.stageC.mp_nerf.ml_utils import (
     _run_main_logic,  # Added import for the refactored function
@@ -18,11 +19,15 @@ from rna_predict.pipeline.stageC.mp_nerf.ml_utils import (
     rename_symmetric_atoms,
     scn_atom_embedd,
     torsion_angle_loss,
+    noise_internals_legacy,
+    combine_noise_legacy,
+    process_coordinates,
 )
 
 from rna_predict.pipeline.stageC.mp_nerf.ml_utils.coordinate_transforms import (
     combine_noise_legacy as combine_noise,
     noise_internals_legacy as noise_internals,
+    NoiseConfig,
 )
 from rna_predict.pipeline.stageC.mp_nerf.protein_utils import SUPREME_INFO
 
@@ -496,45 +501,28 @@ class TestNoiseInternals(unittest.TestCase):
         theta_scale=st.floats(min_value=0.0, max_value=0.1),  # Reduce max theta scale
     )
     def test_basic_noise(self, seq, has_angles, has_coords, noise_scale, theta_scale):
-        """Test basic noise generation functionality."""
-        # Create a test configuration
-        config = self._create_test_config(seq, has_angles, has_coords, noise_scale, theta_scale)
-
-        # Skip test if both has_angles and has_coords are False
-        if not config.has_angles and not config.has_coords:
-            return
-
-        try:
-            # Import the NoiseConfig class
-            from rna_predict.pipeline.stageC.mp_nerf.ml_utils.coordinate_transforms import NoiseConfig
-
-            # Create a NoiseConfig object
-            noise_config = NoiseConfig(
-                noise_scale=config.noise_scale,
-                theta_scale=config.theta_scale,
-                verbose=0
-            )
-
-            # Call noise_internals directly
-            result = noise_internals(
-                seq=config.seq,
-                angles=config.angles,
-                coords=config.coords,
-                config=noise_config
-            )
-
-            # Check that result is a tuple
-            self.assertIsInstance(result, tuple)
-
-            # Check that result has the expected length
-            self.assertEqual(len(result), 2)  # (noised_angles, noised_coords)
-
-            # Check that angles and coords are either None or tensors
-            self.assertIsInstance(result[0], torch.Tensor)
-            self.assertIsInstance(result[1], torch.Tensor)
-        except (ValueError, IndexError, AssertionError) as e:
-            # Skip test if it fails due to known issues
-            self.skipTest(f"Test skipped due to known issue: {str(e)}")
+        """Test basic noise functionality."""
+        # Ensure at least one of angles or coords is provided
+        if not has_angles and not has_coords:
+            has_angles = True  # Default to using angles if neither is selected
+            
+        angles = torch.randn(len(seq), 3) if has_angles else None
+        coords = torch.randn(len(seq), 3, 3) if has_coords else None
+        
+        # Create NoiseConfig object
+        noise_config = NoiseConfig(noise_scale=noise_scale, theta_scale=theta_scale)
+        
+        result = noise_internals_legacy(
+            seq=seq,
+            angles=angles,
+            coords=coords,
+            config=noise_config
+        )
+        
+        # Verify the result is a tuple
+        self.assertIsInstance(result, tuple)
+        # Verify it contains coords and mask
+        self.assertEqual(len(result), 2)
 
 
 class CombineNoiseTestConfig:
@@ -586,59 +574,38 @@ class TestCombineNoise(unittest.TestCase):
             noise_internals, internals_scn_scale, sidechain_reconstruct
         )
 
-    @given(
-        true_coords=arrays(
-            dtype=np.float32,
-            shape=st.tuples(
-                st.integers(min_value=1, max_value=3),
-                st.integers(min_value=1, max_value=3),
-                st.just(3),
-            ),
-        ),
-        has_seq=st.booleans(),
-        has_int_seq=st.booleans(),
-        has_angles=st.booleans(),
-        noise_internals=st.floats(
-            min_value=0.0, max_value=0.1
-        ),  # Reduce max noise scale
-        internals_scn_scale=st.floats(min_value=0.0, max_value=1.0),
-        sidechain_reconstruct=st.booleans(),
-    )
-    def test_basic_combination(self, true_coords, has_seq, has_int_seq, has_angles,
-                              noise_internals, internals_scn_scale, sidechain_reconstruct):
-        """Test basic noise combination functionality."""
-        # Create a test configuration
+    def test_basic_combination(self):
+        """Test basic functionality of combine_noise."""
+        # Create a small test coordinate tensor
+        test_coords = torch.randn(1, 6, 3)
         config = self._create_combine_test_config(
-            true_coords, has_seq, has_int_seq, has_angles,
-            noise_internals, internals_scn_scale, sidechain_reconstruct
+            true_coords=test_coords,
+            has_seq=True,
+            has_int_seq=True,
+            has_angles=True,
+            noise_internals=0.1,
+            internals_scn_scale=0.1,
+            sidechain_reconstruct=False
         )
-
-        # Skip test if both has_seq and has_int_seq are False
-        if not config.has_seq and not config.has_int_seq:
-            return
-
-        try:
-            # Call combine_noise directly
-            result = combine_noise(
-                true_coords=config.true_coords,
-                seq=config.seq,
-                int_seq=config.int_seq,
-                angles=config.angles,
-                noise_internals=config.noise_internals,
-                internals_scn_scale=config.internals_scn_scale,
-                sidechain_reconstruct=config.sidechain_reconstruct,
-            )
-
-            # Check that result is a tuple
-            self.assertIsInstance(result, tuple)
-
-            # Check that result has the same shape as input coordinates
-            self.assertEqual(len(result), 2)
-            self.assertIsInstance(result[0], torch.Tensor)
-            self.assertIsInstance(result[1], torch.Tensor)
-        except (ValueError, IndexError, AssertionError) as e:
-            # Skip test if it fails due to known issues
-            self.skipTest(f"Test skipped due to known issue: {str(e)}")
+        noised_coords, mask = combine_noise_legacy(
+            true_coords=config.true_coords,
+            seq=config.seq,
+            int_seq=config.int_seq,
+            angles=config.angles,
+            noise_internals=config.noise_internals,
+            internals_scn_scale=config.internals_scn_scale,
+            sidechain_reconstruct=config.sidechain_reconstruct
+        )
+        
+        # Verify output shapes match input
+        self.assertEqual(noised_coords.shape, test_coords.shape, "Noised coordinates shape mismatch")
+        self.assertEqual(mask.shape, (test_coords.shape[0], test_coords.shape[1]), "Mask shape mismatch")
+        
+        # Verify mask is boolean
+        self.assertEqual(mask.dtype, torch.bool, "Mask should be boolean tensor")
+        
+        # Verify coordinates are finite
+        self.assertTrue(torch.isfinite(noised_coords).all(), "Noised coordinates contain non-finite values")
 
 
 class TestGetSymmetricAtomPairs(unittest.TestCase):

@@ -111,7 +111,7 @@ def _create_presence_mask(
         torch.Tensor: Boolean mask of shape (batch_size, seq_len, 14)
     """
     # Get mask for each sequence
-    present = []
+    present: List[torch.Tensor] = []
     for i, seq in enumerate(scn_seq):
         pass_x = coords[i] if discard_absent and coords is not None else None
 
@@ -124,11 +124,20 @@ def _create_presence_mask(
             present.append(scn_cloud_mask(seq, coords=pass_x))
         except Exception:
             # If we get an error, use a simplified approach
-            present.append(torch.ones(len(seq), 14, dtype=torch.bool))
+            # Determine sequence length correctly for str or Tensor
+            seq_len = seq.shape[0] if isinstance(seq, torch.Tensor) else len(seq)
+            present.append(torch.ones(seq_len, 14, dtype=torch.bool))
 
     # Stack masks into a batch
-    present = torch.stack(present, dim=0).bool()  # Shape: (B, L, 14)
-    return present
+    # Handle empty sequence list case
+    if not present:
+        # Return an empty tensor with appropriate shape (0, 0, 14) assuming batch dim exists
+        # Or determine expected shape based on inputs if possible.
+        # For simplicity, returning an empty tensor. Adjust if specific shape needed.
+        return torch.empty((0, 0, 14), dtype=torch.bool, device=coords.device if coords is not None else 'cpu')
+
+    present_tensor = torch.stack(present, dim=0).bool()  # Shape: (B, L, 14)
+    return present_tensor
 
 
 @dataclass
@@ -215,7 +224,7 @@ def _mark_glycine_in_tensor(
 def _handle_glycine_special_case(
     mask: torch.Tensor,
     scn_seq: Union[List[str], List[torch.Tensor]],
-    option: Union[str, AtomSelectionOption],
+    option: Union[str, torch.Tensor, AtomSelectionOption], # Accept Tensor as well
 ) -> torch.Tensor:
     """
     Handle the special case for Glycine which doesn't have a CB atom.
@@ -236,6 +245,10 @@ def _handle_glycine_special_case(
             AtomSelectionOption.BACKBONE_WITH_CBETA,
             AtomSelectionOption.BACKBONE_WITH_CBETA_AND_OXYGEN,
         ]
+
+    # If the option is a tensor, we cannot determine glycine handling based on it
+    if isinstance(option, torch.Tensor):
+        return mask
 
     if not needs_glycine_handling:
         return mask
@@ -505,7 +518,7 @@ def get_symmetric_atom_pairs(seq: str) -> Dict[str, List[Tuple[int, int]]]:
         Dictionary mapping residue indices (as strings) to lists of atom index pairs
         that are symmetric within that residue.
     """
-    result = {}
+    result: Dict[str, List[Tuple[int, int]]] = {}
 
     # Process each residue in the sequence
     for i, aa in enumerate(seq):

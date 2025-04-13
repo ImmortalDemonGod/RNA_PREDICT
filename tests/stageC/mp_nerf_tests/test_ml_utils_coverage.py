@@ -8,9 +8,10 @@ from unittest.mock import patch
 
 from rna_predict.pipeline.stageC.mp_nerf.ml_utils import (
     atom_selector,
-    combine_noise,
+    combine_noise_legacy as combine_noise,
     fape_torch,
     process_coordinates,
+    noise_internals_legacy,
 )
 from rna_predict.pipeline.stageC.mp_nerf.ml_utils.main import _run_main_logic
 

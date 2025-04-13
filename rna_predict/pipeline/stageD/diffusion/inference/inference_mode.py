@@ -7,6 +7,7 @@ This module provides functions for running inference in the Stage D diffusion pr
 import logging
 import torch
 from typing import Any, Dict
+from dataclasses import dataclass
 
 from rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager import (
     ProtenixDiffusionManager,
@@ -14,8 +15,6 @@ from rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager import (
 
 logger = logging.getLogger(__name__)
 
-
-from dataclasses import dataclass
 
 
 @dataclass
