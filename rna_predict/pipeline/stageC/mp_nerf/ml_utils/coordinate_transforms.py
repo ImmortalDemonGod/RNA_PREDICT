@@ -191,7 +191,13 @@ def _prepare_angles_and_coords(
         Tuple of (angles, coords)
     """
     # Determine device
-    device = config.angles.device if config.angles is not None else config.coords.device
+    device = None
+    if config.angles is not None:
+        device = config.angles.device
+    elif config.coords is not None:
+        device = config.coords.device
+    else:
+        device = torch.device("cpu")  # Fallback if both are None
 
     # Initialize coords if not provided
     coords = config.coords
@@ -494,11 +500,11 @@ def _handle_sequence_type(
     Returns:
         Tuple of (str_seq, int_seq)
     """
-    if seq_type == SequenceType.BOTH:
+    if seq_type == SequenceType.BOTH and seq is not None and int_seq is not None:
         return _handle_both_seq_types(seq, int_seq, device)
-    elif seq_type == SequenceType.STRING:
+    elif seq_type == SequenceType.STRING and seq is not None:
         return _handle_string_seq_only(seq, device)
-    elif seq_type == SequenceType.TENSOR:
+    elif seq_type == SequenceType.TENSOR and int_seq is not None:
         return _handle_int_seq_only(int_seq)
     else:
         # This should never happen due to validation
@@ -640,7 +646,7 @@ def _reconstruct_sidechains(
     try:
         # Use atom_selector to get backbone atoms
         backbone_atoms, mask = atom_selector(
-            int_seq.unsqueeze(0),
+            [int_seq],  # Convert to list of tensors as expected by atom_selector
             noised_coords,
             option="backbone",
             discard_absent=False,
