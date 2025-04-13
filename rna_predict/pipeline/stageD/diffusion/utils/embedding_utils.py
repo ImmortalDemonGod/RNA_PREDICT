@@ -7,13 +7,12 @@ This module provides functions for handling embeddings in the Stage D diffusion 
 import logging
 import torch
 from typing import Any, Dict
+from dataclasses import dataclass
 
 from .config_utils import get_embedding_dimension
 
 logger = logging.getLogger(__name__)
 
-
-from dataclasses import dataclass
 
 
 @dataclass

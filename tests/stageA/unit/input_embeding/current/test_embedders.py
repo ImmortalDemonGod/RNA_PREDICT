@@ -5,7 +5,7 @@ import torch.nn as nn
 from hypothesis import given, settings
 from hypothesis import strategies as st
 from hypothesis.extra.numpy import arrays
-from hypothesis.strategies import booleans, floats
+from hypothesis.strategies import floats
 
 # Import the classes under test
 from rna_predict.pipeline.stageA.input_embedding.current.embedders import (

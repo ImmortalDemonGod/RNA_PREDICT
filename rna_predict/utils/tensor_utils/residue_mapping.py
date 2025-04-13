@@ -40,7 +40,7 @@ class MetadataMapConfig:
     """Configuration for deriving residue-atom map from metadata."""
     def __init__(
         self,
-        residue_indices: Union[List[int], torch.Tensor],
+        residue_indices: Union[List[Union[int, str]], torch.Tensor],
         sequence_list: List[str],
         n_residues: int,
     ) -> None:
@@ -50,18 +50,48 @@ class MetadataMapConfig:
 
 
 def _convert_indices_to_list(
-    residue_indices: Union[List[int], torch.Tensor],
-) -> List[int]:
+    residue_indices: Union[List[Union[int, str]], torch.Tensor],
+) -> List[Union[int, str]]:
     """
     Convert residue indices to a list.
 
     Args:
-        residue_indices: List or tensor of residue indices for each atom
+        residue_indices: List or tensor of residue indices for each atom, can be integers or strings
 
     Returns:
-        List of residue indices
+        List of residue indices as integers or strings
     """
-    return residue_indices.cpu().tolist() if isinstance(residue_indices, torch.Tensor) else residue_indices
+    if isinstance(residue_indices, torch.Tensor):
+        return [int(x) for x in residue_indices.cpu().tolist()]
+    return residue_indices
+
+
+def _convert_to_int_list(indices: List[Union[int, str]]) -> List[int]:
+    """
+    Convert a list of indices to integers.
+
+    Args:
+        indices: List of indices that can be either integers or strings
+
+    Returns:
+        List of integer indices
+
+    Raises:
+        ValueError: If string indices cannot be converted to integers
+    """
+    if not indices:
+        return []
+    
+    if isinstance(indices[0], str):
+        try:
+            return [int(idx) for idx in indices]
+        except ValueError as e:
+            raise ValueError(f"Failed to convert string residue indices to integers: {e}")
+    
+    if not all(isinstance(idx, int) for idx in indices):
+        raise ValueError("All residue indices must be integers after conversion")
+    
+    return [int(idx) for idx in indices]
 
 
 def _populate_residue_atom_map(
@@ -111,7 +141,7 @@ def _validate_residue_atom_map(
 
 
 def _derive_map_from_metadata(
-    residue_indices: Union[List[int], torch.Tensor],
+    residue_indices: Union[List[Union[int, str]], torch.Tensor],
     sequence_list: List[str],
     n_residues: int,
 ) -> ResidueAtomMap:
@@ -119,7 +149,7 @@ def _derive_map_from_metadata(
     Derive residue-atom map from residue indices in metadata.
 
     Args:
-        residue_indices: List or tensor of residue indices for each atom
+        residue_indices: List or tensor of residue indices for each atom, can be integers or strings
         sequence_list: List of residue types
         n_residues: Number of residues in the sequence
 
@@ -127,7 +157,7 @@ def _derive_map_from_metadata(
         Mapping from residue indices to atom indices
 
     Raises:
-        ValueError: If residue indices are invalid
+        ValueError: If residue indices are invalid or string indices cannot be converted to integers
     """
     # Create configuration
     config = MetadataMapConfig(residue_indices, sequence_list, n_residues)
@@ -135,8 +165,11 @@ def _derive_map_from_metadata(
     # Convert to list if it's a tensor
     indices = _convert_indices_to_list(config.residue_indices)
 
+    # Convert to integer list
+    int_indices = _convert_to_int_list(indices)
+
     # Populate the map
-    residue_atom_map = _populate_residue_atom_map(indices, config.n_residues)
+    residue_atom_map = _populate_residue_atom_map(int_indices, config.n_residues)
 
     # Validate that all residues have at least one atom
     _validate_residue_atom_map(residue_atom_map, config.sequence_list)
@@ -296,6 +329,23 @@ def _create_residue_atom_map_from_counts(
     return residue_atom_map
 
 
+def _cast_residue_indices(
+    residue_indices: Union[List[str], List[int], torch.Tensor]
+) -> Union[List[Union[int, str]], torch.Tensor]:
+    """
+    Cast residue indices to the expected type.
+
+    Args:
+        residue_indices: List or tensor of residue indices
+
+    Returns:
+        Residue indices in the expected type
+    """
+    if isinstance(residue_indices, torch.Tensor):
+        return residue_indices
+    return [x for x in residue_indices]  # Convert to List[Union[int, str]]
+
+
 def derive_residue_atom_map(
     sequence: Union[str, List[str]],
     partial_coords: Optional[torch.Tensor] = None,  # Shape [B, N_atom, 3] or [N_atom, 3]
@@ -347,7 +397,9 @@ def derive_residue_atom_map(
     if atom_metadata is not None and 'residue_indices' in atom_metadata:
         logger.info("Deriving residue-atom map from explicit atom metadata.")
         residue_indices = atom_metadata['residue_indices']
-        return _derive_map_from_metadata(residue_indices, sequence_list, n_residues)
+        if isinstance(residue_indices, (list, torch.Tensor)):
+            return _derive_map_from_metadata(_cast_residue_indices(residue_indices), sequence_list, n_residues)
+        raise ValueError("residue_indices in atom_metadata must be a list or tensor")
 
     # Method 2: Use partial_coords shape and assume contiguous block ordering
     if partial_coords is not None:

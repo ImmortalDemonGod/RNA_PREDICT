@@ -6,7 +6,7 @@ between residue-level and atom-level representations.
 """
 
 import torch
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Union
 
 from .types import ResidueAtomMap, logger
 from .validation import get_dimensions, validate_atom_indices
@@ -167,7 +167,7 @@ def create_empty_atom_tensor(
     """
     if config.is_batched:
         return torch.empty(
-            (config.batch_size, 0, config.c_s),
+            (0 if config.batch_size is None else config.batch_size, 0, config.c_s),
             dtype=config.dtype,
             device=config.device
         )

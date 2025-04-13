@@ -8,7 +8,7 @@ and other constraints to ensure correct operation of tensor utilities.
 import torch
 from typing import List, Tuple
 
-from .types import ResidueAtomMap, logger
+from .types import ResidueAtomMap
 
 
 def _validate_residue_count(

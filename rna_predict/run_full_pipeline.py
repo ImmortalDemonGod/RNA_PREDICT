@@ -22,6 +22,7 @@ try:
         ProtenixDiffusionManager,
     )
     from rna_predict.pipeline.stageD.diffusion.run_stageD_unified import run_stageD_diffusion
+    from rna_predict.pipeline.stageD.diffusion.utils.config_types import DiffusionConfig
 
     STAGE_D_AVAILABLE = True
 except ImportError:
@@ -234,11 +235,14 @@ def run_full_pipeline(
             partial_coords = partial_coords.unsqueeze(0)
 
         final_coords = run_stageD_diffusion(
-            partial_coords=partial_coords,
-            trunk_embeddings=trunk_embeds,
-            diffusion_config=stageD_config,
-            mode="inference",
-            device=device,
+            config=DiffusionConfig(
+                partial_coords=partial_coords,
+                trunk_embeddings=trunk_embeds,
+                diffusion_config=stageD_config,
+                mode="inference",
+                device=device,
+                input_features=None,  # Using default None since not provided
+            )
         )
 
     return {

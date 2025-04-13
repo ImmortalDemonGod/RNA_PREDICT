@@ -5,7 +5,7 @@ This module provides functions for handling configuration in the Stage D diffusi
 """
 
 import torch
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 
 def get_embedding_dimension(
