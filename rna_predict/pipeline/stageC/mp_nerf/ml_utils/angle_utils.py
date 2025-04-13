@@ -3,6 +3,7 @@ Angle calculation utilities for RNA structure prediction.
 """
 
 import torch
+from typing import Optional
 
 from rna_predict.pipeline.stageC.mp_nerf.utils import to_zero_two_pi
 
@@ -11,7 +12,7 @@ def torsion_angle_loss(
     pred_torsions: torch.Tensor, 
     true_torsions: torch.Tensor, 
     coeff: float = 2.0, 
-    angle_mask: torch.Tensor = None
+    angle_mask: Optional[torch.Tensor] = None
 ) -> torch.Tensor:
     """Computes a loss on the angles as the cosine of the difference.
     Due to angle periodicity, calculate the disparity on both sides

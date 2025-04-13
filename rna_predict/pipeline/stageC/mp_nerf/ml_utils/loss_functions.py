@@ -95,6 +95,10 @@ def _get_rotation_matrices(context: RotationContext) -> Optional[torch.Tensor]:
     if config.rot_mats_g is not None:
         return config.rot_mats_g
         
+    # Return None if no sequence is provided
+    if seq is None:
+        return None
+        
     # Get rigid body indices
     rigid_idxs = scn_rigid_index_mask(seq, c_alpha=config.c_alpha)
     
@@ -102,9 +106,14 @@ def _get_rotation_matrices(context: RotationContext) -> Optional[torch.Tensor]:
     if rigid_idxs.numel() == 0 or not structure.mask_center.any():
         return None
         
+    # Get the three points needed for each frame
+    true_points = structure.true_center[rigid_idxs].detach()
+    pred_points = structure.pred_center[rigid_idxs].detach()
+    
     # Calculate frames and rotation matrices
-    true_frames = get_axis_matrix(*structure.true_center[rigid_idxs].detach(), norm=True)
-    pred_frames = get_axis_matrix(*structure.pred_center[rigid_idxs].detach(), norm=True)
+    # Each frame needs three points to define the orthonormal basis
+    true_frames = get_axis_matrix(true_points[0], true_points[1], true_points[2])
+    pred_frames = get_axis_matrix(pred_points[0], pred_points[1], pred_points[2])
     
     # Calculate rotation matrices
     return torch.matmul(torch.transpose(pred_frames, -1, -2), true_frames)

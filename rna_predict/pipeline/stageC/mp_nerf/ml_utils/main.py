@@ -9,7 +9,6 @@ import torch
 from .coordinate_transforms import (
     CombineNoiseConfig,
     NoiseConfig,
-    combine_noise,
     noise_internals_legacy,
 )
 from rna_predict.pipeline.stageC.mp_nerf.ml_utils import combine_noise_legacy
