@@ -108,7 +108,12 @@ class TestResidueToAtoms:
     """Tests for the residue_to_atoms function."""
 
     def test_basic_expansion(self):
-        """Test basic expansion of residue embeddings to atom embeddings."""
+        """
+        Test that residue embeddings are correctly expanded into atom embeddings.
+        
+        Verifies that each atom in the output tensor inherits the embedding of its
+        corresponding residue per the residue-to-atom map and that the output shape is as expected.
+        """
         # Create a simple residue embedding tensor
         n_residue = 4
         c_s = 16
@@ -164,7 +169,12 @@ class TestResidueToAtoms:
         assert atom_embs.shape == (0, 16)
 
     def test_invalid_map(self):
-        """Test with an invalid residue-to-atom map."""
+        """
+        Raise errors for invalid residue-to-atom maps.
+        
+        Verifies that residue_to_atoms raises a ValueError when the map is invalid,
+        either due to missing atom indices or duplicate indices.
+        """
         # Create a simple residue embedding tensor
         n_residue = 4
         c_s = 16
@@ -203,7 +213,14 @@ class TestIntegration:
     """Integration tests for the residue-to-atom bridging functions."""
 
     def test_end_to_end(self):
-        """Test the full process from sequence to atom embeddings."""
+        """
+        Test the end-to-end workflow from RNA sequence to atom embeddings.
+        
+        This integration test constructs an RNA sequence and random residue embeddings,
+        derives the residue-to-atom mapping using the sequence, and expands the residue embeddings
+        to generate atom embeddings. It verifies that the resulting tensor has the expected shape
+        and confirms that each atom receives the correct embedding from its corresponding residue.
+        """
         # Create a sequence and residue embeddings
         sequence = ["A", "U", "G", "C"]
         n_residue = len(sequence)

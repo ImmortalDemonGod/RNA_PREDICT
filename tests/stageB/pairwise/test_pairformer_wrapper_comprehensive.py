@@ -28,7 +28,11 @@ class TestPairformerWrapperComprehensive(unittest.TestCase):
     """
 
     def setUp(self):
-        """Set up common test parameters."""
+        """
+        Initialize common test parameters and create test input tensors.
+        
+        This method configures the instance variables used by multiple tests, including batch size, sequence length, and channel dimensions. It creates random tensors for testing: an input tensor (self.s), a feature map tensor (self.z), a pair mask (self.pair_mask), and a tensor with a non-standard channel dimension (self.z_non_multiple) to simulate edge cases for dimension adjustment.
+        """
         # Test parameters
         self.batch_size = 1
         self.seq_length = 8
@@ -47,7 +51,13 @@ class TestPairformerWrapperComprehensive(unittest.TestCase):
         )
 
     def test_init_with_c_z_adjustment(self):
-        """Test initialization with c_z that needs adjustment."""
+        """
+        Verifies that PairformerWrapper correctly adjusts c_z to the next multiple of 16.
+        
+        This test confirms that initializing the wrapper with a c_z value of 30 results
+        in an adjusted c_z of 32, and that this corrected value is properly initialized in
+        the internal stack.
+        """
         # c_z = 30 should be adjusted to 32 (next multiple of 16)
         wrapper = PairformerWrapper(n_blocks=2, c_z=30, c_s=64)
 
@@ -74,7 +84,14 @@ class TestPairformerWrapperComprehensive(unittest.TestCase):
         self.assertEqual(z_updated.shape[-1], 30)
 
     def test_forward_with_c_z_adjustment_truncation(self):
-        """Test forward pass with c_z that needs truncation (edge case)."""
+        """
+        Tests the forward pass with forced c_z truncation.
+        
+        This test simulates an edge case by manually reducing the adjusted c_z value, which forces the 
+        wrapper to truncate the input z tensor's channel dimension. The internal PairformerStack forward 
+        method is replaced with a mock that returns tensors with 16 channels, and the test verifies that 
+        the z tensor is truncated appropriately and that the output shapes match the expectations.
+        """
         # This is an edge case that shouldn't happen with the current implementation,
         # but we test it for completeness
 
@@ -206,7 +223,12 @@ class TestPairformerWrapperComprehensive(unittest.TestCase):
         self.assertEqual(z_updated.shape, z_gpu.shape)
 
     def test_dtype_consistency_in_adjust_dimensions(self):
-        """Test that adjust_z_dimensions handles different dtypes correctly."""
+        """
+        Verifies that adjust_z_dimensions preserves the input tensor's data type.
+        
+        This test converts a sample tensor to float64 and passes it to the adjust_z_dimensions method of a PairformerWrapper.
+        It asserts that the output tensor maintains the float64 type and that its last dimension is adjusted to 32.
+        """
         # Create tensors with float64 dtype
         z_float64 = self.z_non_multiple.to(torch.float64)
 

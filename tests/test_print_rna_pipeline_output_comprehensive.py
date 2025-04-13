@@ -25,14 +25,25 @@ class TestPrintTensorExample(unittest.TestCase):
     """Tests for the print_tensor_example function."""
 
     def setUp(self):
-        """Set up test fixtures."""
+        """
+        Set up test fixtures by capturing printed output.
+        
+        This method saves the current sys.stdout in self.stdout_backup and replaces
+        sys.stdout with an io.StringIO instance (self.captured_output) to enable
+        inspection of output during tests.
+        """
         # Redirect stdout to capture print output
         self.stdout_backup = sys.stdout
         self.captured_output = io.StringIO()
         sys.stdout = self.captured_output
 
     def tearDown(self):
-        """Clean up after tests."""
+        """
+        Restores the original standard output stream.
+        
+        This method resets sys.stdout to the value stored in self.stdout_backup,
+        ensuring that modifications made during testing do not affect subsequent tests.
+        """
         # Restore stdout
         sys.stdout = self.stdout_backup
 
@@ -90,7 +101,13 @@ class TestPrintTensorExample(unittest.TestCase):
         self.assertIn("7  8  9 10 11", output)  # Second row
 
     def test_print_tensor_example_2d_wide(self):
-        """Test print_tensor_example with wide 2D tensor (more columns than max_items)."""
+        """
+        Test print_tensor_example with a wide 2D tensor.
+        
+        This test uses a 2D NumPy array with more columns than the display limit. It asserts
+        that the printed output shows the correct tensor shape and truncates each row's example
+        values to the first five elements followed by an ellipsis.
+        """
         tensor_2d_wide = np.array([[1, 2, 3, 4, 5, 6, 7, 8], [9, 10, 11, 12, 13, 14, 15, 16]])
         print_tensor_example("test_2d_wide", tensor_2d_wide)
         output = self.captured_output.getvalue()
@@ -111,7 +128,13 @@ class TestPrintTensorExample(unittest.TestCase):
         self.assertIn(" ...]", output)  # Truncation indicator
 
     def test_print_tensor_example_3d_small(self):
-        """Test print_tensor_example with small 3D tensor (fewer items than max_items in dim 1)."""
+        """
+        Test that print_tensor_example prints the correct output for a small 3D tensor.
+        
+        A 3D tensor with shape (2, 3, 4) is used to verify that when the number of items in the
+        second dimension is below the truncation threshold, the printed output includes the
+        tensor's name and shape, as well as the expected "Example values:" and "Data:" sections.
+        """
         tensor_3d_small = np.zeros((2, 3, 4))
         print_tensor_example("test_3d_small", tensor_3d_small)
         output = self.captured_output.getvalue()
@@ -163,13 +186,23 @@ class TestStageAPredictor(unittest.TestCase):
     """Tests for the DummyStageAPredictor class defined in setup_pipeline."""
 
     def setUp(self):
-        """Set up test fixtures."""
+        """
+        Initializes the stage A predictor for test cases.
+        
+        Retrieves the pipeline configuration using setup_pipeline() and assigns the
+        stageA_predictor from the configuration to an instance attribute for use in
+        subsequent tests.
+        """
         # Get the DummyStageAPredictor from setup_pipeline
         config, _ = setup_pipeline()
         self.predictor = config["stageA_predictor"]
 
     def test_predict_adjacency_empty_seq(self):
-        """Test predict_adjacency with empty sequence."""
+        """
+        Verifies that an empty input sequence produces an empty adjacency matrix.
+        
+        Ensures that calling predict_adjacency with an empty string returns a matrix with shape (0, 0).
+        """
         adj = self.predictor.predict_adjacency("")
         self.assertEqual(adj.shape, (0, 0))
 
@@ -180,7 +213,12 @@ class TestStageAPredictor(unittest.TestCase):
         self.assertAlmostEqual(adj[0, 0], 1.0, places=5)  # Diagonal should be 1.0
 
     def test_predict_adjacency_short_seq(self):
-        """Test predict_adjacency with short sequence."""
+        """
+        Verifies that predict_adjacency returns the correct matrix for a short RNA sequence.
+        
+        For the sequence "AU", the expected 2x2 matrix has 1.0 on the diagonals and 0.8 
+        on the off-diagonals.
+        """
         adj = self.predictor.predict_adjacency("AU")
         self.assertEqual(adj.shape, (2, 2))
         self.assertAlmostEqual(adj[0, 0], 1.0, places=5)  # Diagonal should be 1.0
@@ -210,7 +248,15 @@ class TestStageAPredictor(unittest.TestCase):
     @given(seq=st.text(alphabet="AUGC", min_size=0, max_size=20))
     @settings(deadline=None)
     def test_predict_adjacency_hypothesis(self, seq):
-        """Test predict_adjacency with random sequences using Hypothesis."""
+        """
+        Tests that the predict_adjacency method returns a valid adjacency matrix.
+        
+        This test uses random sequence inputs generated by Hypothesis to verify that:
+        - The output matrix is square with dimensions equal to the sequence length.
+        - Diagonal elements are approximately 1.0.
+        - Immediate neighbors are approximately 0.8 when the sequence has at least two elements.
+        - For sequences longer than four characters, the first and last matrix entries are approximately 0.5.
+        """
         adj = self.predictor.predict_adjacency(seq)
 
         # Check shape
@@ -265,7 +311,14 @@ class TestSetupPipeline(unittest.TestCase):
     @patch("rna_predict.print_rna_pipeline_output.STAGE_D_AVAILABLE", True)
     @patch("rna_predict.print_rna_pipeline_output.ProtenixDiffusionManager")
     def test_setup_pipeline_with_stageD(self, mock_diffusion_manager):
-        """Test setup_pipeline with Stage D available."""
+        """
+        Verify that setup_pipeline configures Stage D when available.
+        
+        This test mocks the diffusion manager to simulate Stage D support and confirms that the
+        pipeline configuration contains the expected keys ("diffusion_manager", "stageD_config",
+        "run_stageD") with correct values. It also ensures that the diffusion manager is invoked once
+        with the device set to "cpu" and that the configuration dictionary is correctly passed as an argument.
+        """
         # Mock the ProtenixDiffusionManager
         mock_diffusion_manager.return_value = "mock_diffusion_manager"
 
@@ -291,7 +344,13 @@ class TestSetupPipeline(unittest.TestCase):
         self.assertIsInstance(args[0], dict)  # First arg should be config dict
 
     def test_setup_pipeline_with_torsion_model_exception(self):
-        """Test setup_pipeline when torsion model initialization raises an exception."""
+        """
+        Tests that setup_pipeline gracefully handles torsion model init failure.
+        
+        Simulates a torsion model initialization exception and verifies that
+        setup_pipeline prints a warning and recovers by creating a fallback dummy
+        torsion model with expected output dimensions and prediction behavior.
+        """
         # We'll use a context manager to patch the StageBTorsionBertPredictor
         with patch("rna_predict.print_rna_pipeline_output.StageBTorsionBertPredictor") as mock_torsion_model:
             # First call raises an exception, second call returns a mock object

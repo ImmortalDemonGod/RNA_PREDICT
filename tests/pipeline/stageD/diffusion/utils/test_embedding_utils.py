@@ -420,7 +420,15 @@ class TestPropertyBasedTests:
         ],
     )
     def test_ensure_s_inputs_various_shapes(self, batch_size, seq_len, c_s, c_s_inputs):
-        """Test ensure_s_inputs with various tensor shapes."""
+        """
+        Tests that ensure_s_inputs returns a tensor with a fixed batch size.
+        
+        This test validates that regardless of the batch size of the 's_trunk' tensor,
+        ensure_s_inputs generates an 's_inputs' tensor with a batch size of 1. It also
+        checks that the function uses the embedding dimension from the diffusion 
+        configuration (c_s_inputs) correctly, resulting in a tensor of shape 
+        (1, seq_len, c_s_inputs).
+        """
         # Arrange
         trunk_embeddings_internal = {"s_trunk": torch.zeros((batch_size, seq_len, c_s))}
         original_trunk_embeddings_ref = {}
@@ -457,7 +465,15 @@ class TestPropertyBasedTests:
         ],
     )
     def test_ensure_z_trunk_various_shapes(self, batch_size, seq_len, c_s, c_z):
-        """Test ensure_z_trunk with various tensor shapes."""
+        """
+        Checks that ensure_z_trunk creates a 'pair' tensor with the expected shape.
+        
+        This test initializes trunk_embeddings_internal with an 's_trunk' tensor of shape
+        (batch_size, seq_len, c_s) and a diffusion configuration specifying c_z. It then
+        invokes ensure_z_trunk and verifies that a 'pair' key is added to trunk_embeddings_internal
+        with a tensor shape of (1, seq_len, seq_len, c_z), ensuring a consistent output shape
+        regardless of the input batch size.
+        """
         # Arrange
         trunk_embeddings_internal = {"s_trunk": torch.zeros((batch_size, seq_len, c_s))}
         original_trunk_embeddings_ref = {}

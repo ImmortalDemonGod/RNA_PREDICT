@@ -24,7 +24,13 @@ class TestToZeroTwoPi(unittest.TestCase):
     """Tests for the to_zero_two_pi function."""
 
     def setUp(self):
-        """Set up test fixtures."""
+        """
+        Initializes test fixtures with common angle normalization cases.
+        
+        This method creates a list of (input, expected) tuples (stored in self.test_cases_float) to verify
+        that angles are correctly normalized into the [0, 2π) range. The test cases cover scenarios such
+        as angles that remain unchanged, those that wrap after reaching 2π, and negative angles.
+        """
         # Define common test cases as (input, expected) pairs
         self.test_cases_float: List[Tuple[float, float]] = [
             (0.0, 0.0),  # Zero remains zero
@@ -184,7 +190,15 @@ class TestToZeroTwoPi(unittest.TestCase):
     )
     @settings(deadline=None)
     def test_property_torch_tensor_modular_equivalence(self, x: List[float]):
-        """Test that torch tensor input and output are equivalent modulo 2π."""
+        """Verify that converting a torch tensor of angles preserves modular equivalence.
+        
+        Converts a list of angles in radians to a torch tensor and applies the to_zero_two_pi conversion.
+        Asserts that the sine and cosine values of the original and converted angles are nearly equal,
+        confirming that the conversion maintains the angles' equivalence modulo 2π.
+        
+        Parameters:
+            x (List[float]): A list of angles in radians.
+        """
         tensor_x = torch.tensor(x, dtype=torch.float32)
         result = to_zero_two_pi(tensor_x)
         # Check that sin and cos of both angles are the same (modular equivalence)
@@ -192,7 +206,11 @@ class TestToZeroTwoPi(unittest.TestCase):
         torch.testing.assert_close(torch.cos(tensor_x), torch.cos(result), rtol=1e-5, atol=1e-5)
 
     def test_edge_cases(self):
-        """Test edge cases for to_zero_two_pi."""
+        """
+        Test edge cases for the to_zero_two_pi function.
+        
+        This test verifies that extreme angle values are normalized correctly to the [0, 2π) range. It checks that very large positive and negative angles yield valid outputs, and that precise multiples of 2π (both positive and negative) correctly wrap to 0 within a 10-decimal-place tolerance.
+        """
         # Very large positive number
         large_pos = 1000 * np.pi
         result_large_pos = to_zero_two_pi(large_pos)

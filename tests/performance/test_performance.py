@@ -9,6 +9,11 @@ from rna_predict.pipeline.stageD.diffusion.utils import DiffusionConfig  # Impor
 
 
 def get_memory_usage():  # Helper function
+    """
+    Returns the current process memory usage in megabytes.
+    
+    This helper function uses the psutil module to retrieve the resident set size (RSS) of the process and converts it from bytes to megabytes.
+    """
     process = psutil.Process(os.getpid())
     return process.memory_info().rss / 1024 / 1024  # in MB
 

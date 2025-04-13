@@ -11,13 +11,16 @@ import torch
 
 def _extract_mismatch_dimension(error_msg: str) -> int | None:
     """
-    Extract dimension index from error message.
-
+    Extracts the tensor dimension index from an error message.
+    
+    This function searches for a numeric value following the word "dimension" in the provided
+    error message and returns it as an integer. If no valid index is found, it returns None.
+    
     Args:
-        error_msg: Error message to parse
-
+        error_msg: The error message containing information about a tensor dimension mismatch.
+    
     Returns:
-        Dimension index or None if not found
+        The extracted dimension index if present; otherwise, None.
     """
     import re
 
@@ -29,15 +32,19 @@ def _handle_dimension_count_mismatch(
     self: torch.Tensor, other: torch.Tensor, original_add
 ):
     """
-    Handle case where tensors have different number of dimensions.
-
+    Adjust tensor dimensions for compatible addition.
+    
+    When the tensors have differing numbers of dimensions, the tensor with fewer
+    dimensions is unsqueezed at the 0th axis to match the other tensor's shape before
+    performing the addition using the provided addition function.
+    
     Args:
-        self: First tensor
-        other: Second tensor
-        original_add: Original addition function
-
+        self: The first tensor operand.
+        other: The second tensor operand.
+        original_add: A callable that performs the tensor addition.
+    
     Returns:
-        Result of addition after fixing dimensions
+        A tensor resulting from the addition of the dimension-adjusted operands.
     """
     # Add missing dimensions
     if self.dim() < other.dim():
@@ -66,15 +73,16 @@ def _is_attention_bias_mismatch(
     self: torch.Tensor, other: torch.Tensor, mismatch_dim: int
 ) -> bool:
     """
-    Check if the mismatch is the specific attention bias case (5 vs 4).
-
+    Determines if the dimension mismatch between two tensors corresponds to an attention bias issue.
+    
+    This function checks whether the mismatch at the specified dimension is due to one tensor having a size of 5 and the other a size of 4, regardless of their order.
+    
     Args:
-        self: First tensor
-        other: Second tensor
-        mismatch_dim: Dimension index with mismatch
-
+        other: The tensor to compare with.
+        mismatch_dim: The index of the dimension where the mismatch occurs.
+    
     Returns:
-        Boolean indicating whether this is an attention bias mismatch
+        True if one tensor has a size of 5 and the other a size of 4 along the specified dimension; otherwise, False.
     """
     # Case 1: self has size 5, other has size 4
     case1 = _has_dim_size(self, mismatch_dim, 5) and _has_dim_size(
@@ -93,16 +101,20 @@ def _expand_tensor_dimension(
     tensor: torch.Tensor, mismatch_dim: int, target_size: int
 ) -> torch.Tensor:
     """
-    Expand or reduce a tensor along a specific dimension to match a target size.
-    Uses interpolation for dimension reduction and repetition for expansion.
-
+    Resize a tensor along a specified dimension to a given target size.
+    
+    The function reshapes the input tensor to isolate the target dimension and then
+    either expands it by repeating its elements or reduces it via adaptive average
+    pooling. If the tensor already has the target size along the specified dimension,
+    no modification is performed.
+    
     Args:
-        tensor: Tensor to expand/reduce
-        mismatch_dim: Dimension index to modify
-        target_size: Target size for the dimension
-
+        tensor: The input tensor to resize.
+        mismatch_dim: The index of the dimension to adjust.
+        target_size: The desired size for the specified dimension.
+    
     Returns:
-        Modified tensor
+        The tensor modified so that its size along the specified dimension equals target_size.
     """
     current_size = tensor.size(mismatch_dim)
 
@@ -150,16 +162,18 @@ def _handle_attention_bias_mismatch(
     self: torch.Tensor, other: torch.Tensor, mismatch_dim: int, original_add
 ):
     """
-    Handle specific case for attention bias dimension mismatch (5 vs 4).
-
+    Adjust tensor dimensions to resolve attention bias mismatches.
+    
+    If the detected size discrepancy corresponds to an attention bias scenario, this function expands the first tensor's mismatched dimension to match the corresponding size of the second tensor and then performs the addition using the provided operation. Returns None if the mismatch does not pertain to attention bias.
+    
     Args:
-        self: First tensor
-        other: Second tensor
-        mismatch_dim: Dimension index with mismatch
-        original_add: Original addition function
-
+        self: The tensor being adjusted.
+        other: The tensor to be added.
+        mismatch_dim: The index at which the dimension mismatch is detected.
+        original_add: Callable that executes the addition operation.
+        
     Returns:
-        Result of addition after fixing dimensions or None if not applicable
+        The result of adding the adjusted tensor to the other tensor, or None if no attention bias mismatch is identified.
     """
     # Check if this is the attention bias case
     if not _is_attention_bias_mismatch(self, other, mismatch_dim):
@@ -249,13 +263,37 @@ def _try_manual_broadcasting(self: torch.Tensor, other: torch.Tensor, original_a
 
 
 def fix_tensor_add():
-    """Fix the tensor addition operation to handle shape mismatches."""
+    """
+    Monkey-patches tensor addition to handle shape mismatches.
+    
+    This function overrides the __add__ method of torch.Tensor by storing the original
+    addition operation and introducing a patched version that intercepts RuntimeErrors
+    related to size mismatches. When a size-related error is encountered, it applies
+    several error resolution strategies:
+     
+    - If the tensors have different numbers of dimensions, it adjusts them using a
+      dimension count correction helper.
+    - For mismatches that hint at attention bias issues, it attempts a specific fix.
+    - If needed, it falls back to manual broadcasting techniques.
+    
+    If none of the strategies resolve the issue, the original error is re-raised.
+    """
     # Store the original __add__ method
     original_add = torch.Tensor.__add__
 
     # Define a new __add__ method that handles shape mismatches
     @wraps(original_add)
     def patched_add(self, other):
+        """
+        Attempts to add tensors with automatic shape mismatch corrections.
+        
+        This function first tries to add the two tensors using the original addition method.
+        If a RuntimeError related to tensor size occurs, it applies a series of corrective
+        strategies: if the tensors differ in dimensionality, missing dimensions are added;
+        if the error indicates an attention bias mismatch, a corresponding fix is attempted;
+        and finally, general manual broadcasting is tried. If none of these measures resolve
+        the issue, the original error is re-raised.
+        """
         try:
             # Try the original addition
             return original_add(self, other)
@@ -294,7 +332,15 @@ def fix_tensor_add():
 
 
 def fix_gather_pair_embedding():
-    """Fix the gather operation for pair embeddings."""
+    """
+    Patches the torch.gather function to support pair embedding indices.
+    
+    This function replaces torch.gather with a patched version that distinguishes
+    between standard and pair embedding cases. For standard usage (when the second
+    argument is an int), it directly calls the original function. For pair embedding
+    cases, it converts the index tensors to a long type and reshapes them by adding
+    two singleton dimensions before performing the gather operation along dimension 1.
+    """
     # Store the original gather method
     original_gather = torch.gather
 
@@ -317,7 +363,13 @@ def fix_gather_pair_embedding():
 
 
 def fix_rearrange_qk_to_dense_trunk():
-    """Fix the rearrange operation for QK to dense trunk."""
+    """Patch torch.rearrange to support dense trunk QK rearrangement.
+    
+    This function replaces torch.rearrange with a custom implementation that wraps the original
+    rearrange_qk_to_dense_trunk function. The patched function automatically converts list inputs
+    for q and k into tensors via torch.stack, calls the original function—which returns a tuple—and
+    returns only the first output tensor to meet expected interface requirements.
+    """
     # Import the actual function we want to use
     from rna_predict.pipeline.stageA.input_embedding.current.primitives.attention.dense_trunk import (
         rearrange_qk_to_dense_trunk as original_func,
@@ -328,6 +380,25 @@ def fix_rearrange_qk_to_dense_trunk():
         q, k, dim_q, dim_k, n_queries=32, n_keys=128, compute_mask=True
     ):
         # Handle the case where q or k is a list
+        """
+        Rearranges query and key inputs for attention computation.
+        
+        Converts list inputs into tensors and delegates processing to an underlying
+        function that returns a tuple (rearranged_query, rearranged_key, padding_info).
+        This function returns only the rearranged query tensor.
+        
+        Parameters:
+            q: A tensor or list of tensors representing the query inputs.
+            k: A tensor or list of tensors representing the key inputs.
+            dim_q: Dimension index for rearranging the query tensor.
+            dim_k: Dimension index for rearranging the key tensor.
+            n_queries: Optional; the number of query tokens (default is 32).
+            n_keys: Optional; the number of key tokens (default is 128).
+            compute_mask: Optional; flag indicating whether to compute a mask (default is True).
+        
+        Returns:
+            The rearranged query tensor.
+        """
         if isinstance(q, list):
             q = torch.stack(q)
         if isinstance(k, list):
@@ -345,7 +416,14 @@ def fix_rearrange_qk_to_dense_trunk():
 
 
 def fix_linear_forward():
-    """Fix the linear layer forward pass."""
+    """
+    Patch torch.nn.Linear.forward to support multi-dimensional inputs.
+    
+    This function replaces the default forward method of torch.nn.Linear with a patched version
+    that flattens inputs with more than two dimensions into a 2D tensor, applies the linear
+    transformation, and then reshapes the output back to match the original leading dimensions.
+    For inputs with two dimensions or fewer, it delegates to the original forward method.
+    """
     # Store the original linear forward method
     original_linear = torch.nn.Linear.forward
 
@@ -365,7 +443,14 @@ def fix_linear_forward():
 
 
 def fix_atom_transformer():
-    """Fix the atom transformer forward pass."""
+    """
+    Patch the forward method of torch.nn.Module to support high-dimensional inputs.
+    
+    This function applies a global patch to torch.nn.Module.forward so that when the input
+    tensor 'p' has more than five dimensions, it is reshaped to a 5D tensor for processing,
+    and the output is reshaped back to the original dimensions. If 'p' has five or fewer
+    dimensions, the original forward method is called unmodified.
+    """
     # Store the original forward method
     original_forward = torch.nn.Module.forward
 
@@ -387,7 +472,15 @@ def fix_atom_transformer():
 
 
 def fix_rearrange_to_dense_trunk():
-    """Fix the rearrange operation for dense trunk."""
+    """
+    Patch dense trunk rearrangement to handle list inputs and return a tensor.
+    
+    This function imports and wraps the original dense trunk rearrangement function so that
+    if the query, key, or value inputs are provided as lists, they are first converted to tensors.
+    It then calls the original function and extracts only the rearranged query tensor from the
+    tuple output, ensuring compatibility with downstream expectations. The patched function
+    is assigned to torch.rearrange.
+    """
     # Import the actual function we want to use
     from rna_predict.pipeline.stageA.input_embedding.current.primitives.attention.dense_trunk import (
         rearrange_to_dense_trunk as original_func,
@@ -396,6 +489,25 @@ def fix_rearrange_to_dense_trunk():
     @wraps(original_func)
     def patched_rearrange(q, k, v, n_queries, n_keys, attn_bias=None, inf=1e10):
         # Handle the case where q, k, or v is a list
+        """
+        Patches the rearrangement operation to support list inputs and return the rearranged query tensor.
+        
+        This function checks if the query, key, or value inputs are lists and converts them to tensors if needed.
+        It then calls an underlying rearrangement function that returns multiple tensors, but only the rearranged
+        query tensor is returned to match expected output.
+        
+        Parameters:
+            q: A tensor or list of tensors representing query values.
+            k: A tensor or list of tensors representing key values.
+            v: A tensor or list of tensors representing value tensors.
+            n_queries: The number of queries.
+            n_keys: The number of keys.
+            attn_bias: (Optional) An attention bias tensor. Defaults to None.
+            inf: A float used as a large constant, defaulting to 1e10.
+        
+        Returns:
+            The tensor representing the rearranged query.
+        """
         if isinstance(q, list):
             q = torch.stack(q)
         if isinstance(k, list):
@@ -413,7 +525,13 @@ def fix_rearrange_to_dense_trunk():
 
 
 def apply_tensor_fixes():
-    """Apply all tensor fixes."""
+    """
+    Apply tensor fixes for patching PyTorch operations.
+    
+    This function applies a series of patches to resolve common tensor shape and dimension mismatches 
+    encountered during deep learning workflows. It updates tensor addition, gather, rearrangement, linear 
+    transformations, and other operations to ensure compatibility across various tensor manipulations.
+    """
     fix_tensor_add()
     fix_gather_pair_embedding()
     fix_rearrange_qk_to_dense_trunk()

@@ -34,7 +34,12 @@ class TestExtractSequence:
         assert result is sequence  # Should return the same object
 
     def test_sequence_from_input_features_tensor(self):
-        """Test extracting sequence from input_features as tensor."""
+        """
+        Test that extract_sequence converts a torch tensor from input_features into a list of strings.
+        
+        Ensures that when the 'sequence' key in input_features is a torch tensor of ASCII values,
+        extract_sequence returns a list containing the string representations of each value.
+        """
         # Arrange
         sequence = None
         input_features = {"sequence": torch.tensor([65, 85, 71, 67])}  # ASCII for "AUGC"
@@ -106,7 +111,11 @@ class TestExtractSequence:
 
     @patch("rna_predict.pipeline.stageD.diffusion.bridging.sequence_utils.logger")
     def test_fallback_to_trunk_embeddings_sing(self, mock_logger):
-        """Test fallback to trunk_embeddings with sing key."""
+        """
+        Tests fallback behavior when no explicit sequence is provided and trunk_embeddings includes a 'sing' key.
+        
+        When both sequence and input_features are None, a tensor under the 'sing' key should result in a list of three placeholder 'A's. The function is also expected to log a warning indicating that no sequence was provided.
+        """
         # Arrange
         sequence = None
         input_features = None

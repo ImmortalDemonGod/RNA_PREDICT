@@ -20,7 +20,12 @@ class TestProtenixIntegrationInitialization(unittest.TestCase):
     """Tests for the initialization of the ProtenixIntegration class."""
 
     def setUp(self):
-        """Set up test fixtures."""
+        """
+        Prepare the test environment by cleaning up lingering tensors and GPU cache.
+        
+        This method runs before each test, triggering garbage collection and clearing the CUDA cache
+        (if available) to ensure that residual memory is released and tests start with a clean slate.
+        """
         # Clean up any lingering tensors
         gc.collect()
         if torch.cuda.is_available():
@@ -83,7 +88,14 @@ class TestProtenixIntegrationBuildEmbeddings(unittest.TestCase):
     """Tests for the build_embeddings method of the ProtenixIntegration class."""
 
     def setUp(self):
-        """Set up test fixtures."""
+        """
+        Set up test fixtures for ProtenixIntegration tests.
+        
+        Initializes a CPU device and creates a ProtenixIntegration instance along with
+        minimal test data (number of tokens, atoms per token, and total atom count). It
+        also clears lingering tensors by invoking garbage collection and, if available,
+        clearing the CUDA cache.
+        """
         self.device = torch.device("cpu")
         self.integrator = ProtenixIntegration(device=self.device)
 
@@ -98,14 +110,36 @@ class TestProtenixIntegrationBuildEmbeddings(unittest.TestCase):
             torch.cuda.empty_cache()
 
     def tearDown(self):
-        """Clean up after tests."""
+        """
+        Clean up test resources after each test.
+        
+        Deletes the integrator instance, forces garbage collection, and clears the GPU
+        cache if CUDA is available to ensure a fresh state for subsequent tests.
+        """
         del self.integrator
         gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
 
     def create_basic_input_features(self):
-        """Create a basic set of input features for testing."""
+        """
+        Generates a dictionary with synthetic input features for testing.
+        
+        This helper constructs a set of tensors with predefined shapes and
+        values (random or zero) to simulate input features for embedding tests.
+        The returned dictionary includes:
+          - "ref_pos": A tensor of shape (N_atom, 3) with random values representing atom positions.
+          - "ref_charge": A tensor of shape (N_atom, 1) with random values representing atom charges.
+          - "ref_element": A tensor of shape (N_atom, 128) with random values for element embeddings.
+          - "ref_atom_name_chars": A tensor of shape (N_atom, 256) initialized to zeros, representing atom name characters.
+          - "atom_to_token" and "atom_to_token_idx": Tensors mapping atoms to tokens using a repeated index pattern.
+          - "restype": A tensor of shape (N_token, 32) initialized to zeros, representing residue types.
+          - "profile": A tensor of shape (N_token, 32) initialized to zeros, representing additional profile data.
+          - "deletion_mean": A tensor of shape (N_token,) initialized to zeros, used for deletion mean values.
+        
+        Returns:
+            dict: A mapping from feature names to their corresponding tensors.
+        """
         return {
             "ref_pos": torch.randn(self.N_atom, 3),
             "ref_charge": torch.randn(self.N_atom, 1),
@@ -255,7 +289,11 @@ class TestProtenixIntegrationBuildEmbeddings(unittest.TestCase):
         self.assertIn("z_init", embeddings)
 
     def test_build_embeddings_with_ref_atom_name_chars_padding(self):
-        """Test build_embeddings with ref_atom_name_chars that needs padding."""
+        """
+        Verifies that build_embeddings pads the ref_atom_name_chars input to the required dimensions.
+        
+        This test creates a basic set of input features with a ref_atom_name_chars tensor of shape (N_atom, 128) and confirms that build_embeddings pads it to shape (N_atom, 256). It also checks that the returned embeddings include the expected keys: "s_inputs" and "z_init".
+        """
         input_features = self.create_basic_input_features()
 
         # Create ref_atom_name_chars with smaller second dimension
@@ -281,6 +319,19 @@ class TestProtenixIntegrationBuildEmbeddings(unittest.TestCase):
         # Create a mock that returns a 3D tensor
         def mock_input_embedder(input_feature_dict):
             # Return a 3D tensor [1, N_token, c_token]
+            """
+            Mock an input embedder that returns a fixed zero tensor.
+            
+            This function ignores the provided input feature dictionary and returns a
+            3D tensor filled with zeros. The tensor has a shape of (1, N_token, 449), where
+            N_token is an attribute of the class instance.
+             
+            Args:
+                input_feature_dict: A dictionary of input features (ignored by this function).
+            
+            Returns:
+                torch.Tensor: A tensor of zeros with shape (1, N_token, 449).
+            """
             return torch.zeros(1, self.N_token, 449)
 
         self.integrator.input_embedder = MagicMock()
@@ -306,6 +357,12 @@ class TestProtenixIntegrationBuildEmbeddings(unittest.TestCase):
         # Create a mock that returns more tokens
         def mock_input_embedder(input_feature_dict):
             # Return a tensor with more tokens [N_token+2, c_token]
+            """
+            Creates a mock input embedding tensor with extra tokens.
+            
+            Returns a zero tensor with shape [self.N_token + 2, 449]. The input_feature_dict 
+            parameter is provided for interface consistency but is not used.
+            """
             return torch.zeros(self.N_token + 2, 449)
 
         self.integrator.input_embedder = MagicMock()
@@ -330,6 +387,12 @@ class TestProtenixIntegrationBuildEmbeddings(unittest.TestCase):
         # Create a mock that returns fewer tokens
         def mock_input_embedder(input_feature_dict):
             # Return a tensor with fewer tokens [N_token-1, c_token]
+            """
+            Creates a dummy input embedding tensor for testing.
+            
+            Returns a zero-filled tensor with shape (self.N_token - 1, 449). The input feature
+            dictionary is provided for interface compatibility but is not used.
+            """
             return torch.zeros(self.N_token - 1, 449)
 
         self.integrator.input_embedder = MagicMock()
@@ -346,7 +409,16 @@ class TestProtenixIntegrationBuildEmbeddings(unittest.TestCase):
 
     @patch('rna_predict.pipeline.stageA.input_embedding.current.embedders.InputFeatureEmbedder.__call__')
     def test_build_embeddings_with_atom_to_token_idx(self, mock_input_embedder):
-        """Test build_embeddings with atom_to_token_idx (line 72-76 in protenix_integration.py)."""
+        """
+        Test that build_embeddings correctly handles atom_to_token_idx.
+        
+        This test verifies that when the input features lack the 'atom_to_token' key but include
+        'atom_to_token_idx', the build_embeddings method correctly processes the input. The test
+        simulates this scenario by renaming the original 'atom_to_token' key and then manually
+        injecting 'atom_to_token' using the value of 'atom_to_token_idx'. A mocked input embedder
+        provides a valid tensor, and the test asserts that the resulting embeddings contain the
+        expected 's_inputs' and 'z_init' keys.
+        """
         input_features = self.create_basic_input_features()
 
         # Keep atom_to_token_idx but rename atom_to_token to test the conditional
@@ -393,7 +465,14 @@ class TestProtenixIntegrationBuildEmbeddings(unittest.TestCase):
 
     @patch('rna_predict.pipeline.stageA.input_embedding.current.embedders.InputFeatureEmbedder.__call__')
     def test_build_embeddings_with_missing_optional_key(self, mock_input_embedder):
-        """Test build_embeddings with a missing optional key (line 101)."""
+        """
+        Test build_embeddings handles input features missing an optional key.
+        
+        Verifies that if the non-essential 'ref_space_uid' key is absent from the input
+        features, build_embeddings still returns embeddings containing the required
+        keys ('s_inputs' and 'z_init'). A mocked embedder simulates the processing of
+        input features to produce a valid embedding tensor.
+        """
         input_features = self.create_basic_input_features()
 
         # Remove a non-essential key
@@ -464,7 +543,14 @@ class TestProtenixIntegrationBuildEmbeddings(unittest.TestCase):
 
     @patch('rna_predict.pipeline.stageA.input_embedding.current.embedders.InputFeatureEmbedder.__call__')
     def test_build_embeddings_with_2d_atom_to_token(self, mock_input_embedder):
-        """Test build_embeddings with 2D atom_to_token tensor (line 154)."""
+        """
+        Tests build_embeddings with a 2D atom_to_token tensor and missing optional features.
+        
+        Removes 'restype' and 'profile' from the input features and reshapes the 
+        atom_to_token tensor to 2D to trigger fallback behavior. Mocks the input_embedder 
+        to return a zero tensor with the expected dimensions, and verifies that the 
+        resulting embeddings dictionary contains the keys 's_inputs' and 'z_init'.
+        """
         input_features = self.create_basic_input_features()
 
         # Remove restype and profile to test the atom_to_token fallback
@@ -494,6 +580,13 @@ class TestProtenixIntegrationBuildEmbeddings(unittest.TestCase):
         # Create a mock that returns a 4D tensor
         def mock_rel_pos_encoding(input_dict):
             # Return a 4D tensor [1, N_token, N_token, c_token]
+            """
+            Return a mock relative position encoding tensor.
+            
+            This method generates a 4D tensor filled with zeros to simulate relative position encoding.
+            The output tensor has shape [1, self.N_token, self.N_token, 449], where 449 is a fixed channel size.
+            The input_dict parameter is accepted for interface consistency but is not used.
+            """
             return torch.zeros(1, self.N_token, self.N_token, 449)
 
         self.integrator.rel_pos_encoding = MagicMock()
@@ -511,7 +604,14 @@ class TestProtenixIntegrationBuildEmbeddings(unittest.TestCase):
         self.integrator.rel_pos_encoding = original_rel_pos_encoding
 
     def test_build_embeddings_with_z_init_squeeze(self):
-        """Test build_embeddings with z_init that needs squeezing (line 195-199)."""
+        """
+        Test that build_embeddings properly squeezes extra singleton dimensions in z_init.
+        
+        This test mocks the relative position encoding to return a tensor with an extra trailing
+        singleton dimension. It verifies that build_embeddings correctly processes the output, ensuring
+        that z_init has no more than four dimensions and that its first two dimensions match the expected
+        token count.
+        """
         input_features = self.create_basic_input_features()
 
         # Mock the rel_pos_encoding to return a tensor that needs squeezing
@@ -520,6 +620,14 @@ class TestProtenixIntegrationBuildEmbeddings(unittest.TestCase):
         # Create a mock that returns a tensor with extra dimensions at the end
         def mock_rel_pos_encoding(input_dict):
             # Return a tensor with extra dimensions [N_token, N_token, c_token, 1]
+            """
+            Generate a mock relative positional encoding tensor.
+            
+            This method returns a PyTorch tensor filled with zeros of shape
+            [N_token, N_token, 449, 1], where N_token is derived from the instance
+            attribute. The input_dict parameter is accepted for interface compatibility
+            but is not used.
+            """
             return torch.zeros(self.N_token, self.N_token, 449, 1)
 
         self.integrator.rel_pos_encoding = MagicMock()
@@ -542,7 +650,11 @@ class TestProtenixIntegrationErrorHandling(unittest.TestCase):
     """Tests for error handling in the ProtenixIntegration class."""
 
     def setUp(self):
-        """Set up test fixtures."""
+        """
+        Set up test fixtures.
+        
+        Initializes the test environment by creating a CPU device and instantiating a ProtenixIntegration instance. Sets minimal test data including the number of tokens and atoms per token, and computes the total atom count. Additionally, clears lingering tensors by invoking garbage collection and, if available, empties the CUDA cache.
+        """
         self.device = torch.device("cpu")
         self.integrator = ProtenixIntegration(device=self.device)
 
@@ -557,14 +669,36 @@ class TestProtenixIntegrationErrorHandling(unittest.TestCase):
             torch.cuda.empty_cache()
 
     def tearDown(self):
-        """Clean up after tests."""
+        """
+        Clean up test resources after each test.
+        
+        Deletes the integrator instance, forces garbage collection, and clears the CUDA cache if available to free memory.
+        """
         del self.integrator
         gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
 
     def create_basic_input_features(self):
-        """Create a basic set of input features for testing."""
+        """
+        Generates a dictionary of basic input features for testing.
+        
+        This helper constructs random and zero-initialized tensors with shapes determined
+        by the instance attributes (N_atom, N_token, atoms_per_token) to simulate the input
+        features for embedding tests. The returned dictionary includes:
+          - "ref_pos": Random positions (N_atom x 3).
+          - "ref_charge": Random atom charges (N_atom x 1).
+          - "ref_element": Random element features (N_atom x 128).
+          - "ref_atom_name_chars": Zero tensor for atom name characters (N_atom x 256).
+          - "atom_to_token": Atom-to-token mapping generated via repeated token indices.
+          - "atom_to_token_idx": Alternate atom-to-token mapping, identical to "atom_to_token".
+          - "restype": Zero tensor for residue types (N_token x 32).
+          - "profile": Zero tensor for profile data (N_token x 32).
+          - "deletion_mean": Zero tensor for deletion mean scores (N_token).
+        
+        Returns:
+            dict: A dictionary mapping feature names to their corresponding torch tensors.
+        """
         return {
             "ref_pos": torch.randn(self.N_atom, 3),
             "ref_charge": torch.randn(self.N_atom, 1),

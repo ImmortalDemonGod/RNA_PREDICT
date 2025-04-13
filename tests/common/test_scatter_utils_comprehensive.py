@@ -185,7 +185,12 @@ class TestInverseSquaredDist(unittest.TestCase):
                 self.assertEqual(out.shape, expected_shape)
 
     def test_inverse_squared_dist_large_values(self):
-        """Test inverse_squared_dist with large values to check for numerical stability."""
+        """
+        Test inverse_squared_dist for numerical stability using extreme values.
+        
+        Verifies that extremely large delta inputs yield a near-zero inverse squared distance,
+        while extremely small delta inputs yield a value close to one.
+        """
         # Very large values
         delta_large = torch.tensor([[1e6, 1e6, 1e6]], dtype=torch.float32)
         out_large = inverse_squared_dist(delta_large)
@@ -332,6 +337,19 @@ class TestScatterMean(unittest.TestCase):
 
         # Mock the import to raise ImportError for torch_scatter
         def mock_import(name, *args, **kwargs):
+            """
+            Mock module import to simulate missing torch_scatter.
+            
+            If the requested module is 'torch_scatter', raises an ImportError to mimic a missing
+            dependency. For any other module, delegates the import to the original import function
+            using any additional arguments.
+            
+            Raises:
+                ImportError: If the module name is 'torch_scatter'.
+            
+            Returns:
+                The result of the original import operation for modules other than 'torch_scatter'.
+            """
             if name == 'torch_scatter':
                 raise ImportError("Mocked ImportError for torch_scatter")
             return original_import(name, *args, **kwargs)

@@ -91,8 +91,12 @@ class TestRunStageDDiffusion(unittest.TestCase):
 
     def test_train_mode(self):
         """
-        Test that run_stageD_diffusion works in train mode and returns
-        (x_denoised, sigma, x_gt_augment) with correct shapes/types.
+        Tests run_stageD_diffusion in training mode.
+        
+        Verifies that providing a DiffusionConfig with mode set to "train" returns a tuple of three tensors:
+        the denoised coordinates, a scalar sigma tensor, and an augmented ground-truth tensor. It asserts
+        that the denoised coordinates tensor has at least three dimensions with a last dimension of size 3,
+        ensuring valid 3D coordinate representation.
         """
         test_config = DiffusionConfig(
             partial_coords=self.partial_coords,
@@ -133,8 +137,11 @@ class TestRunStageDDiffusion(unittest.TestCase):
 
     def test_deletion_mean_handling(self):
         """
-        Test that code path adjusting deletion_mean shape is covered.
-        This ensures lines that handle 'deletion_mean' dimension mismatch are tested.
+        Verify that a 2D deletion_mean input is reshaped correctly.
+        
+        This test provides input features where deletion_mean is a 2D tensor to trigger reshaping
+        logic in run_stageD_diffusion. It confirms that the function returns a tensor with the last
+        dimension equal to 3, ensuring that 3D coordinate output is produced.
         """
         # Create input features with 2D deletion_mean to trigger reshaping
         input_features = {

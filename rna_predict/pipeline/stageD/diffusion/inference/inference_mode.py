@@ -34,13 +34,19 @@ def run_inference_mode(
     context: InferenceContext,
 ) -> torch.Tensor:
     """
-    Run diffusion in inference mode.
-
+    Perform Stage D diffusion inference using the given context.
+    
+    This function updates the inference parameters to use a single sample to avoid extra dimensions,
+    then calls the multi-step inference method from the diffusion manager to compute refined coordinates.
+    If cached surrogate inputs ("s_inputs") are present in the internal trunk embeddings but missing
+    in the original trunk embeddings reference, they are copied back for consistency.
+    
     Args:
-        context: Inference context with all required parameters
-
+        context (InferenceContext): Contains the diffusion manager, initial coordinates, trunk embeddings,
+            diffusion configuration, and device information required to perform inference.
+    
     Returns:
-        Refined coordinates tensor
+        torch.Tensor: The refined coordinates obtained after running the inference.
     """
     # Set N_sample to 1 in inference params to avoid extra dimensions
     inference_params = context.diffusion_config.get("inference", {})

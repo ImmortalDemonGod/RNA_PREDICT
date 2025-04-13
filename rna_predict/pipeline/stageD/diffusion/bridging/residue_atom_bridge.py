@@ -36,7 +36,22 @@ def _process_single_embedding(
     key: str,
     debug_logging: bool,
 ) -> torch.Tensor:
-    """Applies residue-to-atom bridging for single embeddings."""
+    """
+    Bridges a residue-level embedding to its atom-level representation.
+    
+    Applies the residue-to-atom mapping to convert the input tensor into an atom-level
+    embedding. If debug logging is enabled, logs the transformation detailing the change
+    in tensor shape along with the provided key.
+    
+    Args:
+        value: A tensor containing residue-level embeddings.
+        residue_atom_map: A list of lists mapping residue indices to corresponding atom indices.
+        key: A label for the type of embedding, used in logging.
+        debug_logging: A flag indicating whether to log detailed debug information.
+    
+    Returns:
+        A tensor representing the atom-level embedding.
+    """
     bridged_value = residue_to_atoms(value, residue_atom_map)
     if debug_logging:
         logger.debug(
@@ -48,7 +63,20 @@ def _process_single_embedding(
 
 # Helper function for processing pair embeddings
 def _process_pair_embedding(value: torch.Tensor, key: str) -> torch.Tensor:
-    """Handles pair embeddings (currently logs a warning)."""
+    """
+    Bridge pair embeddings by logging a warning and returning the input tensor unchanged.
+    
+    Since pair embedding bridging is not implemented, this function logs a warning that the provided
+    tensor (identified by its key) may not match expected atom counts. It then returns the original tensor,
+    acting as a placeholder for a future implementation.
+    
+    Args:
+        value (torch.Tensor): Tensor containing pair embeddings.
+        key (str): Identifier for the embedding tensor.
+    
+    Returns:
+        torch.Tensor: The unmodified input tensor.
+    """
     logger.warning(
         f"Pair embedding bridging not implemented. The tensor {key} with shape {value.shape} "
         f"may cause issues in Stage D if its dimensions don't match atom counts."
@@ -58,7 +86,14 @@ def _process_pair_embedding(value: torch.Tensor, key: str) -> torch.Tensor:
 
 # Helper function to process the 'deletion_mean' tensor specifically
 def _process_deletion_mean(value: torch.Tensor) -> torch.Tensor:
-    """Ensure deletion_mean tensor has the shape [B, N, 1]."""
+    """
+    Adjusts the deletion_mean tensor shape to [B, N, 1].
+    
+    If the tensor is two-dimensional ([B, N]), it is expanded by adding a singleton dimension to form [B, N, 1]. 
+    If the tensor is three-dimensional with a last dimension not equal to 1, only the first channel is retained 
+    to ensure the output has the correct shape. Tensors already conforming to [B, N, 1] or with different dimensions 
+    are returned unchanged.
+    """
     if value.dim() == 2:  # If 2D [B, N]
         return value.unsqueeze(-1)  # Make it [B, N, 1]
     elif value.dim() == 3 and value.shape[-1] != 1:  # If 3D but wrong last dim
@@ -82,7 +117,19 @@ def _process_one_trunk_embedding(
     value: Any,  # Can be Tensor or other type
     context: EmbeddingProcessContext,
 ) -> Any:  # Return type matches input 'value' or processed Tensor
-    """Processes a single key-value pair from trunk_embeddings dictionary."""
+    """
+    Bridges a trunk embedding from residue- to atom-level when applicable.
+    
+    If the input value is a tensor, its dimensions are normalized with respect to the batch size from the context. Based on the embedding key, the function either applies residue-to-atom bridging (for single embeddings) or processes pair embeddings, while leaving other tensor values unmodified. Non-tensor values are returned unchanged.
+    
+    Args:
+        key: Identifier for the embedding type (e.g., "s_trunk", "s_inputs", "sing", or "pair").
+        value: The trunk embedding, which may be a tensor or another type.
+        context: A processing context containing the residue-to-atom mapping, batch size, and debug logging flag.
+    
+    Returns:
+        The processed tensor with bridged representation if applicable, or the original value.
+    """
     if not isinstance(value, torch.Tensor):
         # Keep non-tensor values as is
         return value
@@ -111,16 +158,20 @@ def process_trunk_embeddings(
     debug_logging: bool = False,
 ) -> Dict[str, torch.Tensor]:
     """
-    Process trunk embeddings to bridge residue-level to atom-level representations.
-
+    Bridges trunk embeddings from residue-level to atom-level.
+    
+    Processes each trunk embedding tensor using a residue-to-atom mapping and validates
+    tensor dimensions against the specified batch size. If the key 'sing' is present without
+    an accompanying 's_inputs', its value is duplicated as 's_inputs' to standardize the output.
+    
     Args:
-        trunk_embeddings: Dictionary of trunk embeddings (residue-level)
-        residue_atom_map: Mapping from residue indices to atom indices
-        batch_size: Batch size for tensor dimension validation
-        debug_logging: Whether to enable debug logging
-
+        trunk_embeddings: Dictionary mapping embedding names to residue-level tensors.
+        residue_atom_map: Mapping from residue indices to lists of corresponding atom indices.
+        batch_size: Batch size used for tensor dimension validation.
+        debug_logging: Optional; enables detailed debug logging during processing.
+    
     Returns:
-        Dictionary of bridged trunk embeddings
+        Dictionary mapping embedding names to their respective atom-level tensors.
     """
     bridged_trunk_embeddings = {}
 
@@ -154,14 +205,20 @@ def process_input_features(
     partial_coords: torch.Tensor,
 ) -> Dict[str, Any]:
     """
-    Process input features to ensure tensor shapes are compatible.
-
+    Process input features, adjusting tensor shapes and setting reference positions.
+    
+    This function processes a dictionary of input features by applying necessary tensor
+    transformations. For tensor values under the key "deletion_mean", it adjusts the shape
+    using a helper function to ensure compatibility. Non-tensor values are passed through
+    unchanged. Additionally, the function assigns the provided partial coordinates to the
+    "ref_pos" key to maintain consistent reference positions for downstream processing.
+    
     Args:
-        input_features: Dictionary of input features
-        partial_coords: Partial coordinates tensor
-
+        input_features: Dictionary of input feature values, where some may be tensors.
+        partial_coords: Tensor containing partial coordinates used to update the reference position.
+    
     Returns:
-        Dictionary of processed input features
+        A dictionary of processed input features with adjusted tensor shapes and updated "ref_pos".
     """
     fixed_input_features = {}
 
@@ -188,19 +245,23 @@ def bridge_residue_to_atom(
     debug_logging: bool = False,
 ) -> Tuple[torch.Tensor, Dict[str, torch.Tensor], Dict[str, Any]]:
     """
-    Bridge residue-level embeddings to atom-level embeddings for compatibility with Stage D.
-
-    This function replaces the previous ad-hoc shape fixing approach with a systematic
-    residue-to-atom bridging mechanism. It uses the sequence information and partial coordinates
-    to derive a mapping between residues and their constituent atoms, then applies this mapping
-    to expand residue-level embeddings to atom-level.
-
+    Bridges residue-level embeddings to atom-level representations.
+    
+    This function derives a residue-to-atom mapping from the provided partial coordinates and sequence
+    information, then applies the mapping to convert trunk embeddings to atom-level representations.
+    It also processes input features to ensure their tensor shapes are compatible with the Stage D
+    diffusion process.
+    
     Args:
-        bridging_input: Dataclass containing input tensors and metadata.
-        debug_logging: Whether to enable debug logging
-
+        bridging_input: A BridgingInput instance containing partial coordinates, trunk embeddings, and optional
+                        input features and sequence data.
+        debug_logging: Flag to enable debug logging.
+    
     Returns:
-        Tuple of (partial_coords, bridged_trunk_embeddings, fixed_input_features)
+        A tuple containing:
+          - the original partial coordinates,
+          - a dictionary of bridged trunk embeddings,
+          - a dictionary of processed input features.
     """
     # Use local variables for clarity, extracted from input object
     partial_coords = bridging_input.partial_coords

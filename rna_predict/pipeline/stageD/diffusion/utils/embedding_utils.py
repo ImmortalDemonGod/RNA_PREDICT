@@ -30,13 +30,19 @@ def ensure_s_inputs(
     context: EmbeddingContext,
 ) -> None:
     """
-    Ensure s_inputs exists in trunk_embeddings_internal, creating it if needed.
-
+    Ensure that the 's_inputs' tensor exists in the trunk embeddings dictionary.
+    
+    If 's_inputs' is missing from trunk_embeddings_internal, the function attempts to
+    retrieve it from input_features using the key 'sing'. If it is still not found, a fallback
+    zero tensor is created with a shape based on the number of tokens in 's_trunk' and an
+    embedding dimension obtained from the context's diffusion configuration. The resulting
+    tensor is then added to both trunk_embeddings_internal and original_trunk_embeddings_ref.
+      
     Args:
-        trunk_embeddings_internal: Processed trunk embeddings
-        original_trunk_embeddings_ref: Original trunk embeddings reference
-        input_features: Input features dictionary
-        context: Embedding context with configuration and device
+        trunk_embeddings_internal: Dictionary containing current trunk embeddings.
+        original_trunk_embeddings_ref: Reference dictionary for the original trunk embeddings.
+        input_features: Dictionary of input features, with a fallback key 'sing' for 's_inputs'.
+        context: Embedding context containing diffusion configuration and device information.
     """
     s_inputs = trunk_embeddings_internal.get("s_inputs")
     if s_inputs is None:
@@ -69,12 +75,13 @@ def ensure_z_trunk(
     context: EmbeddingContext,
 ) -> None:
     """
-    Ensure z_trunk (pair) exists in trunk_embeddings_internal, creating it if needed.
-
-    Args:
-        trunk_embeddings_internal: Processed trunk embeddings
-        original_trunk_embeddings_ref: Original trunk embeddings reference
-        context: Embedding context with configuration and device
+    Ensures that the 'pair' tensor (z_trunk) exists.
+    
+    If the 'pair' key is missing from trunk_embeddings_internal, a fallback zero tensor is created.
+    The tensor has a shape of (1, n_tokens, n_tokens, c_z_dim), where n_tokens is obtained from the
+    second dimension of the 's_trunk' tensor and c_z_dim is determined from the diffusion configuration
+    (using 128 as the default value). The created tensor is added to trunk_embeddings_internal and,
+    if not already present, to original_trunk_embeddings_ref.
     """
     z_trunk = trunk_embeddings_internal.get("pair")
     if z_trunk is None:
