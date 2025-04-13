@@ -1,7 +1,7 @@
 {
   "last_updated": "2025-04-12",
   "base_coverage": 80,
-  "current_coverage": 82.0,
+  "current_coverage": 81.5,
   "max_coverage": 95,
   "phase_coverage": {
     "exploration": {

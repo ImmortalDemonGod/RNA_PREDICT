@@ -1,0 +1,518 @@
+# protenix/model/utils.py
+# Copyright 2024 ByteDance and/or its affiliates.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""
+Tensor manipulation utility functions for RNA structure prediction.
+"""
+
+import warnings
+from typing import List, Optional, Union, Tuple
+
+import torch
+import torch.nn as nn
+
+
+def permute_final_dims(tensor: torch.Tensor, permutation: List[int]) -> torch.Tensor:
+    """
+    Permutes the final dimensions of a tensor.
+    """
+    return tensor.permute(
+        *range(len(tensor.shape) - len(permutation)),
+        *[i + len(tensor.shape) - len(permutation) for i in permutation],
+    )
+
+
+def flatten_final_dims(t: torch.Tensor, num_dims: int) -> torch.Tensor:
+    """Flatten final dims of tensor
+
+    Args:
+        t (torch.Tensor): the input tensor
+            [...]
+        num_dims (int): the number of final dims to flatten
+
+    Returns:
+        torch.Tensor: the flattened tensor
+    """
+    return t.reshape(shape=t.shape[:-num_dims] + (-1,))
+
+
+def one_hot(
+    x: torch.Tensor, lower_bins: torch.Tensor, upper_bins: torch.Tensor
+) -> torch.Tensor:
+    """Get one hot embedding of x from lower_bins and upper_bins
+    Args:
+        x (torch.Tensor): the input x
+            [...]
+        lower_bins (torch.Tensor): the lower bounds of bins
+            [bins]
+        upper_bins (torch.Tensor): the upper bounds of bins
+            [bins]
+    Returns:
+        torch.Tensor: the one hot embedding of x from v_bins
+            [..., bins]
+    """
+    dgram = (x[..., None] > lower_bins) * (x[..., None] < upper_bins).float()
+    return dgram
+
+
+def _prepare_batch_indices(
+    data: torch.Tensor, inds: torch.Tensor, no_batch_dims: int
+) -> List[torch.Tensor]:
+    """Prepare batch dimension indices for batched gather operation.
+
+    Args:
+        data: Input tensor [..., K, ...]
+        inds: Indices tensor [..., N]
+        no_batch_dims: Number of batch dimensions
+
+    Returns:
+        List of tensors for batch indexing
+    """
+    ranges = []
+    for i, s in enumerate(data.shape[:no_batch_dims]):
+        r = torch.arange(s, device=data.device)
+        # Create a shape that will broadcast with the final indexing operation
+        # For each batch dimension, we need a tensor that has the same shape as the batch part of data
+        # but with 1s in the non-batch dimensions
+        view_shape = [1] * len(data.shape)
+        view_shape[i] = s
+        r = r.view(*view_shape)
+        # Expand to match the batch dimensions of data
+        expand_shape = list(data.shape)
+        expand_shape[no_batch_dims:] = [1] * (len(data.shape) - no_batch_dims)
+        r = r.expand(*expand_shape)
+        ranges.append(r)
+    return ranges
+
+
+def _calculate_relative_dimension(
+    dim: int, non_batch_rank: int, no_batch_dims: int
+) -> int:
+    """Calculate the relative dimension in the non-batch part of the tensor.
+
+    Args:
+        dim: Original dimension
+        non_batch_rank: Number of non-batch dimensions
+        no_batch_dims: Number of batch dimensions
+
+    Returns:
+        Relative dimension index
+    """
+    relative_dim = (
+        dim - no_batch_dims if dim >= 0 else non_batch_rank + dim - no_batch_dims
+    )
+
+    # Validate the dimension
+    if not (0 <= relative_dim < non_batch_rank):
+        raise IndexError(
+            f"Dimension {dim} (relative index {relative_dim}) out of range for non-batch dimensions of length {non_batch_rank}"
+        )
+
+    return relative_dim
+
+
+def _prepare_2d_gather_indices(
+    data: torch.Tensor, inds: torch.Tensor
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    """Prepare gather indices for the 2D special case.
+
+    Args:
+        data: Input tensor [B, K]
+        inds: Indices tensor [B, N]
+
+    Returns:
+        Tuple of (batch_indices, gather_indices)
+    """
+    batch_size = data.shape[0]
+    # Create a tensor of batch indices: [[0,0,...], [1,1,...], ...]
+    batch_indices = (
+        torch.arange(batch_size, device=data.device)
+        .view(-1, 1)
+        .expand(-1, inds.shape[1])
+    )
+    return batch_indices, inds
+
+
+def _prepare_gather_dimension(
+    data: torch.Tensor, inds: torch.Tensor, dim: int, no_batch_dims: int
+) -> torch.Tensor:
+    """Prepare the gather dimension index tensor.
+
+    Args:
+        data: Input tensor [..., K, ...]
+        inds: Indices tensor [..., N]
+        dim: Dimension to gather from
+        no_batch_dims: Number of batch dimensions
+
+    Returns:
+        Properly shaped indices tensor for the gather dimension
+    """
+    # For the 2D case with dim=1 and no_batch_dims=1, we need special handling
+    if data.ndim == 2 and inds.ndim == 2 and dim == 1 and no_batch_dims == 1:
+        raise ValueError("2D case should be handled by _prepare_2d_gather_indices")
+
+    # Handle case where inds needs to be expanded to match batch dimensions
+    if inds.ndim < no_batch_dims + 1:
+        # Expand inds to match the number of batch dimensions + the gather dim
+        expand_shape = list(data.shape[:no_batch_dims]) + [-1]
+        try:
+            return inds.expand(*expand_shape)
+        except RuntimeError as e:
+            raise RuntimeError(
+                f"Cannot expand inds shape {inds.shape} to target {expand_shape} for broadcasting. Error: {e}"
+            ) from e
+    elif inds.ndim == no_batch_dims + 1:
+        return inds
+    else:
+        # This case might require more complex broadcasting logic or indicate an error
+        warnings.warn(
+            f"batched_gather: inds.ndim ({inds.ndim}) has more dimensions than expected ({no_batch_dims + 1}). Broadcasting might be complex or incorrect."
+        )
+        return inds  # Attempt anyway, PyTorch might handle it
+
+
+class GatherIndicesConfig:
+    """Configuration for gather indices construction.
+
+    This class encapsulates the parameters needed for constructing gather indices,
+    reducing the number of function arguments and improving code organization.
+    """
+
+    def __init__(
+        self,
+        data: torch.Tensor,
+        inds: torch.Tensor,
+        relative_dim: int,
+        no_batch_dims: int,
+    ):
+        self.data = data
+        self.inds = inds
+        self.relative_dim = relative_dim
+        self.no_batch_dims = no_batch_dims
+        self.non_batch_rank = len(data.shape) - no_batch_dims
+
+        # Create batch dimension ranges
+        self.ranges = _prepare_batch_indices(data, inds, no_batch_dims)
+
+
+def _construct_gather_indices(config: GatherIndicesConfig, dim: int) -> tuple:
+    """Construct the final index tuple for advanced indexing.
+
+    Args:
+        config: GatherIndicesConfig object containing all necessary parameters
+        dim: Dimension to gather from
+
+    Returns:
+        Tuple of indices for advanced indexing
+    """
+    # Special case for 2D tensors with dim=1 and no_batch_dims=1
+    if (
+        config.data.ndim == 2
+        and config.inds.ndim == 2
+        and dim == 1
+        and config.no_batch_dims == 1
+    ):
+        return _prepare_2d_gather_indices(config.data, config.inds)
+
+    # Construct the final index tuple for advanced indexing
+    final_inds_list: List[Union[torch.Tensor, slice]] = []
+    final_inds_list.extend(config.ranges)  # Add batch indices
+
+    # Add non-batch indices/slices
+    for i in range(config.non_batch_rank):
+        if i == config.relative_dim:
+            # Add the gather dimension index
+            gather_dim_index = _prepare_gather_dimension(
+                config.data, config.inds, dim, config.no_batch_dims
+            )
+            final_inds_list.append(gather_dim_index)
+        else:
+            final_inds_list.append(slice(None))
+
+    return tuple(final_inds_list)
+
+
+def _handle_simple_gather_case(
+    data: torch.Tensor, inds: torch.Tensor
+) -> Optional[torch.Tensor]:
+    """Handle the simple case of gathering data.
+
+    Args:
+        data: Input tensor
+        inds: Indices tensor
+
+    Returns:
+        Gathered data if simple case applies, None otherwise
+    """
+    if len(inds.shape) == 1 and inds.ndim == 1:
+        return data[inds]
+    return None
+
+
+class GatherConfig:
+    """Configuration for batched gather operation."""
+
+    def __init__(self, dim: int = 0, no_batch_dims: int = 0):
+        self.dim = dim
+        self.no_batch_dims = no_batch_dims
+
+    @property
+    def is_simple_case(self) -> bool:
+        """Check if this is a simple gather case."""
+        return self.dim == 0 and self.no_batch_dims == 0
+
+
+def batched_gather(
+    data: torch.Tensor, inds: torch.Tensor, dim: int = 0, no_batch_dims: int = 0
+) -> torch.Tensor:
+    """Gather data according to indices specify by inds
+
+    Args:
+        data (torch.Tensor): the input data [..., K, ...]
+        inds (torch.Tensor): the indices for gathering data [..., N]
+        dim (int, optional): along which dimension to gather data by inds (the dim of "K" "N"). Defaults to 0.
+        no_batch_dims (int, optional): length of dimensions before the "dim" dimension. Defaults to 0.
+
+    Returns:
+        torch.Tensor: gathered data [..., N, ...]
+    """
+    # Special case for 2D tensors with dim=1 and no_batch_dims=1
+    if data.ndim == 2 and inds.ndim == 2 and dim == 1 and no_batch_dims == 1:
+        # For this case, we can use a simpler approach with advanced indexing
+        batch_size = data.shape[0]
+        batch_indices = (
+            torch.arange(batch_size, device=data.device)
+            .view(-1, 1)
+            .expand(-1, inds.shape[1])
+        )
+        return data[batch_indices, inds]
+
+    # Create config object
+    config = GatherConfig(dim=dim, no_batch_dims=no_batch_dims)
+
+    # Try the simple case first
+    simple_result = _handle_simple_gather_case(data, inds)
+    if simple_result is not None and config.is_simple_case:
+        return simple_result
+
+    # Calculate and validate the relative dimension
+    non_batch_rank = len(data.shape) - config.no_batch_dims
+    relative_dim = _calculate_relative_dimension(
+        config.dim, non_batch_rank, config.no_batch_dims
+    )
+
+    # Create a GatherIndicesConfig and construct the final index tuple for advanced indexing
+    indices_config = GatherIndicesConfig(data, inds, relative_dim, config.no_batch_dims)
+    final_inds = _construct_gather_indices(indices_config, dim)
+
+    try:
+        return data[final_inds]
+    except IndexError as e:
+        # Provide more context on indexing errors
+        print("batched_gather failed with IndexError:")
+        print(f"  data.shape: {data.shape}")
+        print(f"  inds.shape: {inds.shape}")
+        print(f"  dim: {dim}, no_batch_dims: {no_batch_dims}")
+        print(f"  Calculated final_inds types: {[type(i) for i in final_inds]}")
+        print(
+            f"  Calculated final_inds shapes/values: {[(i.shape if isinstance(i, torch.Tensor) else i) for i in final_inds]}"
+        )
+        raise e
+
+
+def expand_at_dim(x: torch.Tensor, dim: int, n: int) -> torch.Tensor:
+    """expand a tensor at specific dim by n times
+
+    Args:
+        x (torch.Tensor): input
+        dim (int): dimension to expand
+        n (int): expand size
+
+    Returns:
+        torch.Tensor: expanded tensor of shape [..., n, ...]
+    """
+    x = x.unsqueeze(dim=dim)
+    # Recalculate dim relative to the new tensor shape after unsqueeze
+    actual_dim = dim if dim >= 0 else x.dim() + dim
+
+    before_shape = x.shape[:actual_dim]
+    after_shape = x.shape[actual_dim + 1 :]
+    return x.expand(*before_shape, n, *after_shape)
+
+
+def pad_at_dim(
+    x: torch.Tensor,
+    dim: int,
+    pad_length: Union[tuple[int, int], list[int]],
+    value: float = 0,
+) -> torch.Tensor:
+    """pad to input x at dimension dim with length pad_length[0] to the left and and pad_length[1] to the right.
+
+    Args:
+        x (torch.Tensor): input
+        dim (int): padding dimension
+        pad_length (Union[Tuple[int], List[int]]): length to pad to the beginning and end.
+
+    Returns:
+        torch.Tensor: padded tensor
+    """
+    n_dim = len(x.shape)
+    if not (-n_dim <= dim < n_dim):  # Added closing parenthesis
+        raise IndexError(
+            f"Dimension out of range (expected to be in range of [-{n_dim}, {n_dim - 1}], but got {dim})"
+        )
+
+    actual_dim = dim if dim >= 0 else n_dim + dim
+
+    # PyTorch pad expects pairs of (left, right) padding for each dimension, starting from the last
+    # We only want to pad along the specified dimension 'actual_dim'
+    pad_tuple = [0] * (2 * n_dim)
+    # Calculate the position for the padding values in the tuple
+    # Example: n_dim=4, actual_dim=1 => target indices 4, 5
+    # Example: n_dim=4, actual_dim=-2 (i.e., 2) => target indices 2, 3
+    pad_idx_start = 2 * (n_dim - 1 - actual_dim)
+    pad_tuple[pad_idx_start] = pad_length[0]  # Left padding
+    pad_tuple[pad_idx_start + 1] = pad_length[1]  # Right padding
+
+    if tuple(pad_tuple) == (0,) * (2 * n_dim):  # Check if padding is all zeros
+        return x
+
+    return nn.functional.pad(x, pad=tuple(pad_tuple), value=value)
+
+
+def _check_merge_dimensions(
+    x: torch.Tensor, actual_dim: int, target_shape: tuple
+) -> Optional[torch.Tensor]:
+    """Check if we can merge dimensions based on the target shape.
+
+    Args:
+        x: Input tensor
+        actual_dim: Actual dimension to reshape
+        target_shape: Target shape for the dimension
+
+    Returns:
+        Reshaped tensor if dimensions can be merged, None otherwise
+    """
+    if len(target_shape) == 1 and actual_dim > 0:
+        desired = target_shape[0]
+        combined = x.shape[actual_dim - 1] * x.shape[actual_dim]
+        if combined == desired:
+            shape_list = list(x.shape)
+            shape_list[actual_dim - 1] = desired  # Replace previous dim size
+            del shape_list[actual_dim]  # Delete current dim
+            return x.reshape(*shape_list)
+    return None
+
+
+def _standard_reshape(
+    x: torch.Tensor, actual_dim: int, target_shape: tuple
+) -> torch.Tensor:
+    """Perform standard reshaping of a single dimension.
+
+    Args:
+        x: Input tensor
+        actual_dim: Actual dimension to reshape
+        target_shape: Target shape for the dimension
+
+    Returns:
+        Reshaped tensor
+    """
+    shape_list = list(x.shape)
+    old_size = shape_list[actual_dim]
+
+    # Calculate product of target shape dimensions
+    new_prod = 1
+    for v in target_shape:
+        new_prod *= v
+
+    # Validate that the reshape is possible
+    if new_prod != old_size:
+        raise RuntimeError(
+            f"reshape_at_dim: can't reshape dimension {actual_dim} of size {old_size} into {target_shape} (product={new_prod})"
+        )
+
+    # Replace the single dimension size with the elements of target_shape
+    shape_list = (
+        shape_list[:actual_dim] + list(target_shape) + shape_list[actual_dim + 1 :]
+    )
+    return x.reshape(*shape_list)
+
+
+def reshape_at_dim(
+    x: torch.Tensor,
+    dim: int,
+    target_shape: Union[tuple[int, ...], list[int]],
+) -> torch.Tensor:
+    """
+    Reshape dimension 'dim' of x to 'target_shape'. If target_shape is a single-element
+    list and the product of x.shape[dim-1] and x.shape[dim] equals that element, then merge
+    the two dimensions (allowing partial flatten).
+
+    e.g. For x with shape [2,3,4,5] and dim=-2 (i.e. x.shape[-2] == 4), if target_shape is [12]
+         and 3*4==12, then merge dimensions 1 and 2 to obtain shape [2,12,5].
+
+    Args:
+        x (torch.Tensor): input
+        dim (int): dimension to reshape
+        target_shape (Union[Tuple[int, ...], List[int]]): target shape for the specified dimension
+
+    Returns:
+        torch.Tensor: reshaped tensor
+    """
+    # Validate dimension
+    n_dim = x.dim()
+    actual_dim = dim if dim >= 0 else n_dim + dim
+    if not (0 <= actual_dim < n_dim):
+        raise IndexError(f"Dimension out of range: {dim}")
+
+    # Convert target shape to tuple
+    tgt = tuple(target_shape)
+
+    # Try to merge dimensions if possible
+    merged = _check_merge_dimensions(x, actual_dim, tgt)
+    if merged is not None:
+        return merged
+
+    # Fall back to standard reshaping
+    return _standard_reshape(x, actual_dim, tgt)
+
+
+def move_final_dim_to_dim(x: torch.Tensor, dim: int) -> torch.Tensor:
+    """
+    Move the final dimension of a tensor to a specified dimension.
+
+    Args:
+        x (torch.Tensor): Input tensor.
+        dim (int): Target dimension to move the final dimension to.
+
+    Returns:
+        torch.Tensor: Tensor with the final dimension moved to the specified dimension.
+    """
+    n_dim = len(x.shape)
+    actual_dim = dim if dim >= 0 else n_dim + dim
+    if not (0 <= actual_dim < n_dim):
+        raise IndexError(
+            f"Target dimension {dim} out of range for tensor with {n_dim} dimensions."
+        )
+
+    if actual_dim == n_dim - 1:  # Already the last dimension
+        return x
+
+    # Create the permutation order
+    dims = list(range(n_dim))
+    final_dim_index = dims.pop(-1)  # Remove the last dimension index
+    dims.insert(actual_dim, final_dim_index)  # Insert it at the target position
+
+    return x.permute(dims)

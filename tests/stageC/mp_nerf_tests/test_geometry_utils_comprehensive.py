@@ -7,12 +7,11 @@ geometric operations.
 """
 
 import unittest
-from typing import Union, List, Tuple, Any
+from typing import List, Tuple
 
 import numpy as np
-import pytest
 import torch
-from hypothesis import given, strategies as st, settings, example
+from hypothesis import given, strategies as st, settings
 from hypothesis.extra.numpy import arrays
 
 from rna_predict.pipeline.stageC.mp_nerf.protein_utils.geometry_utils import (

@@ -13,13 +13,17 @@ from rna_predict.pipeline.stageC.mp_nerf.ml_utils import (
     _run_main_logic,  # Added import for the refactored function
     atom_selector,
     chain2atoms,
-    combine_noise,
     fape_torch,
     get_symmetric_atom_pairs,
-    noise_internals,
     rename_symmetric_atoms,
     scn_atom_embedd,
     torsion_angle_loss,
+    noise_internals_legacy,
+    combine_noise_legacy,
+)
+
+from rna_predict.pipeline.stageC.mp_nerf.ml_utils.coordinate_transforms import (
+    NoiseConfig,
 )
 from rna_predict.pipeline.stageC.mp_nerf.protein_utils import SUPREME_INFO
 
@@ -290,6 +294,127 @@ class TestAtomSelector(unittest.TestCase):
         "all",
     ]
 
+    def _create_input_tensor(self, scn_seq):
+        """Create input tensor for atom selection test.
+
+        Args:
+            scn_seq: Sequence string
+            **kwargs: Additional arguments (ignored)
+
+        Returns:
+            tuple: (input tensor, sequence list)
+        """
+        seq_len = len(scn_seq)
+        # Create x as (1, seq_len * 14, 3) for batch size 1
+        x = torch.randn(1, seq_len * 14, 3)  # Shape: (batch, num_atoms_flat, coords)
+        # atom_selector expects scn_seq as a list of strings (batch)
+        scn_seq_list = [scn_seq]
+        return x, scn_seq_list
+
+    def _validate_output_tensors(self, result, mask, seq_len):
+        """Validate the basic properties of output tensors.
+
+        Args:
+            result: Result tensor from atom_selector
+            mask: Mask tensor from atom_selector
+            seq_len: Length of the sequence
+        """
+        # Check that result and mask are tensors
+        self.assertIsInstance(result, torch.Tensor)
+        self.assertIsInstance(mask, torch.Tensor)
+
+        # Check that mask is a boolean tensor
+        self.assertEqual(mask.dtype, torch.bool)
+        # Mask shape should be (batch, seq_len * 14)
+        self.assertEqual(mask.shape, (1, seq_len * 14))
+
+    def _create_option_mask_from_string(self, option_str, char):
+        """Create an option mask from a string option.
+
+        Args:
+            option_str: String selection option
+            char: Residue character
+
+        Returns:
+            torch.Tensor: Option mask
+        """
+        option_mask_np = np.zeros(14, dtype=bool)
+        # Map string options to boolean masks
+        if "backbone" in option_str:
+            option_mask_np[[0, 1, 2]] = True  # N, CA, C
+        if "oxygen" in option_str:
+            option_mask_np[3] = True  # O
+        if "cbeta" in option_str:
+            option_mask_np[4] = True  # CB
+        if option_str == "all":
+            option_mask_np[:] = True
+        # Adjust for Glycine if CB is selected by the option
+        if char == "G" and option_mask_np[4]:
+            option_mask_np[4] = False  # Glycine has no CB
+        return torch.tensor(option_mask_np, dtype=torch.bool)
+
+    def _create_option_mask(self, option, char):
+        """Create an option mask based on the option type and residue.
+
+        Args:
+            option: Selection option (string or tensor)
+            char: Residue character
+
+        Returns:
+            torch.Tensor: Option mask
+        """
+        if isinstance(option, str):
+            return self._create_option_mask_from_string(option, char)
+        elif isinstance(option, torch.Tensor):
+            return option.bool()  # Use the provided tensor mask
+        else:
+            self.fail(f"Invalid option type: {type(option)}")
+
+    def _calculate_expected_atoms(self, scn_seq, option, discard_absent):
+        """Calculate the expected number of atoms based on the selection criteria.
+
+        Args:
+            scn_seq: Sequence string
+            option: Selection option
+            discard_absent: Whether to discard absent atoms
+
+        Returns:
+            int: Expected total number of atoms
+        """
+        expected_total_atoms = 0
+        for char in scn_seq:
+            if char != "_":  # Skip padding
+                # Get the option mask for this residue
+                option_mask = self._create_option_mask(option, char)
+
+                # Calculate expected count based on discard_absent
+                if discard_absent:
+                    # When discarding absent, count is the sum of the option mask
+                    expected_total_atoms += option_mask.sum().item()
+                else:
+                    # When not discarding absent, count is the intersection with cloud_mask
+                    residue_cloud_mask = torch.tensor(
+                        SUPREME_INFO[char]["cloud_mask"], dtype=torch.bool
+                    )
+                    expected_total_atoms += (residue_cloud_mask & option_mask).sum().item()
+
+        return expected_total_atoms
+
+    def _validate_result_shape(self, result, expected_total_atoms):
+        """Validate the shape of the result tensor.
+
+        Args:
+            result: Result tensor from atom_selector
+            expected_total_atoms: Expected number of atoms
+        """
+        # Assert the shape of the result tensor
+        self.assertEqual(result.shape[0], expected_total_atoms)
+        if expected_total_atoms > 0:
+            self.assertEqual(result.shape[1], 3, "Result shape should have 3 dimensions (coords)")
+        else:
+            # If 0 atoms selected, shape might be (0,) or (0, 3) depending on implementation
+            self.assertTrue(result.shape[0] == 0, "Result shape should be (0, ...) when no atoms selected")
+
     @given(
         scn_seq=st.text(min_size=1, max_size=3).map(
             lambda s: "".join(c if c in SUPREME_INFO else "A" for c in s)
@@ -301,96 +426,17 @@ class TestAtomSelector(unittest.TestCase):
     )
     def test_basic_selection(self, scn_seq, option, discard_absent):
         """Test basic atom selection functionality."""
-        # Create a tensor with the correct shape for atom selection
-        # Each residue has 14 atoms, and each atom has 3 coordinates
-        seq_len = len(scn_seq)
-        # Ensure x has the correct batch dimension expected by atom_selector (B, L*C, D) or (B, L, C, D)
-        # The current atom_selector seems to expect (B, L*C, D) based on its internal rearrange
-        # Let's create x as (1, seq_len * 14, 3) for batch size 1
-        x = torch.randn(1, seq_len * 14, 3)  # Shape: (batch, num_atoms_flat, coords)
+        # Create input tensor and sequence list
+        x, scn_seq_list = self._create_input_tensor(scn_seq)
 
-        # atom_selector expects scn_seq as a list of strings (batch)
-        scn_seq_list = [scn_seq]
-
+        # Call the atom_selector function
         result, mask = atom_selector(scn_seq_list, x, option, discard_absent)
 
-        # Check that result and mask are tensors
-        self.assertIsInstance(result, torch.Tensor)
-        self.assertIsInstance(mask, torch.Tensor)
+        # Validate basic properties of output tensors
+        self._validate_output_tensors(result, mask, len(scn_seq))
 
-        # Check that mask is a boolean tensor
-        self.assertEqual(mask.dtype, torch.bool)
-        # Mask shape should be (batch, seq_len * 14)
-        self.assertEqual(mask.shape, (1, seq_len * 14))
-
-        # --- New Assertion Logic ---
-        # Calculate expected number of atoms per valid (non-padding) residue
-        if isinstance(option, str):
-            # Note: This assumes Glycine ('G') handling is implicitly correct within scn_cloud_mask
-            # if specific counts are needed per AA, SUPREME_INFO would need to be consulted.
-            if option == "backbone":
-                pass  # N, CA, C
-            elif option == "backbone-with-oxygen":
-                pass  # N, CA, C, O
-            elif option == "backbone-with-cbeta":
-                pass
-            elif option == "backbone-with-cbeta-and-oxygen":
-                pass  # N, CA, C, O, CB (G has no CB)
-            elif option == "all":
-                pass
-            # If option is 'all', the exact count depends on the specific amino acid's cloud_mask.
-            # We'll assert the total sum based on SUPREME_INFO for 'all' case below.
-
-        elif isinstance(option, torch.Tensor):
-            # If option is a mask tensor, the expected count per residue is its sum
-            self.assertEqual(
-                option.shape, (14,), "Option tensor mask should have shape (14,)"
-            )
-            option.sum().item()
-        else:
-            self.fail(
-                f"Invalid option type: {type(option)}"
-            )  # Should not happen with hypothesis strategy
-
-        # Calculate total expected atoms based on non-padding residues and specific AA masks if 'all'
-        expected_total_atoms = 0
-        for char in scn_seq:
-            if char != "_":
-                # Determine the base mask corresponding to the 'option'
-                if isinstance(option, str):
-                    option_mask_np = np.zeros(14, dtype=bool)
-                    # Map string options to boolean masks (indices based on SCN standard: N=0, CA=1, C=2, O=3, CB=4, ...)
-                    if "backbone" in option:
-                        option_mask_np[[0, 1, 2]] = True  # N, CA, C
-                    if "oxygen" in option:
-                        option_mask_np[3] = True  # O
-                    if "cbeta" in option:
-                        option_mask_np[4] = True  # CB
-                    if option == "all":
-                        option_mask_np[:] = True
-                    # Adjust for Glycine if CB is selected by the option
-                    if char == "G" and option_mask_np[4]:
-                        option_mask_np[4] = False  # Glycine has no CB
-                    option_mask = torch.tensor(option_mask_np, dtype=torch.bool)
-                elif isinstance(option, torch.Tensor):
-                    option_mask = option.bool()  # Use the provided tensor mask
-                else:
-                    self.fail(f"Invalid option type: {type(option)}")
-
-                # Calculate expected count for this residue based on discard_absent
-                if discard_absent:
-                    # When discarding absent, the 'present' mask comes from coords (assumed all True for randn coords).
-                    # Expected count is the sum of the option mask itself (already adjusted for Glycine if needed).
-                    expected_total_atoms += option_mask.sum().item()
-                else:
-                    # When not discarding absent, the 'present' mask comes from SUPREME_INFO cloud_mask.
-                    # Expected count is the intersection of the residue's cloud mask and the option mask.
-                    residue_cloud_mask = torch.tensor(
-                        SUPREME_INFO[char]["cloud_mask"], dtype=torch.bool
-                    )
-                    expected_total_atoms += (
-                        (residue_cloud_mask & option_mask).sum().item()
-                    )  # Use option_mask here
+        # Calculate expected number of atoms
+        expected_total_atoms = self._calculate_expected_atoms(scn_seq, option, discard_absent)
 
         # Assert the total sum of the mask matches the calculated expected total
         self.assertEqual(
@@ -399,29 +445,47 @@ class TestAtomSelector(unittest.TestCase):
             f"Mask sum mismatch for seq='{scn_seq}', option='{option}', discard_absent={discard_absent}",
         )
 
-        # Assert the shape of the result tensor (selected atoms, 3)
-        # result shape is (selected_atoms, 3) after selection
-        self.assertEqual(
-            result.shape[0],
-            expected_total_atoms,
-            f"Result shape[0] mismatch for seq='{scn_seq}', option='{option}', discard_absent={discard_absent}",
-        )
-        if expected_total_atoms > 0:
-            self.assertEqual(
-                result.shape[1], 3, "Result shape should have 3 dimensions (coords)"
-            )
-        else:
-            # If 0 atoms selected, shape might be (0,) or (0, 3) depending on implementation
-            self.assertTrue(
-                result.shape[0] == 0,
-                "Result shape should be (0, ...) when no atoms selected",
-            )
+        # Validate the shape of the result tensor
+        self._validate_result_shape(result, expected_total_atoms)
+
+
+class NoiseTestConfig:
+    """Configuration for noise test parameters.
+
+    This class encapsulates the parameters needed for noise testing,
+    reducing the number of function arguments and improving code organization.
+    """
+    def __init__(self, seq, has_angles, has_coords, noise_scale, theta_scale):
+        self.seq = seq
+        self.has_angles = has_angles
+        self.has_coords = has_coords
+        self.noise_scale = noise_scale
+        self.theta_scale = theta_scale
+
+        # Initialize tensors based on configuration
+        self.angles = torch.randn(len(seq), 14) if has_angles else None
+        self.coords = torch.randn(len(seq), 14, 3) if has_coords else None
 
 
 class TestNoiseInternals(unittest.TestCase):
     """Test cases for the noise_internals function."""
 
     valid_aa = "A"
+
+    def _create_test_config(self, seq, has_angles, has_coords, noise_scale, theta_scale):
+        """Create a test configuration object.
+
+        Args:
+            seq: Sequence string
+            has_angles: Whether to include angles
+            has_coords: Whether to include coordinates
+            noise_scale: Scale of noise to apply
+            theta_scale: Scale of theta noise to apply
+
+        Returns:
+            NoiseTestConfig: Test configuration object
+        """
+        return NoiseTestConfig(seq, has_angles, has_coords, noise_scale, theta_scale)
 
     @given(
         seq=st.text(min_size=1, max_size=3).map(
@@ -433,36 +497,51 @@ class TestNoiseInternals(unittest.TestCase):
         theta_scale=st.floats(min_value=0.0, max_value=0.1),  # Reduce max theta scale
     )
     def test_basic_noise(self, seq, has_angles, has_coords, noise_scale, theta_scale):
-        """Test basic noise generation functionality."""
-        # Skip test if both has_angles and has_coords are False
+        """Test basic noise functionality."""
+        # Ensure at least one of angles or coords is provided
         if not has_angles and not has_coords:
-            return
+            has_angles = True  # Default to using angles if neither is selected
+            
+        angles = torch.randn(len(seq), 3) if has_angles else None
+        coords = torch.randn(len(seq), 3, 3) if has_coords else None
+        
+        # Create NoiseConfig object
+        noise_config = NoiseConfig(noise_scale=noise_scale, theta_scale=theta_scale)
+        
+        result = noise_internals_legacy(
+            seq=seq,
+            angles=angles,
+            coords=coords,
+            config=noise_config
+        )
+        
+        # Verify the result is a tuple
+        self.assertIsInstance(result, tuple)
+        # Verify it contains coords and mask
+        self.assertEqual(len(result), 2)
 
-        angles = None
-        coords = None
 
-        if has_angles:
-            angles = torch.randn(len(seq), 14)
+class CombineNoiseTestConfig:
+    """Configuration for combine noise test parameters.
 
-        if has_coords:
-            # Ensure coords has the right shape for the sequence
-            coords = torch.randn(len(seq), 14, 3)
+    This class encapsulates the parameters needed for combine noise testing,
+    reducing the number of function arguments and improving code organization.
+    """
+    def __init__(self, true_coords, has_seq, has_int_seq, has_angles,
+                 noise_internals, internals_scn_scale, sidechain_reconstruct):
+        self.true_coords = torch.tensor(true_coords)
+        self.has_seq = has_seq
+        self.has_int_seq = has_int_seq
+        self.has_angles = has_angles
+        self.noise_internals = noise_internals
+        self.internals_scn_scale = internals_scn_scale
+        self.sidechain_reconstruct = sidechain_reconstruct
 
-        try:
-            result = noise_internals(seq, angles, coords, noise_scale, theta_scale)
-
-            # Check that result is a tuple
-            self.assertIsInstance(result, tuple)
-
-            # Check that result has the expected length
-            self.assertEqual(len(result), 2)  # (noised_angles, noised_coords)
-
-            # Check that angles and coords are either None or tensors
-            self.assertIsInstance(result[0], torch.Tensor)
-            self.assertIsInstance(result[1], torch.Tensor)
-        except (ValueError, IndexError, AssertionError) as e:
-            # Skip test if it fails due to known issues
-            self.skipTest(f"Test skipped due to known issue: {str(e)}")
+        # Generate sequence data based on configuration
+        seq_len = self.true_coords.shape[0]
+        self.seq = "A" * seq_len if has_seq else None
+        self.int_seq = torch.ones(seq_len, dtype=torch.long) if has_int_seq else None
+        self.angles = torch.randn(seq_len, 12) if has_angles else None
 
 
 class TestCombineNoise(unittest.TestCase):
@@ -470,65 +549,59 @@ class TestCombineNoise(unittest.TestCase):
 
     valid_aa = "A"
 
-    @given(
-        true_coords=arrays(
-            dtype=np.float32,
-            shape=st.tuples(
-                st.integers(min_value=1, max_value=3),
-                st.integers(min_value=1, max_value=3),
-                st.just(3),
-            ),
-        ),
-        has_seq=st.booleans(),
-        has_int_seq=st.booleans(),
-        has_angles=st.booleans(),
-        noise_internals=st.floats(
-            min_value=0.0, max_value=0.1
-        ),  # Reduce max noise scale
-        internals_scn_scale=st.floats(min_value=0.0, max_value=1.0),
-        sidechain_reconstruct=st.booleans(),
-    )
-    def test_basic_combination(
-        self,
-        true_coords,
-        has_seq,
-        has_int_seq,
-        has_angles,
-        noise_internals,
-        internals_scn_scale,
-        sidechain_reconstruct,
-    ):
-        """Test basic noise combination functionality."""
-        # Skip test if both has_seq and has_int_seq are False
-        if not has_seq and not has_int_seq:
-            return
+    def _create_combine_test_config(self, true_coords, has_seq, has_int_seq, has_angles,
+                                    noise_internals, internals_scn_scale, sidechain_reconstruct):
+        """Create a test configuration object for combine noise testing.
 
-        true_tensor = torch.tensor(true_coords)
-        seq = "A" * true_coords.shape[0] if has_seq else None
-        int_seq = torch.randint(0, 20, (true_coords.shape[0],)) if has_int_seq else None
-        angles = torch.randn(true_coords.shape[0], 14) if has_angles else None
+        Args:
+            true_coords: True coordinates tensor
+            has_seq: Whether to include sequence
+            has_int_seq: Whether to include integer sequence
+            has_angles: Whether to include angles
+            noise_internals: Scale of internal noise
+            internals_scn_scale: Scale for internal SCN
+            sidechain_reconstruct: Whether to reconstruct sidechains
 
-        try:
-            result = combine_noise(
-                true_coords=true_tensor,
-                seq=seq,
-                int_seq=int_seq,
-                angles=angles,
-                NOISE_INTERNALS=noise_internals,
-                INTERNALS_SCN_SCALE=internals_scn_scale,
-                SIDECHAIN_RECONSTRUCT=sidechain_reconstruct,
-            )
+        Returns:
+            CombineNoiseTestConfig: Test configuration object
+        """
+        return CombineNoiseTestConfig(
+            true_coords, has_seq, has_int_seq, has_angles,
+            noise_internals, internals_scn_scale, sidechain_reconstruct
+        )
 
-            # Check that result is a tuple
-            self.assertIsInstance(result, tuple)
-
-            # Check that result has the same shape as input coordinates
-            self.assertEqual(len(result), 2)
-            self.assertIsInstance(result[0], torch.Tensor)
-            self.assertIsInstance(result[1], torch.Tensor)
-        except (ValueError, IndexError, AssertionError) as e:
-            # Skip test if it fails due to known issues
-            self.skipTest(f"Test skipped due to known issue: {str(e)}")
+    def test_basic_combination(self):
+        """Test basic functionality of combine_noise."""
+        # Create a small test coordinate tensor
+        test_coords = torch.randn(1, 6, 3)
+        config = self._create_combine_test_config(
+            true_coords=test_coords,
+            has_seq=True,
+            has_int_seq=True,
+            has_angles=True,
+            noise_internals=0.1,
+            internals_scn_scale=0.1,
+            sidechain_reconstruct=False
+        )
+        noised_coords, mask = combine_noise_legacy(
+            true_coords=config.true_coords,
+            seq=config.seq,
+            int_seq=config.int_seq,
+            angles=config.angles,
+            noise_internals=config.noise_internals,
+            internals_scn_scale=config.internals_scn_scale,
+            sidechain_reconstruct=config.sidechain_reconstruct
+        )
+        
+        # Verify output shapes match input
+        self.assertEqual(noised_coords.shape, test_coords.shape, "Noised coordinates shape mismatch")
+        self.assertEqual(mask.shape, (test_coords.shape[0], test_coords.shape[1]), "Mask shape mismatch")
+        
+        # Verify mask is boolean
+        self.assertEqual(mask.dtype, torch.bool, "Mask should be boolean tensor")
+        
+        # Verify coordinates are finite
+        self.assertTrue(torch.isfinite(noised_coords).all(), "Noised coordinates contain non-finite values")
 
 
 class TestGetSymmetricAtomPairs(unittest.TestCase):

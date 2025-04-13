@@ -4,12 +4,9 @@ Tests for sequence_utils.py module.
 This module tests the sequence extraction and processing utilities for Stage D diffusion.
 """
 
-import logging
-import os
 import pytest
 import torch
-from typing import Dict, List, Any
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 from hypothesis import given, strategies as st
 

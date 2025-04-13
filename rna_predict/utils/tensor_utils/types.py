@@ -6,7 +6,7 @@ package, including standard RNA atom definitions and residue-atom mapping types.
 """
 
 import logging
-from typing import Dict, List, TypeAlias
+from typing import List, TypeAlias
 
 # Type alias for residue-to-atom mapping
 ResidueAtomMap: TypeAlias = List[List[int]]
