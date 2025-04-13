@@ -8,7 +8,6 @@ import torch
 from hypothesis import given, settings
 from hypothesis import strategies as st
 from hypothesis.extra.numpy import arrays
-import random
 
 from rna_predict.pipeline.stageC.mp_nerf.ml_utils import (
     _run_main_logic,  # Added import for the refactored function
@@ -21,12 +20,9 @@ from rna_predict.pipeline.stageC.mp_nerf.ml_utils import (
     torsion_angle_loss,
     noise_internals_legacy,
     combine_noise_legacy,
-    process_coordinates,
 )
 
 from rna_predict.pipeline.stageC.mp_nerf.ml_utils.coordinate_transforms import (
-    combine_noise_legacy as combine_noise,
-    noise_internals_legacy as noise_internals,
     NoiseConfig,
 )
 from rna_predict.pipeline.stageC.mp_nerf.protein_utils import SUPREME_INFO

@@ -30,14 +30,9 @@ from hypothesis.strategies import booleans, floats, integers
 from rna_predict.pipeline.stageC.mp_nerf import ml_utils
 from rna_predict.pipeline.stageC.mp_nerf.ml_utils import (
     chain2atoms,
-    process_coordinates,
     rename_symmetric_atoms,
-    get_symmetric_atom_pairs,
-    atom_selector,
     scn_atom_embedd,
     torsion_angle_loss,
-    noise_internals_legacy,
-    combine_noise_legacy as combine_noise,
     fape_torch,
 )
 

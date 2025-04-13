@@ -116,16 +116,20 @@ def _create_presence_mask(
         pass_x = coords[i] if discard_absent and coords is not None else None
 
         # Convert tensor sequence to string if needed
-        if pass_x is None and isinstance(seq, torch.Tensor):
-            seq = "".join([INDEX2AAS[x] for x in seq.cpu().detach().tolist()])
+        if isinstance(seq, torch.Tensor):
+            # Convert tensor to string
+            seq_str: str = "".join([INDEX2AAS[x.item()] for x in seq.cpu().detach()])
+        else:
+            # We know seq must be str since it's from Union[List[str], List[torch.Tensor]]
+            seq_str = cast(str, seq)
 
         # Try/except to handle potential shape errors in scn_cloud_mask
         try:
-            present.append(scn_cloud_mask(seq, coords=pass_x))
+            present.append(scn_cloud_mask(seq_str, coords=pass_x))
         except Exception:
             # If we get an error, use a simplified approach
             # Determine sequence length correctly for str or Tensor
-            seq_len = seq.shape[0] if isinstance(seq, torch.Tensor) else len(seq)
+            seq_len = len(seq_str)
             present.append(torch.ones(seq_len, 14, dtype=torch.bool))
 
     # Stack masks into a batch

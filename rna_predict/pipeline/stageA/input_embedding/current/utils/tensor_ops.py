@@ -18,7 +18,7 @@ Tensor manipulation utility functions for RNA structure prediction.
 """
 
 import warnings
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Tuple
 
 import torch
 import torch.nn as nn
@@ -123,6 +123,28 @@ def _calculate_relative_dimension(
     return relative_dim
 
 
+def _prepare_2d_gather_indices(
+    data: torch.Tensor, inds: torch.Tensor
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    """Prepare gather indices for the 2D special case.
+
+    Args:
+        data: Input tensor [B, K]
+        inds: Indices tensor [B, N]
+
+    Returns:
+        Tuple of (batch_indices, gather_indices)
+    """
+    batch_size = data.shape[0]
+    # Create a tensor of batch indices: [[0,0,...], [1,1,...], ...]
+    batch_indices = (
+        torch.arange(batch_size, device=data.device)
+        .view(-1, 1)
+        .expand(-1, inds.shape[1])
+    )
+    return batch_indices, inds
+
+
 def _prepare_gather_dimension(
     data: torch.Tensor, inds: torch.Tensor, dim: int, no_batch_dims: int
 ) -> torch.Tensor:
@@ -139,17 +161,7 @@ def _prepare_gather_dimension(
     """
     # For the 2D case with dim=1 and no_batch_dims=1, we need special handling
     if data.ndim == 2 and inds.ndim == 2 and dim == 1 and no_batch_dims == 1:
-        # In this case, we need to create indices that will select elements from each row
-        # based on the indices in inds
-        batch_size = data.shape[0]
-        # Create a tensor of batch indices: [[0,0,...], [1,1,...], ...]
-        batch_indices = (
-            torch.arange(batch_size, device=data.device)
-            .view(-1, 1)
-            .expand(-1, inds.shape[1])
-        )
-        # The final indices will be a tuple (batch_indices, inds)
-        return batch_indices, inds
+        raise ValueError("2D case should be handled by _prepare_2d_gather_indices")
 
     # Handle case where inds needs to be expanded to match batch dimensions
     if inds.ndim < no_batch_dims + 1:
@@ -212,10 +224,7 @@ def _construct_gather_indices(config: GatherIndicesConfig, dim: int) -> tuple:
         and dim == 1
         and config.no_batch_dims == 1
     ):
-        batch_indices, gather_indices = _prepare_gather_dimension(
-            config.data, config.inds, dim, config.no_batch_dims
-        )
-        return (batch_indices, gather_indices)
+        return _prepare_2d_gather_indices(config.data, config.inds)
 
     # Construct the final index tuple for advanced indexing
     final_inds_list: List[Union[torch.Tensor, slice]] = []
