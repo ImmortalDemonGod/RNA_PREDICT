@@ -29,18 +29,8 @@ def sample_indices(
     strategy: str = "random",
     device: Optional[torch.device] = None,
 ) -> torch.Tensor:
-    """
-    Sample indices using specified strategy.
-
-    Args:
-        n: Total number of indices to sample from
-        sample_size: Number of indices to sample
-        strategy: Sampling strategy ('random' or 'topk')
-        device: Device to place the output tensor on
-
-    Returns:
-        Tensor of sampled indices
-    """
+    assert n >= 0, f"Number of items n must be non-negative, got {n}"
+    assert sample_size >= 0, f"sample_size must be non-negative, got {sample_size}"
     assert strategy in ["random", "topk"], f"Invalid sampling strategy: {strategy}"
     assert sample_size <= n, f"Cannot sample {sample_size} items from {n} items"
 
@@ -54,7 +44,6 @@ def sample_indices(
     else:
         raise ValueError(f"Invalid sampling strategy: {strategy}")
     return indices
-
 
 def sample_msa_feature_dict_random_without_replacement(
     feat_dict: Dict[str, torch.Tensor],
