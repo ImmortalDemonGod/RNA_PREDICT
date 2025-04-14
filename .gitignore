@@ -189,3 +189,4 @@ tasks/
 scripts/
 run-task-master.js
 .coverage_config.json
+*.sqlite
