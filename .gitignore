@@ -159,6 +159,10 @@ memory_logs/*
 memory_usage.csv
 vscode-diagnostics-exporter/
 
+# Output files
+outputs/
+*.output
+
 # Added by Claude Task Master
 # Logs
 logs
