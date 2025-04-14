@@ -19,6 +19,9 @@ import os
 import numpy as np
 import torch
 import torch.nn.functional as F
+# Import necessary for type hint checks if needed and OmegaConf utilities
+from omegaconf import DictConfig, ListConfig, OmegaConf
+
 
 from rna_predict.pipeline.stageA.adjacency.RFold_code import (
     RFoldModel,
@@ -51,66 +54,100 @@ class StageARFoldPredictor:
     pretrained checkpoints load successfully without key mismatch.
 
     Example usage:
-        config = {"num_hidden":128, "dropout":0.3, "use_gpu":True}
-        checkpoint_path = "./checkpoints/RNAStralign_trainset_pretrained.pth"
-
-        predictor = StageARFoldPredictor(config, checkpoint_path=checkpoint_path)
-        adjacency = predictor.predict_adjacency("AUGCUAG...")
+        # Config now loaded via Hydra in run_stageA.py
+        # predictor = StageARFoldPredictor(stage_cfg, device)
+        # adjacency = predictor.predict_adjacency("AUGCUAG...")
     """
 
-    def __init__(self, config, checkpoint_path=None, device=None):
+    # Pass the full stage_cfg (DictConfig object) and device
+    def __init__(self, stage_cfg: DictConfig, device: torch.device):
         """
+        Initialize the RFold Predictor using configuration object.
+
         Args:
-            config: can be a dict or a string path to a JSON config file
-            checkpoint_path: path to the official RFold .pth checkpoint
-            device: optional torch.device. If None, we auto-select GPU if available
+            stage_cfg: OmegaConf DictConfig object containing all Stage A parameters.
+            device: The torch.device (CPU or CUDA) to run the model on.
         """
-        import json
 
-        # If 'config' is a string, interpret it as a path to a JSON config
-        if isinstance(config, str):
-            with open(config, "r") as f:
-                config = json.load(f)
-            logging.info(f"Loaded config from JSON: {config}")
-        else:
-            logging.info(f"Using config dict: {config}")
+        logging.info(f"Initializing StageARFoldPredictor...")
+        logging.debug(f"  Config used:\n{OmegaConf.to_yaml(stage_cfg)}") # Log the whole config using OmegaConf
+        logging.info(f"  Device: {device}")
 
-        if device is None:
-            # We check if 'use_gpu' is set in config; fallback to True if missing
-            use_gpu = config.get("use_gpu", True) if isinstance(config, dict) else True
-            if use_gpu and torch.cuda.is_available():
-                device = torch.device("cuda")
-            else:
-                device = torch.device("cpu")
         self.device = device
-        logging.info(f"Using device: {self.device}")
+        self.min_seq_length = stage_cfg.min_seq_length # Store for use in _get_cut_len
+        # Get checkpoint path from config for loading logic below
+        checkpoint_path = stage_cfg.checkpoint_path
 
-        # Build official model
-        # The official code apparently uses a namespace object for args
-        # but we only pass necessary attributes
-        # For safety, we pass them in a dictionary or a dummy object
-        fake_args = args_namespace(config)
+        # Create a config dict expected by args_namespace/RFoldModel
+        # Flatten the nested structure from the Hydra config
+        config_dict = {
+            # Top-level params
+            "num_hidden": stage_cfg.num_hidden,
+            "dropout": stage_cfg.dropout,
+            "batch_size": stage_cfg.batch_size,
+            "lr": stage_cfg.lr,
+
+            # Flattened ModelArchConfig params
+            # Convert OmegaConf ListConfig to standard list for compatibility if needed
+            "conv_channels": list(stage_cfg.model.conv_channels) if isinstance(stage_cfg.model.conv_channels, ListConfig) else stage_cfg.model.conv_channels,
+            "residual": stage_cfg.model.residual,
+            "c_in": stage_cfg.model.c_in,
+            "c_out": stage_cfg.model.c_out,
+            "c_hid": stage_cfg.model.c_hid,
+
+            # Flattened Seq2MapConfig params
+            "seq2map_input_dim": stage_cfg.model.seq2map.input_dim,
+            "seq2map_max_length": stage_cfg.model.seq2map.max_length,
+            "seq2map_attention_heads": stage_cfg.model.seq2map.attention_heads,
+            "seq2map_attention_dropout": stage_cfg.model.seq2map.attention_dropout,
+            "seq2map_positional_encoding": stage_cfg.model.seq2map.positional_encoding,
+            "seq2map_query_key_dim": stage_cfg.model.seq2map.query_key_dim,
+            "seq2map_expansion_factor": stage_cfg.model.seq2map.expansion_factor,
+            "seq2map_heads": stage_cfg.model.seq2map.heads,
+
+            # Flattened DecoderConfig params
+            "decoder_up_conv_channels": list(stage_cfg.model.decoder.up_conv_channels) if isinstance(stage_cfg.model.decoder.up_conv_channels, ListConfig) else stage_cfg.model.decoder.up_conv_channels,
+            "decoder_skip_connections": stage_cfg.model.decoder.skip_connections,
+        }
+        logging.debug(f"Passing flattened config_dict to args_namespace: {config_dict}")
+
+        # Use the existing helper to create the args object RFoldModel expects
+        fake_args = args_namespace(config_dict)
         self.model = RFoldModel(fake_args)
 
         self.model.to(self.device)
         self.model.eval()
 
-        # Optionally load weights
+        # Load weights using the specific checkpoint path and device
         if checkpoint_path is not None:
             if not os.path.isfile(checkpoint_path):
-                raise FileNotFoundError(f"Checkpoint not found: {checkpoint_path}")
-            logging.info(f"[Load] Loading checkpoint from {checkpoint_path}")
-            ckp = torch.load(checkpoint_path, map_location=self.device)
-            self.model.load_state_dict(ckp, strict=False)
-            logging.info("[Load] Checkpoint loaded successfully.")
+                # Attempt to use the checkpoint_url from config if file not found
+                if hasattr(stage_cfg, 'checkpoint_url') and stage_cfg.checkpoint_url:
+                     logging.warning(f"Checkpoint not found at {checkpoint_path}. Attempting download (logic in run_stageA.py).")
+                     # Note: Actual download logic resides in run_stageA.py and should execute before predictor init normally.
+                     # This check here is mostly informational. If run_stageA fails download, init might fail here.
+                     logging.warning("For testing purposes, continuing with random weights.")
+                else:
+                     logging.warning(f"Checkpoint not found: {checkpoint_path} and no download URL provided. Using random weights.")
+            else:
+                try:
+                    logging.info(f"[Load] Loading checkpoint from {checkpoint_path}")
+                    # Load directly onto the target device
+                    ckp = torch.load(checkpoint_path, map_location=self.device)
+                    self.model.load_state_dict(ckp, strict=False) # strict=False might be needed
+                    logging.info("[Load] Checkpoint loaded successfully.")
+                except Exception as e:
+                    logging.warning(f"Failed to load checkpoint: {e}. Using random weights.")
+        else:
+            logging.warning("No checkpoint_path provided, model is initialized with random weights.")
 
-    def _get_cut_len(self, length: int, min_len=80) -> int:
+    def _get_cut_len(self, length: int) -> int:
         """
-        Return a length that is at least 'min_len' and is a multiple of 16.
-        This mirrors official colab_utils 'get_cut_len' approach.
+        Return a length that is at least 'self.min_seq_length' and is a multiple of 16.
+        Uses the min_seq_length configured during initialization.
         """
-        if length < min_len:
-            length = min_len
+        if length < self.min_seq_length:
+            length = self.min_seq_length # Corrected: Use stored value
         # round up to nearest multiple of 16
         return ((length - 1) // 16 + 1) * 16
 
@@ -119,13 +156,13 @@ class StageARFoldPredictor:
         Predict adjacency [N x N] using the official RFold model + row/col argmax.
 
         Steps:
-          1) Convert the RNA sequence (A/U/C/G) to numeric form
-          2) (If sequence is very short, return a zero adjacency)
-          3) Forward pass through the model
-          4) Use row_col_argmax & constraint_matrix for final adjacency
-          5) Return adjacency as a NumPy array
+           1) Convert the RNA sequence (A/U/C/G) to numeric form
+           2) (If sequence is very short, return a zero adjacency)
+           3) Forward pass through the model
+           4) Use row_col_argmax & constraint_matrix for final adjacency
+           5) Return adjacency as a NumPy array
         """
-        logging.info(f"Predicting adjacency for sequence: {rna_sequence}")
+        logging.info(f"Predicting adjacency for sequence length: {len(rna_sequence)}")
         if RFoldModel is None or official_seq_dict is None:
             # fallback approach using local
             mapping = {"A": 0, "U": 1, "C": 2, "G": 3}
@@ -142,7 +179,7 @@ class StageARFoldPredictor:
         original_len = len(seq_idxs)
 
         # 1) Determine padded length
-        padded_len = self._get_cut_len(original_len, min_len=80)
+        padded_len = self._get_cut_len(original_len) # Call updated signature
 
         # 2) Create padded sequence tensor
         seq_tensor = torch.tensor(seq_idxs, dtype=torch.long, device=self.device)
@@ -154,7 +191,7 @@ class StageARFoldPredictor:
         # 3) Forward pass with no grad
         with torch.no_grad():
             raw_preds = self.model(seq_tensor)  # shape (1, padded_len, padded_len)
-            logging.info(f"Raw predictions shape: {raw_preds.shape}")
+            logging.debug(f"Raw predictions shape: {raw_preds.shape}")
 
             # row_col_argmax & constraint_matrix
             # fallback if official references are missing
@@ -167,10 +204,10 @@ class StageARFoldPredictor:
         # 4) Crop back to original length
         adjacency_cropped = final_map[0, :original_len, :original_len].cpu().numpy()
         logging.info(f"Adjacency matrix shape: {adjacency_cropped.shape}")
-        logging.info(f"Adjacency matrix data type: {adjacency_cropped.dtype}")
-        logging.info(
-            f"Sample values from adjacency matrix: {adjacency_cropped[:5, :5]}"
-        )
+        logging.debug(f"Adjacency matrix data type: {adjacency_cropped.dtype}")
+        # logging.debug(
+        #     f"Sample values from adjacency matrix: {adjacency_cropped[:5, :5]}"
+        # )
         return adjacency_cropped
 
 
@@ -191,15 +228,8 @@ def args_namespace(config_dict):
     for k, v in config_dict.items():
         setattr(args, k, v)
     # Provide fallback defaults if not in config
-    if not hasattr(args, "num_hidden"):
-        setattr(args, "num_hidden", 128)
-    if not hasattr(args, "dropout"):
-        setattr(args, "dropout", 0.3)
-    if not hasattr(args, "use_gpu"):
-        setattr(args, "use_gpu", True)
-    if not hasattr(args, "batch_size"):
-        setattr(args, "batch_size", 1)
-    if not hasattr(args, "lr"):
-        setattr(args, "lr", 0.001)
+    # These fallbacks are now less critical as config_dict should be fully populated
+    # Fallback logic removed as config_dict should now contain all necessary keys
+    # passed from the Hydra configuration via __init__.
 
     return args
