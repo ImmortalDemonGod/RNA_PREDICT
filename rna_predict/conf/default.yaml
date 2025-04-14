@@ -1,0 +1,10 @@
+# rna_predict/conf/default.yaml
+# Main Hydra configuration file
+
+defaults:
+  - model/stageA   # Load Stage A config by default
+  - _self_         # Allows merging this file's contents last (if any are added later)
+
+# Optional: Add other top-level parameters here if needed, e.g.:
+# project_name: "RNA_PREDICT"
+# version: "0.1.3"
