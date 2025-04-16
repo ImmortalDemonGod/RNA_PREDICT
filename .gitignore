@@ -185,3 +185,8 @@ tasks/
 scripts/
 run-task-master.js
 .coverage_config.json
+predict_test.ct
+
+# Mutation test reports
+reports/mutation_tests/*.rst
+!reports/mutation_tests/.gitkeep
