@@ -56,7 +56,9 @@ rna_predict = "rna_predict.__main__:main"
 
 [dependency-groups]
 dev = [
+    "cosmic-ray>=8.4.1",
     "mkdocs>=1.6.1",
+    "mutatest>=2.0.1",
     "pydeps>=3.0.1",
     "pytest-asyncio>=0.25.3",
     "pytest-cov>=6.0.0",
