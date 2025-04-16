@@ -1,0 +1,28 @@
+# rna_predict/conf/model/stageB_pairformer.yaml
+pairformer:
+  n_blocks: 48                 # Default number of Pairformer blocks
+  n_heads: 16                  # Default number of attention heads
+  c_z: 128                     # Pair representation dimension
+  c_s: 384                     # Single representation dimension
+  dropout: 0.25                # Default dropout rate
+  use_memory_efficient_kernel: false # Default memory optimization setting
+  use_deepspeed_evo_attention: false # Default DeepSpeed attention setting
+  use_lma: false               # Default LMA setting
+  inplace_safe: false          # Default inplace operation setting
+  chunk_size: null             # Default chunk size for attention
+
+  # Additional parameters from the guide's example structure
+  c_hidden_mul: 128            # Multiplier for hidden dimension in TriangleAttention
+  c_hidden_pair_att: 32        # Hidden dimension for pairwise attention
+  no_heads_pair: 4             # Number of heads for pairwise attention
+
+  # Adjacency logic (keep default as false)
+  init_z_from_adjacency: false
+
+  # LoRA config (optional - keep disabled by default)
+  # lora:
+  #   enabled: false
+  #   r: 8
+  #   alpha: 16
+  #   dropout: 0.1
+  #   target_modules: []
