@@ -1,0 +1,37 @@
+# cosmic-ray.dev.toml
+[cosmic-ray]
+module-path = "rna_predict"
+test-command = "pytest tests -k 'not slow'"
+timeout = 300.0 # 5 minutes to avoid timeouts
+excluded-modules = [
+    "tests/**",      # Exclude the main test directory
+    "docs/**",       # Exclude documentation files
+    "rna_predict/scripts/**", # Exclude scripts directory
+    # Add more specific exclusions if needed
+]
+
+# Distributor config - using HTTP for parallelism
+[cosmic-ray.distributor]
+name = "http"
+
+[cosmic-ray.distributor.http]
+# Define worker URLs - adjust the number based on your CPU cores
+# A good rule of thumb is to use (CPU cores - 1) workers
+worker-urls = [
+    "http://localhost:9876",
+    "http://localhost:9877",
+    "http://localhost:9878",
+    "http://localhost:9879",
+    "http://localhost:9880",
+    "http://localhost:9881",
+    "http://localhost:9882",
+    "http://localhost:9883"
+]
+
+# Operator filter configuration to skip certain types of mutations
+[cosmic-ray.filters.operators-filter]
+# Skip mutations that are likely to be equivalent
+exclude-operators = [
+    "core/ReplaceBreakWithContinue",
+    "core/ReplaceContinueWithBreak"
+]

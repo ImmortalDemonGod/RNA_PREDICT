@@ -1,0 +1,259 @@
+{
+  "meta": {
+    "generatedAt": "2025-04-09T22:10:05.806Z",
+    "tasksAnalyzed": 31,
+    "thresholdScore": 5,
+    "projectName": "Your Project Name",
+    "usedResearch": false
+  },
+  "complexityAnalysis": [
+    {
+      "taskId": 35,
+      "taskTitle": "M2-Prep Finalize/Create Inference Script (predict.py)",
+      "complexityScore": 7,
+      "recommendedSubtasks": 4,
+      "expansionPrompt": "Break down the development of predict.py into sequential implementation steps, focusing on checkpoint loading, inference pipeline setup, input sequence handling, and PDB output generation.",
+      "reasoning": "This task involves creating a comprehensive inference script that handles model loading, input processing, inference execution, and output generation. The complexity comes from integrating multiple components (Hydra config, partial checkpoint loading, inference pipeline, PDB saving) and ensuring proper error handling. Four subtasks would effectively cover the checkpoint loading logic, inference pipeline setup, input sequence processing, and output generation functionality."
+    },
+    {
+      "taskId": 34,
+      "taskTitle": "M2-Prep Implement Debug Configuration Flags",
+      "complexityScore": 5,
+      "recommendedSubtasks": 3,
+      "expansionPrompt": "Divide the implementation of debug configuration flags into logical steps covering schema definition, YAML configuration setup, and integration with existing code modules.",
+      "reasoning": "This task requires adding debug configuration options using Hydra. It's moderately complex as it involves creating a new configuration schema, updating YAML files, and integrating these flags throughout the codebase. Three subtasks would cover schema definition, configuration file updates, and code integration points effectively."
+    },
+    {
+      "taskId": 33,
+      "taskTitle": "M2-Prep Implement Basic Visualization Utilities & Hooks",
+      "complexityScore": 6,
+      "recommendedSubtasks": 3,
+      "expansionPrompt": "Break down the visualization utilities implementation into steps for PDB file generation, torsion angle plotting, and integration with the validation cycle.",
+      "reasoning": "This task involves creating visualization utilities for PDB structures and angle plots, then integrating them into the validation process. The complexity comes from handling tensor data conversion for visualization and conditional execution based on configuration. Three subtasks would effectively cover PDB generation, angle plotting, and validation cycle integration."
+    },
+    {
+      "taskId": 32,
+      "taskTitle": "M2-Prep Implement Intermediate Tensor Statistics Logging",
+      "complexityScore": 5,
+      "recommendedSubtasks": 3,
+      "expansionPrompt": "Divide the tensor statistics logging implementation into steps for identifying key tensors, calculating statistics, and integrating with the validation pipeline.",
+      "reasoning": "This task requires adding logging for tensor statistics during validation. It's moderately complex as it involves identifying important tensors, calculating relevant statistics, and integrating with the Lightning module. Three subtasks would cover tensor identification, statistics calculation, and validation integration effectively."
+    },
+    {
+      "taskId": 31,
+      "taskTitle": "M2-Prep Implement Gradient Norm Logging Callback",
+      "complexityScore": 6,
+      "recommendedSubtasks": 3,
+      "expansionPrompt": "Break down the gradient norm logging callback implementation into steps for callback structure creation, parameter group identification, and hook implementation with logging.",
+      "reasoning": "This task involves creating a PyTorch Lightning callback to log gradient norms for different parameter groups. The complexity comes from filtering parameters correctly, calculating norms, and integrating with Lightning's callback system. Three subtasks would effectively cover callback structure, parameter grouping, and hook implementation with logging."
+    },
+    {
+      "taskId": 30,
+      "taskTitle": "M2-Prep Implement Intermediate Loss Calculation & Logging",
+      "complexityScore": 5,
+      "recommendedSubtasks": 3,
+      "expansionPrompt": "Divide the intermediate loss implementation into steps for loss function definition, integration with training/validation steps, and configurable weighting.",
+      "reasoning": "This task requires calculating and logging intermediate losses (torsion angles, 2D) in addition to the final loss. It's moderately complex as it involves modifying the Lightning module, ensuring proper loss calculation, and making weights configurable. Three subtasks would cover loss function definition, training/validation integration, and configuration setup effectively."
+    },
+    {
+      "taskId": 29,
+      "taskTitle": "M2-Test Ensure Adaptive LN Conditioning is Correctly Handled",
+      "complexityScore": 6,
+      "recommendedSubtasks": 3,
+      "expansionPrompt": "Break down the Adaptive LayerNorm testing into steps for test setup with matching shapes, test cases for mismatched shapes, and documentation updates.",
+      "reasoning": "This task involves testing Adaptive LayerNorm conditioning with different shape scenarios and updating documentation. The complexity comes from setting up various test cases and ensuring proper handling of shape mismatches. Three subtasks would effectively cover matched shape testing, mismatched shape testing, and documentation updates."
+    },
+    {
+      "taskId": 28,
+      "taskTitle": "M2-Test Inference Integration Test with Partial Checkpoint",
+      "complexityScore": 7,
+      "recommendedSubtasks": 4,
+      "expansionPrompt": "Divide the inference integration test implementation into steps for test setup, partial checkpoint creation/loading, inference execution, and output validation.",
+      "reasoning": "This task requires creating an integration test for the inference script with partial checkpoints. The complexity comes from setting up a realistic test environment, creating/loading partial checkpoints, running inference, and validating outputs. Four subtasks would cover test setup, checkpoint handling, inference execution, and output validation effectively."
+    },
+    {
+      "taskId": 27,
+      "taskTitle": "M2-Test Increase Coverage in Stage B's main.py",
+      "complexityScore": 5,
+      "recommendedSubtasks": 3,
+      "expansionPrompt": "Break down the test coverage improvement for Stage B's main.py into steps for test case design, mock data creation, and error condition testing.",
+      "reasoning": "This task involves increasing test coverage for Stage B's main.py from 29% to a higher level. It's moderately complex as it requires understanding the existing code, designing effective test cases, and handling various conditions. Three subtasks would cover test case design, mock data creation, and error condition testing effectively."
+    },
+    {
+      "taskId": 26,
+      "taskTitle": "M2-Test Hydra Config Tests",
+      "complexityScore": 4,
+      "recommendedSubtasks": 3,
+      "expansionPrompt": "Divide the Hydra config testing into steps for default config validation, override testing, and field completeness verification.",
+      "reasoning": "This task requires testing Hydra configuration loading and overriding. It's moderately complex as it involves understanding Hydra's configuration system and verifying correct behavior. Three subtasks would cover default config testing, override testing, and field validation effectively."
+    },
+    {
+      "taskId": 25,
+      "taskTitle": "M2-Test Verify Partial Checkpoint Cycle",
+      "complexityScore": 6,
+      "recommendedSubtasks": 3,
+      "expansionPrompt": "Break down the partial checkpoint cycle verification into steps for checkpoint creation, reloading validation, and inference testing after loading.",
+      "reasoning": "This task involves testing the saving and loading of partial checkpoints (only trainable parameters). The complexity comes from setting up a test environment, creating partial checkpoints, and verifying correct loading and inference. Three subtasks would effectively cover checkpoint creation, loading validation, and post-load inference testing."
+    },
+    {
+      "taskId": 24,
+      "taskTitle": "M2-Test Check That Only LoRA + New Modules Get Gradients",
+      "complexityScore": 5,
+      "recommendedSubtasks": 3,
+      "expansionPrompt": "Divide the gradient flow testing into steps for test setup with dummy forward pass, gradient checking for LoRA/new modules, and verification of frozen base parameters.",
+      "reasoning": "This task requires verifying that only LoRA adapters and new modules receive gradients, while base model parameters remain frozen. It's moderately complex as it involves setting up a test environment, running a forward/backward pass, and checking gradients. Three subtasks would cover test setup, gradient checking for trainable parameters, and verification of frozen parameters effectively."
+    },
+    {
+      "taskId": 23,
+      "taskTitle": "M2-Test End-to-End Pipeline Test (A→B→(C)→Merger→D)",
+      "complexityScore": 8,
+      "recommendedSubtasks": 4,
+      "expansionPrompt": "Break down the end-to-end pipeline test implementation into steps for test dataset creation, pipeline configuration, execution with shape validation at each stage, and final output verification.",
+      "reasoning": "This task involves creating an integration test for the entire pipeline from Stage A to Stage D. The complexity is high due to the need to set up a realistic test environment, configure the pipeline, run all stages, and validate outputs at each step. Four subtasks would effectively cover test dataset creation, pipeline configuration, stage-by-stage execution with validation, and final output verification."
+    },
+    {
+      "taskId": 22,
+      "taskTitle": "M2-Test Add Tests for trunk_processing.py Intermediate Feature Flow",
+      "complexityScore": 5,
+      "recommendedSubtasks": 3,
+      "expansionPrompt": "Divide the trunk_processing.py testing into steps for test case design with realistic shapes, transformation verification, and error handling validation.",
+      "reasoning": "This task requires increasing test coverage for trunk_processing.py from 29% to a higher level. It's moderately complex as it involves understanding the intermediate feature transformations, designing effective test cases, and validating shape correctness. Three subtasks would cover test case design, transformation verification, and error handling validation effectively."
+    },
+    {
+      "taskId": 21,
+      "taskTitle": "M2-Test Improve Test Coverage for masking_padding_utils.py",
+      "complexityScore": 5,
+      "recommendedSubtasks": 3,
+      "expansionPrompt": "Break down the masking_padding_utils.py test coverage improvement into steps for test case design with variable-length sequences, collation function testing, and edge case validation.",
+      "reasoning": "This task involves increasing test coverage for masking_padding_utils.py from 21% to a higher level. It's moderately complex as it requires understanding padding and masking operations, designing effective test cases with variable-length sequences, and handling edge cases. Three subtasks would cover test case design, collation function testing, and edge case validation effectively."
+    },
+    {
+      "taskId": 20,
+      "taskTitle": "M2-Test Increase Coverage for dense_trunk.py in Stage A",
+      "complexityScore": 5,
+      "recommendedSubtasks": 3,
+      "expansionPrompt": "Divide the dense_trunk.py test coverage improvement into steps for test case design with varied configurations, output shape verification, and edge case handling.",
+      "reasoning": "This task requires increasing test coverage for dense_trunk.py from 29% to a higher level. It's moderately complex as it involves understanding the module's functionality, designing effective test cases with different configurations, and validating output shapes. Three subtasks would cover test case design, output verification, and edge case handling effectively."
+    },
+    {
+      "taskId": 19,
+      "taskTitle": "M2-Prep Document the Final Pipeline Shapes & Data Flow",
+      "complexityScore": 6,
+      "recommendedSubtasks": 3,
+      "expansionPrompt": "Break down the pipeline documentation task into steps for shape flow analysis, diagram/table creation, and integration with existing documentation.",
+      "reasoning": "This task involves documenting the final pipeline shape flow from Stage A to Stage D. The complexity comes from understanding the entire pipeline, accurately documenting shapes at each stage, and creating clear diagrams/tables. Three subtasks would effectively cover shape flow analysis, diagram/table creation, and integration with existing documentation."
+    },
+    {
+      "taskId": 18,
+      "taskTitle": "M2-Prep Implement a Local RNA Bond/Angle Checker (Optional)",
+      "complexityScore": 6,
+      "recommendedSubtasks": 3,
+      "expansionPrompt": "Divide the RNA bond/angle checker implementation into steps for bond length validation, integration with validation pipeline, and optional angle checking.",
+      "reasoning": "This task involves implementing a utility to check RNA bond lengths and potentially angles. The complexity comes from understanding RNA geometry, implementing efficient checking logic, and integrating with the validation pipeline. Three subtasks would effectively cover bond length validation, validation pipeline integration, and optional angle checking."
+    },
+    {
+      "taskId": 17,
+      "taskTitle": "M2-Prep Address Large Final Coordinates in Stage D Outputs",
+      "complexityScore": 5,
+      "recommendedSubtasks": 3,
+      "expansionPrompt": "Break down the coordinate scaling/clamping implementation into steps for distribution analysis, method selection (scale vs. clamp), and integration with Stage D.",
+      "reasoning": "This task requires analyzing and addressing large coordinate values in Stage D outputs. It's moderately complex as it involves analyzing coordinate distributions, implementing scaling or clamping, and integrating with Stage D. Three subtasks would cover distribution analysis, method selection and implementation, and Stage D integration effectively."
+    },
+    {
+      "taskId": 16,
+      "taskTitle": "M2-Prep Implement Residue-to-Atom Bridging Function",
+      "complexityScore": 7,
+      "recommendedSubtasks": 3,
+      "expansionPrompt": "Divide the residue-to-atom bridging implementation into steps for mapping function design, integration with the Unified Latent Merger, and validation with test cases.",
+      "reasoning": "This task involves creating a bridging function to convert residue-level embeddings to atom-level embeddings. The complexity comes from designing an accurate mapping, integrating with the Unified Latent Merger, and ensuring consistency throughout the pipeline. Three subtasks would effectively cover mapping function design, Merger integration, and validation with test cases."
+    },
+    {
+      "taskId": 15,
+      "taskTitle": "M2-Prep Standardize Partial Coordinates from Stage C",
+      "complexityScore": 6,
+      "recommendedSubtasks": 3,
+      "expansionPrompt": "Break down the partial coordinates standardization into steps for atom count analysis, configuration implementation, and documentation updates.",
+      "reasoning": "This task requires standardizing the number of atoms per residue in partial coordinates from Stage C. The complexity comes from analyzing the current implementation, defining a consistent standard, and ensuring compatibility throughout the pipeline. Three subtasks would effectively cover atom count analysis, configuration implementation, and documentation updates."
+    },
+    {
+      "taskId": 14,
+      "taskTitle": "M2-Prep Resolve Skipped Adaptive Layernorm & Attention Bias",
+      "complexityScore": 7,
+      "recommendedSubtasks": 4,
+      "expansionPrompt": "Divide the Adaptive LayerNorm and attention bias resolution into steps for code location identification, shape analysis, solution implementation, and verification.",
+      "reasoning": "This task involves resolving issues with Adaptive LayerNorm and attention bias that are being skipped due to shape mismatches. The complexity comes from identifying the affected code locations, analyzing shape mismatches, implementing a solution, and verifying the fix. Four subtasks would effectively cover code location identification, shape analysis, solution implementation, and verification."
+    },
+    {
+      "taskId": 13,
+      "taskTitle": "M2-Prep Fix s Embedding Dimension Mismatch (64 vs. 128)",
+      "complexityScore": 6,
+      "recommendedSubtasks": 3,
+      "expansionPrompt": "Break down the embedding dimension mismatch resolution into steps for configuration analysis, standardization implementation, and verification across modules.",
+      "reasoning": "This task requires resolving inconsistent embedding dimensions (64 vs. 128) across the codebase. The complexity comes from identifying all references to the embedding dimension, standardizing on a single value, and ensuring consistency throughout the pipeline. Three subtasks would effectively cover configuration analysis, standardization implementation, and verification across modules."
+    },
+    {
+      "taskId": 12,
+      "taskTitle": "M2-Prep Unify Residue vs. Atom Representation in Stages B & D",
+      "complexityScore": 8,
+      "recommendedSubtasks": 4,
+      "expansionPrompt": "Divide the residue vs. atom representation unification into steps for pipeline audit, approach selection, implementation of chosen approach, and documentation.",
+      "reasoning": "This task involves resolving inconsistencies between residue-level and atom-level representations in Stages B and D. The complexity is high due to the need to audit the entire pipeline, decide on a unification approach, implement changes across multiple modules, and document the solution. Four subtasks would effectively cover pipeline audit, approach selection, implementation, and documentation."
+    },
+    {
+      "taskId": 8,
+      "taskTitle": "Implement TorsionBERT Stage, Performance Benchmarking, and Enhanced RNA Prediction Pipeline",
+      "complexityScore": 9,
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "Break down the TorsionBERT stage implementation into steps for model architecture, integration with existing pipeline, benchmarking script development, documentation, and test coverage.",
+      "reasoning": "This task involves implementing a complete TorsionBERT stage, benchmarking tools, and enhancing the RNA prediction pipeline. The complexity is very high as it encompasses model development, pipeline integration, benchmarking, documentation, and testing. Five subtasks would effectively cover model architecture, pipeline integration, benchmarking, documentation, and test coverage."
+    },
+    {
+      "taskId": 36,
+      "taskTitle": "M2-Prep Implement Hydra Configuration Management",
+      "complexityScore": 7,
+      "recommendedSubtasks": 4,
+      "expansionPrompt": "Divide the Hydra configuration implementation into steps for installation and setup, schema definition, YAML file creation, and code integration.",
+      "reasoning": "This task requires implementing Hydra for configuration management throughout the project. The complexity comes from setting up the configuration structure, defining a schema, creating YAML files, and integrating with existing code. Four subtasks would effectively cover installation and setup, schema definition, YAML file creation, and code integration."
+    },
+    {
+      "taskId": 37,
+      "taskTitle": "Fix Task Master CLI Bugs",
+      "complexityScore": 4,
+      "recommendedSubtasks": 3,
+      "expansionPrompt": "Break down the Task Master CLI bug fixing into steps for set-status command debugging, add-task command debugging, and comprehensive testing.",
+      "reasoning": "This task involves fixing bugs in the Task Master CLI tool. It's moderately complex as it requires understanding the existing codebase, identifying the root causes of the bugs, and implementing fixes. Three subtasks would cover set-status command debugging, add-task command debugging, and comprehensive testing effectively."
+    },
+    {
+      "taskId": 38,
+      "taskTitle": "M2-Prep Create RNALightningModule for PyTorch Lightning Integration",
+      "complexityScore": 8,
+      "recommendedSubtasks": 4,
+      "expansionPrompt": "Divide the RNALightningModule implementation into steps for core structure and forward pass, training and validation steps, parameter filtering, and checkpoint loading.",
+      "reasoning": "This task involves creating a PyTorch Lightning module that encapsulates the entire RNA prediction pipeline. The complexity is high due to the need to handle model instantiation, forward pass logic, training/validation steps, parameter filtering, and checkpoint loading. Four subtasks would effectively cover core structure and forward pass, training and validation steps, parameter filtering, and checkpoint loading."
+    },
+    {
+      "taskId": 39,
+      "taskTitle": "Refactor run_stageD_unified.py for Maintainable Stage D Logic",
+      "complexityScore": 7,
+      "recommendedSubtasks": 3,
+      "expansionPrompt": "Break down the run_stageD_unified.py refactoring into steps for function extraction, conditional simplification, and documentation enhancement.",
+      "reasoning": "This task involves refactoring run_stageD_unified.py to address code quality issues. The complexity comes from understanding the existing code, breaking down large functions, simplifying nested conditionals, and ensuring no regressions. Three subtasks would effectively cover function extraction, conditional simplification, and documentation enhancement."
+    },
+    {
+      "taskId": 40,
+      "taskTitle": "Refactor protenix_diffusion_manager.py to Reduce Nested Conditionals",
+      "complexityScore": 7,
+      "recommendedSubtasks": 3,
+      "expansionPrompt": "Divide the protenix_diffusion_manager.py refactoring into steps for method extraction, conditional simplification, and comprehensive testing.",
+      "reasoning": "This task involves refactoring protenix_diffusion_manager.py to address code quality issues. The complexity comes from understanding the existing code, breaking down large methods, simplifying nested conditionals, and ensuring no regressions. Three subtasks would effectively cover method extraction, conditional simplification, and comprehensive testing."
+    },
+    {
+      "taskId": 41,
+      "taskTitle": "Split ml_utils.py and utils.py into Cohesive Modules",
+      "complexityScore": 6,
+      "recommendedSubtasks": 4,
+      "expansionPrompt": "Break down the utils module splitting into steps for function inventory, logical grouping, new module creation, and import reference updating.",
+      "reasoning": "This task involves splitting utility modules into more cohesive ones. The complexity comes from inventorying existing functions, organizing them into logical groups, creating new modules, and updating references throughout the codebase. Four subtasks would effectively cover function inventory, logical grouping, new module creation, and import reference updating."
+    }
+  ]
+}

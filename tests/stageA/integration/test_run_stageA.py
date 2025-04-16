@@ -173,7 +173,11 @@ def test_main_end_to_end(temp_checkpoint_folder, monkeypatch):
     if os.path.exists(real_folder):
         backup_folder = "RFold/checkpoints_backup"
         if os.path.exists(backup_folder):
-            shutil.rmtree(backup_folder)  # Remove any existing backup
+            # Handle symbolic links properly
+            if os.path.islink(backup_folder):
+                os.unlink(backup_folder)
+            else:
+                shutil.rmtree(backup_folder)  # Remove any existing backup
         os.rename(real_folder, backup_folder)
     else:
         backup_folder = None
@@ -197,7 +201,11 @@ def test_main_end_to_end(temp_checkpoint_folder, monkeypatch):
             os.unlink(real_folder)
         if backup_folder and os.path.exists(backup_folder):
             if os.path.exists(real_folder):
-                shutil.rmtree(real_folder)  # Remove any leftover folder
+                # Handle symbolic links properly
+                if os.path.islink(real_folder):
+                    os.unlink(real_folder)
+                else:
+                    shutil.rmtree(real_folder)  # Remove any leftover folder
             os.rename(backup_folder, real_folder)
 
 
