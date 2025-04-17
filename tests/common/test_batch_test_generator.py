@@ -23,7 +23,15 @@ from unittest.mock import patch
 import pytest
 
 # We import the module under test. Adjust import as needed if test file is elsewhere.
-import rna_predict.scripts.batch_test_generator as batch_test_generator
+import sys
+from pathlib import Path
+
+# Add the scripts directory to the path
+scripts_path = Path(__file__).parent.parent.parent / "scripts" / "test_utils"
+sys.path.insert(0, str(scripts_path))
+
+# Now import the module
+import batch_test_generator
 
 #################
 # FIXTURES
@@ -69,7 +77,7 @@ def test_process_folder_creates_wrapped_files(temp_dir: Path) -> None:
 
     # We'll patch `run_test_generation` to return True to simulate successful test generation.
     with patch(
-        "rna_predict.scripts.batch_test_generator.run_test_generation",
+        "batch_test_generator.run_test_generation",
         return_value=True,
     ) as mock_run_gen:
         # Act
@@ -103,7 +111,7 @@ def test_process_folder_skips_existing_wrapped_files(temp_dir: Path) -> None:
     pre_wrapped.write_text("# pre-existing test")
 
     with patch(
-        "rna_predict.scripts.batch_test_generator.run_test_generation",
+        "batch_test_generator.run_test_generation",
         return_value=True,
     ) as mock_run_gen:
         # Act
@@ -142,7 +150,7 @@ def test_process_folder_skips_files_in_output_dir(temp_dir: Path) -> None:
     (test_subdir / "script2.py").write_text("# script2 content")
 
     with patch(
-        "rna_predict.scripts.batch_test_generator.run_test_generation",
+        "batch_test_generator.run_test_generation",
         return_value=True,
     ) as mock_run_gen:
         # Act - use a different root folder than temp_dir to avoid processing the subdir files
@@ -165,7 +173,7 @@ def test_process_folder_failure_handling(temp_dir: Path, capsys) -> None:
     output_dir.mkdir(exist_ok=True)
 
     with patch(
-        "rna_predict.scripts.batch_test_generator.run_test_generation",
+        "batch_test_generator.run_test_generation",
         return_value=False,
     ) as mock_run_gen:
         # Act
@@ -192,7 +200,7 @@ def test_process_folder_empty_directory(temp_dir: Path, capsys) -> None:
     output_dir.mkdir(exist_ok=True)
 
     with patch(
-        "rna_predict.scripts.batch_test_generator.run_test_generation",
+        "batch_test_generator.run_test_generation",
         return_value=True,
     ) as mock_run_gen:
         batch_test_generator.process_folder(
@@ -249,7 +257,7 @@ def test_main_happy_path(temp_dir: Path) -> None:
     test_argv = ["batch_test_generator.py", str(temp_dir)]
     with (
         patch.object(sys, "argv", test_argv),
-        patch("rna_predict.scripts.batch_test_generator.process_folder") as mock_pf,
+        patch("batch_test_generator.process_folder") as mock_pf,
     ):
         batch_test_generator.main()
 
