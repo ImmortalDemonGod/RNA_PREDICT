@@ -1,16 +1,16 @@
 # rna_predict/conf/model/stageB_torsion.yaml
-torsion_bert:
-  model_name_or_path: "sayby/rna_torsionbert"
-  device: "cpu"          # Default to CPU for broader compatibility
-  angle_mode: "sin_cos"  # Default angle representation
-  num_angles: 7          # Standard number of torsion angles
-  max_length: 512        # Default max sequence length
-  checkpoint_path: null  # No specific checkpoint by default
+model_name_or_path: "sayby/rna_torsionbert"
+device: "cpu"          # Default to CPU for broader compatibility
+angle_mode: "sin_cos"  # Default angle representation
+num_angles: 7          # Standard number of torsion angles
+max_length: 512        # Default max sequence length
+checkpoint_path: null  # No specific checkpoint by default
+debug_logging: true    # Debug logging for TorsionBert (added for testing/logging control)
 
-  # LoRA config (optional - keep disabled by default)
-  lora:
-    enabled: false
-    r: 8
-    alpha: 16
-    dropout: 0.1
-    target_modules: []
+# Optional LoRA configuration
+lora:
+  enabled: false
+  r: 8
+  alpha: 16
+  dropout: 0.1
+  target_modules: ["query", "value"]
