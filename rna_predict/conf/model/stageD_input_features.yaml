@@ -1,0 +1,24 @@
+# rna_predict/conf/model/stageD_input_features.yaml
+# Configuration for Stage D input features
+
+# model:
+#   stageD:
+#     input_features:
+#       # Reference element features
+#       ref_element:
+#         size: [128]  # Dimension of element embeddings
+#         _target_: null  # No special initialization
+#
+#       # Reference atom name character features
+#       ref_atom_name_chars:
+#         size: [256]  # Dimension of atom name character embeddings
+#         _target_: null  # No special initialization
+#
+#       # Profile features
+#       profile:
+#         size: [32]  # Dimension of profile embeddings
+#         _target_: null  # No special initialization
+#
+#       # Atom to token mapping
+#       atom_to_token_idx:
+#         repeats: 44  # Default atoms per residue
