@@ -39,8 +39,8 @@ def test_run_stageA_with_override():
     Checks if the script runs successfully and if the override is reflected
     in the script's output (assuming the script logs the loaded config).
     """
-    # The config is under 'model' as shown by --help
-    override_key = "model.dropout"
+    # The config is under 'model.stageA' in the Hydra config
+    override_key = "model.stageA.dropout"
     override_value = "0.1" # Use string for subprocess arg
     override_arg = f"{override_key}={override_value}"
     # Run the script as a module to ensure it can find the rna_predict package
