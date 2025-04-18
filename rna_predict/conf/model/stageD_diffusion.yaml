@@ -1,130 +1,44 @@
 # rna_predict/conf/model/stageD_diffusion.yaml
-# Hydra configuration for Stage D: Diffusion-based Refinement
+# Configuration for Stage D: Diffusion-based Refinement
 # Based on docs/pipeline/integration/hydra_integration/components/stageD/StageD_Diffusion_Refinement.md
 
-# Note: This structure assumes the DiffusionModule __init__ directly accepts
-# nested dicts for atom_encoder, transformer, atom_decoder as shown in docs.
-# It also includes parameters for noise schedule, sampling, training, inference, memory etc.
+defaults:
+  - _self_
 
-stageD:
-  # Top-level settings for the stage run
-  mode: "inference"  # "inference" or "training"
-  device: "cpu"      # "cpu" or "cuda"
+# Core settings
+enabled: true
+mode: "inference"
+device: "cpu"
+debug_logging: true
+sigma_data: 16.0
+c_atom: 128
+c_s: 384
+c_z: 128
+c_s_inputs: 449
+c_noise_embedding: 32
+ref_element_size: 128
+ref_atom_name_chars_size: 256
 
-  # Core diffusion parameters (passed to DiffusionModule via ProtenixDiffusionManager)
+# Noise schedule configuration
+noise_schedule:
+  schedule_type: "linear"
   sigma_data: 16.0
-  c_atom: 128
-  c_atompair: 16
-  c_token: 768
-  c_s: 384
-  c_z: 128
-  c_s_inputs: 449 # Dimension of optional s_inputs embedding
-  c_noise_embedding: 256
-
-  # Nested architecture components (passed to DiffusionModule)
-  atom_encoder:
-    n_blocks: 3
-    n_heads: 4
-    n_queries: 32
-    n_keys: 128
-  transformer:
-    n_blocks: 24
-    n_heads: 16
-  atom_decoder:
-    n_blocks: 3
-    n_heads: 4
-    n_queries: 32
-    n_keys: 128
-
-  # Memory optimization / checkpointing (passed to DiffusionModule)
-  blocks_per_ckpt: null
-  use_fine_grained_checkpoint: false
-  # Initialization config for DiffusionModule (optional)
-  initialization: null
-
-  # Noise schedule parameters (potentially used by manager or sampler)
   s_max: 160.0
   s_min: 4e-4
   p: 7.0
-  dt: 0.005 # Matches default in DiffusionSchedule example
-  p_mean: -1.2 # Matches TrainingNoiseSampler default
-  p_std: 1.5   # Matches TrainingNoiseSampler default
+  p_mean: -1.2
+  p_std: 1.5
 
-  # Sampling parameters (Algorithm 18 in AF3) (used by manager/generator)
-  gamma0: 0.8
-  gamma_min: 1.0
-  noise_scale_lambda: 1.003
-  step_scale_eta: 1.5
+# Inference parameters
+inference:
+  num_steps: 2
+  temperature: 1.0
+  use_ddim: true
+  sampling:
+    num_samples: 1
+    gamma0: 0.8
+    gamma_min: 1.0
+    noise_scale_lambda: 1.003
+    step_scale_eta: 1.5
 
-  # Chunk sizes (used by manager/generator)
-  diffusion_chunk_size: null
-  attn_chunk_size: null
-  inplace_safe: false
-
-  # Training parameters (if mode == "training")
-  training:
-    batch_size: 8
-    learning_rate: 1e-4
-    optimizer:
-      type: "adam"
-      weight_decay: 1e-5
-      beta1: 0.9
-      beta2: 0.999
-    gradient_clipping:
-      enabled: true
-      max_norm: 1.0
-    warmup_steps: 1000
-    max_epochs: 100
-    early_stopping:
-      patience: 10
-      min_delta: 1e-4
-
-  # Inference parameters (if mode == "inference")
-  inference:
-    num_steps: 100 # Corresponds to n_steps in old code? Doc mentions 50, example uses 100. Defaulting to 100.
-    temperature: 1.0
-    early_stopping:
-      enabled: true
-      patience: 5
-      min_delta: 1e-4
-    sampling:
-      num_samples: 1 # Corresponds to N_sample
-      seed: null
-      use_deterministic: false
-
-  # Memory optimization parameters (read by memory_fix or runner)
-  memory:
-    max_memory_usage: "16GB" # Informational?
-    gradient_checkpointing:
-      enabled: true # Corresponds to use_checkpointing?
-      strategy: "uniform"
-    mixed_precision:
-      enabled: true
-      dtype: "float16"
-    memory_efficient_attention: true
-    use_flash_attention: true
-    # chunk_size: 1024 # Defined above as attn_chunk_size? Consolidating under stageD.attn_chunk_size
-    max_sequence_length: 4096 # For preprocessing?
-    apply_memory_preprocess: true # Flag to control preprocessing
-    memory_preprocess_max_len: 25 # Max length for preprocessing
-
-  # Energy minimization (optional)
-  energy_minimization:
-    enabled: false
-    steps: 1000
-    method: "OpenMM"
-
-  # LoRA configuration
-  lora:
-    enabled: false
-    r: 4
-    alpha: 16
-    dropout: 0.1
-    target_modules:
-      - "attention.W_q"
-      - "attention.W_k"
-      - "attention.W_v"
-      - "attention.W_out"
-
-  # Debugging
-  debug_logging: false
+atom_metadata: null
