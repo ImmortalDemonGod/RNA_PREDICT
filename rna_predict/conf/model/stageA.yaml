@@ -2,23 +2,31 @@
 # Corresponds to the StageAConfig dataclass in config_schema.py
 # Includes defaults from StageA_2D_Adjacency.md documentation
 
+# Direct stageA configuration without double nesting
 # --- Top-Level Parameters ---
 num_hidden: 128
 dropout: 0.3
 min_seq_length: 80
-device: "cuda" # Specify device as string ("cuda" or "cpu")
+device: "cpu" # Specify device as string ("cuda" or "cpu")
 checkpoint_path: "RFold/checkpoints/RNAStralign_trainset_pretrained.pth"
-checkpoint_url: "[https://www.dropbox.com/s/l04l9bf3v6z2tfd/checkpoints.zip?dl=1](https://www.dropbox.com/s/l04l9bf3v6z2tfd/checkpoints.zip?dl=1)"
+checkpoint_url: "https://www.dropbox.com/s/l04l9bf3v6z2tfd/checkpoints.zip?dl=1"
+checkpoint_zip_path: "RFold/checkpoints.zip" # Added configurable zip path
 batch_size: 32
 lr: 0.001
 threshold: 0.5
+debug_logging: true
+
+# --- Example/Testing ---
+run_example: true # Whether to run an example inference
+# Example RNA sequence for testing
+example_sequence: "AAGUCUGGUGGACAUUGGCGUCCUGAGGUGUUAAAACCUCUUAUUGCUGACGCCAGAAAGAGAAGAACUUCGGUUCUACUAGUCGACUAUACUACAAGCUUUGGGUGUAUAGCGGCAAGACAACCUGGAUCGGGGGAGGCUAAGGGCGCAAGCCUAUGCUAACCCCGAGCCGAGCUACUGGAGGGCAACCCCCAGAUAGCCGGUGUAGAGCGCGGAAAGGUGUCGGUCAUCCUAUCUGAUAGGUGGCUUGAGGGACGUGCCGUCUCACCCGAAAGGGUGUUUCUAAGGAGGAGCUCCCAAAGGGCAAAUCUUAGAAAAGGGUGUAUACCCUAUAAUUUAACGGCCAGCAGCC"
 
 # --- Nested Configurations ---
-
 visualization:
   enabled: true
   varna_jar_path: "tools/varna-3-93.jar"
   resolution: 8.0
+  output_path: "test_seq.png" # Added configurable output path
 
 model:
   # U-Net Architecture Parameters
@@ -28,7 +36,7 @@ model:
   c_out: 1
   c_hid: 32
 
-  # Seq2Map Parameters (Nested under model)
+  # Seq2Map Parameters
   seq2map:
     input_dim: 4
     max_length: 3000
@@ -39,7 +47,7 @@ model:
     expansion_factor: 2.0
     heads: 1 # For OffsetScale
 
-  # Decoder Parameters (Nested under model)
+  # Decoder Parameters
   decoder:
     up_conv_channels: [256, 128, 64]
     skip_connections: true
