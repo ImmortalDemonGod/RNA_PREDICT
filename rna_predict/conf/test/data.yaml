@@ -1,0 +1,24 @@
+# rna_predict/conf/test/data.yaml
+# Configuration for test data used in demos and tests
+
+# Test sequence - standardized across all pipeline stages
+sequence: "ACGUACGU"
+
+# Sequence properties
+sequence_length: 8  # Length of the sequence
+atoms_per_residue: 44  # Standard RNA residue has ~44 atoms
+
+# Adjacency matrix parameters
+adjacency_fill_value: 1.0
+
+# Target parameters for gradient flow test
+target_dim: 3
+
+# Torsion angle parameters
+torsion_angle_dim: 7  # Number of torsion angles per residue
+
+# Embedding dimensions
+embedding_dims:
+  s_trunk: 384  # Single representation dimension
+  z_trunk: 128  # Pair representation dimension
+  s_inputs: 449  # Input representation dimension
