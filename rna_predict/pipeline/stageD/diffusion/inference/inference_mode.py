@@ -41,17 +41,14 @@ def run_inference_mode(
     Returns:
         Refined coordinates tensor
     """
-    # Set N_sample to 1 in inference params to avoid extra dimensions
-    inference_params = context.diffusion_config.get("inference", {})
-    inference_params["N_sample"] = 1
+    # Note: We no longer need to pass inference_params directly to multi_step_inference
+    # as it now reads parameters from the manager's internal config
 
     # Pass the internal (potentially fixed) copy to the manager
     coords = context.diffusion_manager.multi_step_inference(
         coords_init=context.partial_coords.to(context.device),
         trunk_embeddings=context.trunk_embeddings_internal,
-        inference_params=inference_params,
-        override_input_features=context.input_features,
-        debug_logging=True,
+        override_input_features=context.input_features
     )
 
     # Update the original trunk_embeddings dict with cached s_inputs if it was added
