@@ -76,41 +76,53 @@ This function orchestrates the combined operation of TorsionBERT and Pairformer.
 
 ## Hydra Configuration
 
-Stage B's behavior is controlled through Hydra configuration in `conf/model/stageB.yaml`:
+Stage B's behavior is controlled through Hydra configuration using two separate files located in `rna_predict/conf/model/`:
 
+1.  **`stageB_torsion.yaml`**: Configures the TorsionBERT model parameters.
+2.  **`stageB_pairformer.yaml`**: Configures the Pairformer model parameters.
+
+These files are included in the main `rna_predict/conf/default.yaml` via its `defaults` list, ensuring both configurations are loaded when the pipeline runs.
+
+**Example: `stageB_torsion.yaml`**
 ```yaml
-stageB:
-  # TorsionBERT Configuration
-  torsionbert:
-    model_name_or_path: "sayby/rna_torsionbert"
-    device: "cpu"
-    angle_mode: "sin_cos"  # One of: "sin_cos", "radians", "degrees"
-    num_angles: 7
-    max_length: 512
-    
-  # Pairformer Configuration
-  pairformer:
-    n_blocks: 48
-    n_heads: 16
-    c_z: 128
-    c_s: 384
-    dropout: 0.25
-    
-    # Memory Optimization
-    use_memory_efficient_kernel: false
-    use_deepspeed_evo_attention: false
-    use_lma: false
-    inplace_safe: false
-    chunk_size: null
-    
-    # Architecture Details
-    c_hidden_mul: 128
-    c_hidden_pair_att: 32
-    no_heads_pair: 4
-    
-  # Processing Parameters
-  batch_size: 32
+# rna_predict/conf/model/stageB_torsion.yaml
+torsion_bert:
+  model_name_or_path: "sayby/rna_torsionbert"
+  device: "cpu"
+  angle_mode: "sin_cos"  # One of: "sin_cos", "radians", "degrees"
+  num_angles: 7
+  max_length: 512
+  checkpoint_path: null
+  lora:
+    enabled: false
+    # ... other lora params
+```
+
+**Example: `stageB_pairformer.yaml`**
+```yaml
+# rna_predict/conf/model/stageB_pairformer.yaml
+pairformer:
+  n_blocks: 48
+  n_heads: 16
+  c_z: 128
+  c_s: 384
+  dropout: 0.25
+  use_memory_efficient_kernel: false
+  use_deepspeed_evo_attention: false
+  use_lma: false
+  inplace_safe: false
+  chunk_size: null
+  c_hidden_mul: 128 # Note: Currently stored but not passed to PairformerStack constructor
+  c_hidden_pair_att: 32 # Note: Currently stored but not passed to PairformerStack constructor
+  no_heads_pair: 4 # Note: Currently stored but not passed to PairformerStack constructor
   init_z_from_adjacency: false
+  use_checkpoint: false
+  lora:
+    enabled: false
+    # ... other lora params
+
+# Note: Parameters like batch_size might be defined at a higher level (e.g., train.yaml or main default.yaml)
+# or within the stage-specific entry point script's config if applicable.
 ```
 
 ### Configuration Parameters:
