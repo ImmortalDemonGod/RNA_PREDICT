@@ -5,8 +5,9 @@ This module contains utility functions for tensor shape manipulation and dimensi
 used by the AdaptiveLayerNorm class.
 """
 
-import torch
 import warnings
+
+import torch
 
 
 def has_compatible_dimensions(a: torch.Tensor, s: torch.Tensor) -> bool:
@@ -20,9 +21,7 @@ def has_compatible_dimensions(a: torch.Tensor, s: torch.Tensor) -> bool:
     Returns:
         Boolean indicating whether dimensions are compatible
     """
-    return (s.dim() > a.dim() and
-            s.dim() == a.dim() + 1 and
-            s.shape[0] == a.shape[0])
+    return s.dim() > a.dim() and s.dim() == a.dim() + 1 and s.shape[0] == a.shape[0]
 
 
 def has_matching_feature_dimensions(a: torch.Tensor, s: torch.Tensor) -> bool:
@@ -100,16 +99,14 @@ def needs_singleton_dimension(a: torch.Tensor, scale: torch.Tensor) -> bool:
     """
     # Check if we need to add a singleton dimension for broadcasting
     return (
-        a.dim() == 4 and
-        scale.dim() == 3 and
-        a.shape[0] == scale.shape[0] and
-        a.shape[2:] == scale.shape[1:]
+        a.dim() == 4
+        and scale.dim() == 3
+        and a.shape[0] == scale.shape[0]
+        and a.shape[2:] == scale.shape[1:]
     )
 
 
-def interpolate_sequence_dim(
-    tensor: torch.Tensor, target_size: int
-) -> torch.Tensor:
+def interpolate_sequence_dim(tensor: torch.Tensor, target_size: int) -> torch.Tensor:
     """
     Interpolate tensor along sequence dimension to match target size.
 
@@ -144,7 +141,9 @@ def _try_expand_tensor(tensor: torch.Tensor, target: torch.Tensor) -> torch.Tens
     return tensor.expand_as(target)
 
 
-def _copy_matching_dimensions(tensor: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+def _copy_matching_dimensions(
+    tensor: torch.Tensor, target: torch.Tensor
+) -> torch.Tensor:
     """
     Create a new tensor with target shape and copy data where dimensions match.
 
@@ -208,6 +207,154 @@ def match_tensor_shape(tensor: torch.Tensor, target: torch.Tensor) -> torch.Tens
             return _try_reshape_tensor(tensor, target)
 
 
+def _has_token_dimension_mismatch(scale: torch.Tensor, a: torch.Tensor) -> bool:
+    """
+    Check if there is a token dimension mismatch between scale and a tensors.
+
+    Args:
+        scale: Scale tensor to check
+        a: Target tensor to compare with
+
+    Returns:
+        Boolean indicating whether there is a token dimension mismatch
+    """
+    return (
+        len(scale.shape) >= 3 and len(a.shape) >= 3 and scale.shape[-2] != a.shape[-2]
+    )
+
+
+def _handle_fewer_tokens_in_scale(
+    scale: torch.Tensor, shift: torch.Tensor, a: torch.Tensor
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """
+    Handle the case where scale has fewer tokens than a.
+
+    Args:
+        scale: Scale tensor with fewer tokens
+        shift: Shift tensor with fewer tokens
+        a: Target tensor with more tokens
+
+    Returns:
+        Tuple of (expanded scale tensor, expanded shift tensor)
+    """
+    warnings.warn(
+        f"Token dimension mismatch in AdaptiveLayerNorm: scale has {scale.shape[-2]} tokens, "
+        f"but a has {a.shape[-2]} tokens. Expanding scale to match a's token dimension."
+    )
+
+    # Use nearest neighbor interpolation to expand the token dimension
+    # Reshape to [B, C, S] for interpolation, then back to original format
+    scale_expanded = torch.nn.functional.interpolate(
+        scale.transpose(-2, -1),  # [B, ..., C, S] -> [B, ..., S, C]
+        size=a.shape[-2],
+        mode="nearest",
+    ).transpose(-2, -1)  # [B, ..., S, C] -> [B, ..., C, S]
+
+    shift_expanded = torch.nn.functional.interpolate(
+        shift.transpose(-2, -1), size=a.shape[-2], mode="nearest"
+    ).transpose(-2, -1)
+
+    return scale_expanded, shift_expanded
+
+
+def _handle_more_tokens_in_scale(
+    scale: torch.Tensor, shift: torch.Tensor, a: torch.Tensor
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """
+    Handle the case where scale has more tokens than a.
+
+    Args:
+        scale: Scale tensor with more tokens
+        shift: Shift tensor with more tokens
+        a: Target tensor with fewer tokens
+
+    Returns:
+        Tuple of (truncated scale tensor, truncated shift tensor)
+    """
+    warnings.warn(
+        f"Token dimension mismatch in AdaptiveLayerNorm: scale has {scale.shape[-2]} tokens, "
+        f"but a has {a.shape[-2]} tokens. Using first {a.shape[-2]} tokens from scale."
+    )
+    # Use only the first a.shape[-2] tokens from scale and shift
+    truncated_scale = scale[..., : a.shape[-2], :]
+    truncated_shift = shift[..., : a.shape[-2], :]
+
+    return truncated_scale, truncated_shift
+
+
+def _handle_token_dimension_mismatch(
+    scale: torch.Tensor, shift: torch.Tensor, a: torch.Tensor
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """
+    Handle token dimension mismatch between scale/shift and a tensors.
+
+    Args:
+        scale: Scale tensor to adjust
+        shift: Shift tensor to adjust
+        a: Target tensor shape
+
+    Returns:
+        Tuple of (adjusted scale tensor, adjusted shift tensor)
+    """
+    if not _has_token_dimension_mismatch(scale, a):
+        return scale, shift
+
+    # If scale has fewer tokens than a
+    if scale.shape[-2] < a.shape[-2]:
+        return _handle_fewer_tokens_in_scale(scale, shift, a)
+    else:
+        # If scale has more tokens than a
+        return _handle_more_tokens_in_scale(scale, shift, a)
+
+
+def _handle_sequence_length_mismatch(
+    scale: torch.Tensor, shift: torch.Tensor, a: torch.Tensor
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """
+    Handle sequence length mismatch between scale/shift and a tensors.
+
+    Args:
+        scale: Scale tensor to adjust
+        shift: Shift tensor to adjust
+        a: Target tensor shape
+
+    Returns:
+        Tuple of (adjusted scale tensor, adjusted shift tensor)
+    """
+    has_sequence_mismatch = (
+        len(scale.shape) >= 2 and len(a.shape) >= 2 and scale.shape[1] != a.shape[1]
+    )
+
+    if has_sequence_mismatch:
+        scale = interpolate_sequence_dim(scale, a.shape[1])
+        shift = interpolate_sequence_dim(shift, a.shape[1])
+
+    return scale, shift
+
+
+def _handle_general_dimension_mismatch(
+    scale: torch.Tensor, shift: torch.Tensor, a: torch.Tensor
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """
+    Handle general dimension mismatches between scale/shift and a tensors.
+
+    Args:
+        scale: Scale tensor to adjust
+        shift: Shift tensor to adjust
+        a: Target tensor shape
+
+    Returns:
+        Tuple of (adjusted scale tensor, adjusted shift tensor)
+    """
+    if scale.shape != a.shape:
+        scale = match_tensor_shape(scale, a)
+
+    if shift.shape != a.shape:
+        shift = match_tensor_shape(shift, a)
+
+    return scale, shift
+
+
 def adjust_tensor_shapes(
     scale: torch.Tensor, shift: torch.Tensor, a: torch.Tensor
 ) -> tuple[torch.Tensor, torch.Tensor]:
@@ -222,22 +369,21 @@ def adjust_tensor_shapes(
     Returns:
         Tuple of (adjusted scale tensor, adjusted shift tensor)
     """
-    # Handle sequence length mismatch with interpolation
-    if scale.shape[1] != a.shape[1]:
-        scale = interpolate_sequence_dim(scale, a.shape[1])
-        shift = interpolate_sequence_dim(shift, a.shape[1])
+    # Step 1: Handle token dimension mismatch (dimension -2)
+    scale, shift = _handle_token_dimension_mismatch(scale, shift, a)
 
-    # Handle other dimension mismatches
-    if scale.shape != a.shape:
-        scale = match_tensor_shape(scale, a)
+    # Step 2: Handle sequence length mismatch (dimension 1)
+    scale, shift = _handle_sequence_length_mismatch(scale, shift, a)
 
-    if shift.shape != a.shape:
-        shift = match_tensor_shape(shift, a)
+    # Step 3: Handle any remaining dimension mismatches
+    scale, shift = _handle_general_dimension_mismatch(scale, shift, a)
 
     return scale, shift
 
 
-def should_squeeze_tensor(tensor: torch.Tensor, original_shape: tuple, was_unsqueezed: bool) -> bool:
+def should_squeeze_tensor(
+    tensor: torch.Tensor, original_shape: tuple, was_unsqueezed: bool
+) -> bool:
     """
     Determine if tensor should be squeezed to restore original shape.
 
@@ -250,9 +396,7 @@ def should_squeeze_tensor(tensor: torch.Tensor, original_shape: tuple, was_unsqu
         Boolean indicating whether to squeeze the tensor
     """
     return (
-        was_unsqueezed and
-        tensor.dim() > len(original_shape) and
-        tensor.shape[1] == 1
+        was_unsqueezed and tensor.dim() > len(original_shape) and tensor.shape[1] == 1
     )
 
 
