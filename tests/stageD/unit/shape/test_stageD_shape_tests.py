@@ -881,3 +881,42 @@ def test_run_stageD_raises_on_atom_level_input(batch_size, n_residues, atoms_per
         assert "[RUNSTAGED ERROR][UNIQUE_CODE_003]" in str(e), f"Unexpected error message: {e}"
     else:
         raise AssertionError("run_stageD did not raise on atom-level input!")
+
+from hypothesis import given, strategies as st
+@given(
+    batch_size=st.integers(min_value=1, max_value=2),
+    n_residues=st.integers(min_value=2, max_value=8),
+    atoms_per_residue=st.integers(min_value=2, max_value=16),
+    c_s=st.integers(min_value=2, max_value=8)
+)
+def test_unified_runner_raises_on_atom_level_input(batch_size, n_residues, atoms_per_residue, c_s):
+    """
+    Property-based test: unified Stage D runner must raise a unique error if atom-level embeddings are passed instead of residue-level.
+    [STAGED-UNIFIED ERROR][UNIQUE_CODE_004]
+    """
+    import torch
+    from rna_predict.pipeline.stageD.diffusion.run_stageD_unified import run_stageD_diffusion
+    from rna_predict.pipeline.stageD.diffusion.utils import DiffusionConfig
+    n_atoms = n_residues * atoms_per_residue
+    s_trunk = torch.randn(batch_size, n_atoms, c_s)
+    z_trunk = torch.randn(batch_size, n_residues, n_residues, c_s)
+    s_inputs = torch.randn(batch_size, n_atoms, c_s)
+    coords = torch.randn(batch_size, n_atoms, 3)
+    input_features = {"sequence": ["A"] * n_residues}
+    trunk_embeddings = {"s_trunk": s_trunk, "pair": z_trunk, "s_inputs": s_inputs}
+    config = DiffusionConfig(
+        partial_coords=coords,
+        trunk_embeddings=trunk_embeddings,
+        diffusion_config={},
+        mode="inference",
+        device="cpu",
+        input_features=input_features,
+        debug_logging=False,
+        sequence=["A"] * n_residues
+    )
+    try:
+        run_stageD_diffusion(config)
+    except ValueError as e:
+        assert "[STAGED-UNIFIED ERROR][UNIQUE_CODE_004]" in str(e), f"Unexpected error message: {e}"
+    else:
+        raise AssertionError("run_stageD_diffusion did not raise on atom-level input!")

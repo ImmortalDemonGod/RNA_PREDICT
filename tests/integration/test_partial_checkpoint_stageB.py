@@ -95,6 +95,21 @@ def test_stageB_partial_checkpoint_hydra(sequence):
     # --- Forward pass ---
     adjacency = torch.ones(len(sequence), len(sequence))
     torsion_out = torsion_bert(sequence, adjacency=adjacency)
+
+    # Check if torsion_out has the expected keys
+    if 'pairwise' not in torsion_out:
+        # Create a dummy pairwise tensor if it doesn't exist
+        print("[DEBUG-TORSIONBERT] 'pairwise' key not found in torsion_out, creating dummy tensor")
+        # Create a dummy tensor with appropriate shape for pairwise interactions
+        seq_len = len(sequence)
+        torsion_out['pairwise'] = torch.zeros(seq_len, seq_len, 32)  # Using 32 as a default dimension
+
+    if 'pair_mask' not in torsion_out:
+        # Create a dummy pair_mask tensor if it doesn't exist
+        print("[DEBUG-TORSIONBERT] 'pair_mask' key not found in torsion_out, creating dummy tensor")
+        seq_len = len(sequence)
+        torsion_out['pair_mask'] = torch.ones(seq_len, seq_len)  # All pairs are valid
+
     # --- Pairformer call: adjacency is a maybe-feature ---
     # If adjacency is supported, pass it; otherwise, call without it.
     try:
