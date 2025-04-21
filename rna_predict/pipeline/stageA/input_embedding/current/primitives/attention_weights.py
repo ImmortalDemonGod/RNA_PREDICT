@@ -11,6 +11,9 @@ from typing import Optional, Tuple
 
 import torch
 import torch.nn.functional as F
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def validate_attention_shapes(
@@ -27,9 +30,9 @@ def validate_attention_shapes(
     Raises:
         ValueError: If key and value tensors have different shapes
     """
-    # Print debug info for small tensors
+    # Log debug info for small tensors
     if q.numel() < 1000 and k.numel() < 1000:
-        print(f"q.shape: {q.shape}, k.shape: {k.shape}, v.shape: {v.shape}")
+        logger.debug(f"q.shape: {q.shape}, k.shape: {k.shape}, v.shape: {v.shape}")
 
     # Ensure k and v have matching shapes
     if k.shape != v.shape:
@@ -288,9 +291,9 @@ def _handle_direct_bias_addition(
         # Try to add the bias directly
         return attn_weight + attn_bias
     except RuntimeError as e:
-        # If we still have a shape mismatch, print detailed information and try to fix it
-        print(f"WARNING: Shape mismatch in attention: {e}")
-        print(f"attn_weight.shape={attn_weight.shape}, attn_bias.shape={attn_bias.shape}")
+        # If we still have a shape mismatch, log detailed information and try to fix it
+        logger.warning(f"Shape mismatch in attention: {e}")
+        logger.warning(f"attn_weight.shape={attn_weight.shape}, attn_bias.shape={attn_bias.shape}")
 
         # Only handle shape mismatch errors
         if "must match" not in str(e).lower():
@@ -304,7 +307,7 @@ def _handle_direct_bias_addition(
             # Use the new bias tensor
             return attn_weight + new_bias
         except Exception as copy_error:
-            print(f"WARNING: Failed to copy data to new bias tensor: {copy_error}")
+            logger.warning(f"Failed to copy data to new bias tensor: {copy_error}")
             # Create a simple zero bias with the target shape as last resort
             zero_bias = torch.zeros_like(attn_weight)
             return attn_weight + zero_bias
@@ -332,12 +335,12 @@ def compute_attention_weights(
 
     # Apply attention bias if provided (rely on broadcasting)
     if attn_bias is not None:
-        # Add debug prints to help diagnose shape issues
+        # Add debug logs to help diagnose shape issues
         if (
             torch.is_grad_enabled() and torch.rand(1).item() < 0.01
-        ):  # Only print occasionally to avoid log spam
-            print(
-                f"DEBUG: attn_weight.shape={attn_weight.shape}, attn_bias.shape={attn_bias.shape}"
+        ):  # Only log occasionally to avoid log spam
+            logger.debug(
+                f"attn_weight.shape={attn_weight.shape}, attn_bias.shape={attn_bias.shape}"
             )
 
         # Handle various bias dimension mismatches
