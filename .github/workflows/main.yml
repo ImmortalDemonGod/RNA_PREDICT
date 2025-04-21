@@ -35,11 +35,16 @@ jobs:
           pip install ruff pip-audit
 
       - name: Check for dependency vulnerabilities
-        continue-on-error: true  # Make non-blocking initially
         run: |
-          pip-audit -r requirements.txt || echo "Vulnerabilities found in requirements.txt"
-          pip-audit -r pyproject.toml || echo "Vulnerabilities found in pyproject.toml"
-          echo "Note: This step is currently non-blocking. Review any vulnerabilities and address them."
+          pip freeze > requirements.txt
+          pip-audit -r requirements.txt --severity high --exit-code 1 --format json -o pip_audit_results.json
+          echo "pip-audit JSON results saved to pip_audit_results.json."
+
+      - name: Upload pip-audit results
+        uses: actions/upload-artifact@v3
+        with:
+          name: pip-audit-results
+          path: pip_audit_results.json
 
       # Demonstrate multi-step ruff usage
       - name: Run ruff check (auto-fix)
