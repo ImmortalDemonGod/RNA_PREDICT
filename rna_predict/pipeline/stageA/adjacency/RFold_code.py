@@ -1,4 +1,4 @@
-# rna_predict/pipeline/stageA/RFold_code.py
+# rna_predict/pipeline/stageA/adjacency/RFold_code.py
 import logging
 import os
 import os.path as osp
@@ -12,6 +12,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import einsum
 
+# Initialize logger for Stage A RFold_code
+logger = logging.getLogger("rna_predict.pipeline.stageA.adjacency.RFold_code")
 
 def set_seed(seed):
     random.seed(seed)
@@ -20,9 +22,9 @@ def set_seed(seed):
     cudnn.deterministic = True
 
 
-def print_log(message):
-    print(message)
-    logging.info(message)
+def print_log(message, debug_logging: bool = False):
+    if debug_logging:
+        logger.info(message)
 
 
 def output_namespace(namespace):
@@ -185,7 +187,7 @@ def save_ct(predict_matrix, seq_ori, name):
     )
     seq_tmp[predict_matrix.cpu().sum(axis=1) == 0] = -1
     dot_list = seq2dot((seq_tmp + 1).squeeze())
-    print(dot_list)
+    print_log(dot_list, debug_logging=True)
     letter = "AUCG"
     seq_letter = "".join([letter[item] for item in np.nonzero(seq_ori)[:, 1]])
     seq = ((seq_tmp + 1).squeeze(), torch.arange(predict_matrix.shape[-1]).numpy() + 1)
@@ -372,7 +374,8 @@ class Seq2Map(nn.Module):
         self.device = device
         self.max_length = max_length
         self.dropout = nn.Dropout(dropout)
-        self.scale = torch.sqrt(torch.FloatTensor([num_hidden])).to(self.device)
+        # Register scale as a buffer so it moves with the model when to() is called
+        self.register_buffer('scale', torch.sqrt(torch.FloatTensor([num_hidden])))
 
         self.tok_embedding = nn.Embedding(input_dim, num_hidden)
         self.pos_embedding = nn.Embedding(self.max_length, num_hidden)
@@ -380,9 +383,8 @@ class Seq2Map(nn.Module):
 
     def forward(self, src):
         batch_size, src_len = src.shape[:2]
-        pos = (
-            torch.arange(0, src_len).unsqueeze(0).repeat(batch_size, 1).to(self.device)
-        )
+        # Create pos tensor on the same device as src
+        pos = torch.arange(0, src_len, device=src.device).unsqueeze(0).repeat(batch_size, 1)
         src = self.tok_embedding(src) * self.scale
         src = self.dropout(src + self.pos_embedding(pos))
         attention = self.layer(src)

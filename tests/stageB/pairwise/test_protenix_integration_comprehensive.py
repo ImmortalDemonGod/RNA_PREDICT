@@ -11,9 +11,10 @@ from unittest.mock import patch, MagicMock
 import torch
 import gc
 from hypothesis import given, strategies as st, settings
+from omegaconf import OmegaConf
+import torch.nn.functional as F
 
 from rna_predict.pipeline.stageB.pairwise.protenix_integration import ProtenixIntegration
-
 
 class TestProtenixIntegrationInitialization(unittest.TestCase):
     """Tests for the initialization of the ProtenixIntegration class."""
@@ -33,7 +34,27 @@ class TestProtenixIntegrationInitialization(unittest.TestCase):
 
     def test_default_initialization(self):
         """Test initialization with default parameters."""
-        integrator = ProtenixIntegration()
+        # Provide a minimal valid config for default initialization
+        cfg = OmegaConf.create({
+            'model': {
+                'stageB': {
+                    'pairformer': {
+                        'protenix_integration': {
+                            'profile_dim': 16,
+                            'c_atom': 64,
+                            'c_pair': 16,
+                            'c_token': 256,
+                            'restype_dim': 16,
+                            'use_optimized': False,
+                            'device': 'cpu',
+                            'r_max': 32,
+                            's_max': 8
+                        }
+                    }
+                }
+            }
+        })
+        integrator = ProtenixIntegration(cfg)
 
         # Check that the device is set correctly
         self.assertEqual(integrator.device, torch.device("cpu"))
@@ -49,22 +70,30 @@ class TestProtenixIntegrationInitialization(unittest.TestCase):
         profile_dim = 16
         c_atom = 64
         c_pair = 16
-        num_heads = 2
-        num_layers = 2
         use_optimized = True
         device = torch.device("cpu")
 
-        integrator = ProtenixIntegration(
-            c_token=c_token,
-            restype_dim=restype_dim,
-            profile_dim=profile_dim,
-            c_atom=c_atom,
-            c_pair=c_pair,
-            num_heads=num_heads,
-            num_layers=num_layers,
-            use_optimized=use_optimized,
-            device=device
-        )
+        # Build a minimal valid Hydra config for ProtenixIntegration
+        cfg = OmegaConf.create({
+            'model': {
+                'stageB': {
+                    'pairformer': {
+                        'protenix_integration': {
+                            'profile_dim': profile_dim,
+                            'c_atom': c_atom,
+                            'c_pair': c_pair,
+                            'c_token': c_token,
+                            'restype_dim': restype_dim,
+                            'use_optimized': use_optimized,
+                            'device': str(device),
+                            'r_max': 32,   # Added required parameter
+                            's_max': 8     # Added required parameter
+                        }
+                    }
+                }
+            }
+        })
+        integrator = ProtenixIntegration(cfg)
 
         # Check that parameters are set correctly
         self.assertEqual(integrator.device, device)
@@ -84,7 +113,27 @@ class TestProtenixIntegrationBuildEmbeddings(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures."""
         self.device = torch.device("cpu")
-        self.integrator = ProtenixIntegration(device=self.device)
+        # Provide a minimal valid config for ProtenixIntegration
+        cfg = OmegaConf.create({
+            'model': {
+                'stageB': {
+                    'pairformer': {
+                        'protenix_integration': {
+                            'profile_dim': 16,
+                            'c_atom': 64,
+                            'c_pair': 16,
+                            'c_token': 256,
+                            'restype_dim': 16,
+                            'use_optimized': False,
+                            'device': 'cpu',
+                            'r_max': 32,
+                            's_max': 8
+                        }
+                    }
+                }
+            }
+        })
+        self.integrator = ProtenixIntegration(cfg)
 
         # Create minimal test data
         self.N_token = 3
@@ -543,7 +592,27 @@ class TestProtenixIntegrationErrorHandling(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures."""
         self.device = torch.device("cpu")
-        self.integrator = ProtenixIntegration(device=self.device)
+        # Provide a minimal valid config for ProtenixIntegration
+        cfg = OmegaConf.create({
+            'model': {
+                'stageB': {
+                    'pairformer': {
+                        'protenix_integration': {
+                            'profile_dim': 16,
+                            'c_atom': 64,
+                            'c_pair': 16,
+                            'c_token': 256,
+                            'restype_dim': 16,
+                            'use_optimized': False,
+                            'device': 'cpu',
+                            'r_max': 32,
+                            's_max': 8
+                        }
+                    }
+                }
+            }
+        })
+        self.integrator = ProtenixIntegration(cfg)
 
         # Create minimal test data
         self.N_token = 3
@@ -619,12 +688,27 @@ class TestProtenixIntegrationHypothesis(unittest.TestCase):
     )
     def test_initialization_with_different_dimensions(self, c_token, c_atom, c_pair):
         """Test initialization with different dimension parameters."""
-        integrator = ProtenixIntegration(
-            c_token=c_token,
-            c_atom=c_atom,
-            c_pair=c_pair,
-            device=torch.device("cpu")
-        )
+        # Build a minimal valid Hydra config for ProtenixIntegration
+        cfg = OmegaConf.create({
+            'model': {
+                'stageB': {
+                    'pairformer': {
+                        'protenix_integration': {
+                            'profile_dim': 16,
+                            'c_atom': c_atom,
+                            'c_pair': c_pair,
+                            'c_token': c_token,
+                            'restype_dim': 16,
+                            'use_optimized': False,
+                            'device': 'cpu',
+                            'r_max': 32,
+                            's_max': 8
+                        }
+                    }
+                }
+            }
+        })
+        integrator = ProtenixIntegration(cfg)
 
         # Check that parameters are set correctly
         self.assertEqual(integrator.input_embedder.c_token, c_token)
@@ -645,7 +729,27 @@ class TestProtenixIntegrationHypothesis(unittest.TestCase):
     )
     def test_build_embeddings_with_different_sizes(self, N_token, atoms_per_token):
         """Test build_embeddings with different sequence lengths and atom counts."""
-        integrator = ProtenixIntegration(device=torch.device("cpu"))
+        # Build a minimal valid Hydra config for ProtenixIntegration
+        cfg = OmegaConf.create({
+            'model': {
+                'stageB': {
+                    'pairformer': {
+                        'protenix_integration': {
+                            'profile_dim': 16,
+                            'c_atom': 64,
+                            'c_pair': 16,
+                            'c_token': 256,
+                            'restype_dim': 16,
+                            'use_optimized': False,
+                            'device': 'cpu',
+                            'r_max': 32,
+                            's_max': 8
+                        }
+                    }
+                }
+            }
+        })
+        integrator = ProtenixIntegration(cfg)
         N_atom = N_token * atoms_per_token
 
         # Create input features
@@ -653,13 +757,12 @@ class TestProtenixIntegrationHypothesis(unittest.TestCase):
             "ref_pos": torch.randn(N_atom, 3),
             "ref_charge": torch.randn(N_atom, 1),
             "ref_element": torch.randn(N_atom, 128),
-            "ref_atom_name_chars": torch.zeros(N_atom, 256),
-            "atom_to_token": torch.repeat_interleave(
-                torch.arange(N_token), atoms_per_token
-            ),
-            "atom_to_token_idx": torch.repeat_interleave(
-                torch.arange(N_token), atoms_per_token
-            ),
+            "atom_to_token": torch.randint(0, N_token, (N_atom,)),
+            "residue_index": torch.arange(N_token),
+            "atom_mask": torch.ones(N_atom, 1),
+            # Corrected: use ref_atom_name_chars and pad to 256 columns
+            "ref_atom_name_chars": F.pad(torch.zeros(N_atom, 4), (0, 252), "constant", 0),
+            # Add required keys for build_embeddings
             "restype": torch.zeros(N_token, 32),
             "profile": torch.zeros(N_token, 32),
             "deletion_mean": torch.zeros(N_token),

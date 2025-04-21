@@ -1,5 +1,5 @@
 from rna_predict.print_rna_pipeline_output import print_tensor_example, setup_pipeline
-
+from omegaconf import OmegaConf
 
 def test_print_tensor_example():
     # Test with None tensor
@@ -17,7 +17,20 @@ def test_print_tensor_example():
 
 
 def test_setup_pipeline():
-    config, device = setup_pipeline()
+    # Use a minimal valid config for setup_pipeline
+    minimal_cfg = OmegaConf.create({
+        "device": "cpu",
+        "enable_stageC": True,
+        "merge_latent": True,
+        "init_z_from_adjacency": True,
+        "model": {
+            "stageA": {},
+            "stageB": {},
+            "stageC": {},
+            "stageD": {},
+        }
+    })
+    config, device = setup_pipeline(minimal_cfg)
     assert device == "cpu"
     assert "stageA_predictor" in config
     assert "torsion_bert_model" in config

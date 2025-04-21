@@ -9,6 +9,9 @@ from typing import NamedTuple, Optional, Tuple
 
 import torch
 import torch.nn as nn
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class TensorInputs(NamedTuple):
@@ -64,6 +67,14 @@ def prep_qkv(params: PrepQKVParams) -> Tuple[torch.Tensor, torch.Tensor, torch.T
     q = params.modules.to_q(params.tensors.q_x)
     k = params.modules.to_k(params.tensors.kv_x)
     v = params.modules.to_v(params.tensors.kv_x)
+
+    # Debug instrumentation for shape mismatch
+    logger.debug(f"[prep_qkv] q.shape before reshape: {q.shape}")
+    logger.debug(f"[prep_qkv] num_heads={params.config.num_heads}, head_dim={params.config.head_dim}")
+    logger.debug(f"[prep_qkv] expected last dim: {params.config.num_heads * params.config.head_dim}")
+    assert q.shape[-1] == params.config.num_heads * params.config.head_dim, (
+        f"Shape mismatch: q.shape[-1]={q.shape[-1]}, num_heads*head_dim={params.config.num_heads * params.config.head_dim}"
+    )
 
     # Apply scaling if requested
     if params.config.apply_scale:

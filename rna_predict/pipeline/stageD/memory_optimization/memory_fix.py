@@ -1,10 +1,11 @@
 """
-Memory optimization functions for stageD.
+Memory optimization utility functions for stageD.
 """
 
 import torch
 import gc
 from typing import Dict, Tuple, Any
+import warnings
 
 def clear_memory():
     """Clear memory by running garbage collection and emptying CUDA cache."""
@@ -12,127 +13,54 @@ def clear_memory():
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
 
-def apply_memory_fixes(config: Dict[str, Any]) -> Dict[str, Any]:
-    """Apply memory efficiency fixes to the configuration.
-    
-    Args:
-        config: Original configuration dictionary
-        
-    Returns:
-        Modified configuration with memory efficiency settings
-    """
-    # Create a deep copy to avoid modifying the original
-    fixed_config = config.copy()
-    
-    # Reduce number of diffusion steps
-    fixed_config["inference"]["num_steps"] = 5
-    
-    # Reduce transformer complexity
-    fixed_config["transformer"]["n_heads"] = 2
-    fixed_config["transformer"]["n_blocks"] = 1
-    
-    # Reduce conditioning network size
-    fixed_config["conditioning"]["hidden_dim"] = 16
-    fixed_config["conditioning"]["num_layers"] = 2
-    
-    # Reduce manager network size
-    fixed_config["manager"]["hidden_dim"] = 16
-    fixed_config["manager"]["num_layers"] = 2
-    
-    # Add memory efficiency options
-    fixed_config["memory_efficient"] = True
-    fixed_config["use_checkpointing"] = True
-    fixed_config["chunk_size"] = 5
-    
-    return fixed_config
-
 def preprocess_inputs(
     partial_coords: torch.Tensor,
-    trunk_embeddings: Dict[str, torch.Tensor]
-) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
-    """Preprocess inputs to reduce memory usage.
-    
+    trunk_embeddings: Dict[str, Any], # Allow non-tensors
+    max_seq_len: int = 25
+) -> Tuple[torch.Tensor, Dict[str, Any]]:
+    """Preprocess inputs to potentially reduce memory usage by truncating sequence length.
+       Note: This is a basic truncation and might be unsuitable for all use cases.
+             Consider making its use configurable.
+
     Args:
-        partial_coords: Input coordinates tensor
-        trunk_embeddings: Dictionary of trunk embeddings
-        
+        partial_coords: Input coordinates tensor.
+        trunk_embeddings: Dictionary of trunk embeddings (can contain non-tensors).
+        max_seq_len: The maximum sequence length to truncate to.
+
     Returns:
         Tuple of (processed_coords, processed_embeddings)
     """
-    # Limit sequence length to 25
-    max_seq_len = 25
-    
-    # Process coordinates
-    processed_coords = partial_coords[:, :max_seq_len, :]
-    
-    # Process embeddings
+    processed_coords = partial_coords # Default to original
+    # Assuming coords shape is [B, N_atoms, 3] or similar where dim 1 relates to seq len
+    if partial_coords.ndim >= 3 and partial_coords.shape[1] > max_seq_len:
+         processed_coords = partial_coords[:, :max_seq_len, :]
+    elif partial_coords.ndim == 2 and partial_coords.shape[0] > max_seq_len: # Handle case like [N_atoms, 3]
+         warnings.warn(f"Preprocessing 2D coords, truncating dim 0 to {max_seq_len} atoms. Ensure this is intended.")
+         # This simple truncation might be incorrect if N_atoms doesn't scale linearly with seq len
+         processed_coords = partial_coords[:max_seq_len, :]
+
     processed_embeddings = {}
     for key, tensor in trunk_embeddings.items():
-        if key == "pair":
-            # For pair embeddings, reduce both dimensions
-            processed_embeddings[key] = tensor[:, :max_seq_len, :max_seq_len, :]
-        else:
-            # For other embeddings, reduce sequence length
-            processed_embeddings[key] = tensor[:, :max_seq_len, :]
-    
+         if not isinstance(tensor, torch.Tensor):
+              processed_embeddings[key] = tensor # Keep non-tensor items
+              continue
+
+         processed_tensor = tensor # Default to original
+         # Assuming seq_len dimension is typically 1 for non-pair, 1 and 2 for pair
+         if key == "pair":
+              # For pair embeddings [B, N, N, C]
+              if tensor.ndim >= 4 and tensor.shape[1] > max_seq_len:
+                   processed_tensor = tensor[:, :max_seq_len, :max_seq_len, :]
+         else:
+              # For other embeddings [B, N, C] or [N, C]
+              if tensor.ndim >= 3 and tensor.shape[1] > max_seq_len:
+                   processed_tensor = tensor[:, :max_seq_len, :]
+              elif tensor.ndim == 2 and tensor.shape[0] > max_seq_len: # Handle case like [N, C]
+                   warnings.warn(f"Preprocessing 2D embedding '{key}', truncating dim 0 to {max_seq_len}. Ensure this relates to sequence length.")
+                   processed_tensor = tensor[:max_seq_len, :]
+         processed_embeddings[key] = processed_tensor
+
     return processed_coords, processed_embeddings
 
-def run_stageD_with_memory_fixes(
-    partial_coords: torch.Tensor,
-    trunk_embeddings: Dict[str, torch.Tensor],
-    diffusion_config: Dict[str, Any],
-    mode: str = "inference",
-    device: str = "cuda"
-) -> torch.Tensor:
-    """Run stageD with memory efficiency fixes.
-    
-    Args:
-        partial_coords: Input coordinates tensor
-        trunk_embeddings: Dictionary of trunk embeddings
-        diffusion_config: Configuration dictionary
-        mode: Running mode ("inference" or "training")
-        device: Device to run on ("cuda" or "cpu")
-        
-    Returns:
-        Refined coordinates tensor
-    """
-    # Clear memory before starting
-    clear_memory()
-    
-    # Apply memory fixes to config
-    fixed_config = apply_memory_fixes(diffusion_config)
-    
-    # Preprocess inputs
-    coords, embeddings = preprocess_inputs(partial_coords, trunk_embeddings)
-    
-    # Move tensors to device
-    coords = coords.to(device)
-    embeddings = {k: v.to(device) for k, v in embeddings.items()}
-    
-    # Initialize model with memory-efficient settings
-    from rna_predict.pipeline.stageD.diffusion.model import DiffusionModel
-    model = DiffusionModel(fixed_config)
-    model = model.to(device)
-    
-    if fixed_config["use_checkpointing"]:
-        model.enable_checkpointing()
-    
-    # Run inference in chunks
-    chunk_size = fixed_config["chunk_size"]
-    num_steps = fixed_config["inference"]["num_steps"]
-    
-    refined_coords = coords
-    for i in range(0, num_steps, chunk_size):
-        # Process chunk
-        chunk_steps = min(chunk_size, num_steps - i)
-        refined_coords = model(
-            refined_coords,
-            embeddings,
-            num_steps=chunk_steps,
-            mode=mode
-        )
-        
-        # Clear memory after each chunk
-        clear_memory()
-    
-    return refined_coords 
+# Removed apply_memory_fixes function. Memory settings should be controlled via Hydra config.
+# Removed run_stageD_with_memory_fixes function. Core logic moved to run_stageD.py.

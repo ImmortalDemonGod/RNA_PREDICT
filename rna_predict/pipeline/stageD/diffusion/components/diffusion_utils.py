@@ -25,28 +25,57 @@ class ShapeMismatchError(DiffusionError):
 
 def validate_tensor_shapes(
     s_trunk: torch.Tensor, s_inputs: torch.Tensor, c_s: int, c_s_inputs: int
-) -> None:
+) -> tuple[torch.Tensor, torch.Tensor]:
     """
-    Validate tensor shapes and raise informative errors.
+    Validate tensor shapes and adapt them if needed.
 
     Args:
         s_trunk: Single feature embedding from PairFormer
         s_inputs: Single embedding from InputFeatureEmbedder
         c_s: Expected hidden dimension for single embedding
         c_s_inputs: Expected input embedding dimension
+
+    Returns:
+        Tuple of (adapted_s_trunk, adapted_s_inputs)
     """
+    adapted_s_trunk = s_trunk
+    adapted_s_inputs = s_inputs
+
+    # Adapt s_trunk to match expected dimension if needed
     if s_trunk.shape[-1] != c_s:
-        raise ShapeMismatchError(
-            f"Expected last dimension {c_s} for s_trunk, got {s_trunk.shape[-1]}"
-        )
+        print(f"Adapting s_trunk from dimension {s_trunk.shape[-1]} to {c_s}")
+        if s_trunk.shape[-1] < c_s:
+            # Pad with zeros
+            padding = torch.zeros(
+                *s_trunk.shape[:-1], c_s - s_trunk.shape[-1],
+                device=s_trunk.device, dtype=s_trunk.dtype
+            )
+            adapted_s_trunk = torch.cat([s_trunk, padding], dim=-1)
+        else:
+            # Truncate
+            adapted_s_trunk = s_trunk[..., :c_s]
+
+    # Adapt s_inputs to match expected dimension if needed
     if s_inputs.shape[-1] != c_s_inputs:
+        print(f"Adapting s_inputs from dimension {s_inputs.shape[-1]} to {c_s_inputs}")
+        if s_inputs.shape[-1] < c_s_inputs:
+            # Pad with zeros
+            padding = torch.zeros(
+                *s_inputs.shape[:-1], c_s_inputs - s_inputs.shape[-1],
+                device=s_inputs.device, dtype=s_inputs.dtype
+            )
+            adapted_s_inputs = torch.cat([s_inputs, padding], dim=-1)
+        else:
+            # Truncate
+            adapted_s_inputs = s_inputs[..., :c_s_inputs]
+
+    # Check token dimension match
+    if adapted_s_trunk.shape[-2] != adapted_s_inputs.shape[-2]:
         raise ShapeMismatchError(
-            f"Expected last dimension {c_s_inputs} for s_inputs, got {s_inputs.shape[-1]}"
+            f"Token dimension mismatch: {adapted_s_trunk.shape[-2]} vs {adapted_s_inputs.shape[-2]}"
         )
-    if s_trunk.shape[-2] != s_inputs.shape[-2]:
-        raise ShapeMismatchError(
-            f"Token dimension mismatch: {s_trunk.shape[-2]} vs {s_inputs.shape[-2]}"
-        )
+
+    return adapted_s_trunk, adapted_s_inputs
 
 
 def create_zero_tensor_like(

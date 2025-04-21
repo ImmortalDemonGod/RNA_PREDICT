@@ -1,5 +1,6 @@
 import unittest
 import torch
+from hypothesis import given, strategies as st, settings, assume
 from rna_predict.pipeline.stageD.diffusion.components.diffusion_module import DiffusionModule
 
 class TestDiffusionModule(unittest.TestCase):
@@ -175,76 +176,74 @@ class TestDiffusionModule(unittest.TestCase):
             # Fail if any unexpected exception occurs
             self.fail(f"forward failed unexpectedly during bias shape handling test: {e}")
 
-    def test_n_sample_handling(self):
-        """Test handling of different N_sample values"""
-        batch_size = 2
-        seq_len = 24
-        
-        # Test with N_sample=1
-        torch.randn(batch_size, 1, seq_len, 3)
+    @given(
+        batch_size=st.integers(min_value=1, max_value=3),
+        seq_len=st.integers(min_value=4, max_value=24),
+        n_sample=st.integers(min_value=1, max_value=6)
+    )
+    @settings(deadline=None, max_examples=10)
+    def test_n_sample_handling(self, batch_size, seq_len, n_sample):
+        """Property-based test: Test handling of different N_sample values, including out-of-bounds atom_to_token_idx."""
+        from hypothesis import assume
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.module.to(device)
 
-        # Create necessary dummy input tensors on the correct device
-        # These are needed because the forward signature changed
+        # Only allow cases where seq_len >= n_sample to avoid shape mismatches in expansion
+        assume(seq_len >= n_sample)
+
+        # Generate atom_to_token_idx with some out-of-bounds values
+        atom_to_token_idx = torch.arange(seq_len, device=device).unsqueeze(0).repeat(batch_size, 1)
+        # Intentionally set some indices to be out-of-bounds
+        if seq_len > 2:
+            atom_to_token_idx[:, -1] = n_sample + 2  # Always out-of-bounds
+        # Test with N_sample=1
         input_feature_dict = {
-            "ref_pos": torch.randn(batch_size, 1, seq_len, 3, device=device), # Shape for N_sample=1 case
+            "ref_pos": torch.randn(batch_size, 1, seq_len, 3, device=device),
             "ref_charge": torch.zeros(batch_size, seq_len, 1, device=device),
             "ref_mask": torch.ones(batch_size, seq_len, 1, device=device),
             "ref_element": torch.randn(batch_size, seq_len, 128, device=device),
             "ref_atom_name_chars": torch.randn(batch_size, seq_len, 4 * 64, device=device),
-            "ref_space_uid": torch.randn(batch_size, 1, seq_len, 3, device=device), # Shape for N_sample=1 case
-            "atom_to_token_idx": torch.arange(seq_len, device=device).unsqueeze(0).expand(batch_size, -1),
+            "ref_space_uid": torch.randn(batch_size, 1, seq_len, 3, device=device),
+            "atom_to_token_idx": atom_to_token_idx,
             "restype": torch.zeros(batch_size, seq_len, dtype=torch.long, device=device)
         }
-        # Create conditioning tensors - assume they might not have N_sample dim initially
         s_inputs = torch.randn(batch_size, seq_len, self.c_s_inputs, device=device)
         s_trunk = torch.randn(batch_size, seq_len, self.c_s, device=device)
         z_trunk = torch.randn(batch_size, seq_len, seq_len, self.c_z, device=device)
-
-        # --- Test with N_sample=1 ---
-        x_noisy_1 = torch.randn(batch_size, 1, seq_len, 3, device=device) # N_sample = 1
-        t_hat_1 = torch.randn(batch_size, 1, device=device) # N_sample = 1
-
-        # Should not raise error - Updated call
+        x_noisy_1 = torch.randn(batch_size, 1, seq_len, 3, device=device)
+        t_hat_1 = torch.randn(batch_size, 1, device=device)
+        # Debug: Print shapes
+        print(f"[DEBUG-N_SAMPLE] s_inputs shape: {s_inputs.shape}, s_trunk shape: {s_trunk.shape}, z_trunk shape: {z_trunk.shape}, x_noisy_1 shape: {x_noisy_1.shape}, t_hat_1 shape: {t_hat_1.shape}")
         try:
             self.module.forward(
                 x_noisy=x_noisy_1,
                 t_hat_noise_level=t_hat_1,
-                input_feature_dict=input_feature_dict, # Pass dict
-                s_inputs=s_inputs, # Pass conditioning
+                input_feature_dict=input_feature_dict,
+                s_inputs=s_inputs,
                 s_trunk=s_trunk,
                 z_trunk=z_trunk
             )
         except Exception as e:
-             self.fail(f"forward failed unexpectedly for N_sample=1: {e}")
-
-        # --- Test with N_sample>1 ---
-        n_sample_4 = 4
-        x_noisy_4 = torch.randn(batch_size, n_sample_4, seq_len, 3, device=device) # N_sample = 4
-        # t_hat needs to match N_sample dimension or be broadcastable
-        t_hat_4 = torch.randn(batch_size, n_sample_4, device=device) # N_sample = 4
-
-        # Adjust dummy dict shapes for N_sample > 1 if necessary (e.g., ref_pos)
-        input_feature_dict_4 = input_feature_dict.copy()
-        input_feature_dict_4["ref_pos"] = input_feature_dict["ref_pos"].expand(-1, n_sample_4, -1, -1)
-        input_feature_dict_4["ref_space_uid"] = input_feature_dict["ref_space_uid"].expand(-1, n_sample_4, -1, -1)
-        # Conditioning tensors s_inputs, s_trunk, z_trunk might also need expansion if not already [B, S, ...]
-        # Assuming forward handles broadcasting/expansion internally based on x_noisy
-
-        # Should not raise error - Updated call
+            self.fail(f"[UNIQUE-ERR-N-SAMPLE-1] forward failed unexpectedly for N_sample=1: {e}")
+        # Test with N_sample>1
+        x_noisy_n = torch.randn(batch_size, n_sample, seq_len, 3, device=device)
+        t_hat_n = torch.randn(batch_size, n_sample, device=device)
+        input_feature_dict_n = input_feature_dict.copy()
+        input_feature_dict_n["ref_pos"] = input_feature_dict["ref_pos"].expand(-1, n_sample, -1, -1)
+        input_feature_dict_n["ref_space_uid"] = input_feature_dict["ref_space_uid"].expand(-1, n_sample, -1, -1)
+        # Debug: Print shapes
+        print(f"[DEBUG-N_SAMPLE] x_noisy_n shape: {x_noisy_n.shape}, t_hat_n shape: {t_hat_n.shape}, ref_pos_n shape: {input_feature_dict_n['ref_pos'].shape}")
         try:
             self.module.forward(
-                x_noisy=x_noisy_4,
-                t_hat_noise_level=t_hat_4,
-                input_feature_dict=input_feature_dict_4, # Pass adjusted dict
-                s_inputs=s_inputs, # Pass conditioning (assuming internal broadcasting)
+                x_noisy=x_noisy_n,
+                t_hat_noise_level=t_hat_n,
+                input_feature_dict=input_feature_dict_n,
+                s_inputs=s_inputs,
                 s_trunk=s_trunk,
                 z_trunk=z_trunk
             )
         except Exception as e:
-             self.fail(f"forward failed unexpectedly for N_sample=4: {e}")
-
+            self.fail(f"[UNIQUE-ERR-N-SAMPLE-N] forward failed unexpectedly for N_sample={n_sample}: {e}")
 
     def test_feature_dimension_consistency(self):
         """Test that feature dimensions are consistent throughout the module"""

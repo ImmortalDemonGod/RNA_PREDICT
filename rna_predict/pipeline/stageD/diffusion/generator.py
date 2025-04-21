@@ -71,7 +71,7 @@ class InferenceNoiseScheduler:
         self,
         s_max: float = 160.0,
         s_min: float = 4e-4,
-        rho: float = 7,
+        p: float = 7,
         sigma_data: float = 16.0,  # NOTE: in EDM, this is 1.0
     ) -> None:
         """Scheduler parameters
@@ -79,13 +79,13 @@ class InferenceNoiseScheduler:
         Args:
             s_max (float, optional): maximal noise level. Defaults to 160.0.
             s_min (float, optional): minimal noise level. Defaults to 4e-4.
-            rho (float, optional): the exponent numerical part. Defaults to 7.
+            p (float, optional): the exponent numerical part. Defaults to 7.
             sigma_data (float, optional): scale. Defaults to 16.0, but this is 1.0 in EDM.
         """
         self.sigma_data = sigma_data
         self.s_max = s_max
         self.s_min = s_min
-        self.rho = rho
+        self.p = p
         print(f"inference scheduler {self.sigma_data}")
 
     def __call__(
@@ -110,12 +110,12 @@ class InferenceNoiseScheduler:
         t_step_list = (
             self.sigma_data
             * (
-                self.s_max ** (1 / self.rho)
+                self.s_max ** (1 / self.p)
                 + step_indices
                 * step_size
-                * (self.s_min ** (1 / self.rho) - self.s_max ** (1 / self.rho))
+                * (self.s_min ** (1 / self.p) - self.s_max ** (1 / self.p))
             )
-            ** self.rho
+            ** self.p
         )
         # replace the last time step by 0
         t_step_list[..., -1] = 0  # t_N = 0
@@ -234,6 +234,19 @@ def sample_diffusion(
             print(
                 f"[DEBUG][Generator Loop {step}] Before denoise_net - x_noisy: {x_noisy.shape}, t_hat: {t_hat.shape}"
             )  # DEBUG PRINT
+            print("[DEBUG-STAGED-PIPELINE] About to call denoise_net with args:")
+            print("  x_noisy:", x_noisy.shape if x_noisy is not None else None)
+            print("  t_hat:", t_hat.shape if t_hat is not None else None)
+            print(
+                "  input_feature_dict:", type(input_feature_dict), list(input_feature_dict.keys()) if isinstance(input_feature_dict, dict) else None
+            )
+            print("  s_inputs:", s_inputs.shape if s_inputs is not None else None)
+            print("  s_trunk:", s_trunk.shape if s_trunk is not None else None)
+            print("  z_trunk:", z_trunk.shape if z_trunk is not None else None)
+            print("  chunk_size:", attn_chunk_size)
+            print("  inplace_safe:", inplace_safe)
+            if x_noisy is None or t_hat is None:
+                raise ValueError("[ERR-STAGED-PIPELINE-001] x_noisy or t_hat is None before denoise_net call")
             x_denoised, _ = denoise_net(  # Unpack tuple, ignore loss
                 x_noisy=x_noisy,
                 t_hat_noise_level=t_hat,

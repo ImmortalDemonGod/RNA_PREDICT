@@ -56,7 +56,6 @@ coverage.xml
 *.pot
 
 # Django stuff:
-*.log
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
@@ -159,6 +158,14 @@ memory_logs/*
 memory_usage.csv
 vscode-diagnostics-exporter/
 
+# Output files
+outputs/
+*.output
+
+# TEMPORARY: allow .log files for debugging
+*.log
+*.log* 
+
 # Added by Claude Task Master
 # Logs
 logs
@@ -185,6 +192,14 @@ tasks/
 # scripts/ # Removed to allow tracking our Python and shell scripts
 run-task-master.js
 .coverage_config.json
+
+*.sqlite
+.coverage_config.json
+.coverage_config.json.bak
+analysis_results/
+tests/stageA/integration/outputs/
+tests/stageA/integration/RFold/
+
 predict_test.ct
 
 # Mutation test reports
@@ -199,3 +214,4 @@ scripts/**/*.pyd
 scripts/**/.DS_Store
 scripts/**/node_modules/
 scripts/**/.env
+

@@ -108,6 +108,8 @@ RNA_BOND_LENGTHS_C3_ENDO = {
     "P-O3'": 1.607,
     "P-O1P_or_O2P": 1.485,  # bridging vs. non-bridging oxygens
     "O5'-C5'": 1.440,
+    "P-OP1": 1.480,  # canonical non-bridging phosphate oxygen
+    "P-OP2": 1.480,  # canonical non-bridging phosphate oxygen
 }
 
 RNA_BOND_LENGTHS_C2_ENDO = {
@@ -265,6 +267,8 @@ RNA_CONNECT = {
         ("P", "O3'"),
         ("P", "O1P"),
         ("P", "O2P"),
+        ("P", "OP1"),
+        ("P", "OP2"),
         ("O5'", "C5'"),
         ("C5'", "C4'"),
         ("C4'", "O4'"),

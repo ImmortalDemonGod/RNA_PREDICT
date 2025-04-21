@@ -23,7 +23,7 @@ from rna_predict.pipeline.stageC.mp_nerf.rna import (
     build_scaffolds_rna_from_torsions,
     rna_fold,
 )
-from rna_predict.pipeline.stageC.stage_c_reconstruction import run_stageC
+from rna_predict.pipeline.stageC.stage_c_reconstruction import run_stageC, create_stage_c_test_config
 
 
 # Configure logging
@@ -235,7 +235,8 @@ def test_hypothesis_4_zero_angles():
     logger.info("Testing with zero angles")
 
     result_zero = run_stageC(
-        sequence=sequence, torsion_angles=zero_angles, method="mp_nerf", device="cpu"
+        sequence=sequence, torsion_angles=zero_angles,
+        cfg=create_stage_c_test_config(method="mp_nerf", device="cpu")
     )
 
     has_nan_zero = check_for_nans(result_zero["coords"], "zero angles result")
@@ -260,7 +261,8 @@ def test_hypothesis_4_zero_angles():
     logger.info("Testing with A-form angles")
 
     result_aform = run_stageC(
-        sequence=sequence, torsion_angles=aform_angles, method="mp_nerf", device="cpu"
+        sequence=sequence, torsion_angles=aform_angles,
+        cfg=create_stage_c_test_config(method="mp_nerf", device="cpu")
     )
 
     has_nan_aform = check_for_nans(result_aform["coords"], "A-form angles result")
@@ -302,7 +304,8 @@ def test_hypothesis_5_angle_format():
     logger.info("Testing with angles in degrees")
 
     result_degrees = run_stageC(
-        sequence=sequence, torsion_angles=degrees_angles, method="mp_nerf", device="cpu"
+        sequence=sequence, torsion_angles=degrees_angles,
+        cfg=create_stage_c_test_config(method="mp_nerf", device="cpu")
     )
 
     has_nan_degrees = check_for_nans(result_degrees["coords"], "degrees result")
@@ -313,7 +316,8 @@ def test_hypothesis_5_angle_format():
     logger.info("Testing with angles in radians")
 
     result_radians = run_stageC(
-        sequence=sequence, torsion_angles=radians_angles, method="mp_nerf", device="cpu"
+        sequence=sequence, torsion_angles=radians_angles,
+        cfg=create_stage_c_test_config(method="mp_nerf", device="cpu")
     )
 
     has_nan_radians = check_for_nans(result_radians["coords"], "radians result")
@@ -333,8 +337,7 @@ def test_hypothesis_5_angle_format():
         result_sincos = run_stageC(
             sequence=sequence,
             torsion_angles=sincos_angles,
-            method="mp_nerf",
-            device="cpu",
+            cfg=create_stage_c_test_config(method="mp_nerf", device="cpu")
         )
 
         has_nan_sincos = check_for_nans(result_sincos["coords"], "sin/cos result")

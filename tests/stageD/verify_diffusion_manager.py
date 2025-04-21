@@ -367,14 +367,30 @@ def verify_input_handling(manager, patches):
         }
         print(f"override_input_features keys: {override_input_features.keys()}")
 
+        # Update manager's config with inference parameters
+        from omegaconf import OmegaConf
+        if not hasattr(manager, 'cfg') or not OmegaConf.is_config(manager.cfg):
+            manager.cfg = OmegaConf.create({
+                "stageD_diffusion": {
+                    "inference": inference_params,
+                    "debug_logging": True
+                }
+            })
+        else:
+            # Update existing config
+            if "inference" not in manager.cfg.stageD_diffusion:
+                manager.cfg.stageD_diffusion.inference = OmegaConf.create(inference_params)
+            else:
+                for k, v in inference_params.items():
+                    manager.cfg.stageD_diffusion.inference[k] = v
+            manager.cfg.stageD_diffusion.debug_logging = True
+
         # Call the method with minimal inputs
         print("Calling multi_step_inference with properly shaped inputs...")
         coords_final = manager.multi_step_inference(
             coords_init=coords_init,
             trunk_embeddings=trunk_embeddings,
-            inference_params=inference_params,
-            override_input_features=override_input_features,
-            debug_logging=True,
+            override_input_features=override_input_features
         )
 
         print("✓ multi_step_inference accepted all required parameters")

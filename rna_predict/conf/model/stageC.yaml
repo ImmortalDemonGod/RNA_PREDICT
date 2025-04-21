@@ -1,0 +1,36 @@
+# rna_predict/conf/model/stageC.yaml
+# Hydra configuration for Stage C: 3D Reconstruction (MP-NeRF)
+# Aligned with docs/pipeline/integration/hydra_integration/components/stageC/StageC_3D_Reconstruction.md
+
+# Note: Removed internal 'defaults' for mp_nerf_model. Model variant selection
+# should be handled via top-level default.yaml or command-line overrides like:
+# python script.py mp_nerf_model=some_variant
+
+enabled: true
+method: "mp_nerf"            # "mp_nerf" or "legacy" (fallback)
+do_ring_closure: false       # Whether to perform ring closure refinement
+place_bases: true            # Whether to place base atoms
+sugar_pucker: "C3'-endo"     # Default sugar pucker conformation
+device: "cpu"                # Device to run on ("cpu", "cuda", or "mps")
+debug_logging: true          # Enable debug logging
+
+# Parameters potentially used by run_stageC_rna_mpnerf or underlying modules
+angle_representation: "degrees" # Expected input format ('degrees' or 'radians')
+use_metadata: false          # Whether to expect/use metadata alongside angles
+
+# Memory Optimization Flags (as per Stage C docs example)
+use_memory_efficient_kernel: false
+use_deepspeed_evo_attention: false # Requires deepspeed installation if True
+use_lma: false               # Low-memory attention
+inplace_safe: false          # Use inplace ops (potentially unsafe)
+chunk_size: null             # Chunk size for memory-efficient operations
+
+# Add other StageC specific parameters here if any arise
+
+# Placeholder for MP-NeRF model parameters if they need direct access via cfg.stageC
+# Currently, ProtenixDiffusionManager expects model config via cfg.diffusion_model (top-level).
+# Stage C might need similar adaptation if run_stageC_rna_mpnerf instantiates a model class.
+# mp_nerf_model_params:
+#   model_type: "MassivePNerf" # Example
+#   num_layers: 3
+#   hidden_dim: 128

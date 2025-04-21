@@ -15,9 +15,51 @@ The tests cover:
 
 import unittest
 import torch
+from omegaconf import OmegaConf, DictConfig # Import OmegaConf and DictConfig
 from unittest.mock import MagicMock
 
 from rna_predict.pipeline.stageB.pairwise.pairformer_wrapper import PairformerWrapper
+# --- Helper function to create test configs ---
+def create_test_pairformer_config(**overrides) -> DictConfig:
+    """Creates a base DictConfig for pairformer tests, allowing overrides."""
+    # Use stageB_pairformer as the key to match the expected configuration structure
+    base_config = {
+        "stageB_pairformer": {
+            "n_blocks": 48,
+            "n_heads": 16,
+            "c_z": 128,
+            "c_s": 384,
+            "dropout": 0.25,
+            "use_memory_efficient_kernel": False,
+            "use_deepspeed_evo_attention": False,
+            "use_lma": False,
+            "inplace_safe": False,
+            "chunk_size": None,
+            "c_hidden_mul": 128,
+            "c_hidden_pair_att": 32,
+            "no_heads_pair": 4,
+            "init_z_from_adjacency": False,
+            "use_checkpoint": False, # Explicitly add use_checkpoint based on refactored code
+             "lora": {              # Include LoRA defaults
+                "enabled": False,
+                "r": 8,
+                "alpha": 16,
+                "dropout": 0.1,
+                "target_modules": []
+            }
+        }
+        # Can add other top-level keys if ever needed by tests
+    }
+    cfg = OmegaConf.create(base_config)
+    override_nested = {"stageB_pairformer": overrides}
+    override_cfg = OmegaConf.create(override_nested)
+    cfg = OmegaConf.merge(cfg, override_cfg)
+    # Ensure the merge result is DictConfig, handle potential ListConfig case if necessary
+    if not isinstance(cfg, DictConfig):
+         # This case should ideally not happen with current structure, but added defensively
+         raise TypeError(f"Merged config is not DictConfig: {type(cfg)}")
+    return cfg
+
 
 
 class TestPairformerWrapperComprehensive(unittest.TestCase):
@@ -47,7 +89,8 @@ class TestPairformerWrapperComprehensive(unittest.TestCase):
     def test_init_with_c_z_adjustment(self):
         """Test initialization with c_z that needs adjustment."""
         # c_z = 30 should be adjusted to 32 (next multiple of 16)
-        wrapper = PairformerWrapper(n_blocks=2, c_z=30, c_s=64)
+        test_cfg = create_test_pairformer_config(n_blocks=2, c_z=30, c_s=64)
+        wrapper = PairformerWrapper(cfg=test_cfg)
 
         # Check that c_z_adjusted is properly calculated
         self.assertEqual(wrapper.c_z, 30)
@@ -59,7 +102,8 @@ class TestPairformerWrapperComprehensive(unittest.TestCase):
     def test_forward_with_c_z_adjustment_padding(self):
         """Test forward pass with c_z that needs padding."""
         # Create wrapper with c_z that needs adjustment
-        wrapper = PairformerWrapper(n_blocks=2, c_z=30, c_s=64)
+        test_cfg = create_test_pairformer_config(n_blocks=2, c_z=30, c_s=64)
+        wrapper = PairformerWrapper(cfg=test_cfg)
 
         # Run forward pass with z tensor that has c_z=30
         s_updated, z_updated = wrapper(self.s, self.z_non_multiple, self.pair_mask)
@@ -78,7 +122,8 @@ class TestPairformerWrapperComprehensive(unittest.TestCase):
 
         # Instead of trying to run the full forward pass, which would require
         # modifying the internal PairformerStack, we'll mock the stack's forward method
-        wrapper = PairformerWrapper(n_blocks=2, c_z=30, c_s=64)
+        test_cfg = create_test_pairformer_config(n_blocks=2, c_z=30, c_s=64)
+        wrapper = PairformerWrapper(cfg=test_cfg)
 
         # Manually set c_z_adjusted to a smaller value to force truncation path
         wrapper.c_z_adjusted = 16
@@ -111,7 +156,8 @@ class TestPairformerWrapperComprehensive(unittest.TestCase):
 
     def test_adjust_z_dimensions_padding(self):
         """Test the adjust_z_dimensions method with padding."""
-        wrapper = PairformerWrapper(n_blocks=2, c_z=30, c_s=64)
+        test_cfg = create_test_pairformer_config(n_blocks=2, c_z=30, c_s=64)
+        wrapper = PairformerWrapper(cfg=test_cfg)
 
         # Call adjust_z_dimensions directly
         z_adjusted = wrapper.adjust_z_dimensions(self.z_non_multiple)
@@ -130,7 +176,8 @@ class TestPairformerWrapperComprehensive(unittest.TestCase):
 
     def test_adjust_z_dimensions_truncation(self):
         """Test the adjust_z_dimensions method with truncation."""
-        wrapper = PairformerWrapper(n_blocks=2, c_z=32, c_s=64)
+        test_cfg = create_test_pairformer_config(n_blocks=2, c_z=32, c_s=64)
+        wrapper = PairformerWrapper(cfg=test_cfg)
 
         # Manually set c_z_adjusted to a smaller value to force truncation path
         wrapper.c_z_adjusted = 16
@@ -150,7 +197,8 @@ class TestPairformerWrapperComprehensive(unittest.TestCase):
     def test_forward_with_mock_stack(self):
         """Test forward pass with a mocked PairformerStack to isolate the wrapper logic."""
         # Create a wrapper
-        wrapper = PairformerWrapper(n_blocks=2, c_z=30, c_s=64)
+        test_cfg = create_test_pairformer_config(n_blocks=2, c_z=30, c_s=64)
+        wrapper = PairformerWrapper(cfg=test_cfg)
 
         # Create a mock for the stack's forward method
         mock_output_s = torch.randn_like(self.s)
@@ -190,7 +238,9 @@ class TestPairformerWrapperComprehensive(unittest.TestCase):
         pair_mask_gpu = self.pair_mask.cuda()
 
         # Create wrapper
-        wrapper = PairformerWrapper(n_blocks=2, c_z=30, c_s=64).cuda()
+        test_cfg = create_test_pairformer_config(n_blocks=2, c_z=30, c_s=64)
+        # Instantiate first, then move to CUDA
+        wrapper = PairformerWrapper(cfg=test_cfg).cuda()
 
         # Run forward pass
         s_updated, z_updated = wrapper(s_gpu, z_gpu, pair_mask_gpu)
@@ -209,7 +259,8 @@ class TestPairformerWrapperComprehensive(unittest.TestCase):
         z_float64 = self.z_non_multiple.to(torch.float64)
 
         # Create wrapper
-        wrapper = PairformerWrapper(n_blocks=2, c_z=30, c_s=64)
+        test_cfg = create_test_pairformer_config(n_blocks=2, c_z=30, c_s=64)
+        wrapper = PairformerWrapper(cfg=test_cfg)
 
         # Call adjust_z_dimensions directly
         z_adjusted = wrapper.adjust_z_dimensions(z_float64)
@@ -226,7 +277,8 @@ class TestPairformerWrapperComprehensive(unittest.TestCase):
             self.skipTest("CUDA not available, skipping device test")
 
         # Create wrapper
-        wrapper = PairformerWrapper(n_blocks=2, c_z=30, c_s=64)
+        test_cfg = create_test_pairformer_config(n_blocks=2, c_z=30, c_s=64)
+        wrapper = PairformerWrapper(cfg=test_cfg)
 
         # Create tensor on GPU
         z_gpu = self.z_non_multiple.cuda()
@@ -243,7 +295,8 @@ class TestPairformerWrapperComprehensive(unittest.TestCase):
     def test_adjust_z_dimensions_with_dtype(self):
         """Test adjust_z_dimensions with tensors of different dtypes."""
         # Create wrapper
-        wrapper = PairformerWrapper(n_blocks=2, c_z=30, c_s=64)
+        test_cfg = create_test_pairformer_config(n_blocks=2, c_z=30, c_s=64)
+        wrapper = PairformerWrapper(cfg=test_cfg)
 
         # Create tensor with float64 dtype
         z_float64 = self.z_non_multiple.to(torch.float64)

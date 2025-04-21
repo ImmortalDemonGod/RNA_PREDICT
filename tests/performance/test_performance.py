@@ -65,6 +65,13 @@ def test_diffusion_single_embed_caching():
         "deletion_mean": torch.zeros(1, N, 1),
     }
 
+    # Add a valid sequence for bridging
+    sequence = "ACGUA" * N  # Length 5*N, matches N=5 for this test
+    sequence = sequence[:N]
+    # Remove sequence from diffusion_config and input_features
+    diffusion_config.pop("sequence", None)
+    input_features.pop("sequence", None)
+
     # 1) First call
     print(f"Memory before 1st call: {get_memory_usage():.2f} MB")
     t1_start = time.time()
@@ -76,6 +83,7 @@ def test_diffusion_single_embed_caching():
         mode="inference",
         device="cpu",
         input_features=input_features,  # Pass input features
+        sequence=sequence,  # Pass as top-level attribute
     )
     coords_final_1 = run_stageD_diffusion(config=config1)
     print(f"Memory after 1st call: {get_memory_usage():.2f} MB")
@@ -96,6 +104,7 @@ def test_diffusion_single_embed_caching():
         mode="inference",
         device="cpu",
         input_features=None,  # No need to pass input_features again
+        sequence=sequence,  # Pass as top-level attribute
     )
     coords_final_2 = run_stageD_diffusion(config=config2)
     t2_end = time.time()

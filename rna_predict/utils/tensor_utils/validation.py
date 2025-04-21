@@ -26,6 +26,10 @@ def _validate_residue_count(
         ValueError: If residue_atom_map length doesn't match n_residue
     """
     if len(residue_atom_map) != n_residue:
+        # Log debug info
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.debug(f"residue_atom_map length ({len(residue_atom_map)}) does not match s_emb residue dimension ({n_residue}).")
         raise ValueError(f"residue_atom_map length ({len(residue_atom_map)}) does not match s_emb residue dimension ({n_residue}).")
 
 

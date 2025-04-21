@@ -41,11 +41,14 @@ class AtomAttentionEncoder(nn.Module):
         self.n_keys = config.n_keys
 
         # Initialize components
+        c_ref_element = getattr(config, 'c_ref_element', 128)
+        print(f"[DEBUG][AtomAttentionEncoder] Using c_ref_element={c_ref_element}")
         self.feature_processor = FeatureProcessor(
             c_atom=self.c_atom,
             c_atompair=self.c_atompair,
             c_s=self.c_s,
             c_z=self.c_z,
+            c_ref_element=c_ref_element,
         )
 
         if self.has_coords:

@@ -138,6 +138,79 @@ def run_pipeline(seq: str):
 - **Soft Version** 🌥️
     - Slight constraint relaxation for datasets with rare exceptions (see the “soft-RFold” discussion in original publications).
 
+
+**Note on Configuration (Hydra)**
+
+Stage A's behavior is controlled via [Hydra](https://hydra.cc/). The default parameters are set in:
+`rna_predict/conf/model/stageA.yaml`
+
+Here's a snippet illustrating the structure and some key default values:
+
+```yaml
+# rna_predict/conf/model/stageA.yaml
+
+# --- Top-Level Parameters ---
+num_hidden: 128       # Corresponds to query_key_dim in Seq2Map? (Check RFold code)
+dropout: 0.3          # General dropout rate
+min_seq_length: 80    # Minimum sequence length for padding
+device: "cuda"        # Target device ("cuda" or "cpu")
+checkpoint_path: "RFold/checkpoints/RNAStralign_trainset_pretrained.pth"
+checkpoint_url: "https://www.dropbox.com/s/l04l9bf3v6z2tfd/checkpoints.zip?dl=1"
+batch_size: 32        # Batch size (if applicable during inference/training)
+lr: 0.001             # Learning rate (for training/fine-tuning)
+threshold: 0.5        # Threshold for converting probabilities to binary map
+
+# --- Nested Configurations ---
+visualization:
+  enabled: true
+  varna_jar_path: "tools/varna-3-93.jar" # Default path to VARNA jar
+  resolution: 8.0
+
+model:
+  # U-Net Architecture
+  conv_channels: [64, 128, 256, 512]
+  residual: true
+  c_hid: 32 # Hidden channels in U-Net bottleneck
+
+  # Seq2Map Component
+  seq2map:
+    attention_heads: 8
+    attention_dropout: 0.1
+    # ... other seq2map params ...
+
+  # Decoder Component
+  decoder:
+    skip_connections: true
+    # ... other decoder params ...
+```
+*(**Note:** Refer to `rna_predict/conf/config_schema.py` for the complete, typed definition of all parameters and their defaults.)*
+
+**Overriding Defaults via Command Line:**
+
+You can easily override any parameter without editing the YAML file using command-line arguments. Since the main `default.yaml` loads `model/stageA`, these parameters are accessed under the `stageA` group:
+
+* **Change Dropout:**
+    ```bash
+    python rna_predict/pipeline/stageA/run_stageA.py stageA.dropout=0.1
+    ```
+* **Use CPU:**
+    ```bash
+    python rna_predict/pipeline/stageA/run_stageA.py stageA.device=cpu
+    ```
+* **Change Nested Parameter (U-Net hidden channels):**
+    ```bash
+    python rna_predict/pipeline/stageA/run_stageA.py stageA.model.c_hid=64
+    ```
+* **Change Deeper Nested Parameter (Seq2Map attention heads):**
+    ```bash
+    python rna_predict/pipeline/stageA/run_stageA.py stageA.model.seq2map.attention_heads=12
+    ```
+* **Disable Visualization:**
+    ```bash
+    python rna_predict/pipeline/stageA/run_stageA.py stageA.visualization.enabled=false
+    ```
+
+Combine multiple overrides as needed. This allows for flexible experimentation.
 ---
 
 ### 🎉 6. Benefits & Summary

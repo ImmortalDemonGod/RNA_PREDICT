@@ -145,8 +145,14 @@ class ResidueToAtomsConfig:
     ) -> None:
         self.s_emb = s_emb
         self.residue_atom_map = residue_atom_map
-
-        # Derived properties
+        # DEBUG PRINTS for mismatch analysis
+        print("[DEBUG][ResidueToAtomsConfig] s_emb.shape =", s_emb.shape)
+        print("[DEBUG][ResidueToAtomsConfig] len(residue_atom_map) =", len(residue_atom_map))
+        if len(residue_atom_map) > 0:
+            print("[DEBUG][ResidueToAtomsConfig] residue_atom_map (first 2) =", residue_atom_map[:2])
+        else:
+            print("[DEBUG][ResidueToAtomsConfig] residue_atom_map is EMPTY!")
+        # This line triggers the error if there's a mismatch:
         _, self.n_atom, self.c_s, self.is_batched = get_dimensions(s_emb, residue_atom_map)
         self.batch_size = s_emb.shape[0] if self.is_batched else None
         self.dtype = s_emb.dtype

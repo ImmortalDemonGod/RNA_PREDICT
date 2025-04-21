@@ -1,5 +1,14 @@
+"""
+Tests for the ProtenixIntegration class.
+
+This module provides tests for the ProtenixIntegration class, which integrates
+Protenix input embedding components for Stage B/C synergy by building single-token and
+pair embeddings from raw features.
+"""
+
 import pytest
 import torch
+from hypothesis import given, strategies as st, settings, HealthCheck
 
 from rna_predict.pipeline.stageB.pairwise.protenix_integration import (
     ProtenixIntegration,
@@ -68,17 +77,31 @@ def test_residue_index_squeeze_fix():
     )
 
 
-def test_residue_index_squeeze_fix_memory_efficient():
+@settings(
+    deadline=None,  # Disable deadline checks since model loading can be slow
+    max_examples=5,  # Limit number of examples to keep test runtime reasonable
+    suppress_health_check=[HealthCheck.too_slow]
+)
+@given(
+    n_token=st.integers(min_value=2, max_value=5),  # Small number of tokens for memory efficiency
+    atoms_per_token=st.integers(min_value=1, max_value=3),  # Vary atoms per token
+    residue_index_shape=st.sampled_from(["1d", "2d"])  # Test both 1D and 2D residue_index shapes
+)
+def test_residue_index_squeeze_fix_memory_efficient(n_token, atoms_per_token, residue_index_shape):
     """
-    Memory-efficient version of test_residue_index_squeeze_fix.
-    Tests build_embeddings() with 'residue_index' shape [N_token,1] using minimal dimensions.
-    Includes memory monitoring and safeguards.
+    Property-based test for ProtenixIntegration.build_embeddings().
+    Tests that the function handles different residue_index shapes correctly.
+
+    Args:
+        n_token: Number of tokens to use in the test
+        atoms_per_token: Number of atoms per token
+        residue_index_shape: Shape of the residue_index tensor ("1d" or "2d")
     """
     import gc
     import os
-    from contextlib import contextmanager
-
     import psutil
+    from contextlib import contextmanager
+    from omegaconf import OmegaConf
 
     def get_memory_usage():
         """Get current memory usage in MB."""
@@ -105,30 +128,47 @@ def test_residue_index_squeeze_fix_memory_efficient():
     print(f"Initial memory usage: {initial_memory:.2f} MB")
 
     try:
-        # Initialize with default configuration since these dimensions are used internally
-        integrator = ProtenixIntegration(
-            c_token=384,
-            restype_dim=32,
-            profile_dim=32,
-            c_atom=128,
-            c_pair=32,
-            num_heads=2,  # Reduced from 4
-            num_layers=1,  # Reduced from 3
-            device=torch.device("cpu"),
-        )
+        # Create a proper configuration object for ProtenixIntegration
+        cfg = OmegaConf.create({
+            "model": {
+                "stageB": {
+                    "debug_logging": True,
+                    "pairformer": {
+                        "protenix_integration": {
+                            "device": "cpu",
+                            "c_token": 384,
+                            "restype_dim": 32,
+                            "profile_dim": 32,
+                            "c_atom": 128,
+                            "c_pair": 32,
+                            "r_max": 32,  # Required parameter
+                            "s_max": 32,  # Required parameter
+                            "use_optimized": False
+                        }
+                    }
+                }
+            }
+        })
 
-        # Use minimal N_token and N_atom
-        N_token = 3  # Reduced from 5
-        atoms_per_token = 2  # Reduced from 4
+        # Initialize with the configuration object
+        integrator = ProtenixIntegration(cfg)
+
+        # Calculate number of atoms
+        N_token = n_token
         N_atom = N_token * atoms_per_token
 
-        # Create minimal input features (shapes expected by build_embeddings preprocessing)
+        # Create residue_index tensor with the specified shape
+        if residue_index_shape == "1d":
+            residue_index = torch.arange(N_token)  # [N_token]
+        else:  # "2d"
+            residue_index = torch.arange(N_token).unsqueeze(-1)  # [N_token, 1]
+
+        # Create minimal input features
         input_features = {
-            "residue_index": torch.arange(N_token),  # [N_token]
+            "residue_index": residue_index,
             "ref_pos": torch.randn(N_atom, 3),  # [N_atom, 3]
             "ref_charge": torch.randn(N_atom, 1),  # [N_atom, 1]
             "ref_element": torch.randn(N_atom, 128),  # [N_atom, 128]
-            # Ensure correct shape [N_atom, 256] before preprocessing adds batch dim
             "ref_atom_name_chars": torch.zeros(N_atom, 256),
             "atom_to_token": torch.repeat_interleave(
                 torch.arange(N_token), atoms_per_token
@@ -143,17 +183,14 @@ def test_residue_index_squeeze_fix_memory_efficient():
             "ref_space_uid": torch.zeros(N_atom, dtype=torch.long),  # [N_atom]
         }
 
-        # Removed redundant reshape for ref_atom_name_chars
-
         # Monitor memory before building embeddings
         pre_build_memory = get_memory_usage()
-        print(f"Memory before building embeddings: {pre_build_memory:.2f} MB")
         memory_increase = pre_build_memory - initial_memory
         assert (
             memory_increase < MEMORY_THRESHOLD
         ), f"Memory increase ({memory_increase:.2f} MB) exceeds threshold"
 
-        # Set timeout to prevent hanging (increased from 30 to 60 seconds)
+        # Set timeout to prevent hanging
         with timeout(seconds=60):
             # Build embeddings
             embeddings = integrator.build_embeddings(input_features)
@@ -165,7 +202,7 @@ def test_residue_index_squeeze_fix_memory_efficient():
             s_inputs = embeddings["s_inputs"]
             z_init = embeddings["z_init"]
 
-            # Verify shapes (accounting for batch dimension)
+            # Verify shapes
             assert (
                 s_inputs.shape[0] == N_token
             ), f"Expected s_inputs shape (N_token, _), got {s_inputs.shape}"

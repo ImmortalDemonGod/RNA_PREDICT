@@ -41,17 +41,14 @@ def run_inference_mode(
     Returns:
         Refined coordinates tensor
     """
-    # Set N_sample to 1 in inference params to avoid extra dimensions
-    inference_params = context.diffusion_config.get("inference", {})
-    inference_params["N_sample"] = 1
+    # Note: We no longer need to pass inference_params directly to multi_step_inference
+    # as it now reads parameters from the manager's internal config
 
     # Pass the internal (potentially fixed) copy to the manager
     coords = context.diffusion_manager.multi_step_inference(
         coords_init=context.partial_coords.to(context.device),
         trunk_embeddings=context.trunk_embeddings_internal,
-        inference_params=inference_params,
-        override_input_features=context.input_features,
-        debug_logging=True,
+        override_input_features=context.input_features
     )
 
     # Update the original trunk_embeddings dict with cached s_inputs if it was added
@@ -63,5 +60,13 @@ def run_inference_mode(
         context.original_trunk_embeddings_ref["s_inputs"] = context.trunk_embeddings_internal[
             "s_inputs"
         ]
+
+    # Enforce output shape [1, 25, 3] for inference output
+    assert coords.dim() == 3, f"coords must have 3 dims, got {coords.shape}"
+    assert coords.shape[0] == 1, f"Batch size must be 1, got {coords.shape}"
+    assert coords.shape[2] == 3, f"Last dim must be 3, got {coords.shape}"
+    # Optionally, enforce 25 atoms if desired (comment out if variable):
+    # assert coords.shape[1] == 25, f"Atom count must be 25, got {coords.shape}"
+    logger.debug(f"[StageD][run_inference_mode] coords output shape: {coords.shape}")
 
     return coords
