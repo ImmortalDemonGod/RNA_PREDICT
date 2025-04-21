@@ -953,6 +953,14 @@ class EnergyMinimizationConfig:
     )
 
 @dataclass
+class LanceDBConfig:
+    """Configuration for LanceDB logging integration."""
+    enabled: bool = field(
+        default=False,
+        metadata={"help": "Enable LanceDB logging (M3 only, stub in M2)"}
+    )
+
+@dataclass
 class PipelineConfig:
     """Configuration for the overall pipeline execution."""
     verbose: bool = field(
@@ -974,6 +982,10 @@ class PipelineConfig:
     nan_replacement_value: float = field(
         default=0.0,
         metadata={"help": "Value to replace NaNs with when ignore_nan_values is True"}
+    )
+    lance_db: LanceDBConfig = field(
+        default_factory=LanceDBConfig,
+        metadata={"help": "LanceDB logging config (M3: enable for real logging)"}
     )
 
 @dataclass
