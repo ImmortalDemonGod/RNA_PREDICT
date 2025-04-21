@@ -6,6 +6,9 @@ c_z: 128                     # Pair representation dimension
 c_s: 384                     # Single representation dimension
 dropout: 0.25                # Default dropout rate
 
+# NEW: Freeze all parameters for test parity
+freeze_params: false
+
 # Device setting
 device: ${device}  # Inherit from global device setting
 
