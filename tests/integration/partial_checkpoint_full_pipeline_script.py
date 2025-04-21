@@ -68,7 +68,6 @@ if not config_path_selected:
 # 4. Load config and build pipeline
 try:
     # Hydra requires config_path to be relative to CWD
-    REL_CONFIG_PATH = "rna_predict/conf"
     ABS_CONFIG_PATH = "/Users/tomriddle1/RNA_PREDICT/rna_predict/conf"
     if not os.path.isdir(ABS_CONFIG_PATH):
         print(f"[UNIQUE-ERR-HYDRA-ABS-CONF-NOT-FOUND] Absolute config directory '{ABS_CONFIG_PATH}' not found or not a directory.\nSee docs/guides/best_practices/debugging/comprehensive_debugging_guide.md for troubleshooting.")
@@ -80,7 +79,7 @@ try:
               f"To fix: cd {EXPECTED_CWD} && uv run tests/integration/partial_checkpoint_full_pipeline_script.py\n"
               f"See docs/guides/best_practices/debugging/comprehensive_debugging_guide.md for more info.")
         sys.exit(1)
-    with hydra.initialize(config_path=REL_CONFIG_PATH, job_name="partial_checkpoint_full_pipeline_script"):
+    with hydra.initialize(config_path="/Users/tomriddle1/RNA_PREDICT/rna_predict/conf", job_name="partial_checkpoint_full_pipeline_script"):
         cfg = hydra.compose(config_name="default")
     print("[SCRIPT DEBUG] Hydra loaded config successfully:")
     print(cfg)
