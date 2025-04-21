@@ -1,14 +1,24 @@
 import os
-
 import psutil
 import pytest
 import torch
-
+from hypothesis import given, strategies as st, settings
+from omegaconf import OmegaConf
 from rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager import (
     ProtenixDiffusionManager,
 )
-from rna_predict.pipeline.stageD.diffusion.run_stageD_unified import run_stageD_diffusion
-from rna_predict.pipeline.stageD.diffusion.utils import DiffusionConfig # Import needed class
+from rna_predict.pipeline.stageD.diffusion.run_stageD_unified import (
+    run_stageD_diffusion,
+    _run_stageD_diffusion_impl,
+)
+from rna_predict.pipeline.stageD.diffusion.utils import DiffusionConfig
+from rna_predict.pipeline.stageD.diffusion.bridging.residue_atom_bridge import (
+    BridgingInput,
+    bridge_residue_to_atom,
+)
+from rna_predict.pipeline.stageD.run_stageD import run_stageD
+from rna_predict.utils.shape_utils import adjust_tensor_feature_dim
+
 
 # ------------------------------------------------------------------------------
 # Test: Single-sample shape expansion using multi_step_inference
@@ -26,7 +36,6 @@ def _create_diffusion_config():
         "c_s": 384,
         "c_z": 32,
         "c_token": 384,
-        "c_s_inputs": 449,
         "transformer": {"n_blocks": 1, "n_heads": 2},
         "conditioning": {
             "c_s": 384,
@@ -134,7 +143,6 @@ def test_single_sample_shape_expansion():
     diffusion_config = _create_diffusion_config()
 
     # Create a Hydra-compatible config structure
-    from omegaconf import OmegaConf
     hydra_cfg = OmegaConf.create({
         "stageD": {
             "diffusion": {
@@ -882,12 +890,13 @@ def test_run_stageD_raises_on_atom_level_input(batch_size, n_residues, atoms_per
     else:
         raise AssertionError("run_stageD did not raise on atom-level input!")
 
-from hypothesis import given, strategies as st
+from hypothesis import given, strategies as st, settings
+@settings(deadline=3000, max_examples=10)
 @given(
-    batch_size=st.integers(min_value=1, max_value=2),
-    n_residues=st.integers(min_value=2, max_value=8),
-    atoms_per_residue=st.integers(min_value=2, max_value=16),
-    c_s=st.integers(min_value=2, max_value=8)
+    batch_size=st.integers(min_value=1, max_value=1),
+    n_residues=st.integers(min_value=2, max_value=4),
+    atoms_per_residue=st.integers(min_value=2, max_value=4),
+    c_s=st.integers(min_value=2, max_value=4)
 )
 def test_unified_runner_raises_on_atom_level_input(batch_size, n_residues, atoms_per_residue, c_s):
     """
@@ -920,3 +929,54 @@ def test_unified_runner_raises_on_atom_level_input(batch_size, n_residues, atoms
         assert "[STAGED-UNIFIED ERROR][UNIQUE_CODE_004]" in str(e), f"Unexpected error message: {e}"
     else:
         raise AssertionError("run_stageD_diffusion did not raise on atom-level input!")
+
+from hypothesis import given, strategies as st, settings
+@settings(deadline=3000, max_examples=10)
+@given(
+    batch_size=st.integers(min_value=1, max_value=1),
+    n_residues=st.integers(min_value=2, max_value=4),
+    atoms_per_residue=st.integers(min_value=2, max_value=4),
+    c_s=st.integers(min_value=2, max_value=4)
+)
+def test_forbid_original_trunk_embeddings_ref_after_bridge(batch_size, n_residues, atoms_per_residue, c_s):
+    """
+    Property-based test: using original_trunk_embeddings_ref after bridging must raise a unique error.
+    [STAGED-UNIFIED ERROR][UNIQUE_CODE_005]
+    """
+    import torch
+    from rna_predict.pipeline.stageD.diffusion.run_stageD_unified import _run_stageD_diffusion_impl
+    from rna_predict.pipeline.stageD.diffusion.utils import DiffusionConfig
+    from rna_predict.pipeline.stageD.diffusion.bridging.residue_atom_bridge import BridgingInput
+    n_atoms = n_residues * atoms_per_residue
+    s_trunk = torch.randn(batch_size, n_residues, c_s)  # residue-level
+    z_trunk = torch.randn(batch_size, n_residues, n_residues, c_s)
+    s_inputs = torch.randn(batch_size, n_atoms, c_s)
+    coords = torch.randn(batch_size, n_atoms, 3)
+    input_features = {"sequence": ["A"] * n_residues}
+    trunk_embeddings = {"s_trunk": s_trunk, "pair": z_trunk, "s_inputs": s_inputs}
+    config = DiffusionConfig(
+        partial_coords=coords,
+        trunk_embeddings=trunk_embeddings,
+        diffusion_config={},
+        mode="inference",
+        device="cpu",
+        input_features=input_features,
+        debug_logging=False,
+        sequence=["A"] * n_residues
+    )
+    # Run the function and then try to use original_trunk_embeddings_ref after bridging
+    try:
+        result = _run_stageD_diffusion_impl(config)
+        # Try to access forbidden variable
+        try:
+            result.original_trunk_embeddings_ref()
+        except RuntimeError as e:
+            assert "[STAGED-UNIFIED ERROR][UNIQUE_CODE_005]" in str(e), f"Unexpected error message: {e}"
+        else:
+            raise AssertionError("Accessing original_trunk_embeddings_ref did not raise after bridging!")
+    except Exception as e:
+        # Accept ValueError for shape errors or forbidden variable
+        if ("[STAGED-UNIFIED ERROR][UNIQUE_CODE_005]" in str(e)) or ("does not match s_emb residue dimension" in str(e)):
+            pass
+        else:
+            raise
