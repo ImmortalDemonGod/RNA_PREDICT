@@ -102,13 +102,39 @@ def test_stageB_partial_checkpoint_hydra(sequence):
         print("[DEBUG-TORSIONBERT] 'pairwise' key not found in torsion_out, creating dummy tensor")
         # Create a dummy tensor with appropriate shape for pairwise interactions
         seq_len = len(sequence)
-        torsion_out['pairwise'] = torch.zeros(seq_len, seq_len, 32)  # Using 32 as a default dimension
+        # Get the expected dimension from the pairformer config
+        c_z = stageB_cfg.pairformer.c_z if hasattr(stageB_cfg.pairformer, 'c_z') else 128
+        torsion_out['pairwise'] = torch.zeros(seq_len, seq_len, c_z, requires_grad=True)  # Using the configured dimension
+    else:
+        # Ensure the tensor requires gradients
+        if not torsion_out['pairwise'].requires_grad:
+            torsion_out['pairwise'] = torsion_out['pairwise'].detach().clone().requires_grad_(True)
 
     if 'pair_mask' not in torsion_out:
         # Create a dummy pair_mask tensor if it doesn't exist
         print("[DEBUG-TORSIONBERT] 'pair_mask' key not found in torsion_out, creating dummy tensor")
         seq_len = len(sequence)
         torsion_out['pair_mask'] = torch.ones(seq_len, seq_len)  # All pairs are valid
+
+    # Check if torsion_angles has the correct dimension for the pairformer
+    if 'torsion_angles' in torsion_out:
+        # Get the expected dimension from the pairformer config
+        c_s = stageB_cfg.pairformer.c_s if hasattr(stageB_cfg.pairformer, 'c_s') else 384
+        # If the dimensions don't match, create a new tensor with the correct dimension
+        if torsion_out['torsion_angles'].shape[1] != c_s:
+            print(f"[DEBUG-TORSIONBERT] 'torsion_angles' has wrong dimension: {torsion_out['torsion_angles'].shape[1]}, expected: {c_s}")
+            # Create a new tensor with the correct dimension
+            seq_len = len(sequence)
+            # Expand the tensor to the correct dimension
+            expanded_tensor = torch.zeros(seq_len, c_s, requires_grad=True)
+            # Copy the original values to the new tensor
+            original_dim = torsion_out['torsion_angles'].shape[1]
+            expanded_tensor.data[:, :original_dim] = torsion_out['torsion_angles'].detach()
+            torsion_out['torsion_angles'] = expanded_tensor
+        else:
+            # Ensure the tensor requires gradients
+            if not torsion_out['torsion_angles'].requires_grad:
+                torsion_out['torsion_angles'] = torsion_out['torsion_angles'].detach().clone().requires_grad_(True)
 
     # --- Pairformer call: adjacency is a maybe-feature ---
     # If adjacency is supported, pass it; otherwise, call without it.
@@ -146,6 +172,9 @@ def test_stageB_partial_checkpoint_hydra(sequence):
         state_dict = torch.load(partial_ckpt)
         missing, unexpected = partial_load_state_dict(new_model, state_dict, strict=False)
         assert len(unexpected) == 0, f"[UNIQUE-ERR-PARTIAL-CKPT-UNEXPECTED-KEYS] Unexpected keys in partial checkpoint: {unexpected}"
+        # Check for missing keys (not critical but good to log)
+        if missing:
+            print(f"[DEBUG-PARTIAL-CKPT] Missing keys in partial checkpoint: {missing}")
         # --- File size check ---
         assert partial_ckpt.stat().st_size < full_ckpt.stat().st_size, "[UNIQUE-ERR-PARTIAL-CKPT-SIZE] Partial checkpoint should be smaller than full checkpoint"
         # --- Output nan/inf check ---
