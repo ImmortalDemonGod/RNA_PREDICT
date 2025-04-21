@@ -116,7 +116,7 @@ def _process_simple_embedding(
 
 
 def _process_coordinate_encoding(
-    encoder: Any, q_l: torch.Tensor, r_l: Optional[torch.Tensor], ref_pos: torch.Tensor
+    encoder: Any, q_l: torch.Tensor, r_l: Optional[torch.Tensor], ref_pos: Optional[torch.Tensor]
 ) -> torch.Tensor:
     """
     Process and add coordinate-based positional encoding.
@@ -132,6 +132,11 @@ def _process_coordinate_encoding(
     """
     if r_l is None:
         return q_l
+
+    # Handle None ref_pos
+    if ref_pos is None:
+        warnings.warn("ref_pos is None in _process_coordinate_encoding. Using r_l directly.")
+        return q_l + encoder.linear_no_bias_r(r_l)
 
     # Check coordinates shape matches expected
     if r_l.ndim >= 2 and r_l.size(-1) == 3 and r_l.size(-2) == ref_pos.size(-2):
@@ -282,7 +287,13 @@ def process_inputs_with_coords(
         params.input_feature_dict, "atom_to_token_idx"
     )
     ref_pos = safe_tensor_access(params.input_feature_dict, "ref_pos")
-    restype = safe_tensor_access(params.input_feature_dict, "restype")
+
+    # Create a default restype tensor if not found
+    default_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    batch_size = atom_to_token_idx.shape[0] if atom_to_token_idx is not None else 1
+    num_tokens = atom_to_token_idx.shape[1] if atom_to_token_idx is not None and atom_to_token_idx.dim() > 1 else 50
+    default_restype = torch.zeros((batch_size, num_tokens), device=default_device, dtype=torch.long)
+    restype = safe_tensor_access(params.input_feature_dict, "restype", default=default_restype)
 
     # Process coordinates and style embedding
     q_l = _process_coordinate_encoding(encoder, params.c_l, params.r_l, ref_pos)
