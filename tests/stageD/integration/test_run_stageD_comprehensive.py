@@ -284,7 +284,17 @@ class TestRunStageDComprehensive(unittest.TestCase):
                 atom_embeddings["atom_metadata"]["residue_indices"] = atom_embeddings["atom_metadata"]["residue_indices"][:max_len]
                 atom_embeddings["sequence"] = atom_embeddings["sequence"][:max_len]
                 atom_embeddings["atom_to_token_idx"] = atom_embeddings["atom_to_token_idx"][..., :max_len]
-                # Add more fields here as needed
+
+                # Also truncate residue-level embeddings to match the truncated atom-level fields
+                # This is necessary to ensure that the residue count derived from the atom metadata
+                # matches the residue count in the embeddings
+                if "s_trunk" in atom_embeddings and isinstance(atom_embeddings["s_trunk"], torch.Tensor):
+                    atom_embeddings["s_trunk"] = atom_embeddings["s_trunk"][:, :max_len, :]
+                if "s_inputs" in atom_embeddings and isinstance(atom_embeddings["s_inputs"], torch.Tensor):
+                    atom_embeddings["s_inputs"] = atom_embeddings["s_inputs"][:, :max_len, :]
+                if "pair" in atom_embeddings and isinstance(atom_embeddings["pair"], torch.Tensor):
+                    atom_embeddings["pair"] = atom_embeddings["pair"][:, :max_len, :max_len, :]
+
                 return atom_embeddings
 
             if preprocess_max_len < seq_len:
