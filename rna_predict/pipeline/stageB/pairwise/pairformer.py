@@ -116,8 +116,12 @@ class PairformerBlock(nn.Module):
 
         # Initialize single representation components if needed
         if self.c_s > 0:
+            # Enable single‑rep conditioning and gating
             self.attention_pair_bias = AttentionPairBias(
-                has_s=False, n_heads=self.n_heads, c_a=self.c_s, c_z=self.c_z
+                has_s=True,  # <-- enable s‑conditioning
+                n_heads=self.n_heads,
+                c_a=self.c_s,
+                c_z=self.c_z,
             )
             self.single_transition = Transition(c_in=self.c_s, n=4)
 
@@ -187,7 +191,7 @@ class PairformerBlock(nn.Module):
             if self.c_s > 0:
                 s += self.attention_pair_bias(
                     a=s,
-                    s=None,
+                    s=s,  # Pass s for conditioning and gating
                     z=z,
                 )
                 s += self.single_transition(s)
@@ -236,7 +240,7 @@ class PairformerBlock(nn.Module):
             if self.c_s > 0:
                 s = s + self.attention_pair_bias(
                     a=s,
-                    s=None,
+                    s=s,  # Pass s for conditioning and gating
                     z=z,
                 )
                 s = s + self.single_transition(s)
@@ -269,13 +273,11 @@ class PairformerStack(nn.Module):
         self.dropout = cfg.dropout
         self.blocks_per_ckpt = cfg.blocks_per_ckpt
 
-        # Create block configuration
+        # Create block configuration with all fields from PairformerBlockConfig
+        # Use dictionary comprehension to get all fields from the dataclass
         block_cfg = PairformerBlockConfig(
-            n_heads=self.n_heads,
-            c_z=self.c_z,
-            c_s=self.c_s,
-            dropout=self.dropout,
-            # Use default values for other parameters
+            **{k: getattr(cfg, k, getattr(PairformerBlockConfig, k).default)
+               for k in PairformerBlockConfig.__dataclass_fields__}
         )
 
         # Initialize blocks
@@ -555,12 +557,14 @@ class MSABlock(nn.Module):
             )
             self.msa_stack = MSAStack(cfg=msa_stack_cfg)
 
-        # Pair stack
+        # Pair stack - create configuration with all fields from PairformerBlockConfig
+        # Start with defaults, then override with values from cfg where available
         pair_block_cfg = PairformerBlockConfig(
+            **{k: getattr(PairformerBlockConfig, k).default for k in PairformerBlockConfig.__dataclass_fields__},
+            # Override specific values
             c_z=self.c_z,
-            c_s=0,
-            dropout=self.pair_dropout,
-            # Use default values for other parameters
+            c_s=0,  # No single representation in pair stack
+            dropout=self.pair_dropout
         )
         self.pair_stack = PairformerBlock(cfg=pair_block_cfg)
 
