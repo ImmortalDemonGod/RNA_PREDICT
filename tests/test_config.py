@@ -4,6 +4,8 @@ from hydra import initialize, compose
 
 @pytest.fixture
 def hydra_config():
+    # NOTE: Hydra requires config_path to be relative to the current working directory.
+    # If running tests from within the tests/ directory, use '../rna_predict/conf'.
     with initialize(version_base=None, config_path="../rna_predict/conf"):
         cfg = compose(config_name="default")
     return cfg
@@ -61,7 +63,7 @@ def test_hydra_model_config(hydra_config):
 
 def test_hydra_environment_variable_override():
     """Test that Hydra configuration values can be overridden."""
-    # Initialize Hydra with an override
+    # NOTE: Hydra requires config_path to be relative to the current working directory.
     with initialize(version_base=None, config_path="../rna_predict/conf"):
         cfg = compose(config_name="default", overrides=["device=cpu"])
 
