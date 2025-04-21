@@ -61,4 +61,12 @@ def run_inference_mode(
             "s_inputs"
         ]
 
+    # Enforce output shape [1, 25, 3] for inference output
+    assert coords.dim() == 3, f"coords must have 3 dims, got {coords.shape}"
+    assert coords.shape[0] == 1, f"Batch size must be 1, got {coords.shape}"
+    assert coords.shape[2] == 3, f"Last dim must be 3, got {coords.shape}"
+    # Optionally, enforce 25 atoms if desired (comment out if variable):
+    # assert coords.shape[1] == 25, f"Atom count must be 25, got {coords.shape}"
+    logger.debug(f"[StageD][run_inference_mode] coords output shape: {coords.shape}")
+
     return coords
