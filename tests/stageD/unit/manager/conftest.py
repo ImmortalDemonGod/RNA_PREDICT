@@ -29,25 +29,45 @@ def hydra_cfg_factory():
         if "diffusion" in overrides:
             diffusion_overrides = overrides.pop("diffusion")
 
-            # Check if num_steps is in diffusion overrides and move it to inference.num_steps
+            # Check if num_steps is in diffusion overrides and move it to diffusion.inference.num_steps
             if "num_steps" in diffusion_overrides:
-                if "inference" not in processed_overrides:
-                    processed_overrides["inference"] = {}
-                processed_overrides["inference"]["num_steps"] = diffusion_overrides.pop("num_steps")
+                if "diffusion" not in processed_overrides:
+                    processed_overrides["diffusion"] = {}
+                if "inference" not in processed_overrides["diffusion"]:
+                    processed_overrides["diffusion"]["inference"] = {}
+                processed_overrides["diffusion"]["inference"]["num_steps"] = diffusion_overrides.pop("num_steps")
 
-            # Check if temperature is in diffusion overrides and move it to inference.temperature
+            # Check if temperature is in diffusion overrides and move it to diffusion.inference.temperature
             if "temperature" in diffusion_overrides:
-                if "inference" not in processed_overrides:
-                    processed_overrides["inference"] = {}
-                processed_overrides["inference"]["temperature"] = diffusion_overrides.pop("temperature")
+                if "diffusion" not in processed_overrides:
+                    processed_overrides["diffusion"] = {}
+                if "inference" not in processed_overrides["diffusion"]:
+                    processed_overrides["diffusion"]["inference"] = {}
+                processed_overrides["diffusion"]["inference"]["temperature"] = diffusion_overrides.pop("temperature")
 
-            # Add any remaining diffusion overrides
-            for k, v in diffusion_overrides.items():
-                processed_overrides[k] = v
+            # Add any remaining diffusion overrides to diffusion
+            if diffusion_overrides:
+                if "diffusion" not in processed_overrides:
+                    processed_overrides["diffusion"] = {}
+                for k, v in diffusion_overrides.items():
+                    processed_overrides["diffusion"][k] = v
+
+        # Handle inference parameters directly
+        if "inference" in overrides:
+            inference_overrides = overrides.pop("inference")
+
+            # Move inference parameters to diffusion.inference
+            if "diffusion" not in processed_overrides:
+                processed_overrides["diffusion"] = {}
+            if "inference" not in processed_overrides["diffusion"]:
+                processed_overrides["diffusion"]["inference"] = {}
+
+            for k, v in inference_overrides.items():
+                processed_overrides["diffusion"]["inference"][k] = v
 
         # Add any other overrides
         for k, v in overrides.items():
-            if k != "diffusion":
+            if k not in ["diffusion", "inference"]:
                 processed_overrides[k] = v
 
         # Create override config
@@ -62,8 +82,13 @@ def hydra_cfg_factory():
         })
 
         # Add required attributes for test expectations at the top level for test compatibility
-        cfg.num_inference_steps = diffusion_cfg.diffusion.inference.num_steps if hasattr(diffusion_cfg, "diffusion") and hasattr(diffusion_cfg.diffusion, "inference") and hasattr(diffusion_cfg.diffusion.inference, "num_steps") else 2
-        cfg.temperature = diffusion_cfg.diffusion.inference.temperature if hasattr(diffusion_cfg, "diffusion") and hasattr(diffusion_cfg.diffusion, "inference") and hasattr(diffusion_cfg.diffusion.inference, "temperature") else 1.0
+        if hasattr(diffusion_cfg, "diffusion") and hasattr(diffusion_cfg.diffusion, "inference"):
+            cfg.num_inference_steps = diffusion_cfg.diffusion.inference.num_steps if hasattr(diffusion_cfg.diffusion.inference, "num_steps") else 2
+            cfg.temperature = diffusion_cfg.diffusion.inference.temperature if hasattr(diffusion_cfg.diffusion.inference, "temperature") else 1.0
+        else:
+            cfg.num_inference_steps = 2
+            cfg.temperature = 1.0
+
         cfg.device = diffusion_cfg.device if hasattr(diffusion_cfg, "device") else "cpu"
 
         return cfg
