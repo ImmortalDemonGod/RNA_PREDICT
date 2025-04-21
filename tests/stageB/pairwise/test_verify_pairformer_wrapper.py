@@ -84,12 +84,27 @@ class TestPairformerWrapperVerification(unittest.TestCase):
         """
         Verify that PairformerWrapper can be instantiated with default parameters.
         """
-        wrapper = PairformerWrapper(
-            n_blocks=self.default_n_blocks,
-            c_z=self.default_c_z,
-            c_s=self.default_c_s,
-            use_checkpoint=self.default_use_checkpoint,
-        )
+        # Create a configuration object
+        from omegaconf import OmegaConf
+
+        cfg = OmegaConf.create({
+            "stageB_pairformer": {
+                "n_blocks": self.default_n_blocks,
+                "n_heads": 8,
+                "c_z": self.default_c_z,
+                "c_s": self.default_c_s,
+                "dropout": 0.1,
+                "use_checkpoint": self.default_use_checkpoint,
+                "use_memory_efficient_kernel": False,
+                "use_deepspeed_evo_attention": False,
+                "use_lma": False,
+                "inplace_safe": False,
+                "chunk_size": None,
+                "device": "cpu"
+            }
+        })
+
+        wrapper = PairformerWrapper(cfg)
 
         # Check instance type
         self.assertIsInstance(wrapper, PairformerWrapper)
@@ -108,33 +123,74 @@ class TestPairformerWrapperVerification(unittest.TestCase):
 
     @given(
         n_blocks=st.integers(min_value=1, max_value=4),  # Further reduced from 12
-        c_z=st.sampled_from([16, 32]),  # Reduced options
-        c_s=st.sampled_from([32, 64]),  # Reduced options
-        use_checkpoint=st.just(True),  # Always use checkpointing
+        c_z=st.integers(min_value=16, max_value=64),  # Test more values
+        c_s=st.integers(min_value=32, max_value=128),  # Test more values
+        n_heads=st.integers(min_value=2, max_value=8),  # Test different head counts
+        dropout=st.floats(min_value=0.0, max_value=0.5),  # Test different dropout rates
+        use_checkpoint=st.booleans(),  # Test both with and without checkpointing
+        use_memory_efficient=st.booleans(),  # Test memory efficiency options
     )
     @settings(
         deadline=None,
         max_examples=10,  # Reduced from 20
     )
-    def test_instantiation_custom_parameters(self, n_blocks, c_z, c_s, use_checkpoint):
+    def test_instantiation_custom_parameters(self, n_blocks, c_z, c_s, n_heads, dropout, use_checkpoint, use_memory_efficient):
         """
-        Verify that PairformerWrapper can be instantiated with custom parameters.
-        Using smaller parameter ranges to reduce memory usage.
+        Property-based test: PairformerWrapper can be instantiated with various custom parameters.
+
+        This test verifies that the wrapper correctly handles a wide range of configuration values
+        and properly initializes the underlying PairformerStack with the adjusted parameters.
+
+        Args:
+            n_blocks: Number of transformer blocks
+            c_z: Dimension of pair embeddings
+            c_s: Dimension of single embeddings
+            n_heads: Number of attention heads
+            dropout: Dropout rate
+            use_checkpoint: Whether to use checkpointing
+            use_memory_efficient: Whether to use memory efficient attention
         """
-        wrapper = PairformerWrapper(
-            n_blocks=n_blocks, c_z=c_z, c_s=c_s, use_checkpoint=use_checkpoint
-        )
+        # Create a configuration object with custom parameters
+        from omegaconf import OmegaConf
+
+        cfg = OmegaConf.create({
+            "stageB_pairformer": {
+                "n_blocks": n_blocks,
+                "n_heads": n_heads,
+                "c_z": c_z,
+                "c_s": c_s,
+                "dropout": dropout,
+                "use_checkpoint": use_checkpoint,
+                "use_memory_efficient_kernel": use_memory_efficient,
+                "use_deepspeed_evo_attention": False,
+                "use_lma": False,
+                "inplace_safe": False,
+                "chunk_size": None,
+                "device": "cpu"
+            }
+        })
+
+        wrapper = PairformerWrapper(cfg)
 
         # Check parameter values
         self.assertEqual(wrapper.n_blocks, n_blocks)
         self.assertEqual(wrapper.c_z, c_z)
-        self.assertEqual(wrapper.c_z_adjusted, c_z)
+        # c_z_adjusted should be a multiple of 16 and at least 16
+        expected_c_z_adjusted = max(16, ((c_z + 15) // 16) * 16)
+        self.assertEqual(wrapper.c_z_adjusted, expected_c_z_adjusted)
         self.assertEqual(wrapper.c_s, c_s)
         self.assertEqual(wrapper.use_checkpoint, use_checkpoint)
+        self.assertEqual(wrapper.use_memory_efficient_kernel, use_memory_efficient)
 
         # Check that PairformerStack is properly initialized
         self.assertEqual(wrapper.stack.n_blocks, n_blocks)
         self.assertEqual(wrapper.stack.c_z, wrapper.c_z_adjusted)
+        self.assertEqual(wrapper.stack.c_s, c_s)
+        self.assertEqual(wrapper.stack.dropout, dropout)
+
+        # Check that blocks_per_ckpt is set correctly based on use_checkpoint
+        expected_blocks_per_ckpt = 1 if use_checkpoint else None
+        self.assertEqual(wrapper.stack.blocks_per_ckpt, expected_blocks_per_ckpt)
 
         # Clean up
         del wrapper
@@ -147,12 +203,27 @@ class TestPairformerWrapperVerification(unittest.TestCase):
         Verify that the parameter count matches the expected architecture size.
         Using reduced model size for testing.
         """
-        wrapper = PairformerWrapper(
-            n_blocks=self.default_n_blocks,
-            c_z=self.default_c_z,
-            c_s=self.default_c_s,
-            use_checkpoint=self.default_use_checkpoint,
-        )
+        # Create a configuration object
+        from omegaconf import OmegaConf
+
+        cfg = OmegaConf.create({
+            "stageB_pairformer": {
+                "n_blocks": self.default_n_blocks,
+                "n_heads": 8,
+                "c_z": self.default_c_z,
+                "c_s": self.default_c_s,
+                "dropout": 0.1,
+                "use_checkpoint": self.default_use_checkpoint,
+                "use_memory_efficient_kernel": False,
+                "use_deepspeed_evo_attention": False,
+                "use_lma": False,
+                "inplace_safe": False,
+                "chunk_size": None,
+                "device": "cpu"
+            }
+        })
+
+        wrapper = PairformerWrapper(cfg)
 
         # Get parameter count
         param_count = sum(p.numel() for p in wrapper.parameters())
@@ -161,12 +232,19 @@ class TestPairformerWrapperVerification(unittest.TestCase):
         self.assertGreater(param_count, 0)
 
         # The parameter count should match the PairformerStack parameter count
-        stack = PairformerStack(
+        # Create a PairformerStackConfig for the stack
+        from rna_predict.conf.config_schema import PairformerStackConfig
+
+        stack_cfg = PairformerStackConfig(
             n_blocks=self.default_n_blocks,
-            c_z=self.default_c_z,
+            n_heads=8,
+            c_z=wrapper.c_z_adjusted,  # Use the adjusted c_z value
             c_s=self.default_c_s,
-            blocks_per_ckpt=1,
+            dropout=0.1,
+            blocks_per_ckpt=1 if self.default_use_checkpoint else None
         )
+
+        stack = PairformerStack(stack_cfg)
         stack_param_count = sum(p.numel() for p in stack.parameters())
 
         self.assertEqual(param_count, stack_param_count)
@@ -183,12 +261,27 @@ class TestPairformerWrapperVerification(unittest.TestCase):
         Verify that the forward pass returns tensors with the expected shapes.
         Using reduced tensor sizes for testing.
         """
-        wrapper = PairformerWrapper(
-            n_blocks=self.default_n_blocks,
-            c_z=self.default_c_z,
-            c_s=self.default_c_s,
-            use_checkpoint=self.default_use_checkpoint,
-        )
+        # Create a configuration object
+        from omegaconf import OmegaConf
+
+        cfg = OmegaConf.create({
+            "stageB_pairformer": {
+                "n_blocks": self.default_n_blocks,
+                "n_heads": 8,
+                "c_z": self.default_c_z,
+                "c_s": self.default_c_s,
+                "dropout": 0.1,
+                "use_checkpoint": self.default_use_checkpoint,
+                "use_memory_efficient_kernel": False,
+                "use_deepspeed_evo_attention": False,
+                "use_lma": False,
+                "inplace_safe": False,
+                "chunk_size": None,
+                "device": "cpu"
+            }
+        })
+
+        wrapper = PairformerWrapper(cfg)
 
         # Run forward pass
         s_updated, z_updated = wrapper(self.s, self.z, self.pair_mask)
@@ -210,12 +303,27 @@ class TestPairformerWrapperVerification(unittest.TestCase):
         Verify that the forward pass does not produce NaN or Inf values.
         Using minimal model size for faster execution.
         """
-        wrapper = PairformerWrapper(
-            n_blocks=1,  # Minimum size
-            c_z=16,  # Minimum size
-            c_s=32,  # Minimum size
-            use_checkpoint=True,
-        )
+        # Create a configuration object
+        from omegaconf import OmegaConf
+
+        cfg = OmegaConf.create({
+            "stageB_pairformer": {
+                "n_blocks": 1,  # Minimum size
+                "n_heads": 4,  # Minimum size
+                "c_z": 16,  # Minimum size
+                "c_s": 32,  # Minimum size
+                "dropout": 0.1,
+                "use_checkpoint": True,
+                "use_memory_efficient_kernel": False,
+                "use_deepspeed_evo_attention": False,
+                "use_lma": False,
+                "inplace_safe": False,
+                "chunk_size": None,
+                "device": "cpu"
+            }
+        })
+
+        wrapper = PairformerWrapper(cfg)
 
         # Create minimal test tensors
         s_test = torch.randn(1, 5, 32)  # Reduced size
@@ -247,12 +355,27 @@ class TestPairformerWrapperVerification(unittest.TestCase):
         Verify that gradients flow through the module during backpropagation.
         Using minimal model size and tensor dimensions.
         """
-        wrapper = PairformerWrapper(
-            n_blocks=1,  # Minimum size
-            c_z=16,  # Minimum size
-            c_s=32,  # Minimum size
-            use_checkpoint=True,
-        )
+        # Create a configuration object
+        from omegaconf import OmegaConf
+
+        cfg = OmegaConf.create({
+            "stageB_pairformer": {
+                "n_blocks": 1,  # Minimum size
+                "n_heads": 4,  # Minimum size
+                "c_z": 16,  # Minimum size
+                "c_s": 32,  # Minimum size
+                "dropout": 0.1,
+                "use_checkpoint": True,
+                "use_memory_efficient_kernel": False,
+                "use_deepspeed_evo_attention": False,
+                "use_lma": False,
+                "inplace_safe": False,
+                "chunk_size": None,
+                "device": "cpu"
+            }
+        })
+
+        wrapper = PairformerWrapper(cfg)
 
         # Create minimal test tensors
         s = torch.randn(1, 5, 32, requires_grad=True)  # Reduced size
@@ -288,12 +411,27 @@ class TestPairformerWrapperVerification(unittest.TestCase):
         Test the model with different sequence lengths.
         Using smaller sequence lengths and minimal model size.
         """
-        wrapper = PairformerWrapper(
-            n_blocks=1,  # Minimum size
-            c_z=16,  # Minimum size
-            c_s=32,  # Minimum size
-            use_checkpoint=True,
-        )
+        # Create a configuration object
+        from omegaconf import OmegaConf
+
+        cfg = OmegaConf.create({
+            "stageB_pairformer": {
+                "n_blocks": 1,  # Minimum size
+                "n_heads": 4,  # Minimum size
+                "c_z": 16,  # Minimum size
+                "c_s": 32,  # Minimum size
+                "dropout": 0.1,
+                "use_checkpoint": True,
+                "use_memory_efficient_kernel": False,
+                "use_deepspeed_evo_attention": False,
+                "use_lma": False,
+                "inplace_safe": False,
+                "chunk_size": None,
+                "device": "cpu"
+            }
+        })
+
+        wrapper = PairformerWrapper(cfg)
 
         # Test with a small range of sequence lengths
         for seq_len in [5, 8, 10]:  # Reduced range
