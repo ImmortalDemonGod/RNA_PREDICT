@@ -11,6 +11,9 @@ import math # Added for ceiling division if needed here, or ensure it's availabl
 from typing import List, Optional, Tuple, Union, Dict, Any # Added Dict, Any
 
 import torch
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Imports from local modules within the same package level
 # Assuming PaddingInfo is no longer the direct return type
@@ -55,7 +58,7 @@ def _create_empty_output_tensor(
         # Cannot determine dtype, device, or feature dim - return truly empty tensor
         # Or raise error? Let's return a default float tensor on CPU.
         # This case should ideally not happen if input validation is done properly.
-        print("Warning: Creating default empty tensor due to empty input list.")
+        logger.warning("Creating default empty tensor due to empty input list.")
         return torch.empty(0, num_trunks, items_per_trunk, 0, dtype=torch.float32, device='cpu')
 
     # Infer properties from the first tensor in the original list
@@ -313,7 +316,7 @@ def _rearrange_to_dense_trunk_impl(
         raise ValueError(f"n_keys must be positive, got {config.n_keys}")
     if config.k.shape[-2] != config.v.shape[-2]:
          # Add check for K/V sequence length mismatch if required by logic
-         print(f"Warning: K sequence length ({config.k.shape[-2]}) differs from V sequence length ({config.v.shape[-2]})")
+         logger.warning(f"K sequence length ({config.k.shape[-2]}) differs from V sequence length ({config.v.shape[-2]})")
          # raise ValueError("K and V sequence lengths must match for trunking") # Uncomment if strict matching is needed
 
     # Create configuration object for trunk operations
