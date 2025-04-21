@@ -357,7 +357,7 @@ def test_stageB_debug_logging_hypothesis(rna_seq: str, debug_val: bool, monkeypa
     import types
     from rna_predict.pipeline.stageB.pairwise.pairformer_wrapper import PairformerWrapper
     import torch
-    
+
     class DummyStack:
         def forward(self, *args, **kwargs):
             # Return dummy tensors with plausible shapes
@@ -367,19 +367,19 @@ def test_stageB_debug_logging_hypothesis(rna_seq: str, debug_val: bool, monkeypa
             s_emb = torch.randn(L, 384)
             z_emb = torch.randn(L, L, 128)
             return s_emb, z_emb
-    
+
     def safe_init(self, *args, **kwargs):
         super(PairformerWrapper, self).__init__()
         self.device = 'cpu'
         self.stack = DummyStack()
         pf_logger.debug("[UNIQUE-DEBUG-STAGEB-PAIRFORMER-TEST] PairformerWrapper initialized with debug_logging=True")
-    
+
     def dummy_predict(self, sequence, adjacency=None):
         L = len(sequence)
         s_emb = torch.randn(L, 384)
         z_emb = torch.randn(L, L, 128)
         return s_emb, z_emb
-    
+
     def dummy_forward(self, *args, **kwargs):
         L = 4
         if args and hasattr(args[0], '__len__'):
@@ -387,7 +387,7 @@ def test_stageB_debug_logging_hypothesis(rna_seq: str, debug_val: bool, monkeypa
         s_emb = torch.randn(L, 384)
         z_emb = torch.randn(L, L, 128)
         return s_emb, z_emb
-    
+
     with patch("rna_predict.pipeline.stageB.torsion.torsion_bert_predictor.StageBTorsionBertPredictor.predict_angles_from_sequence", return_value=None), \
          patch("rna_predict.pipeline.stageB.pairwise.pairformer_wrapper.PairformerWrapper.__init__", new=safe_init), \
          patch("rna_predict.pipeline.stageB.pairwise.pairformer_wrapper.PairformerWrapper.predict", new=dummy_predict), \
@@ -513,12 +513,9 @@ def test_stageC_debug_logging_hypothesis(
     # Reset the Stage C logger to ensure isolation between test runs
     stagec_logger = logging.getLogger("rna_predict.pipeline.stageC.stage_c_reconstruction")
     # Store original handlers and level to restore later
-    original_handlers = list(stagec_logger.handlers)
-    original_level = stagec_logger.level
-    original_propagate = stagec_logger.propagate
-
-    # Clear all handlers to avoid duplicate logging
-    stagec_logger.handlers.clear()
+    orig_handlers = list(stagec_logger.handlers)
+    orig_level = stagec_logger.level
+    orig_propagate = stagec_logger.propagate
 
     # Create the configuration
     # NOTE: Hydra config_path must be relative to the current working directory (cwd) at test execution time.
@@ -556,15 +553,8 @@ def test_stageC_debug_logging_hypothesis(
 
         # Handler-forcing patch: Remove all handlers and attach a single StreamHandler to sys.stdout at DEBUG level
         import sys
-        stagec_logger = logging.getLogger("rna_predict.pipeline.stageC.stage_c_reconstruction")
-        # Store original handlers and level to restore later
-        original_handlers = list(stagec_logger.handlers)
-        original_level = stagec_logger.level
-        original_propagate = stagec_logger.propagate
-
         # Clear all handlers to avoid duplicate logging
-        for handler in list(stagec_logger.handlers):
-            stagec_logger.removeHandler(handler)
+        stagec_logger.handlers.clear()
         stream_handler = logging.StreamHandler(sys.stdout)
         stream_handler.setLevel(logging.DEBUG)
         stagec_logger.addHandler(stream_handler)
@@ -586,10 +576,10 @@ def test_stageC_debug_logging_hypothesis(
         finally:
             # Restore original logger state
             stagec_logger.handlers.clear()
-            for handler in original_handlers:
+            for handler in orig_handlers:
                 stagec_logger.addHandler(handler)
-            stagec_logger.setLevel(original_level)
-            stagec_logger.propagate = original_propagate
+            stagec_logger.setLevel(orig_level)
+            stagec_logger.propagate = orig_propagate
 
 
 @settings(
