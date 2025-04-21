@@ -15,7 +15,9 @@ def set_stageC_logger_level(debug_logging: bool):
     if debug_logging:
         logger.setLevel(logging.DEBUG)
     else:
-        logger.setLevel(logging.WARNING)
+        # Set to INFO instead of WARNING to avoid suppressing important logs
+        # but still filter out DEBUG messages
+        logger.setLevel(logging.INFO)
 
 
 class StageCReconstruction:
