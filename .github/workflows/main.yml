@@ -32,7 +32,14 @@ jobs:
           python -m pip install --upgrade pip setuptools wheel
           pip install nvidia-cublas-cu12
           make install
-          pip install ruff
+          pip install ruff pip-audit
+
+      - name: Check for dependency vulnerabilities
+        continue-on-error: true  # Make non-blocking initially
+        run: |
+          pip-audit -r requirements.txt || echo "Vulnerabilities found in requirements.txt"
+          pip-audit -r pyproject.toml || echo "Vulnerabilities found in pyproject.toml"
+          echo "Note: This step is currently non-blocking. Review any vulnerabilities and address them."
 
       # Demonstrate multi-step ruff usage
       - name: Run ruff check (auto-fix)
