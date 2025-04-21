@@ -29,5 +29,14 @@ def run_test_generation(*args, **kwargs):
     pass
 
 def main():
-    # TODO: Implement actual CLI logic
-    pass
+    import sys
+    from pathlib import Path
+    if len(sys.argv) < 2:
+        print("Usage: python batch_test_generator.py <folder_path>")
+        sys.exit(1)
+    folder_path = Path(sys.argv[1])
+    if not folder_path.exists() or not folder_path.is_dir():
+        print(f"Invalid folder path: {folder_path}")
+        sys.exit(1)
+    output_dir = Path("generated_tests")
+    process_folder(folder_path, output_dir)
