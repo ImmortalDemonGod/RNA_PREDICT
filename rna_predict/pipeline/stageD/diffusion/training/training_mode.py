@@ -77,9 +77,7 @@ def run_training_mode(
         input_feature_dict=context.input_features,
         s_inputs=context.trunk_embeddings_internal["s_inputs"],
         s_trunk=context.trunk_embeddings_internal["s_trunk"],
-        z_trunk=context.trunk_embeddings_internal["pair"],
-        sampler_params={"sigma_data": context.diffusion_config["sigma_data"]},
-        N_sample=1,
+        z_trunk=context.trunk_embeddings_internal["pair"]
     )
 
     # Unpack the results - x_gt_augment, x_denoised, sigma
@@ -87,5 +85,21 @@ def run_training_mode(
     # Ensure sigma is a scalar tensor
     if sigma.dim() > 0:
         sigma = sigma.mean().squeeze()  # Take mean and remove all dimensions
+
+    # --- PATCH: Robust shape handling for x_denoised ---
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.debug(f"[StageD][run_training_mode] x_denoised output shape BEFORE adjustment: {x_denoised.shape}")
+    # Accept [1, 25, 3] or [1, 1, 25, 3]. Squeeze if needed.
+    if x_denoised.dim() == 4 and x_denoised.shape[1] == 1:
+        logger.debug("[StageD][run_training_mode] Squeezing extra dimension from x_denoised.")
+        x_denoised = x_denoised.squeeze(1)
+    if x_denoised.dim() != 3:
+        raise AssertionError(f"[ERR-STAGED-TRAIN-SHAPE] UNIQUE ERROR: x_denoised must have 3 dims after adjustment, got {x_denoised.shape}")
+    if x_denoised.shape[0] != 1:
+        raise AssertionError(f"[ERR-STAGED-TRAIN-SHAPE] UNIQUE ERROR: Batch size must be 1, got {x_denoised.shape}")
+    if x_denoised.shape[2] != 3:
+        raise AssertionError(f"[ERR-STAGED-TRAIN-SHAPE] UNIQUE ERROR: Last dim must be 3, got {x_denoised.shape}")
+    logger.debug(f"[StageD][run_training_mode] x_denoised output shape AFTER adjustment: {x_denoised.shape}")
 
     return x_denoised, sigma, x_gt_augment
