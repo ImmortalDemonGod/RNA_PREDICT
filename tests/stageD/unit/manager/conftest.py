@@ -10,7 +10,7 @@ from rna_predict.conf.config_schema import StageDConfig
 @pytest.fixture
 def hydra_cfg_factory():
     """Factory fixture for creating Hydra configs with overrides.
-    
+
     Returns:
         Callable: Factory function that takes override kwargs and returns a DictConfig
     """
@@ -18,36 +18,63 @@ def hydra_cfg_factory():
         # Register base config
         cs = ConfigStore.instance()
         cs.store(name="stageD", node=StageDConfig)
-        
+
         # Create base config
         base_cfg = OmegaConf.structured(StageDConfig)
-        
-        # Apply any overrides
-        override_cfg = OmegaConf.create(overrides)
+
+        # Process overrides to ensure proper nesting
+        processed_overrides = {}
+
+        # Handle diffusion parameters specifically
+        if "diffusion" in overrides:
+            diffusion_overrides = overrides.pop("diffusion")
+
+            # Check if num_steps is in diffusion overrides and move it to inference.num_steps
+            if "num_steps" in diffusion_overrides:
+                if "inference" not in processed_overrides:
+                    processed_overrides["inference"] = {}
+                processed_overrides["inference"]["num_steps"] = diffusion_overrides.pop("num_steps")
+
+            # Check if temperature is in diffusion overrides and move it to inference.temperature
+            if "temperature" in diffusion_overrides:
+                if "inference" not in processed_overrides:
+                    processed_overrides["inference"] = {}
+                processed_overrides["inference"]["temperature"] = diffusion_overrides.pop("temperature")
+
+            # Add any remaining diffusion overrides
+            for k, v in diffusion_overrides.items():
+                processed_overrides[k] = v
+
+        # Add any other overrides
+        for k, v in overrides.items():
+            if k != "diffusion":
+                processed_overrides[k] = v
+
+        # Create override config
+        override_cfg = OmegaConf.create(processed_overrides)
+
+        # Merge with base config
         diffusion_cfg = OmegaConf.merge(base_cfg, override_cfg)
+
         # Set up the full config tree for ProtenixDiffusionManager
         cfg = OmegaConf.create({
             "stageD": {"diffusion": diffusion_cfg},
         })
-        # Add required attributes for test expectations
-        # e.g. num_inference_steps and temperature at the top level for test compatibility
-        if "inference" in diffusion_cfg:
-            inf = diffusion_cfg["inference"]
-            cfg.num_inference_steps = inf.get("num_steps", 2)
-            cfg.temperature = inf.get("temperature", 1.0)
-        else:
-            cfg.num_inference_steps = 2
-            cfg.temperature = 1.0
-        cfg.device = diffusion_cfg.get("device", "cpu")
+
+        # Add required attributes for test expectations at the top level for test compatibility
+        cfg.num_inference_steps = diffusion_cfg.diffusion.inference.num_steps if hasattr(diffusion_cfg, "diffusion") and hasattr(diffusion_cfg.diffusion, "inference") and hasattr(diffusion_cfg.diffusion.inference, "num_steps") else 2
+        cfg.temperature = diffusion_cfg.diffusion.inference.temperature if hasattr(diffusion_cfg, "diffusion") and hasattr(diffusion_cfg.diffusion, "inference") and hasattr(diffusion_cfg.diffusion.inference, "temperature") else 1.0
+        cfg.device = diffusion_cfg.device if hasattr(diffusion_cfg, "device") else "cpu"
+
         return cfg
-    
+
     return _factory
 
 
 @pytest.fixture
 def trunk_embeddings_factory():
     """Factory fixture for creating mock trunk embeddings tensors.
-    
+
     Returns:
         Callable: Factory function that takes batch, length, feat dims and returns embeddings dict
     """
@@ -72,5 +99,5 @@ def trunk_embeddings_factory():
             "sing": torch.zeros(batch, length, 449),
         }
         return trunk_embeddings
-    
-    return _factory 
+
+    return _factory
