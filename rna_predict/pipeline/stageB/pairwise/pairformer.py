@@ -12,20 +12,43 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# pylint: disable=C0114
+"""Pairformer implementation for RNA_PREDICT Pipeline Stage B.
+
+This module provides the core implementation of the Pairformer model,
+integrated with the Hydra configuration system for flexible parameter management.
+
+The module includes several components:
+- PairformerBlock: Implements a single block of the Pairformer architecture
+- PairformerStack: Stacks multiple PairformerBlocks together
+- MSAPairWeightedAveraging: Implements weighted averaging for MSA pairs
+- MSAStack: Implements the MSA stack
+- MSABlock: Implements a single block of the MSA module
+- MSAModule: Implements the full MSA module
+- TemplateEmbedder: Implements template embedding
+"""
+
 from functools import partial
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 import torch
 import torch.nn as nn
+from omegaconf import DictConfig
+
 from protenix.openfold_local.model.dropout import DropoutRowwise
 from protenix.openfold_local.model.outer_product_mean import (
     OuterProductMean,  # Alg 9 in AF3
 )
-from protenix.openfold_local.model.triangular_attention import TriangleAttention
-from protenix.openfold_local.model.triangular_multiplicative_update import (
+from rna_predict.pipeline.stageB.pairwise.triangular_attention import TriangleAttention
+from rna_predict.pipeline.stageB.pairwise.triangular_multiplicative import (
     TriangleMultiplicationIncoming,  # Alg 13 in AF3
     TriangleMultiplicationOutgoing,  # Alg 12 in AF3
+)
+
+from rna_predict.conf.config_schema import (
+    PairformerBlockConfig,
+    PairformerStackConfig,
+    MSAConfig,
+    TemplateEmbedderConfig,
 )
 
 from rna_predict.pipeline.stageA.input_embedding.current.checkpointing import (
@@ -53,52 +76,50 @@ class PairformerBlock(nn.Module):
 
     def __init__(
         self,
-        n_heads: int = 16,
-        c_z: int = 128,
-        c_s: int = 384,
-        c_hidden_mul: int = 128,
-        c_hidden_pair_att: int = 32,
-        no_heads_pair: int = 4,
-        dropout: float = 0.25,
+        cfg: Union[DictConfig, PairformerBlockConfig],
     ) -> None:
         """
+        Initialize a PairformerBlock with configuration.
+
         Args:
-            n_heads (int, optional): number of head [for AttentionPairBias]. Defaults to 16.
-            c_z (int, optional): hidden dim [for pair embedding]. Defaults to 128.
-            c_s (int, optional):  hidden dim [for single embedding]. Defaults to 384.
-            c_hidden_mul (int, optional): hidden dim [for TriangleMultiplicationOutgoing].
-                Defaults to 128.
-            c_hidden_pair_att (int, optional): hidden dim [for TriangleAttention]. Defaults to 32.
-            no_heads_pair (int, optional): number of head [for TriangleAttention]. Defaults to 4.
-            dropout (float, optional): dropout ratio [for TriangleUpdate]. Defaults to 0.25.
+            cfg: Configuration object containing parameters for the PairformerBlock.
+                Can be either a DictConfig from Hydra or a PairformerBlockConfig.
         """
         super(PairformerBlock, self).__init__()
-        self.n_heads = n_heads
-        self.c_z = c_z
-        self.c_s = c_s
-        self.dropout = dropout
+
+        # Extract parameters from config
+        self.n_heads = cfg.n_heads
+        self.c_z = cfg.c_z
+        self.c_s = cfg.c_s
+        self.dropout = cfg.dropout
+        c_hidden_mul = cfg.c_hidden_mul
+        c_hidden_pair_att = cfg.c_hidden_pair_att
+        no_heads_pair = cfg.no_heads_pair
+
+        # Initialize components
         self.tri_mul_out = TriangleMultiplicationOutgoing(
-            c_z=c_z, c_hidden=c_hidden_mul
+            c_z=self.c_z, c_hidden=c_hidden_mul
         )
-        self.tri_mul_in = TriangleMultiplicationIncoming(c_z=c_z, c_hidden=c_hidden_mul)
+        self.tri_mul_in = TriangleMultiplicationIncoming(c_z=self.c_z, c_hidden=c_hidden_mul)
         self.tri_att_start = TriangleAttention(
-            c_in=c_z,
+            c_in=self.c_z,
             c_hidden=c_hidden_pair_att,
             no_heads=no_heads_pair,
         )
         self.tri_att_end = TriangleAttention(
-            c_in=c_z,
+            c_in=self.c_z,
             c_hidden=c_hidden_pair_att,
             no_heads=no_heads_pair,
         )
-        self.dropout_row = DropoutRowwise(dropout)
-        self.pair_transition = Transition(c_in=c_z, n=4)
-        self.c_s = c_s
+        self.dropout_row = DropoutRowwise(self.dropout)
+        self.pair_transition = Transition(c_in=self.c_z, n=4)
+
+        # Initialize single representation components if needed
         if self.c_s > 0:
             self.attention_pair_bias = AttentionPairBias(
-                has_s=False, n_heads=n_heads, c_a=c_s, c_z=c_z
+                has_s=False, n_heads=self.n_heads, c_a=self.c_s, c_z=self.c_z
             )
-            self.single_transition = Transition(c_in=c_s, n=4)
+            self.single_transition = Transition(c_in=self.c_s, n=4)
 
     def forward(
         self,
@@ -229,36 +250,38 @@ class PairformerStack(nn.Module):
 
     def __init__(
         self,
-        n_blocks: int = 48,
-        n_heads: int = 16,
-        c_z: int = 128,
-        c_s: int = 384,
-        dropout: float = 0.25,
-        blocks_per_ckpt: Optional[int] = None,
+        cfg: Union[DictConfig, PairformerStackConfig],
     ) -> None:
         """
+        Initialize a PairformerStack with configuration.
+
         Args:
-            n_blocks (int, optional): number of blocks [for PairformerStack]. Defaults to 48.
-            n_heads (int, optional): number of head [for AttentionPairBias]. Defaults to 16.
-            c_z (int, optional): hidden dim [for pair embedding]. Defaults to 128.
-            c_s (int, optional):  hidden dim [for single embedding]. Defaults to 384.
-            dropout (float, optional): dropout ratio. Defaults to 0.25.
-            blocks_per_ckpt: number of Pairformer blocks in each activation checkpoint
-                Size of each chunk. A higher value corresponds to fewer
-                checkpoints, and trades memory for speed. If None, no checkpointing
-                is performed.
+            cfg: Configuration object containing parameters for the PairformerStack.
+                Can be either a DictConfig from Hydra or a PairformerStackConfig.
         """
         super(PairformerStack, self).__init__()
-        self.n_blocks = n_blocks
-        self.n_heads = n_heads
-        self.c_z = c_z
-        self.c_s = c_s
-        self.dropout = dropout
-        self.blocks_per_ckpt = blocks_per_ckpt
-        self.blocks = nn.ModuleList()
 
-        for _ in range(n_blocks):
-            block = PairformerBlock(n_heads=n_heads, c_z=c_z, c_s=c_s, dropout=dropout)
+        # Extract parameters from config
+        self.n_blocks = cfg.n_blocks
+        self.n_heads = cfg.n_heads
+        self.c_z = cfg.c_z
+        self.c_s = cfg.c_s
+        self.dropout = cfg.dropout
+        self.blocks_per_ckpt = cfg.blocks_per_ckpt
+
+        # Create block configuration
+        block_cfg = PairformerBlockConfig(
+            n_heads=self.n_heads,
+            c_z=self.c_z,
+            c_s=self.c_s,
+            dropout=self.dropout,
+            # Use default values for other parameters
+        )
+
+        # Initialize blocks
+        self.blocks = nn.ModuleList()
+        for _ in range(self.n_blocks):
+            block = PairformerBlock(cfg=block_cfg)
             self.blocks.append(block)
 
     def _prep_blocks(
@@ -356,23 +379,28 @@ class MSAPairWeightedAveraging(nn.Module):
     Implements Algorithm 10 [MSAPairWeightedAveraging] in AF3
     """
 
-    def __init__(self, c_m: int = 64, c: int = 32, c_z: int = 128, n_heads=8) -> None:
+    def __init__(self, cfg: Union[DictConfig, MSAConfig]) -> None:
         """
+        Initialize MSAPairWeightedAveraging with configuration.
 
         Args:
-            c_m (int, optional): hidden dim [for msa embedding]. Defaults to 64.
-            c (int, optional): hidden [for MSAPairWeightedAveraging] dim. Defaults to 32.
-            c_z (int, optional): hidden dim [for pair embedding]. Defaults to 128.
-            n_heads (int, optional): number of heads [for MSAPairWeightedAveraging]. Defaults to 8.
+            cfg: Configuration object containing parameters for MSAPairWeightedAveraging.
+                Can be either a DictConfig from Hydra or an MSAConfig.
         """
         super(MSAPairWeightedAveraging, self).__init__()
-        self.c_m = c_m
-        self.c = c
-        self.n_heads = n_heads
-        self.c_z = c_z
-        # self.c_s was undefined - removed
-        # self.dropout was undefined - removed
-        # this was a duplicate line - removed
+
+        # Validate required parameters
+        required_params = ["c_m", "c", "c_z", "n_heads"]
+        for param in required_params:
+            if not hasattr(cfg, param):
+                raise ValueError(f"Configuration missing required parameter: {param}")
+
+        # Extract parameters from config
+        self.c_m = cfg.c_m
+        self.c = cfg.c
+        self.c_z = cfg.c_z
+        self.n_heads = cfg.n_heads
+
         # Input projections
         self.layernorm_m = LayerNorm(self.c_m)
         self.linear_no_bias_mv = LinearNoBias(
@@ -435,18 +463,31 @@ class MSAStack(nn.Module):
     Implements MSAStack Line7-Line8 in Algorithm 8
     """
 
-    def __init__(self, c_m: int = 64, c: int = 8, dropout: float = 0.15) -> None:
+    def __init__(self, cfg: Union[DictConfig, MSAConfig]) -> None:
         """
+        Initialize MSAStack with configuration.
+
         Args:
-            c_m (int, optional): hidden dim [for msa embedding]. Defaults to 64.
-            c (int, optional): hidden [for MSAStack] dim. Defaults to 8.
-            dropout (float, optional): dropout ratio. Defaults to 0.15.
+            cfg: Configuration object containing parameters for MSAStack.
+                Can be either a DictConfig from Hydra or an MSAConfig.
         """
         super(MSAStack, self).__init__()
-        self.c = c
-        self.msa_pair_weighted_averaging = MSAPairWeightedAveraging(c=self.c)
-        self.dropout_row = DropoutRowwise(dropout)
-        self.transition_m = Transition(c_in=c_m, n=4)
+
+        # Validate required parameters
+        required_params = ["c_m", "c", "dropout"]
+        for param in required_params:
+            if not hasattr(cfg, param):
+                raise ValueError(f"Configuration missing required parameter: {param}")
+
+        # Extract parameters from config
+        self.c_m = cfg.c_m
+        self.c = cfg.c
+        self.dropout = cfg.dropout
+
+        # Initialize components with config
+        self.msa_pair_weighted_averaging = MSAPairWeightedAveraging(cfg)
+        self.dropout_row = DropoutRowwise(self.dropout)
+        self.transition_m = Transition(c_in=self.c_m, n=4)
 
     def forward(self, m: torch.Tensor, z: torch.Tensor) -> torch.Tensor:
         """
@@ -472,36 +513,56 @@ class MSABlock(nn.Module):
 
     def __init__(
         self,
-        c_m: int = 64,
-        c_z: int = 128,
-        c_hidden: int = 32,
+        cfg: Union[DictConfig, MSAConfig],
         is_last_block: bool = False,
-        msa_dropout: float = 0.15,
-        pair_dropout: float = 0.25,
     ) -> None:
         """
+        Initialize MSABlock with configuration.
+
         Args:
-            c_m (int, optional): hidden dim [for msa embedding]. Defaults to 64.
-            c_z (int, optional): hidden dim [for pair embedding]. Defaults to 128.
-            c_hidden (int, optional): hidden dim [for MSABlock]. Defaults to 32.
-            is_last_block (int): if this is the last block of MSAModule. Defaults to False.
-            msa_dropout (float, optional): dropout ratio for msa block. Defaults to 0.15.
-            pair_dropout (float, optional): dropout ratio for pair stack. Defaults to 0.25.
+            cfg: Configuration object containing parameters for MSABlock.
+                Can be either a DictConfig from Hydra or an MSAConfig.
+            is_last_block: Whether this is the last block of MSAModule. Defaults to False.
         """
         super(MSABlock, self).__init__()
-        self.c_m = c_m
-        self.c_z = c_z
-        self.c_hidden = c_hidden
+
+        # Validate required parameters
+        required_params = ["c_m", "c", "c_z", "dropout"]
+        for param in required_params:
+            if not hasattr(cfg, param):
+                raise ValueError(f"Configuration missing required parameter: {param}")
+
+        # Extract parameters from config
+        self.c_m = cfg.c_m
+        self.c_z = cfg.c_z
+        self.c_hidden = cfg.c  # Use c as c_hidden
         self.is_last_block = is_last_block
+        self.msa_dropout = cfg.dropout
+        self.pair_dropout = cfg.pair_dropout
+
         # Communication
         self.outer_product_mean_msa = OuterProductMean(
             c_m=self.c_m, c_z=self.c_z, c_hidden=self.c_hidden
         )
+
         if not self.is_last_block:
             # MSA stack
-            self.msa_stack = MSAStack(c_m=self.c_m, dropout=msa_dropout)
+            # Create MSA config for MSAStack
+            msa_stack_cfg = MSAConfig(
+                c_m=self.c_m,
+                c=self.c_hidden,
+                dropout=self.msa_dropout
+            )
+            self.msa_stack = MSAStack(cfg=msa_stack_cfg)
+
         # Pair stack
-        self.pair_stack = PairformerBlock(c_z=c_z, c_s=0, dropout=pair_dropout)
+        pair_block_cfg = PairformerBlockConfig(
+            c_z=self.c_z,
+            c_s=0,
+            dropout=self.pair_dropout,
+            # Use default values for other parameters
+        )
+        self.pair_stack = PairformerBlock(cfg=pair_block_cfg)
 
     def forward(
         self,
@@ -565,76 +626,45 @@ class MSAModule(nn.Module):
 
     def __init__(
         self,
-        n_blocks: int = 4,
-        c_m: int = 64,
-        c_z: int = 128,
-        c_s_inputs: int = 449,
-        msa_dropout: float = 0.15,
-        pair_dropout: float = 0.25,
-        blocks_per_ckpt: Optional[int] = 1,
-        msa_configs: Optional[dict] = None,
+        cfg: Union[DictConfig, MSAConfig],
     ) -> None:
         """Main Entry of MSAModule
 
         Args:
-            n_blocks (int, optional): number of blocks [for MSAModule]. Defaults to 4.
-            c_m (int, optional): hidden dim [for msa embedding]. Defaults to 64.
-            c_z (int, optional): hidden dim [for pair embedding]. Defaults to 128.
-            c_s_inputs (int, optional):
-                hidden dim for single embedding from InputFeatureEmbedder. Defaults to 449.
-            msa_dropout (float, optional): dropout ratio for msa block. Defaults to 0.15.
-            pair_dropout (float, optional): dropout ratio for pair stack. Defaults to 0.25.
-            blocks_per_ckpt: number of MSAModule blocks in each activation checkpoint
-                Size of each chunk. A higher value corresponds to fewer
-                checkpoints, and trades memory for speed. If None, no checkpointing
-                is performed.
-            msa_configs (Optional[dict], optional): a dictionary containing keys:
-                "enable": whether using msa embedding.
-        ]"""
+            cfg: Configuration object containing parameters for MSAModule.
+                Can be either a DictConfig from Hydra or an MSAConfig.
+        """
         super(MSAModule, self).__init__()
-        self.n_blocks = n_blocks
-        self.c_m = c_m
-        self.c_s_inputs = c_s_inputs
-        self.blocks_per_ckpt = blocks_per_ckpt
-        self.input_feature = {
-            "msa": 32,
-            "has_deletion": 1,
-            "deletion_value": 1,
-        }
 
-        # Default configs
-        if msa_configs is None:
-            msa_configs = {}
+        # Validate required parameters
+        required_params = ["c_m", "c", "c_z", "dropout", "n_blocks", "enable", "c_s_inputs", "blocks_per_ckpt", "input_feature_dims"]
+        for param in required_params:
+            if not hasattr(cfg, param):
+                raise ValueError(f"Configuration missing required parameter: {param}")
 
-        # Set up msa_configs with defaults
+        # Extract parameters from config
+        self.n_blocks = cfg.n_blocks
+        self.c_m = cfg.c_m
+        self.c = cfg.c
+        self.dropout = cfg.dropout
+        self.c_s_inputs = cfg.c_s_inputs
+        self.blocks_per_ckpt = cfg.blocks_per_ckpt
+        self.c_z = cfg.c_z
+
+        # Input feature dimensions from config
+        self.input_feature = cfg.input_feature_dims
+
+        # Set up msa_configs from the structured config
         self.msa_configs = {
-            "enable": msa_configs.get("enable", False),
-            "strategy": msa_configs.get("strategy", "random"),
-            "train_cutoff": 512,
-            "test_cutoff": 16384,
-            "train_lowerb": 1,
-            "test_lowerb": 1,
+            "enable": cfg.enable,
+            "strategy": cfg.strategy,
+            "train_cutoff": cfg.train_cutoff,
+            "test_cutoff": cfg.test_cutoff,
+            "train_lowerb": cfg.train_lowerb,
+            "test_lowerb": cfg.test_lowerb,
         }
 
-        # Override defaults with provided values if they exist
-        if "sample_cutoff" in msa_configs:
-            sample_cutoff = msa_configs.get("sample_cutoff", {})
-            self.msa_configs["train_cutoff"] = sample_cutoff.get(
-                "train", self.msa_configs["train_cutoff"]
-            )
-            self.msa_configs["test_cutoff"] = sample_cutoff.get(
-                "test", self.msa_configs["test_cutoff"]
-            )
-
-        if "min_size" in msa_configs:
-            min_size = msa_configs.get("min_size", {})
-            self.msa_configs["train_lowerb"] = min_size.get(
-                "train", self.msa_configs["train_lowerb"]
-            )
-            self.msa_configs["test_lowerb"] = min_size.get(
-                "test", self.msa_configs["test_lowerb"]
-            )
-
+        # Initialize linear layers
         self.linear_no_bias_m = LinearNoBias(
             in_features=32 + 1 + 1, out_features=self.c_m
         )
@@ -642,15 +672,29 @@ class MSAModule(nn.Module):
         self.linear_no_bias_s = LinearNoBias(
             in_features=self.c_s_inputs, out_features=self.c_m
         )
+
+        # Initialize MSA blocks
         self.blocks = nn.ModuleList()
 
-        for i in range(n_blocks):
+        # Create a base MSA config for blocks
+        msa_block_cfg = MSAConfig(
+            c_m=self.c_m,
+            c=self.c,
+            c_z=self.c_z,  # Add c_z to MSAConfig
+            dropout=self.dropout,
+            n_blocks=1,  # Not used in MSABlock
+            enable=cfg.enable,
+            strategy=cfg.strategy,
+            train_cutoff=cfg.train_cutoff,
+            test_cutoff=cfg.test_cutoff,
+            train_lowerb=cfg.train_lowerb,
+            test_lowerb=cfg.test_lowerb,
+        )
+
+        for i in range(self.n_blocks):
             block = MSABlock(
-                c_m=self.c_m,
-                c_z=c_z,
-                is_last_block=(i + 1 == n_blocks),
-                msa_dropout=msa_dropout,
-                pair_dropout=pair_dropout,
+                cfg=msa_block_cfg,
+                is_last_block=(i + 1 == self.n_blocks),
             )
             self.blocks.append(block)
 
@@ -727,14 +771,13 @@ class MSAModule(nn.Module):
         # Convert pair_mask to float if needed
         if pair_mask is not None and pair_mask.dtype != torch.float32:
             pair_mask = pair_mask.float()
+
+        # Sample MSA features with explicit type conversion
+        sample_size = int(self.msa_configs["train_cutoff"] if self.training else self.msa_configs["test_cutoff"])
         msa_feat = sample_msa_feature_dict_random_without_replacement(
             feat_dict=input_feature_dict,
             # dim_dict removed as it's not an accepted argument
-            sample_size=(
-                self.msa_configs["train_cutoff"]
-                if self.training
-                else self.msa_configs["test_cutoff"]
-            )
+            sample_size=sample_size
         )
         # pylint: disable=E1102
         msa_feat["msa"] = torch.nn.functional.one_hot(
@@ -793,42 +836,36 @@ class TemplateEmbedder(nn.Module):
     Implements Algorithm 16 in AF3
     """
 
-    def __init__(
-        self,
-        n_blocks: int = 2,
-        c: int = 64,
-        c_z: int = 128,
-        dropout: float = 0.25,
-        blocks_per_ckpt: Optional[int] = None,
-    ) -> None:
+    def __init__(self, cfg: Union[DictConfig, TemplateEmbedderConfig]) -> None:
         """
+        Initialize TemplateEmbedder with configuration.
+
         Args:
-            n_blocks (int, optional): number of blocks for TemplateEmbedder. Defaults to 2.
-            c (int, optional): hidden dim of TemplateEmbedder. Defaults to 64.
-            c_z (int, optional): hidden dim [for pair embedding]. Defaults to 128.
-            dropout (float, optional): dropout ratio for PairformerStack. Defaults to 0.25.
-                Note this value is missed in Algorithm 16, so we use default ratio for Pairformer
-            blocks_per_ckpt: number of TemplateEmbedder/Pairformer blocks in each activation
-                checkpoint Size of each chunk. A higher value corresponds to fewer
-                checkpoints, and trades memory for speed. If None, no checkpointing
-                is performed.
+            cfg: Configuration object containing parameters for TemplateEmbedder.
+                Can be either a DictConfig from Hydra or a TemplateEmbedderConfig.
         """
         super(TemplateEmbedder, self).__init__()
-        self.n_blocks = n_blocks
-        self.c = c
-        self.c_z = c_z
-        self.input_feature1 = {
-            "template_distogram": 39,
-            "b_template_backbone_frame_mask": 1,
-            "template_unit_vector": 3,
-            "b_template_pseudo_beta_mask": 1,
-        }
-        self.input_feature2 = {
-            "template_restype_i": 32,
-            "template_restype_j": 32,
-        }
-        self.distogram = {"max_bin": 50.75, "min_bin": 3.25, "no_bins": 39}
-        self.inf = 100000.0
+
+        # Validate required parameters
+        required_params = ["n_blocks", "c", "c_z", "dropout", "blocks_per_ckpt", "input_feature_dims", "distogram"]
+        for param in required_params:
+            if not hasattr(cfg, param):
+                raise ValueError(f"Configuration missing required parameter: {param}")
+
+        # Extract parameters from config
+        self.n_blocks = cfg.n_blocks
+        self.c = cfg.c
+        self.c_z = cfg.c_z
+        self.dropout = cfg.dropout
+        self.blocks_per_ckpt = cfg.blocks_per_ckpt
+
+        # Get input feature dimensions from config
+        self.input_feature1 = cfg.input_feature_dims["feature1"]
+        self.input_feature2 = cfg.input_feature_dims["feature2"]
+
+        # Get distogram parameters from config
+        self.distogram = cfg.distogram
+        self.inf = 100000.0  # This could also be moved to config
 
         self.linear_no_bias_z = LinearNoBias(in_features=self.c_z, out_features=self.c)
         self.layernorm_z = LayerNorm(self.c_z)
@@ -837,13 +874,15 @@ class TemplateEmbedder(nn.Module):
             + sum(self.input_feature2.values()),
             out_features=self.c,
         )
-        self.pairformer_stack = PairformerStack(
+        # Create PairformerStack configuration
+        stack_cfg = PairformerStackConfig(
             c_s=0,
-            c_z=c,
+            c_z=self.c,
             n_blocks=self.n_blocks,
-            dropout=dropout,
-            blocks_per_ckpt=blocks_per_ckpt,
+            dropout=self.dropout,
+            blocks_per_ckpt=self.blocks_per_ckpt,
         )
+        self.pairformer_stack = PairformerStack(cfg=stack_cfg)
         self.layernorm_v = LayerNorm(self.c)
         self.linear_no_bias_u = LinearNoBias(in_features=self.c, out_features=self.c_z)
 
