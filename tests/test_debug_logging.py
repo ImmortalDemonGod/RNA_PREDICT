@@ -622,7 +622,10 @@ def test_stageD_debug_logging_hypothesis(debug_val: bool, atom_metadata: Dict[st
     with initialize(config_path=config_path, version_base=None):
         # Get stage-specific configuration for stageD
         stage = "stageD"
-        overrides = [f"model.{stage}.debug_logging={debug_val}"]
+        overrides = [
+            f"+model.{stage}.debug_logging={debug_val}",
+            "+model.stageD.atom_metadata={}"
+        ]
 
         # Compose the configuration with overrides
         cfg = compose(config_name="default", overrides=overrides)
@@ -676,10 +679,13 @@ def test_stageB_debug_logging_substages(_unused_stage, substage, expected_msg, c
             "model": {
                 "stageB": {
                     "torsion_bert": {
-                        "debug_logging": True
+                        "debug_logging": True,
+                        "model_name_or_path": "dummy-path",
+                        "device": "cpu"
                     }
                 }
-            }
+            },
+            "init_from_scratch": True
         })
         debug_val = cfg.model.stageB.torsion_bert.debug_logging
         print(f"[TEST-DEBUG] substage={substage} debug_logging={debug_val}", file=sys.stderr)
