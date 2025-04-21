@@ -157,6 +157,16 @@ def run_stageD(
     if not hasattr(cfg, "model") or not hasattr(cfg.model, "stageD"):
         raise ValueError("Configuration must contain model.stageD section")
 
+    # Defensive check: s_trunk must be residue-level at entry
+    if atom_metadata is not None and 'residue_indices' in atom_metadata:
+        n_atoms = len(atom_metadata['residue_indices'])
+        # Try to infer residues from sequence if available
+        n_residues = len(input_feature_dict.get('sequence', [])) if input_feature_dict.get('sequence', None) is not None else None
+        # If sequence not available, estimate from atom count and atoms per residue
+        atoms_per_res = n_atoms // n_residues if n_residues else None
+        if s_trunk.shape[1] == n_atoms:
+            raise ValueError('[RUNSTAGED ERROR][UNIQUE_CODE_003] s_trunk is atom-level at entry to run_stageD; upstream code must pass residue-level embeddings.')
+
     # Import unified runner and config dataclass
     from rna_predict.pipeline.stageD.diffusion.run_stageD_unified import run_stageD_diffusion
     from rna_predict.pipeline.stageD.diffusion.utils import DiffusionConfig
@@ -306,14 +316,17 @@ def hydra_main(cfg: DictConfig) -> None:
     stage_cfg: StageDConfig = cfg.model.stageD
 
     # Validate debug_logging parameter
-    if not hasattr(stage_cfg, "debug_logging"):
-        raise ValueError("Configuration missing required parameter: debug_logging")
-
-    # Get debug_logging from config
-    debug_logging = stage_cfg.debug_logging
+    if hasattr(stage_cfg, "debug_logging"):
+        debug_logging = stage_cfg.debug_logging
+    elif hasattr(stage_cfg, "diffusion") and hasattr(stage_cfg.diffusion, "debug_logging"):
+        debug_logging = stage_cfg.diffusion.debug_logging
+    else:
+        # Default to True if not found
+        debug_logging = True
 
     if debug_logging:
         log.info("Running Stage D Standalone Demo")
+        log.debug("[UNIQUE-DEBUG-STAGED-TEST] Stage D runner started.")
 
     # Create dummy data for testing using standardized test data
     batch_size = 1  # Use a single batch for testing
@@ -349,6 +362,13 @@ def hydra_main(cfg: DictConfig) -> None:
     c_s_inputs = stage_cfg.c_s_inputs if hasattr(stage_cfg, 'c_s_inputs') else 32
     c_z = stage_cfg.c_z if hasattr(stage_cfg, 'c_z') else 128
 
+    # Debug logging for dimensions
+    if debug_logging:
+        print(f"[DEBUG][run_stageD] ENTRY: z_trunk.shape = {torch.randn(batch_size, num_residues, num_residues, c_z).shape}")
+        print(f"[DEBUG][run_stageD] ENTRY: s_trunk.shape = {torch.randn(batch_size, num_residues, c_s).shape}")
+        print(f"[DEBUG][run_stageD] ENTRY: s_inputs.shape = {torch.randn(batch_size, num_residues, c_s_inputs).shape}")
+
+    # Create residue-level embeddings
     dummy_embeddings = {
         "s_trunk": torch.randn(batch_size, num_residues, c_s),
         "s_inputs": torch.randn(batch_size, num_residues, c_s_inputs),
@@ -384,6 +404,22 @@ def hydra_main(cfg: DictConfig) -> None:
             raise TypeError(f"s_inputs must be a torch.Tensor, got {type(s_inputs_tensor)}")
         atom_metadata_dict = dummy_embeddings["atom_metadata"] if isinstance(dummy_embeddings["atom_metadata"], dict) else {}
 
+        # Debug logging for shape verification
+        if debug_logging:
+            print(f"[DEBUG][run_stageD] s_trunk shape: {s_trunk_tensor.shape}")
+            print(f"[DEBUG][run_stageD] z_trunk shape: {z_trunk_tensor.shape}")
+            print(f"[DEBUG][run_stageD] s_inputs shape: {s_inputs_tensor.shape}")
+            print(f"[DEBUG][run_stageD] num_residues: {num_residues}")
+            print(f"[DEBUG][run_stageD] num_atoms: {num_atoms}")
+
+            # Check for shape mismatches
+            if s_trunk_tensor.shape[1] != num_residues:
+                print(f"[DEBUG][run_stageD] s_trunk shape mismatch: {s_trunk_tensor.shape[1]} != {num_residues}")
+            if s_inputs_tensor.shape[1] != num_residues:
+                print(f"[DEBUG][run_stageD] s_inputs shape mismatch: {s_inputs_tensor.shape[1]} != {num_residues}")
+            if z_trunk_tensor.shape[1] != num_residues:
+                print(f"[DEBUG][run_stageD] pair shape mismatch: {z_trunk_tensor.shape[1]} != {num_residues}")
+
         refined_coords = run_stageD(
             cfg=cfg,
             coords=dummy_coords,
@@ -393,8 +429,7 @@ def hydra_main(cfg: DictConfig) -> None:
             input_feature_dict=dummy_embeddings,
             atom_metadata=atom_metadata_dict,
         )
-        # Get debug_logging from config
-        debug_logging = stage_cfg.debug_logging if hasattr(stage_cfg, 'debug_logging') else True
+        # We already have debug_logging from earlier, no need to extract it again
         if debug_logging:
             # Check if result is a tensor or tuple before accessing shape
             if isinstance(refined_coords, torch.Tensor):
