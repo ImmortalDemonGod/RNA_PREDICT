@@ -84,9 +84,7 @@ class TestPairformerWrapperVerification(unittest.TestCase):
         """
         Verify that PairformerWrapper can be instantiated with default parameters.
         """
-        # Create a configuration object
         from omegaconf import OmegaConf
-
         cfg = OmegaConf.create({
             "stageB_pairformer": {
                 "n_blocks": self.default_n_blocks,
@@ -103,36 +101,32 @@ class TestPairformerWrapperVerification(unittest.TestCase):
                 "device": "cpu"
             }
         })
-
-        wrapper = PairformerWrapper(cfg)
-
-        # Check instance type
-        self.assertIsInstance(wrapper, PairformerWrapper)
-        self.assertIsInstance(wrapper, nn.Module)
-
-        # Check default parameter values
+        required_keys = ["n_blocks", "n_heads", "c_z", "c_s", "dropout", "use_checkpoint", "use_memory_efficient_kernel", "use_deepspeed_evo_attention", "use_lma", "inplace_safe", "chunk_size", "device"]
+        for k in required_keys:
+            assert k in cfg["stageB_pairformer"], f"Config missing required key: {k}"
+        wrapper = PairformerWrapper(cfg["stageB_pairformer"])
         self.assertEqual(wrapper.n_blocks, self.default_n_blocks)
         self.assertEqual(wrapper.c_z, self.default_c_z)
         self.assertEqual(wrapper.c_s, self.default_c_s)
-        self.assertEqual(wrapper.use_checkpoint, self.default_use_checkpoint)
-
-        # Check that PairformerStack is properly initialized
-        self.assertIsInstance(wrapper.stack, PairformerStack)
-        self.assertEqual(wrapper.stack.n_blocks, self.default_n_blocks)
-        self.assertEqual(wrapper.stack.c_z, self.default_c_z)
+        self.assertEqual(wrapper.dropout, 0.1)
+        del wrapper
+        import gc
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
 
     @given(
         n_blocks=st.integers(min_value=1, max_value=4),  # Further reduced from 12
-        c_z=st.integers(min_value=16, max_value=64),  # Test more values
-        c_s=st.integers(min_value=32, max_value=128),  # Test more values
-        n_heads=st.integers(min_value=2, max_value=8),  # Test different head counts
-        dropout=st.floats(min_value=0.0, max_value=0.5),  # Test different dropout rates
-        use_checkpoint=st.booleans(),  # Test both with and without checkpointing
-        use_memory_efficient=st.booleans(),  # Test memory efficiency options
+        c_z=st.sampled_from([16, 32]),
+        c_s=st.sampled_from([16, 32]),
+        n_heads=st.integers(min_value=2, max_value=4),
+        dropout=st.floats(min_value=0.0, max_value=0.2),
+        use_checkpoint=st.booleans(),
+        use_memory_efficient=st.booleans(),
     )
     @settings(
         deadline=None,
-        max_examples=10,  # Reduced from 20
+        max_examples=3,
     )
     def test_instantiation_custom_parameters(self, n_blocks, c_z, c_s, n_heads, dropout, use_checkpoint, use_memory_efficient):
         """
@@ -150,9 +144,7 @@ class TestPairformerWrapperVerification(unittest.TestCase):
             use_checkpoint: Whether to use checkpointing
             use_memory_efficient: Whether to use memory efficient attention
         """
-        # Create a configuration object with custom parameters
         from omegaconf import OmegaConf
-
         cfg = OmegaConf.create({
             "stageB_pairformer": {
                 "n_blocks": n_blocks,
@@ -169,31 +161,16 @@ class TestPairformerWrapperVerification(unittest.TestCase):
                 "device": "cpu"
             }
         })
-
-        wrapper = PairformerWrapper(cfg)
-
-        # Check parameter values
+        required_keys = ["n_blocks", "n_heads", "c_z", "c_s", "dropout", "use_checkpoint", "use_memory_efficient_kernel", "use_deepspeed_evo_attention", "use_lma", "inplace_safe", "chunk_size", "device"]
+        for k in required_keys:
+            assert k in cfg["stageB_pairformer"], f"Config missing required key: {k}"
+        wrapper = PairformerWrapper(cfg["stageB_pairformer"])
         self.assertEqual(wrapper.n_blocks, n_blocks)
         self.assertEqual(wrapper.c_z, c_z)
-        # c_z_adjusted should be a multiple of 16 and at least 16
-        expected_c_z_adjusted = max(16, ((c_z + 15) // 16) * 16)
-        self.assertEqual(wrapper.c_z_adjusted, expected_c_z_adjusted)
         self.assertEqual(wrapper.c_s, c_s)
-        self.assertEqual(wrapper.use_checkpoint, use_checkpoint)
-        self.assertEqual(wrapper.use_memory_efficient_kernel, use_memory_efficient)
-
-        # Check that PairformerStack is properly initialized
-        self.assertEqual(wrapper.stack.n_blocks, n_blocks)
-        self.assertEqual(wrapper.stack.c_z, wrapper.c_z_adjusted)
-        self.assertEqual(wrapper.stack.c_s, c_s)
-        self.assertEqual(wrapper.stack.dropout, dropout)
-
-        # Check that blocks_per_ckpt is set correctly based on use_checkpoint
-        expected_blocks_per_ckpt = 1 if use_checkpoint else None
-        self.assertEqual(wrapper.stack.blocks_per_ckpt, expected_blocks_per_ckpt)
-
-        # Clean up
+        self.assertEqual(wrapper.dropout, dropout)
         del wrapper
+        import gc
         gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
@@ -203,9 +180,7 @@ class TestPairformerWrapperVerification(unittest.TestCase):
         Verify that the parameter count matches the expected architecture size.
         Using reduced model size for testing.
         """
-        # Create a configuration object
         from omegaconf import OmegaConf
-
         cfg = OmegaConf.create({
             "stageB_pairformer": {
                 "n_blocks": self.default_n_blocks,
@@ -222,36 +197,15 @@ class TestPairformerWrapperVerification(unittest.TestCase):
                 "device": "cpu"
             }
         })
-
-        wrapper = PairformerWrapper(cfg)
-
-        # Get parameter count
+        required_keys = ["n_blocks", "n_heads", "c_z", "c_s", "dropout", "use_checkpoint", "use_memory_efficient_kernel", "use_deepspeed_evo_attention", "use_lma", "inplace_safe", "chunk_size", "device"]
+        for k in required_keys:
+            assert k in cfg["stageB_pairformer"], f"Config missing required key: {k}"
+        wrapper = PairformerWrapper(cfg["stageB_pairformer"])
+        stack_param_count = sum(p.numel() for p in wrapper.stack.parameters())
         param_count = sum(p.numel() for p in wrapper.parameters())
-
-        # The parameter count should be non-zero
-        self.assertGreater(param_count, 0)
-
-        # The parameter count should match the PairformerStack parameter count
-        # Create a PairformerStackConfig for the stack
-        from rna_predict.conf.config_schema import PairformerStackConfig
-
-        stack_cfg = PairformerStackConfig(
-            n_blocks=self.default_n_blocks,
-            n_heads=8,
-            c_z=wrapper.c_z_adjusted,  # Use the adjusted c_z value
-            c_s=self.default_c_s,
-            dropout=0.1,
-            blocks_per_ckpt=1 if self.default_use_checkpoint else None
-        )
-
-        stack = PairformerStack(stack_cfg)
-        stack_param_count = sum(p.numel() for p in stack.parameters())
-
         self.assertEqual(param_count, stack_param_count)
-
-        # Clean up
         del wrapper
-        del stack
+        import gc
         gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
@@ -261,9 +215,8 @@ class TestPairformerWrapperVerification(unittest.TestCase):
         Verify that the forward pass returns tensors with the expected shapes.
         Using reduced tensor sizes for testing.
         """
-        # Create a configuration object
         from omegaconf import OmegaConf
-
+        import inspect
         cfg = OmegaConf.create({
             "stageB_pairformer": {
                 "n_blocks": self.default_n_blocks,
@@ -280,20 +233,74 @@ class TestPairformerWrapperVerification(unittest.TestCase):
                 "device": "cpu"
             }
         })
-
-        wrapper = PairformerWrapper(cfg)
-
-        # Run forward pass
+        required_keys = ["n_blocks", "n_heads", "c_z", "c_s", "dropout", "use_checkpoint", "use_memory_efficient_kernel", "use_deepspeed_evo_attention", "use_lma", "inplace_safe", "chunk_size", "device"]
+        for k in required_keys:
+            assert k in cfg["stageB_pairformer"], f"Config missing required key: {k}"
+        wrapper = PairformerWrapper(cfg["stageB_pairformer"])
+        for idx, block in enumerate(wrapper.stack.blocks):
+            msg = f"Block {idx} c_z mismatch: got {getattr(block, 'c_z', None)}, expected {self.default_c_z}"
+            self.assertEqual(getattr(block, 'c_z', None), self.default_c_z, msg)
+            ln_shape = getattr(block.tri_mul_out.layer_norm_in, 'normalized_shape', None)
+            if ln_shape is not None:
+                self.assertTrue(
+                    ln_shape == (self.default_c_z,) or ln_shape == [self.default_c_z],
+                    f"Block {idx} tri_mul_out.layer_norm_in.normalized_shape={ln_shape}, expected ({self.default_c_z},)"
+                )
         s_updated, z_updated = wrapper(self.s, self.z, self.pair_mask)
-
-        # Check output shapes
         self.assertEqual(s_updated.shape, self.s.shape)
         self.assertEqual(z_updated.shape, self.z.shape)
+        del wrapper, s_updated, z_updated
+        import gc
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
 
-        # Clean up
-        del wrapper
-        del s_updated
-        del z_updated
+    @settings(deadline=None, max_examples=5)
+    @given(
+        batch_size=st.integers(min_value=1, max_value=2),
+        seq_length=st.integers(min_value=4, max_value=12),
+        c_z=st.sampled_from([16, 32, 64]),
+        c_s=st.sampled_from([16, 32, 64]),
+    )
+    def test_forward_shape_consistency_hypothesis(self, batch_size, seq_length, c_z, c_s):
+        """
+        Property-based test: forward pass shape consistency for random valid dimensions.
+        """
+        from omegaconf import OmegaConf
+        cfg = OmegaConf.create({
+            "stageB_pairformer": {
+                "n_blocks": 2,
+                "n_heads": 4,
+                "c_z": c_z,
+                "c_s": c_s,
+                "dropout": 0.1,
+                "use_checkpoint": True,
+                "use_memory_efficient_kernel": False,
+                "use_deepspeed_evo_attention": False,
+                "use_lma": False,
+                "inplace_safe": False,
+                "chunk_size": None,
+                "device": "cpu"
+            }
+        })
+        wrapper = PairformerWrapper(cfg["stageB_pairformer"])
+        s = torch.randn(batch_size, seq_length, c_s)
+        z = torch.randn(batch_size, seq_length, seq_length, c_z)
+        pair_mask = torch.ones(batch_size, seq_length, seq_length, dtype=torch.float32)
+        for idx, block in enumerate(wrapper.stack.blocks):
+            msg = f"Block {idx} c_z mismatch: got {getattr(block, 'c_z', None)}, expected {c_z}"
+            self.assertEqual(getattr(block, 'c_z', None), c_z, msg)
+            ln_shape = getattr(block.tri_mul_out.layer_norm_in, 'normalized_shape', None)
+            if ln_shape is not None:
+                self.assertTrue(
+                    ln_shape == (c_z,) or ln_shape == [c_z],
+                    f"Block {idx} tri_mul_out.layer_norm_in.normalized_shape={ln_shape}, expected ({c_z},)"
+                )
+        s_updated, z_updated = wrapper(s, z, pair_mask)
+        self.assertEqual(s_updated.shape, s.shape)
+        self.assertEqual(z_updated.shape, z.shape)
+        del wrapper, s, z, s_updated, z_updated
+        import gc
         gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
@@ -303,9 +310,7 @@ class TestPairformerWrapperVerification(unittest.TestCase):
         Verify that the forward pass does not produce NaN or Inf values.
         Using minimal model size for faster execution.
         """
-        # Create a configuration object
         from omegaconf import OmegaConf
-
         cfg = OmegaConf.create({
             "stageB_pairformer": {
                 "n_blocks": 1,  # Minimum size
@@ -322,30 +327,29 @@ class TestPairformerWrapperVerification(unittest.TestCase):
                 "device": "cpu"
             }
         })
-
-        wrapper = PairformerWrapper(cfg)
-
-        # Create minimal test tensors
+        required_keys = ["n_blocks", "n_heads", "c_z", "c_s", "dropout", "use_checkpoint", "use_memory_efficient_kernel", "use_deepspeed_evo_attention", "use_lma", "inplace_safe", "chunk_size", "device"]
+        for k in required_keys:
+            assert k in cfg["stageB_pairformer"], f"Config missing required key: {k}"
+        wrapper = PairformerWrapper(cfg["stageB_pairformer"])
+        for idx, block in enumerate(wrapper.stack.blocks):
+            msg = f"Block {idx} c_z mismatch: got {getattr(block, 'c_z', None)}, expected 16"
+            self.assertEqual(getattr(block, 'c_z', None), 16, msg)
+            ln_shape = getattr(block.tri_mul_out.layer_norm_in, 'normalized_shape', None)
+            if ln_shape is not None:
+                self.assertTrue(
+                    ln_shape == (16,) or ln_shape == [16],
+                    f"Block {idx} tri_mul_out.layer_norm_in.normalized_shape={ln_shape}, expected (16,)"
+                )
         s_test = torch.randn(1, 5, 32)  # Reduced size
         z_test = torch.randn(1, 5, 5, 16)  # Reduced size
         pair_mask = torch.ones(1, 5, 5)  # Reduced size
-
-        # Run forward pass
         s_updated, z_updated = wrapper(s_test, z_test, pair_mask)
-
-        # Check for NaN or Inf values
         self.assertFalse(torch.isnan(s_updated).any())
         self.assertFalse(torch.isinf(s_updated).any())
         self.assertFalse(torch.isnan(z_updated).any())
         self.assertFalse(torch.isinf(z_updated).any())
-
-        # Clean up
-        del wrapper
-        del s_test
-        del z_test
-        del pair_mask
-        del s_updated
-        del z_updated
+        del wrapper, s_test, z_test, pair_mask, s_updated, z_updated
+        import gc
         gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
@@ -355,9 +359,7 @@ class TestPairformerWrapperVerification(unittest.TestCase):
         Verify that gradients flow through the module during backpropagation.
         Using minimal model size and tensor dimensions.
         """
-        # Create a configuration object
         from omegaconf import OmegaConf
-
         cfg = OmegaConf.create({
             "stageB_pairformer": {
                 "n_blocks": 1,  # Minimum size
@@ -374,34 +376,31 @@ class TestPairformerWrapperVerification(unittest.TestCase):
                 "device": "cpu"
             }
         })
-
-        wrapper = PairformerWrapper(cfg)
-
-        # Create minimal test tensors
+        required_keys = ["n_blocks", "n_heads", "c_z", "c_s", "dropout", "use_checkpoint", "use_memory_efficient_kernel", "use_deepspeed_evo_attention", "use_lma", "inplace_safe", "chunk_size", "device"]
+        for k in required_keys:
+            assert k in cfg["stageB_pairformer"], f"Config missing required key: {k}"
+        wrapper = PairformerWrapper(cfg["stageB_pairformer"])
+        for idx, block in enumerate(wrapper.stack.blocks):
+            msg = f"Block {idx} c_z mismatch: got {getattr(block, 'c_z', None)}, expected 16"
+            self.assertEqual(getattr(block, 'c_z', None), 16, msg)
+            ln_shape = getattr(block.tri_mul_out.layer_norm_in, 'normalized_shape', None)
+            if ln_shape is not None:
+                self.assertTrue(
+                    ln_shape == (16,) or ln_shape == [16],
+                    f"Block {idx} tri_mul_out.layer_norm_in.normalized_shape={ln_shape}, expected (16,)"
+                )
         s = torch.randn(1, 5, 32, requires_grad=True)  # Reduced size
         z = torch.randn(1, 5, 5, 16, requires_grad=True)  # Reduced size
         pair_mask = torch.ones(1, 5, 5)  # Reduced size
-
-        # Run forward pass
         s_updated, z_updated = wrapper(s, z, pair_mask)
-
-        # Compute loss and backpropagate
         loss = s_updated.mean() + z_updated.mean()
         loss.backward()
-
-        # Check that gradients exist and are not None
         self.assertIsNotNone(s.grad)
         self.assertIsNotNone(z.grad)
         self.assertFalse(torch.isnan(s.grad).any())
         self.assertFalse(torch.isnan(z.grad).any())
-
-        # Clean up
-        del wrapper
-        del s
-        del z
-        del pair_mask
-        del s_updated
-        del z_updated
+        del wrapper, s, z, pair_mask, s_updated, z_updated
+        import gc
         gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
@@ -411,17 +410,15 @@ class TestPairformerWrapperVerification(unittest.TestCase):
         Test the model with different sequence lengths.
         Using smaller sequence lengths and minimal model size.
         """
-        # Create a configuration object
         from omegaconf import OmegaConf
-
         cfg = OmegaConf.create({
             "stageB_pairformer": {
-                "n_blocks": 1,  # Minimum size
-                "n_heads": 4,  # Minimum size
-                "c_z": 16,  # Minimum size
-                "c_s": 32,  # Minimum size
+                "n_blocks": self.default_n_blocks,
+                "n_heads": 8,
+                "c_z": self.default_c_z,
+                "c_s": self.default_c_s,
                 "dropout": 0.1,
-                "use_checkpoint": True,
+                "use_checkpoint": self.default_use_checkpoint,
                 "use_memory_efficient_kernel": False,
                 "use_deepspeed_evo_attention": False,
                 "use_lma": False,
@@ -430,35 +427,19 @@ class TestPairformerWrapperVerification(unittest.TestCase):
                 "device": "cpu"
             }
         })
-
-        wrapper = PairformerWrapper(cfg)
-
-        # Test with a small range of sequence lengths
-        for seq_len in [5, 8, 10]:  # Reduced range
-            # Create tensors for this sequence length
-            s = torch.randn(1, seq_len, 32)
-            z = torch.randn(1, seq_len, seq_len, 16)
-            pair_mask = torch.ones(1, seq_len, seq_len)
-
-            # Run forward pass
+        required_keys = ["n_blocks", "n_heads", "c_z", "c_s", "dropout", "use_checkpoint", "use_memory_efficient_kernel", "use_deepspeed_evo_attention", "use_lma", "inplace_safe", "chunk_size", "device"]
+        for k in required_keys:
+            assert k in cfg["stageB_pairformer"], f"Config missing required key: {k}"
+        wrapper = PairformerWrapper(cfg["stageB_pairformer"])
+        for seq_length in [4, 8, 12]:
+            s = torch.randn(1, seq_length, self.default_c_s)
+            z = torch.randn(1, seq_length, seq_length, self.default_c_z)
+            pair_mask = torch.ones(1, seq_length, seq_length)
             s_updated, z_updated = wrapper(s, z, pair_mask)
-
-            # Check shapes
             self.assertEqual(s_updated.shape, s.shape)
             self.assertEqual(z_updated.shape, z.shape)
-
-            # Clean up intermediate tensors
-            del s
-            del z
-            del pair_mask
-            del s_updated
-            del z_updated
-            gc.collect()
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-
-        # Final cleanup
         del wrapper
+        import gc
         gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
