@@ -203,7 +203,7 @@ def test_stageB_missing_config_section():
         }
     })
 
-    # Verify that initialization raises ValueError
+    # Verify that initialization raises ValueError with expected message
     with pytest.raises(ValueError, match="Configuration must contain either stageB_torsion or model.stageB.torsion_bert section"):
         StageBTorsionBertPredictor(test_config)
 

@@ -816,10 +816,7 @@ def test_problem_size_memory_threshold():
 # ------------------------------------------------------------------------------
 # Test: Unique error for atom-level input to bridge_residue_to_atom
 
-import hypothesis.strategies as st
-from hypothesis import given
-from rna_predict.pipeline.stageD.diffusion.bridging.residue_atom_bridge import bridge_residue_to_atom, BridgingInput
-
+from hypothesis import given, strategies as st
 @given(
     batch_size=st.integers(min_value=1, max_value=2),
     n_residues=st.integers(min_value=2, max_value=8),
@@ -827,12 +824,17 @@ from rna_predict.pipeline.stageD.diffusion.bridging.residue_atom_bridge import b
     c_s=st.integers(min_value=2, max_value=8)
 )
 def test_bridge_residue_to_atom_raises_on_atom_level_input(batch_size, n_residues, atoms_per_residue, c_s):
+    """
+    Property-based test: bridge_residue_to_atom must raise a unique error if atom-level embeddings are passed instead of residue-level.
+    Covers a range of batch sizes, residue counts, atom counts, and embedding dims.
+    [BRIDGE ERROR][UNIQUE_CODE_001]
+    """
     import torch
+    from rna_predict.pipeline.stageD.diffusion.bridging.residue_atom_bridge import BridgingInput, bridge_residue_to_atom
     # Simulate atom-level s_emb: [B, N_atom, c_s]
     n_atoms = n_residues * atoms_per_residue
     s_emb = torch.randn(batch_size, n_atoms, c_s)
     trunk_embeddings = {"s_trunk": s_emb}
-    # residue_atom_map has length n_residues
     # Provide sequence so residue count can be determined
     sequence = ["A"] * n_residues
     bridging_input = BridgingInput(
@@ -849,3 +851,33 @@ def test_bridge_residue_to_atom_raises_on_atom_level_input(batch_size, n_residue
         assert "[BRIDGE ERROR][UNIQUE_CODE_001]" in str(e), f"Unexpected error message: {e}"
     else:
         raise AssertionError("bridge_residue_to_atom did not raise on atom-level input!")
+
+from hypothesis import given, strategies as st
+@given(
+    batch_size=st.integers(min_value=1, max_value=2),
+    n_residues=st.integers(min_value=2, max_value=8),
+    atoms_per_residue=st.integers(min_value=2, max_value=16),
+    c_s=st.integers(min_value=2, max_value=8)
+)
+def test_run_stageD_raises_on_atom_level_input(batch_size, n_residues, atoms_per_residue, c_s):
+    """
+    Property-based test: run_stageD must raise a unique error if atom-level embeddings are passed instead of residue-level.
+    [RUNSTAGED ERROR][UNIQUE_CODE_003]
+    """
+    import torch
+    from rna_predict.pipeline.stageD.run_stageD import run_stageD
+    # Simulate atom-level s_trunk: [B, N_atom, c_s]
+    n_atoms = n_residues * atoms_per_residue
+    s_trunk = torch.randn(batch_size, n_atoms, c_s)
+    z_trunk = torch.randn(batch_size, n_residues, n_residues, c_s)
+    s_inputs = torch.randn(batch_size, n_atoms, c_s)
+    coords = torch.randn(batch_size, n_atoms, 3)
+    input_feature_dict = {"sequence": ["A"] * n_residues}
+    atom_metadata = {"residue_indices": [i // atoms_per_residue for i in range(n_atoms)]}
+    cfg = type("DummyConfig", (), {"model": type("D", (), {"stageD": type("E", (), {})()})()})()
+    try:
+        run_stageD(cfg, coords, s_trunk, z_trunk, s_inputs, input_feature_dict, atom_metadata=atom_metadata)
+    except ValueError as e:
+        assert "[RUNSTAGED ERROR][UNIQUE_CODE_003]" in str(e), f"Unexpected error message: {e}"
+    else:
+        raise AssertionError("run_stageD did not raise on atom-level input!")
