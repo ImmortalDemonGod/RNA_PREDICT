@@ -559,14 +559,14 @@ class MSABlock(nn.Module):
 
         # Pair stack - create configuration with all fields from PairformerBlockConfig
         # Start with defaults, then override with values from cfg where available
-        pair_block_cfg = PairformerBlockConfig(
-            **{k: PairformerBlockConfig.__dataclass_fields__[k].default
-               for k in PairformerBlockConfig.__dataclass_fields__},
-            # Override specific values
-            c_z=self.c_z,
-            c_s=0,  # No single representation in pair stack
-            dropout=self.pair_dropout
-        )
+        pair_block_cfg_kwargs = {k: PairformerBlockConfig.__dataclass_fields__[k].default
+                                 for k in PairformerBlockConfig.__dataclass_fields__}
+        pair_block_cfg_kwargs.update({
+            'c_z': self.c_z,
+            'c_s': 0,  # No single representation in pair stack
+            'dropout': self.pair_dropout
+        })
+        pair_block_cfg = PairformerBlockConfig(**pair_block_cfg_kwargs)
         self.pair_stack = PairformerBlock(cfg=pair_block_cfg)
 
     def forward(
