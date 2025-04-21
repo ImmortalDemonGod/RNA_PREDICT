@@ -31,10 +31,11 @@ def fix_attention_bias_shape():
                 if attn_bias is not None:
                     # Ensure attn_bias matches the query/key dimensions
                     if attn_bias.dim() == 4:  # [batch, heads, queries, keys]
-                        if attn_bias.shape[2] != q.shape[1]:
-                            attn_bias = attn_bias[:, :, : q.shape[1], :]
-                        if attn_bias.shape[3] != k.shape[1]:
-                            attn_bias = attn_bias[:, :, :, : k.shape[1]]
+                        # Fix: Use q.shape[2] and k.shape[2] for sequence lengths instead of shape[1] (heads)
+                        if attn_bias.shape[2] != q.shape[2]:
+                            attn_bias = attn_bias[:, :, : q.shape[2], :]
+                        if attn_bias.shape[3] != k.shape[2]:
+                            attn_bias = attn_bias[:, :, :, : k.shape[2]]
                 return original_scaled_dot_product_attention(
                     q, k, v, attn_bias, dropout_p, scale, dtype
                 )
