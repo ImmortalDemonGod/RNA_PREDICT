@@ -1,16 +1,233 @@
 import warnings
-from typing import Dict, Optional
-
+import logging
+from typing import Dict, Optional, Any
+from omegaconf import OmegaConf, DictConfig
 import torch
+from dataclasses import dataclass
 
 from rna_predict.pipeline.stageD.diffusion.components.diffusion_module import (
     DiffusionModule,
-)  # Updated import path
+)
 from rna_predict.pipeline.stageD.diffusion.generator import (
     TrainingNoiseSampler,
     sample_diffusion,
     sample_diffusion_training,
 )
+
+# Initialize logger for Stage D diffusion manager
+logger = logging.getLogger("rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager")
+
+
+@dataclass
+class DiffusionStepInput:
+    label_dict: Dict[str, torch.Tensor]
+    input_feature_dict: Dict[str, torch.Tensor]
+    s_inputs: torch.Tensor
+    s_trunk: torch.Tensor
+    z_trunk: torch.Tensor
+
+    @classmethod
+    def from_args(cls, label_dict, input_feature_dict, s_inputs, s_trunk, z_trunk):
+        # Accepts 5 arguments for backward compatibility, but encourages use of a dict or context object in future
+        # TODO: Refactor all usages to pass a single context or dict to further reduce argument count and silence CodeScene
+        return cls(label_dict, input_feature_dict, s_inputs, s_trunk, z_trunk)
+
+    def to_device(self, device):
+        """
+        Moves all tensors (including nested in dicts/lists/tuples) to the specified device.
+        Unique Error: [UNIQUE-ERR-DIFFSTEPINPUT-DEVICE-001] If you see this error, a non-tensor object in a nested dict could not be moved to device.
+        """
+        def _move_to_device(obj, device):
+            import torch
+            if isinstance(obj, torch.Tensor):
+                return obj.to(device)
+            elif isinstance(obj, dict):
+                return {k: _move_to_device(v, device) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [_move_to_device(v, device) for v in obj]
+            elif isinstance(obj, tuple):
+                return tuple(_move_to_device(v, device) for v in obj)
+            else:
+                return obj
+
+        try:
+            self.label_dict = _move_to_device(self.label_dict, device)
+            self.input_feature_dict = _move_to_device(self.input_feature_dict, device)
+            self.s_inputs = self.s_inputs.to(device)
+            self.s_trunk = self.s_trunk.to(device)
+            self.z_trunk = self.z_trunk.to(device)
+        except Exception as e:
+            raise RuntimeError(f"[UNIQUE-ERR-DIFFSTEPINPUT-DEVICE-001] Failed to move DiffusionStepInput to device: {e}")
+        return self
+
+    def as_tuple(self):
+        return (self.label_dict, self.input_feature_dict, self.s_inputs, self.s_trunk, self.z_trunk)
+
+    def __iter__(self):
+        return iter(self.as_tuple())
+
+    def __getitem__(self, idx):
+        return self.as_tuple()[idx]
+
+    def __len__(self):
+        return 5
+
+    def __repr__(self):
+        return f"DiffusionStepInput(label_dict=..., input_feature_dict=..., s_inputs=..., s_trunk=..., z_trunk=...)"
+
+
+@dataclass
+class FeaturePreparationContext:
+    coords_init: torch.Tensor
+    override_input_features: Optional[Dict[str, Any]]
+    device: torch.device
+    trunk_embeddings: Dict[str, Any]
+    s_inputs: torch.Tensor
+
+    @property
+    def batch_size(self):
+        return self.coords_init.shape[0]
+
+    @property
+    def n_atoms(self):
+        return self.coords_init.shape[1]
+
+    @property
+    def s_trunk_shape(self):
+        return self.trunk_embeddings["s_trunk"].shape
+
+    def fallback_input_feature_dict(self):
+        return {
+            "atom_to_token_idx": torch.arange(self.n_atoms, device=self.device).long().unsqueeze(0).expand(self.batch_size, -1)
+        }
+
+    def get_atom_idx(self, input_feature_dict):
+        return input_feature_dict["atom_to_token_idx"]
+
+    def update_atom_idx(self, input_feature_dict, atom_idx):
+        input_feature_dict["atom_to_token_idx"] = atom_idx
+        return input_feature_dict
+
+    def is_expand_needed(self, atom_idx):
+        return (atom_idx.dim() == 2 and self.trunk_embeddings["s_trunk"].dim() == 4 and self.trunk_embeddings["s_trunk"].shape[1] == 1)
+
+    def is_expand_needed_s_inputs(self, atom_idx):
+        return (atom_idx.dim() == 2 and self.s_inputs is not None and self.s_inputs.dim() == 4 and self.s_inputs.shape[1] == 1)
+
+    def expand_atom_idx(self, atom_idx):
+        return atom_idx.unsqueeze(1)
+
+    def prepare(self):
+        if self.override_input_features is not None:
+            input_feature_dict = self.override_input_features
+        else:
+            input_feature_dict = self.fallback_input_feature_dict()
+        if "atom_to_token_idx" in input_feature_dict:
+            atom_idx = self.get_atom_idx(input_feature_dict)
+            if self.is_expand_needed(atom_idx):
+                atom_idx = self.expand_atom_idx(atom_idx)
+            elif self.is_expand_needed_s_inputs(atom_idx):
+                atom_idx = self.expand_atom_idx(atom_idx)
+            input_feature_dict = self.update_atom_idx(input_feature_dict, atom_idx)
+        return input_feature_dict
+
+    def __repr__(self):
+        return f"FeaturePreparationContext(coords_init=..., override_input_features=..., device=..., trunk_embeddings=..., s_inputs=...)"
+
+
+@dataclass
+class EmbeddingContext:
+    trunk_embeddings: Dict[str, Any]
+    override_input_features: Optional[Dict[str, Any]] = None
+    stage_cfg: Optional[DictConfig] = None
+    device: Optional[torch.device] = None
+
+    def move_to_device(self):
+        processed = {}
+        for k, v in self.trunk_embeddings.items():
+            if isinstance(v, torch.Tensor):
+                processed[k] = v.to(self.device)
+            else:
+                processed[k] = v
+        self.trunk_embeddings = processed
+        return self
+
+    def get_s_inputs(self):
+        s_inputs = self.trunk_embeddings.get("s_inputs")
+        if s_inputs is None and self.override_input_features is not None:
+            s_inputs = self.override_input_features.get("s_inputs")
+        if s_inputs is None:
+            logger.warning("'s_inputs' not found in trunk_embeddings or override_input_features. Creating fallback.")
+            s_trunk_shape = self.trunk_embeddings["s_trunk"].shape
+            batch_size = s_trunk_shape[0]
+            n_tokens = s_trunk_shape[1]
+            c_s_inputs_dim = self.stage_cfg.get("c_s_inputs", 449)
+            s_inputs = torch.zeros((batch_size, n_tokens, c_s_inputs_dim), device=self.device)
+        return s_inputs
+
+    def get_z_trunk(self):
+        z_trunk = self.trunk_embeddings.get("pair")
+        if z_trunk is None:
+            logger.warning("'pair' embedding not found in trunk_embeddings. Creating fallback.")
+            s_trunk_shape = self.trunk_embeddings["s_trunk"].shape
+            batch_size = s_trunk_shape[0]
+            n_tokens = s_trunk_shape[1]
+            c_z_dim = self.stage_cfg.get("c_z", 128)
+            z_trunk = torch.zeros((batch_size, n_tokens, n_tokens, c_z_dim), device=self.device)
+        return z_trunk
+
+
+@dataclass
+class DiffusionManagerConfig:
+    device: torch.device
+    num_inference_steps: int
+    temperature: float
+    diffusion_module_args: dict
+    debug_logging: bool
+
+    @classmethod
+    def from_hydra_cfg(cls, cfg: DictConfig):
+        cls._validate_config(cfg)
+        stage_cfg = cfg.stageD.diffusion
+        device = torch.device(stage_cfg.device)
+        inference_cfg = stage_cfg.get("inference", OmegaConf.create({}))
+        num_inference_steps = inference_cfg.get("num_steps", 2)
+        temperature = inference_cfg.get("temperature", 1.0)
+        diffusion_module_args = cls._parse_diffusion_module_args(stage_cfg)
+        debug_logging = stage_cfg.get("debug_logging", False)
+        return cls(device, num_inference_steps, temperature, diffusion_module_args, debug_logging)
+
+    @staticmethod
+    def _validate_config(cfg: DictConfig):
+        if not OmegaConf.is_config(cfg):
+            raise ValueError("Config must be a Hydra DictConfig")
+        if "stageD" not in cfg:
+            raise ValueError("Config missing required 'stageD' group")
+        if "diffusion" not in cfg.stageD:
+            raise ValueError("Config missing required 'diffusion' group in stageD")
+
+    @staticmethod
+    def _parse_diffusion_module_args(stage_cfg: DictConfig):
+        expected_keys = [
+            "sigma_data", "c_atom", "c_atompair", "c_token", "c_s", "c_z",
+            "c_s_inputs", "c_noise_embedding", "atom_encoder", "transformer",
+            "atom_decoder", "blocks_per_ckpt", "use_fine_grained_checkpoint",
+            "initialization"
+        ]
+        diffusion_module_args = {}
+        for key in expected_keys:
+            value = stage_cfg.get(key, None)
+            if value is not None:
+                diffusion_module_args[key] = value
+        mem_cfg = stage_cfg.get("memory", OmegaConf.create({}))
+        use_ckpt = mem_cfg.get("use_checkpointing", False)
+        blocks_per_ckpt = mem_cfg.get("blocks_per_ckpt") if use_ckpt else None
+        use_fine_grained = mem_cfg.get("use_fine_grained_checkpoint", False) if blocks_per_ckpt else False
+        diffusion_module_args.update({
+            "blocks_per_ckpt": blocks_per_ckpt,
+            "use_fine_grained_checkpoint": use_fine_grained
+        })
+        return diffusion_module_args
 
 
 class ProtenixDiffusionManager:
@@ -20,253 +237,171 @@ class ProtenixDiffusionManager:
       - "s_trunk"
       - optionally "s_inputs"
       - "pair"
+
+    Uses standard Hydra configuration (DictConfig) with stageD.diffusion group.
     """
 
-    # @snoop
-    def __init__(self, diffusion_config: dict, device: str = "cpu"):
-        # Ensure we have an "initialization" key, default to empty dict if missing
-        initialization_config = diffusion_config.get("initialization", {})
-        if initialization_config is None:
-            initialization_config = {}
+    def __init__(self, cfg: DictConfig):
+        """
+        Initializes the Diffusion Manager using Hydra configuration.
+        Reads all parameters from cfg.stageD.diffusion group.
+        """
+        self.cfg = cfg
+        self.config = DiffusionManagerConfig.from_hydra_cfg(cfg)
+        self.device = self.config.device
+        self.num_inference_steps = self.config.num_inference_steps
+        self.temperature = self.config.temperature
+        self.debug_logging = self.config.debug_logging
+        try:
+            self.diffusion_module = DiffusionModule(**self.config.diffusion_module_args).to(self.device)
+        except TypeError as e:
+            logger.error(f"Error initializing DiffusionModule: {e}")
+            logger.error(f"Config provided: {self.config.diffusion_module_args}")
+            raise
 
-        # Extract arguments specifically for DiffusionModule, using defaults if necessary
-        diffusion_module_args = {}
-
-        # Get nested configs or use empty dicts if missing
-        conditioning_config = diffusion_config.get("conditioning", {})
-        embedder_config = diffusion_config.get("embedder", {})
-        transformer_config = diffusion_config.get("transformer", {})
-        # Assuming atom_encoder/decoder configs might be top-level or nested, check both
-        atom_encoder_config = diffusion_config.get("atom_encoder", {})
-        atom_decoder_config = diffusion_config.get("atom_decoder", {})
-
-        # Extract values, using defaults from DiffusionModule.__init__ signature if not found
-        # Using get allows falling back to DiffusionModule's internal defaults if not specified anywhere
-        diffusion_module_args["sigma_data"] = diffusion_config.get("sigma_data")
-        diffusion_module_args["c_atom"] = embedder_config.get("c_atom")
-        diffusion_module_args["c_atompair"] = embedder_config.get("c_atompair")
-        diffusion_module_args["c_token"] = embedder_config.get("c_token")
-        # Prioritize conditioning config for c_s/c_z, then top-level, then let DiffusionModule default
-        diffusion_module_args["c_s"] = conditioning_config.get(
-            "c_s", diffusion_config.get("c_s")
-        )
-        diffusion_module_args["c_z"] = conditioning_config.get(
-            "c_z", diffusion_config.get("c_z")
-        )
-        diffusion_module_args["c_s_inputs"] = conditioning_config.get("c_s_inputs")
-        diffusion_module_args["c_noise_embedding"] = conditioning_config.get(
-            "c_noise_embedding"
-        )
-
-        # Pass the whole sub-dictionaries for nested configs if they exist
-        if transformer_config:
-            diffusion_module_args["transformer"] = transformer_config
-        if atom_encoder_config:
-            diffusion_module_args["atom_encoder"] = atom_encoder_config
-        if atom_decoder_config:
-            diffusion_module_args["atom_decoder"] = atom_decoder_config
-
-        # Pass top-level args if they exist
-        if "blocks_per_ckpt" in diffusion_config:
-            diffusion_module_args["blocks_per_ckpt"] = diffusion_config.get(
-                "blocks_per_ckpt"
-            )
-        if "use_fine_grained_checkpoint" in diffusion_config:
-            diffusion_module_args["use_fine_grained_checkpoint"] = diffusion_config.get(
-                "use_fine_grained_checkpoint"
-            )
-        # Pass initialization config (guaranteed to be a dict by lines 25-27)
-        diffusion_module_args["initialization"] = initialization_config
-
-        # Filter out None values so DiffusionModule uses its internal defaults
-        filtered_diffusion_module_args = {
-            k: v for k, v in diffusion_module_args.items() if v is not None
+    def _get_sampler_params(self, stage_cfg: DictConfig):
+        sampler_cfg = stage_cfg.get("sampler", OmegaConf.create({}))
+        return {
+            "p_mean": sampler_cfg.get("p_mean", -1.2),
+            "p_std": sampler_cfg.get("p_std", 1.5),
+            "sigma_data": stage_cfg.get("sigma_data", 16.0),
+            "N_sample": sampler_cfg.get("N_sample", 1),
+            "diffusion_chunk_size": stage_cfg.get("diffusion_chunk_size"),
         }
 
-        self.device = torch.device(device)
-        # Instantiate DiffusionModule with the filtered arguments
-        self.diffusion_module = DiffusionModule(**filtered_diffusion_module_args).to(
-            self.device
-        )
-
-    # @snoop
     def train_diffusion_step(
         self,
-        label_dict: Dict[str, torch.Tensor],
-        input_feature_dict: Dict[str, torch.Tensor],
-        s_inputs: torch.Tensor,
-        s_trunk: torch.Tensor,
-        z_trunk: torch.Tensor,
-        sampler_params: dict,
-        N_sample: int = 1,
-        diffusion_chunk_size: Optional[int] = None,
+        step_input: DiffusionStepInput,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Performs a single-step training pass with random noise injection.
+        Sampler parameters are read from the stored Hydra config (self.cfg.stageD.diffusion.sampler).
         """
+        if not OmegaConf.is_config(self.cfg):
+            raise RuntimeError("train_diffusion_step requires Hydra config (cfg) for parameters.")
+        stage_cfg = self.cfg.stageD.diffusion
+        sampler_params = self._get_sampler_params(stage_cfg)
         noise_sampler = TrainingNoiseSampler(
-            p_mean=sampler_params.get("p_mean", -1.2),
-            p_std=sampler_params.get("p_std", 1.5),
-            sigma_data=sampler_params.get("sigma_data", 16.0),
+            p_mean=sampler_params["p_mean"],
+            p_std=sampler_params["p_std"],
+            sigma_data=sampler_params["sigma_data"],
         )
+
+        step_input = step_input.to_device(self.device)
 
         x_gt_augment, x_denoised, sigma = sample_diffusion_training(
             noise_sampler=noise_sampler,
             denoise_net=self.diffusion_module,
-            label_dict=label_dict,
-            input_feature_dict=input_feature_dict,
-            s_inputs=s_inputs,
-            s_trunk=s_trunk,
-            z_trunk=z_trunk,
-            N_sample=N_sample,
-            diffusion_chunk_size=diffusion_chunk_size,
+            label_dict=step_input.label_dict,
+            input_feature_dict=step_input.input_feature_dict,
+            s_inputs=step_input.s_inputs,
+            s_trunk=step_input.s_trunk,
+            z_trunk=step_input.z_trunk,
+            N_sample=sampler_params["N_sample"],
+            diffusion_chunk_size=sampler_params["diffusion_chunk_size"],
         )
         return x_gt_augment, x_denoised, sigma
 
-    # @snoop
+    def _move_trunk_embeddings_to_device(self, ctx: EmbeddingContext) -> Dict[str, Any]:
+        return ctx.move_to_device().trunk_embeddings
+
+    def _get_s_inputs(self, ctx: EmbeddingContext) -> torch.Tensor:
+        return ctx.get_s_inputs()
+
+    def _get_z_trunk(self, ctx: EmbeddingContext) -> torch.Tensor:
+        return ctx.get_z_trunk()
+
+    def _prepare_input_features(self, ctx: FeaturePreparationContext) -> Dict[str, Any]:
+        return ctx.prepare()
+
+    def _validate_trunk_embeddings(self, trunk_embeddings):
+        if "s_trunk" not in trunk_embeddings or trunk_embeddings["s_trunk"] is None:
+            raise ValueError("StageD multi_step_inference requires a valid 's_trunk' in trunk_embeddings.")
+
+    def _get_noise_schedule(self, num_steps, schedule_type, device):
+        if schedule_type == "linear":
+            return torch.linspace(1.0, 0.0, steps=num_steps + 1, device=device)
+        warnings.warn(f"Using default linear noise schedule. Unknown type: {schedule_type}")
+        return torch.linspace(1.0, 0.0, steps=num_steps + 1, device=device)
+
+    def _log_shapes(self, debug_logging, coords_init, s_trunk, s_inputs, z_trunk):
+        if debug_logging:
+            logger.debug(f"[multi_step_inference] coords_init shape: {coords_init.shape}")
+            logger.debug(f"[multi_step_inference] s_trunk shape: {s_trunk.shape}")
+            if isinstance(s_inputs, torch.Tensor):
+                logger.debug(f"[multi_step_inference] s_inputs shape: {s_inputs.shape}")
+            if z_trunk is not None:
+                logger.debug(f"[multi_step_inference] z_trunk shape: {z_trunk.shape}")
+
+    def _log_final_coords(self, debug_logging, coords_final):
+        if debug_logging:
+            logger.debug(f"[multi_step_inference] Final coords shape: {coords_final.shape}")
+
+    def _postprocess_coords(self, coords_final, N_sample, debug_logging):
+        if N_sample != 1:
+            return coords_final
+        if self._is_unexpected_shape(coords_final):
+            coords_final = self._handle_unexpected_shape(coords_final)
+        else:
+            coords_final = self._handle_expected_shape(coords_final)
+        return coords_final
+
+    def _is_unexpected_shape(self, coords_final):
+        n_atoms_inferred = coords_final.shape[2] if coords_final.ndim > 2 else -1
+        return (
+            coords_final.ndim == 4 and coords_final.shape[1] == n_atoms_inferred and coords_final.shape[2] == n_atoms_inferred
+        )
+
+    def _handle_unexpected_shape(self, coords_final):
+        warnings.warn(f"Unexpected shape {coords_final.shape} for N_sample=1")
+        return coords_final[:, 0, :, :]
+
+    def _handle_expected_shape(self, coords_final):
+        sample_dim_index = 1
+        if (coords_final.ndim > sample_dim_index and coords_final.shape[sample_dim_index] == 1):
+            coords_final = coords_final.squeeze(sample_dim_index)
+        return coords_final
+
     def multi_step_inference(
         self,
         coords_init: torch.Tensor,
-        trunk_embeddings: dict,
-        inference_params: dict,
-        override_input_features: dict | None = None,
-        debug_logging: bool = False,
+        trunk_embeddings: Dict[str, Any],
+        override_input_features: Optional[Dict[str, Any]] = None,
     ) -> torch.Tensor:
         """
-        Multi-step diffusion-based inference. Handles shape expansions for single or multiple samples.
-
-        Typical usage:
-        - coords_init: [B, N_atom, 3] or [B, 1, N_atom, 3]
-        - trunk_embeddings: must contain 's_trunk'.
-          optional: 's_inputs' (else fallback to 'sing')
-                    'pair'
-        - override_input_features: if needed to build or unify shape for multi-sample expansions
-        - inference_params: includes "N_sample" (# samples) and "num_steps" for noise schedule
+        Multi-step diffusion-based inference. Handles shape expansions.
+        Inference parameters are read from the stored Hydra config (self.cfg.stageD.diffusion).
         """
+        if not OmegaConf.is_config(self.cfg):
+            raise ValueError("multi_step_inference requires Hydra config")
+        stage_cfg = self.cfg.stageD.diffusion
+        inference_cfg = stage_cfg.get("inference", OmegaConf.create({}))
+        noise_schedule_cfg = stage_cfg.get("noise_schedule", OmegaConf.create({}))
+        debug_logging = stage_cfg.get("debug_logging", False)
         device = self.device
         coords_init = coords_init.to(device)
-
-        # Move trunk embeddings to device
-        for k, v in trunk_embeddings.items():
-            if isinstance(v, torch.Tensor):
-                trunk_embeddings[k] = v.to(device)
-
-        # Must have s_trunk
-        if "s_trunk" not in trunk_embeddings or trunk_embeddings["s_trunk"] is None:
-            raise ValueError(
-                "StageD multi_step_inference requires a valid 's_trunk' in trunk_embeddings."
-            )
-
-        # Attempt to get s_inputs or fallback, and cache if fallback is used
-        s_inputs_key = "s_inputs"
-        sing_key = "sing"  # Assuming 'sing' is the fallback key name
-        s_inputs = trunk_embeddings.get(s_inputs_key)
-        if s_inputs is None:
-            # Fallback: Check override_input_features if provided
-            if override_input_features is not None:
-                s_inputs = override_input_features.get(sing_key)
-            # If still None, check trunk_embeddings as a last resort (original behavior)
-            if s_inputs is None:
-                s_inputs = trunk_embeddings.get(sing_key)
-            if s_inputs is not None:
-                # Cache the fallback value as s_inputs for subsequent calls
-                trunk_embeddings[s_inputs_key] = s_inputs
-                if debug_logging:
-                    print(f"[DEBUG] Cached '{sing_key}' as '{s_inputs_key}'")
-            # else: s_inputs remains None if neither key exists
-
-        # Ensure s_inputs is available, raise error if not found after fallback
-        if s_inputs is None:
-            raise ValueError(
-                f"Required embedding 's_inputs' (or fallback '{sing_key}') not found in trunk_embeddings."
-            )
-
-        z_trunk = trunk_embeddings.get("pair", None)
-
+        emb_ctx = EmbeddingContext(trunk_embeddings, override_input_features, stage_cfg, device)
+        trunk_embeddings = self._move_trunk_embeddings_to_device(emb_ctx)
+        self._validate_trunk_embeddings(trunk_embeddings)
+        emb_ctx.trunk_embeddings = trunk_embeddings
+        s_inputs = self._get_s_inputs(emb_ctx)
+        z_trunk = self._get_z_trunk(emb_ctx)
+        if z_trunk.shape[1] != trunk_embeddings["s_trunk"].shape[1] or z_trunk.shape[2] != trunk_embeddings["s_trunk"].shape[1]:
+            raise RuntimeError(f"shape mismatch between z_trunk {z_trunk.shape} and s_trunk {trunk_embeddings['s_trunk'].shape}")
+        self._log_shapes(debug_logging, coords_init, trunk_embeddings["s_trunk"], s_inputs, z_trunk)
+        ctx = FeaturePreparationContext(coords_init, override_input_features, device, trunk_embeddings, s_inputs)
+        input_feature_dict = self._prepare_input_features(ctx)
+        sampling_cfg = inference_cfg.get("sampling", OmegaConf.create({}))
+        N_sample = sampling_cfg.get("num_samples", 1)
+        num_steps = inference_cfg.get("num_steps", 50)
+        schedule_type = noise_schedule_cfg.get("schedule_type", "linear")
+        noise_schedule = self._get_noise_schedule(num_steps, schedule_type, device)
+        inplace_safe = inference_cfg.get("inplace_safe", False)
+        attn_chunk_size = stage_cfg.get("attn_chunk_size")
         if debug_logging:
-            print(f"[DEBUG] s_trunk shape: {trunk_embeddings['s_trunk'].shape}")
-            if isinstance(s_inputs, torch.Tensor):
-                print(f"[DEBUG] s_inputs shape: {s_inputs.shape}")
-            else:
-                print("[DEBUG] s_inputs is invalid or None!")
-            if z_trunk is not None:
-                print(f"[DEBUG] z_trunk shape: {z_trunk.shape}")
-
-        # Prepare the input features (atom_to_token_idx, ref_pos, etc.)
-        if override_input_features is not None:
-            input_feature_dict = override_input_features
-        else:
-            # minimal fallback if none provided
-            input_feature_dict = {
-                "atom_to_token_idx": torch.zeros((1, 0), device=device)
-            }
-
-        # Determine how many samples we want
-        N_sample = inference_params.get("N_sample", 1)
-
-        # Possibly unify shapes in atom_to_token_idx if we forcibly unsqueeze s_trunk for single-sample
-        # e.g. if s_trunk is [B,1,N_token,c_s], we want atom_idx => [B,1,N_atom]
-        if "atom_to_token_idx" in input_feature_dict:
-            atom_idx = input_feature_dict["atom_to_token_idx"]
-            # example check: if trunk is 4D with trunk_embeddings["s_trunk"].shape[1] == 1
-            # then unify shape of atom_idx accordingly
-            if (
-                atom_idx.dim() == 2
-                and trunk_embeddings["s_trunk"].dim() == 4
-                and trunk_embeddings["s_trunk"].shape[1] == 1
-            ):
-                atom_idx = atom_idx.unsqueeze(1)  # => [B,1,N_atom]
-
-            elif (
-                atom_idx.dim() == 2
-                and s_inputs is not None
-                and s_inputs.dim() == 4
-                and s_inputs.shape[1] == 1
-            ):
-                atom_idx = atom_idx.unsqueeze(1)
-
-            input_feature_dict["atom_to_token_idx"] = atom_idx
-
-        # # If we truly want multiple samples (N_sample>1), expand shapes further
-        # # NOTE: Let sample_diffusion handle N_sample internally. Pre-expanding here
-        # #       caused shape duplication issues inside sample_diffusion.
-        # if N_sample > 1:
-        #     # Expand s_trunk => [B,N_sample,N_token,c_s]
-        #     st = trunk_embeddings["s_trunk"]
-        #     if st.dim() == 3:
-        #         trunk_embeddings["s_trunk"] = st.unsqueeze(1).expand(
-        #             -1, N_sample, -1, -1
-        #         )
-        #
-        #     # Expand s_inputs => [B,N_sample,N_token,449]
-        #     if isinstance(s_inputs, torch.Tensor) and s_inputs.dim() == 3:
-        #         s_inputs = s_inputs.unsqueeze(1).expand(-1, N_sample, -1, -1)
-        #
-        #     # Expand pair => [B,N_sample,N_token,N_token,c_z]
-        #     if z_trunk is not None and z_trunk.dim() == 4:
-        #         z_trunk = z_trunk.unsqueeze(1).expand(-1, N_sample, -1, -1, -1)
-        #
-        #     # Expand coords_init => [B,N_sample,N_atom,3]
-        #     if coords_init.dim() == 3:
-        #         coords_init = coords_init.unsqueeze(1).expand(-1, N_sample, -1, -1)
-
-        # # Overwrite updated references - No longer needed as we don't modify in place here
-        # trunk_embeddings["s_inputs"] = s_inputs
-        # trunk_embeddings["pair"] = z_trunk
-
-        # Build a simple linear noise schedule from 1.0 down to 0.0
-        num_steps = inference_params.get("num_steps", 20)
-        noise_schedule = torch.linspace(1.0, 0.0, steps=num_steps + 1, device=device)
-
-        if debug_logging:
-            print("[DEBUG] Before sample_diffusion:")
-            print(f"  coords_init shape: {coords_init.shape}")
-            print(f"  s_trunk shape: {trunk_embeddings['s_trunk'].shape}")
-            if s_inputs is not None:
-                print(f"  s_inputs shape: {s_inputs.shape}")
-            if z_trunk is not None:
-                print(f"  z_trunk shape: {z_trunk.shape}")
-
+            logger.debug("[multi_step_inference] Before sample_diffusion:")
+            logger.debug(f"  coords_init shape: {coords_init.shape}")
+            logger.debug(f"  s_trunk shape: {trunk_embeddings['s_trunk'].shape}")
         coords_final = sample_diffusion(
             denoise_net=self.diffusion_module,
             input_feature_dict=input_feature_dict,
@@ -275,60 +410,18 @@ class ProtenixDiffusionManager:
             z_trunk=z_trunk,
             noise_schedule=noise_schedule,
             N_sample=N_sample,
-            inplace_safe=False,  # or True if memory is tight
-            attn_chunk_size=None,  # you can set chunk sizes if needed
+            inplace_safe=inplace_safe,
+            attn_chunk_size=attn_chunk_size,
         )
-
-        if debug_logging:
-            print("[DEBUG] After sample_diffusion:")
-            print(f"  coords_final shape before squeeze: {coords_final.shape}")
-
-        # Restore squeeze logic: If only one sample was requested, remove the sample dimension
-        # to match expected output shape [B, N_atom, 3] in some downstream consumers/tests.
-        # Based on debug logs, the shape returned by sample_diffusion seems to be
-        # [B, N_atom, N_atom, 3] instead of the expected [B, N_sample, N_atom, 3] when N_sample=1.
-        # Example: Expected [1, 1, 5, 3], Observed [1, 5, 5, 3].
-        if N_sample == 1:
-            # Check if the shape matches the unexpected observed pattern [B, N_atom, N_atom, 3]
-            # Use N_atom from input_feature_dict if available, otherwise infer from shape
-            n_atoms_inferred = coords_final.shape[2] if coords_final.ndim > 2 else -1
-            if (
-                coords_final.ndim == 4
-                and coords_final.shape[1] == n_atoms_inferred
-                and coords_final.shape[2] == n_atoms_inferred
-            ):
-                warnings.warn(
-                    f"Observed unexpected shape {coords_final.shape} for N_sample=1. "
-                    f"Expected shape like [B, 1, N_atom, 3]. Selecting first element along dimension 1."
-                )
-                coords_final = coords_final[
-                    :, 0, :, :
-                ]  # Select the first "pseudo-sample" -> [B, N_atom, 3]
-            else:
-                # Try the original intended squeeze logic assuming shape [B, 1, N_atom, 3]
-                sample_dim_index = 1
-                if (
-                    coords_final.ndim > sample_dim_index
-                    and coords_final.shape[sample_dim_index] == 1
-                ):
-                    coords_final = coords_final.squeeze(sample_dim_index)
-                # else: Keep the shape as is if it doesn't match expected patterns for N_sample=1
-
-        if debug_logging:
-            print(
-                f"[DEBUG] Final coords_final shape (handling N_sample=1): {coords_final.shape}"
-            )
-
+        coords_final = self._postprocess_coords(coords_final, N_sample, debug_logging)
+        self._log_final_coords(debug_logging, coords_final)
         return coords_final
 
-    def custom_manual_loop(
-        self, x_gt: torch.Tensor, trunk_embeddings: dict, sigma: float
-    ):
-        """
-        Optional direct usage demonstration: single forward pass
-        """
+    def _manual_forward_pass(self, x_gt: torch.Tensor, trunk_embeddings: dict, sigma: float) -> tuple[torch.Tensor, torch.Tensor]:
         x_gt = x_gt.to(self.device)
         x_noisy = x_gt + torch.randn_like(x_gt) * sigma
+        if not hasattr(self, 'diffusion_module'):
+            raise RuntimeError("Diffusion module not initialized. Call __init__ first.")
         x_denoised = self.diffusion_module(
             x_noisy=x_noisy,
             t_hat_noise_level=torch.tensor([sigma], device=self.device),
@@ -338,3 +431,11 @@ class ProtenixDiffusionManager:
             z_trunk=trunk_embeddings.get("pair"),
         )
         return x_noisy, x_denoised
+
+    def custom_manual_loop(
+        self, x_gt: torch.Tensor, trunk_embeddings: dict, sigma: float
+    ):
+        """
+        Optional direct usage demonstration: single forward pass
+        """
+        return self._manual_forward_pass(x_gt, trunk_embeddings, sigma)

@@ -763,3 +763,6 @@ def test__run_main_logic(mock_joblib_load, mock_print):
     # Verify print was called (optional, depends on whether you want to check output)
     # Check that print was called at least 3 times as in the original logic
     assert mock_print.call_count >= 3
+
+
+# Update test_utils import to test_utils_stageC

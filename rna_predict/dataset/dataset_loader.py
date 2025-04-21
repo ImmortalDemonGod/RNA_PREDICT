@@ -106,7 +106,7 @@ def validate_input_features(input_feature_dict: dict):
     return True
 
 
-# @snoop
+# #@snoop
 def load_rna_data_and_features(
     rna_filepath: str, device="cpu", override_num_atoms: int | None = None
 ):

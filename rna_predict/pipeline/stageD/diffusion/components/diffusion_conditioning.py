@@ -52,9 +52,11 @@ class DiffusionConditioning(nn.Module):
         self.c_z = c_z
         self.c_s = c_s
         self.c_s_inputs = c_s_inputs
+        self.c_noise_embedding = c_noise_embedding
 
         # Pair feature processing
         self.relpe = RelativePositionEncoding(c_z=c_z)
+        print(f"[DEBUG][DiffusionConditioning] layernorm_z normalized_shape: {2 * self.c_z}")
         self.layernorm_z = LayerNorm(2 * self.c_z)
         self.linear_no_bias_z = LinearNoBias(
             in_features=2 * self.c_z, out_features=self.c_z
@@ -63,21 +65,33 @@ class DiffusionConditioning(nn.Module):
         self.transition_z2 = Transition(c_in=self.c_z, n=2)
 
         # Single feature processing
+        print(f"[DEBUG][DiffusionConditioning] layernorm_s normalized_shape: {self.c_s + self.c_s_inputs}")
         self.layernorm_s = LayerNorm(self.c_s + self.c_s_inputs)
         self.linear_no_bias_s = LinearNoBias(
             in_features=self.c_s + self.c_s_inputs, out_features=self.c_s
         )
 
         # Noise embedding processing
-        self.fourier_embedding = FourierEmbedding(c=c_noise_embedding)
-        self.layernorm_n = LayerNorm(c_noise_embedding)
+        self.fourier_embedding = FourierEmbedding(c=self.c_noise_embedding)
+        print(f"[DEBUG][DiffusionConditioning] layernorm_n normalized_shape: {self.c_noise_embedding}")
+        self.layernorm_n = LayerNorm(self.c_noise_embedding)
         self.linear_no_bias_n = LinearNoBias(
-            in_features=c_noise_embedding, out_features=self.c_s
+            in_features=self.c_noise_embedding, out_features=self.c_s
         )
 
         # Additional transitions
         self.transition_s1 = Transition(c_in=self.c_s, n=2)
         self.transition_s2 = Transition(c_in=self.c_s, n=2)
+
+        # Assertions to catch mismatches early
+        assert isinstance(self.c_z, int) and self.c_z > 0, (
+            f"UNIQUE ERROR: c_z must be positive int, got {self.c_z}")
+        assert isinstance(self.c_s, int) and self.c_s > 0, (
+            f"UNIQUE ERROR: c_s must be positive int, got {self.c_s}")
+        assert isinstance(self.c_s_inputs, int) and self.c_s_inputs > 0, (
+            f"UNIQUE ERROR: c_s_inputs must be positive int, got {self.c_s_inputs}")
+        assert isinstance(self.c_noise_embedding, int) and self.c_noise_embedding > 0, (
+            f"UNIQUE ERROR: c_noise_embedding must be positive int, got {self.c_noise_embedding}")
 
     def _process_pair_features(
         self,
@@ -166,10 +180,21 @@ class DiffusionConditioning(nn.Module):
         inplace_safe: bool = False,
     ) -> torch.Tensor:
         """Process single features through the conditioning pipeline."""
-        validate_tensor_shapes(s_trunk, s_inputs, self.c_s, self.c_s_inputs)
+        print(f"[STAGED DEBUG] _process_single_features: s_trunk.shape={s_trunk.shape}, s_inputs.shape={s_inputs.shape}, c_s={self.c_s}, c_s_inputs={self.c_s_inputs}, expected_in_features={self.c_s + self.c_s_inputs}")
 
-        single_s = torch.cat([s_trunk, s_inputs], dim=-1)
-        single_s = self.linear_no_bias_s(self.layernorm_s(single_s))
+        # Validate and adapt tensor shapes if needed
+        adapted_s_trunk, adapted_s_inputs = validate_tensor_shapes(s_trunk, s_inputs, self.c_s, self.c_s_inputs)
+        print(f"[STAGED DEBUG] After validate_tensor_shapes: adapted_s_trunk.shape={adapted_s_trunk.shape}, adapted_s_inputs.shape={adapted_s_inputs.shape}")
+
+        # Concatenate the adapted tensors
+        single_s = torch.cat([adapted_s_trunk, adapted_s_inputs], dim=-1)
+        print(f"[STAGED DEBUG] After cat: single_s.shape={single_s.shape}, expected={self.c_s + self.c_s_inputs}")
+        single_s = self.layernorm_s(single_s)
+        print(f"[STAGED DEBUG] After layernorm_s: single_s.shape={single_s.shape}")
+        assert single_s.shape[-1] == self.linear_no_bias_s.in_features, (
+            f"UNIQUE ERROR: single_s.shape[-1] ({single_s.shape[-1]}) does not match linear_no_bias_s.in_features ({self.linear_no_bias_s.in_features}) [c_s={self.c_s}, c_s_inputs={self.c_s_inputs}]")
+        single_s = self.linear_no_bias_s(single_s)
+        print(f"[STAGED DEBUG] After linear_no_bias_s: single_s.shape={single_s.shape}")
 
         if inplace_safe:
             single_s += self.transition_s1(single_s)
@@ -178,6 +203,7 @@ class DiffusionConditioning(nn.Module):
             single_s = single_s + self.transition_s1(single_s)
             single_s = single_s + self.transition_s2(single_s)
 
+        print(f"[STAGED DEBUG] After transitions: single_s.shape={single_s.shape}")
         return single_s
 
     def _ensure_input_feature_dict(
@@ -245,6 +271,9 @@ class DiffusionConditioning(nn.Module):
         Returns:
             Tuple of processed single and pair embeddings
         """
+        print(f"[STAGED DEBUG] DiffusionConditioning.forward: c_s={self.c_s}, c_s_inputs={self.c_s_inputs}, expected_in_features={self.c_s + self.c_s_inputs}")
+        print(f"[STAGED DEBUG] s_trunk.shape={s_trunk.shape}, s_inputs.shape={s_inputs.shape}")
+
         # Ensure required keys are present with correct types
         processed_input_dict = self._ensure_input_feature_dict(
             input_feature_dict, t_hat_noise_level

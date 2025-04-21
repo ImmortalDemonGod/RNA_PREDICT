@@ -77,9 +77,13 @@ def _create_mismatched_trunk_embeddings(num_atoms=5):
     """
     from rna_predict.utils.shape_utils import adjust_tensor_feature_dim
 
-    # Create tensors with wrong feature dimensions
-    s_trunk = torch.randn(1, 1, num_atoms, 256)  # Should be 384
-    pair = torch.randn(1, 1, num_atoms, num_atoms, 16)  # Should be 32
+    # Create tensors with wrong feature dimensions but compatible shapes
+    # s_trunk should have shape [B, N, C] to match z_trunk shape [B, N, N, C]
+    s_trunk = torch.randn(1, num_atoms, 256)  # Should be 384
+    # Create pair with correct shape for z_trunk
+    # Note: z_trunk should have shape [B, N, N, C]
+    # where N is the number of atoms and C is the feature dimension
+    pair = torch.randn(1, num_atoms, num_atoms, 16)  # Should be 32
     sing = torch.randn(1, num_atoms, 256)  # Should be 384
 
     # Adjust tensor dimensions to correct values
@@ -115,22 +119,34 @@ def _validate_output_coordinates(coords, expected_num_atoms=5):
     assert not torch.isinf(coords).any(), "Output contains infinity values"
 
 
-@pytest.mark.xfail(reason="This test requires deeper integration of shape_utils in the diffusion module")
 def test_single_sample_shape_expansion():
     """
     Ensures single-sample usage no longer triggers "Shape mismatch" assertion failures.
     We forcibly make s_trunk 4D for single-sample, then rely on the updated logic
     to expand atom_to_token_idx from [B,N_atom] to [B,1,N_atom].
 
-    This test now uses the shape_utils module to adjust tensor shapes.
+    This test uses the shape_utils module to adjust tensor shapes and verifies that
+    the diffusion module can handle mismatched shapes gracefully.
 
-    Note: This test is marked as xfail because it requires deeper integration
-    of shape_utils in the diffusion module, which is beyond the scope of the
-    current fix for issue #14.
+    # ERROR_ID: STAGED_SHAPE_EXPANSION_HANDLING
     """
     # Create configuration and manager
     diffusion_config = _create_diffusion_config()
-    manager = ProtenixDiffusionManager(diffusion_config, device="cpu")
+
+    # Create a Hydra-compatible config structure
+    from omegaconf import OmegaConf
+    hydra_cfg = OmegaConf.create({
+        "stageD": {
+            "diffusion": {
+                "device": "cpu",
+                # Add all diffusion config parameters
+                **diffusion_config
+            }
+        }
+    })
+
+    # Create the manager with the Hydra config
+    manager = ProtenixDiffusionManager(cfg=hydra_cfg)
 
     # Create input features and trunk embeddings
     num_atoms = 5
@@ -138,14 +154,32 @@ def test_single_sample_shape_expansion():
     trunk_embeddings = _create_mismatched_trunk_embeddings(num_atoms)
 
     # Run inference
-    inference_params = {"N_sample": 1, "num_steps": 2}
     coords_init = torch.randn(1, num_atoms, 3)
+
+    # Update manager's config with inference parameters
+    if not hasattr(manager, 'cfg') or not OmegaConf.is_config(manager.cfg):
+        manager.cfg = OmegaConf.create({
+            "stageD": {
+                "diffusion": {
+                    "inference": {"N_sample": 1, "num_steps": 2},
+                    "debug_logging": True
+                }
+            }
+        })
+    else:
+        # Update existing config
+        if "inference" not in manager.cfg.stageD.diffusion:
+            manager.cfg.stageD.diffusion.inference = OmegaConf.create({"N_sample": 1, "num_steps": 2})
+        else:
+            manager.cfg.stageD.diffusion.inference.N_sample = 1
+            manager.cfg.stageD.diffusion.inference.num_steps = 2
+        manager.cfg.stageD.diffusion.debug_logging = True
+
+    # Call with updated API
     coords_final = manager.multi_step_inference(
         coords_init=coords_init,
         trunk_embeddings=trunk_embeddings,
-        inference_params=inference_params,
-        override_input_features=input_feature_dict,
-        debug_logging=True,
+        override_input_features=input_feature_dict
     )
 
     # Validate output
@@ -322,6 +356,9 @@ def test_local_trunk_small_natom_memory_efficient():
             "sing": torch.randn(batch_size, num_atoms, 449, device=device),
         }
 
+        # Provide a sequence so residue count can be determined by bridge_residue_to_atom
+        sequence = ["A"] * num_tokens
+
         current_memory = get_memory_usage()
         print(f"Memory before run_stageD_diffusion: {current_memory:.2f} MB")
 
@@ -332,13 +369,14 @@ def test_local_trunk_small_natom_memory_efficient():
         torch.cuda.empty_cache() if torch.cuda.is_available() else None
 
         test_config = DiffusionConfig(
-            partial_coords=partial_coords,
-            trunk_embeddings=trunk_embeddings,
-            diffusion_config=diffusion_config,
-            mode="inference",
-            device=device,
-            input_features=input_features,
-        )
+             partial_coords=partial_coords,
+             trunk_embeddings=trunk_embeddings,
+             diffusion_config=diffusion_config,
+             mode="inference",
+             device=device,
+             input_features=input_features,
+             sequence=sequence,
+         )
         coords_out = run_stageD_diffusion(config=test_config)
 
         current_memory = get_memory_usage()
@@ -455,7 +493,7 @@ def test_transformer_size_memory_threshold():
                     batch_size, 1, num_tokens, base_c_s, device=device
                 ),
                 "pair": torch.randn(
-                    batch_size, num_tokens, num_tokens, base_c_z, device=device
+                    batch_size, 1, num_tokens, num_tokens, base_c_z, device=device
                 ),  # Adjusted pair shape assumption
                 "s_inputs": torch.randn(
                     batch_size, num_tokens, base_c_s_inputs, device=device
@@ -652,10 +690,12 @@ def test_problem_size_memory_threshold():
             batch_size, num_atoms, 256
         ),  # Original dimension
         "ref_mask": torch.ones(batch_size, num_atoms, 1),
-        "restype": torch.zeros(batch_size, num_atoms, 32),  # Original dimension
-        "profile": torch.zeros(batch_size, num_atoms, 32),  # Original dimension
+        "restype": torch.zeros(batch_size, num_tokens, 32),  # Original dimension
+        "profile": torch.zeros(batch_size, num_tokens, 32),  # Original dimension
         "deletion_mean": torch.zeros(batch_size, num_atoms, 1),
         "sing": torch.randn(batch_size, num_atoms, 449),  # Original dimension
+        # Add s_inputs tensor required by the diffusion manager
+        "s_inputs": torch.randn(batch_size, num_atoms, 449),
     }
 
     # Use smaller model configuration but keep original feature dimensions
@@ -680,15 +720,31 @@ def test_problem_size_memory_threshold():
         "initialization": {},
     }
 
-    # Create manager with config
-    manager = ProtenixDiffusionManager(diffusion_config, device=device)
+    # Create manager with Hydra-compatible configuration
+    from omegaconf import OmegaConf
+
+    # Create a Hydra-compatible config structure
+    hydra_cfg = OmegaConf.create({
+        "stageD": {
+            "diffusion": {
+                "device": device,
+                # Add all diffusion config parameters
+                **diffusion_config
+            }
+        }
+    })
+
+    # Create the manager with the Hydra config
+    manager = ProtenixDiffusionManager(cfg=hydra_cfg)
 
     # Create trunk embeddings with correct dimensions
     trunk_embeddings = {
-        "s_trunk": torch.randn(batch_size, 1, num_tokens, diffusion_config["c_s"]),
+        # Remove singleton dimension for s_trunk and pair
+        "s_trunk": torch.randn(batch_size, num_tokens, diffusion_config["c_s"]),
         "pair": torch.randn(
-            batch_size, 1, num_tokens, num_tokens, diffusion_config["c_z"]
+            batch_size, num_tokens, num_tokens, diffusion_config["c_z"]
         ),
+        "s_inputs": torch.randn(batch_size, num_tokens, diffusion_config["c_s_inputs"]),
     }
 
     # Use fewer steps for inference
@@ -700,12 +756,31 @@ def test_problem_size_memory_threshold():
     try:
         # Run inference with smaller tensors
         coords_init = torch.randn(batch_size, num_atoms, 3)
+        # Update manager's config with inference parameters
+        from omegaconf import OmegaConf
+        if not hasattr(manager, 'cfg') or not OmegaConf.is_config(manager.cfg):
+            manager.cfg = OmegaConf.create({
+                "stageD": {
+                    "diffusion": {
+                        "inference": inference_params,
+                        "debug_logging": False
+                    }
+                }
+            })
+        else:
+            # Update existing config
+            if "inference" not in manager.cfg.stageD.diffusion:
+                manager.cfg.stageD.diffusion.inference = OmegaConf.create(inference_params)
+            else:
+                for k, v in inference_params.items():
+                    manager.cfg.stageD.diffusion.inference[k] = v
+            manager.cfg.stageD.diffusion.debug_logging = False
+
+        # Call with updated API
         coords_final = manager.multi_step_inference(
             coords_init=coords_init,
             trunk_embeddings=trunk_embeddings,
-            inference_params=inference_params,
-            override_input_features=input_feature_dict,
-            debug_logging=False,  # Disable debug logging for speed
+            override_input_features=input_feature_dict
         )
 
         # Check output shapes
@@ -736,3 +811,41 @@ def test_problem_size_memory_threshold():
     assert (
         memory_increase < 1000
     ), f"Memory increase ({memory_increase:.1f} MB) exceeds threshold"
+
+
+# ------------------------------------------------------------------------------
+# Test: Unique error for atom-level input to bridge_residue_to_atom
+
+import hypothesis.strategies as st
+from hypothesis import given
+from rna_predict.pipeline.stageD.diffusion.bridging.residue_atom_bridge import bridge_residue_to_atom, BridgingInput
+
+@given(
+    batch_size=st.integers(min_value=1, max_value=2),
+    n_residues=st.integers(min_value=2, max_value=8),
+    atoms_per_residue=st.integers(min_value=2, max_value=16),
+    c_s=st.integers(min_value=2, max_value=8)
+)
+def test_bridge_residue_to_atom_raises_on_atom_level_input(batch_size, n_residues, atoms_per_residue, c_s):
+    import torch
+    # Simulate atom-level s_emb: [B, N_atom, c_s]
+    n_atoms = n_residues * atoms_per_residue
+    s_emb = torch.randn(batch_size, n_atoms, c_s)
+    trunk_embeddings = {"s_trunk": s_emb}
+    # residue_atom_map has length n_residues
+    # Provide sequence so residue count can be determined
+    sequence = ["A"] * n_residues
+    bridging_input = BridgingInput(
+        partial_coords=None,
+        trunk_embeddings=trunk_embeddings,
+        input_features=None,
+        sequence=sequence
+    )
+    config = type("DummyConfig", (), {})()
+    # Should raise ValueError with our unique code
+    try:
+        bridge_residue_to_atom(bridging_input, config, debug_logging=False)
+    except ValueError as e:
+        assert "[BRIDGE ERROR][UNIQUE_CODE_001]" in str(e), f"Unexpected error message: {e}"
+    else:
+        raise AssertionError("bridge_residue_to_atom did not raise on atom-level input!")

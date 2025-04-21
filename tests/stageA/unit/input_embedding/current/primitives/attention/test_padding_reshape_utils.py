@@ -43,6 +43,7 @@ class MockAttentionBiasConfig(NamedTuple):
         (3, 5, 2),  # Needs padding (less than one trunk)
         (0, 5, 0),  # Edge case: zero length
     ],
+    ids=["exact_multiple", "needs_padding", "single_trunk", "less_than_trunk", "zero_length"]
 )
 def test_calculate_padding_needed(n: int, n_queries: int, expected_padding: int):
     """

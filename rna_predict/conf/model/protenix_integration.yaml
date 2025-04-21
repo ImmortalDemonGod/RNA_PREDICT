@@ -1,0 +1,23 @@
+# rna_predict/conf/model/protenix_integration.yaml
+# Configuration for ProtenixIntegration class
+
+# Device setting
+device: ${device}  # Device to run the model on: 'cpu', 'cuda', or 'mps'
+
+# Embedding dimensions
+c_token: 449  # Token dimension for embeddings
+restype_dim: 32  # Dimension for residue type embeddings
+profile_dim: 32  # Dimension for profile embeddings
+c_atom: 128  # Atom dimension for embeddings
+c_pair: 32  # Pair dimension for embeddings
+
+# Attention parameters
+num_heads: 4  # Number of attention heads
+num_layers: 3  # Number of attention layers
+
+# Relative position encoding parameters
+r_max: 32  # Maximum relative position
+s_max: 2  # Maximum sequence separation
+
+# Optimization flags
+use_optimized: false  # Whether to use optimized implementation

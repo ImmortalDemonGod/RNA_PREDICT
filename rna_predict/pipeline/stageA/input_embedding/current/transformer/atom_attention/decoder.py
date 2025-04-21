@@ -37,18 +37,21 @@ class AtomAttentionDecoder(nn.Module):
         self.n_keys = config.n_keys
 
         # Initialize components
+        c_ref_element = getattr(config, 'c_ref_element', 128)
+        print(f"[DEBUG][AtomAttentionDecoder] Using c_ref_element={c_ref_element}")
         self.feature_processor = FeatureProcessor(
             c_atom=self.c_atom,
             c_atompair=self.c_atompair,
-            c_s=config.c_s,
-            c_z=config.c_z,
+            c_s=getattr(config, 'c_s', 0),
+            c_z=getattr(config, 'c_z', 0),
+            c_ref_element=c_ref_element,
         )
 
         self.coordinate_processor = CoordinateProcessor(
             c_atom=self.c_atom,
             c_atompair=self.c_atompair,
-            c_s=config.c_s,
-            c_z=config.c_z,
+            c_s=getattr(config, 'c_s', 0),
+            c_z=getattr(config, 'c_z', 0),
         )
 
         self.attention_components = AttentionComponents(

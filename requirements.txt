@@ -6,10 +6,14 @@ scipy>=1.7.0
 biopython>=1.81
 pandas>=1.3.0
 tqdm>=4.65.0
+hydra-core==1.3.2 # Added Hydra core dependency
+omegaconf==2.3.0 # Added OmegaConf dependency
+cosmic-ray>=8.4.1,<9.0.0 # Added mutation testing with version bounds
 hypothesis>=6.0.0
 pyautogui
 opencv-python
 Pillow
 mss
 PySimpleGUI
+py-cpuinfo # Added build dependency for deepspeed
 protenix # Added missing dependency

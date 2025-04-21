@@ -145,6 +145,83 @@ def forward_kinematics(torsion_angles, sequence, reference_geometry, ring_pucker
 
 ---
 
+## 🔧 Configuration & Execution (Hydra)
+
+Stage C (reconstruction) is configured using Hydra. Parameters are defined in YAML files and can be overridden via the command line when running the stage's entry point.
+
+**Entry Point:** `rna_predict.pipeline.stageC.stage_c_reconstruction`
+
+**Configuration Files:**
+
+* **Main Stage C settings:** `rna_predict/conf/model/stageC.yaml` (controls method selection, device, reconstruction options)
+* **(Optional) MP-NeRF Model settings:** Referenced within `stageC.yaml` (e.g., `defaults: - mp_nerf_model: default_rna`). See `rna_predict/conf/mp_nerf_model/` for specific model variants.
+
+These are loaded via the main `rna_predict/conf/default.yaml`.
+
+### Key Configuration Parameters (`stageC.yaml`)
+
+```yaml
+# rna_predict/conf/model/stageC.yaml
+defaults:
+  - mp_nerf_model: default_rna # Selects which MP-NeRF config to load from mp_nerf_model/
+  - _self_
+
+stageC:
+  method: "mp_nerf"            # "mp_nerf" or "legacy" (fallback)
+  device: "cpu"                # "cpu" or "cuda"
+  angle_representation: "cartesian" # Expected input format ('cartesian' or 'dihedral')
+  do_ring_closure: false       # Apply ring closure constraints
+  place_bases: true            # Reconstruct base atoms
+  sugar_pucker: "C3'-endo"     # Default sugar pucker conformation
+  # ... add other stageC specific parameters ...
+```
+
+*Note: MP-NeRF specific hyperparameters (layers, dimensions) are typically defined in files within `rna_predict/conf/mp_nerf_model/`, selected by the `defaults` list above.*
+
+### Command-Line Overrides
+
+Override parameters using dot notation:
+
+* Use the legacy reconstruction method:
+    ```bash
+    python -m rna_predict.pipeline.stageC.stage_c_reconstruction stageC.method=legacy
+    ```
+* Run on CUDA:
+    ```bash
+    python -m rna_predict.pipeline.stageC.stage_c_reconstruction stageC.device=cuda
+    ```
+* Enable ring closure:
+    ```bash
+    python -m rna_predict.pipeline.stageC.stage_c_reconstruction stageC.do_ring_closure=true
+    ```
+* Disable base placement:
+    ```bash
+    python -m rna_predict.pipeline.stageC.stage_c_reconstruction stageC.place_bases=false
+    ```
+* Select a different MP-NeRF model configuration (assuming `rna_predict/conf/mp_nerf_model/fast_model.yaml` exists):
+    ```bash
+    python -m rna_predict.pipeline.stageC.stage_c_reconstruction mp_nerf_model=fast_model
+    ```
+
+### HPC Execution
+
+For High Performance Computing (HPC) environments, see the [HPC Integration Guide](../integration/hydra_integration/hpc_overrides.md) for SLURM and GridEngine examples.
+
+**Basic HPC Example:**
+```bash
+python -m rna_predict.pipeline.stageC.stage_c_reconstruction \
+    stageC.device=cuda \
+    stageC.method=mp_nerf \
+    +hpc_cluster=slurm \
+    hydra.launcher.gpus=2
+```
+
+### Typed Configuration (Optional)
+
+Check `rna_predict/conf/config_schema.py` for potential typed dataclasses (e.g., `StageCConfig`) that provide structure and validation for the configuration.
+
+---
+
 ### 📖 Detailed References & Acknowledgments
 
 - **Murray et al. (2003)**: RNA backbone is rotameric (PNAS).
