@@ -275,9 +275,13 @@ class PairformerStack(nn.Module):
 
         # Create block configuration with all fields from PairformerBlockConfig
         block_cfg_kwargs = {
-            k: getattr(cfg, k, PairformerBlockConfig.__dataclass_fields__[k].default)
+            k: getattr(cfg, k, getattr(PairformerBlockConfig, k, None))
             for k in PairformerBlockConfig.__dataclass_fields__
         }
+        block_cfg_kwargs["c_z"] = self.c_z  # Force c_z to match stack
+        block_cfg_kwargs["c_s"] = self.c_s  # Force c_s to match stack
+        block_cfg_kwargs["n_heads"] = self.n_heads  # Force n_heads to match stack
+        block_cfg_kwargs["dropout"] = self.dropout  # Force dropout to match stack
         block_cfg = PairformerBlockConfig(**block_cfg_kwargs)
 
         # Initialize blocks

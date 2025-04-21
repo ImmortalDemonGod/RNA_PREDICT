@@ -50,7 +50,6 @@ def run_inference_mode(
         trunk_embeddings=context.trunk_embeddings_internal,
         override_input_features=context.input_features
     )
-
     # Update the original trunk_embeddings dict with cached s_inputs if it was added
     if (
         "s_inputs" in context.trunk_embeddings_internal
@@ -60,7 +59,6 @@ def run_inference_mode(
         context.original_trunk_embeddings_ref["s_inputs"] = context.trunk_embeddings_internal[
             "s_inputs"
         ]
-
     # Enforce output shape [1, 25, 3] for inference output
     assert coords.dim() == 3, f"coords must have 3 dims, got {coords.shape}"
     assert coords.shape[0] == 1, f"Batch size must be 1, got {coords.shape}"

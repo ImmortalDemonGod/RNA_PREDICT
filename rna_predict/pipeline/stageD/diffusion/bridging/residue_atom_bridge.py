@@ -11,6 +11,8 @@ from typing import Any, Dict, List, Tuple
 
 import torch
 import traceback
+import psutil
+import os
 
 from rna_predict.utils.tensor_utils import derive_residue_atom_map, residue_to_atoms
 from rna_predict.utils.shape_utils import adjust_tensor_feature_dim
@@ -21,6 +23,11 @@ from .sequence_utils import extract_sequence
 
 # Initialize logger for Stage D bridging
 logger = logging.getLogger("rna_predict.pipeline.stageD.diffusion.bridging.residue_atom_bridge")
+
+
+def log_mem(stage):
+    process = psutil.Process(os.getpid())
+    print(f"[MEMORY-LOG][BRIDGE][{stage}] Memory usage: {process.memory_info().rss / (1024 * 1024):.2f} MB")
 
 
 @dataclass
@@ -310,6 +317,7 @@ def bridge_residue_to_atom(
     config: Any,  # Accepts either config object or DictConfig
     debug_logging: bool = False,
 ):
+    log_mem("ENTRY")
     # --- PATCH: Guard against double-bridging or atom-level input (moved to top, robust) ---
     trunk_embeddings = bridging_input.trunk_embeddings
     sequence = bridging_input.sequence
@@ -359,6 +367,7 @@ def bridge_residue_to_atom(
         partial_coords=partial_coords,
         atom_metadata=input_features.get("atom_metadata") if input_features else None,
     )
+    log_mem("After residue-to-atom mapping")
     if debug_logging:
         logger.debug(f"[bridge_residue_to_atom] residue_atom_map length: {len(residue_atom_map)}")
         logger.debug(f"[bridge_residue_to_atom] residue_atom_map: {residue_atom_map}")
@@ -400,6 +409,7 @@ def bridge_residue_to_atom(
     fixed_input_features = process_input_features(input_features, partial_coords, residue_atom_map, batch_size)
     # Return original coords, bridged embeddings, and fixed features
     logger.info("bridge_residue_to_atom completed successfully.")
+    log_mem("EXIT")
     return partial_coords, bridged_trunk_embeddings, fixed_input_features
 
 
