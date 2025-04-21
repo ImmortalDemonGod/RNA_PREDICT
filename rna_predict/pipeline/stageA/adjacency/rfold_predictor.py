@@ -67,7 +67,11 @@ def set_stageA_logger_level(debug_logging: bool):
         logger.setLevel(logging.WARNING)
     logger.propagate = True  # Let logs reach root logger for caplog
 
-class StageARFoldPredictor:
+# PATCH: Make StageARFoldPredictor a torch.nn.Module so it can be used in ModuleDict
+import torch.nn as nn
+import os, psutil
+
+class StageARFoldPredictor(nn.Module):
     """
     Updated version of StageARFoldPredictor that uses the
     official RFold_Model code from "RFold/model.py" so that
@@ -80,6 +84,10 @@ class StageARFoldPredictor:
     """
 
     def __init__(self, stage_cfg: DictConfig, device: torch.device):
+        super().__init__()
+        print("[MEMORY-LOG][StageA] Initializing StageARFoldPredictor")
+        process = psutil.Process(os.getpid())
+        print(f"[MEMORY-LOG][StageA] Memory usage: {process.memory_info().rss / 1e6:.2f} MB")
         """
         Initialize the RFold Predictor using configuration object.
 
@@ -184,6 +192,20 @@ class StageARFoldPredictor:
         self._load_checkpoint(
             checkpoint_path, getattr(stage_cfg, "checkpoint_url", None)
         )
+
+        # NEW: Freeze all parameters if freeze_params is set in config
+        freeze_flag = getattr(stage_cfg, 'freeze_params', False)
+        if freeze_flag:
+            for name, param in self.model.named_parameters():
+                param.requires_grad = False
+            if self.debug_logging:
+                logger.info("[StageA] All model parameters frozen (requires_grad=False) per freeze_params config.")
+        else:
+            if self.debug_logging:
+                logger.info("[StageA] Model parameters are trainable (freeze_params is False or missing).")
+
+        print("[MEMORY-LOG][StageA] After super().__init__")
+        print(f"[MEMORY-LOG][StageA] Memory usage: {process.memory_info().rss / 1e6:.2f} MB")
 
     def _load_checkpoint(
         self, checkpoint_path: Optional[str], checkpoint_url: Optional[str]
