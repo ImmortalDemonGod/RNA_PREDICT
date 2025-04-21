@@ -47,6 +47,7 @@ class TestGetSymmetricAtomPairs:
         assert isinstance(result, dict)
         assert len(result) == 1
         assert "0" in result
+        # The implementation returns [(8, 9)] for E
         assert result["0"] == [(8, 9)]  # OE1/OE2 indices
 
     def test_phenylalanine(self):
