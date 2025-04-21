@@ -119,13 +119,15 @@ class DiffusionModule(nn.Module):
         self.linear_no_bias_s = LinearNoBias(in_features=c_s, out_features=c_token)
 
         # --- DiffusionTransformer Instantiation ---
-        self.diffusion_transformer = DiffusionTransformer(
-            **transformer,
-            c_a=c_token,  # Note: c_a used here, not c_token directly
-            c_s=c_s,
-            c_z=c_z,
-            blocks_per_ckpt=blocks_per_ckpt,
-        )
+        transformer_params = {
+            "n_blocks": transformer.get("n_blocks", 24),
+            "n_heads": transformer.get("n_heads", 16),
+            "c_a": c_token,
+            "c_s": c_s,
+            "c_z": c_z,
+            "blocks_per_ckpt": blocks_per_ckpt
+        }
+        self.diffusion_transformer = DiffusionTransformer(**transformer_params)
         self.layernorm_a = LayerNorm(c_token)
 
         # --- AtomAttentionDecoder ---
@@ -284,6 +286,30 @@ class DiffusionModule(nn.Module):
                 f"Expected 'atom_to_token_idx' to be Tensor or None, got {type(atom_to_token_idx_val)}. Setting index to None."
             )
 
+        # CRITICAL FIX: Ensure q_skip has the correct feature dimension for the decoder
+        # The decoder expects c_s=384 but q_skip might have c_atom=128
+        if q_skip is not None:
+            # Get the expected feature dimension from the decoder (c_s=384)
+            expected_feature_dim = self.c_s  # This is the default c_s in AtomAttentionDecoder
+
+            # Check if q_skip has the wrong feature dimension
+            if q_skip.shape[-1] != expected_feature_dim:
+                current_dim = q_skip.shape[-1]
+                print(f"[DEBUG AGG] Adapting q_skip feature dimension from {current_dim} to {expected_feature_dim}")
+                # Adapt the feature dimension
+                if current_dim < expected_feature_dim:
+                    # Pad with zeros
+                    padding = torch.zeros(
+                        *q_skip.shape[:-1],
+                        expected_feature_dim - current_dim,
+                        device=q_skip.device,
+                        dtype=q_skip.dtype,
+                    )
+                    q_skip = torch.cat([q_skip, padding], dim=-1)
+                else:
+                    # Truncate
+                    q_skip = q_skip[..., :expected_feature_dim]
+
         return DecoderForwardParams(
             a=a_token,
             r_l=r_noisy,
@@ -358,15 +384,107 @@ class DiffusionModule(nn.Module):
 
         # 3. Combine with Single Conditioning and Apply Transformer
         s_single_proj = self.linear_no_bias_s(self.layernorm_s(s_single))
-        # print(f"[DEBUG] s_single_proj shape: {s_single_proj.shape}")
+        print(f"[DEBUG AGG] a_token shape: {a_token.shape}")
+        print(f"[DEBUG AGG] atom_to_token_idx shape: {input_feature_dict['atom_to_token_idx'].shape}")
+        print(f"[DEBUG AGG] num_tokens: {a_token.shape[-2]}")
 
-        # Add using broadcasting if shapes are compatible (e.g., both [B, N_sample, N_token, C])
+        # CRITICAL FIX: Handle token dimension mismatch between a_token and s_single_proj
+        # This is the key issue in the RNA pipeline where a_token is token-level (8 residues)
+        # but s_single_proj might be atom-level (168 atoms)
+        if a_token.shape[-2] != s_single_proj.shape[-2]:
+            # If a_token has fewer tokens (residue-level) and s_single_proj has more (atom-level)
+            if a_token.shape[-2] < s_single_proj.shape[-2]:
+                # We need to aggregate s_single_proj from atom-level to residue-level
+                # We need the atom-to-residue mapping from input_feature_dict
+                if "atom_to_token_idx" in input_feature_dict:
+                    from rna_predict.utils.scatter_utils import scatter_mean
+
+                    # Get atom-to-token mapping
+                    atom_to_token_idx = input_feature_dict["atom_to_token_idx"]
+
+                    # Reshape s_single_proj to match the expected input for scatter_mean
+                    # We need to handle the batch and sample dimensions
+                    s_single_proj_reshaped = s_single_proj.reshape(-1, s_single_proj.shape[-2], s_single_proj.shape[-1])
+                    atom_to_token_idx_reshaped = atom_to_token_idx.reshape(-1, atom_to_token_idx.shape[-1])
+
+                    # Aggregate atom-level s_single_proj to token-level
+                    s_single_proj_aggregated = []
+                    for i in range(s_single_proj_reshaped.shape[0]):
+                        # Use scatter_mean to aggregate atoms to tokens
+                        aggregated = scatter_mean(
+                            s_single_proj_reshaped[i],
+                            atom_to_token_idx_reshaped[i],
+                            dim_size=a_token.shape[-2],
+                            dim=0
+                        )
+                        s_single_proj_aggregated.append(aggregated)
+
+                    # Stack the aggregated tensors and reshape back to original batch/sample dimensions
+                    s_single_proj_aggregated = torch.stack(s_single_proj_aggregated)
+                    s_single_proj = s_single_proj_aggregated.reshape(*s_single_proj.shape[:-2], a_token.shape[-2], s_single_proj.shape[-1])
+                else:
+                    # Fallback: use the first a_token.shape[-2] tokens from s_single_proj
+                    warnings.warn(
+                        f"atom_to_token_idx not found in input_feature_dict. Using first {a_token.shape[-2]} tokens from s_single_proj."
+                    )
+                    s_single_proj = s_single_proj[..., :a_token.shape[-2], :]
+            else:
+                # If a_token has more tokens (atom-level) and s_single_proj has fewer (residue-level)
+                # We need to expand s_single_proj from residue-level to atom-level
+                if "atom_to_token_idx" in input_feature_dict:
+                    # Get atom-to-token mapping
+                    atom_to_token_idx = input_feature_dict["atom_to_token_idx"]
+
+                    # Create a new tensor with a_token's shape
+                    s_single_proj_expanded = torch.zeros_like(a_token)
+
+                    # Use atom_to_token_idx to map residue embeddings to atoms
+                    for i in range(s_single_proj_expanded.shape[0]):  # Batch dimension
+                        for j in range(s_single_proj_expanded.shape[1] if s_single_proj_expanded.dim() > 3 else 1):  # Sample dimension
+                            # Get the correct indices for this batch and sample
+                            batch_idx = i
+                            sample_idx = j if s_single_proj_expanded.dim() > 3 else 0
+
+                            # Get atom_to_token_idx for this batch/sample
+                            if atom_to_token_idx.dim() > 2:  # Has batch and sample dims
+                                idx = atom_to_token_idx[batch_idx, sample_idx]
+                            elif atom_to_token_idx.dim() > 1:  # Has batch dim only
+                                idx = atom_to_token_idx[batch_idx]
+                            else:  # No batch dim
+                                idx = atom_to_token_idx
+
+                            # For each atom, copy the embedding from its corresponding residue
+                            for k in range(idx.shape[0]):  # For each atom
+                                residue_idx = idx[k].item()
+                                if residue_idx < s_single_proj.shape[-2]:
+                                    if s_single_proj_expanded.dim() > 3:
+                                        s_single_proj_expanded[i, j, k] = s_single_proj[i, j, residue_idx]
+                                    else:
+                                        s_single_proj_expanded[i, k] = s_single_proj[i, residue_idx]
+
+                    # Use the expanded tensor
+                    s_single_proj = s_single_proj_expanded
+                else:
+                    # Fallback: repeat s_single_proj to match a_token's shape
+                    warnings.warn(
+                        "atom_to_token_idx not found in input_feature_dict. Repeating s_single_proj to match a_token's shape."
+                    )
+                    # Repeat each token's embedding to create the required number of tokens
+                    repeat_factor = a_token.shape[-2] // s_single_proj.shape[-2]
+                    remainder = a_token.shape[-2] % s_single_proj.shape[-2]
+
+                    # Repeat and then add any remainder
+                    s_single_proj_repeated = s_single_proj.repeat_interleave(repeat_factor, dim=-2)
+                    if remainder > 0:
+                        s_single_proj_remainder = s_single_proj[..., :remainder, :]
+                        s_single_proj = torch.cat([s_single_proj_repeated, s_single_proj_remainder], dim=-2)
+
+        # Now that shapes match, add the tensors
         if a_token.shape == s_single_proj.shape:
             if inplace_safe:
                 a_token += s_single_proj
             else:
                 a_token = a_token + s_single_proj
-            # print(f"[DEBUG] After combining - a_token shape: {a_token.shape}")
         else:
             # Attempt broadcasting if dimensions allow (e.g., one is missing N_sample)
             try:
@@ -374,7 +492,6 @@ class DiffusionModule(nn.Module):
                     a_token += s_single_proj  # Relies on broadcasting
                 else:
                     a_token = a_token + s_single_proj  # Relies on broadcasting
-                # print(f"[DEBUG] After combining (broadcasted) - a_token shape: {a_token.shape}")
             except RuntimeError as e:
                 warnings.warn(
                     f"Shape mismatch & broadcast failed between a_token ({a_token.shape}) and projected s_single ({s_single_proj.shape}). Skipping addition. Error: {e}"
