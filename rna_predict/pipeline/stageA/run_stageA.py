@@ -3,7 +3,7 @@ import os
 import shutil
 import subprocess
 import urllib.request
-import zipfile 
+import zipfile
 import logging
 
 import torch
@@ -124,6 +124,7 @@ def main(cfg: DictConfig) -> None:
     if debug_logging:
         logger.info("Starting Stage A pipeline with Hydra config")
         logger.info(f"Config:\n{OmegaConf.to_yaml(cfg)}")
+        logger.debug("[UNIQUE-DEBUG-STAGEA-TEST] This should always appear if logger is working.")
 
     # Print the full config for debugging
     if debug_logging:
