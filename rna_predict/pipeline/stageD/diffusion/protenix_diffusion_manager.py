@@ -4,6 +4,8 @@ from typing import Dict, Optional, Any
 from omegaconf import OmegaConf, DictConfig
 import torch
 from dataclasses import dataclass
+import torch.nn as nn
+import os, psutil
 
 from rna_predict.pipeline.stageD.diffusion.components.diffusion_module import (
     DiffusionModule,
@@ -188,7 +190,18 @@ class DiffusionManagerConfig:
     @classmethod
     def from_hydra_cfg(cls, cfg: DictConfig):
         cls._validate_config(cfg)
-        stage_cfg = cfg.stageD.diffusion
+
+        # Handle both single and double nesting of stageD
+        if "diffusion" in cfg.stageD:
+            # Single nesting: cfg.stageD.diffusion
+            stage_cfg = cfg.stageD.diffusion
+        elif "stageD" in cfg.stageD and "diffusion" in cfg.stageD.stageD:
+            # Double nesting: cfg.stageD.stageD.diffusion
+            stage_cfg = cfg.stageD.stageD.diffusion
+        else:
+            # This should never happen due to _validate_config, but as a safeguard
+            raise ValueError("[UNIQUE-ERR-STAGED-DIFFUSION-ACCESS] Cannot access diffusion config")
+
         device = torch.device(stage_cfg.device)
         inference_cfg = stage_cfg.get("inference", OmegaConf.create({}))
         num_inference_steps = inference_cfg.get("num_steps", 2)
@@ -200,11 +213,21 @@ class DiffusionManagerConfig:
     @staticmethod
     def _validate_config(cfg: DictConfig):
         if not OmegaConf.is_config(cfg):
-            raise ValueError("Config must be a Hydra DictConfig")
+            raise ValueError("[UNIQUE-ERR-STAGED-CONFIG-TYPE] Config must be a Hydra DictConfig")
         if "stageD" not in cfg:
-            raise ValueError("Config missing required 'stageD' group")
-        if "diffusion" not in cfg.stageD:
-            raise ValueError("Config missing required 'diffusion' group in stageD")
+            raise ValueError("[UNIQUE-ERR-STAGED-MISSING] Config missing required 'stageD' group")
+
+        # Handle both single and double nesting of stageD
+        if "diffusion" in cfg.stageD:
+            # Single nesting: cfg.stageD.diffusion
+            return
+        elif "stageD" in cfg.stageD and "diffusion" in cfg.stageD.stageD:
+            # Double nesting: cfg.stageD.stageD.diffusion
+            return
+        else:
+            # Neither structure found
+            raise ValueError("[UNIQUE-ERR-STAGED-DIFFUSION-MISSING] Config missing required 'diffusion' group in stageD. Available keys: " +
+                           str(list(cfg.stageD.keys())))
 
     @staticmethod
     def _parse_diffusion_module_args(stage_cfg: DictConfig):
@@ -230,7 +253,7 @@ class DiffusionManagerConfig:
         return diffusion_module_args
 
 
-class ProtenixDiffusionManager:
+class ProtenixDiffusionManager(nn.Module):
     """
     Manager that handles training steps or multi-step inference for diffusion.
     Expects trunk_embeddings to contain:
@@ -242,6 +265,10 @@ class ProtenixDiffusionManager:
     """
 
     def __init__(self, cfg: DictConfig):
+        super().__init__()
+        print("[MEMORY-LOG][StageD] Initializing ProtenixDiffusionManager")
+        process = psutil.Process(os.getpid())
+        print(f"[MEMORY-LOG][StageD] Memory usage: {process.memory_info().rss / 1e6:.2f} MB")
         """
         Initializes the Diffusion Manager using Hydra configuration.
         Reads all parameters from cfg.stageD.diffusion group.
@@ -252,12 +279,26 @@ class ProtenixDiffusionManager:
         self.num_inference_steps = self.config.num_inference_steps
         self.temperature = self.config.temperature
         self.debug_logging = self.config.debug_logging
-        try:
+
+        # --- Respect Hydra init_from_scratch flag ---
+        init_from_scratch = False
+        # Support both flat and nested config
+        if hasattr(cfg, 'init_from_scratch'):
+            init_from_scratch = cfg.init_from_scratch
+        elif hasattr(cfg, 'diffusion') and hasattr(cfg.diffusion, 'init_from_scratch'):
+            init_from_scratch = cfg.diffusion.init_from_scratch
+        if init_from_scratch:
+            logger.info("[StageD] Initializing DiffusionModule from scratch (no checkpoint loaded)")
             self.diffusion_module = DiffusionModule(**self.config.diffusion_module_args).to(self.device)
-        except TypeError as e:
-            logger.error(f"Error initializing DiffusionModule: {e}")
-            logger.error(f"Config provided: {self.config.diffusion_module_args}")
-            raise
+        else:
+            try:
+                self.diffusion_module = DiffusionModule(**self.config.diffusion_module_args).to(self.device)
+            except TypeError as e:
+                logger.error(f"Error initializing DiffusionModule: {e}")
+                logger.error(f"Config provided: {self.config.diffusion_module_args}")
+                raise
+        print("[MEMORY-LOG][StageD] After super().__init__")
+        print(f"[MEMORY-LOG][StageD] Memory usage: {process.memory_info().rss / 1e6:.2f} MB")
 
     def _get_sampler_params(self, stage_cfg: DictConfig):
         sampler_cfg = stage_cfg.get("sampler", OmegaConf.create({}))
