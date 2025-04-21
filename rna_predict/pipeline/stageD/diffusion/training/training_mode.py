@@ -11,6 +11,7 @@ from dataclasses import dataclass
 
 from rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager import (
     ProtenixDiffusionManager,
+    DiffusionStepInput
 )
 from rna_predict.pipeline.stageD.diffusion.utils.embedding_utils import (
     ensure_s_inputs,
@@ -72,13 +73,14 @@ def run_training_mode(
     )
 
     # Run training step using the internal copy
-    x_denoised_tuple = context.diffusion_manager.train_diffusion_step(
+    step_input = DiffusionStepInput(
         label_dict=label_dict,
         input_feature_dict=context.input_features,
         s_inputs=context.trunk_embeddings_internal["s_inputs"],
         s_trunk=context.trunk_embeddings_internal["s_trunk"],
         z_trunk=context.trunk_embeddings_internal["pair"]
     )
+    x_denoised_tuple = context.diffusion_manager.train_diffusion_step(step_input)
 
     # Unpack the results - x_gt_augment, x_denoised, sigma
     x_gt_augment, x_denoised, sigma = x_denoised_tuple
