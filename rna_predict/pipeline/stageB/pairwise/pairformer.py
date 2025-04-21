@@ -274,11 +274,11 @@ class PairformerStack(nn.Module):
         self.blocks_per_ckpt = cfg.blocks_per_ckpt
 
         # Create block configuration with all fields from PairformerBlockConfig
-        # Use dictionary comprehension to get all fields from the dataclass
-        block_cfg = PairformerBlockConfig(
-            **{k: getattr(cfg, k, getattr(PairformerBlockConfig, k).default)
-               for k in PairformerBlockConfig.__dataclass_fields__}
-        )
+        block_cfg_kwargs = {
+            k: getattr(cfg, k, PairformerBlockConfig.__dataclass_fields__[k].default)
+            for k in PairformerBlockConfig.__dataclass_fields__
+        }
+        block_cfg = PairformerBlockConfig(**block_cfg_kwargs)
 
         # Initialize blocks
         self.blocks = nn.ModuleList()
