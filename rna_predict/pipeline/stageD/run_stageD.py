@@ -26,29 +26,15 @@ Configuration Requirements:
 
 """
 import hydra
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import DictConfig
 import torch
-from typing import Dict, Optional, Any
+from typing import Dict, Optional, Any, Union, Tuple
 import logging
 
 # Import structured configs
 from rna_predict.conf.config_schema import StageDConfig, register_configs
 
-# Import diffusion components
-from rna_predict.pipeline.stageD.diffusion.components.diffusion_module import DiffusionModule
-from rna_predict.pipeline.stageD.diffusion.generator import InferenceNoiseScheduler, sample_diffusion
-
-# Utility for bridging residue-level to atom-level representations
-from rna_predict.pipeline.stageD.diffusion.bridging.residue_atom_bridge import bridge_residue_to_atom, BridgingInput
-
-try:
-    from snoop import snoop
-except ImportError:
-    # Create a no-op decorator if snoop is not available
-    def snoop(*args, **kwargs):
-        def wrapper(func):
-            return func
-        return wrapper if args or kwargs else wrapper
+# Removed unused snoop import and decorator
 
 log = logging.getLogger(__name__)
 
@@ -146,8 +132,11 @@ def initialize_features_from_config(cfg: DictConfig, coords: torch.Tensor, atom_
         features["ref_atom_name_chars"] = torch.zeros(batch_size, num_atoms, 256, device=device)  # [batch_size, num_atoms, 256]
 
     # Add all the required features to match the expected dimension
-    # The total dimension should be 389 = 3 (ref_pos) + 1 (ref_charge) + 1 (ref_mask) + 128 (ref_element) + 256 (ref_atom_name_chars)
-    print(f"[DEBUG][initialize_features_from_config] Total feature dimension: {3 + 1 + 1 + 128 + 256}")
+    # Calculate the total dimension dynamically from the config values
+    ref_element_dim = stage_cfg.ref_element_size
+    ref_atom_name_chars_dim = stage_cfg.ref_atom_name_chars_size
+    total_dim = 3 + 1 + 1 + ref_element_dim + ref_atom_name_chars_dim
+    print(f"[DEBUG][initialize_features_from_config] Total feature dimension: {total_dim}")
 
     return features
 
@@ -159,7 +148,7 @@ def run_stageD(
     s_inputs: torch.Tensor,
     input_feature_dict: Dict[str, Any],
     atom_metadata: Optional[Dict[str, Any]] = None,
-) -> torch.Tensor:
+) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor, torch.Tensor]]:
     """Run diffusion refinement on the input coordinates using the unified Stage D runner."""
     print(f"[DEBUG][run_stageD] ENTRY: z_trunk.shape = {getattr(z_trunk, 'shape', None)}")
     print(f"[DEBUG][run_stageD] ENTRY: s_trunk.shape = {getattr(s_trunk, 'shape', None)}")
@@ -203,7 +192,7 @@ def run_stageD(
             )
             coords, trunk_embeddings, features = bridge_residue_to_atom(bridging_input, config=stage_cfg, debug_logging=getattr(stage_cfg, 'debug_logging', False))
         except Exception as e:
-            raise RuntimeError(f"[ERR-STAGED-BRIDGE-001] Residue-to-atom bridging failed: {e}")
+            raise RuntimeError("[ERR-STAGED-BRIDGE-001] Residue-to-atom bridging failed") from e
     else:
         raise ValueError("[ERR-STAGED-BRIDGE-002] atom_metadata missing or missing residue_indices; cannot bridge residue to atom level.")
     # --- END PATCH ---
@@ -222,7 +211,7 @@ def run_stageD(
             if value.shape[1] != n_atoms:
                 print(f"[DEBUG][run_stageD] {key} shape mismatch: {value.shape[1]} != {n_atoms}")
                 # Skip the check for these keys as they're handled by the bridging function
-                if key in ['s_trunk', 's_inputs', 'sing', 'pair', 'z_trunk']:
+                if key in ['s_trunk', 's_inputs', 'pair']:
                     continue
                 raise ValueError(f"{err_prefix} trunk_embeddings['{key}'] atom dim ({value.shape[1]}) != n_atoms ({n_atoms})")
 
@@ -233,7 +222,7 @@ def run_stageD(
             if value.shape[1] != n_atoms:
                 print(f"[DEBUG][run_stageD] {key} shape mismatch: {value.shape[1]} != {n_atoms}")
                 # Skip the check for these keys as they're handled by the bridging function
-                if key in ['s_trunk', 's_inputs', 'sing', 'pair', 'z_trunk']:
+                if key in ['s_trunk', 's_inputs', 'pair']:
                     continue
                 raise ValueError(f"{err_prefix} features['{key}'] atom dim ({value.shape[1]}) != n_atoms ({n_atoms})")
 
@@ -281,10 +270,12 @@ def run_stageD(
     sequence = features.get("sequence", None)
 
     # Build DiffusionConfig dataclass
+    # Cast diffusion_config_dict to Dict[str, Any] to satisfy type checker
+    typed_diffusion_config: Dict[str, Any] = {str(k): v for k, v in diffusion_config_dict.items()}
     config = DiffusionConfig(
         partial_coords=coords,
         trunk_embeddings=trunk_embeddings,
-        diffusion_config=diffusion_config_dict,
+        diffusion_config=typed_diffusion_config,
         mode=mode,
         device=device,
         input_features=features,
@@ -298,8 +289,7 @@ def run_stageD(
     return result
 
 
-# Register configs with Hydra
-register_configs()
+# Note: register_configs() is already called at the beginning of the file
 
 @hydra.main(config_path="../../conf", config_name="default", version_base=None)
 def hydra_main(cfg: DictConfig) -> None:
@@ -379,19 +369,38 @@ def hydra_main(cfg: DictConfig) -> None:
         atom_metadata = getattr(stage_cfg, "atom_metadata", None)
         if atom_metadata is not None:
             dummy_embeddings["atom_metadata"] = atom_metadata
+        # Ensure we have proper tensor types
+        # Use type assertions to help the type checker
+        s_trunk_tensor = dummy_embeddings["s_trunk"]
+        z_trunk_tensor = dummy_embeddings["pair"]
+        s_inputs_tensor = dummy_embeddings["s_inputs"]
+
+        # Verify tensor types
+        if not isinstance(s_trunk_tensor, torch.Tensor):
+            raise TypeError(f"s_trunk must be a torch.Tensor, got {type(s_trunk_tensor)}")
+        if not isinstance(z_trunk_tensor, torch.Tensor):
+            raise TypeError(f"z_trunk must be a torch.Tensor, got {type(z_trunk_tensor)}")
+        if not isinstance(s_inputs_tensor, torch.Tensor):
+            raise TypeError(f"s_inputs must be a torch.Tensor, got {type(s_inputs_tensor)}")
+        atom_metadata_dict = dummy_embeddings["atom_metadata"] if isinstance(dummy_embeddings["atom_metadata"], dict) else {}
+
         refined_coords = run_stageD(
             cfg=cfg,
             coords=dummy_coords,
-            s_trunk=dummy_embeddings["s_trunk"],
-            z_trunk=dummy_embeddings["pair"],
-            s_inputs=dummy_embeddings["s_inputs"],
+            s_trunk=s_trunk_tensor,
+            z_trunk=z_trunk_tensor,
+            s_inputs=s_inputs_tensor,
             input_feature_dict=dummy_embeddings,
-            atom_metadata=dummy_embeddings["atom_metadata"],
+            atom_metadata=atom_metadata_dict,
         )
         # Get debug_logging from config
         debug_logging = stage_cfg.debug_logging if hasattr(stage_cfg, 'debug_logging') else True
         if debug_logging:
-            log.info(f"Successfully refined coordinates: {refined_coords.shape}")
+            # Check if result is a tensor or tuple before accessing shape
+            if isinstance(refined_coords, torch.Tensor):
+                log.info(f"Successfully refined coordinates: {refined_coords.shape}")
+            else:
+                log.info("Successfully refined coordinates (training mode)")
     except Exception as e:
         log.error(f"Error during Stage D execution: {str(e)}")
         raise
