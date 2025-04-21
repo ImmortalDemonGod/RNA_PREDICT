@@ -80,6 +80,10 @@ def register_configs() -> None:
     cs.store(group="model", name="stageB_pairformer", node=PairformerConfig)
     cs.store(group="model", name="stageC", node=StageCConfig)
     cs.store(group="model", name="stageD", node=StageDConfig)
+    cs.store(group="model", name="stageD_model_arch", node=StageDModelArchConfig)
+    cs.store(group="model", name="stageD_transformer", node=StageDTransformerConfig)
+    cs.store(group="model", name="stageD_atom_encoder", node=StageDAtomEncoderConfig)
+    cs.store(group="model", name="stageD_atom_decoder", node=StageDAtomDecoderConfig)
     cs.store(group="model", name="latent_merger", node=LatentMergerConfig)
     cs.store(group="optimization", name="memory", node=MemoryOptimizationConfig)
     cs.store(group="optimization", name="energy", node=EnergyMinimizationConfig)
@@ -95,16 +99,30 @@ def validate_config(cfg: Union[dict, "RNAConfig"]) -> None:
     Raises:
         ValidationError: If config is invalid
     """
-    # Convert to OmegaConf if needed
-    if not OmegaConf.is_config(cfg):
-        cfg = OmegaConf.structured(cfg)
-
-    # Merge with schema for validation
-    schema = OmegaConf.structured(RNAConfig)
     try:
-        OmegaConf.merge(schema, cfg)
+        # Convert to OmegaConf if needed
+        if not OmegaConf.is_config(cfg):
+            try:
+                cfg = OmegaConf.structured(cfg)
+            except Exception as e:
+                print(f"[ERROR] Failed to convert config to OmegaConf: {e}")
+                raise ValueError(f"Failed to convert config to OmegaConf: {e}") from e
+
+        # Merge with schema for validation
+        try:
+            schema = OmegaConf.structured(RNAConfig)
+        except Exception as e:
+            print(f"[ERROR] Failed to create schema from RNAConfig: {e}")
+            raise ValueError(f"Failed to create schema from RNAConfig: {e}") from e
+
+        try:
+            OmegaConf.merge(schema, cfg)
+        except Exception as e:
+            print(f"[ERROR] Configuration validation failed during merge: {e}")
+            raise ValueError(f"Configuration validation failed: {str(e)}") from e
     except Exception as e:
-        raise ValueError(f"Configuration validation failed: {str(e)}")
+        print(f"[ERROR] Unexpected error in validate_config: {e}")
+        raise
 
 # --- Nested Config Structures for Stage A based on StageA_2D_Adjacency.md ---
 
@@ -656,6 +674,131 @@ class StageDInferenceConfig:
     sampling: SamplingConfig = field(default_factory=SamplingConfig)
 
 @dataclass
+class StageDModelArchConfig:
+    """Configuration for Stage D model architecture."""
+    c_token: int = field(
+        default=384,
+        metadata={"help": "Token dimension"}
+    )
+    c_s: int = field(
+        default=384,
+        metadata={"help": "Single representation dimension"}
+    )
+    c_z: int = field(
+        default=128,
+        metadata={"help": "Pair representation dimension"}
+    )
+    c_s_inputs: int = field(
+        default=449,
+        metadata={"help": "Input representation dimension"}
+    )
+    c_atom: int = field(
+        default=128,
+        metadata={"help": "Atom embedding dimension"}
+    )
+    c_noise_embedding: int = field(
+        default=32,
+        metadata={"help": "Noise embedding dimension"}
+    )
+    num_layers: int = field(
+        default=6,
+        metadata={"help": "Number of transformer layers"}
+    )
+    num_heads: int = field(
+        default=8,
+        metadata={"help": "Number of attention heads"}
+    )
+    dropout: float = field(
+        default=0.1,
+        metadata={
+            "help": "Dropout rate",
+            "validate": lambda x: 0.0 <= x <= 1.0
+        }
+    )
+    coord_eps: float = field(
+        default=1e-6,
+        metadata={"help": "Epsilon for coordinate calculations"}
+    )
+    coord_min: float = field(
+        default=-1e4,
+        metadata={"help": "Minimum coordinate value"}
+    )
+    coord_max: float = field(
+        default=1e4,
+        metadata={"help": "Maximum coordinate value"}
+    )
+    coord_similarity_rtol: float = field(
+        default=1e-3,
+        metadata={"help": "Relative tolerance for coordinate similarity"}
+    )
+    test_residues_per_batch: int = field(
+        default=25,
+        metadata={"help": "Number of residues per batch during testing"}
+    )
+
+@dataclass
+class StageDTransformerConfig:
+    """Configuration for Stage D transformer."""
+    n_blocks: int = field(
+        default=6,
+        metadata={"help": "Number of transformer blocks"}
+    )
+    n_heads: int = field(
+        default=8,
+        metadata={"help": "Number of attention heads"}
+    )
+    blocks_per_ckpt: Optional[int] = field(
+        default=None,
+        metadata={"help": "Number of blocks per checkpoint, None for no checkpointing"}
+    )
+
+@dataclass
+class StageDAtomEncoderConfig:
+    """Configuration for Stage D atom encoder."""
+    c_in: int = field(
+        default=3,
+        metadata={"help": "Input dimension for atom encoder"}
+    )
+    c_hidden: List[int] = field(
+        default_factory=lambda: [32, 64, 128],
+        metadata={"help": "Hidden dimensions for atom encoder"}
+    )
+    c_out: int = field(
+        default=64,
+        metadata={"help": "Output dimension for atom encoder"}
+    )
+    dropout: float = field(
+        default=0.1,
+        metadata={
+            "help": "Dropout rate",
+            "validate": lambda x: 0.0 <= x <= 1.0
+        }
+    )
+
+@dataclass
+class StageDAtomDecoderConfig:
+    """Configuration for Stage D atom decoder."""
+    c_in: int = field(
+        default=64,
+        metadata={"help": "Input dimension for atom decoder"}
+    )
+    c_hidden: List[int] = field(
+        default_factory=lambda: [128, 64, 32],
+        metadata={"help": "Hidden dimensions for atom decoder"}
+    )
+    c_out: int = field(
+        default=3,
+        metadata={"help": "Output dimension for atom decoder"}
+    )
+    dropout: float = field(
+        default=0.1,
+        metadata={
+            "help": "Dropout rate",
+            "validate": lambda x: 0.0 <= x <= 1.0
+        }
+    )
+
+@dataclass
 class StageDConfig:
     """Configuration for Stage D (Diffusion)."""
     enabled: bool = True
@@ -706,6 +849,34 @@ class StageDConfig:
     noise_schedule: NoiseScheduleConfig = field(default_factory=NoiseScheduleConfig)
     inference: 'StageDInferenceConfig' = field(default_factory=lambda: StageDInferenceConfig())
     atom_metadata: Optional[dict] = None
+
+    # Memory optimization flags
+    use_memory_efficient_kernel: bool = field(
+        default=False,
+        metadata={"help": "Whether to use memory efficient attention kernel"}
+    )
+    use_deepspeed_evo_attention: bool = field(
+        default=False,
+        metadata={"help": "Whether to use DeepSpeed evolution attention"}
+    )
+    use_lma: bool = field(
+        default=False,
+        metadata={"help": "Whether to use linear multi-head attention"}
+    )
+    inplace_safe: bool = field(
+        default=False,
+        metadata={"help": "Whether to use inplace operations safely"}
+    )
+    chunk_size: Optional[int] = field(
+        default=None,
+        metadata={"help": "Chunk size for attention computation"}
+    )
+
+    # Add nested configurations for model architecture and components
+    model_architecture: StageDModelArchConfig = field(default_factory=StageDModelArchConfig)
+    transformer: StageDTransformerConfig = field(default_factory=StageDTransformerConfig)
+    atom_encoder: StageDAtomEncoderConfig = field(default_factory=StageDAtomEncoderConfig)
+    atom_decoder: StageDAtomDecoderConfig = field(default_factory=StageDAtomDecoderConfig)
 
 @dataclass
 class LatentMergerConfig:
