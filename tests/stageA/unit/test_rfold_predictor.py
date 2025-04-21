@@ -1,6 +1,8 @@
 import logging
 import os
 import unittest
+import pytest
+from omegaconf import OmegaConf
 
 import numpy as np
 import torch
@@ -17,8 +19,6 @@ class TestStageARFoldPredictor(unittest.TestCase):
         """Set up test fixtures before each test method."""
         # Set up configuration and checkpoint path
         # Create a config that matches the expected structure from Hydra
-        from omegaconf import OmegaConf
-
         self.stage_cfg = OmegaConf.create({
             "num_hidden": 128,
             "dropout": 0.3,
@@ -225,6 +225,62 @@ class TestStageARFoldPredictor(unittest.TestCase):
             )
         except Exception as e:
             self.fail(f"StageARFoldPredictor failed to execute: {e}")
+
+
+@pytest.mark.usefixtures("caplog")
+def test_debug_logging_emission(caplog):
+    """Test that debug/info logs are emitted when debug_logging=True (StageA) [ERR-STAGEA-DEBUG-001]"""
+    from rna_predict.pipeline.stageA.adjacency import rfold_predictor
+
+    # Use the real logger object
+    logger = rfold_predictor.logger
+    logger.setLevel(logging.DEBUG)
+    logger.propagate = True
+    if hasattr(logger, "handlers"):
+        logger.handlers.clear()
+    # Compose a config with debug_logging True
+    stage_cfg = OmegaConf.create({
+        "debug_logging": True,
+        "num_hidden": 128,
+        "dropout": 0.3,
+        "min_seq_length": 80,
+        "device": "cpu",
+        "checkpoint_path": None,
+        "batch_size": 32,
+        "lr": 0.001,
+        "threshold": 0.5,
+        "model": {
+            "conv_channels": [64, 128],
+            "decoder": {"up_conv_channels": [64], "skip_connections": True},
+            "residual": True,
+            "c_in": 1,
+            "c_out": 1,
+            "c_hid": 32,
+            "seq2map": {
+                "input_dim": 4,
+                "max_length": 3000,
+                "attention_heads": 8,
+                "attention_dropout": 0.1,
+                "positional_encoding": True,
+                "query_key_dim": 128,
+                "expansion_factor": 2.0,
+                "heads": 1
+            }
+        },
+        "decoder": {
+            "up_conv_channels": [256, 128, 64],
+            "skip_connections": True
+        }
+    })
+    device = torch.device("cpu")
+    caplog.set_level(logging.DEBUG)
+    predictor = rfold_predictor.StageARFoldPredictor(stage_cfg=stage_cfg, device=device)
+    # Trigger prediction to emit logs
+    predictor.predict_adjacency("AUGCUAGU")
+    # Assert on expected debug/info log lines
+    log_text = caplog.text
+    assert "Adjacency matrix shape" in log_text, "[ERR-STAGEA-DEBUG-002] Adjacency matrix shape info not logged."
+    assert "Adjacency matrix data type" in log_text, "[ERR-STAGEA-DEBUG-003] Adjacency matrix dtype debug not logged."
 
 
 if __name__ == "__main__":
