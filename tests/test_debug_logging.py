@@ -234,9 +234,20 @@ def test_stage_debug_logging(stage: str, debug_val: bool, caplog):
         "stageC": "rna_predict.pipeline.stageC.stage_c_reconstruction",
     }
     logger_name = logger_names.get(stage, None)
+
+    # Store original logger state to restore later
     if logger_name:
+        stage_logger = logging.getLogger(logger_name)
+        original_level = stage_logger.level
+        original_handlers = list(stage_logger.handlers)
+        original_propagate = stage_logger.propagate
+
+        # Set up logger for test
         caplog.set_level(logging.DEBUG, logger=logger_name)
-    caplog.set_level(logging.DEBUG)  # Also set root logger to DEBUG
+        stage_logger.propagate = True  # Ensure logs are captured by caplog
+
+    # Also set root logger to DEBUG
+    caplog.set_level(logging.DEBUG)
 
     test_dir = os.path.dirname(os.path.abspath(__file__))
     project_root = os.path.abspath(os.path.join(test_dir, ".."))
@@ -259,37 +270,46 @@ def test_stage_debug_logging(stage: str, debug_val: bool, caplog):
             cfg.model.stageD.atom_metadata = atom_metadata
         # Run the stage and capture logs
         try:
-            run_stage_with_config(stage, cfg)
-        except Exception as e:
-            print(f"[UNIQUE-ERR-STAGE-EXEC-001] Exception during run_stage_with_config: {e}")
+            try:
+                run_stage_with_config(stage, cfg)
+            except Exception as e:
+                print(f"[UNIQUE-ERR-STAGE-EXEC-001] Exception during run_stage_with_config: {e}")
+                print(f"[DEBUG-TEST] caplog.messages={caplog.messages}")
+                raise
+            # Print captured log messages for debugging
             print(f"[DEBUG-TEST] caplog.messages={caplog.messages}")
-            raise
-        # Print captured log messages for debugging
-        print(f"[DEBUG-TEST] caplog.messages={caplog.messages}")
-        # Filter caplog.records to only those from the relevant logger
-        if logger_name:
-            stage_records = [rec for rec in caplog.records if rec.name == logger_name]
-        else:
-            stage_records = [rec for rec in caplog.records if rec.levelname == "DEBUG"]
-        debug_logs = [rec for rec in stage_records if rec.levelname == "DEBUG"]
-        if debug_val:
-            try:
-                assert debug_logs, (
-                    f"[UNIQUE-ERR-DEBUGLOGGING-PRESENT-002] Expected DEBUG logs for stage={stage} with debug_logging=True, but found none. [DEBUG-TEST] caplog: {[rec.getMessage() for rec in stage_records]}"
-                )
-            except AssertionError as ae:
-                print(f"[UNIQUE-ERR-DEBUGLOGGING-PRESENT-002] AssertionError: {ae}")
-                print(f"[DEBUG-TEST] caplog.messages={caplog.messages}")
-                raise
-        else:
-            try:
-                assert not debug_logs, (
-                    f"[UNIQUE-ERR-DEBUGLOGGING-ABSENT-002] Expected no DEBUG logs for stage={stage} with debug_logging=False, but found: {[rec.getMessage() for rec in debug_logs]} [DEBUG-TEST] caplog: {[rec.getMessage() for rec in stage_records]}"
-                )
-            except AssertionError as ae:
-                print(f"[UNIQUE-ERR-DEBUGLOGGING-ABSENT-002] AssertionError: {ae}")
-                print(f"[DEBUG-TEST] caplog.messages={caplog.messages}")
-                raise
+            # Filter caplog.records to only those from the relevant logger
+            if logger_name:
+                stage_records = [rec for rec in caplog.records if rec.name == logger_name]
+            else:
+                stage_records = [rec for rec in caplog.records if rec.levelname == "DEBUG"]
+            debug_logs = [rec for rec in stage_records if rec.levelname == "DEBUG"]
+            if debug_val:
+                try:
+                    assert debug_logs, (
+                        f"[UNIQUE-ERR-DEBUGLOGGING-PRESENT-002] Expected DEBUG logs for stage={stage} with debug_logging=True, but found none. [DEBUG-TEST] caplog: {[rec.getMessage() for rec in stage_records]}"
+                    )
+                except AssertionError as ae:
+                    print(f"[UNIQUE-ERR-DEBUGLOGGING-PRESENT-002] AssertionError: {ae}")
+                    print(f"[DEBUG-TEST] caplog.messages={caplog.messages}")
+                    raise
+            else:
+                try:
+                    assert not debug_logs, (
+                        f"[UNIQUE-ERR-DEBUGLOGGING-ABSENT-002] Expected no DEBUG logs for stage={stage} with debug_logging=False, but found: {[rec.getMessage() for rec in debug_logs]} [DEBUG-TEST] caplog: {[rec.getMessage() for rec in stage_records]}"
+                    )
+                except AssertionError as ae:
+                    print(f"[UNIQUE-ERR-DEBUGLOGGING-ABSENT-002] AssertionError: {ae}")
+                    print(f"[DEBUG-TEST] caplog.messages={caplog.messages}")
+                    raise
+        finally:
+            # Restore original logger state if we modified it
+            if logger_name and 'stage_logger' in locals():
+                stage_logger.handlers.clear()
+                for handler in original_handlers:
+                    stage_logger.addHandler(handler)
+                stage_logger.setLevel(original_level)
+                stage_logger.propagate = original_propagate
 
 
 @settings(
@@ -315,8 +335,9 @@ def test_stageB_debug_logging_hypothesis(rna_seq: str, debug_val: bool, monkeypa
     """
     import io
     import logging
-    from unittest.mock import MagicMock
-    from omegaconf import OmegaConf
+    # We don't need these imports
+    # from unittest.mock import MagicMock
+    # from omegaconf import OmegaConf
     from rna_predict.pipeline.stageB.torsion import torsion_bert_predictor
     pf_logger = logging.getLogger('rna_predict.pipeline.stageB.pairwise.pairformer')
 
@@ -337,7 +358,7 @@ def test_stageB_debug_logging_hypothesis(rna_seq: str, debug_val: bool, monkeypa
     pf_logger.addHandler(stream_handler)
 
     # Patch run_stage_with_config to avoid heavy computation
-    def fake_run_stage_with_config(stage, cfg):
+    def fake_run_stage_with_config(_stage, _cfg):
         if debug_val:
             tb_logger.debug("[UNIQUE-DEBUG-STAGEB-TEST] Fake run for debug_logging test.")
             pf_logger.debug("[UNIQUE-DEBUG-STAGEB-TEST] Fake run for debug_logging test.")
@@ -461,8 +482,18 @@ def test_stageC_debug_logging_hypothesis(
     if not rna_seq:
         pytest.skip("Skipping empty sequence")
 
-    # Reset caplog for each example
+    # Reset caplog and loggers for each example to ensure isolation
     caplog.clear()
+
+    # Reset the Stage C logger to ensure isolation between test runs
+    stagec_logger = logging.getLogger("rna_predict.pipeline.stageC.stage_c_reconstruction")
+    # Store original handlers and level to restore later
+    original_handlers = list(stagec_logger.handlers)
+    original_level = stagec_logger.level
+    original_propagate = stagec_logger.propagate
+
+    # Clear all handlers to avoid duplicate logging
+    stagec_logger.handlers.clear()
 
     # Create the configuration
     # NOTE: Hydra config_path must be relative to the current working directory (cwd) at test execution time.
@@ -501,6 +532,12 @@ def test_stageC_debug_logging_hypothesis(
         # Handler-forcing patch: Remove all handlers and attach a single StreamHandler to sys.stdout at DEBUG level
         import sys
         stagec_logger = logging.getLogger("rna_predict.pipeline.stageC.stage_c_reconstruction")
+        # Store original handlers and level to restore later
+        original_handlers = list(stagec_logger.handlers)
+        original_level = stagec_logger.level
+        original_propagate = stagec_logger.propagate
+
+        # Clear all handlers to avoid duplicate logging
         for handler in list(stagec_logger.handlers):
             stagec_logger.removeHandler(handler)
         stream_handler = logging.StreamHandler(sys.stdout)
@@ -509,17 +546,25 @@ def test_stageC_debug_logging_hypothesis(
         stagec_logger.setLevel(logging.DEBUG)
         stagec_logger.propagate = False  # Prevent double logging
 
-        # Run stageC and capture logs
-        run_stage_with_config(stage, cfg)
+        try:
+            # Run stageC and capture logs
+            run_stage_with_config(stage, cfg)
 
-        # If debug_val is True, verify that the unique debug message is present
-        if debug_val:
-            unique_debug_found = any('[UNIQUE-DEBUG-STAGEC-TEST]' in rec.getMessage() for rec in caplog.records)
-            if not unique_debug_found:
-                raise AssertionError("[UNIQUE-ERR-STAGEC-LOGGER-004] [UNIQUE-DEBUG-STAGEC-TEST] log message not found in caplog.records. This indicates a logger/caplog handler conflict. See debugging guide and test history for resolution.")
+            # If debug_val is True, verify that the unique debug message is present
+            if debug_val:
+                unique_debug_found = any('[UNIQUE-DEBUG-STAGEC-TEST]' in rec.getMessage() for rec in caplog.records)
+                if not unique_debug_found:
+                    raise AssertionError("[UNIQUE-ERR-STAGEC-LOGGER-004] [UNIQUE-DEBUG-STAGEC-TEST] log message not found in caplog.records. This indicates a logger/caplog handler conflict. See debugging guide and test history for resolution.")
 
-        # Verify debug logging behavior
-        verify_debug_logging(stage, debug_val, caplog.messages)
+            # Verify debug logging behavior
+            verify_debug_logging(stage, debug_val, caplog.messages)
+        finally:
+            # Restore original logger state
+            stagec_logger.handlers.clear()
+            for handler in original_handlers:
+                stagec_logger.addHandler(handler)
+            stagec_logger.setLevel(original_level)
+            stagec_logger.propagate = original_propagate
 
 
 @settings(
@@ -588,11 +633,11 @@ def test_stageD_debug_logging_hypothesis(debug_val: bool, atom_metadata: Dict[st
                 # Don't raise the error to avoid failing the test
 
 
-@pytest.mark.parametrize("unused_stage,substage,expected_msg", [
+@pytest.mark.parametrize("_unused_stage,substage,expected_msg", [
     ("stageB", "pairformer", "[UNIQUE-DEBUG-STAGEB-PAIRFORMER-TEST] PairformerWrapper initialized with debug_logging=True"),
     ("stageB", "torsion_bert", "[UNIQUE-DEBUG-STAGEB-TORSIONBERT-TEST] TorsionBertPredictor running with debug_logging=True"),
 ])
-def test_stageB_debug_logging_substages(unused_stage, substage, expected_msg, caplog):
+def test_stageB_debug_logging_substages(_unused_stage, substage, expected_msg, caplog):
     """Test debug logging for both Pairformer and TorsionBert substages in Stage B."""
     from omegaconf import OmegaConf
     import logging
