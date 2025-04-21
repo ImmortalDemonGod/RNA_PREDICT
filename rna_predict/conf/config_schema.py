@@ -186,6 +186,11 @@ class StageAConfig:
         default=True,
         metadata={"help": "Enable debug logging for Stage A"}
     )
+    # NEW: freeze all parameters for testing (default True for test parity)
+    freeze_params: bool = field(
+        default=True,
+        metadata={"help": "If True, freeze all model parameters (requires_grad=False) for eval/test."}
+    )
 
     # Processing Parameters
     min_seq_length: int = field(
@@ -348,6 +353,10 @@ class TorsionBertConfig:
     debug_logging: bool = field(
         default=True,
         metadata={"help": "Enable debug logging for Stage B (TorsionBert)"}
+    )
+    init_from_scratch: bool = field(
+        default=False,
+        metadata={"help": "If true, initialize TorsionBert from scratch instead of loading weights"}
     )
 
 @dataclass
@@ -571,11 +580,14 @@ class PairformerConfig:
             "validate": lambda x: 0.0 <= x <= 1.0
         }
     )
-
-    # Additional parameters for Protenix Integration
     c_token: int = field(default=449, metadata={"help": "Token dimension"})
     c_atom: int = field(default=128, metadata={"help": "Atom dimension"})
-    c_pair: int = field(default=128, metadata={"help": "Pair dimension (same as c_z)"})
+    c_pair: int = field(default=32, metadata={"help": "Pair dimension (same as c_z)"})
+    # NEW: freeze all parameters for test parity
+    freeze_params: bool = field(
+        default=False,
+        metadata={"help": "If True, freeze all model parameters (requires_grad=False) for eval/test."}
+    )
 
     # ProtenixIntegration configuration
     protenix_integration: ProtenixIntegrationConfig = field(default_factory=ProtenixIntegrationConfig)
@@ -799,6 +811,36 @@ class StageDAtomDecoderConfig:
     )
 
 @dataclass
+class StageDDiffusionConfig:
+    """Configuration for Stage D diffusion."""
+    init_from_scratch: bool = field(default=False, metadata={"help": "If true, initialize diffusion model from scratch"})
+    enabled: bool = field(default=True, metadata={"help": "Enable diffusion for Stage D"})
+    mode: str = field(default="inference", metadata={"help": "Mode: inference or training"})
+    device: str = field(default="cpu", metadata={"help": "Device to run the diffusion model on"})
+    debug_logging: bool = field(default=True, metadata={"help": "Enable debug logging for diffusion"})
+    sigma_data: float = field(default=16.0, metadata={"help": "Sigma data parameter for diffusion"})
+    c_atom: int = field(default=128, metadata={"help": "Atom embedding dimension"})
+    c_s: int = field(default=384, metadata={"help": "Single representation dimension"})
+    c_z: int = field(default=128, metadata={"help": "Pair representation dimension"})
+    c_s_inputs: int = field(default=449, metadata={"help": "Input representation dimension"})
+    c_noise_embedding: int = field(default=32, metadata={"help": "Noise embedding dimension"})
+    ref_element_size: int = field(default=128, metadata={"help": "Reference element embedding size"})
+    ref_atom_name_chars_size: int = field(default=256, metadata={"help": "Atom name char embedding size"})
+    atom_metadata: Optional[dict] = None
+    # Nested configs (add as Any for now, can be typed later)
+    model_architecture: Any = None
+    transformer: Any = None
+    atom_encoder: Any = None
+    atom_decoder: Any = None
+    noise_schedule: NoiseScheduleConfig = field(default_factory=NoiseScheduleConfig)
+    inference: StageDInferenceConfig = field(default_factory=StageDInferenceConfig)
+    use_memory_efficient_kernel: bool = field(default=False, metadata={"help": "Whether to use memory efficient attention kernel"})
+    use_deepspeed_evo_attention: bool = field(default=False, metadata={"help": "Whether to use DeepSpeed evolution attention"})
+    use_lma: bool = field(default=False, metadata={"help": "Whether to use linear multi-head attention"})
+    inplace_safe: bool = field(default=False, metadata={"help": "Whether to use inplace operations safely"})
+    chunk_size: Optional[int] = field(default=None, metadata={"help": "Chunk size for attention computation"})
+
+@dataclass
 class StageDConfig:
     """Configuration for Stage D (Diffusion)."""
     enabled: bool = True
@@ -831,7 +873,7 @@ class StageDConfig:
         metadata={"help": "Pair representation dimension"}
     )
     c_s_inputs: int = field(
-        default=32,
+        default=449,
         metadata={"help": "Input representation dimension"}
     )
     c_noise_embedding: int = field(
@@ -840,43 +882,22 @@ class StageDConfig:
     )
     ref_element_size: int = field(
         default=128,
-        metadata={"help": "Size of reference element embeddings"}
+        metadata={"help": "Reference element embedding size"}
     )
     ref_atom_name_chars_size: int = field(
         default=256,
-        metadata={"help": "Size of atom name character embeddings"}
-    )
-    noise_schedule: NoiseScheduleConfig = field(default_factory=NoiseScheduleConfig)
-    inference: 'StageDInferenceConfig' = field(default_factory=lambda: StageDInferenceConfig())
-    atom_metadata: Optional[dict] = None
-
-    # Memory optimization flags
-    use_memory_efficient_kernel: bool = field(
-        default=False,
-        metadata={"help": "Whether to use memory efficient attention kernel"}
-    )
-    use_deepspeed_evo_attention: bool = field(
-        default=False,
-        metadata={"help": "Whether to use DeepSpeed evolution attention"}
-    )
-    use_lma: bool = field(
-        default=False,
-        metadata={"help": "Whether to use linear multi-head attention"}
-    )
-    inplace_safe: bool = field(
-        default=False,
-        metadata={"help": "Whether to use inplace operations safely"}
+        metadata={"help": "Atom name char embedding size"}
     )
     chunk_size: Optional[int] = field(
         default=None,
         metadata={"help": "Chunk size for attention computation"}
     )
-
     # Add nested configurations for model architecture and components
     model_architecture: StageDModelArchConfig = field(default_factory=StageDModelArchConfig)
     transformer: StageDTransformerConfig = field(default_factory=StageDTransformerConfig)
     atom_encoder: StageDAtomEncoderConfig = field(default_factory=StageDAtomEncoderConfig)
     atom_decoder: StageDAtomDecoderConfig = field(default_factory=StageDAtomDecoderConfig)
+    diffusion: StageDDiffusionConfig = field(default_factory=StageDDiffusionConfig)
 
 @dataclass
 class LatentMergerConfig:
