@@ -287,7 +287,12 @@ def process_input_features(
     if "atom_to_token_idx" not in fixed_input_features:
         # Create a tensor that maps each atom to its corresponding residue index
         total_atoms = sum(len(atoms) for atoms in residue_atom_map)
-        atom_to_token_idx = torch.zeros(batch_size, total_atoms, dtype=torch.long)
+        atom_to_token_idx = torch.zeros(
+            batch_size,
+            total_atoms,
+            dtype=torch.long,
+            device=partial_coords.device,
+        )
 
         # Fill in the mapping
         for residue_idx, atom_indices in enumerate(residue_atom_map):
@@ -405,5 +410,6 @@ class ResidueToAtomsConfig:
         logger.debug(f"[BRIDGE DEBUG] len(residue_atom_map) = {len(residue_atom_map) if hasattr(residue_atom_map, '__len__') else 'N/A'}")
         logger.debug(f"[BRIDGE DEBUG] residue_atom_map (first 2) = {residue_atom_map[:2] if hasattr(residue_atom_map, '__getitem__') else 'N/A'}")
         logger.debug("[BRIDGE DEBUG] Call stack:")
-        traceback.print_stack()
+        if logger.isEnabledFor(logging.DEBUG):
+            traceback.print_stack()
         # ...existing code...
