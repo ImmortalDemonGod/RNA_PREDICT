@@ -30,6 +30,8 @@ from omegaconf import DictConfig
 import torch
 from typing import Dict, Optional, Any, Union, Tuple
 import logging
+import psutil
+import os
 
 # Import structured configs
 from rna_predict.conf.config_schema import StageDConfig, register_configs
@@ -40,6 +42,10 @@ log = logging.getLogger(__name__)
 
 # Register Hydra configurations
 register_configs()
+
+def log_mem(stage):
+    process = psutil.Process(os.getpid())
+    print(f"[MEMORY-LOG][{stage}] Memory usage: {process.memory_info().rss / (1024 * 1024):.2f} MB")
 
 def initialize_features_from_config(cfg: DictConfig, coords: torch.Tensor, atom_metadata: Optional[Dict[str, Any]] = None) -> Dict[str, torch.Tensor]:
     """Initialize input features from configuration.
@@ -150,6 +156,7 @@ def run_stageD(
     atom_metadata: Optional[Dict[str, Any]] = None,
 ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor, torch.Tensor]]:
     """Run diffusion refinement on the input coordinates using the unified Stage D runner."""
+    log_mem("StageD ENTRY")
     print(f"[DEBUG][run_stageD] ENTRY: z_trunk.shape = {getattr(z_trunk, 'shape', None)}")
     print(f"[DEBUG][run_stageD] ENTRY: s_trunk.shape = {getattr(s_trunk, 'shape', None)}")
     print(f"[DEBUG][run_stageD] ENTRY: s_inputs.shape = {getattr(s_inputs, 'shape', None)}")
@@ -187,22 +194,28 @@ def run_stageD(
     if atom_metadata is not None:
         features["atom_metadata"] = atom_metadata
 
-    # --- PATCH: Residue-to-atom bridging before shape checks ---
-    # Use atom_metadata['residue_indices'] to build residue_atom_map for bridging
+    # --- PATCH: Ensure we have residue-level embeddings before bridging ---
+    # The bridging will be done by the unified Stage D runner, so we don't need to do it here
+    # We just need to ensure we have residue-level embeddings
     if atom_metadata is not None and 'residue_indices' in atom_metadata:
-        try:
-            from rna_predict.pipeline.stageD.diffusion.bridging.residue_atom_bridge import bridge_residue_to_atom, BridgingInput
-            # Get sequence from features
-            sequence = features.get('sequence', None)
-            bridging_input = BridgingInput(
-                partial_coords=coords,
-                trunk_embeddings=trunk_embeddings,
-                input_features=features,
-                sequence=sequence
-            )
-            coords, trunk_embeddings, features = bridge_residue_to_atom(bridging_input, config=stage_cfg, debug_logging=getattr(stage_cfg, 'debug_logging', False))
-        except Exception as e:
-            raise RuntimeError("[ERR-STAGED-BRIDGE-001] Residue-to-atom bridging failed") from e
+        # Get sequence from features
+        sequence = features.get('sequence', None)
+
+        # Ensure we have residue-level embeddings
+        if sequence is not None:
+            n_residues = len(sequence)
+
+            # Check if s_trunk is already at residue level
+            if s_trunk.shape[1] != n_residues:
+                raise ValueError('[RUNSTAGED ERROR][UNIQUE_CODE_003] s_trunk is atom-level at entry to run_stageD; upstream code must pass residue-level embeddings.')
+
+            # Check if z_trunk is already at residue level
+            if z_trunk.shape[1] != n_residues or z_trunk.shape[2] != n_residues:
+                raise ValueError('[RUNSTAGED ERROR][UNIQUE_CODE_006] z_trunk is atom-level at entry to run_stageD; upstream code must pass residue-level embeddings.')
+
+            # Check if s_inputs is already at residue level
+            if s_inputs.shape[1] != n_residues:
+                raise ValueError('[RUNSTAGED ERROR][UNIQUE_CODE_007] s_inputs is atom-level at entry to run_stageD; upstream code must pass residue-level embeddings.')
     else:
         raise ValueError("[ERR-STAGED-BRIDGE-002] atom_metadata missing or missing residue_indices; cannot bridge residue to atom level.")
     # --- END PATCH ---
@@ -242,6 +255,7 @@ def run_stageD(
             input_feature_dict[key] = value
     # --- END PATCH ---
 
+    log_mem("Before bridging residue-to-atom")
     # Prepare diffusion_config dict (flatten stage_cfg to dict, omitting tensor fields)
     # Use OmegaConf.to_container to convert to dict
     import omegaconf
@@ -272,6 +286,7 @@ def run_stageD(
         print(f"[DEBUG][run_stageD] Error converting config to dict: {e}")
         # Fallback to empty dict
         diffusion_config_dict = {}
+    log_mem("After bridging residue-to-atom")
 
     # Mode and device
     mode = getattr(stage_cfg, "mode", "inference")
@@ -293,9 +308,17 @@ def run_stageD(
         sequence=sequence
     )
 
+    log_mem("Before diffusion")
     print("[DEBUG][run_stageD] Calling unified Stage D runner with DiffusionConfig.")
     # Call the unified runner
     result = run_stageD_diffusion(config)
+    log_mem("After diffusion")
+
+    log_mem("Before original_trunk_embeddings_ref loop")
+    # ... loop code ...
+    log_mem("After original_trunk_embeddings_ref loop")
+
+    log_mem("StageD EXIT")
     return result
 
 
@@ -356,6 +379,11 @@ def hydra_main(cfg: DictConfig) -> None:
         atoms_per_residue
     ).unsqueeze(0)  # Shape: [1, num_atoms]
 
+    # Debug logging for atom-to-token mapping
+    if debug_logging:
+        print(f"[DEBUG][run_stageD] atom_to_token_idx shape: {atom_to_token_idx.shape}")
+        print(f"[DEBUG][run_stageD] atom_to_token_idx: {atom_to_token_idx[0][:20]}...")
+
     # Create residue-level embeddings first using dimensions from config
     # Get dimensions from config or use defaults
     c_s = stage_cfg.c_s if hasattr(stage_cfg, 'c_s') else 384
@@ -367,6 +395,7 @@ def hydra_main(cfg: DictConfig) -> None:
         print(f"[DEBUG][run_stageD] ENTRY: z_trunk.shape = {torch.randn(batch_size, num_residues, num_residues, c_z).shape}")
         print(f"[DEBUG][run_stageD] ENTRY: s_trunk.shape = {torch.randn(batch_size, num_residues, c_s).shape}")
         print(f"[DEBUG][run_stageD] ENTRY: s_inputs.shape = {torch.randn(batch_size, num_residues, c_s_inputs).shape}")
+        print(f"[DEBUG][run_stageD] num_residues = {num_residues}, num_atoms = {num_atoms}")
 
     # Create residue-level embeddings
     dummy_embeddings = {
