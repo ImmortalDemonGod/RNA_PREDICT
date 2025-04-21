@@ -12,7 +12,7 @@ import torch
 
 from rna_predict.pipeline.stageD.diffusion.bridging import (
     bridge_residue_to_atom,
-    BridgingInput,  # Import the new dataclass
+    BridgingInput,  
 )
 from rna_predict.pipeline.stageD.diffusion.inference import run_inference_mode
 from rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager import (
@@ -21,11 +21,12 @@ from rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager import (
 from rna_predict.pipeline.stageD.diffusion.training import run_training_mode
 from rna_predict.pipeline.stageD.diffusion.utils import (
     DiffusionConfig,
-    create_fallback_input_features,
+    create_fallback_input_features
 )
 from rna_predict.pipeline.stageD.tensor_fixes import apply_tensor_fixes
 
-logger = logging.getLogger(__name__)
+# Initialize logger for Stage D unified runner
+logger = logging.getLogger("rna_predict.pipeline.stageD.diffusion.run_stageD_unified")
 
 
 def run_stageD_diffusion(
@@ -62,6 +63,10 @@ def _run_stageD_diffusion_impl(
         If config.mode == "train":
             Tuple of (x_denoised, x_gt_out, sigma)
     """
+    debug_logging = getattr(config, 'debug_logging', False)
+    if debug_logging:
+        logger.debug(f"[StageD] Running diffusion refinement with config: {config}")
+
     if config.mode not in ["inference", "train"]:
         raise ValueError(
             f"Unsupported mode: {config.mode}. Must be 'inference' or 'train'."
@@ -71,13 +76,24 @@ def _run_stageD_diffusion_impl(
     original_trunk_embeddings_ref = config.trunk_embeddings
 
     # Apply tensor shape compatibility fixes
-    apply_tensor_fixes()  # type: ignore [no-untyped-call]
+    apply_tensor_fixes()  
 
     # Create and initialize the diffusion manager
-    diffusion_manager = ProtenixDiffusionManager(
-        diffusion_config=config.diffusion_config,
-        device=config.device,
-    )
+    from omegaconf import OmegaConf
+
+    # Create a Hydra-compatible config structure
+    hydra_cfg = OmegaConf.create({
+        "stageD": {
+            "diffusion": {
+                "device": config.device,
+                # Add all diffusion config parameters
+                **config.diffusion_config
+            }
+        }
+    })
+
+    # Create the manager with the Hydra config
+    diffusion_manager = ProtenixDiffusionManager(cfg=hydra_cfg)
 
     # Prepare input features if not provided (basic fallback)
     input_features = config.input_features
@@ -86,23 +102,31 @@ def _run_stageD_diffusion_impl(
             "input_features not provided, using basic fallback based on partial_coords."
         )
         input_features = create_fallback_input_features(
-            config.partial_coords, config.diffusion_config, config.device
+            config.partial_coords, config, config.device
         )
 
     # Bridge residue-level embeddings to atom-level embeddings
     # This replaces the previous validate_and_fix_shapes function with a more systematic approach
     # Create the parameter object
+    # PATCH: Pass sequence from config if available, else fallback to None
+    sequence = getattr(config, "sequence", None)
     bridging_data = BridgingInput(
         partial_coords=config.partial_coords,
         trunk_embeddings=original_trunk_embeddings_ref,
         input_features=input_features,
-        sequence=None,  # Pass None; bridge_residue_to_atom handles extraction
+        sequence=sequence,
     )
     # Call with the parameter object
     partial_coords, trunk_embeddings_internal, input_features = bridge_residue_to_atom(
         bridging_input=bridging_data,
+        config=config,
         debug_logging=config.debug_logging,
     )
+
+    if debug_logging:
+        logger.debug(f"[StageD] partial_coords shape: {partial_coords.shape}")
+        logger.debug(f"[StageD] trunk_embeddings keys: {list(trunk_embeddings_internal.keys())}")
+        logger.debug(f"[StageD] input_features keys: {list(input_features.keys())}")
 
     # Store the processed embeddings in the config for potential reuse
     config.trunk_embeddings_internal = trunk_embeddings_internal
@@ -122,7 +146,10 @@ def _run_stageD_diffusion_impl(
             device=config.device,
         )
 
-        return run_inference_mode(inference_context)
+        output = run_inference_mode(inference_context)
+        if debug_logging:
+            logger.debug(f"[StageD] Inference output shape: {output.shape}")
+        return output
 
     # mode == "train"
     from rna_predict.pipeline.stageD.diffusion.training.training_mode import TrainingContext
@@ -138,7 +165,18 @@ def _run_stageD_diffusion_impl(
         device=config.device,
     )
 
-    return run_training_mode(training_context)
+    output = run_training_mode(training_context)
+    if debug_logging:
+        logger.debug(f"[StageD] Training output shapes: {[x.shape for x in output]}")
+    # Enforce output shape for x_denoised in training mode
+    x_denoised = output[0]
+    assert x_denoised.dim() == 3, f"[StageD] x_denoised must have 3 dims, got {x_denoised.shape}"
+    assert x_denoised.shape[0] == 1, f"[StageD] Batch size must be 1, got {x_denoised.shape}"
+    assert x_denoised.shape[2] == 3, f"[StageD] Last dim must be 3, got {x_denoised.shape}"
+    # Optionally, enforce 25 atoms if desired (comment out if variable):
+    # assert x_denoised.shape[1] == 25, f"[StageD] Atom count must be 25, got {x_denoised.shape}"
+    logger.debug(f"[StageD][run_stageD_unified] x_denoised output shape: {x_denoised.shape}")
+    return output
 
 
 def demo_run_diffusion() -> Union[
@@ -148,20 +186,20 @@ def demo_run_diffusion() -> Union[
     Demo function to run the diffusion stage with a simple example.
     """
     # Set device
-    device = "mps"  # Use MPS for Mac
+    device = "mps"  
 
     # Create partial coordinates with smaller sequence length
-    partial_coords = torch.randn(1, 25, 3, device=device)  # [batch, seq_len, 3]
+    partial_coords = torch.randn(1, 25, 3, device=device)  
 
     # Create trunk embeddings with smaller dimensions
     trunk_embeddings = {
         "s_inputs": torch.randn(
             1, 25, 449, device=device
-        ),  # [batch, seq_len, c_s_inputs]
-        "s_trunk": torch.randn(1, 25, 384, device=device),  # [batch, seq_len, c_s]
+        ),  
+        "s_trunk": torch.randn(1, 25, 384, device=device),  
         "z_trunk": torch.randn(
             1, 25, 25, 64, device=device
-        ),  # [batch, seq_len, seq_len, pair_dim]
+        ),  
     }
 
     # Create diffusion config with memory-optimized settings
@@ -192,7 +230,8 @@ def demo_run_diffusion() -> Union[
         diffusion_config=diffusion_config,
         mode="inference",
         device=device,
-        input_features=None,  # Assuming None for demo as it wasn't provided
+        input_features=None,  
+        debug_logging=True,  
     )
     refined_coords = run_stageD_diffusion(config=demo_config)
 
