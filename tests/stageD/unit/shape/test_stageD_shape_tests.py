@@ -356,6 +356,9 @@ def test_local_trunk_small_natom_memory_efficient():
             "sing": torch.randn(batch_size, num_atoms, 449, device=device),
         }
 
+        # Provide a sequence so residue count can be determined by bridge_residue_to_atom
+        sequence = ["A"] * num_tokens
+
         current_memory = get_memory_usage()
         print(f"Memory before run_stageD_diffusion: {current_memory:.2f} MB")
 
@@ -372,6 +375,7 @@ def test_local_trunk_small_natom_memory_efficient():
              mode="inference",
              device=device,
              input_features=input_features,
+             sequence=sequence,
          )
         coords_out = run_stageD_diffusion(config=test_config)
 
@@ -686,8 +690,8 @@ def test_problem_size_memory_threshold():
             batch_size, num_atoms, 256
         ),  # Original dimension
         "ref_mask": torch.ones(batch_size, num_atoms, 1),
-        "restype": torch.zeros(batch_size, num_atoms, 32),  # Original dimension
-        "profile": torch.zeros(batch_size, num_atoms, 32),  # Original dimension
+        "restype": torch.zeros(batch_size, num_tokens, 32),  # Original dimension
+        "profile": torch.zeros(batch_size, num_tokens, 32),  # Original dimension
         "deletion_mean": torch.zeros(batch_size, num_atoms, 1),
         "sing": torch.randn(batch_size, num_atoms, 449),  # Original dimension
         # Add s_inputs tensor required by the diffusion manager
@@ -807,3 +811,41 @@ def test_problem_size_memory_threshold():
     assert (
         memory_increase < 1000
     ), f"Memory increase ({memory_increase:.1f} MB) exceeds threshold"
+
+
+# ------------------------------------------------------------------------------
+# Test: Unique error for atom-level input to bridge_residue_to_atom
+
+import hypothesis.strategies as st
+from hypothesis import given
+from rna_predict.pipeline.stageD.diffusion.bridging.residue_atom_bridge import bridge_residue_to_atom, BridgingInput
+
+@given(
+    batch_size=st.integers(min_value=1, max_value=2),
+    n_residues=st.integers(min_value=2, max_value=8),
+    atoms_per_residue=st.integers(min_value=2, max_value=16),
+    c_s=st.integers(min_value=2, max_value=8)
+)
+def test_bridge_residue_to_atom_raises_on_atom_level_input(batch_size, n_residues, atoms_per_residue, c_s):
+    import torch
+    # Simulate atom-level s_emb: [B, N_atom, c_s]
+    n_atoms = n_residues * atoms_per_residue
+    s_emb = torch.randn(batch_size, n_atoms, c_s)
+    trunk_embeddings = {"s_trunk": s_emb}
+    # residue_atom_map has length n_residues
+    # Provide sequence so residue count can be determined
+    sequence = ["A"] * n_residues
+    bridging_input = BridgingInput(
+        partial_coords=None,
+        trunk_embeddings=trunk_embeddings,
+        input_features=None,
+        sequence=sequence
+    )
+    config = type("DummyConfig", (), {})()
+    # Should raise ValueError with our unique code
+    try:
+        bridge_residue_to_atom(bridging_input, config, debug_logging=False)
+    except ValueError as e:
+        assert "[BRIDGE ERROR][UNIQUE_CODE_001]" in str(e), f"Unexpected error message: {e}"
+    else:
+        raise AssertionError("bridge_residue_to_atom did not raise on atom-level input!")
