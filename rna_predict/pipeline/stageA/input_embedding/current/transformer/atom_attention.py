@@ -38,6 +38,7 @@ class AtomAttentionConfig:
     c_atompair: int = 16  # atom pair embedding dim
     c_s: int = 384  # single embedding dim
     c_z: int = 128  # pair embedding dim
+    c_ref_element: int = 128  # reference element embedding dim
     n_blocks: int = 3
     n_heads: int = 4
     n_queries: int = 32
@@ -101,6 +102,8 @@ class AtomAttentionEncoder(nn.Module):
         self.c_z = config.c_z
         self.n_queries = config.n_queries
         self.n_keys = config.n_keys
+        self.c_ref_element = config.c_ref_element
+        print(f"[DEBUG][AtomAttentionEncoder] Propagating c_ref_element={self.c_ref_element}")
         self.local_attention_method = "local_cross_attention"
 
         # Set up component configurations
@@ -130,9 +133,10 @@ class AtomAttentionEncoder(nn.Module):
             "ref_pos": 3,
             "ref_charge": 1,
             "ref_mask": 1,
-            "ref_element": 128,
+            "ref_element": self.c_ref_element,
             "ref_atom_name_chars": 4 * 64,
         }
+        print(f"[DEBUG][AtomAttentionEncoder] _setup_feature_dimensions: ref_element={self.c_ref_element}")
 
     def _setup_atom_encoders(self) -> None:
         """Set up encoders for atom features."""
@@ -462,6 +466,24 @@ class AtomAttentionEncoder(nn.Module):
 
         return p_lm
 
+    def _process_input_features(self, input_feature_dict: InputFeatureDict) -> None:
+        """Process and validate input feature dimensions."""
+        # Handle ref_space_uid dimension
+        if "ref_space_uid" in input_feature_dict:
+            ref_space_uid = input_feature_dict["ref_space_uid"]
+            if ref_space_uid.dim() == 2:  # [B, N_atom]
+                input_feature_dict["ref_space_uid"] = ref_space_uid.unsqueeze(
+                    -1
+                )  # [B, N_atom, 1]
+
+        # Handle atom_to_token_idx dimension
+        if "atom_to_token_idx" in input_feature_dict:
+            atom_to_token_idx = input_feature_dict["atom_to_token_idx"]
+            if atom_to_token_idx.dim() == 1:  # [N_atom]
+                input_feature_dict["atom_to_token_idx"] = atom_to_token_idx.unsqueeze(
+                    0
+                )  # [1, N_atom]
+
     def _process_coordinate_encoding(
         self, q_l: torch.Tensor, r_l: Optional[torch.Tensor], ref_pos: torch.Tensor
     ) -> torch.Tensor:
@@ -744,6 +766,7 @@ class AtomAttentionEncoder(nn.Module):
         c_atompair: int = 16,
         c_s: int = 384,
         c_z: int = 128,
+        c_ref_element: int = 128,
         n_blocks: int = 3,
         n_heads: int = 4,
         n_queries: int = 32,
@@ -760,6 +783,7 @@ class AtomAttentionEncoder(nn.Module):
             c_atompair: Atom pair embedding dimension
             c_s: Single embedding dimension
             c_z: Pair embedding dimension
+            c_ref_element: Reference element embedding dimension
             n_blocks: Number of blocks in AtomTransformer
             n_heads: Number of heads in AtomTransformer
             n_queries: Number of queries for local attention
@@ -776,6 +800,7 @@ class AtomAttentionEncoder(nn.Module):
             c_atompair=c_atompair,
             c_s=c_s,
             c_z=c_z,
+            c_ref_element=c_ref_element,
             n_blocks=n_blocks,
             n_heads=n_heads,
             n_queries=n_queries,
@@ -944,6 +969,7 @@ class AtomAttentionDecoder(nn.Module):
             c_atompair=c_atompair,
             c_s=0,  # Not used in decoder
             c_z=0,  # Not used in decoder
+            c_ref_element=128,  # Not used in decoder
             n_blocks=n_blocks,
             n_heads=n_heads,
             n_queries=n_queries,
