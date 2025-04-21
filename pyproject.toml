@@ -33,6 +33,7 @@ dependencies = [
     "omegaconf==2.3.0",
     "cosmic-ray>=8.4.1,<9.0.0",
     "lightning>=2.2",
+    "pytest>=8.3.5",
 ]
 
 # If you have optional (dev) dependencies:
