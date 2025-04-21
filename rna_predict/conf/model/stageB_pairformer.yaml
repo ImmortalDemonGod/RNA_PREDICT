@@ -87,7 +87,7 @@ no_heads_pair: 8
 init_z_from_adjacency: false
 
 # Debug logging for Pairformer (added for testing/logging control)
-debug_logging: true
+debug_logging: false  # [UNIQUE-ERR-STAGEB-DEBUGLOGGING-001] Default off for test override compatibility
 
 # Optional LoRA configuration
 lora:
