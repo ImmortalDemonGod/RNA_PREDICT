@@ -12,6 +12,7 @@ from rna_predict.utils.tensor_utils import (
     residue_to_atoms,
     STANDARD_RNA_ATOMS,
 )
+from rna_predict.pipeline.stageD.diffusion.utils.tensor_utils import normalize_tensor_dimensions
 
 
 class TestDeriveResidueAtomMap:
@@ -247,3 +248,31 @@ class TestIntegration:
 
         # Check that the total number of atoms matches partial_coords
         assert atom_embs.shape[0] == partial_coords.shape[1]
+
+
+class TestNormalizeTensorDimensions:
+    """Unit tests for normalize_tensor_dimensions, including shape preservation and unique error."""
+
+    def test_preserve_pair_shape(self):
+        # [B, 1, 1, C] with key='pair' should be preserved
+        tensor = torch.randn(2, 1, 1, 4)
+        out = normalize_tensor_dimensions(tensor, batch_size=2, key='pair')
+        assert out.shape == (2, 1, 1, 4)
+
+    def test_preserve_z_trunk_shape(self):
+        # [B, 1, 1, C] with key='z_trunk' should be preserved
+        tensor = torch.randn(2, 1, 1, 4)
+        out = normalize_tensor_dimensions(tensor, batch_size=2, key='z_trunk')
+        assert out.shape == (2, 1, 1, 4)
+
+    def test_unique_error_on_collapse(self):
+        # [B, 1, C] with key='pair' should raise unique error
+        tensor = torch.randn(2, 1, 4)
+        with pytest.raises(RuntimeError, match=r"\[UNIQUE-PAIR-SHAPE-ERROR\]"):
+            normalize_tensor_dimensions(tensor, batch_size=2, key='pair')
+
+    def test_single_embedding_squeeze(self):
+        # [B, 1, C] with key=None should squeeze to [B, C]
+        tensor = torch.randn(2, 1, 4)
+        out = normalize_tensor_dimensions(tensor, batch_size=2)
+        assert out.shape == (2, 4)
