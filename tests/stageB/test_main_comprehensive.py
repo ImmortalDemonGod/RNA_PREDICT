@@ -571,7 +571,10 @@ class TestRunPipelineHypothesis:
                 },
                 "stageB": {
                     "debug_logging": True,
-                    "torsion_bert": {"device": "cpu"},
+                    "torsion_bert": {
+                        "device": "cpu",
+                        "model_name_or_path": "sayby/rna_torsionbert"
+                    },
                     "pairformer": {
                         "init_z_from_adjacency": True
                     }
