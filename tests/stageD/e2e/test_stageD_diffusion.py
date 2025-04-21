@@ -68,6 +68,9 @@ def test_run_stageD_diffusion_inference(
         # Match the c_s_inputs dimension expected by DiffusionConditioning (384)
         trunk_embeddings["s_inputs"] = torch.randn(1, 5, 384)
 
+    # Provide a minimal sequence matching the number of residues/atoms (5)
+    sequence = ["A", "C", "G", "U", "A"]
+
     try:
         # Create the config object using the variables available in the test scope
         test_config = DiffusionConfig(
@@ -77,6 +80,7 @@ def test_run_stageD_diffusion_inference(
             mode="inference",
             device="cpu",
             input_features=minimal_input_features,
+            sequence=sequence,  # PATCH: provide sequence to avoid bridging error
         )
         # Call the refactored function with the config object
         out_coords = run_stageD_diffusion(config=test_config)

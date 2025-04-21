@@ -298,6 +298,9 @@ class TriangleMultiplicativeUpdate(BaseTriangleMultiplicativeUpdate):
             z_cache.copy_(z[z_cache_slicer])
             z_cache_rotated = False
 
+            # Initialize result tensor before the loop
+            result = z.clone()
+
             # We need to reorient the z-cache at the halfway point, and we
             # don't want a single chunk to straddle that point. We contract one
             # of the chunks in the middle to address that problem.
@@ -383,7 +386,7 @@ class TriangleMultiplicativeUpdate(BaseTriangleMultiplicativeUpdate):
                     temp_chunk += z[z_slicer]
 
                 # Create a new tensor for the result
-                if not 'result' in locals():
+                if 'result' not in locals():
                     result = z.clone()
 
                 # Assign the temporary chunk to result
