@@ -1,13 +1,16 @@
 # cosmic-ray.dev.toml
 [cosmic-ray]
 module-path = "rna_predict"
+
 test-command = "pytest tests -k 'not slow' -n 2"
 timeout = 300.0 # 5 minutes to avoid timeouts
 excluded-modules = [
     "tests/**",      # Exclude the main test directory
+    "docs/**",       # Exclude documentation files
+    "rna_predict/scripts/**", # Exclude scripts directory
     "**/__init__.py", # Exclude all __init__.py files
     "**/scripts/**",  # Exclude scripts directory
-    "scripts/**",     # Exclude top-level scripts directory
+    "scripts/**",     # Exclude top-level scripts directory    # Add more specific exclusions if needed
 ]
 
 # Distributor config - using HTTP for parallelism

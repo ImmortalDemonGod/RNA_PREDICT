@@ -66,6 +66,7 @@ def temp_checkpoint_dir(tmp_path_factory) -> str:
     torch.save(dummy_state, str(checkpoints_dir / ckpt_filename))
     return str(base_dir) # Return base temp dir path
 
+
 @pytest.fixture
 def mock_stageA_config(temp_checkpoint_dir) -> DictConfig:
     """Creates a mock OmegaConf DictConfig for StageAConfig using temp checkpoint."""

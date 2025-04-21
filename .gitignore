@@ -189,12 +189,29 @@ node_modules/
 tasks.json
 tasks/
 .cursor
-scripts/
+# scripts/ # Removed to allow tracking our Python and shell scripts
 run-task-master.js
 .coverage_config.json
+
 *.sqlite
 .coverage_config.json
 .coverage_config.json.bak
 analysis_results/
 tests/stageA/integration/outputs/
 tests/stageA/integration/RFold/
+
+predict_test.ct
+
+# Mutation test reports
+reports/mutation_tests/*.rst
+!reports/mutation_tests/.gitkeep
+
+# Script-specific ignores
+scripts/**/__pycache__/
+scripts/**/*.pyc
+scripts/**/*.pyo
+scripts/**/*.pyd
+scripts/**/.DS_Store
+scripts/**/node_modules/
+scripts/**/.env
+
