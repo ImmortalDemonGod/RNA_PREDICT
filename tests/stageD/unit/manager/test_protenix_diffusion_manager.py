@@ -9,6 +9,7 @@ from hypothesis import strategies as st
 # Import the class under test
 from rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager import (
     ProtenixDiffusionManager,
+    DiffusionStepInput, # Import DiffusionStepInput
 )
 # Import generator class needed for type checking in tests
 from rna_predict.pipeline.stageD.diffusion.generator import (
@@ -272,14 +273,15 @@ class TestProtenixDiffusionManagerTrainDiffusionStep(unittest.TestCase):
         fake_sigma = torch.tensor([0.5])
         self.mock_sample_diff_train.return_value = (fake_x_gt_augment, fake_x_denoised, fake_sigma)
 
-        # Call the method under test (no extra args needed now)
-        x_gt_out, x_den_out, sigma_out = current_manager.train_diffusion_step(
+        # Call the method under test (now expects a DiffusionStepInput object)
+        step_input = DiffusionStepInput(
             label_dict=label_dict,
             input_feature_dict=input_feature_dict,
             s_inputs=s_inputs,
             s_trunk=s_trunk,
             z_trunk=z_trunk,
         )
+        x_gt_out, x_den_out, sigma_out = current_manager.train_diffusion_step(step_input)
 
         # Verify return values match mock
         self.assertTrue(torch.equal(x_gt_out, fake_x_gt_augment),
