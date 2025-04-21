@@ -20,7 +20,7 @@ from rna_predict.pipeline.stageA.input_embedding.current.utils import (
 class FeatureProcessor:
     """Handles processing of atom features and embeddings."""
 
-    def __init__(self, c_atom: int, c_atompair: int, c_s: int, c_z: int):
+    def __init__(self, c_atom: int, c_atompair: int, c_s: int, c_z: int, c_ref_element: int = 128):
         """
         Initialize the feature processor.
 
@@ -29,22 +29,23 @@ class FeatureProcessor:
             c_atompair: Atom pair embedding dimension
             c_s: Single embedding dimension
             c_z: Pair embedding dimension
+            c_ref_element: ref_element embedding dimension (config-driven)
         """
         self.c_atom = c_atom
         self.c_atompair = c_atompair
         self.c_s = c_s
         self.c_z = c_z
+        self.c_ref_element = c_ref_element
 
-        # Define expected feature dimensions
+        # Define expected feature dimensions (config-driven)
         self.input_feature = {
             "ref_pos": 3,
             "ref_charge": 1,
             "ref_mask": 1,
-            "ref_element": 128,
+            "ref_element": self.c_ref_element,
             "ref_atom_name_chars": 4 * 64,
         }
-
-        # Set up encoders
+        print(f"[DEBUG][FeatureProcessor] ref_element expected dim: {self.c_ref_element}")
         self._setup_encoders()
 
     def _setup_encoders(self) -> None:
@@ -82,7 +83,9 @@ class FeatureProcessor:
         ref_atom_name_chars = safe_tensor_access(
             input_feature_dict, "ref_atom_name_chars"
         )
-
+        print(f"[DEBUG][FeatureProcessor] extract_atom_features: ref_element.shape={ref_element.shape}, expected={self.c_ref_element}")
+        assert ref_element.shape[-1] == self.c_ref_element, (
+            f"UNIQUE ERROR: ref_element last dim {ref_element.shape[-1]} does not match expected {self.c_ref_element}")
         # Concatenate features
         features = torch.cat(
             [ref_pos, ref_charge, ref_mask, ref_element, ref_atom_name_chars], dim=-1
