@@ -19,6 +19,43 @@ c_noise_embedding: 32
 ref_element_size: 128
 ref_atom_name_chars_size: 256
 
+# Required model architecture configuration
+model_architecture:
+  c_token: 384
+  c_s: 384
+  c_z: 128
+  c_s_inputs: 449
+  c_atom: 128
+  c_noise_embedding: 32
+  num_layers: 6
+  num_heads: 8
+  dropout: 0.1
+  coord_eps: 1e-6
+  coord_min: -1e4
+  coord_max: 1e4
+  coord_similarity_rtol: 1e-3
+  test_residues_per_batch: 25
+
+# Required transformer configuration
+transformer:
+  n_blocks: 6
+  n_heads: 8
+  blocks_per_ckpt: null
+
+# Required atom encoder configuration
+atom_encoder:
+  c_in: 3
+  c_hidden: [32, 64, 128]
+  c_out: 64
+  dropout: 0.1
+
+# Required atom decoder configuration
+atom_decoder:
+  c_in: 64
+  c_hidden: [128, 64, 32]
+  c_out: 3
+  dropout: 0.1
+
 # Noise schedule configuration
 noise_schedule:
   schedule_type: "linear"
@@ -40,5 +77,12 @@ inference:
     gamma_min: 1.0
     noise_scale_lambda: 1.003
     step_scale_eta: 1.5
+
+# Memory optimization flags
+use_memory_efficient_kernel: false
+use_deepspeed_evo_attention: false
+use_lma: false
+inplace_safe: false
+chunk_size: null
 
 atom_metadata: null
