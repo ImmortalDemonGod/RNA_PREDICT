@@ -65,6 +65,14 @@ def prep_qkv(params: PrepQKVParams) -> Tuple[torch.Tensor, torch.Tensor, torch.T
     k = params.modules.to_k(params.tensors.kv_x)
     v = params.modules.to_v(params.tensors.kv_x)
 
+    # Debug instrumentation for shape mismatch
+    print(f"[DEBUG-prep_qkv] q.shape before reshape: {q.shape}")
+    print(f"[DEBUG-prep_qkv] num_heads: {params.config.num_heads}, head_dim: {params.config.head_dim}")
+    print(f"[DEBUG-prep_qkv] q.shape[-1]: {q.shape[-1]}, num_heads * head_dim: {params.config.num_heads * params.config.head_dim}")
+    assert q.shape[-1] == params.config.num_heads * params.config.head_dim, (
+        f"Shape mismatch: q.shape[-1]={q.shape[-1]}, num_heads*head_dim={params.config.num_heads * params.config.head_dim}"
+    )
+
     # Apply scaling if requested
     if params.config.apply_scale:
         scaling_factor = (
