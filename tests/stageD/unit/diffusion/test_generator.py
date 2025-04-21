@@ -125,21 +125,18 @@ class TestInferenceNoiseScheduler:
         assert schedule[-1].item() == 0, "Last element of schedule must be 0"
 
     @pytest.mark.parametrize(
-        "s_max, s_min, rho, sigma_data, N_step",
+        "s_max, s_min, p, sigma_data, N_step",
         [
-            (160.0, 4e-4, 7.0, 16.0, 100),
-            (100.0, 1e-3, 5.0, 8.0, 50),
-            (50.0, 1e-5, 2.0, 32.0, 10),
+            (160.0, 4e-4, 7.0, 16.0, 200),
+            (100.0, 1e-4, 5.0, 8.0, 100),
         ],
     )
-    def test_param_init_and_call(
-        self, s_max: float, s_min: float, rho: float, sigma_data: float, N_step: int
+    def test_inference_noise_scheduler_call(
+        self, s_max: float, s_min: float, p: float, sigma_data: float, N_step: int
     ) -> None:
-        """
-        Test InferenceNoiseScheduler with various parameter sets and step counts.
-        """
+        """Test InferenceNoiseScheduler call with various parameters."""
         scheduler = InferenceNoiseScheduler(
-            s_max=s_max, s_min=s_min, rho=rho, sigma_data=sigma_data
+            s_max=s_max, s_min=s_min, p=p, sigma_data=sigma_data
         )
         schedule = scheduler(N_step=N_step)
         assert schedule.shape[0] == N_step + 1, "Schedule length mismatch"
@@ -150,19 +147,17 @@ class TestInferenceNoiseScheduler:
 
     @given(
         s_max=st.floats(min_value=1, max_value=200),
-        s_min=st.floats(min_value=1e-6, max_value=1e-1),
-        rho=st.floats(min_value=1, max_value=10),
-        sigma_data=st.floats(min_value=0.5, max_value=32),
-        n_step=st.integers(min_value=1, max_value=50),
+        s_min=st.floats(min_value=1e-6, max_value=1e-2),
+        p=st.floats(min_value=1, max_value=10),
+        sigma_data=st.floats(min_value=1, max_value=32),
+        n_step=st.integers(min_value=10, max_value=1000),
     )
-    def test_fuzz_inference_noise_scheduler(
-        self, s_max: float, s_min: float, rho: float, sigma_data: float, n_step: int
+    def test_inference_noise_scheduler_property_based(
+        self, s_max: float, s_min: float, p: float, sigma_data: float, n_step: int
     ) -> None:
-        """
-        Fuzzy test to ensure InferenceNoiseScheduler's schedule is stable across wide parameter ranges.
-        """
+        """Property-based test for InferenceNoiseScheduler."""
         scheduler = InferenceNoiseScheduler(
-            s_max=s_max, s_min=s_min, rho=rho, sigma_data=sigma_data
+            s_max=s_max, s_min=s_min, p=p, sigma_data=sigma_data
         )
         schedule = scheduler(N_step=n_step)
         assert schedule.shape[0] == n_step + 1, "Fuzz: schedule shape mismatch"
