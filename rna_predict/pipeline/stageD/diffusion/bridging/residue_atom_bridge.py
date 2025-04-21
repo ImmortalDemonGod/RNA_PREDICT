@@ -64,7 +64,12 @@ def _process_pair_embedding(value: torch.Tensor, residue_atom_map: list, debug_l
         torch.Tensor: Atom-level pair embeddings. Shape [B, N_atom, N_atom, C] or [N_atom, N_atom, C]
     """
     import torch
-    print(f"[DEBUG][_process_pair_embedding] ENTRY: value.shape = {getattr(value, 'shape', None)} for key={key}")
+    if debug_logging:
+        logger.debug(
+            "[_process_pair_embedding] %s shape=%s",
+            key,
+            getattr(value, "shape", None),
+        )
     # Validate input
     if not isinstance(value, torch.Tensor):
         logger.warning(f"Pair embedding for {key} is not a tensor. Returning as is.")
@@ -135,7 +140,12 @@ def _process_one_trunk_embedding(
 
     # Normalize dimensions
     temp_value = normalize_tensor_dimensions(value, context.batch_size, key=key)
-    print(f"[DEBUG][_process_one_trunk_embedding] key={key} temp_value.shape={getattr(temp_value, 'shape', None)}")
+    if context.debug_logging:
+        logger.debug(
+            "[_process_one_trunk_embedding] %s shape=%s",
+            key,
+            getattr(temp_value, "shape", None),
+        )
 
     # Apply feature dimension adjustment if needed
     if key in ["s_trunk", "s_inputs", "sing"] and hasattr(temp_value, 'shape'):
@@ -160,7 +170,12 @@ def _process_one_trunk_embedding(
             temp_value, context.residue_atom_map, key, context.debug_logging
         )
     elif key in ["pair", "z_trunk"]:
-        print(f"[DEBUG][_process_one_trunk_embedding] key={key} temp_value.shape={getattr(temp_value, 'shape', None)}")
+        if context.debug_logging:
+            logger.debug(
+                "[_process_one_trunk_embedding] %s shape=%s",
+                key,
+                getattr(temp_value, "shape", None),
+            )
         processed_value = _process_pair_embedding(temp_value, context.residue_atom_map, context.debug_logging, key)
     else:
         # Keep other tensors as is (no bridging needed)
@@ -290,6 +305,28 @@ def bridge_residue_to_atom(
     config: Any,  # Accepts either config object or DictConfig
     debug_logging: bool = False,
 ):
+    # --- PATCH: Guard against double-bridging or atom-level input (moved to top, robust) ---
+    trunk_embeddings = bridging_input.trunk_embeddings
+    sequence = bridging_input.sequence
+    input_features = bridging_input.input_features or {}
+    atom_metadata = input_features.get("atom_metadata") if input_features else None
+    residue_count = None
+    if sequence is not None:
+        residue_count = len(sequence)
+    elif atom_metadata and "residue_indices" in atom_metadata:
+        residue_count = len(set(atom_metadata["residue_indices"]))
+    if residue_count is None:
+        raise ValueError(
+            "[BRIDGE ERROR][UNIQUE_CODE_002] Cannot determine residue count for bridging. Provide sequence or atom_metadata."
+        )
+    if trunk_embeddings.get("s_trunk") is not None:
+        s_emb = trunk_embeddings["s_trunk"]
+        if s_emb.shape[1] != residue_count:
+            raise ValueError(
+                f"[BRIDGE ERROR][UNIQUE_CODE_001] s_emb.shape[1] = {s_emb.shape[1]} does not match residue count ({residue_count}). "
+                "This likely means atom-level embeddings were passed to the bridging function, which expects residue-level. "
+                "Check the pipeline for double-bridging or misrouted tensors."
+            )
     # SYSTEMATIC DEBUGGING: Log sequence and mapping lengths
     sequence = bridging_input.sequence
     trunk_embeddings = bridging_input.trunk_embeddings
@@ -320,7 +357,7 @@ def bridge_residue_to_atom(
     if debug_logging:
         logger.debug(f"[bridge_residue_to_atom] residue_atom_map length: {len(residue_atom_map)}")
         logger.debug(f"[bridge_residue_to_atom] residue_atom_map: {residue_atom_map}")
-    # --- PATCH: Debug print for apply_memory_preprocess ---
+    # --- PATCH: Memory preprocessing configuration ---
     apply_memory_preprocess = False
     max_len = 25
     if hasattr(config, 'diffusion_config') and 'memory' in config.diffusion_config:
@@ -330,11 +367,13 @@ def bridge_residue_to_atom(
     elif hasattr(config, 'memory'):
         apply_memory_preprocess = getattr(config.memory, 'apply_memory_preprocess', False)
         max_len = getattr(config.memory, 'memory_preprocess_max_len', 25)
-    print(f"[DEBUG][bridge_residue_to_atom] apply_memory_preprocess={apply_memory_preprocess}, max_len={max_len}")
+    if debug_logging:
+        logger.debug(f"[bridge_residue_to_atom] apply_memory_preprocess={apply_memory_preprocess}, max_len={max_len}")
 
     # --- PATCH: Only call preprocess_inputs if flag is True ---
     if apply_memory_preprocess:
-        print("[DEBUG][bridge_residue_to_atom] Calling preprocess_inputs!")
+        if debug_logging:
+            logger.debug("[bridge_residue_to_atom] Calling preprocess_inputs!")
         from rna_predict.pipeline.stageD.memory_optimization.memory_fix import preprocess_inputs
         # Process both coords and trunk_embeddings
         processed_coords, trunk_embeddings = preprocess_inputs(
