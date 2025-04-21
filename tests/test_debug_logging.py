@@ -353,8 +353,26 @@ def test_stageB_debug_logging_hypothesis(rna_seq: str, debug_val: bool, monkeypa
     pf_logger.addHandler(stream_handler)
 
     from unittest.mock import patch
+    import types
+    from rna_predict.pipeline.stageB.pairwise.pairformer_wrapper import PairformerWrapper
+    import torch
+    
+    def safe_init(self, *args, **kwargs):
+        super(PairformerWrapper, self).__init__()
+        self.device = 'cpu'
+        self.stack = None
+        pf_logger.debug("[UNIQUE-DEBUG-STAGEB-PAIRFORMER-TEST] PairformerWrapper initialized with debug_logging=True")
+    
+    def dummy_predict(self, sequence, adjacency=None):
+        L = len(sequence)
+        # Return dummy tensors with plausible shapes
+        s_emb = torch.randn(L, 384)
+        z_emb = torch.randn(L, L, 128)
+        return s_emb, z_emb
+    
     with patch("rna_predict.pipeline.stageB.torsion.torsion_bert_predictor.StageBTorsionBertPredictor.predict_angles_from_sequence", return_value=None), \
-         patch("rna_predict.pipeline.stageB.pairwise.pairformer_wrapper.PairformerWrapper.__init__", autospec=True, side_effect=lambda self, *args, **kwargs: pf_logger.debug("[UNIQUE-DEBUG-STAGEB-PAIRFORMER-TEST] PairformerWrapper initialized with debug_logging=True")):
+         patch("rna_predict.pipeline.stageB.pairwise.pairformer_wrapper.PairformerWrapper.__init__", new=safe_init), \
+         patch("rna_predict.pipeline.stageB.pairwise.pairformer_wrapper.PairformerWrapper.predict", new=dummy_predict):
         import os
         test_dir = os.path.dirname(os.path.abspath(__file__))
         project_root = os.path.abspath(os.path.join(test_dir, ".."))
