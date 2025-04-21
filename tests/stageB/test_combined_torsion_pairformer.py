@@ -1,6 +1,9 @@
 import unittest
 from omegaconf import OmegaConf, DictConfig # Import OmegaConf
 import torch
+import os
+import logging
+from hypothesis import given, settings, HealthCheck, strategies as st
 
 from rna_predict.pipeline.stageB.main import run_stageB_combined
 # Don't need to import the models directly anymore as they are instantiated within run_stageB_combined
@@ -172,6 +175,67 @@ class TestCombinedTorsionPairformer(unittest.TestCase):
 
         # The difference may not be large due to Pairformer processing,
         # but there should be some effect from initialization
+
+    @settings(
+        deadline=None,  # Disable deadline checks since model loading can be slow
+        max_examples=1,  # Reduced to 1 to minimize test runtime
+        suppress_health_check=[HealthCheck.too_slow]
+    )
+    @given(
+        debug_logging=st.booleans(),
+        sequence=st.text(alphabet=["A", "C", "G", "U"], min_size=5, max_size=10)  # Random RNA sequences
+    )
+    def test_debug_logging_propagation(self, debug_logging, sequence):
+        """
+        Property-based test: Debug logging configuration should propagate correctly to all components.
+
+        This test verifies that when debug_logging is enabled, the appropriate log messages are written
+        to the evidence file. When debug_logging is disabled, the file should not contain the debug messages.
+
+        Args:
+            debug_logging: Boolean flag indicating whether debug logging should be enabled
+            sequence: Random RNA sequence to process
+
+        # ERROR_ID: STAGEB_DEBUG_LOGGING_PROPAGATION
+        """
+        # Remove old evidence file if exists
+        if os.path.exists('/tmp/debug_logging_evidence_global.txt'):
+            os.remove('/tmp/debug_logging_evidence_global.txt')
+
+        # Create a config with the specified debug_logging value
+        cfg = self.test_cfg
+        cfg.debug_logging = debug_logging
+        cfg.stageB_torsion.debug_logging = debug_logging
+        cfg.stageB_pairformer.debug_logging = debug_logging
+
+        # Create adjacency matrix for the sequence
+        N = len(sequence)
+        adjacency = torch.zeros((N, N), dtype=torch.float32)
+        for i in range(N):  # Add diagonal
+            adjacency[i, i] = 1.0
+        # Add some random base pairs (simplified)
+        if N >= 4:
+            adjacency[0, N-1] = adjacency[N-1, 0] = 1.0
+            if N >= 6:
+                adjacency[1, N-2] = adjacency[N-2, 1] = 1.0
+
+        # Call run_stageB_combined with the config
+        _ = run_stageB_combined(cfg=cfg, sequence=sequence, adjacency_matrix=adjacency)
+
+        # Check evidence file for expected instrumentation
+        if debug_logging:
+            # When debug_logging is True, the file should exist and contain debug messages
+            assert os.path.exists('/tmp/debug_logging_evidence_global.txt'), "Debug log file not created when debug_logging=True"
+            with open('/tmp/debug_logging_evidence_global.txt', 'r') as f:
+                contents = f.read()
+            assert '[DEBUG-INST-STAGEB-001]' in contents, "Instrumentation evidence missing for StageB debug_logging propagation!"
+            assert '[UNIQUE-DEBUG-STAGEB-TORSIONBERT-TEST]' in contents, "TorsionBERT debug marker missing!"
+        else:
+            # When debug_logging is False, the file should not exist or not contain debug messages
+            if os.path.exists('/tmp/debug_logging_evidence_global.txt'):
+                with open('/tmp/debug_logging_evidence_global.txt', 'r') as f:
+                    contents = f.read()
+                assert '[DEBUG-INST-STAGEB-001]' not in contents, "Debug messages present when debug_logging=False!"
 
     # def test_gradient_flow(self):
     #     """
