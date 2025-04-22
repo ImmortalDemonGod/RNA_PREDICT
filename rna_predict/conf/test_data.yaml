@@ -25,4 +25,4 @@ torsion_angle_dim: 7  # Number of torsion angles per residue
 embedding_dims:
   s_trunk: 384  # Single representation dimension
   z_trunk: 128  # Pair representation dimension
-  s_inputs: 32  # Input representation dimension
+  s_inputs: 449  # Input representation dimension - must match c_s_inputs

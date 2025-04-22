@@ -9,7 +9,7 @@ enabled: true
 # Required parameters for feature initialization
 ref_element_size: 128
 ref_atom_name_chars_size: 256
-profile_size: 32  # Added missing profile_size parameter
+profile_size: 32
 
 model_architecture:
   c_token: 384
@@ -19,7 +19,7 @@ model_architecture:
   c_atom: 128
   c_atompair: 32
   c_noise_embedding: 32
-  sigma_data: 16.0  # This is correctly placed in model_architecture
+  sigma_data: 16.0
 
 atom_decoder:
   c_in: 64
@@ -36,14 +36,23 @@ diffusion:
   debug_logging: true
   # Feature dimensions required for bridging
   feature_dimensions:
-    c_s: ${..model_architecture.c_s}         # matches c_s in model_architecture
-    c_s_inputs: ${..model_architecture.c_s_inputs}  # matches c_s_inputs in model_architecture
-    c_sing: ${..model_architecture.c_s}      # set to same as c_s for consistency
-    s_trunk: ${..model_architecture.c_s}
+    c_s: 384
+    c_s_inputs: 449
+    c_sing: 384
+    s_trunk: 384
+    s_inputs: 449  # Required for bridging - using direct value instead of interpolation
   # Required for residue-to-atom bridging and inference shape checks
   test_residues_per_batch: 1
   # Required model architecture configuration
-  model_architecture: ${..model_architecture}
+  model_architecture:
+    c_token: 384
+    c_s: 384
+    c_z: 128
+    c_s_inputs: 449
+    c_atom: 128
+    c_atompair: 32
+    c_noise_embedding: 32
+    sigma_data: 16.0
   # Required transformer configuration
   transformer:
     n_blocks: 1
