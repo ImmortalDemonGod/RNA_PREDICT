@@ -6,6 +6,11 @@ defaults:
   - _self_
 
 enabled: true
+# Required parameters for feature initialization
+ref_element_size: 128
+ref_atom_name_chars_size: 256
+profile_size: 32  # Added missing profile_size parameter
+
 model_architecture:
   c_token: 384
   c_s: 384
@@ -14,12 +19,14 @@ model_architecture:
   c_atom: 128
   c_atompair: 32
   c_noise_embedding: 32
-  sigma_data: 16.0
+  sigma_data: 16.0  # This is correctly placed in model_architecture
+
 atom_decoder:
   c_in: 64
   c_hidden: [128, 64, 32]
   c_out: 3
   dropout: 0.1
+
 diffusion:
   # Core settings
   init_from_scratch: false
@@ -48,11 +55,19 @@ diffusion:
     c_hidden: [32, 64, 128]
     c_out: 64
     dropout: 0.1
+    n_blocks: 1
+    n_heads: 1
+    n_queries: 8
+    n_keys: 8
   atom_decoder:
     c_in: 64
     c_hidden: [128, 64, 32]
     c_out: 3
     dropout: 0.1
+    n_blocks: 1
+    n_heads: 1
+    n_queries: 8
+    n_keys: 8
   # Noise schedule config
   noise_schedule:
     schedule_type: "linear"
