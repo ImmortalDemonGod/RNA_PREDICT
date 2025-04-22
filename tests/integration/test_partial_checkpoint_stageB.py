@@ -13,7 +13,6 @@ from rna_predict.pipeline.stageB.pairwise.pairformer_wrapper import PairformerWr
 from rna_predict.utils.checkpointing import save_trainable_checkpoint
 from rna_predict.utils.checkpoint import partial_load_state_dict
 import pathlib
-import sys
 from hypothesis import given, strategies as st, settings
 import tempfile
 
@@ -23,7 +22,6 @@ import tempfile
 @settings(max_examples=4, deadline=None)
 def test_stageB_partial_checkpoint_hydra(sequence):
     print("[DEBUG-ENTER-TEST] Entered test function")
-    import pathlib
     # --- Compute config_path relative to test file dir ---
     test_file_dir = os.path.dirname(__file__)
     config_dir = "/Users/tomriddle1/RNA_PREDICT/rna_predict/conf"
@@ -72,13 +70,13 @@ def test_stageB_partial_checkpoint_hydra(sequence):
 
     if not config_path_selected:
         # Print CWD and rna_predict directory contents for diagnosis
-        print(f"[UNIQUE-ERR-HYDRA-CONF-NOT-FOUND] Could not initialize Hydra with any config_path candidate.")
-        print(f"[DEBUG-HYDRA-CONF] CWD contents:")
+        print("[UNIQUE-ERR-HYDRA-CONF-NOT-FOUND] Could not initialize Hydra with any config_path candidate.")
+        print("[DEBUG-HYDRA-CONF] CWD contents:")
         for item in cwd.iterdir():
             print(f"  - {item} (is_file: {item.is_file()}, perms: {oct(item.stat().st_mode)})")
         rna_predict_dir = cwd / "rna_predict"
         if rna_predict_dir.exists():
-            print(f"[DEBUG-HYDRA-CONF] rna_predict directory contents:")
+            print("[DEBUG-HYDRA-CONF] rna_predict directory contents:")
             for item in rna_predict_dir.iterdir():
                 print(f"  - {item} (is_file: {item.is_file()}, perms: {oct(item.stat().st_mode)})")
         raise RuntimeError(f"[UNIQUE-ERR-HYDRA-CONF-NOT-FOUND] Could not initialize Hydra with any config_path candidate. Last exception: {hydra_exception}")
