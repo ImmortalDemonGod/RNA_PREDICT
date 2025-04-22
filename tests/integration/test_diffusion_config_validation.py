@@ -41,6 +41,17 @@ def test_diffusion_manager_config_section_vs_full():
                     'coord_max': 1e4,
                     'coord_similarity_rtol': 1e-3,
                     'test_residues_per_batch': 1,
+                },
+                'atom_encoder': {
+                    'c_out': 2
+                },
+                'atom_decoder': {
+                    'param': 2
+                },
+                'transformer': {
+                    'n_blocks': 1,
+                    'n_heads': 1,
+                    'blocks_per_ckpt': 1
                 }
             }
         }
