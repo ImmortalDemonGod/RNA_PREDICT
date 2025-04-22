@@ -3,7 +3,6 @@ checkpointing.py
 Utilities for saving and loading partial checkpoints in RNA_PREDICT.
 """
 import torch
-from typing import Dict
 
 def save_trainable_checkpoint(model: torch.nn.Module, path: str, filter_substrings=None):
     """
