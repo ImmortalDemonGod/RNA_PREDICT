@@ -1,8 +1,6 @@
 import os
-import pathlib
 import hydra
 from omegaconf import DictConfig
-import pytest
 
 EXPECTED_CWD = "/Users/tomriddle1/RNA_PREDICT"
 CONFIG_ABS_PATH = "/Users/tomriddle1/RNA_PREDICT/rna_predict/conf/default.yaml"
