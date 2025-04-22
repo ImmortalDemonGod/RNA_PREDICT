@@ -215,6 +215,9 @@ def broadcast_token_to_atom(
     # Perform gather operation
     x_atom_flat = _perform_gather(atom_to_token_idx_flat, config)
 
+    # DEBUG: Print the output shape for systematic diagnosis
+    print(f"[DEBUG][BROADCAST_TOKEN_TO_ATOM] x_token.shape={x_token.shape} atom_to_token_idx.shape={atom_to_token_idx.shape} x_atom_flat.shape={x_atom_flat.shape}")
+
     # Reshape back to original dimensions
     return x_atom_flat.reshape(
         *config.original_leading_dims, config.n_atom, config.n_features
