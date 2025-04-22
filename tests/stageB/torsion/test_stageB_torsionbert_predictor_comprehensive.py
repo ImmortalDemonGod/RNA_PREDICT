@@ -30,10 +30,9 @@ Prerequisites:
     - rna_predict.pipeline.stageB.torsion.torsion_bert_predictor module
 """
 
-import math
 import numpy as np
 from typing import Generator # Import Generator
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 import types
 import time
 import logging
@@ -542,7 +541,6 @@ class TestStageBTorsionBertPredictorSincosRoundTrip:
         print("==== ROUND-TRIP DEBUG END ====")
 
         # Patch _convert_sincos_to_angles to print its inputs and outputs for this test
-        orig_func = predictor._convert_sincos_to_angles
         def debug_convert_sincos_to_angles(sin_cos_angles, mode):
             print("[DEBUG _convert_sincos_to_angles] input shape:", sin_cos_angles.shape)
             print("[DEBUG _convert_sincos_to_angles] input contents:\n", sin_cos_angles)
@@ -707,7 +705,6 @@ class TestAngleConversionHypothesis:
         We'll do num_angles=3. We skip domain checking (sin^2+cos^2=1) since the real model
         might produce approximate sin/cos. We only confirm the function is consistent with atan2.
         """
-        import time
         start_time = time.time()
         # Construct a predictor with num_angles=3 => expect shape [N, 6].
         # Create config for this test case
