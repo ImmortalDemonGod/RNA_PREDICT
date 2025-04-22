@@ -19,6 +19,7 @@ from rna_predict.utils.shape_utils import adjust_tensor_feature_dim
 
 from ..utils.tensor_utils import normalize_tensor_dimensions
 from .sequence_utils import extract_sequence
+from .hybrid_bridging_template import hybrid_bridging_sparse_to_dense
 
 # Initialize logger for Stage D bridging
 logger = logging.getLogger("rna_predict.pipeline.stageD.diffusion.bridging.residue_atom_bridge")
@@ -342,6 +343,8 @@ def process_input_features(
     if "atom_to_token_idx" not in fixed_input_features:
         # Create a tensor that maps each atom to its corresponding residue index
         total_atoms = sum(len(atoms) for atoms in residue_atom_map)
+        residue_count = len(residue_atom_map)
+        print(f"[DEBUG][BRIDGE] residue_atom_map lens={[len(x) for x in residue_atom_map]} total_atoms={total_atoms} residue_count={residue_count}")
         atom_to_token_idx = torch.zeros(
             batch_size,
             total_atoms,
@@ -353,6 +356,31 @@ def process_input_features(
         for residue_idx, atom_indices in enumerate(residue_atom_map):
             for atom_idx in atom_indices:
                 atom_to_token_idx[:, atom_idx] = residue_idx
+
+        # DEBUG: Print atom_to_token_idx shape after construction
+        print(f"[DEBUG][BRIDGE] atom_to_token_idx.shape={atom_to_token_idx.shape}")
+
+        # UNCONDITIONAL DEBUG: Print all keys and their shapes in fixed_input_features
+        print("[DEBUG][BRIDGE] fixed_input_features keys and shapes:")
+        for k, v in fixed_input_features.items():
+            print(f"[DEBUG][BRIDGE]   {k}: shape={getattr(v, 'shape', 'N/A')} type={type(v)}")
+
+        # Attempt to find an atom-level tensor for alignment
+        n_valid_atoms = None
+        c_l_tensor = fixed_input_features.get('c_l', None)
+        if c_l_tensor is not None:
+            n_valid_atoms = c_l_tensor.shape[1]
+            print(f"[DEBUG][BRIDGE] fixed_input_features['c_l'].shape={c_l_tensor.shape}")
+        else:
+            print("[DEBUG][BRIDGE] WARNING: 'c_l' not found in fixed_input_features.")
+
+        # If atom_to_token_idx has more atoms than c_l, slice it
+        if n_valid_atoms is not None and total_atoms > n_valid_atoms:
+            print(f"[DEBUG][BRIDGE] Slicing atom_to_token_idx from {total_atoms} to {n_valid_atoms}")
+            atom_to_token_idx = atom_to_token_idx[:, :n_valid_atoms]
+
+        # DEBUG: Print atom_to_token_idx shape after possible slicing
+        print(f"[DEBUG][BRIDGE] (post-slice) atom_to_token_idx.shape={atom_to_token_idx.shape}")
 
         # Add to input features
         fixed_input_features["atom_to_token_idx"] = atom_to_token_idx
@@ -411,10 +439,56 @@ def bridge_residue_to_atom(
     # --- original code continues ---
     sequence_list = extract_sequence(sequence, input_features, trunk_embeddings)
     residue_atom_map = derive_residue_atom_map(
-        sequence=sequence_list,
+        sequence_list,
         partial_coords=partial_coords,
-        atom_metadata=input_features.get("atom_metadata") if input_features else None,
+        atom_metadata=atom_metadata,
     )
+    # --- INTEGRATION: Use hybrid_bridging_sparse_to_dense for Stage C output bridging ---
+    if trunk_embeddings.get("stage_c_output") is not None:
+        stage_c_output = trunk_embeddings["stage_c_output"]
+        n_residues = residue_count
+        # PATCH: Strictly require canonical_atom_count from Hydra config
+        if hasattr(config, "get"):
+            canonical_atom_count = config.get("canonical_atom_count", None)
+        else:
+            canonical_atom_count = getattr(config, "canonical_atom_count", None)
+        if canonical_atom_count is None:
+            raise ValueError(
+                "[BRIDGE ERROR][HYDRA_CONF] canonical_atom_count must be set in the Hydra config for Stage D. "
+                "Do not rely on fallback values. Ensure atoms_per_residue is set and propagated via config."
+            )
+        print(f"[DEBUG][BRIDGE][hybrid_bridging_sparse_to_dense] canonical_atom_count (from config): {canonical_atom_count}")
+        logger.info(f"[DEBUG][BRIDGE][hybrid_bridging_sparse_to_dense] canonical_atom_count (from config): {canonical_atom_count}")
+        feature_dim = stage_c_output.shape[-1]
+        batch_size = stage_c_output.shape[0] if stage_c_output.ndim == 4 else 1
+        device = stage_c_output.device
+        dense_atoms, mask = hybrid_bridging_sparse_to_dense(
+            stage_c_output=stage_c_output,
+            residue_atom_map=residue_atom_map,
+            n_residues=n_residues,
+            canonical_atom_count=canonical_atom_count,
+            feature_dim=feature_dim,
+            batch_size=batch_size,
+            fill_value=0.0,
+            device=device
+        )
+        print(f"[DEBUG][BRIDGE][hybrid_bridging_sparse_to_dense] dense_atoms.shape={dense_atoms.shape} atom_mask.shape={mask.shape}")
+        logger.info(f"[DEBUG][BRIDGE][hybrid_bridging_sparse_to_dense] dense_atoms.shape={dense_atoms.shape} atom_mask.shape={mask.shape}")
+        # PATCH: Flatten dense_atoms and atom_mask to [B, n_residues*canonical_atom_count, ...]
+        B, n_residues, n_atoms_per_res, F = dense_atoms.shape
+        dense_atoms_flat = dense_atoms.reshape(B, n_residues * n_atoms_per_res, F)
+        atom_mask_flat = mask.reshape(B, n_residues * n_atoms_per_res)
+        print(f"[DEBUG][BRIDGE][flatten] dense_atoms_flat.shape={dense_atoms_flat.shape} atom_mask_flat.shape={atom_mask_flat.shape}")
+        logger.info(f"[DEBUG][BRIDGE][flatten] dense_atoms_flat.shape={dense_atoms_flat.shape} atom_mask_flat.shape={atom_mask_flat.shape}")
+        trunk_embeddings["dense_atoms"] = dense_atoms_flat
+        trunk_embeddings["atom_mask"] = atom_mask_flat
+        # PATCH: Ensure the encoder uses the correct atom-level tensor for c_l
+        trunk_embeddings["c_l"] = dense_atoms_flat
+        for k, v in trunk_embeddings.items():
+            if hasattr(v, 'shape'):
+                print(f"[DEBUG][BRIDGE][trunk_embeddings] {k}: {v.shape}")
+                logger.info(f"[DEBUG][BRIDGE][trunk_embeddings] {k}: {v.shape}")
+    # Continue with rest of bridging logic as before
     log_mem("After residue-to-atom mapping")
     if debug_logging:
         logger.debug(f"[bridge_residue_to_atom] residue_atom_map length: {len(residue_atom_map)}")
