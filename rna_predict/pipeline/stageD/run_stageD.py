@@ -39,6 +39,7 @@ from typing import Dict, Optional, Any, Union, Tuple
 import logging
 import psutil
 import os
+import yaml
 
 # Import structured configs
 from rna_predict.conf.config_schema import StageDConfig, register_configs
@@ -264,11 +265,18 @@ def run_stageD(
     # --- END PATCH ---
 
     # --- PATCH: Enforce config-driven minimal residue/atom count for memory efficiency ---
-    max_residues = getattr(cfg.model.stageD.diffusion, 'test_residues_per_batch', None)
+    def get_minimal_memory_run_flag(config):
+        # Look for a hydra config flag or environment variable
+        # Default to False for production runs
+        return getattr(config, 'minimal_memory_run', False) or \
+               getattr(config, 'debug_minimal_memory', False) or \
+               bool(os.environ.get('MINIMAL_MEMORY_RUN', False))
+
+    minimal_memory_run = get_minimal_memory_run_flag(cfg)
+    max_residues = 1 if minimal_memory_run else None
     if max_residues is not None and atom_metadata is not None and 'residue_indices' in atom_metadata:
         residue_indices = atom_metadata['residue_indices']
         keep_atom_indices = [i for i, r in enumerate(residue_indices) if r < max_residues]
-        print(f"[DEBUG][run_stageD][PATCH] max_residues = {max_residues}")
         print(f"[DEBUG][run_stageD][PATCH] residue_indices[:50] = {residue_indices[:50]}")
         print(f"[DEBUG][run_stageD][PATCH] keep_atom_indices (len={len(keep_atom_indices)}): {keep_atom_indices[:50]}")
         print(f"[DEBUG][run_stageD][PATCH] len(residue_indices) = {len(residue_indices)}")
@@ -281,10 +289,10 @@ def run_stageD(
                 if isinstance(value, torch.Tensor) and value.shape[1] == len(residue_indices):
                     input_feature_dict[key] = value[:, keep_atom_indices, ...]
             print(f"[DEBUG][run_stageD][PATCH] coords.shape after slicing: {coords.shape}")
-            for key, value in input_feature_dict.items():
-                if isinstance(value, torch.Tensor):
-                    print(f"[DEBUG][run_stageD][PATCH] input_feature_dict['{key}'].shape after slicing: {value.shape}")
+            print(f"[DEBUG][run_stageD][PATCH] input_feature_dict['atom_to_token_idx'].shape after slicing: {input_feature_dict['atom_to_token_idx'].shape}")
             print(f"[DEBUG][run_stageD][PATCH] atom_metadata['residue_indices'][:50] after slicing: {atom_metadata['residue_indices'][:50]}")
+    else:
+        print("[DEBUG][run_stageD][PATCH] Running with FULL atom set (no slicing)")
     # --- END PATCH ---
 
     log_mem("Before bridging residue-to-atom")
@@ -379,8 +387,21 @@ def run_stageD(
 
 # Note: register_configs() is already called at the beginning of the file
 
-@hydra.main(version_base=None, config_path=None, config_name=None)
+# PATCH: Specify config_path and config_name for Hydra best practices
+@hydra.main(version_base=None, config_path="../../conf", config_name="default.yaml")
 def hydra_main(cfg: DictConfig) -> None:
+    # --- SYSTEMATIC DEBUGGING: Print config structure ---
+    print("\n[DEBUG][hydra_main] Full config:")
+    try:
+        print(cfg.pretty())
+    except Exception as e:
+        print("[DEBUG][hydra_main] Could not pretty-print config:", e)
+        print(cfg)
+    print("\n[DEBUG][hydra_main] cfg.model:", getattr(cfg, 'model', None))
+    if hasattr(cfg, 'model') and hasattr(cfg.model, 'stageD'):
+        print("[DEBUG][hydra_main] cfg.model.stageD:", getattr(cfg.model, 'stageD', None))
+    else:
+        print("[DEBUG][hydra_main] cfg.model.stageD is missing!")
     """Main entry point for running Stage D with Hydra configuration.
 
     Args:
