@@ -205,7 +205,35 @@ def _run_stageD_diffusion_impl(
         sequence=sequence,
     )
     logger.debug("[DEBUG-BRIDGE-ENTRY] Entering bridge_residue_to_atom call in Stage D.")
-    # ... debug logging ...
+    # BEGIN PATCH: Instrument config before bridging
+    import pprint
+    try:
+        print("\n[DEBUG][StageD_unified] config.model.stageD.diffusion (if present):")
+        if hasattr(config, 'model') and hasattr(config.model, 'stageD') and hasattr(config.model.stageD, 'diffusion'):
+            pprint.pprint(dict(config.model.stageD.diffusion))
+        else:
+            print("[DEBUG][StageD_unified] config.model.stageD.diffusion not found!")
+    except Exception as e:
+        print(f"[DEBUG][StageD_unified] Exception during model.stageD.diffusion print: {e}")
+    try:
+        print("\n[DEBUG][StageD_unified] config.diffusion (if present):")
+        if hasattr(config, 'diffusion'):
+            pprint.pprint(dict(config.diffusion))
+        else:
+            print("[DEBUG][StageD_unified] config.diffusion not found!")
+    except Exception as e:
+        print(f"[DEBUG][StageD_unified] Exception during diffusion print: {e}")
+    try:
+        print("\n[DEBUG][StageD_unified] config.diffusion.feature_dimensions (if present):")
+        if hasattr(config, 'diffusion') and hasattr(config.diffusion, 'feature_dimensions'):
+            pprint.pprint(dict(config.diffusion.feature_dimensions))
+            s_inputs = getattr(config.diffusion.feature_dimensions, 's_inputs', None)
+            print(f"[DEBUG][StageD_unified] s_inputs: {s_inputs}")
+        else:
+            print("[DEBUG][StageD_unified] config.diffusion.feature_dimensions not found!")
+    except Exception as e:
+        print(f"[DEBUG][StageD_unified] Exception during feature_dimensions print: {e}")
+    # END PATCH
     partial_coords, trunk_embeddings_internal, input_features = bridge_residue_to_atom(
         bridging_input=bridging_data,
         config=config,

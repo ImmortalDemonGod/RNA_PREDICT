@@ -3,7 +3,7 @@ Inference mode functions for Stage D diffusion.
 
 This module provides functions for running inference in the Stage D diffusion process.
 """
-
+import snoop
 import logging
 import torch
 from typing import Any, Dict
@@ -38,7 +38,7 @@ class InferenceContext:
     input_features: Dict[str, Any]
     device: str
 
-
+@snoop
 def run_inference_mode(
     context: InferenceContext,
     cfg=None,
@@ -57,15 +57,17 @@ def run_inference_mode(
         cfg = get_pipeline_config()
     # PATCH: Hydra best practice: always use config-driven value, never fallback to hardcoded default
     test_residues_per_batch = None
+    # Print config structure for debugging
+    print(f"[DEBUG][CONFIG STRUCTURE] cfg type: {type(cfg)}; keys: {list(cfg.keys()) if hasattr(cfg, 'keys') else dir(cfg)}")
     # Try to extract from standard Hydra config structure
     if hasattr(cfg, 'model') and hasattr(cfg.model, 'stageD') and hasattr(cfg.model.stageD, 'diffusion'):
         test_residues_per_batch = getattr(cfg.model.stageD.diffusion, 'test_residues_per_batch', None)
-    # Fallback: legacy nested dict or flat dict (for older configs/tests)
-    if test_residues_per_batch is None and hasattr(cfg, 'diffusion_config') and isinstance(cfg.diffusion_config, dict):
-        if 'diffusion' in cfg.diffusion_config and isinstance(cfg.diffusion_config['diffusion'], dict):
-            test_residues_per_batch = cfg.diffusion_config['diffusion'].get('test_residues_per_batch', None)
-        elif 'test_residues_per_batch' in cfg.diffusion_config:
-            test_residues_per_batch = cfg.diffusion_config['test_residues_per_batch']
+    # Try flat config (as in current pipeline)
+    if test_residues_per_batch is None and hasattr(cfg, 'test_residues_per_batch'):
+        test_residues_per_batch = getattr(cfg, 'test_residues_per_batch', None)
+    # Try one more fallback: direct dict
+    if test_residues_per_batch is None and isinstance(cfg, dict):
+        test_residues_per_batch = cfg.get('test_residues_per_batch', None)
     # Final fallback: error if not set
     if test_residues_per_batch is None:
         raise ValueError("test_residues_per_batch must be set in Hydra config (model.stageD.diffusion.test_residues_per_batch)")
