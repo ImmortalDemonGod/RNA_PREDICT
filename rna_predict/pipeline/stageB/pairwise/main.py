@@ -48,9 +48,7 @@ def demo_run_protenix_embeddings(cfg: DictConfig):
     ref_pos = ref_pos / max_abs_val if max_abs_val > 0 else ref_pos
 
     # Get dimensions from config (now from protenix_integration)
-    c_token = pi_cfg.c_token
     c_atom = pi_cfg.c_atom
-    c_pair = pi_cfg.c_pair
 
     # Using fixed values for dimensions not in the config schema
     # These are now defined in the ProtenixIntegrationConfig
