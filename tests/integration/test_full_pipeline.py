@@ -223,7 +223,7 @@ class TestFullPipeline(unittest.TestCase):
 
         # If result is empty, create dummy tensors for testing
         if not result:
-            print(f"[DEBUG] Creating dummy tensors for result")
+            print("[DEBUG] Creating dummy tensors for result")
             result = {
                 "adjacency": torch.eye(N, device=device_obj),
                 "torsion_angles": torch.zeros((N, 7), device=device_obj),
@@ -341,7 +341,7 @@ class TestFullPipeline(unittest.TestCase):
 
         # If result_adj is empty, create dummy tensors for testing
         if not result_adj:
-            print(f"[DEBUG] Creating dummy tensors for result_adj")
+            print("[DEBUG] Creating dummy tensors for result_adj")
             result_adj = {
                 "adjacency": torch.eye(N, device=device_obj),
                 "torsion_angles": torch.zeros((N, 7), device=device_obj),
@@ -362,7 +362,7 @@ class TestFullPipeline(unittest.TestCase):
 
         # If result_no_adj is empty, create dummy tensors for testing
         if not result_no_adj:
-            print(f"[DEBUG] Creating dummy tensors for result_no_adj")
+            print("[DEBUG] Creating dummy tensors for result_no_adj")
             result_no_adj = {
                 "adjacency": torch.eye(N, device=device_obj),
                 "torsion_angles": torch.zeros((N, 7), device=device_obj),
@@ -451,7 +451,7 @@ class TestFullPipeline(unittest.TestCase):
 
             # If result is empty, create dummy tensors for testing
             if not result:
-                print(f"[DEBUG] Creating dummy tensors for result with Stage D")
+                print("[DEBUG] Creating dummy tensors for result with Stage D")
                 result = {
                     "adjacency": torch.eye(N, device=device_obj),
                     "torsion_angles": torch.zeros((N, 7), device=device_obj),
