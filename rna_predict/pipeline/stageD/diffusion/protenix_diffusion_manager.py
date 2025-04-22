@@ -163,7 +163,10 @@ class EmbeddingContext:
             s_trunk_shape = self.trunk_embeddings["s_trunk"].shape
             batch_size = s_trunk_shape[0]
             n_tokens = s_trunk_shape[1]
-            c_s_inputs_dim = self.stage_cfg.get("c_s_inputs", 449)
+            # Use config-driven c_s_inputs
+            c_s_inputs_dim = self.stage_cfg.get("c_s_inputs", None)
+            if c_s_inputs_dim is None:
+                raise ValueError("Config missing c_s_inputs for fallback s_inputs shape.")
             s_inputs = torch.zeros((batch_size, n_tokens, c_s_inputs_dim), device=self.device)
         return s_inputs
 
@@ -231,18 +234,64 @@ class DiffusionManagerConfig:
 
     @staticmethod
     def _parse_diffusion_module_args(stage_cfg: DictConfig):
-        expected_keys = [
-            "sigma_data", "c_atom", "c_atompair", "c_token", "c_s", "c_z",
-            "c_s_inputs", "c_noise_embedding", "atom_encoder", "transformer",
-            "atom_decoder", "blocks_per_ckpt", "use_fine_grained_checkpoint",
-            "initialization"
-        ]
+        """
+        Extract all required model dimensions and architectural parameters from the config,
+        strictly using config values and never hardcoded fallbacks.
+        """
+        # Instrument: print the full config for debugging
+        print("[DEBUG][_parse_diffusion_module_args] stage_cfg:", stage_cfg)
+
+        # If 'diffusion' key exists, descend into it
+        if "diffusion" in stage_cfg:
+            print("[DEBUG][_parse_diffusion_module_args] Descending into 'diffusion' section of config.")
+            base_cfg = stage_cfg["diffusion"]
+        else:
+            base_cfg = stage_cfg
+
+        def get_nested(cfg, keys, default=None):
+            for k in keys:
+                if hasattr(cfg, k):
+                    cfg = getattr(cfg, k)
+                elif isinstance(cfg, dict) and k in cfg:
+                    cfg = cfg[k]
+                else:
+                    return default
+            return cfg
+
         diffusion_module_args = {}
-        for key in expected_keys:
-            value = stage_cfg.get(key, None)
-            if value is not None:
-                diffusion_module_args[key] = value
-        mem_cfg = stage_cfg.get("memory", OmegaConf.create({}))
+        # Top-level parameters
+        diffusion_module_args["sigma_data"] = get_nested(base_cfg, ["sigma_data"])
+        # Model sizes from model_architecture
+        arch_cfg = get_nested(base_cfg, ["model_architecture"])
+        required_model_keys = ["c_token", "c_s", "c_z", "c_s_inputs", "c_atom", "c_noise_embedding"]
+        if arch_cfg is not None:
+            for key in required_model_keys:
+                val = get_nested(arch_cfg, [key])
+                if val is None:
+                    raise ValueError(f"Required model_architecture field '{key}' missing in config!")
+                diffusion_module_args[key] = val
+        else:
+            raise ValueError("model_architecture section missing in config!")
+        # c_atompair: try to get from atom_encoder or raise error
+        atom_encoder_cfg = get_nested(base_cfg, ["atom_encoder"])
+        if atom_encoder_cfg is not None and "c_out" in atom_encoder_cfg:
+            diffusion_module_args["c_atompair"] = atom_encoder_cfg["c_out"]
+        else:
+            raise ValueError("c_atompair (atom_encoder.c_out) missing in config!")
+        # atom_encoder, atom_decoder, transformer
+        for subkey in ["atom_encoder", "atom_decoder", "transformer"]:
+            subcfg = get_nested(base_cfg, [subkey])
+            if subcfg is not None:
+                diffusion_module_args[subkey] = dict(subcfg) if hasattr(subcfg, 'items') else dict(subcfg)
+            else:
+                raise ValueError(f"Required config section '{subkey}' missing in config!")
+        # Optional blocks_per_ckpt, use_fine_grained_checkpoint, initialization
+        for key in ["blocks_per_ckpt", "use_fine_grained_checkpoint", "initialization"]:
+            val = get_nested(base_cfg, [key])
+            if val is not None:
+                diffusion_module_args[key] = val
+        # Memory optimization
+        mem_cfg = get_nested(base_cfg, ["memory"], {})
         use_ckpt = mem_cfg.get("use_checkpointing", False)
         blocks_per_ckpt = mem_cfg.get("blocks_per_ckpt") if use_ckpt else None
         use_fine_grained = mem_cfg.get("use_fine_grained_checkpoint", False) if blocks_per_ckpt else False
@@ -250,6 +299,7 @@ class DiffusionManagerConfig:
             "blocks_per_ckpt": blocks_per_ckpt,
             "use_fine_grained_checkpoint": use_fine_grained
         })
+        print("[DEBUG][_parse_diffusion_module_args] Final module args:", diffusion_module_args)
         return diffusion_module_args
 
 
