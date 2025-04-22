@@ -58,7 +58,7 @@ def test_stageB_partial_checkpoint_hydra(sequence):
     for config_path in config_paths:
         try:
             print(f"[DEBUG-HYDRA-CONF] Trying config_path: {config_path}")
-            with hydra.initialize_config_module(config_module="rna_predict.conf"):
+            with hydra.initialize_config_module(config_module="rna_predict.conf", version_base=None):
                 cfg = hydra.compose(config_name="default")
                 stageB_cfg = cfg.model.stageB
             config_path_selected = config_path
@@ -84,7 +84,7 @@ def test_stageB_partial_checkpoint_hydra(sequence):
     # Only allow valid RNA sequences
     sequence = ''.join([c for c in sequence if c in "ACGU"]) or "ACGUACGU"
     # --- Hydra config load (robust to CWD, always relative path) ---
-    with hydra.initialize_config_module(config_module="rna_predict.conf"):
+    with hydra.initialize_config_module(config_module="rna_predict.conf", version_base=None):
         cfg = hydra.compose(config_name="default")
         stageB_cfg = cfg.model.stageB
     # --- Instantiate models ---
@@ -125,9 +125,10 @@ def test_stageB_partial_checkpoint_hydra(sequence):
             seq_len = len(sequence)
             # Expand the tensor to the correct dimension
             expanded_tensor = torch.zeros(seq_len, c_s, requires_grad=True)
-            # Copy the original values to the new tensor
+            # Copy the original values to the new tensor, but only up to the minimum of the two dimensions
             original_dim = torsion_out['torsion_angles'].shape[1]
-            expanded_tensor.data[:, :original_dim] = torsion_out['torsion_angles'].detach()
+            min_dim = min(original_dim, c_s)
+            expanded_tensor.data[:, :min_dim] = torsion_out['torsion_angles'].detach()[:, :min_dim]
             torsion_out['torsion_angles'] = expanded_tensor
         else:
             # Ensure the tensor requires gradients
