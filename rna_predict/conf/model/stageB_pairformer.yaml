@@ -9,6 +9,9 @@ n_blocks: 1                 # Minimal number of Pairformer blocks
 n_heads: 1                  # Minimal number of attention heads
 c_z: 2                      # Minimal pair representation dimension
 c_s: 2                      # Minimal single representation dimension
+c_token: 384                # Token representation dimension
+c_atom: 128                 # Atom representation dimension
+c_pair: 32                  # Pair representation dimension
 dropout: 0.0                # Top-level dropout for Pairformer
 freeze_params: false
 
