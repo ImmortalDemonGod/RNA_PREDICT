@@ -3,7 +3,7 @@ import torch
 import os
 import psutil
 from typing import Dict, Any
-from omegaconf import OmegaConf, DictConfig
+from omegaconf import DictConfig
 from transformers import AutoTokenizer, AutoModel
 from .torsionbert_inference import DummyTorsionBertAutoModel
 import torch.nn as nn
@@ -71,19 +71,22 @@ class StageBTorsionBertPredictor(nn.Module):
             torsion_cfg = cfg.model.stageB.torsion_bert
 
         # DEBUG: Instrument config checks for test_stageB_missing_config_section
-        logger.debug(f"[DEBUG-TORSIONBERT] cfg type: {type(cfg)}; keys: {list(cfg.keys()) if hasattr(cfg, 'keys') else 'N/A'}")
-        if hasattr(cfg, 'model'):
-            logger.debug(f"[DEBUG-TORSIONBERT] cfg.model keys: {list(cfg.model.keys()) if hasattr(cfg.model, 'keys') else 'N/A'}")
-            if hasattr(cfg.model, 'stageB'):
-                logger.debug(f"[DEBUG-TORSIONBERT] cfg.model.stageB keys: {list(cfg.model.stageB.keys()) if hasattr(cfg.model.stageB, 'keys') else 'N/A'}")
-        logger.debug(f"[DEBUG-TORSIONBERT] torsion_cfg: {torsion_cfg}")
-        logger.debug(f"[DEBUG-TORSIONBERT] hasattr(cfg, 'model_name_or_path'): {hasattr(cfg, 'model_name_or_path')}")
-        logger.debug(f"[DEBUG-TORSIONBERT] hasattr(cfg, 'stageB_torsion'): {hasattr(cfg, 'stageB_torsion')}")
-        logger.debug(f"[DEBUG-TORSIONBERT] hasattr(cfg, 'model'): {hasattr(cfg, 'model')}")
-        if hasattr(cfg, 'model'):
-            logger.debug(f"[DEBUG-TORSIONBERT] hasattr(cfg.model, 'stageB'): {hasattr(cfg.model, 'stageB')}")
-            if hasattr(cfg.model, 'stageB'):
-                logger.debug(f"[DEBUG-TORSIONBERT] hasattr(cfg.model.stageB, 'torsion_bert'): {hasattr(cfg.model.stageB, 'torsion_bert')}")
+        if self.debug_logging:
+            logger.debug(f"[DEBUG-TORSIONBERT] cfg type: {type(cfg)}; keys: {list(cfg.keys()) if hasattr(cfg, 'keys') else 'N/A'}")
+            if hasattr(cfg, 'model'):
+                logger.debug(f"[DEBUG-TORSIONBERT] cfg.model keys: {list(cfg.model.keys()) if hasattr(cfg.model, 'keys') else 'N/A'}")
+                if hasattr(cfg.model, 'stageB'):
+                    logger.debug(f"[DEBUG-TORSIONBERT] cfg.model.stageB keys: {list(cfg.model.stageB.keys()) if hasattr(cfg.model.stageB, 'keys') else 'N/A'}")
+            logger.debug(f"[DEBUG-TORSIONBERT] torsion_cfg: {torsion_cfg}")
+            logger.debug(f"[DEBUG-TORSIONBERT] hasattr(cfg, 'model_name_or_path'): {hasattr(cfg, 'model_name_or_path')}")
+            logger.debug(f"[DEBUG-TORSIONBERT] hasattr(cfg, 'stageB_torsion'): {hasattr(cfg, 'stageB_torsion')}")
+            logger.debug(f"[DEBUG-TORSIONBERT] hasattr(cfg, 'model'): {hasattr(cfg, 'model')}")
+            if hasattr(cfg, 'model'):
+                logger.debug(f"[DEBUG-TORSIONBERT] hasattr(cfg.model, 'stageB'): {hasattr(cfg.model, 'stageB')}")
+                if hasattr(cfg.model, 'stageB'):
+                    logger.debug(f"[DEBUG-TORSIONBERT] hasattr(cfg.model.stageB, 'torsion_bert'): {hasattr(cfg.model.stageB, 'torsion_bert')}")
+            # Add a unique debug message for testing
+            logger.debug("[UNIQUE-DEBUG-STAGEB-TORSIONBERT-TEST] TorsionBertPredictor running with debug_logging=True")
 
         # Validate the extracted configuration
         if torsion_cfg is None or not (hasattr(torsion_cfg, 'model_name_or_path') and hasattr(torsion_cfg, 'device')):
@@ -231,8 +234,7 @@ class StageBTorsionBertPredictor(nn.Module):
             input_shapes = {k: v.shape for k, v in inputs.items()}
             if self.debug_logging:
                 logger.debug(f"[DEBUG-PREDICTOR] Calling model with inputs: {input_shapes}")
-            else:
-                print(f"[DEBUG-PREDICTOR] Calling model with inputs: {input_shapes}")
+            # Don't print debug info when debug_logging is False
 
             # Ensure inputs has input_ids before calling model
             if "input_ids" not in inputs:
@@ -249,12 +251,7 @@ class StageBTorsionBertPredictor(nn.Module):
                     logger.debug(f"[DEBUG-PREDICTOR] outputs.logits shape: {getattr(outputs.logits, 'shape', None)}")
                 if hasattr(outputs, 'last_hidden_state'):
                     logger.debug(f"[DEBUG-PREDICTOR] outputs.last_hidden_state shape: {getattr(outputs.last_hidden_state, 'shape', None)}")
-            else:
-                print(f"[DEBUG-PREDICTOR] Model outputs type: {type(outputs)}")
-                if hasattr(outputs, 'logits'):
-                    print(f"[DEBUG-PREDICTOR] outputs.logits shape: {getattr(outputs.logits, 'shape', None)}")
-                if hasattr(outputs, 'last_hidden_state'):
-                    print(f"[DEBUG-PREDICTOR] outputs.last_hidden_state shape: {getattr(outputs.last_hidden_state, 'shape', None)}")
+            # Don't print debug info when debug_logging is False
 
             # Extract logits from the output
             angle_preds = None
@@ -409,8 +406,7 @@ class StageBTorsionBertPredictor(nn.Module):
         raw_predictions = self.predict_angles_from_sequence(sequence) # Shape [N, output_dim]
         if self.debug_logging:
             logger.debug(f"[DEBUG-PREDICTOR] Raw predictions shape: {raw_predictions.shape}")
-        else:
-            print(f"[DEBUG-PREDICTOR] Raw predictions shape: {raw_predictions.shape}")
+        # Don't print debug info when debug_logging is False
 
         # Post-process based on angle_mode
         if self.angle_mode == "sin_cos":
