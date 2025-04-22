@@ -300,28 +300,37 @@ def run_stageD(
     # Use OmegaConf.to_container to convert to dict
     import omegaconf
     try:
+        # Convert the entire stage_cfg to a dict
         diffusion_config_dict = omegaconf.OmegaConf.to_container(stage_cfg, resolve=True)
         # Ensure we have a dictionary
         if not isinstance(diffusion_config_dict, dict):
             print(f"[DEBUG][run_stageD] diffusion_config_dict is not a dict: {type(diffusion_config_dict)}")
             diffusion_config_dict = {}
 
-        # Remove fields that are not serializable or are tensors
-        for k in ["model_architecture", "memory", "inference", "transformer", "atom_encoder", "atom_decoder"]:
+        # --- HYDRA BEST PRACTICE ---
+        # Ensure all required config sections are present
+        # These are typically: model_architecture, atom_encoder, atom_decoder, transformer, noise_schedule, inference, etc.
+        required_sections = [
+            "model_architecture",
+            "atom_encoder",
+            "atom_decoder",
+            "transformer",
+            "noise_schedule",
+            "inference"
+        ]
+        for section in required_sections:
+            if section not in diffusion_config_dict:
+                if hasattr(stage_cfg, section):
+                    diffusion_config_dict[section] = omegaconf.OmegaConf.to_container(getattr(stage_cfg, section), resolve=True)
+                    print(f"[DEBUG][run_stageD] Added missing section '{section}' to diffusion_config_dict from stage_cfg.")
+                else:
+                    print(f"[DEBUG][run_stageD] Required config section '{section}' missing in stage_cfg!")
+
+        # Remove fields that are not serializable or are tensors (if any remain)
+        for k in ["memory"]:
             if k in diffusion_config_dict:
                 diffusion_config_dict.pop(k, None)
 
-        # Add nested configs if present
-        if hasattr(stage_cfg, "inference"):
-            diffusion_config_dict["inference"] = omegaconf.OmegaConf.to_container(stage_cfg.inference, resolve=True)
-        if hasattr(stage_cfg, "transformer"):
-            diffusion_config_dict["transformer"] = omegaconf.OmegaConf.to_container(stage_cfg.transformer, resolve=True)
-        if hasattr(stage_cfg, "atom_encoder"):
-            diffusion_config_dict["atom_encoder"] = omegaconf.OmegaConf.to_container(stage_cfg.atom_encoder, resolve=True)
-        if hasattr(stage_cfg, "atom_decoder"):
-            diffusion_config_dict["atom_decoder"] = omegaconf.OmegaConf.to_container(stage_cfg.atom_decoder, resolve=True)
-        if hasattr(stage_cfg, "memory"):
-            diffusion_config_dict["memory"] = omegaconf.OmegaConf.to_container(stage_cfg.memory, resolve=True)
     except Exception as e:
         print(f"[DEBUG][run_stageD] Error converting config to dict: {e}")
         # Fallback to empty dict
@@ -334,15 +343,15 @@ def run_stageD(
     if diffusion_cfg is None:
         raise ValueError("Configuration missing required 'diffusion' section under model.stageD.")
     # Support both dict and OmegaConf/structured config
-    c_s = getattr(diffusion_cfg, "c_s", None) if hasattr(diffusion_cfg, "c_s") else diffusion_cfg.get("c_s", None)
-    c_s_inputs = getattr(diffusion_cfg, "c_s_inputs", None) if hasattr(diffusion_cfg, "c_s_inputs") else diffusion_cfg.get("c_s_inputs", None)
-    c_z = getattr(diffusion_cfg, "c_z", None) if hasattr(diffusion_cfg, "c_z") else diffusion_cfg.get("c_z", None)
-    print(f"[DEBUG][run_stageD] diffusion_cfg.c_s: {c_s}, c_s_inputs: {c_s_inputs}, c_z: {c_z}")
+    model_arch = getattr(diffusion_cfg, "model_architecture", None) if hasattr(diffusion_cfg, "model_architecture") else diffusion_cfg.get("model_architecture", None)
+    c_s = getattr(model_arch, "c_s", None) if hasattr(model_arch, "c_s") else model_arch.get("c_s", None) if isinstance(model_arch, dict) else None
+    c_s_inputs = getattr(model_arch, "c_s_inputs", None) if hasattr(model_arch, "c_s_inputs") else model_arch.get("c_s_inputs", None) if isinstance(model_arch, dict) else None
+    c_z = getattr(model_arch, "c_z", None) if hasattr(model_arch, "c_z") else model_arch.get("c_z", None) if isinstance(model_arch, dict) else None
+    print(f"[DEBUG][run_stageD] model_arch.c_s: {c_s}, c_s_inputs: {c_s_inputs}, c_z: {c_z}")
     if c_s is None or c_s_inputs is None or c_z is None:
         print(f"[DEBUG][run_stageD] MISSING PARAMS - c_s: {c_s}, c_s_inputs: {c_s_inputs}, c_z: {c_z}")
         print(f"[DEBUG][run_stageD] diffusion_cfg dict: {diffusion_cfg}")
-        raise ValueError("Configuration missing required c_s, c_s_inputs, or c_z parameter in model.stageD.diffusion.")
-
+        raise ValueError("Configuration missing required c_s, c_s_inputs, or c_z parameter in model.stageD.diffusion.model_architecture.")
     print(f"[DEBUG][run_stageD] Using pair embedding dimension c_z={c_z}")
 
     # Mode and device

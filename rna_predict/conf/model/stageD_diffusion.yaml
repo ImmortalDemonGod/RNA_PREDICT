@@ -6,6 +6,7 @@ defaults:
   - _self_
 
 enabled: true
+debug_logging: true
 # Required parameters for feature initialization
 ref_element_size: 128
 ref_atom_name_chars_size: 256
@@ -34,6 +35,9 @@ diffusion:
   mode: "inference"
   device: "cpu"
   debug_logging: true
+  ref_element_size: 128
+  ref_atom_name_chars_size: 256
+  profile_size: 32
   # Feature dimensions required for bridging
   feature_dimensions:
     c_s: 384
@@ -42,7 +46,7 @@ diffusion:
     s_trunk: 384
     s_inputs: 449  # Required for bridging - using direct value instead of interpolation
   # Required for residue-to-atom bridging and inference shape checks
-  test_residues_per_batch: 1
+  test_residues_per_batch: 25
   # Required model architecture configuration
   model_architecture:
     c_token: 384
@@ -50,46 +54,46 @@ diffusion:
     c_z: 128
     c_s_inputs: 449
     c_atom: 128
-    c_atompair: 32
+    c_atompair: 128
     c_noise_embedding: 32
     sigma_data: 16.0
   # Required transformer configuration
   transformer:
-    n_blocks: 1
-    n_heads: 1
-    blocks_per_ckpt: 1
+    n_blocks: 6
+    n_heads: 8
+    blocks_per_ckpt: null
   # Atom encoder/decoder configs
   atom_encoder:
-    c_in: 3
-    c_hidden: [32, 64, 128]
-    c_out: 64
+    c_in: 128
+    c_hidden: [256]
+    c_out: 128
     dropout: 0.1
-    n_blocks: 1
-    n_heads: 1
+    n_blocks: 2
+    n_heads: 4
     n_queries: 8
     n_keys: 8
   atom_decoder:
-    c_in: 64
-    c_hidden: [128, 64, 32]
-    c_out: 3
+    c_in: 128
+    c_hidden: [256]
+    c_out: 128
     dropout: 0.1
-    n_blocks: 1
-    n_heads: 1
+    n_blocks: 2
+    n_heads: 4
     n_queries: 8
     n_keys: 8
   # Noise schedule config
   noise_schedule:
     schedule_type: "linear"
-    s_max: 160.0
-    s_min: 0.0004
-    p: 7.0
-    p_mean: -1.2
-    p_std: 1.5
+    s_max: 1.0
+    s_min: 0.01
+    p: 0.5
+    p_mean: 0.0
+    p_std: 1.0
   # Inference config
   inference:
     num_steps: 2
     temperature: 1.0
-    use_ddim: True
+    use_ddim: true
     sampling:
       num_samples: 1
       gamma0: 0.8
@@ -97,8 +101,8 @@ diffusion:
       noise_scale_lambda: 1.003
       step_scale_eta: 1.5
   # Memory optimization
-  use_memory_efficient_kernel: False
-  use_deepspeed_evo_attention: False
-  use_lma: False
-  inplace_safe: False
+  use_memory_efficient_kernel: false
+  use_deepspeed_evo_attention: false
+  use_lma: false
+  inplace_safe: false
   chunk_size: null
