@@ -38,6 +38,27 @@ def create_stage_d_test_config(stage_overrides=None, model_overrides=None, noise
                 "c_s_inputs": 384,
                 "c_noise_embedding": 128,
                 "test_residues_per_batch": 25,
+                "feature_dimensions": {
+                    "c_s": 384,
+                    "c_s_inputs": 384,
+                    "c_sing": 384
+                },
+                "model_architecture": {
+                    "c_token": 384,
+                    "c_s": 384,
+                    "c_z": 32,
+                    "c_s_inputs": 384,
+                    "c_atom": 128,
+                    "c_noise_embedding": 128,
+                    "num_layers": 1,
+                    "num_heads": 1,
+                    "dropout": 0.0,
+                    "coord_eps": 1e-6,
+                    "coord_min": -1e4,
+                    "coord_max": 1e4,
+                    "coord_similarity_rtol": 1e-3,
+                    "test_residues_per_batch": 25
+                },
                 "training": {
                     "batch_size": 1
                 },
@@ -54,7 +75,7 @@ def create_stage_d_test_config(stage_overrides=None, model_overrides=None, noise
                     "apply_memory_preprocess": False,
                     "memory_preprocess_max_len": 25
                 },
-                "atom_encoder": {"n_blocks": 1, "n_heads": 1, "n_queries": 4, "n_keys": 8},
+                "atom_encoder": {"n_blocks": 1, "n_heads": 1, "n_queries": 4, "n_keys": 8, "c_out": 16},
                 "transformer": {"n_blocks": 1, "n_heads": 1},
                 "atom_decoder": {"n_blocks": 1, "n_heads": 1, "n_queries": 4, "n_keys": 8}
             }
@@ -99,24 +120,85 @@ class TestRunStageDIntegration(unittest.TestCase):
              }
         )
         # Create a new structure with diffusion field
+        # Make sure to include model_architecture in the diffusion section
+        diffusion_config = dict(base_cfg.stageD_diffusion.diffusion)
+
+        # Debug print statements
+        print(f"[DEBUG-CONFIG] base_cfg.stageD_diffusion.diffusion keys: {list(base_cfg.stageD_diffusion.diffusion.keys())}")
+        print(f"[DEBUG-CONFIG] 'model_architecture' in base_cfg.stageD_diffusion.diffusion: {'model_architecture' in base_cfg.stageD_diffusion.diffusion}")
+
+        # Create a new diffusion_config with model_architecture
+        diffusion_config = {}
+
+        # Copy all keys from the base config
+        for key in base_cfg.stageD_diffusion.diffusion.keys():
+            if key != 'model_architecture':
+                diffusion_config[key] = base_cfg.stageD_diffusion.diffusion[key]
+
+        # Create model_architecture section
+        model_architecture = {}
+
+        # Copy model_architecture from base config if it exists
+        if 'model_architecture' in base_cfg.stageD_diffusion.diffusion:
+            for key in base_cfg.stageD_diffusion.diffusion.model_architecture.keys():
+                model_architecture[key] = base_cfg.stageD_diffusion.diffusion.model_architecture[key]
+
+        # Add required parameters to model_architecture
+        required_params = {
+            "c_token": 64,
+            "c_s": 64,
+            "c_z": 32,
+            "c_s_inputs": 64,
+            "c_atom": 32,
+            "c_atompair": 8,
+            "c_noise_embedding": 32,
+            "sigma_data": 1.0,
+            "num_layers": 1,
+            "num_heads": 1,
+            "dropout": 0.0,
+            "coord_eps": 1e-6,
+            "coord_min": -1e4,
+            "coord_max": 1e4,
+            "coord_similarity_rtol": 1e-3,
+            "test_residues_per_batch": 25
+        }
+
+        # Add any missing required parameters
+        for key, value in required_params.items():
+            if key not in model_architecture:
+                model_architecture[key] = value
+
+        # Set model_architecture in diffusion_config
+        diffusion_config['model_architecture'] = model_architecture
+
+        print(f"[DEBUG-CONFIG] Created model_architecture with keys: {list(model_architecture.keys())}")
+
+        # Create the test config
         self.test_cfg = OmegaConf.create({
             "model": {
                 "stageD": {
-                    "diffusion": dict(base_cfg.stageD_diffusion.diffusion)
+                    "diffusion": diffusion_config
                 }
             }
         })
+
+        # Debug print statements for the created config
+        print(f"[DEBUG-CONFIG] self.test_cfg.model.stageD.diffusion keys: {list(self.test_cfg.model.stageD.diffusion.keys())}")
+        print(f"[DEBUG-CONFIG] 'model_architecture' in self.test_cfg.model.stageD.diffusion: {'model_architecture' in self.test_cfg.model.stageD.diffusion}")
+        if 'model_architecture' in self.test_cfg.model.stageD.diffusion:
+            print(f"[DEBUG-CONFIG] self.test_cfg.model.stageD.diffusion.model_architecture keys: {list(self.test_cfg.model.stageD.diffusion.model_architecture.keys())}")
         self.num_atoms = 25
+        self.num_residues = 5  # 5 residues with 5 atoms each
         self.c_token = 64
         self.c_s = 64
         self.c_s_inputs = 64
         self.c_z = 32
         self.atom_coords = torch.zeros((1, self.num_atoms, 3))
         self.atom_embeddings = {
-            "s_trunk": torch.zeros((1, self.num_atoms, self.c_token)),
-            "pair": torch.zeros((1, self.num_atoms, self.num_atoms, self.c_z)),
-            "s_inputs": torch.zeros((1, self.num_atoms, self.c_s_inputs)),
-            "s_concat": torch.zeros((1, self.num_atoms, self.c_s + self.c_s_inputs)),
+            "s_trunk": torch.zeros((1, self.num_residues, self.c_token)),  # Residue-level
+            "pair": torch.zeros((1, self.num_residues, self.num_residues, self.c_z)),  # Residue-level
+            "s_inputs": torch.zeros((1, self.num_residues, self.c_s_inputs)),  # Residue-level
+            "s_concat": torch.zeros((1, self.num_residues, self.c_s + self.c_s_inputs)),  # Residue-level
         }
         self.input_feature_dict = {
             'ref_pos': torch.zeros((1, self.num_atoms, 3)),
@@ -134,10 +216,16 @@ class TestRunStageDIntegration(unittest.TestCase):
         print(f"[DEBUG-SETUP] After _prepare_input_feature_dict, input_feature_dict['restype'] value: {self.input_feature_dict.get('restype', None)}")
         assert 'restype' in self.input_feature_dict and self.input_feature_dict['restype'] is not None, (
             f"UNIQUE ERROR: restype missing or None in input_feature_dict after setUp: {self.input_feature_dict}")
+        # Create atom_metadata with residue indices that map atoms to residues
+        # Each residue has 5 atoms (self.num_atoms / self.num_residues)
+        atoms_per_residue = self.num_atoms // self.num_residues
         self.atom_metadata = {
             'atom_names': [f'C{i}' for i in range(self.num_atoms)],
-            'residue_indices': list(range(self.num_atoms))
+            'residue_indices': [i // atoms_per_residue for i in range(self.num_atoms)],
+            'sequence': 'ACGUA'  # 5 residues
         }
+        # Add sequence to input_feature_dict
+        self.input_feature_dict['sequence'] = 'ACGUA'
         print(f"[DEBUG][setUp] c_token: {self.c_token}, c_s: {self.c_s}, c_s_inputs: {self.c_s_inputs}, c_z: {self.c_z}")
         print(f"[DEBUG][setUp] s_trunk shape: {self.atom_embeddings['s_trunk'].shape}")
         print(f"[DEBUG][setUp] ref_element shape: {self.input_feature_dict['ref_element'].shape}")
@@ -196,6 +284,21 @@ class TestRunStageDIntegration(unittest.TestCase):
     def test_inference_mode(self):
         assert hasattr(self, 'test_cfg'), "UNIQUE ERROR: test_cfg missing in test_inference_mode"
         assert hasattr(self, 'atom_metadata'), "UNIQUE ERROR: atom_metadata missing in test_inference_mode"
+
+        # Debug: Print the structure of the test_cfg
+        print("\n[DEBUG-CONFIG] Full test_cfg structure:")
+        print(OmegaConf.to_yaml(self.test_cfg))
+        print("\n[DEBUG-CONFIG] Checking if model_architecture exists in the config:")
+        print(f"'model' in test_cfg: {'model' in self.test_cfg}")
+        if 'model' in self.test_cfg:
+            print(f"'stageD' in test_cfg.model: {'stageD' in self.test_cfg.model}")
+            if 'stageD' in self.test_cfg.model:
+                print(f"'diffusion' in test_cfg.model.stageD: {'diffusion' in self.test_cfg.model.stageD}")
+                if 'diffusion' in self.test_cfg.model.stageD:
+                    print(f"'model_architecture' in test_cfg.model.stageD.diffusion: {'model_architecture' in self.test_cfg.model.stageD.diffusion}")
+                    if 'model_architecture' in self.test_cfg.model.stageD.diffusion:
+                        print(f"test_cfg.model.stageD.diffusion.model_architecture keys: {list(self.test_cfg.model.stageD.diffusion.model_architecture.keys())}")
+
         # Debug print and assert for restype before model call
         print(f"[DEBUG-TEST] input_feature_dict['restype'] type: {type(self.input_feature_dict.get('restype', None))}")
         assert 'restype' in self.input_feature_dict and self.input_feature_dict['restype'] is not None, (
@@ -222,7 +325,7 @@ class TestRunStageDIntegration(unittest.TestCase):
         assert hasattr(self, 'test_cfg'), "UNIQUE ERROR: test_cfg missing in test_train_mode_call"
         assert hasattr(self, 'atom_metadata'), "UNIQUE ERROR: atom_metadata missing in test_train_mode_call"
         # Set mode in config
-        self.test_cfg.model.stageD.mode = "train"
+        self.test_cfg.model.stageD.diffusion.mode = "train"
         # Recursively remove sampler_params from all nested dicts
         def remove_sampler_params(cfg):
             if isinstance(cfg, dict):
@@ -233,9 +336,9 @@ class TestRunStageDIntegration(unittest.TestCase):
                 for k, v in cfg.items():
                     remove_sampler_params(v)
         remove_sampler_params(self.test_cfg)
-        mode_val = getattr(self.test_cfg.model.stageD, 'mode', None)
+        mode_val = getattr(self.test_cfg.model.stageD.diffusion, 'mode', None)
         assert mode_val == "train", f"UNIQUE ERROR: mode not set correctly in test_train_mode_call, got {mode_val}"
-        print(f"[DEBUG] test_train_mode_call config mode: {self.test_cfg.model.stageD.mode}")
+        print(f"[DEBUG] test_train_mode_call config mode: {self.test_cfg.model.stageD.diffusion.mode}")
         print(f"[DEBUG] test_train_mode_call config keys: {list(self.test_cfg.model.stageD.keys())}")
         print(f"[DEBUG] test_train_mode_call config: {self.test_cfg}")
         # Debug print and assert for restype before model call

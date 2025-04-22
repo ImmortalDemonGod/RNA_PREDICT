@@ -6,8 +6,6 @@ Also compares file sizes of full vs. partial checkpoints to demonstrate efficien
 import torch
 import torch.nn as nn
 from torch.utils.data import TensorDataset, DataLoader
-import pytest
-import hydra
 import lightning as L
 from rna_predict.utils.checkpoint import partial_load_state_dict
 
