@@ -21,11 +21,9 @@ import gc
 import unittest
 
 import torch
-import torch.nn as nn
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from rna_predict.pipeline.stageB.pairwise.pairformer import PairformerStack
 from rna_predict.pipeline.stageB.pairwise.pairformer_wrapper import PairformerWrapper
 
 
@@ -216,7 +214,6 @@ class TestPairformerWrapperVerification(unittest.TestCase):
         Using reduced tensor sizes for testing.
         """
         from omegaconf import OmegaConf
-        import inspect
         cfg = OmegaConf.create({
             "stageB_pairformer": {
                 "n_blocks": self.default_n_blocks,
