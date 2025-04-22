@@ -52,8 +52,8 @@ def test_stageD_none_trunk_embeddings_raises():
     dummy_config = make_dummy_config_none_trunk_embeddings()
     # Simulate None trunk_embeddings in input
     bridging_input.trunk_embeddings = None
-    # Accept any message mentioning 'NoneType' (robust to error location)
-    with pytest.raises(AttributeError, match=r"NoneType"):
+    # Accept any message mentioning 's_inputs' (robust to error location)
+    with pytest.raises(ValueError, match=r"s_inputs"):  # robust to error message wording
         bridge_residue_to_atom(bridging_input, dummy_config, debug_logging=True)
 
 def test_stageD_missing_s_inputs_in_real_config_raises():

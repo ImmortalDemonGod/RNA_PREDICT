@@ -100,6 +100,11 @@ class InputFeaturesConfig:
     atom_to_token_idx: AtomToTokenConfig = field(default_factory=AtomToTokenConfig)
 
 @dataclass
+class FeatureDimensionsConfig:
+    """Feature dimensions for Stage D diffusion."""
+    s_inputs: int = 32
+
+@dataclass
 class DiffusionConfig:
     """Main configuration for Stage D diffusion refinement."""
     # Core settings
@@ -115,6 +120,9 @@ class DiffusionConfig:
     c_z: int = 128
     c_s_inputs: int = 32
     c_noise_embedding: int = 32
+
+    # Feature dimensions group
+    feature_dimensions: FeatureDimensionsConfig = field(default_factory=FeatureDimensionsConfig)
 
     # Component configurations
     noise_schedule: NoiseScheduleConfig = field(default_factory=NoiseScheduleConfig)
@@ -151,3 +159,4 @@ cs.store(name="stageD/transformer", node=TransformerConfig)
 cs.store(name="stageD/input_features", node=InputFeaturesConfig)
 cs.store(name="stageD/input_feature", node=InputFeatureConfig)
 cs.store(name="stageD/atom_to_token", node=AtomToTokenConfig)
+cs.store(name="stageD/feature_dimensions", node=FeatureDimensionsConfig)
