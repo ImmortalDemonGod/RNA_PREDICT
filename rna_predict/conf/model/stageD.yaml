@@ -8,11 +8,4 @@ defaults:
 
 # This file is a placeholder to satisfy the Hydra config structure.
 # The actual configuration is in stageD_diffusion.yaml and stageD_input_features.yaml.
-
-# Explicitly define the diffusion key to allow overrides
-diffusion:
-  init_from_scratch: false
-  enabled: true
-  mode: "inference"
-  device: "cpu"
-  debug_logging: true
+# All overrides should be done via CLI or dedicated override files, not here.
