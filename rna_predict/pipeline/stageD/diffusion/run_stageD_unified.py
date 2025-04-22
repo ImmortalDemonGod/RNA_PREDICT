@@ -30,9 +30,7 @@ from rna_predict.conf.utils import get_config
 logger = logging.getLogger("rna_predict.pipeline.stageD.diffusion.run_stageD_unified")
 
 def get_unified_cfg():
-    import hydra
     from hydra.core.global_hydra import GlobalHydra
-    from rna_predict.conf.utils import get_config
     CONFIG_PATH = "/Users/tomriddle1/RNA_PREDICT/rna_predict/conf"  # per user rule
     if not GlobalHydra.instance().is_initialized():
         return get_config(config_path=CONFIG_PATH)
@@ -101,15 +99,53 @@ def _run_stageD_diffusion_impl(
     from omegaconf import OmegaConf
 
     # Create a Hydra-compatible config structure
+    # Ensure model_architecture is included in the diffusion config
+    diffusion_config = dict(config.diffusion_config)
+
+    # Debug print statements
+    print(f"[DEBUG-CONFIG] diffusion_config keys: {list(diffusion_config.keys())}")
+    print(f"[DEBUG-CONFIG] 'model_architecture' in diffusion_config: {'model_architecture' in diffusion_config}")
+
+    # If model_architecture is not in the diffusion config, create it
+    if 'model_architecture' not in diffusion_config:
+        print(f"[DEBUG-CONFIG] Adding model_architecture to diffusion_config")
+        # Create a default model_architecture
+        diffusion_config['model_architecture'] = {
+            "c_token": diffusion_config.get('c_token', 64),
+            "c_s": diffusion_config.get('c_s', 64),
+            "c_z": diffusion_config.get('c_z', 32),
+            "c_s_inputs": diffusion_config.get('c_s_inputs', 64),
+            "c_atom": diffusion_config.get('c_atom', 32),
+            "c_atompair": diffusion_config.get('c_atompair', 8),
+            "c_noise_embedding": diffusion_config.get('c_noise_embedding', 32),
+            "sigma_data": diffusion_config.get('sigma_data', 1.0),
+            # Remove parameters that DiffusionModule doesn't accept
+            # "num_layers": 1,
+            # "num_heads": 1,
+            # "dropout": 0.0,
+            "coord_eps": 1e-6,
+            "coord_min": -1e4,
+            "coord_max": 1e4,
+            "coord_similarity_rtol": 1e-3,
+            "test_residues_per_batch": 25
+        }
+
+    # Create the Hydra config
     hydra_cfg = OmegaConf.create({
         "stageD": {
             "diffusion": {
                 "device": config.device,
                 # Add all diffusion config parameters
-                **config.diffusion_config
+                **diffusion_config
             }
         }
     })
+
+    # Debug print statements for the created config
+    print(f"[DEBUG-CONFIG] hydra_cfg.stageD.diffusion keys: {list(hydra_cfg.stageD.diffusion.keys())}")
+    print(f"[DEBUG-CONFIG] 'model_architecture' in hydra_cfg.stageD.diffusion: {'model_architecture' in hydra_cfg.stageD.diffusion}")
+    if 'model_architecture' in hydra_cfg.stageD.diffusion:
+        print(f"[DEBUG-CONFIG] hydra_cfg.stageD.diffusion.model_architecture keys: {list(hydra_cfg.stageD.diffusion.model_architecture.keys())}")
 
     # Create the manager with the Hydra config
     diffusion_manager = ProtenixDiffusionManager(cfg=hydra_cfg)
