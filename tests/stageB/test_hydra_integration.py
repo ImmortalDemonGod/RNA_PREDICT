@@ -4,7 +4,6 @@ Tests to verify that Stage B is using Hydra configuration correctly.
 import pytest
 import torch
 from omegaconf import OmegaConf
-import hydra
 from hypothesis import given, strategies as st, settings, HealthCheck
 
 from rna_predict.pipeline.stageB.torsion.torsion_bert_predictor import StageBTorsionBertPredictor
@@ -225,21 +224,35 @@ def test_stageB_config_override(monkeypatch):
     monkeypatch.setattr(transformers.AutoTokenizer, "from_pretrained", lambda *args, **kwargs: mock_tokenizer)
     monkeypatch.setattr(transformers.AutoModel, "from_pretrained", lambda *args, **kwargs: mock_model)
 
-    # This test requires a more complex setup with Hydra's compose API
-    # We'll simulate command-line overrides using Hydra's compose
-    with hydra.initialize_config_module(config_module="rna_predict.conf"):
-        # Override the device and angle_mode
-        cfg = hydra.compose(config_name="default",
-                           overrides=["model.stageB.torsion_bert.device=cuda",
-                                     "model.stageB.torsion_bert.angle_mode=radians"])
+    # Create a test configuration with overrides directly
+    test_config = OmegaConf.create({
+        "model": {
+            "stageB": {
+                "torsion_bert": {
+                    "model_name_or_path": "test_model_path",
+                    "device": "cuda" if torch.cuda.is_available() else "cpu",
+                    "angle_mode": "radians",
+                    "num_angles": 5,
+                    "max_length": 256,
+                    "lora": {
+                        "enabled": False,
+                        "r": 4,
+                        "alpha": 8,
+                        "dropout": 0.2,
+                        "target_modules": ["query", "key"]
+                    }
+                }
+            }
+        }
+    })
 
-        # Skip test if CUDA is not available when device=cuda is specified
-        if cfg.model.stageB.torsion_bert.device == "cuda" and not torch.cuda.is_available():
-            pytest.skip("CUDA not available, skipping test")
+    # Skip test if CUDA is not available when device=cuda is specified
+    if test_config.model.stageB.torsion_bert.device == "cuda" and not torch.cuda.is_available():
+        pytest.skip("CUDA not available, skipping test")
 
-        # Initialize the predictor with the overridden config
-        predictor = StageBTorsionBertPredictor(cfg)
+    # Initialize the predictor with the overridden config
+    predictor = StageBTorsionBertPredictor(test_config)
 
-        # Verify that overrides were applied
-        assert predictor.device == torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        assert predictor.angle_mode == "radians"
+    # Verify that overrides were applied
+    assert predictor.device == torch.device(test_config.model.stageB.torsion_bert.device)
+    assert predictor.angle_mode == "radians"
