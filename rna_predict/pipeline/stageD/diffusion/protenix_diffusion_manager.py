@@ -7,7 +7,7 @@ from dataclasses import dataclass
 import torch.nn as nn
 import os
 import psutil
-
+import snoop
 from rna_predict.pipeline.stageD.diffusion.components.diffusion_module import (
     DiffusionModule,
 )
@@ -438,7 +438,8 @@ class ProtenixDiffusionManager(nn.Module):
         if (coords_final.ndim > sample_dim_index and coords_final.shape[sample_dim_index] == 1):
             coords_final = coords_final.squeeze(sample_dim_index)
         return coords_final
-
+    
+    @snoop
     def multi_step_inference(
         self,
         coords_init: torch.Tensor,
@@ -452,7 +453,25 @@ class ProtenixDiffusionManager(nn.Module):
         if not OmegaConf.is_config(self.cfg):
             raise ValueError("multi_step_inference requires Hydra config")
         stage_cfg = self.cfg.stageD.diffusion
-        inference_cfg = stage_cfg.get("inference", OmegaConf.create({}))
+        # --- PATCH: Handle extra 'diffusion' nesting in config ---
+        inference_cfg = stage_cfg.get("inference", None)
+        if inference_cfg is None and "diffusion" in stage_cfg and isinstance(stage_cfg["diffusion"], dict):
+            logger.warning("[HYDRA-CONF-WARN][StageD] Detected extra 'diffusion' nesting in config. Falling back to stage_cfg['diffusion']['inference'].")
+            inference_cfg = stage_cfg["diffusion"].get("inference", OmegaConf.create({}))
+        elif inference_cfg is None:
+            inference_cfg = OmegaConf.create({})
+        sampling_cfg = inference_cfg.get("sampling", OmegaConf.create({}))
+        N_sample = sampling_cfg.get("num_samples", 1)
+        if "num_steps" not in inference_cfg:
+            # --- SYSTEMATIC DEBUGGING: Print config state before raising error ---
+            logger.error(f"[HYDRA-CONF-DEBUG][StageD] stage_cfg type: {type(stage_cfg)}")
+            logger.error(f"[HYDRA-CONF-DEBUG][StageD] stage_cfg keys: {list(stage_cfg.keys()) if hasattr(stage_cfg, 'keys') else stage_cfg}")
+            logger.error(f"[HYDRA-CONF-DEBUG][StageD] inference_cfg type: {type(inference_cfg)}")
+            logger.error(f"[HYDRA-CONF-DEBUG][StageD] inference_cfg: {inference_cfg}")
+            logger.error(f"[HYDRA-CONF-DEBUG][StageD] Full stage_cfg: {stage_cfg}")
+            raise ValueError("[HYDRA-CONF-ERROR][StageD] 'num_steps' missing from inference config. Please ensure it is set in your Hydra config group (stageD_diffusion.yaml) under 'inference'.")
+        num_steps = inference_cfg["num_steps"]
+        logger.info(f"[HYDRA-CONF-DEBUG][StageD] Using num_steps from config: {num_steps}")
         noise_schedule_cfg = stage_cfg.get("noise_schedule", OmegaConf.create({}))
         debug_logging = stage_cfg.get("debug_logging", False)
         device = self.device
@@ -468,17 +487,17 @@ class ProtenixDiffusionManager(nn.Module):
         self._log_shapes(debug_logging, coords_init, trunk_embeddings["s_trunk"], s_inputs, z_trunk)
         ctx = FeaturePreparationContext(coords_init, override_input_features, device, trunk_embeddings, s_inputs)
         input_feature_dict = self._prepare_input_features(ctx)
-        sampling_cfg = inference_cfg.get("sampling", OmegaConf.create({}))
-        N_sample = sampling_cfg.get("num_samples", 1)
-        num_steps = inference_cfg.get("num_steps", 50)
         schedule_type = noise_schedule_cfg.get("schedule_type", "linear")
         noise_schedule = self._get_noise_schedule(num_steps, schedule_type, device)
-        inplace_safe = inference_cfg.get("inplace_safe", False)
-        attn_chunk_size = stage_cfg.get("attn_chunk_size")
         if debug_logging:
             logger.debug("[multi_step_inference] Before sample_diffusion:")
             logger.debug(f"  coords_init shape: {coords_init.shape}")
             logger.debug(f"  s_trunk shape: {trunk_embeddings['s_trunk'].shape}")
+            logger.debug(f"  noise_schedule (len={len(noise_schedule)}): {noise_schedule}")
+            logger.debug(f"  num_steps from config: {num_steps}")
+            logger.debug(f"  schedule_type from config: {schedule_type}")
+        inplace_safe = inference_cfg.get("inplace_safe", False)
+        attn_chunk_size = stage_cfg.get("attn_chunk_size")
         coords_final = sample_diffusion(
             denoise_net=self.diffusion_module,
             input_feature_dict=input_feature_dict,
