@@ -12,8 +12,9 @@ model_architecture:
   c_z: 128
   c_s_inputs: 449
   c_atom: 128
-  # c_pair is sometimes required for diffusion model overrides
+  c_atompair: 32
   c_noise_embedding: 32
+  sigma_data: 16.0
 atom_decoder:
   c_in: 64
   c_hidden: [128, 64, 32]
@@ -58,7 +59,6 @@ diffusion:
     s_max: 160.0
     s_min: 0.0004
     p: 7.0
-    sigma_data: 16.0
     p_mean: -1.2
     p_std: 1.5
   # Inference config
