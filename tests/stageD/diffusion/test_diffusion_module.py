@@ -13,8 +13,30 @@ class TestDiffusionModule(unittest.TestCase):
         self.c_atompair = 16  # Atom pair feature dimension
         self.c_noise_embedding = 256  # Noise embedding dimension
         self.blocks_per_ckpt = None
-        
+        self.sigma_data = 16.0  # Added missing sigma_data parameter
+
+        # Added required dictionary parameters
+        self.atom_encoder = {
+            "n_blocks": 1,
+            "n_heads": 1,
+            "n_queries": 8,
+            "n_keys": 8
+        }
+
+        self.transformer = {
+            "n_blocks": 1,
+            "n_heads": 1
+        }
+
+        self.atom_decoder = {
+            "n_blocks": 1,
+            "n_heads": 1,
+            "n_queries": 8,
+            "n_keys": 8
+        }
+
         self.module = DiffusionModule(
+            sigma_data=self.sigma_data,  # Added missing parameter
             c_s=self.c_s,
             c_s_inputs=self.c_s_inputs,
             c_z=self.c_z,
@@ -22,6 +44,9 @@ class TestDiffusionModule(unittest.TestCase):
             c_atom=self.c_atom,
             c_atompair=self.c_atompair,
             c_noise_embedding=self.c_noise_embedding,
+            atom_encoder=self.atom_encoder,  # Added missing parameter
+            transformer=self.transformer,  # Added missing parameter
+            atom_decoder=self.atom_decoder,  # Added missing parameter
             blocks_per_ckpt=self.blocks_per_ckpt
         )
 
@@ -29,11 +54,11 @@ class TestDiffusionModule(unittest.TestCase):
         """Test that tensor broadcasting is handled correctly"""
         batch_size = 2
         seq_len = 24
-        
+
         # Create input tensors
         x_noisy = torch.randn(batch_size, seq_len, seq_len, 3)
         t_hat = torch.randn(batch_size, 1)  # Time step tensor
-        
+
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.module.to(device)
         x_noisy = x_noisy.to(device) # Move to device
@@ -76,7 +101,7 @@ class TestDiffusionModule(unittest.TestCase):
         """Test that shape validation catches mismatched dimensions"""
         batch_size = 2
         seq_len = 24
-        
+
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.module.to(device)
 

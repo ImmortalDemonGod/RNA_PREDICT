@@ -974,3 +974,38 @@ def test_forbid_original_trunk_embeddings_ref_after_bridge(batch_size, n_residue
             pass
         else:
             raise
+
+# ------------------------------------------------------------------------------
+# Test: Bridging should fail with clear error if required feature dimension is missing from config
+
+def test_bridge_residue_to_atom_raises_on_missing_feature_dim():
+    """
+    Test that bridge_residue_to_atom raises a clear error if config is missing required feature dimensions (e.g., c_s_inputs).
+    [BRIDGE ERROR][UNIQUE_CODE_MISSING_DIM]
+    """
+    import torch
+    from rna_predict.pipeline.stageD.diffusion.bridging.residue_atom_bridge import bridge_residue_to_atom, BridgingInput
+    # Simulate residue-level s_emb: [B, N_res, c_s]
+    batch_size = 1
+    n_residues = 4
+    c_s = 8
+    s_emb = torch.randn(batch_size, n_residues, c_s)
+    trunk_embeddings = {"s_trunk": s_emb}
+    sequence = ["A"] * n_residues
+    bridging_input = BridgingInput(
+        partial_coords=None,
+        trunk_embeddings=trunk_embeddings,
+        input_features=None,
+        sequence=sequence
+    )
+    # Config missing c_s_inputs/feature_dimensions
+    class DummyConfig:
+        pass
+    config = DummyConfig()
+    try:
+        bridge_residue_to_atom(bridging_input, config, debug_logging=False)
+    except ValueError as e:
+        assert "feature dimension" in str(e) or "c_s_inputs" in str(e), f"Unexpected error message: {e}"
+        assert "[BRIDGE ERROR][UNIQUE_CODE_MISSING_DIM]" in str(e) or "missing" in str(e).lower(), f"Error should mention missing dimension: {e}"
+    else:
+        raise AssertionError("bridge_residue_to_atom did not raise on missing feature dimension!")
