@@ -178,7 +178,7 @@ def run_stageD(
         # Try to infer residues from sequence if available
         n_residues = len(input_feature_dict.get('sequence', [])) if input_feature_dict.get('sequence', None) is not None else None
         # If sequence not available, estimate from atom count and atoms per residue
-        atoms_per_res = n_atoms // n_residues if n_residues else None
+        n_atoms // n_residues if n_residues else None
         if s_trunk.shape[1] == n_atoms:
             raise ValueError('[RUNSTAGED ERROR][UNIQUE_CODE_003] s_trunk is atom-level at entry to run_stageD; upstream code must pass residue-level embeddings.')
 
@@ -473,11 +473,48 @@ def hydra_main(cfg: DictConfig) -> None:
     print(f"[DEBUG][run_stageD] diffusion_cfg: {diffusion_cfg}")
     if diffusion_cfg is None:
         raise ValueError("Configuration missing required 'diffusion' section under model.stageD.")
-    # Support both dict and OmegaConf/structured config
-    c_s = getattr(diffusion_cfg, "c_s", None) if hasattr(diffusion_cfg, "c_s") else diffusion_cfg.get("c_s", None)
-    c_s_inputs = getattr(diffusion_cfg, "c_s_inputs", None) if hasattr(diffusion_cfg, "c_s_inputs") else diffusion_cfg.get("c_s_inputs", None)
-    c_z = getattr(diffusion_cfg, "c_z", None) if hasattr(diffusion_cfg, "c_z") else diffusion_cfg.get("c_z", None)
-    print(f"[DEBUG][run_stageD] diffusion_cfg.c_s: {c_s}, c_s_inputs: {c_s_inputs}, c_z: {c_z}")
+
+    # Get dimensions from model_architecture first (preferred source)
+    model_arch = getattr(stage_cfg, "model_architecture", None)
+    if model_arch is not None:
+        # Try to get dimensions from model_architecture
+        c_s = getattr(model_arch, "c_s", None) if hasattr(model_arch, "c_s") else model_arch.get("c_s", None) if isinstance(model_arch, dict) else None
+        c_s_inputs = getattr(model_arch, "c_s_inputs", None) if hasattr(model_arch, "c_s_inputs") else model_arch.get("c_s_inputs", None) if isinstance(model_arch, dict) else None
+        c_z = getattr(model_arch, "c_z", None) if hasattr(model_arch, "c_z") else model_arch.get("c_z", None) if isinstance(model_arch, dict) else None
+        print(f"[DEBUG][run_stageD] model_arch.c_s: {c_s}, c_s_inputs: {c_s_inputs}, c_z: {c_z}")
+
+    # If dimensions not found in model_architecture, try diffusion_cfg
+    if c_s is None or c_s_inputs is None or c_z is None:
+        # Try to get from feature_dimensions if available
+        feature_dims = getattr(diffusion_cfg, "feature_dimensions", None) if hasattr(diffusion_cfg, "feature_dimensions") else diffusion_cfg.get("feature_dimensions", None) if isinstance(diffusion_cfg, dict) else None
+        if feature_dims is not None:
+            # Try to get from feature_dimensions
+            c_s = getattr(feature_dims, "c_s", None) if hasattr(feature_dims, "c_s") else feature_dims.get("c_s", None) if isinstance(feature_dims, dict) else None
+            c_s_inputs = getattr(feature_dims, "c_s_inputs", None) if hasattr(feature_dims, "c_s_inputs") else feature_dims.get("c_s_inputs", None) if isinstance(feature_dims, dict) else None
+            c_z = getattr(feature_dims, "c_z", None) if hasattr(feature_dims, "c_z") else feature_dims.get("c_z", None) if isinstance(feature_dims, dict) else None
+            print(f"[DEBUG][run_stageD] feature_dims.c_s: {c_s}, c_s_inputs: {c_s_inputs}, c_z: {c_z}")
+
+        # If still not found, try diffusion_cfg directly
+        if c_s is None:
+            c_s = getattr(diffusion_cfg, "c_s", None) if hasattr(diffusion_cfg, "c_s") else diffusion_cfg.get("c_s", None) if isinstance(diffusion_cfg, dict) else None
+        if c_s_inputs is None:
+            c_s_inputs = getattr(diffusion_cfg, "c_s_inputs", None) if hasattr(diffusion_cfg, "c_s_inputs") else diffusion_cfg.get("c_s_inputs", None) if isinstance(diffusion_cfg, dict) else None
+        if c_z is None:
+            c_z = getattr(diffusion_cfg, "c_z", None) if hasattr(diffusion_cfg, "c_z") else diffusion_cfg.get("c_z", None) if isinstance(diffusion_cfg, dict) else None
+        print(f"[DEBUG][run_stageD] diffusion_cfg.c_s: {c_s}, c_s_inputs: {c_s_inputs}, c_z: {c_z}")
+
+    # If still not found, use default values
+    if c_s is None:
+        c_s = 384  # Default value from config_schema.py
+        print(f"[DEBUG][run_stageD] Using default c_s: {c_s}")
+    if c_s_inputs is None:
+        c_s_inputs = 449  # Default value from config_schema.py
+        print(f"[DEBUG][run_stageD] Using default c_s_inputs: {c_s_inputs}")
+    if c_z is None:
+        c_z = 128  # Default value from config_schema.py
+        print(f"[DEBUG][run_stageD] Using default c_z: {c_z}")
+
+    # Final check
     if c_s is None or c_s_inputs is None or c_z is None:
         print(f"[DEBUG][run_stageD] MISSING PARAMS - c_s: {c_s}, c_s_inputs: {c_s_inputs}, c_z: {c_z}")
         print(f"[DEBUG][run_stageD] diffusion_cfg dict: {diffusion_cfg}")
