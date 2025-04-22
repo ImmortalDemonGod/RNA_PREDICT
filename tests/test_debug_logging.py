@@ -93,13 +93,29 @@ def create_stage_config(
     if stage == "stageB":
         # Override both Pairformer and TorsionBert debug_logging for Stage B
         overrides = [
-            f"model.stageB.pairformer.debug_logging={debug_val}",
-            f"model.stageB.torsion_bert.debug_logging={debug_val}"
+            f"++model.stageB.debug_logging={debug_val}",
+            f"++model.stageB.pairformer.debug_logging={debug_val}",
+            f"++model.stageB.torsion_bert.debug_logging={debug_val}",
+            # Add required configuration for PairformerWrapper
+            "++model.stageB.pairformer.n_blocks=2",
+            "++model.stageB.pairformer.c_z=32",
+            "++model.stageB.pairformer.c_s=64",
+            "++model.stageB.pairformer.n_heads=4",
+            "++model.stageB.pairformer.dropout=0.1",
+            "++model.stageB.pairformer.use_memory_efficient_kernel=False",
+            "++model.stageB.pairformer.use_deepspeed_evo_attention=False",
+            "++model.stageB.pairformer.use_lma=False",
+            "++model.stageB.pairformer.inplace_safe=False",
+            "++model.stageB.pairformer.chunk_size=4",
+            # Add required configuration for TorsionBertPredictor
+            "++model.stageB.torsion_bert.model_name_or_path=dummy-path",
+            "++model.stageB.torsion_bert.device=cpu",
+            "++init_from_scratch=True"
         ]
     elif stage == "stageA":
-        overrides = [f"model.stageA.debug_logging={debug_val}"]
+        overrides = [f"++model.stageA.debug_logging={debug_val}"]
     elif stage == "stageC":
-        overrides = [f"model.stageC.debug_logging={debug_val}"]
+        overrides = [f"++model.stageC.debug_logging={debug_val}"]
     elif stage == "stageD":
         # Provide minimal valid atom_metadata for Stage D
         num_residues = 8
@@ -108,13 +124,13 @@ def create_stage_config(
         residue_indices = sum(
             [[i] * atoms_per_residue for i in range(num_residues)], []
         )
-        overrides = [f"model.{stage}.debug_logging={debug_val}"]
+        overrides = [f"++model.{stage}.debug_logging={debug_val}"]
         atom_metadata = {
             "atom_names": atom_names,
             "residue_indices": residue_indices,
         }
     else:
-        overrides = [f"model.{stage}.debug_logging={debug_val}"]
+        overrides = [f"++model.{stage}.debug_logging={debug_val}"]
 
     return overrides, atom_metadata
 
@@ -666,7 +682,17 @@ def test_stageB_debug_logging_substages(_unused_stage, substage, expected_msg, c
         cfg = OmegaConf.create({
             "stageB_pairformer": {
                 "debug_logging": True,
-                # Add other required keys if needed by PairformerWrapper
+                # Add required keys for PairformerWrapper
+                "n_blocks": 2,
+                "c_z": 32,
+                "c_s": 64,
+                "n_heads": 4,
+                "dropout": 0.1,
+                "use_memory_efficient_kernel": False,
+                "use_deepspeed_evo_attention": False,
+                "use_lma": False,
+                "inplace_safe": False,
+                "chunk_size": 4
             }
         })
         debug_val = cfg.stageB_pairformer.debug_logging
