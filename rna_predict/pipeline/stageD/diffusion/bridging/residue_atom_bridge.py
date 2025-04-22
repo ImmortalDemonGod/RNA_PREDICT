@@ -54,6 +54,8 @@ def _process_single_embedding(
             f"Bridged {key} from shape {value.shape} to {bridged_value.shape} "
             f"using residue-to-atom mapping"
         )
+        # SYSTEMATIC DEBUGGING: Print tensor shapes for hypothesis testing
+        print(f"[DEBUG][BRIDGE][_process_single_embedding] key={key} value.shape={value.shape} bridged_value.shape={bridged_value.shape}")
     return bridged_value
 
 
@@ -139,6 +141,7 @@ def _process_one_trunk_embedding(
     key: str,
     value: Any,  # Can be Tensor or other type
     context: EmbeddingProcessContext,
+    config: Any,  # Accepts either config object or DictConfig
 ) -> Any:  # Return type matches input 'value' or processed Tensor
     """Processes a single key-value pair from trunk_embeddings dictionary."""
     if not isinstance(value, torch.Tensor):
@@ -155,18 +158,62 @@ def _process_one_trunk_embedding(
         )
 
     # Apply feature dimension adjustment if needed
-    if key in ["s_trunk", "s_inputs", "sing"] and hasattr(temp_value, 'shape'):
+    if key in ["s_trunk", "s_inputs", "sing"]:
+        # SYSTEMATIC DEBUGGING: Print diffusion_config structure FIRST
+        if hasattr(config, 'diffusion_config'):
+            print(f"[DEBUG][_process_one_trunk_embedding] diffusion_config type: {type(config.diffusion_config)}")
+            print(f"[DEBUG][_process_one_trunk_embedding] diffusion_config dir: {dir(config.diffusion_config)}")
+            if hasattr(config.diffusion_config, 'keys'):
+                try:
+                    print(f"[DEBUG][_process_one_trunk_embedding] diffusion_config.keys(): {list(config.diffusion_config.keys())}")
+                except Exception as e:
+                    print(f"[DEBUG][_process_one_trunk_embedding] diffusion_config.keys() error: {e}")
+            else:
+                print(f"[DEBUG][_process_one_trunk_embedding] diffusion_config has no 'keys' attribute")
+            if hasattr(config.diffusion_config, 'feature_dimensions'):
+                print(f"[DEBUG][_process_one_trunk_embedding] diffusion_config.feature_dimensions: {config.diffusion_config.feature_dimensions}")
         # Get expected feature dimensions from config
         expected_dim = None
-        if key == "s_trunk":
-            expected_dim = 384  # Default c_s dimension
-        elif key == "s_inputs":
-            expected_dim = 449  # Default c_s_inputs dimension
-        elif key == "sing":
-            expected_dim = 384  # Default sing dimension
+        # PATCH: handle nested feature_dimensions in config.diffusion_config['diffusion']
+        if hasattr(config, 'diffusion_config') and isinstance(config.diffusion_config, dict):
+            if 'diffusion' in config.diffusion_config and \
+               'feature_dimensions' in config.diffusion_config['diffusion']:
+                feature_dimensions = config.diffusion_config['diffusion']['feature_dimensions']
+                print(f"[DEBUG][_process_one_trunk_embedding] feature_dimensions (from diffusion_config['diffusion']): {feature_dimensions}")
+                if key == "s_trunk":
+                    expected_dim = feature_dimensions.get('c_s')
+                elif key == "s_inputs":
+                    expected_dim = feature_dimensions.get('c_s_inputs')
+                elif key == "sing":
+                    expected_dim = feature_dimensions.get('c_sing')
+            elif 'feature_dimensions' in config.diffusion_config:
+                feature_dimensions = config.diffusion_config['feature_dimensions']
+                print(f"[DEBUG][_process_one_trunk_embedding] feature_dimensions (from diffusion_config): {feature_dimensions}")
+                if key == "s_trunk":
+                    expected_dim = feature_dimensions.get('c_s')
+                elif key == "s_inputs":
+                    expected_dim = feature_dimensions.get('c_s_inputs')
+                elif key == "sing":
+                    expected_dim = feature_dimensions.get('c_sing')
+        elif hasattr(config, 'feature_dimensions'):
+            feature_dimensions = config.feature_dimensions
+            print(f"[DEBUG][_process_one_trunk_embedding] feature_dimensions (from config): {feature_dimensions}")
+            if key == "s_trunk":
+                expected_dim = feature_dimensions.get('c_s')
+            elif key == "s_inputs":
+                expected_dim = feature_dimensions.get('c_s_inputs')
+            elif key == "sing":
+                expected_dim = feature_dimensions.get('c_sing')
 
-        # Only adjust if we have an expected dimension and the actual dimension doesn't match
-        if expected_dim is not None and temp_value.shape[-1] != expected_dim:
+        # Raise error if expected dimension is missing
+        if expected_dim is None:
+            raise ValueError(
+                f"Missing expected feature dimension for {key} in config. "
+                "Please ensure 'feature_dimensions' is properly configured."
+            )
+
+        # Only adjust if the actual dimension doesn't match
+        if temp_value.shape[-1] != expected_dim:
             temp_value = adjust_tensor_feature_dim(temp_value, expected_dim, key)
             if context.debug_logging:
                 logger.debug(f"Adjusted {key} feature dimension to {expected_dim}. New shape: {temp_value.shape}")
@@ -196,6 +243,7 @@ def process_trunk_embeddings(
     residue_atom_map: List[List[int]],
     batch_size: int,
     debug_logging: bool = False,
+    config: Any = None,  # Accepts either config object or DictConfig
 ) -> Dict[str, torch.Tensor]:
     """
     Process trunk embeddings to bridge residue-level to atom-level representations.
@@ -205,6 +253,7 @@ def process_trunk_embeddings(
         residue_atom_map: Mapping from residue indices to atom indices
         batch_size: Batch size for tensor dimension validation
         debug_logging: Whether to enable debug logging
+        config: Configuration object or DictConfig
 
     Returns:
         Dictionary of bridged trunk embeddings
@@ -235,7 +284,7 @@ def process_trunk_embeddings(
     # Process each tensor in trunk_embeddings
     for key, value in trunk_embeddings.items():
         bridged_trunk_embeddings[key] = _process_one_trunk_embedding(
-            key, value, context
+            key, value, context, config
         )
 
     # Convert 'sing' to 's_inputs' if 'sing' exists and 's_inputs' doesn't
@@ -371,21 +420,29 @@ def bridge_residue_to_atom(
     if debug_logging:
         logger.debug(f"[bridge_residue_to_atom] residue_atom_map length: {len(residue_atom_map)}")
         logger.debug(f"[bridge_residue_to_atom] residue_atom_map: {residue_atom_map}")
-    # --- PATCH: Memory preprocessing configuration ---
-    apply_memory_preprocess = False
-    max_len = 25
-    if hasattr(config, 'diffusion_config') and 'memory' in config.diffusion_config:
-        mem_cfg = config.diffusion_config['memory']
-        apply_memory_preprocess = mem_cfg.get('apply_memory_preprocess', False)
-        max_len = mem_cfg.get('memory_preprocess_max_len', 25)
-    elif hasattr(config, 'memory'):
-        apply_memory_preprocess = getattr(config.memory, 'apply_memory_preprocess', False)
-        max_len = getattr(config.memory, 'memory_preprocess_max_len', 25)
+    # --- PATCH: Config-driven max_len for bridging ---
+    from omegaconf import DictConfig
+    cfg = None
+    # Accept both DictConfig and dataclass configs
+    if isinstance(config, DictConfig):
+        cfg = config
+        # OmegaConf: attribute or key access
+        try:
+            seq_len = cfg.model.stageD.diffusion.test_residues_per_batch
+        except Exception:
+            seq_len = 25
+    else:
+        # Dataclass or custom config: attribute access
+        try:
+            seq_len = config.model.stageD.diffusion.test_residues_per_batch
+        except Exception:
+            seq_len = 25
+    max_len = seq_len
     if debug_logging:
-        logger.debug(f"[bridge_residue_to_atom] apply_memory_preprocess={apply_memory_preprocess}, max_len={max_len}")
+        logger.debug(f"[bridge_residue_to_atom] apply_memory_preprocess={False}, max_len={max_len}")
 
     # --- PATCH: Only call preprocess_inputs if flag is True ---
-    if apply_memory_preprocess:
+    if False:
         if debug_logging:
             logger.debug("[bridge_residue_to_atom] Calling preprocess_inputs!")
         from rna_predict.pipeline.stageD.memory_optimization.memory_fix import preprocess_inputs
@@ -403,7 +460,7 @@ def bridge_residue_to_atom(
     # Process trunk embeddings
     batch_size = partial_coords.shape[0]
     bridged_trunk_embeddings = process_trunk_embeddings(
-        trunk_embeddings, residue_atom_map, batch_size, debug_logging
+        trunk_embeddings, residue_atom_map, batch_size, debug_logging, config
     )
     # Process input features
     fixed_input_features = process_input_features(input_features, partial_coords, residue_atom_map, batch_size)
