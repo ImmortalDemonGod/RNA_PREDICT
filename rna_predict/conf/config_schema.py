@@ -878,10 +878,6 @@ class StageDConfig:
         default=True,
         metadata={"help": "Enable debug logging"}
     )
-    sigma_data: float = field(
-        default=16.0,
-        metadata={"help": "Sigma data parameter for diffusion"}
-    )
     c_atom: int = field(
         default=128,
         metadata={"help": "Atom embedding dimension"}
