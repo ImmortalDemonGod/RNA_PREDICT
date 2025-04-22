@@ -19,7 +19,6 @@ logger = logging.getLogger(__name__)
 CONFIG_PATH = "rna_predict/conf"
 
 def get_pipeline_config():
-    import hydra
     from hydra.core.global_hydra import GlobalHydra
     if not GlobalHydra.instance().is_initialized():
         from rna_predict.conf.utils import get_config

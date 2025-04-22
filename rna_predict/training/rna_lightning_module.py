@@ -90,7 +90,7 @@ class RNALightningModule(L.LightningModule):
         # Stage B: Predict torsion angles (torsion_bert) and pairwise (pairformer)
         outB_torsion = self.stageB_torsion(sequence, adjacency=adj)
         torsion_angles = outB_torsion["torsion_angles"]
-        outB_pair = self.stageB_pairformer(sequence, adjacency=adj)
+        self.stageB_pairformer(sequence, adjacency=adj)
         # Stage C: Atom-level
         outC = self.stageC(torsion_angles)
         coords = outC["coords"]
