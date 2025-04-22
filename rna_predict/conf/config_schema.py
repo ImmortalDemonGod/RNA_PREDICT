@@ -558,31 +558,36 @@ class PairformerConfig:
 
     # Core model parameters
     n_blocks: int = field(
-        default=48,
+        default=1,
         metadata={
-            "help": "Number of transformer blocks",
-            "validate": lambda x: x > 0
+            "help": "Number of transformer blocks (minimal for test/memory)"
         }
     )
     n_heads: int = field(
-        default=16,
+        default=1,
         metadata={
-            "help": "Number of attention heads",
-            "validate": lambda x: x > 0
+            "help": "Number of attention heads (minimal for test/memory)"
         }
     )
-    c_z: int = field(default=128, metadata={"help": "Dimension of Z embeddings"})
-    c_s: int = field(default=384, metadata={"help": "Dimension of S embeddings"})
-    dropout: float = field(
-        default=0.25,
+    c_z: int = field(
+        default=2,
         metadata={
-            "help": "Dropout rate",
+            "help": "Pair embedding dimension (minimal for test/memory)"
+        }
+    )
+    c_s: int = field(
+        default=2,
+        metadata={
+            "help": "Single embedding dimension (minimal for test/memory)"
+        }
+    )
+    dropout: float = field(
+        default=0.1,
+        metadata={
+            "help": "Dropout rate for attention",
             "validate": lambda x: 0.0 <= x <= 1.0
         }
     )
-    c_token: int = field(default=449, metadata={"help": "Token dimension"})
-    c_atom: int = field(default=128, metadata={"help": "Atom dimension"})
-    c_pair: int = field(default=32, metadata={"help": "Pair dimension (same as c_z)"})
     # NEW: freeze all parameters for test parity
     freeze_params: bool = field(
         default=False,
@@ -747,6 +752,10 @@ class StageDModelArchConfig:
         default=25,
         metadata={"help": "Number of residues per batch during testing"}
     )
+    sigma_data: float = field(
+        default=16.0,
+        metadata={"help": "Sigma data parameter for diffusion (should be under model_architecture)"}
+    )
 
 @dataclass
 class StageDTransformerConfig:
@@ -827,6 +836,19 @@ class StageDDiffusionConfig:
     ref_element_size: int = field(default=128, metadata={"help": "Reference element embedding size"})
     ref_atom_name_chars_size: int = field(default=256, metadata={"help": "Atom name char embedding size"})
     atom_metadata: Optional[dict] = None
+    # Feature dimensions required for bridging
+    feature_dimensions: Dict[str, int] = field(
+        default_factory=lambda: {
+            "c_s": 384,  # Single representation dimension
+            "c_s_inputs": 449,  # Input representation dimension
+            "c_sing": 384,  # Set to same as c_s by default
+        },
+        metadata={"help": "Dimensions for various features"}
+    )
+    test_residues_per_batch: int = field(
+        default=25,
+        metadata={"help": "Number of residues per batch during testing"}
+    )
     # Nested configs (add as Any for now, can be typed later)
     model_architecture: Any = None
     transformer: Any = None
@@ -1051,6 +1073,8 @@ class TestDataConfig:
         },
         metadata={"help": "Dimensions for various embeddings"}
     )
+    # Allow arbitrary model group for test config composition
+    model: Optional[Any] = None
 
 @dataclass
 class RNAConfig:

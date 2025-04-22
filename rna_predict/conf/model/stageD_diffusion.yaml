@@ -19,10 +19,6 @@ atom_decoder:
   c_hidden: [128, 64, 32]
   c_out: 3
   dropout: 0.1
-  n_blocks: 1
-  n_heads: 2
-  n_queries: 1
-  n_keys: 1
 diffusion:
   # Core settings
   init_from_scratch: false
