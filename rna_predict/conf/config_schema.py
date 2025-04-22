@@ -881,12 +881,6 @@ class StageDDiffusionConfig:
     mode: str = field(default="inference", metadata={"help": "Mode: inference or training"})
     device: str = field(default="cpu", metadata={"help": "Device to run the diffusion model on"})
     debug_logging: bool = field(default=True, metadata={"help": "Enable debug logging for diffusion"})
-    sigma_data: float = field(default=16.0, metadata={"help": "Sigma data parameter for diffusion"})
-    c_atom: int = field(default=128, metadata={"help": "Atom embedding dimension"})
-    c_s: int = field(default=384, metadata={"help": "Single representation dimension"})
-    c_z: int = field(default=128, metadata={"help": "Pair representation dimension"})
-    c_s_inputs: int = field(default=449, metadata={"help": "Input representation dimension"})
-    c_noise_embedding: int = field(default=32, metadata={"help": "Noise embedding dimension"})
     ref_element_size: int = field(default=128, metadata={"help": "Reference element embedding size"})
     ref_atom_name_chars_size: int = field(default=256, metadata={"help": "Atom name char embedding size"})
     profile_size: int = field(default=32, metadata={"help": "Profile embedding size for residue-level features"})
@@ -954,6 +948,7 @@ class StageDConfig:
     atom_encoder: StageDAtomEncoderConfig = field(default_factory=StageDAtomEncoderConfig)
     atom_decoder: StageDAtomDecoderConfig = field(default_factory=StageDAtomDecoderConfig)
     diffusion: StageDDiffusionConfig = field(default_factory=StageDDiffusionConfig)
+    input_features: Optional[Dict[str, Any]] = None
 
 @dataclass
 class LatentMergerConfig:
