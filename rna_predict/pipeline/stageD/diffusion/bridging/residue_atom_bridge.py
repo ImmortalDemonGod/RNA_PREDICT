@@ -7,7 +7,7 @@ representations in the Stage D diffusion process.
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List
 
 import torch
 import traceback
@@ -18,7 +18,6 @@ from rna_predict.utils.tensor_utils import derive_residue_atom_map, residue_to_a
 from rna_predict.utils.shape_utils import adjust_tensor_feature_dim
 
 from ..utils.tensor_utils import normalize_tensor_dimensions
-from ..utils.config_types import DiffusionConfig
 from .sequence_utils import extract_sequence
 
 # Initialize logger for Stage D bridging
@@ -169,7 +168,7 @@ def _process_one_trunk_embedding(
                 except Exception as e:
                     print(f"[DEBUG][_process_one_trunk_embedding] diffusion_config.keys() error: {e}")
             else:
-                print(f"[DEBUG][_process_one_trunk_embedding] diffusion_config has no 'keys' attribute")
+                print("[DEBUG][_process_one_trunk_embedding] diffusion_config has no 'keys' attribute")
             if hasattr(config.diffusion_config, 'feature_dimensions'):
                 print(f"[DEBUG][_process_one_trunk_embedding] diffusion_config.feature_dimensions: {config.diffusion_config.feature_dimensions}")
         # Get expected feature dimensions from config
