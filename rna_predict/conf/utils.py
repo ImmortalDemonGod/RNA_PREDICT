@@ -1,7 +1,6 @@
 """Utilities for Hydra configuration management."""
 
 import os
-from pathlib import Path
 from typing import Optional, Union, Any, cast
 
 import hydra
@@ -25,7 +24,11 @@ def get_config(config_path: Optional[str] = None,
         Loaded and validated configuration object
     """
     if config_path is None:
-        config_path = str(Path(__file__).parent)
+        config_path = "rna_predict/conf"
+    else:
+        # Always use relative path for Hydra
+        if os.path.isabs(config_path):
+            config_path = os.path.relpath(config_path, os.getcwd())
 
     with hydra.initialize(version_base=None, config_path=config_path):
         cfg = hydra.compose(config_name=config_name, overrides=overrides or [])
