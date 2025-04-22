@@ -7,10 +7,9 @@ defaults:
   - model/stageC@model.stageC
   - model/stageB_torsion@model.stageB.torsion_bert
   - model/stageB_pairformer@model.stageB.pairformer
-  - model/stageD_diffusion@model.stageD
-  # - model/stageD_input_features@model.stageD.input_features
+  - model/stageD@model.stageD
   - model/protenix_integration@model.protenix_integration
-  - test/data@test_data  # Include test data configuration
+  - test_data@test_data  # Include test data configuration
 
 # RNA sequence to predict structure for
 sequence: ${test_data.sequence}  # Default to test sequence
@@ -18,6 +17,7 @@ sequence: ${test_data.sequence}  # Default to test sequence
 # Global settings
 device: "cpu"  # Global device setting, can be overridden per stage
 seed: 42
+atoms_per_residue: 44
 
 # Project metadata
 # project:
