@@ -97,8 +97,8 @@ class TestMSAPairWeightedAveraging(unittest.TestCase):
             )
             print(f"[DEBUG-MSA-INIT-001] Created config with c_m={c_m}, c={c}, c_z={c_z}, n_heads={n_heads}")
             mod = MSAPairWeightedAveraging(cfg=cfg)
-            print(f"[DEBUG-MSA-INIT-002] Created MSAPairWeightedAveraging instance")
-            self.assertIsInstance(mod, MSAPairWeightedAveraging, f"[ERR-MSA-INIT-001] Instance is not MSAPairWeightedAveraging")
+            print("[DEBUG-MSA-INIT-002] Created MSAPairWeightedAveraging instance")
+            self.assertIsInstance(mod, MSAPairWeightedAveraging, "[ERR-MSA-INIT-001] Instance is not MSAPairWeightedAveraging")
         except Exception as e:
             print(f"[ERR-MSA-INIT-EXCEPTION] Exception in test_init_random: {e}")
             traceback.print_exc()
@@ -153,12 +153,12 @@ class TestMSAPairWeightedAveraging(unittest.TestCase):
             )
             print(f"[DEBUG-MSA-001] Created config with c_m={c_m}, c=8, c_z={c_z}, n_heads=2")
             mod = MSAPairWeightedAveraging(cfg=cfg)
-            print(f"[DEBUG-MSA-002] Created MSAPairWeightedAveraging instance")
+            print("[DEBUG-MSA-002] Created MSAPairWeightedAveraging instance")
             m = torch.randn((n_msa, n_token, c_m), dtype=torch.float32)
             z = torch.randn((n_token, n_token, c_z), dtype=torch.float32)
             print(f"[DEBUG-MSA-003] c_m={c_m}, c_z={c_z}, m.shape={m.shape}, z.shape={z.shape}")
             assert c_m == 128, f"[ERR-MSA-SHAPE-001] Expected c_m=128, got c_m={c_m}, m.shape={m.shape}, z.shape={z.shape}"  # Ensure only valid test cases run
-            print(f"[DEBUG-MSA-004] About to call forward")
+            print("[DEBUG-MSA-004] About to call forward")
             out = mod.forward(m, z)
             print(f"[DEBUG-MSA-005] Forward returned shape {out.shape}")
             self.assertEqual(out.shape, m.shape, f"[ERR-MSA-SHAPE-002] Output shape {out.shape} does not match input shape {m.shape}")
@@ -260,12 +260,12 @@ class TestMSAStack(unittest.TestCase):
             )
             print(f"[DEBUG-MSASTACK-001] Created config with c_m={c_m}, c={c}")
             stack = MSAStack(cfg=cfg)
-            print(f"[DEBUG-MSASTACK-002] Created MSAStack instance")
+            print("[DEBUG-MSASTACK-002] Created MSAStack instance")
             m = torch.randn((n_msa, n_token, c_m), dtype=torch.float32)
             z = torch.randn((n_token, n_token, c), dtype=torch.float32)
             print(f"[DEBUG-MSASTACK-003] c_m={c_m}, c={c}, m.shape={m.shape}, z.shape={z.shape}")
             assert c_m == 128, f"[ERR-MSASTACK-SHAPE-001] Expected c_m=128, got c_m={c_m}, m.shape={m.shape}, z.shape={z.shape}"  # Ensure only valid test cases run
-            print(f"[DEBUG-MSASTACK-004] About to call forward")
+            print("[DEBUG-MSASTACK-004] About to call forward")
             out = stack.forward(m, z)
             print(f"[DEBUG-MSASTACK-005] Forward returned shape {out.shape}")
             self.assertEqual(out.shape, m.shape, f"[ERR-MSASTACK-SHAPE-002] Output shape {out.shape} does not match input shape {m.shape}")
@@ -567,7 +567,7 @@ def run_test_manually():
 
     # Create the module
     mod = MSAPairWeightedAveraging(cfg=cfg)
-    print(f"Created MSAPairWeightedAveraging instance")
+    print("Created MSAPairWeightedAveraging instance")
 
     # Create input tensors
     n_msa = 2
