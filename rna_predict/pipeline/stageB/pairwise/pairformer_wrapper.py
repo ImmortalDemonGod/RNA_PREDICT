@@ -77,7 +77,7 @@ class PairformerWrapper(nn.Module):
             pairformer_cfg = cfg
 
         if not isinstance(pairformer_cfg, (dict, DictConfig)):
-            raise ValueError(f"Pairformer config not found in Hydra config")
+            raise ValueError("Pairformer config not found in Hydra config")
 
         # After extracting pairformer_cfg, check for required keys
         required_keys = ["n_blocks", "c_z", "c_s"]
