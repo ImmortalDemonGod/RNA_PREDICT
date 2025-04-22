@@ -2,7 +2,6 @@ import unittest
 from omegaconf import OmegaConf, DictConfig # Import OmegaConf
 import torch
 import os
-import logging
 from hypothesis import given, settings, HealthCheck, strategies as st
 
 from rna_predict.pipeline.stageB.main import run_stageB_combined

@@ -6,12 +6,9 @@ import torch
 from unittest.mock import patch, MagicMock
 from omegaconf import OmegaConf
 from hypothesis import given, strategies as st, settings
-from hydra import initialize, compose
 from rna_predict.pipeline.stageB.main import (
     run_pipeline,
     run_stageB_combined,
-    demo_gradient_flow_test,
-    main,
 )
 from rna_predict.pipeline.stageB.torsion.torsion_bert_predictor import (
     StageBTorsionBertPredictor,
