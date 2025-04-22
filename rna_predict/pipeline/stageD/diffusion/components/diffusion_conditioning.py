@@ -31,11 +31,11 @@ class DiffusionConditioning(nn.Module):
 
     def __init__(
         self,
-        sigma_data: float = 16.0,
-        c_z: int = 128,
-        c_s: int = 384,
-        c_s_inputs: int = 449,
-        c_noise_embedding: int = 256,
+        sigma_data: float,
+        c_z: int,
+        c_s: int,
+        c_s_inputs: int,
+        c_noise_embedding: int,
     ) -> None:
         """
         Initialize the diffusion conditioning module.
@@ -53,6 +53,7 @@ class DiffusionConditioning(nn.Module):
         self.c_s = c_s
         self.c_s_inputs = c_s_inputs
         self.c_noise_embedding = c_noise_embedding
+        print(f"[DEBUG][DiffusionConditioning.__init__] c_z={c_z}, c_s={c_s}, c_s_inputs={c_s_inputs}, c_noise_embedding={c_noise_embedding}")
 
         # Pair feature processing
         self.relpe = RelativePositionEncoding(c_z=c_z)
@@ -119,49 +120,9 @@ class DiffusionConditioning(nn.Module):
             else:
                 relpe_output = relpe_output[..., : z_trunk.shape[-1]]
 
-        # --- Start Dimension Alignment (Batch & Sample) ---
-        # Ensure relpe_output has the same number of dimensions as z_trunk
-        # If z_trunk is 5D ([B, S, N, N, C]) and relpe_output is 4D ([B, N, N, C]),
-        # add the sample dimension at index 1.
-        if z_trunk.ndim == 5 and relpe_output.ndim == 4:
-            # Add sample dimension of size 1 at index 1
-            relpe_output = relpe_output.unsqueeze(1) # Shape becomes [B, 1, N, N, C]
-        elif relpe_output.ndim < z_trunk.ndim:
-             # Fallback for other dimension mismatches (less common)
-             # This might need adjustment based on expected scenarios
-             while relpe_output.ndim < z_trunk.ndim:
-                 relpe_output = relpe_output.unsqueeze(0) # Add leading dimensions
-
-        # Expand batch dimension (dim 0) if necessary (only if added via fallback)
-        # This check might be redundant if the primary case (5D vs 4D) handles batch correctly.
-        if relpe_output.shape[0] == 1 and z_trunk.shape[0] > 1 and relpe_output.ndim == z_trunk.ndim:
-             relpe_output = relpe_output.expand(z_trunk.shape[0], *relpe_output.shape[1:])
-        # --- End Dimension Alignment ---
-
-        # --- Start Sample Dimension Alignment Fix ---
-        # Handle cases where both are 5D but sample dimension (dim 1) might mismatch
-        if z_trunk.ndim == 5 and relpe_output.ndim == 5:
-            # If sample dimensions don't match, assume relpe_output's dim 1 was added
-            # artificially and needs expansion to match z_trunk's sample dimension.
-            if relpe_output.shape[1] != z_trunk.shape[1]:
-                # Expand relpe_output's sample dimension to match z_trunk
-                try: # Add try-except for safety, although expand should work if shapes are compatible otherwise
-                    relpe_output = relpe_output.expand(-1, z_trunk.shape[1], -1, -1, -1)
-                except RuntimeError as e:
-                     raise RuntimeError(
-                         f"Failed to expand relpe_output sample dimension ({relpe_output.shape}) to match z_trunk ({z_trunk.shape}). Error: {e}"
-                     )
-
-        # Final check before concatenation
-        if z_trunk.shape[:-1] != relpe_output.shape[:-1]:
-             raise RuntimeError(
-                 f"Shape mismatch before concatenation (excluding last dim). "
-                 f"z_trunk: {z_trunk.shape}, relpe_output: {relpe_output.shape}"
-             )
-        # --- End Sample Dimension Alignment Fix ---
-
-        print(f"[DEBUG PRE-CAT] z_trunk shape: {z_trunk.shape}, relpe_output shape: {relpe_output.shape}") # Keep for verification
+        print(f"[DEBUG][_process_pair_features] z_trunk.shape={z_trunk.shape}, relpe_output.shape={relpe_output.shape}")
         pair_z = torch.cat([z_trunk, relpe_output], dim=-1)
+        print(f"[DEBUG][_process_pair_features] pair_z.shape before layernorm_z={pair_z.shape}, layernorm_z.normalized_shape={self.layernorm_z.normalized_shape}")
         pair_z = self.linear_no_bias_z(self.layernorm_z(pair_z))
 
         if inplace_safe:
