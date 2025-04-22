@@ -394,6 +394,27 @@ def bridge_residue_to_atom(
     debug_logging: bool = False,
 ):
     log_mem("ENTRY")
+    # --- CONFIG VALIDATION PATCH: Ensure 's_inputs' is present in feature_dimensions ---
+    feature_dimensions = None
+    # Try to get feature_dimensions from config (robust to both dict and OmegaConf)
+    if hasattr(config, 'diffusion') and hasattr(config.diffusion, 'feature_dimensions'):
+        feature_dimensions = config.diffusion.feature_dimensions
+    elif hasattr(config, 'diffusion') and isinstance(config.diffusion, dict):
+        feature_dimensions = config.diffusion.get('feature_dimensions', None)
+    elif hasattr(config, 'feature_dimensions'):
+        feature_dimensions = config.feature_dimensions
+    elif isinstance(config, dict):
+        # DictConfig or plain dict
+        if 'diffusion' in config and 'feature_dimensions' in config['diffusion']:
+            feature_dimensions = config['diffusion']['feature_dimensions']
+        elif 'feature_dimensions' in config:
+            feature_dimensions = config['feature_dimensions']
+    if feature_dimensions is None or 's_inputs' not in feature_dimensions:
+        raise ValueError(
+            "[BRIDGE ERROR][CONFIG] 's_inputs' missing from Stage D diffusion feature_dimensions config. "
+            "This is a required field. Please check your Hydra config for model.stageD.diffusion.feature_dimensions.s_inputs."
+        )
+    # --- END PATCH ---
     # --- PATCH: Guard against double-bridging or atom-level input (moved to top, robust) ---
     trunk_embeddings = bridging_input.trunk_embeddings
     sequence = bridging_input.sequence
