@@ -2,7 +2,6 @@ import unittest
 import torch
 from hypothesis import given, settings, strategies as st
 from rna_predict.pipeline.stageD.diffusion.components.diffusion_conditioning import DiffusionConditioning
-from rna_predict.pipeline.stageD.diffusion.components.diffusion_utils import ShapeMismatchError
 
 class TestDiffusionConditioning(unittest.TestCase):
     def setUp(self):
