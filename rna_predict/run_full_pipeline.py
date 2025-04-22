@@ -156,6 +156,7 @@ def check_for_nans(tensor, name, cfg=None):
 
 #@snoop
 def _main_impl(cfg: DictConfig, objects: Optional[dict] = None) -> PipelineResults:
+    global logger  # Ensure use of the module-level logger
     # Debug logging
     logger.info(f"[DEBUG] Starting _main_impl with config: {cfg}")
     logger.info(f"[DEBUG] Objects: {objects}")
@@ -309,17 +310,14 @@ def _main_impl(cfg: DictConfig, objects: Optional[dict] = None) -> PipelineResul
                     input_features=input_features,  # <-- Now provide input_features
                     sequence=sequence,
                 )
-                # PATCH: Pass config to bridge_residue_to_atom
-                dummy_config = DiffusionConfig(
-                    partial_coords=partial_coords,
-                    trunk_embeddings={"s_inputs": s_inputs},
-                    diffusion_config={},
-                    mode="inference",
-                    device=cfg.device if hasattr(cfg, "device") else "cpu",
-                    input_features=input_features,
-                    debug_logging=True,
-                )
-                _, bridged_trunk_embeddings, _ = bridge_residue_to_atom(bridging_input, dummy_config, debug_logging=True)
+                # Use the full Hydra config for Stage D (not dummy_config)
+                stageD_config = cfg.model.stageD if hasattr(cfg.model, "stageD") else cfg["model"]["stageD"]
+                # Optionally, print keys for debugging
+                if hasattr(stageD_config, "feature_dimensions"):
+                    print("[DEBUG][CONFIG] feature_dimensions keys:", list(stageD_config.feature_dimensions.keys()))
+                else:
+                    print("[DEBUG][CONFIG] feature_dimensions missing in stageD_config!")
+                _, bridged_trunk_embeddings, _ = bridge_residue_to_atom(bridging_input, stageD_config, debug_logging=True)
                 bridged_s_inputs = bridged_trunk_embeddings["s_inputs"]
                 bridged_s_inputs = check_for_nans(bridged_s_inputs, "bridged_s_inputs (after bridging Stage C->D)", cfg)
         except Exception as e:
@@ -414,6 +412,21 @@ def _main_impl(cfg: DictConfig, objects: Optional[dict] = None) -> PipelineResul
             sequence=cfg.sequence,  # Ensure sequence is always propagated to Stage D
             debug_logging=True
         )
+
+        # --- DEBUG PATCH: Log diffusion_config structure before Stage D ---
+        import logging
+        logger = logging.getLogger("rna_predict.run_full_pipeline")
+        logger.debug(f"[DEBUG][run_full_pipeline] diffusion_config type: {type(diffusion_config)}")
+        logger.debug(f"[DEBUG][run_full_pipeline] diffusion_config keys: {list(diffusion_config.keys()) if hasattr(diffusion_config, 'keys') else 'N/A'}")
+        if hasattr(diffusion_config, 'diffusion'):
+            logger.debug(f"[DEBUG][run_full_pipeline] diffusion_config.diffusion keys: {list(diffusion_config.diffusion.keys()) if hasattr(diffusion_config.diffusion, 'keys') else 'N/A'}")
+            if hasattr(diffusion_config.diffusion, 'feature_dimensions'):
+                logger.debug(f"[DEBUG][run_full_pipeline] diffusion_config.diffusion.feature_dimensions: {diffusion_config.diffusion.feature_dimensions}")
+            else:
+                logger.warning(f"[DEBUG][run_full_pipeline] diffusion_config.diffusion.feature_dimensions not found!")
+        else:
+            logger.warning(f"[DEBUG][run_full_pipeline] diffusion_config.diffusion not found!")
+        # --- END DEBUG PATCH ---
 
         try:
             # Run Stage D with the config object

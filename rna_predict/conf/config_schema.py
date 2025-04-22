@@ -581,6 +581,24 @@ class PairformerConfig:
             "help": "Single embedding dimension (minimal for test/memory)"
         }
     )
+    c_token: int = field(
+        default=384,
+        metadata={
+            "help": "Token representation dimension"
+        }
+    )
+    c_atom: int = field(
+        default=128,
+        metadata={
+            "help": "Atom representation dimension"
+        }
+    )
+    c_pair: int = field(
+        default=32,
+        metadata={
+            "help": "Pair representation dimension"
+        }
+    )
     dropout: float = field(
         default=0.1,
         metadata={
@@ -799,6 +817,22 @@ class StageDAtomEncoderConfig:
             "validate": lambda x: 0.0 <= x <= 1.0
         }
     )
+    n_blocks: int = field(
+        default=1,
+        metadata={"help": "Number of transformer blocks"}
+    )
+    n_heads: int = field(
+        default=1,
+        metadata={"help": "Number of attention heads"}
+    )
+    n_queries: int = field(
+        default=8,
+        metadata={"help": "Number of queries for attention"}
+    )
+    n_keys: int = field(
+        default=8,
+        metadata={"help": "Number of keys for attention"}
+    )
 
 @dataclass
 class StageDAtomDecoderConfig:
@@ -822,6 +856,22 @@ class StageDAtomDecoderConfig:
             "validate": lambda x: 0.0 <= x <= 1.0
         }
     )
+    n_blocks: int = field(
+        default=1,
+        metadata={"help": "Number of transformer blocks"}
+    )
+    n_heads: int = field(
+        default=1,
+        metadata={"help": "Number of attention heads"}
+    )
+    n_queries: int = field(
+        default=8,
+        metadata={"help": "Number of queries for attention"}
+    )
+    n_keys: int = field(
+        default=8,
+        metadata={"help": "Number of keys for attention"}
+    )
 
 @dataclass
 class StageDDiffusionConfig:
@@ -839,6 +889,7 @@ class StageDDiffusionConfig:
     c_noise_embedding: int = field(default=32, metadata={"help": "Noise embedding dimension"})
     ref_element_size: int = field(default=128, metadata={"help": "Reference element embedding size"})
     ref_atom_name_chars_size: int = field(default=256, metadata={"help": "Atom name char embedding size"})
+    profile_size: int = field(default=32, metadata={"help": "Profile embedding size for residue-level features"})
     atom_metadata: Optional[dict] = None
     # Feature dimensions required for bridging
     feature_dimensions: Dict[str, int] = field(
@@ -846,6 +897,8 @@ class StageDDiffusionConfig:
             "c_s": 384,  # Single representation dimension
             "c_s_inputs": 449,  # Input representation dimension
             "c_sing": 384,  # Set to same as c_s by default
+            "s_trunk": 384,  # Single trunk representation dimension
+            "s_inputs": 449,  # Required for bridging
         },
         metadata={"help": "Dimensions for various features"}
     )
@@ -853,11 +906,11 @@ class StageDDiffusionConfig:
         default=25,
         metadata={"help": "Number of residues per batch during testing"}
     )
-    # Nested configs (add as Any for now, can be typed later)
-    model_architecture: Any = None
-    transformer: Any = None
-    atom_encoder: Any = None
-    atom_decoder: Any = None
+    # Nested configs with proper typing
+    model_architecture: StageDModelArchConfig = field(default_factory=StageDModelArchConfig)
+    transformer: StageDTransformerConfig = field(default_factory=StageDTransformerConfig)
+    atom_encoder: StageDAtomEncoderConfig = field(default_factory=StageDAtomEncoderConfig)
+    atom_decoder: StageDAtomDecoderConfig = field(default_factory=StageDAtomDecoderConfig)
     noise_schedule: NoiseScheduleConfig = field(default_factory=NoiseScheduleConfig)
     inference: StageDInferenceConfig = field(default_factory=StageDInferenceConfig)
     use_memory_efficient_kernel: bool = field(default=False, metadata={"help": "Whether to use memory efficient attention kernel"})
@@ -881,6 +934,19 @@ class StageDConfig:
     debug_logging: bool = field(
         default=True,
         metadata={"help": "Enable debug logging"}
+    )
+    # Required parameters for feature initialization
+    ref_element_size: int = field(
+        default=128,
+        metadata={"help": "Reference element embedding size"}
+    )
+    ref_atom_name_chars_size: int = field(
+        default=256,
+        metadata={"help": "Atom name char embedding size"}
+    )
+    profile_size: int = field(
+        default=32,
+        metadata={"help": "Profile embedding size for residue-level features"}
     )
     # Add nested configurations for model architecture and components
     model_architecture: StageDModelArchConfig = field(default_factory=StageDModelArchConfig)
@@ -1058,6 +1124,10 @@ class RNAConfig:
     device: str = field(
         default="cpu",
         metadata={"help": "Global device setting, can be overridden per stage"}
+    )
+    atoms_per_residue: int = field(
+        default=44,
+        metadata={"help": "Standard RNA residue has ~44 atoms"}
     )
     dimensions: DimensionsConfig = field(default_factory=DimensionsConfig)
     model: Dict[str, Any] = field(default_factory=lambda: {
