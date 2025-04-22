@@ -752,6 +752,10 @@ class StageDModelArchConfig:
         default=25,
         metadata={"help": "Number of residues per batch during testing"}
     )
+    c_atompair: int = field(
+        default=32,
+        metadata={"help": "Atom pair embedding dimension (required by DiffusionModule)"}
+    )
     sigma_data: float = field(
         default=16.0,
         metadata={"help": "Sigma data parameter for diffusion (should be under model_architecture)"}
@@ -877,38 +881,6 @@ class StageDConfig:
     debug_logging: bool = field(
         default=True,
         metadata={"help": "Enable debug logging"}
-    )
-    c_atom: int = field(
-        default=128,
-        metadata={"help": "Atom embedding dimension"}
-    )
-    c_s: int = field(
-        default=384,
-        metadata={"help": "Single representation dimension"}
-    )
-    c_z: int = field(
-        default=128,
-        metadata={"help": "Pair representation dimension"}
-    )
-    c_s_inputs: int = field(
-        default=449,
-        metadata={"help": "Input representation dimension"}
-    )
-    c_noise_embedding: int = field(
-        default=32,
-        metadata={"help": "Noise embedding dimension"}
-    )
-    ref_element_size: int = field(
-        default=128,
-        metadata={"help": "Reference element embedding size"}
-    )
-    ref_atom_name_chars_size: int = field(
-        default=256,
-        metadata={"help": "Atom name char embedding size"}
-    )
-    chunk_size: Optional[int] = field(
-        default=None,
-        metadata={"help": "Chunk size for attention computation"}
     )
     # Add nested configurations for model architecture and components
     model_architecture: StageDModelArchConfig = field(default_factory=StageDModelArchConfig)
