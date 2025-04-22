@@ -184,7 +184,6 @@ class TestDiffusionModule(unittest.TestCase):
     @settings(deadline=None, max_examples=10)
     def test_n_sample_handling(self, batch_size, seq_len, n_sample):
         """Property-based test: Test handling of different N_sample values, including out-of-bounds atom_to_token_idx."""
-        from hypothesis import assume
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.module.to(device)
 

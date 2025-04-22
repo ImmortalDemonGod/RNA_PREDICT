@@ -4,7 +4,7 @@ Comprehensive tests for run_stageD.py to improve test coverage.
 
 import torch
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from omegaconf import OmegaConf
 import sys
 import io
@@ -15,19 +15,27 @@ from rna_predict.pipeline.stageD.run_stageD import run_stageD, hydra_main
 
 
 def make_atom_embeddings(batch_size, seq_len, feature_dim):
+    # For testing, we'll use 5 atoms per residue
+    atoms_per_residue = 5
+    num_atoms = seq_len * atoms_per_residue
+    num_residues = seq_len
+
+    # Create residue-level embeddings
     emb = {
-        "s_trunk": torch.randn(batch_size, seq_len, feature_dim),
-        "s_inputs": torch.randn(batch_size, seq_len, feature_dim * 2),
-        "pair": torch.randn(batch_size, seq_len, seq_len, feature_dim // 2),
-        "atom_to_token_idx": torch.randint(0, seq_len, (batch_size, seq_len)).long(),
+        "s_trunk": torch.randn(batch_size, num_residues, feature_dim),
+        "s_inputs": torch.randn(batch_size, num_residues, feature_dim * 2),
+        "pair": torch.randn(batch_size, num_residues, num_residues, feature_dim // 2),
+        "atom_to_token_idx": torch.tensor([[i // atoms_per_residue for i in range(num_atoms)]]).long(),
         "non_tensor_value": "test_string",
         "list_value": [1, 2, 3],
         "dict_value": {"key": "value"},
         "atom_metadata": {
-            "atom_names": [f"ATOM{i}" for i in range(seq_len)],
-            "residue_indices": list(range(seq_len)),
-            "is_backbone": [True] * seq_len
-        }
+            "atom_names": [f"ATOM{i}" for i in range(num_atoms)],
+            "residue_indices": [i // atoms_per_residue for i in range(num_atoms)],
+            "is_backbone": [True] * num_atoms,
+            "sequence": "A" * num_residues
+        },
+        "sequence": "A" * num_residues
     }
     print(f"[DEBUG][make_atom_embeddings] s_trunk.shape = {emb['s_trunk'].shape}")
     print(f"[DEBUG][make_atom_embeddings] s_inputs.shape = {emb['s_inputs'].shape}")
@@ -39,27 +47,51 @@ def make_stageD_config(batch_size, seq_len, feature_dim, debug_logging=False, ap
     return OmegaConf.create({
         "model": {
             "stageD": {
-                "device": "cpu",
-                "memory": {"apply_memory_preprocess": apply_preprocess, "memory_preprocess_max_len": preprocess_max_len},
-                "debug_logging": debug_logging,
-                "inference": {"num_steps": 2, "sampling": {"num_samples": 1}},
-                "sigma_data": 0.5,
-                "c_atom": feature_dim,
-                "c_s": feature_dim * 6,
-                "c_z": feature_dim * 2,
-                "c_s_inputs": feature_dim * 2,
-                "c_noise_embedding": feature_dim,
-                "model_architecture": {},
-                "transformer": {"n_blocks": 2, "n_heads": 4},
-                "atom_encoder": {"c_hidden": [feature_dim]},
-                "atom_decoder": {"c_hidden": [feature_dim]},
-                "use_memory_efficient_kernel": False,
-                "use_lma": False,
-                "use_deepspeed_evo_attention": False,
-                "inplace_safe": False,
-                "chunk_size": 1024,
-                "ref_element_size": 32,
-                "ref_atom_name_chars_size": 16
+                "diffusion": {
+                    "device": "cpu",
+                    "mode": "inference",
+                    "memory": {"apply_memory_preprocess": apply_preprocess, "memory_preprocess_max_len": preprocess_max_len},
+                    "debug_logging": debug_logging,
+                    "inference": {"num_steps": 2, "sampling": {"num_samples": 1}},
+                    "sigma_data": 0.5,
+                    "c_atom": feature_dim,
+                    "c_s": feature_dim * 6,
+                    "c_z": feature_dim * 2,
+                    "c_s_inputs": feature_dim * 2,
+                    "c_noise_embedding": feature_dim,
+                    "test_residues_per_batch": 25,
+                    "feature_dimensions": {
+                        "c_s": feature_dim * 6,
+                        "c_s_inputs": feature_dim * 2,
+                        "c_sing": feature_dim * 6
+                    },
+                    "model_architecture": {
+                        "c_token": feature_dim * 6,
+                        "c_s": feature_dim * 6,
+                        "c_z": feature_dim * 2,
+                        "c_s_inputs": feature_dim * 2,
+                        "c_atom": feature_dim,
+                        "c_noise_embedding": feature_dim,
+                        "num_layers": 1,
+                        "num_heads": 1,
+                        "dropout": 0.0,
+                        "coord_eps": 1e-6,
+                        "coord_min": -1e4,
+                        "coord_max": 1e4,
+                        "coord_similarity_rtol": 1e-3,
+                        "test_residues_per_batch": 25
+                    },
+                    "transformer": {"n_blocks": 2, "n_heads": 4},
+                    "atom_encoder": {"c_hidden": [feature_dim], "c_out": feature_dim, "n_blocks": 1, "n_heads": 1, "n_queries": 4, "n_keys": 8},
+                    "atom_decoder": {"c_hidden": [feature_dim], "n_blocks": 1, "n_heads": 1, "n_queries": 4, "n_keys": 8},
+                    "use_memory_efficient_kernel": False,
+                    "use_lma": False,
+                    "use_deepspeed_evo_attention": False,
+                    "inplace_safe": False,
+                    "chunk_size": 1024,
+                    "ref_element_size": 32,
+                    "ref_atom_name_chars_size": 16
+                }
             }
         },
         "test_data": {"sequence": "AUGC", "atoms_per_residue": 5}
@@ -116,43 +148,46 @@ class TestRunStageDComprehensive(unittest.TestCase):
         self.cfg = OmegaConf.create({
             "model": {
                 "stageD": {
-                    "device": "cpu",
-                    "memory": {
-                        "apply_memory_preprocess": False,
-                        "memory_preprocess_max_len": 25
-                    },
-                    "debug_logging": False,
-                    "inference": {
-                        "num_steps": 2,  # Use a small value for testing
-                        "sampling": {
-                            "num_samples": 1
-                        }
-                    },
-                    # Required parameters for DiffusionModule
-                    "sigma_data": 0.5,
-                    "c_atom": 64,
-                    "c_s": 384,
-                    "c_z": 64,
-                    "c_s_inputs": 32,
-                    "c_noise_embedding": 32,
-                    "model_architecture": {},
-                    "transformer": {
-                        "n_blocks": 2,
-                        "n_heads": 4
-                    },
-                    "atom_encoder": {
-                        "c_hidden": [64]
-                    },
-                    "atom_decoder": {
-                        "c_hidden": [64]
-                    },
-                    "use_memory_efficient_kernel": False,
-                    "use_lma": False,
-                    "use_deepspeed_evo_attention": False,
-                    "inplace_safe": False,
-                    "chunk_size": 1024,
-                    "ref_element_size": 32,
-                    "ref_atom_name_chars_size": 16
+                    "diffusion": {
+                        "device": "cpu",
+                        "memory": {
+                            "apply_memory_preprocess": False,
+                            "memory_preprocess_max_len": 25
+                        },
+                        "debug_logging": False,
+                        "inference": {
+                            "num_steps": 2,  # Use a small value for testing
+                            "sampling": {
+                                "num_samples": 1
+                            }
+                        },
+                        # Required parameters for DiffusionModule
+                        "sigma_data": 0.5,
+                        "c_atom": 64,
+                        "c_s": 384,
+                        "c_z": 64,
+                        "c_s_inputs": 32,
+                        "c_noise_embedding": 32,
+                        "test_residues_per_batch": 25,
+                        "model_architecture": {},
+                        "transformer": {
+                            "n_blocks": 2,
+                            "n_heads": 4
+                        },
+                        "atom_encoder": {
+                            "c_hidden": [64]
+                        },
+                        "atom_decoder": {
+                            "c_hidden": [64]
+                        },
+                        "use_memory_efficient_kernel": False,
+                        "use_lma": False,
+                        "use_deepspeed_evo_attention": False,
+                        "inplace_safe": False,
+                        "chunk_size": 1024,
+                        "ref_element_size": 32,
+                        "ref_atom_name_chars_size": 16
+                    }
                 }
             },
             "test_data": {
@@ -165,43 +200,46 @@ class TestRunStageDComprehensive(unittest.TestCase):
         self.cfg_with_debug = OmegaConf.create({
             "model": {
                 "stageD": {
-                    "device": "cpu",
-                    "memory": {
-                        "apply_memory_preprocess": True,
-                        "memory_preprocess_max_len": 25
-                    },
-                    "debug_logging": True,
-                    "inference": {
-                        "num_steps": 2,  # Use a small value for testing
-                        "sampling": {
-                            "num_samples": 1
-                        }
-                    },
-                    # Required parameters for DiffusionModule
-                    "sigma_data": 0.5,
-                    "c_atom": 64,
-                    "c_s": 384,
-                    "c_z": 64,
-                    "c_s_inputs": 32,
-                    "c_noise_embedding": 32,
-                    "model_architecture": {},
-                    "transformer": {
-                        "n_blocks": 2,
-                        "n_heads": 4
-                    },
-                    "atom_encoder": {
-                        "c_hidden": [64]
-                    },
-                    "atom_decoder": {
-                        "c_hidden": [64]
-                    },
-                    "use_memory_efficient_kernel": False,
-                    "use_lma": False,
-                    "use_deepspeed_evo_attention": False,
-                    "inplace_safe": False,
-                    "chunk_size": 1024,
-                    "ref_element_size": 32,
-                    "ref_atom_name_chars_size": 16
+                    "diffusion": {
+                        "device": "cpu",
+                        "memory": {
+                            "apply_memory_preprocess": True,
+                            "memory_preprocess_max_len": 25
+                        },
+                        "debug_logging": True,
+                        "inference": {
+                            "num_steps": 2,  # Use a small value for testing
+                            "sampling": {
+                                "num_samples": 1
+                            }
+                        },
+                        # Required parameters for DiffusionModule
+                        "sigma_data": 0.5,
+                        "c_atom": 64,
+                        "c_s": 384,
+                        "c_z": 64,
+                        "c_s_inputs": 32,
+                        "c_noise_embedding": 32,
+                        "test_residues_per_batch": 25,
+                        "model_architecture": {},
+                        "transformer": {
+                            "n_blocks": 2,
+                            "n_heads": 4
+                        },
+                        "atom_encoder": {
+                            "c_hidden": [64]
+                        },
+                        "atom_decoder": {
+                            "c_hidden": [64]
+                        },
+                        "use_memory_efficient_kernel": False,
+                        "use_lma": False,
+                        "use_deepspeed_evo_attention": False,
+                        "inplace_safe": False,
+                        "chunk_size": 1024,
+                        "ref_element_size": 32,
+                        "ref_atom_name_chars_size": 16
+                    }
                 }
             },
             "test_data": {
@@ -226,17 +264,24 @@ class TestRunStageDComprehensive(unittest.TestCase):
     def test_run_stageD_basic(self, batch_size, seq_len, feature_dim):
         """Property-based: Test basic functionality of run_stageD for a range of shapes and edge cases."""
         with patch_diffusionmodule_forward():
-            atom_coords = torch.randn(batch_size, seq_len, 3)
+            # For testing, we'll use 5 atoms per residue
+            atoms_per_residue = 5
+            num_atoms = seq_len * atoms_per_residue
+
+            # Create atom-level coordinates
+            atom_coords = torch.randn(batch_size, num_atoms, 3)
+
+            # Create residue-level embeddings
             atom_embeddings = make_atom_embeddings(batch_size, seq_len, feature_dim)
+
             cfg = make_stageD_config(batch_size, seq_len, feature_dim)
             result = run_stageD(cfg=cfg, coords=atom_coords, s_trunk=atom_embeddings["s_trunk"], z_trunk=atom_embeddings["pair"], s_inputs=atom_embeddings["s_inputs"], input_feature_dict=atom_embeddings, atom_metadata=atom_embeddings.get("atom_metadata"))
             self.assertIsInstance(result, torch.Tensor)
             output_shape = result.shape
-            expected_last_dims = (seq_len, 3)
             batch_dim = batch_size
             self.assertEqual(output_shape[0], batch_dim)
             self.assertEqual(output_shape[-1], 3)
-            self.assertLessEqual(output_shape[-2], seq_len)
+            self.assertLessEqual(output_shape[-2], num_atoms)
 
     @settings(deadline=5000, max_examples=2)
     @given(
@@ -246,8 +291,16 @@ class TestRunStageDComprehensive(unittest.TestCase):
     )
     def test_run_stageD_with_debug_logging(self, batch_size, seq_len, feature_dim):
         with patch_diffusionmodule_forward():
-            atom_coords = torch.randn(batch_size, seq_len, 3)
+            # For testing, we'll use 5 atoms per residue
+            atoms_per_residue = 5
+            num_atoms = seq_len * atoms_per_residue
+
+            # Create atom-level coordinates
+            atom_coords = torch.randn(batch_size, num_atoms, 3)
+
+            # Create residue-level embeddings
             atom_embeddings = make_atom_embeddings(batch_size, seq_len, feature_dim)
+
             cfg = make_stageD_config(batch_size, seq_len, feature_dim, debug_logging=True)
             captured_output = io.StringIO()
             sys.stdout = captured_output
@@ -274,7 +327,14 @@ class TestRunStageDComprehensive(unittest.TestCase):
     )
     def test_run_stageD_with_preprocessing(self, batch_size, seq_len, feature_dim, preprocess_max_len):
         with patch_diffusionmodule_forward():
-            atom_coords = torch.randn(batch_size, seq_len, 3)
+            # For testing, we'll use 5 atoms per residue
+            atoms_per_residue = 5
+            num_atoms = seq_len * atoms_per_residue
+
+            # Create atom-level coordinates
+            atom_coords = torch.randn(batch_size, num_atoms, 3)
+
+            # Create residue-level embeddings
             atom_embeddings = make_atom_embeddings(batch_size, seq_len, feature_dim)
             atom_embeddings["sequence"] = "A" * seq_len
 
@@ -454,15 +514,23 @@ class TestRunStageDComprehensive(unittest.TestCase):
     )
     def test_run_stageD_with_global_patch(self, batch_size, seq_len, feature_dim):
         with patch_diffusionmodule_forward():
-            atom_coords = torch.randn(batch_size, seq_len, 3)
+            # For testing, we'll use 5 atoms per residue
+            atoms_per_residue = 5
+            num_atoms = seq_len * atoms_per_residue
+
+            # Create atom-level coordinates
+            atom_coords = torch.randn(batch_size, num_atoms, 3)
+
+            # Create residue-level embeddings
             atom_embeddings = make_atom_embeddings(batch_size, seq_len, feature_dim)
+
             cfg = make_stageD_config(batch_size, seq_len, feature_dim)
             result = run_stageD(cfg=cfg, coords=atom_coords, s_trunk=atom_embeddings["s_trunk"], z_trunk=atom_embeddings["pair"], s_inputs=atom_embeddings["s_inputs"], input_feature_dict=atom_embeddings, atom_metadata=atom_embeddings.get("atom_metadata"))
             self.assertIsInstance(result, torch.Tensor)
             output_shape = result.shape
             self.assertEqual(output_shape[0], batch_size)
             self.assertEqual(output_shape[-1], 3)
-            self.assertLessEqual(output_shape[-2], seq_len)
+            self.assertLessEqual(output_shape[-2], num_atoms)
 
 
 if __name__ == '__main__':
