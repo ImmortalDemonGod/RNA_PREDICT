@@ -16,48 +16,48 @@ def create_stage_d_test_config(stage_overrides=None, model_overrides=None, noise
 
     base_config = {
         "stageD_diffusion": {
-            "mode": "inference",
-            "device": "cpu",
-            "angle_representation": "cartesian",
-            "use_metadata": False,
-            "sigma_data": 16.0,
-            "gamma0": 0.8,
-            "gamma_min": 1.0,
-            "noise_scale_lambda": 1.003,
-            "step_scale_eta": 1.5,
-            "diffusion_chunk_size": None,
-            "attn_chunk_size": None,
-            "inplace_safe": False,
-            "debug_logging": False,
-            "training": {
-                "batch_size": 1
-            },
-            "inference": {
-                "num_steps": 2,
-                "temperature": 1.0,
-                "sampling": {
-                    "num_samples": 1,
-                    "seed": None,
-                    "use_deterministic": False
-                 }
-            },
-             "memory": {
-                "apply_memory_preprocess": False,
-                "memory_preprocess_max_len": 25
-             }
-        },
-        "diffusion_model": {
-             "c_atom": 128,
-             "c_atompair": 16,
-             "c_token": 384,
-             "c_s": 384,
-             "c_z": 32,
-             "c_s_inputs": 384,
-             "c_noise_embedding": 128,
-             "atom_encoder": {"n_blocks": 1, "n_heads": 1, "n_queries": 4, "n_keys": 8},
-             "transformer": {"n_blocks": 1, "n_heads": 1},
-             "atom_decoder": {"n_blocks": 1, "n_heads": 1, "n_queries": 4, "n_keys": 8},
-             "sigma_data": 16.0
+            "diffusion": {
+                "mode": "inference",
+                "device": "cpu",
+                "angle_representation": "cartesian",
+                "use_metadata": False,
+                "sigma_data": 16.0,
+                "gamma0": 0.8,
+                "gamma_min": 1.0,
+                "noise_scale_lambda": 1.003,
+                "step_scale_eta": 1.5,
+                "diffusion_chunk_size": None,
+                "attn_chunk_size": None,
+                "inplace_safe": False,
+                "debug_logging": False,
+                "c_atom": 128,
+                "c_atompair": 16,
+                "c_token": 384,
+                "c_s": 384,
+                "c_z": 32,
+                "c_s_inputs": 384,
+                "c_noise_embedding": 128,
+                "test_residues_per_batch": 25,
+                "training": {
+                    "batch_size": 1
+                },
+                "inference": {
+                    "num_steps": 2,
+                    "temperature": 1.0,
+                    "sampling": {
+                        "num_samples": 1,
+                        "seed": None,
+                        "use_deterministic": False
+                    }
+                },
+                "memory": {
+                    "apply_memory_preprocess": False,
+                    "memory_preprocess_max_len": 25
+                },
+                "atom_encoder": {"n_blocks": 1, "n_heads": 1, "n_queries": 4, "n_keys": 8},
+                "transformer": {"n_blocks": 1, "n_heads": 1},
+                "atom_decoder": {"n_blocks": 1, "n_heads": 1, "n_queries": 4, "n_keys": 8}
+            }
         },
         "noise_schedule": {
              "schedule_type": "linear",
@@ -98,9 +98,14 @@ class TestRunStageDIntegration(unittest.TestCase):
                   "inference": {"num_steps": 2, "sampling": {"num_samples": 1}}
              }
         )
-        merged_stageD = dict(base_cfg.stageD_diffusion)
-        merged_stageD.update(base_cfg.diffusion_model)
-        self.test_cfg = OmegaConf.create({"model": {"stageD": merged_stageD}})
+        # Create a new structure with diffusion field
+        self.test_cfg = OmegaConf.create({
+            "model": {
+                "stageD": {
+                    "diffusion": dict(base_cfg.stageD_diffusion.diffusion)
+                }
+            }
+        })
         self.num_atoms = 25
         self.c_token = 64
         self.c_s = 64
