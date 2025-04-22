@@ -21,6 +21,7 @@ from .config import ProcessInputsParams
 from .feature_processing import adapt_tensor_dimensions, extract_atom_features
 from .pair_embedding import create_pair_embedding
 
+import snoop
 
 def _process_simple_embedding(
     encoder: Any, input_feature_dict: InputFeatureDict
@@ -149,25 +150,14 @@ def _process_coordinate_encoding(
         )
         return q_l
 
-
+##@snoop
 def _process_style_embedding(
     encoder: Any,
     c_l: torch.Tensor,
-    s: Optional[torch.Tensor],
-    atom_to_token_idx: Optional[torch.Tensor],  # Allow None
+    s: torch.Tensor,
+    atom_to_token_idx: torch.Tensor,
 ) -> torch.Tensor:
-    """
-    Process style embedding from token to atom level.
-
-    Args:
-        encoder: The encoder module instance
-        c_l: Input atom features
-        s: Token-level style embedding
-        atom_to_token_idx: Mapping from atoms to tokens (can be None)
-
-    Returns:
-        Updated atom features with style information
-    """
+    print(f"[DEBUG][CALL] _process_style_embedding c_l.shape={c_l.shape} s.shape={s.shape} atom_to_token_idx.shape={atom_to_token_idx.shape}")
     if s is None or atom_to_token_idx is None:  # Check if index is None
         return c_l
 
@@ -179,7 +169,28 @@ def _process_style_embedding(
         broadcasted_s = adapt_tensor_dimensions(broadcasted_s, encoder.c_s)
 
     # Apply layer norm and add to atom embedding
-    return c_l + encoder.linear_no_bias_s(encoder.layernorm_s(broadcasted_s))
+    x = encoder.linear_no_bias_s(encoder.layernorm_s(broadcasted_s))
+    print(f"[DEBUG][PRE-ADD] c_l.shape={c_l.shape}, x.shape={x.shape}, broadcasted_s.shape={broadcasted_s.shape}")
+    print(f"[DEBUG][ENCODER][_process_style_embedding] c_l.shape={getattr(c_l, 'shape', None)}, x.shape={getattr(x, 'shape', None)}")
+    print(f"[DEBUG][ENCODER][_process_style_embedding] c_l type={type(c_l)}, x type={type(x)}")
+    print(f"[DEBUG][ENCODER][_process_style_embedding] atom_to_token_idx.shape={getattr(atom_to_token_idx, 'shape', None)}")
+    # If c_l is a tensor, print a snippet of its values for provenance
+    if hasattr(c_l, 'shape') and hasattr(c_l, 'flatten'):
+        print(f"[DEBUG][ENCODER][_process_style_embedding] c_l.flatten()[:10]={c_l.flatten()[:10]}")
+    # PATCH: Ensure c_l is atom-level before addition
+    # If c_l is [batch, num_residues, emb_dim], broadcast to [batch, num_atoms, emb_dim]
+    if c_l.shape[1] != x.shape[1] and atom_to_token_idx is not None:
+        print(f"[PATCH][ENCODER][_process_style_embedding] Broadcasting c_l from residues to atoms using atom_to_token_idx")
+        # atom_to_token_idx: [batch, num_atoms]
+        idx = atom_to_token_idx.unsqueeze(-1).expand(-1, -1, c_l.shape[-1])
+        c_l = torch.gather(c_l, 1, idx)
+        print(f"[PATCH][ENCODER][_process_style_embedding] New c_l.shape={c_l.shape}")
+    try:
+        return c_l + x
+    except Exception as e:
+        print(f"[DEBUG][EXCEPTION-ADD] {e}")
+        print(f"[DEBUG][EXCEPTION-ADD-SHAPE] c_l.shape={c_l.shape}, x.shape={x.shape}")
+        raise
 
 
 def _aggregate_to_token_level(
@@ -252,6 +263,14 @@ def _aggregate_to_token_level(
             )
             temp_idx = torch.clamp(temp_idx, max=num_tokens - 1)
 
+    print("[DEBUG][_aggregate_to_token_level] a_atom.shape:", getattr(a_atom, 'shape', None))
+    print("[DEBUG][_aggregate_to_token_level] atom_to_token_idx.shape:", getattr(temp_idx, 'shape', None))
+    print("[DEBUG][_aggregate_to_token_level] n_token:", num_tokens)
+    print("[DEBUG][_aggregate_to_token_level] a_atom dtype:", getattr(a_atom, 'dtype', None))
+    print("[DEBUG][_aggregate_to_token_level] atom_to_token_idx dtype:", getattr(temp_idx, 'dtype', None))
+    print("[DEBUG][_aggregate_to_token_level] a_atom (first 5):", a_atom.flatten()[:5])
+    print("[DEBUG][_aggregate_to_token_level] atom_to_token_idx (first 10):", temp_idx.flatten()[:10])
+
     # Aggregate atom features to token level
     return aggregate_atom_to_token(
         x_atom=a_atom,
@@ -261,9 +280,11 @@ def _aggregate_to_token_level(
     )
 
 
-def process_inputs_with_coords(
+#@snoop
+def _process_inputs_with_coords_impl(
     encoder: Any,
     params: ProcessInputsParams,
+    atom_to_token_idx: Optional[torch.Tensor] = None,
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     """
     Process inputs when coordinates are available.
@@ -271,6 +292,7 @@ def process_inputs_with_coords(
     Args:
         encoder: The encoder module instance
         params: Parameters for processing inputs with coordinates
+        atom_to_token_idx: Optional atom to token index
 
     Returns:
         Tuple containing:
@@ -295,9 +317,22 @@ def process_inputs_with_coords(
     default_restype = torch.zeros((batch_size, num_tokens), device=default_device, dtype=torch.long)
     restype = safe_tensor_access(params.input_feature_dict, "restype", default=default_restype)
 
+    print(f"[DEBUG][PRE-CALL] c_l.shape={params.c_l.shape if params.c_l is not None else None} s.shape={params.s.shape if params.s is not None else None} atom_to_token_idx.shape={atom_to_token_idx.shape if atom_to_token_idx is not None else None}")
+
     # Process coordinates and style embedding
     q_l = _process_coordinate_encoding(encoder, params.c_l, params.r_l, ref_pos)
-    c_l = _process_style_embedding(encoder, params.c_l, params.s, atom_to_token_idx)
+    print(f"[DEBUG][PRE-CALL-TYPE] c_l={type(params.c_l)} s={type(params.s)} atom_to_token_idx={type(atom_to_token_idx)}")
+    try:
+        print(f"[DEBUG][PRE-CALL-SHAPE] c_l.shape={getattr(params.c_l, 'shape', None)} s.shape={getattr(params.s, 'shape', None)} atom_to_token_idx.shape={getattr(atom_to_token_idx, 'shape', None)}")
+    except Exception as e:
+        print(f"[DEBUG][PRE-CALL-SHAPE-ERROR] {e}")
+    try:
+        c_l = _process_style_embedding(encoder, params.c_l, params.s, atom_to_token_idx)
+    except Exception as e:
+        print(f"[DEBUG][EXCEPTION] {e}")
+        print(f"[DEBUG][EXCEPTION-TYPE] c_l={type(params.c_l)} s={type(params.s)} atom_to_token_idx={type(atom_to_token_idx)}")
+        print(f"[DEBUG][EXCEPTION-SHAPE] c_l.shape={getattr(params.c_l, 'shape', None)} s.shape={getattr(params.s, 'shape', None)} atom_to_token_idx.shape={getattr(atom_to_token_idx, 'shape', None)}")
+        raise
 
     # Process through atom transformer
     # Unsqueeze p_lm to add a block dimension if it's 4D (output from create_pair_embedding)
@@ -375,3 +410,12 @@ def process_inputs_with_coords(
     a = _aggregate_to_token_level(encoder, a_atom, atom_to_token_idx, num_tokens)
 
     return a, q_l, c_l, p_lm
+
+
+#@snoop
+def process_inputs_with_coords(
+    encoder: Any,
+    params: ProcessInputsParams,
+    atom_to_token_idx: Optional[torch.Tensor] = None,
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    return _process_inputs_with_coords_impl(encoder, params, atom_to_token_idx)
