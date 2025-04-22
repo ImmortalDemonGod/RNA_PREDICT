@@ -1,11 +1,15 @@
-# rna_predict/conf/test/data.yaml
+# rna_predict/conf/test_data.yaml
 # Configuration for test data used in demos and tests
+
+defaults:
+  - _self_
+  - model/stageD_diffusion@model.stageD
 
 # Test sequence - standardized across all pipeline stages
 sequence: "ACGUACGU"
 
 # Sequence properties
-sequence_length: 8  # Length of the sequence
+sequence_length: 8  # Length for test
 atoms_per_residue: 44  # Standard RNA residue has ~44 atoms
 
 # Adjacency matrix parameters
@@ -21,4 +25,4 @@ torsion_angle_dim: 7  # Number of torsion angles per residue
 embedding_dims:
   s_trunk: 384  # Single representation dimension
   z_trunk: 128  # Pair representation dimension
-  s_inputs: 449  # Input representation dimension
+  s_inputs: 32  # Input representation dimension

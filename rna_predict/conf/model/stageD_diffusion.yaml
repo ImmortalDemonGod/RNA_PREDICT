@@ -5,12 +5,24 @@
 defaults:
   - _self_
 
-# Top-level settings
 enabled: true
-
-# Diffusion model settings
-# Set all minimal values for memory-efficient testing
-
+model_architecture:
+  c_token: 384
+  c_s: 384
+  c_z: 128
+  c_s_inputs: 449
+  c_atom: 128
+  # c_pair is sometimes required for diffusion model overrides
+  c_noise_embedding: 32
+atom_decoder:
+  c_in: 64
+  c_hidden: [128, 64, 32]
+  c_out: 3
+  dropout: 0.1
+  n_blocks: 1
+  n_heads: 2
+  n_queries: 1
+  n_keys: 1
 diffusion:
   # Core settings
   init_from_scratch: false
@@ -18,96 +30,55 @@ diffusion:
   mode: "inference"
   device: "cpu"
   debug_logging: true
-  sigma_data: 1.0
-  c_atom: 2
-  c_s: 2
-  c_z: 2
-  c_s_inputs: 2
-  c_noise_embedding: 2
-  ref_element_size: 2
-  ref_atom_name_chars_size: 2
-
   # Feature dimensions required for bridging
   feature_dimensions:
-    c_s: 2         # matches c_s in model_architecture
-    c_s_inputs: 2  # matches c_s_inputs in model_architecture
-    c_sing: 2      # set to same as c_s for minimal config
-
+    c_s: ${..model_architecture.c_s}         # matches c_s in model_architecture
+    c_s_inputs: ${..model_architecture.c_s_inputs}  # matches c_s_inputs in model_architecture
+    c_sing: ${..model_architecture.c_s}      # set to same as c_s for consistency
+    s_trunk: ${..model_architecture.c_s}
   # Required for residue-to-atom bridging and inference shape checks
   test_residues_per_batch: 1
-
   # Required model architecture configuration
-  model_architecture:
-    c_token: 2
-    c_s: 2
-    c_z: 2
-    c_s_inputs: 2
-    c_atom: 2
-    c_noise_embedding: 2
-    num_layers: 1
-    num_heads: 1
-    dropout: 0.0
-    coord_eps: 1e-6
-    coord_min: -1e4
-    coord_max: 1e4
-    coord_similarity_rtol: 1e-3
-    test_residues_per_batch: 1
-
+  model_architecture: ${..model_architecture}
   # Required transformer configuration
   transformer:
     n_blocks: 1
     n_heads: 1
     blocks_per_ckpt: 1
-
-  # Required atom encoder configuration
+  # Atom encoder/decoder configs
   atom_encoder:
-    c_in: 1
-    c_hidden: [2]
-    c_out: 1
-    dropout: 0.0
-    n_blocks: 1
-    n_heads: 1
-    n_queries: 1
-    n_keys: 1
-
-  # Required atom decoder configuration
+    c_in: 3
+    c_hidden: [32, 64, 128]
+    c_out: 64
+    dropout: 0.1
   atom_decoder:
-    c_in: 1
-    c_hidden: [2]
-    c_out: 1
-    dropout: 0.0
-    n_blocks: 1
-    n_heads: 1
-    n_queries: 1
-    n_keys: 1
-
-  # Noise schedule configuration
+    c_in: 64
+    c_hidden: [128, 64, 32]
+    c_out: 3
+    dropout: 0.1
+  # Noise schedule config
   noise_schedule:
     schedule_type: "linear"
-    sigma_data: 1.0
-    s_max: 1.0
-    s_min: 1e-4
-    p: 1.0
-    p_mean: 0.0
-    p_std: 1.0
-
-  # Inference parameters
+    s_max: 160.0
+    s_min: 0.0004
+    p: 7.0
+    sigma_data: 16.0
+    p_mean: -1.2
+    p_std: 1.5
+  # Inference config
   inference:
     num_steps: 2
     temperature: 1.0
-    use_ddim: true
+    use_ddim: True
     sampling:
       num_samples: 1
-      gamma0: 1.0
+      gamma0: 0.8
       gamma_min: 1.0
-      noise_scale_lambda: 1.0
-      step_scale_eta: 1.0
-
-  # Memory optimization flags
-  use_memory_efficient_kernel: false
-  use_deepspeed_evo_attention: false
-  use_lma: false
-  inplace_safe: false
+      noise_scale_lambda: 1.003
+      step_scale_eta: 1.5
+  # Memory optimization
+  use_memory_efficient_kernel: False
+  use_deepspeed_evo_attention: False
+  use_lma: False
+  inplace_safe: False
   chunk_size: null
-
-  atom_metadata: null

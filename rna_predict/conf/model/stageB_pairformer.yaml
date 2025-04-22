@@ -1,21 +1,20 @@
 # rna_predict/conf/model/stageB_pairformer.yaml
+
+defaults:
+  - _self_
+  - protenix_integration@protenix_integration
+
 # Core model parameters
 n_blocks: 1                 # Minimal number of Pairformer blocks
 n_heads: 1                  # Minimal number of attention heads
 c_z: 2                      # Minimal pair representation dimension
 c_s: 2                      # Minimal single representation dimension
-
 dropout: 0.0                # Top-level dropout for Pairformer
-
-# NEW: Freeze all parameters for test parity
 freeze_params: false
 
-# Device setting
 device: ${device}  # Inherit from global device setting
 
-# Explicitly include protenix_integration configuration (minimal values)
 protenix_integration:
-  device: ${device}
   c_token: 2
   restype_dim: 2
   profile_dim: 2
@@ -66,8 +65,8 @@ template:
       template_restype_i: 1
       template_restype_j: 1
   distogram:
-    max_bin: 1.0
-    min_bin: 0.0
+    max_bin: 1
+    min_bin: 1
     no_bins: 1
 
 # Memory optimization flags
