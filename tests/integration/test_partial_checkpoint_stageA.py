@@ -10,7 +10,6 @@ import os
 import torch
 import pytest
 import hydra
-from omegaconf import OmegaConf
 from rna_predict.pipeline.stageA.adjacency.rfold_predictor import StageARFoldPredictor
 import pathlib
 import sys
@@ -100,14 +99,14 @@ def test_partial_checkpoint_stageA(tmp_path):
     # 4. Assert no parameters change after optimizer step
     params_before = {k: v.clone() for k, v in model.named_parameters()}
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
-    dummy_input = torch.randint(0, 4, (2, 100))  # 2 sequences, length 100
+    torch.randint(0, 4, (2, 100))  # 2 sequences, length 100
     try:
         optimizer.zero_grad()
         # Use predict_adjacency for forward pass
         model.predict_adjacency("A" * 100)
         # No backward/step since no trainable params, but try to step
         optimizer.step()
-    except Exception as e:
+    except Exception:
         pass  # Ignore since gradients are not required
     for k, v in model.named_parameters():
         if not torch.equal(v, params_before[k]):
