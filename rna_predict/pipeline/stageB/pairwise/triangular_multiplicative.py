@@ -22,7 +22,7 @@ import torch.nn as nn
 
 from protenix.openfold_local.model.primitives import Linear, LayerNorm
 from protenix.openfold_local.utils.precision_utils import is_fp16_enabled
-from protenix.openfold_local.utils.tensor_utils import add, permute_final_dims
+from protenix.openfold_local.utils.tensor_utils import permute_final_dims
 
 
 class BaseTriangleMultiplicativeUpdate(nn.Module, ABC):
@@ -225,7 +225,7 @@ class TriangleMultiplicativeUpdate(BaseTriangleMultiplicativeUpdate):
                 p = pair.new_zeros(out_shape)
                 for i in range(0, pair.shape[-3], inplace_chunk_size):
                     pair_chunk = pair[..., i : i + inplace_chunk_size, :, :]
-                    mask_chunk = mask[..., i : i + inplace_chunk_size, :, :]
+                    mask[..., i : i + inplace_chunk_size, :, :]
                     pair_chunk = compute_projection_helper(
                         pair[..., i : i + inplace_chunk_size, :, :],
                         mask[..., i : i + inplace_chunk_size, :, :],
