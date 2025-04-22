@@ -1,10 +1,11 @@
 # rna_predict/conf/model/stageB_pairformer.yaml
 # Core model parameters
-n_blocks: 48                 # Default number of Pairformer blocks
-n_heads: 16                  # Default number of attention heads
-c_z: 128                     # Pair representation dimension
-c_s: 384                     # Single representation dimension
-dropout: 0.25                # Default dropout rate
+n_blocks: 1                 # Minimal number of Pairformer blocks
+n_heads: 1                  # Minimal number of attention heads
+c_z: 2                      # Minimal pair representation dimension
+c_s: 2                      # Minimal single representation dimension
+
+dropout: 0.0                # Top-level dropout for Pairformer
 
 # NEW: Freeze all parameters for test parity
 freeze_params: false
@@ -12,79 +13,74 @@ freeze_params: false
 # Device setting
 device: ${device}  # Inherit from global device setting
 
-# Additional parameters for Protenix Integration
-c_token: 449                 # Token dimension
-c_atom: 128                  # Atom dimension
-c_pair: 32                   # Pair dimension
-
-# Explicitly include protenix_integration configuration
+# Explicitly include protenix_integration configuration (minimal values)
 protenix_integration:
   device: ${device}
-  c_token: 449
-  restype_dim: 32
-  profile_dim: 32
-  c_atom: 128
-  c_pair: 32
-  num_heads: 4
-  num_layers: 3
-  r_max: 32
+  c_token: 2
+  restype_dim: 2
+  profile_dim: 2
+  c_atom: 2
+  c_pair: 2
+  num_heads: 1
+  num_layers: 1
+  r_max: 2
   s_max: 2
   use_optimized: false
 
-# MSA parameters
+# MSA parameters (minimal values, disabled)
 msa:
-  c_m: 64                    # Hidden dimension for MSA embedding
-  c: 32                      # Hidden dimension for MSA components
-  c_z: 128                   # Hidden dimension for pair embedding
-  dropout: 0.15              # Dropout ratio for MSA components
-  n_blocks: 4                # Number of MSA blocks
-  enable: false              # Whether to use MSA embedding
-  strategy: random           # Strategy for MSA sampling
-  train_cutoff: 512          # MSA sample cutoff during training
-  test_cutoff: 16384         # MSA sample cutoff during testing
-  train_lowerb: 1            # Minimum MSA sample size during training
-  test_lowerb: 1             # Minimum MSA sample size during testing
-  n_heads: 8                 # Number of attention heads for MSA pair weighted averaging
-  pair_dropout: 0.25         # Dropout ratio for pair stack in MSA block
-  c_s_inputs: 449            # Hidden dimension for single embedding from InputFeatureEmbedder
-  blocks_per_ckpt: 1         # Number of MSA blocks in each activation checkpoint
-  input_feature_dims:        # Dimensions for input features
-    msa: 32
+  c_m: 2                    # Minimal hidden dimension for MSA embedding
+  c: 2                      # Minimal hidden dimension for MSA components
+  c_z: 2                    # Minimal hidden dimension for pair embedding
+  dropout: 0.0              # No dropout for MSA components
+  n_blocks: 1               # Minimal number of MSA blocks
+  enable: false             # Whether to use MSA embedding
+  strategy: random          # Strategy for MSA sampling
+  train_cutoff: 1           # Minimal MSA sample cutoff during training
+  test_cutoff: 1            # Minimal MSA sample cutoff during testing
+  train_lowerb: 1           # Minimum MSA sample size during training
+  test_lowerb: 1            # Minimum MSA sample size during testing
+  n_heads: 1                # Minimal number of attention heads for MSA pair weighted averaging
+  pair_dropout: 0.0         # No dropout for pair stack in MSA block
+  c_s_inputs: 2             # Minimal hidden dimension for single embedding from InputFeatureEmbedder
+  blocks_per_ckpt: 1        # Minimal number of MSA blocks in each activation checkpoint
+  input_feature_dims:
+    msa: 2
     has_deletion: 1
     deletion_value: 1
 
-# Template parameters
+# Template parameters (minimal values, disabled)
 template:
-  n_blocks: 2                # Number of blocks for TemplateEmbedder
-  c: 64                      # Hidden dimension of TemplateEmbedder
-  c_z: 128                   # Hidden dimension for pair embedding
-  dropout: 0.25              # Dropout ratio for PairformerStack
+  n_blocks: 1                # Minimal number of blocks for TemplateEmbedder
+  c: 2                       # Minimal hidden dimension of TemplateEmbedder
+  c_z: 2                     # Minimal hidden dimension for pair embedding
+  dropout: 0.0               # No dropout for PairformerStack
   blocks_per_ckpt: null      # Number of blocks per checkpoint, null for no checkpointing
-  input_feature_dims:        # Dimensions for input features
+  input_feature_dims:
     feature1:
-      template_distogram: 39
+      template_distogram: 1
       b_template_backbone_frame_mask: 1
-      template_unit_vector: 3
+      template_unit_vector: 1
       b_template_pseudo_beta_mask: 1
     feature2:
-      template_restype_i: 32
-      template_restype_j: 32
-  distogram:                 # Distogram parameters
-    max_bin: 50.75
-    min_bin: 3.25
-    no_bins: 39
+      template_restype_i: 1
+      template_restype_j: 1
+  distogram:
+    max_bin: 1.0
+    min_bin: 0.0
+    no_bins: 1
 
 # Memory optimization flags
 use_memory_efficient_kernel: false # Default memory optimization setting
-use_deepspeed_evo_attention: false # Default DeepSpeed attention setting
-use_lma: false               # Default LMA setting
-inplace_safe: false          # Default inplace operation setting
+use_deepspeed_evo_attention: false
+use_lma: false
+inplace_safe: false
 chunk_size: null             # Default chunk size for attention
 
 # Triangle Attention parameters
-c_hidden_mul: 2
-c_hidden_pair_att: 128
-no_heads_pair: 8
+c_hidden_mul: 1
+c_hidden_pair_att: 2
+no_heads_pair: 1
 
 # Adjacency logic (keep default as false)
 init_z_from_adjacency: false
@@ -95,9 +91,9 @@ debug_logging: false  # [UNIQUE-ERR-STAGEB-DEBUGLOGGING-001] Default off for tes
 # Optional LoRA configuration
 lora:
   enabled: false
-  r: 8
-  alpha: 16
-  dropout: 0.1
+  r: 1
+  alpha: 1
+  dropout: 0.0
   target_modules:
     - query
     - value
