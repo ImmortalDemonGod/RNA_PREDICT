@@ -69,7 +69,7 @@ def set_stageA_logger_level(debug_logging: bool):
 
 # PATCH: Make StageARFoldPredictor a torch.nn.Module so it can be used in ModuleDict
 import torch.nn as nn
-import os, psutil
+import psutil
 
 class StageARFoldPredictor(nn.Module):
     """
