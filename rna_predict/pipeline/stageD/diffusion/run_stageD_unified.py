@@ -147,6 +147,35 @@ def _run_stageD_diffusion_impl(
     if 'model_architecture' in hydra_cfg.stageD.diffusion:
         print(f"[DEBUG-CONFIG] hydra_cfg.stageD.diffusion.model_architecture keys: {list(hydra_cfg.stageD.diffusion.model_architecture.keys())}")
 
+    # Defensive: selectively promote only 'inference' from nested 'diffusion', OmegaConf-safe
+    from omegaconf import OmegaConf, DictConfig
+    def _promote_inference(cfg):
+        # Convert DictConfig to dict for safe mutation
+        if isinstance(cfg, DictConfig):
+            cfg = OmegaConf.to_container(cfg, resolve=True)
+        # Only promote 'inference' if nested
+        while 'diffusion' in cfg and isinstance(cfg['diffusion'], dict):
+            inner = cfg['diffusion']
+            if 'inference' in inner and 'inference' not in cfg:
+                cfg['inference'] = inner['inference']
+            # Optionally promote 'sampling' if needed
+            if 'sampling' in inner and 'sampling' not in cfg:
+                cfg['sampling'] = inner['sampling']
+            # Remove only if empty or only contains promoted keys
+            inner_keys = set(inner.keys()) - {'inference', 'sampling'}
+            if not inner_keys:
+                del cfg['diffusion']
+            else:
+                # Stop if other keys remain (do not flatten further)
+                break
+        return cfg
+    # Promote, then rewrap as DictConfig
+    promoted_diffusion = _promote_inference(hydra_cfg.stageD.diffusion)
+    hydra_cfg.stageD.diffusion = OmegaConf.create(promoted_diffusion)
+    print(f"[DEBUG][PATCHED] hydra_cfg.stageD.diffusion keys after selective promote: {list(hydra_cfg.stageD.diffusion.keys())}")
+    if 'inference' in hydra_cfg.stageD.diffusion:
+        print(f"[DEBUG][PATCHED] inference config: {hydra_cfg.stageD.diffusion['inference']}")
+
     # Create the manager with the Hydra config
     diffusion_manager = ProtenixDiffusionManager(cfg=hydra_cfg)
 
