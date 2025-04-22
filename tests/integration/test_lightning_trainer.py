@@ -94,7 +94,23 @@ cfg = OmegaConf.create({
                     'c_noise_embedding': 256,
                     'atom_encoder': {'n_blocks': 1, 'n_heads': 1},
                     'transformer': {'n_blocks': 1, 'n_heads': 1},
-                    'atom_decoder': {'n_blocks': 1, 'n_heads': 1}
+                    'atom_decoder': {'n_blocks': 1, 'n_heads': 1},
+                    'model_architecture': {
+                        'c_token': 2,
+                        'c_s': 2,
+                        'c_z': 2,
+                        'c_s_inputs': 2,
+                        'c_atom': 2,
+                        'c_noise_embedding': 2,
+                        'num_layers': 1,
+                        'num_heads': 1,
+                        'dropout': 0.0,
+                        'coord_eps': 1e-6,
+                        'coord_min': -10000.0,
+                        'coord_max': 10000.0,
+                        'coord_similarity_rtol': 0.001,
+                        'test_residues_per_batch': 1
+                    }
                 }
             }
         }

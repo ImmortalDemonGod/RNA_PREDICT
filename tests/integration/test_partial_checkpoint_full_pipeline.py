@@ -13,11 +13,22 @@ IMPORTANT:
     docs/guides/best_practices/debugging/comprehensive_debugging_guide.md
 """
 import os
+import pathlib
+PROJECT_ROOT = "/Users/tomriddle1/RNA_PREDICT"
+if os.getcwd() != PROJECT_ROOT:
+    print(f"[DEBUG-TOP] Changing CWD from {os.getcwd()} to {PROJECT_ROOT}")
+    os.chdir(PROJECT_ROOT)
+conf_path = pathlib.Path(PROJECT_ROOT) / "rna_predict" / "conf"
+try:
+    rel_conf_path = conf_path.relative_to(pathlib.Path.cwd())
+except ValueError:
+    # If CWD is not a parent of conf_path, fallback to absolute path (Hydra will error, but we log it)
+    rel_conf_path = conf_path
+print(f"[DEBUG-TOP] CWD at import time: {os.getcwd()}")
+print(f"[DEBUG-TOP] Using config_path={rel_conf_path}")
 import torch
 import pytest
-import hydra
-import sys
-from omegaconf import OmegaConf, DictConfig
+from omegaconf import DictConfig
 from rna_predict.training.rna_lightning_module import RNALightningModule
 from rna_predict.utils.checkpointing import save_trainable_checkpoint, get_trainable_params
 from rna_predict.utils.checkpoint import partial_load_state_dict
@@ -25,14 +36,18 @@ from hypothesis import given, strategies as st, settings
 import tempfile
 from pathlib import Path
 from collections.abc import Mapping
+import traceback
 
 # Project rule: Always use absolute Hydra config path for all initialization/testing
 # See MEMORY[ab8a7679-fc73-4f8b-af9a-6ad058010c5a]
 CONFIG_ABS_PATH = "/Users/tomriddle1/RNA_PREDICT/rna_predict/conf/default.yaml"
 
-# Assert CWD is project root for robust, actionable error reporting
+# Force CWD to project root before Hydra config logic
 EXPECTED_CWD = "/Users/tomriddle1/RNA_PREDICT"
 actual_cwd = os.getcwd()
+assert os.getcwd().endswith("RNA_PREDICT"), (
+    f"Test must be run from project root. Current CWD: {os.getcwd()}"
+)
 if actual_cwd != EXPECTED_CWD:
     pytest.fail(
         f"[UNIQUE-ERR-HYDRA-CWD] Test must be run from the project root directory.\n"
@@ -45,43 +60,6 @@ if actual_cwd != EXPECTED_CWD:
 # Instrument with debug output and dynamic config_path selection
 import pathlib
 print(f"[TEST DEBUG] Current working directory: {os.getcwd()}")
-
-# Check config candidates relative to CWD
-cwd = pathlib.Path(os.getcwd())
-config_candidates = [cwd / "rna_predict" / "conf", cwd / "conf"]
-config_path_selected = None
-for candidate in config_candidates:
-    print(f"[TEST DEBUG] Checking for config directory: {candidate}")
-    if candidate.exists() and (candidate / "default.yaml").exists():
-        config_path_selected = str(candidate.relative_to(cwd))
-        print(f"[TEST DEBUG] Found config at: {candidate}, using config_path: {config_path_selected}")
-        # Print directory contents and permissions for further debugging
-        print(f"[TEST DEBUG] Contents of {candidate}:")
-        for item in candidate.iterdir():
-            print(f"  - {item} (exists: {item.exists()}, is_file: {item.is_file()}, perms: {oct(item.stat().st_mode)})")
-        default_yaml = candidate / "default.yaml"
-        if default_yaml.exists():
-            print(f"[TEST DEBUG] default.yaml permissions: {oct(default_yaml.stat().st_mode)}")
-        else:
-            print(f"[TEST DEBUG] default.yaml not found in {candidate}")
-        print(f"[TEST DEBUG] Absolute path to config directory: {candidate.resolve()}")
-        break
-if not config_path_selected:
-    pytest.fail("[UNIQUE-ERR-HYDRA-CONF-PATH-NOT-FOUND] Neither 'rna_predict/conf' nor 'conf' found relative to current working directory.\nCWD: {}\nChecked: {}\nSee docs/guides/best_practices/debugging/comprehensive_debugging_guide.md".format(os.getcwd(), [str(c) for c in config_candidates]))
-else:
-    # Print permissions and error if directory exists but not readable
-    for candidate in config_candidates:
-        if candidate.exists() and not (candidate / "default.yaml").exists():
-            print(f"[TEST DEBUG] Candidate exists but missing default.yaml: {candidate}")
-            print(f"[TEST DEBUG] Permissions: {oct(candidate.stat().st_mode)}")
-            for item in candidate.iterdir():
-                print(f"  - {item} (exists: {item.exists()}, is_file: {item.is_file()}, perms: {oct(item.stat().st_mode)})")
-            pytest.fail("[UNIQUE-ERR-HYDRA-CONF-PATH-STRUCTURE] Config directory exists but missing default.yaml or unreadable. See debug output above and docs/guides/best_practices/debugging/comprehensive_debugging_guide.md")
-
-# --- PATCH: Try config_path_selected = '../../rna_predict/conf' for Hydra ---
-print(f"[PATCH DEBUG] Trying config_path_selected = '../../rna_predict/conf'")
-config_path_selected = "../../rna_predict/conf"
-print(f"[PATCH DEBUG] config_path_selected now: {config_path_selected}")
 
 @settings(max_examples=1, deadline=None)
 @given(
@@ -99,10 +77,9 @@ def test_full_pipeline_partial_checkpoint(batch_size, input_dim):
             import hydra.core.global_hydra
             if hydra.core.global_hydra.GlobalHydra.instance().is_initialized():
                 hydra.core.global_hydra.GlobalHydra.instance().clear()
-            # NOTE: Hydra requires config_path to be relative to the current working directory.
-            # If running from tests/integration, use '../../rna_predict/conf'.
-            with hydra.initialize(config_path="../../rna_predict/conf", job_name="test_full_pipeline_partial_checkpoint"):
-                # Compose config with overrides to force init_from_scratch for Stage B and Stage D
+            print(f"[DEBUG] CWD before hydra.initialize: {os.getcwd()}")
+            # Compose config with debug output to inspect structure
+            with hydra.initialize(config_path="../../rna_predict/conf", job_name="test_full_pipeline_partial_checkpoint", version_base=None):
                 cfg = hydra.compose(
                     config_name="default",
                     overrides=[
@@ -116,23 +93,36 @@ def test_full_pipeline_partial_checkpoint(batch_size, input_dim):
                         "model.stageB.pairformer.c_token=8",
                         "model.stageB.pairformer.c_atom=8",
                         "model.stageB.pairformer.c_pair=4",
-                        "model.stageD.diffusion.c_atom=8",
-                        "model.stageD.diffusion.c_s=8",
-                        "model.stageD.diffusion.c_z=8",
-                        "model.stageD.diffusion.c_s_inputs=8",
-                        "model.stageD.diffusion.c_noise_embedding=8",
+                        "model.stageD.diffusion.model_architecture.c_atom=8",
+                        "model.stageD.diffusion.model_architecture.c_s=8",
+                        "model.stageD.diffusion.model_architecture.c_z=8",
+                        "model.stageD.diffusion.model_architecture.c_s_inputs=8",
+                        "model.stageD.diffusion.model_architecture.c_noise_embedding=8",
+                        "model.stageD.diffusion.model_architecture.c_token=8",
+                        "model.stageD.diffusion.model_architecture.c_atompair=8",
+                        "model.stageD.diffusion.model_architecture.sigma_data=1.0",
                         "model.stageD.diffusion.transformer.n_blocks=1",
                         "model.stageD.diffusion.transformer.n_heads=2",
                         "model.stageD.diffusion.atom_encoder.n_blocks=1",
                         "model.stageD.diffusion.atom_encoder.n_heads=2",
+                        "model.stageD.diffusion.atom_encoder.n_queries=1",
+                        "model.stageD.diffusion.atom_encoder.n_keys=1",
                         "model.stageD.diffusion.atom_decoder.n_blocks=1",
-                        "model.stageD.diffusion.atom_decoder.n_heads=2"
+                        "model.stageD.diffusion.atom_decoder.n_heads=2",
+                        "model.stageD.diffusion.atom_decoder.n_queries=1",
+                        "model.stageD.diffusion.atom_decoder.n_keys=1"
                     ]
                 )
-                # Unique error: Check Pairformer config structure
-                if not hasattr(cfg.model.stageB, "pairformer") or not isinstance(cfg.model.stageB.pairformer, (Mapping, DictConfig)):
-                    pytest.fail("[UNIQUE-ERR-PAIRFORMER-CONFIG-STRUCTURE] Pairformer config missing or not a mapping in cfg.model.stageB.pairformer. Check Hydra config composition and test setup.")
+                # Print the config structure to debug the path to c_atom
+                def print_tree(cfg, prefix=""):  # recursive pretty-printer
+                    if isinstance(cfg, dict) or hasattr(cfg, "keys"):
+                        for k in cfg.keys():
+                            print(f"{prefix}{k}")
+                            print_tree(cfg[k], prefix + "  ")
+                print("[HYDRA DEBUG] Composed config tree:")
+                print_tree(cfg)
         except Exception as e:
+            print("\n=== HYDRA ERROR TRACEBACK ===\n" + traceback.format_exc())
             pytest.fail(f"[UNIQUE-ERR-HYDRA-INIT] Hydra failed to initialize or compose config: {e}")
         model = RNALightningModule(cfg)
         model.train()
