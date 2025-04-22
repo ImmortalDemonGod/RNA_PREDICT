@@ -346,7 +346,7 @@ def test_sample_successful_sampling_all_keys(feature_dict, n_samples_ratio):
         try:
             orig_msa_2d = np.reshape(feature_dict["msa"], (-1, feature_dict["msa"].shape[-1]))
             sampled_msa_2d = np.reshape(result["msa"], (-1, result["msa"].shape[-1]))
-        except Exception as e:
+        except Exception:
             print(f"{ERROR_SAMPLE_011_ROW_COMPARISON_SHAPE_MISMATCH}: Could not reshape for row comparison. Original shape: {feature_dict['msa'].shape}, Sampled shape: {result['msa'].shape}")
             raise
         orig_counter = Counter(tuple(row) for row in orig_msa_2d)

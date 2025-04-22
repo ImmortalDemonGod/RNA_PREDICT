@@ -188,7 +188,6 @@ class TestStageBTorsionBertPredictorVerification:
         Property-based: Execute predictor with test sequences to verify end-to-end operation, with unique error codes.
         """
         from hypothesis import given, strategies as st
-        import torch
 
         @given(st.lists(st.text(alphabet="ACGU", min_size=1, max_size=8), min_size=1, max_size=6))
         def check_end_to_end(sequences):
