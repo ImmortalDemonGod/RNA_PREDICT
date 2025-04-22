@@ -495,7 +495,7 @@ class TestPredictSubmission(unittest.TestCase):
         else:
             # Uniform atom count per residue
             self.assertEqual(len(df), len(sequence),
-                           f"[UniqueErrorID-CustomRepeats] DataFrame rows should match number of residues for uniform atom case.")
+                           "[UniqueErrorID-CustomRepeats] DataFrame rows should match number of residues for uniform atom case.")
             for col in expected_cols:
                 self.assertIn(col, df.columns,
                              f"[UniqueErrorID-CustomRepeats] Missing column {col} in uniform output")
@@ -585,7 +585,7 @@ class TestPredictSubmission(unittest.TestCase):
                     break
 
             self.assertTrue(has_nans,
-                          f"[UniqueErrorID-NaNHandling] At least one coordinate column should contain NaNs when all input coordinates are NaN")
+                          "[UniqueErrorID-NaNHandling] At least one coordinate column should contain NaNs when all input coordinates are NaN")
 
     @given(
         sequence=st.text(alphabet="ACGU", min_size=1, max_size=10),
