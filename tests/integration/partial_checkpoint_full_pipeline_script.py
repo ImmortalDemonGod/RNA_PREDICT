@@ -18,8 +18,6 @@ try:
 except ImportError:
     print("[UNIQUE-ERR-HYDRA-NOT-INSTALLED] hydra-core is required but not installed. Please check your network/certificate settings and ensure pip can fetch packages. See docs/guides/best_practices/debugging/comprehensive_debugging_guide.md for troubleshooting.")
     sys.exit(1)
-from omegaconf import DictConfig
-import torch
 
 EXPECTED_CWD = "/Users/tomriddle1/RNA_PREDICT"
 CONFIG_ABS_PATH = "/Users/tomriddle1/RNA_PREDICT/rna_predict/conf/default.yaml"
