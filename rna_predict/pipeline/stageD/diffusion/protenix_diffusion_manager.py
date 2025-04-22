@@ -5,7 +5,8 @@ from omegaconf import OmegaConf, DictConfig
 import torch
 from dataclasses import dataclass
 import torch.nn as nn
-import os, psutil
+import os
+import psutil
 
 from rna_predict.pipeline.stageD.diffusion.components.diffusion_module import (
     DiffusionModule,
@@ -75,7 +76,7 @@ class DiffusionStepInput:
         return 5
 
     def __repr__(self):
-        return f"DiffusionStepInput(label_dict=..., input_feature_dict=..., s_inputs=..., s_trunk=..., z_trunk=...)"
+        return "DiffusionStepInput(label_dict=..., input_feature_dict=..., s_inputs=..., s_trunk=..., z_trunk=...)"
 
 
 @dataclass
@@ -134,7 +135,7 @@ class FeaturePreparationContext:
         return input_feature_dict
 
     def __repr__(self):
-        return f"FeaturePreparationContext(coords_init=..., override_input_features=..., device=..., trunk_embeddings=..., s_inputs=...)"
+        return "FeaturePreparationContext(coords_init=..., override_input_features=..., device=..., trunk_embeddings=..., s_inputs=...)"
 
 
 @dataclass
@@ -164,9 +165,7 @@ class EmbeddingContext:
             batch_size = s_trunk_shape[0]
             n_tokens = s_trunk_shape[1]
             # Use config-driven c_s_inputs
-            c_s_inputs_dim = self.stage_cfg.get("c_s_inputs", None)
-            if c_s_inputs_dim is None:
-                raise ValueError("Config missing c_s_inputs for fallback s_inputs shape.")
+            c_s_inputs_dim = self.stage_cfg["model_architecture"]["c_s_inputs"]
             s_inputs = torch.zeros((batch_size, n_tokens, c_s_inputs_dim), device=self.device)
         return s_inputs
 
@@ -177,7 +176,7 @@ class EmbeddingContext:
             s_trunk_shape = self.trunk_embeddings["s_trunk"].shape
             batch_size = s_trunk_shape[0]
             n_tokens = s_trunk_shape[1]
-            c_z_dim = self.stage_cfg.get("c_z", 128)
+            c_z_dim = self.stage_cfg["model_architecture"]["c_z"]
             z_trunk = torch.zeros((batch_size, n_tokens, n_tokens, c_z_dim), device=self.device)
         return z_trunk
 
@@ -222,15 +221,19 @@ class DiffusionManagerConfig:
 
         # Handle both single and double nesting of stageD
         if "diffusion" in cfg.stageD:
-            # Single nesting: cfg.stageD.diffusion
-            return
+            stage_cfg = cfg.stageD.diffusion
         elif "stageD" in cfg.stageD and "diffusion" in cfg.stageD.stageD:
-            # Double nesting: cfg.stageD.stageD.diffusion
-            return
+            stage_cfg = cfg.stageD.stageD.diffusion
         else:
-            # Neither structure found
-            raise ValueError("[UNIQUE-ERR-STAGED-DIFFUSION-MISSING] Config missing required 'diffusion' group in stageD. Available keys: " +
-                           str(list(cfg.stageD.keys())))
+            raise ValueError("[UNIQUE-ERR-STAGED-DIFFUSION-MISSING] Config missing required 'diffusion' group in stageD. Available keys: " + str(list(cfg.stageD.keys())))
+        # Check model_architecture block
+        if "model_architecture" not in stage_cfg:
+            raise ValueError("Config missing required 'model_architecture' block in stageD.diffusion!")
+        # Ensure no duplicated keys at top level
+        forbidden_keys = ["sigma_data", "c_atom", "c_atompair", "c_token", "c_s", "c_z", "c_s_inputs"]
+        for key in forbidden_keys:
+            if key in stage_cfg:
+                raise ValueError(f"Config key '{key}' should only appear in 'model_architecture', not at the top level of stageD.diffusion!")
 
     @staticmethod
     def _parse_diffusion_module_args(stage_cfg: DictConfig):
@@ -238,60 +241,42 @@ class DiffusionManagerConfig:
         Extract all required model dimensions and architectural parameters from the config,
         strictly using config values and never hardcoded fallbacks.
         """
-        # Instrument: print the full config for debugging
         print("[DEBUG][_parse_diffusion_module_args] stage_cfg:", stage_cfg)
 
-        # If 'diffusion' key exists, descend into it
+        # Always descend into 'diffusion' if present
         if "diffusion" in stage_cfg:
             print("[DEBUG][_parse_diffusion_module_args] Descending into 'diffusion' section of config.")
             base_cfg = stage_cfg["diffusion"]
         else:
             base_cfg = stage_cfg
 
-        def get_nested(cfg, keys, default=None):
-            for k in keys:
-                if hasattr(cfg, k):
-                    cfg = getattr(cfg, k)
-                elif isinstance(cfg, dict) and k in cfg:
-                    cfg = cfg[k]
-                else:
-                    return default
-            return cfg
+        # Require model_architecture to be present exactly as specified in the config
+        model_architecture = base_cfg.get("model_architecture")
+        if model_architecture is None:
+            raise ValueError("model_architecture section missing in config! (expected at stageD.diffusion.model_architecture, no fallback)")
 
-        diffusion_module_args = {}
-        # Top-level parameters
-        diffusion_module_args["sigma_data"] = get_nested(base_cfg, ["sigma_data"])
-        # Model sizes from model_architecture
-        arch_cfg = get_nested(base_cfg, ["model_architecture"])
-        required_model_keys = ["c_token", "c_s", "c_z", "c_s_inputs", "c_atom", "c_noise_embedding"]
-        if arch_cfg is not None:
-            for key in required_model_keys:
-                val = get_nested(arch_cfg, [key])
-                if val is None:
-                    raise ValueError(f"Required model_architecture field '{key}' missing in config!")
-                diffusion_module_args[key] = val
-        else:
-            raise ValueError("model_architecture section missing in config!")
-        # c_atompair: try to get from atom_encoder or raise error
-        atom_encoder_cfg = get_nested(base_cfg, ["atom_encoder"])
-        if atom_encoder_cfg is not None and "c_out" in atom_encoder_cfg:
-            diffusion_module_args["c_atompair"] = atom_encoder_cfg["c_out"]
-        else:
-            raise ValueError("c_atompair (atom_encoder.c_out) missing in config!")
+        # Continue as before, using model_architecture directly
+        # Filter out parameters that DiffusionModule doesn't accept
+        # Only include parameters that are explicitly accepted by DiffusionModule.__init__
+        valid_params = [
+            "c_token", "c_s", "c_z", "c_s_inputs", "c_atom", "c_atompair",
+            "c_noise_embedding", "sigma_data"
+        ]
+        diffusion_module_args = {k: v for k, v in dict(model_architecture).items() if k in valid_params}
+        # ... rest of the method unchanged ...
         # atom_encoder, atom_decoder, transformer
         for subkey in ["atom_encoder", "atom_decoder", "transformer"]:
-            subcfg = get_nested(base_cfg, [subkey])
-            if subcfg is not None:
-                diffusion_module_args[subkey] = dict(subcfg) if hasattr(subcfg, 'items') else dict(subcfg)
-            else:
+            subcfg = base_cfg.get(subkey)
+            if subcfg is None:
                 raise ValueError(f"Required config section '{subkey}' missing in config!")
+            diffusion_module_args[subkey] = dict(subcfg) if hasattr(subcfg, 'items') else dict(subcfg)
         # Optional blocks_per_ckpt, use_fine_grained_checkpoint, initialization
         for key in ["blocks_per_ckpt", "use_fine_grained_checkpoint", "initialization"]:
-            val = get_nested(base_cfg, [key])
+            val = base_cfg.get(key, None)
             if val is not None:
                 diffusion_module_args[key] = val
         # Memory optimization
-        mem_cfg = get_nested(base_cfg, ["memory"], {})
+        mem_cfg = base_cfg.get("memory", {})
         use_ckpt = mem_cfg.get("use_checkpointing", False)
         blocks_per_ckpt = mem_cfg.get("blocks_per_ckpt") if use_ckpt else None
         use_fine_grained = mem_cfg.get("use_fine_grained_checkpoint", False) if blocks_per_ckpt else False
@@ -352,10 +337,11 @@ class ProtenixDiffusionManager(nn.Module):
 
     def _get_sampler_params(self, stage_cfg: DictConfig):
         sampler_cfg = stage_cfg.get("sampler", OmegaConf.create({}))
+        model_arch = stage_cfg["model_architecture"]
         return {
             "p_mean": sampler_cfg.get("p_mean", -1.2),
             "p_std": sampler_cfg.get("p_std", 1.5),
-            "sigma_data": stage_cfg.get("sigma_data", 16.0),
+            "sigma_data": model_arch["sigma_data"],
             "N_sample": sampler_cfg.get("N_sample", 1),
             "diffusion_chunk_size": stage_cfg.get("diffusion_chunk_size"),
         }
