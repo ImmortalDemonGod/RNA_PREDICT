@@ -25,6 +25,13 @@ Configuration Requirements:
             - num_steps: Number of diffusion steps
 
 """
+import os
+import sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "/Users/tomriddle1/RNA_PREDICT")))
+print("[HYDRA DEBUG] CWD:", os.getcwd())
+print("[HYDRA DEBUG] SCRIPT DIR:", os.path.dirname(__file__))
+print("[HYDRA DEBUG] sys.path:", sys.path)
+
 import hydra
 from omegaconf import DictConfig
 import torch
@@ -95,11 +102,12 @@ def initialize_features_from_config(cfg: DictConfig, coords: torch.Tensor, atom_
     features["ref_mask"] = torch.ones(batch_size, num_atoms, 1, device=device)  # [batch_size, num_atoms, 1]
 
     # Get dimensions from config
-    ref_element_size = stage_cfg.ref_element_size
-    features["ref_element"] = torch.zeros(batch_size, num_atoms, ref_element_size, device=device)
-
-    ref_atom_name_chars_size = stage_cfg.ref_atom_name_chars_size
-    features["ref_atom_name_chars"] = torch.zeros(batch_size, num_atoms, ref_atom_name_chars_size, device=device)
+    ref_element_dim = getattr(stage_cfg, "ref_element_size", None)
+    ref_atom_name_chars_dim = getattr(stage_cfg, "ref_atom_name_chars_size", None)
+    if ref_element_dim is None or ref_atom_name_chars_dim is None:
+        raise ValueError("Configuration missing required input feature sizes.")
+    features["ref_element"] = torch.zeros(batch_size, num_atoms, ref_element_dim, device=device)
+    features["ref_atom_name_chars"] = torch.zeros(batch_size, num_atoms, ref_atom_name_chars_dim, device=device)
 
     # Initialize atom_to_token_idx mapping
     residue_indices_tensor = torch.tensor(residue_indices, device=device, dtype=torch.long)
@@ -109,8 +117,10 @@ def initialize_features_from_config(cfg: DictConfig, coords: torch.Tensor, atom_
     # Initialize additional features required by the model
     features["restype"] = torch.zeros(batch_size, num_residues, device=device, dtype=torch.long)  # [batch_size, num_residues]
 
-    # Use default profile dimension
-    profile_size = 32  # Default value
+    # Use config-driven profile dimension
+    profile_size = getattr(stage_cfg, "profile_size", None)
+    if profile_size is None:
+        raise ValueError("Configuration missing required profile_size parameter.")
     features["profile"] = torch.zeros(batch_size, num_residues, profile_size, device=device)  # Profile embeddings
 
     features["deletion_mean"] = torch.zeros(batch_size, num_residues, 1, device=device)  # [batch_size, num_residues, 1]
@@ -133,14 +143,12 @@ def initialize_features_from_config(cfg: DictConfig, coords: torch.Tensor, atom_
     if "ref_mask" not in features:
         features["ref_mask"] = torch.ones(batch_size, num_atoms, 1, device=device)  # [batch_size, num_atoms, 1]
     if "ref_element" not in features:
-        features["ref_element"] = torch.zeros(batch_size, num_atoms, 128, device=device)  # [batch_size, num_atoms, 128]
+        features["ref_element"] = torch.zeros(batch_size, num_atoms, ref_element_dim, device=device)  # [batch_size, num_atoms, ref_element_dim]
     if "ref_atom_name_chars" not in features:
-        features["ref_atom_name_chars"] = torch.zeros(batch_size, num_atoms, 256, device=device)  # [batch_size, num_atoms, 256]
+        features["ref_atom_name_chars"] = torch.zeros(batch_size, num_atoms, ref_atom_name_chars_dim, device=device)  # [batch_size, num_atoms, ref_atom_name_chars_dim]
 
     # Add all the required features to match the expected dimension
     # Calculate the total dimension dynamically from the config values
-    ref_element_dim = stage_cfg.ref_element_size
-    ref_atom_name_chars_dim = stage_cfg.ref_atom_name_chars_size
     total_dim = 3 + 1 + 1 + ref_element_dim + ref_atom_name_chars_dim
     print(f"[DEBUG][initialize_features_from_config] Total feature dimension: {total_dim}")
 
@@ -255,6 +263,30 @@ def run_stageD(
             input_feature_dict[key] = value
     # --- END PATCH ---
 
+    # --- PATCH: Enforce config-driven minimal residue/atom count for memory efficiency ---
+    max_residues = getattr(cfg.model.stageD.diffusion, 'test_residues_per_batch', None)
+    if max_residues is not None and atom_metadata is not None and 'residue_indices' in atom_metadata:
+        residue_indices = atom_metadata['residue_indices']
+        keep_atom_indices = [i for i, r in enumerate(residue_indices) if r < max_residues]
+        print(f"[DEBUG][run_stageD][PATCH] max_residues = {max_residues}")
+        print(f"[DEBUG][run_stageD][PATCH] residue_indices[:50] = {residue_indices[:50]}")
+        print(f"[DEBUG][run_stageD][PATCH] keep_atom_indices (len={len(keep_atom_indices)}): {keep_atom_indices[:50]}")
+        print(f"[DEBUG][run_stageD][PATCH] len(residue_indices) = {len(residue_indices)}")
+        if len(keep_atom_indices) < len(residue_indices):
+            print(f"[DEBUG][run_stageD][PATCH] Slicing input to first {max_residues} residues ({len(keep_atom_indices)} atoms out of {len(residue_indices)}) for minimal memory run.")
+            coords = coords[:, keep_atom_indices, ...]
+            atom_metadata = {k: (v if not isinstance(v, list) else [v[i] for i in keep_atom_indices]) for k, v in atom_metadata.items()}
+            atom_metadata['residue_indices'] = [r for r in residue_indices if r < max_residues]
+            for key, value in input_feature_dict.items():
+                if isinstance(value, torch.Tensor) and value.shape[1] == len(residue_indices):
+                    input_feature_dict[key] = value[:, keep_atom_indices, ...]
+            print(f"[DEBUG][run_stageD][PATCH] coords.shape after slicing: {coords.shape}")
+            for key, value in input_feature_dict.items():
+                if isinstance(value, torch.Tensor):
+                    print(f"[DEBUG][run_stageD][PATCH] input_feature_dict['{key}'].shape after slicing: {value.shape}")
+            print(f"[DEBUG][run_stageD][PATCH] atom_metadata['residue_indices'][:50] after slicing: {atom_metadata['residue_indices'][:50]}")
+    # --- END PATCH ---
+
     log_mem("Before bridging residue-to-atom")
     # Prepare diffusion_config dict (flatten stage_cfg to dict, omitting tensor fields)
     # Use OmegaConf.to_container to convert to dict
@@ -288,10 +320,33 @@ def run_stageD(
         diffusion_config_dict = {}
     log_mem("After bridging residue-to-atom")
 
+    # Get pair embedding dimension directly from diffusion config
+    diffusion_cfg = getattr(stage_cfg, "diffusion", None)
+    print(f"[DEBUG][run_stageD] diffusion_cfg: {diffusion_cfg}")
+    if diffusion_cfg is None:
+        raise ValueError("Configuration missing required 'diffusion' section under model.stageD.")
+    # Support both dict and OmegaConf/structured config
+    c_s = getattr(diffusion_cfg, "c_s", None) if hasattr(diffusion_cfg, "c_s") else diffusion_cfg.get("c_s", None)
+    c_s_inputs = getattr(diffusion_cfg, "c_s_inputs", None) if hasattr(diffusion_cfg, "c_s_inputs") else diffusion_cfg.get("c_s_inputs", None)
+    c_z = getattr(diffusion_cfg, "c_z", None) if hasattr(diffusion_cfg, "c_z") else diffusion_cfg.get("c_z", None)
+    print(f"[DEBUG][run_stageD] diffusion_cfg.c_s: {c_s}, c_s_inputs: {c_s_inputs}, c_z: {c_z}")
+    if c_s is None or c_s_inputs is None or c_z is None:
+        print(f"[DEBUG][run_stageD] MISSING PARAMS - c_s: {c_s}, c_s_inputs: {c_s_inputs}, c_z: {c_z}")
+        print(f"[DEBUG][run_stageD] diffusion_cfg dict: {diffusion_cfg}")
+        raise ValueError("Configuration missing required c_s, c_s_inputs, or c_z parameter in model.stageD.diffusion.")
+
+    print(f"[DEBUG][run_stageD] Using pair embedding dimension c_z={c_z}")
+
     # Mode and device
-    mode = getattr(stage_cfg, "mode", "inference")
-    device = getattr(stage_cfg, "device", "cpu")
-    debug_logging = getattr(stage_cfg, "debug_logging", False)
+    mode = getattr(diffusion_cfg, "mode", None)
+    if mode is None:
+        raise ValueError("Configuration missing required mode parameter.")
+    device = getattr(diffusion_cfg, "device", None)
+    if device is None:
+        raise ValueError("Configuration missing required device parameter.")
+    debug_logging = getattr(diffusion_cfg, "debug_logging", None)
+    if debug_logging is None:
+        raise ValueError("Configuration missing required debug_logging parameter.")
     sequence = features.get("sequence", None)
 
     # Build DiffusionConfig dataclass
@@ -324,13 +379,45 @@ def run_stageD(
 
 # Note: register_configs() is already called at the beginning of the file
 
-@hydra.main(config_path="../../conf", config_name="default", version_base=None)
+@hydra.main(version_base=None, config_path=None, config_name=None)
 def hydra_main(cfg: DictConfig) -> None:
     """Main entry point for running Stage D with Hydra configuration.
 
     Args:
         cfg: Hydra configuration object
     """
+    from hydra.core.hydra_config import HydraConfig
+    try:
+        print("[HYDRA DEBUG] HydraConfig search path:", HydraConfig.get().runtime.config_search_path)
+    except Exception as e:
+        print("[HYDRA DEBUG] Could not access HydraConfig search path:", e)
+
+    # DEBUG: Print config source and key values for hypothesis testing
+    print("[DEBUG][hydra_main] Loaded config:", cfg)
+    if hasattr(cfg, "model") and hasattr(cfg.model, "stageD"):
+        stageD_cfg = cfg.model.stageD
+        print("[DEBUG][hydra_main] model.stageD config:", stageD_cfg)
+        # Try to print from model.stageD.diffusion
+        diffusion_cfg = stageD_cfg.get("diffusion", None) if isinstance(stageD_cfg, dict) else getattr(stageD_cfg, "diffusion", None)
+        if diffusion_cfg is not None:
+            print("[DEBUG][hydra_main] model.stageD.diffusion config:", diffusion_cfg)
+            for key in ["c_z", "c_s", "c_s_inputs", "c_token"]:
+                val = diffusion_cfg.get(key, None) if isinstance(diffusion_cfg, dict) else getattr(diffusion_cfg, key, None)
+                print(f"[DEBUG][hydra_main] diffusion.{key}: {val}")
+            # Also check nested model_architecture
+            model_arch = diffusion_cfg.get("model_architecture", None) if isinstance(diffusion_cfg, dict) else getattr(diffusion_cfg, "model_architecture", None)
+            if model_arch is not None:
+                print("[DEBUG][hydra_main] model.stageD.diffusion.model_architecture config:", model_arch)
+                for key in ["c_z", "c_s", "c_s_inputs", "c_token"]:
+                    val = model_arch.get(key, None) if isinstance(model_arch, dict) else getattr(model_arch, key, None)
+                    print(f"[DEBUG][hydra_main] model_architecture.{key}: {val}")
+        else:
+            print("[DEBUG][hydra_main] model.stageD.diffusion not found!")
+    else:
+        print("[DEBUG][hydra_main] model.stageD not found in config!")
+
+    # Removed sleep and early return now that config debug is validated
+
     # Validate that the required configuration sections exist
     if not hasattr(cfg, "model") or not hasattr(cfg.model, "stageD"):
         raise ValueError("Configuration must contain model.stageD section")
@@ -354,20 +441,16 @@ def hydra_main(cfg: DictConfig) -> None:
     # Create dummy data for testing using standardized test data
     batch_size = 1  # Use a single batch for testing
 
-    # Validate test_data configuration
-    if not hasattr(cfg, "test_data") or not hasattr(cfg.test_data, "sequence"):
-        raise ValueError("Configuration must contain test_data.sequence section")
-
-    if not hasattr(cfg.test_data, "atoms_per_residue"):
-        raise ValueError("Configuration must contain test_data.atoms_per_residue")
-
-    # Use standardized test sequence from config
-    sequence_str = cfg.test_data.sequence
-    sequence = list(sequence_str)  # Convert to list of characters
-    atoms_per_residue = cfg.test_data.atoms_per_residue
+    # Validate test data configuration (flat config)
+    if not hasattr(cfg, "sequence"):
+        raise ValueError("Configuration must contain 'sequence' at the top level")
+    if not hasattr(cfg, "atoms_per_residue"):
+        raise ValueError("Configuration must contain 'atoms_per_residue' at the top level")
+    sequence_str = cfg.sequence
+    atoms_per_residue = cfg.atoms_per_residue
     print(f"Using standardized test sequence: {sequence_str} with {atoms_per_residue} atoms per residue")
 
-    num_residues = len(sequence)
+    num_residues = len(sequence_str)
     num_atoms = num_residues * atoms_per_residue
 
     # Create dummy inputs with dimensions from config
@@ -385,10 +468,22 @@ def hydra_main(cfg: DictConfig) -> None:
         print(f"[DEBUG][run_stageD] atom_to_token_idx: {atom_to_token_idx[0][:20]}...")
 
     # Create residue-level embeddings first using dimensions from config
-    # Get dimensions from config or use defaults
-    c_s = stage_cfg.c_s if hasattr(stage_cfg, 'c_s') else 384
-    c_s_inputs = stage_cfg.c_s_inputs if hasattr(stage_cfg, 'c_s_inputs') else 32
-    c_z = stage_cfg.c_z if hasattr(stage_cfg, 'c_z') else 128
+    # Get dimensions from config
+    diffusion_cfg = getattr(stage_cfg, "diffusion", None)
+    print(f"[DEBUG][run_stageD] diffusion_cfg: {diffusion_cfg}")
+    if diffusion_cfg is None:
+        raise ValueError("Configuration missing required 'diffusion' section under model.stageD.")
+    # Support both dict and OmegaConf/structured config
+    c_s = getattr(diffusion_cfg, "c_s", None) if hasattr(diffusion_cfg, "c_s") else diffusion_cfg.get("c_s", None)
+    c_s_inputs = getattr(diffusion_cfg, "c_s_inputs", None) if hasattr(diffusion_cfg, "c_s_inputs") else diffusion_cfg.get("c_s_inputs", None)
+    c_z = getattr(diffusion_cfg, "c_z", None) if hasattr(diffusion_cfg, "c_z") else diffusion_cfg.get("c_z", None)
+    print(f"[DEBUG][run_stageD] diffusion_cfg.c_s: {c_s}, c_s_inputs: {c_s_inputs}, c_z: {c_z}")
+    if c_s is None or c_s_inputs is None or c_z is None:
+        print(f"[DEBUG][run_stageD] MISSING PARAMS - c_s: {c_s}, c_s_inputs: {c_s_inputs}, c_z: {c_z}")
+        print(f"[DEBUG][run_stageD] diffusion_cfg dict: {diffusion_cfg}")
+        raise ValueError("Configuration missing required c_s, c_s_inputs, or c_z parameter in model.stageD.diffusion.")
+
+    print(f"[DEBUG][run_stageD] Using pair embedding dimension c_z={c_z}")
 
     # Debug logging for dimensions
     if debug_logging:
@@ -407,7 +502,7 @@ def hydra_main(cfg: DictConfig) -> None:
             "atom_type": torch.arange(atoms_per_residue).repeat(num_residues),  # Types for all residues
             "is_backbone": torch.ones(num_atoms, dtype=torch.bool),  # All atoms
         },
-        "sequence": sequence,  # Add sequence for proper bridging
+        "sequence": sequence_str,  # Add sequence for proper bridging
         "atom_to_token_idx": atom_to_token_idx,  # Add required mapping
         "ref_space_uid": torch.zeros(batch_size, num_atoms, 3),  # Required by encoder
     }
