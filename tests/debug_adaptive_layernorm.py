@@ -3,7 +3,6 @@ Debug script for AdaptiveLayerNorm.
 """
 
 import torch
-import warnings
 from rna_predict.pipeline.stageA.input_embedding.current.primitives.adaptive_layer_norm import AdaptiveLayerNorm
 
 # Enable debug logging
