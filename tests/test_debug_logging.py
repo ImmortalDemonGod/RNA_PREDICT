@@ -9,7 +9,6 @@ comprehensive coverage.
 
 import os
 import sys
-import inspect
 
 # Ensure working directory is project root for Hydra config discovery
 project_root = os.path.dirname(os.path.abspath(__file__))
@@ -20,16 +19,13 @@ conf_dir = os.path.join(project_root, 'rna_predict', 'conf')
 if not os.path.isdir(conf_dir):
     raise RuntimeError("[UNIQUE-ERR-HYDRA-CONF-NOT-FOUND] Config directory 'rna_predict/conf' not found in project root. Current working directory: {}".format(os.getcwd()))
 
-import importlib
 import logging
-import traceback
 from typing import Any, Dict, List, Optional, Tuple
 
 import pytest
 from hydra import compose, initialize
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
-from omegaconf import DictConfig
 
 # Map stage names to their pipeline runner modules and entry functions
 STAGE_RUNNERS = {
@@ -370,7 +366,6 @@ def test_stageB_debug_logging_hypothesis(rna_seq: str, debug_val: bool, monkeypa
     pf_logger.addHandler(stream_handler)
 
     from unittest.mock import patch
-    import types
     from rna_predict.pipeline.stageB.pairwise.pairformer_wrapper import PairformerWrapper
     import torch
 
@@ -675,7 +670,6 @@ def test_stageB_debug_logging_substages(_unused_stage, substage, expected_msg, c
     """Test debug logging for both Pairformer and TorsionBert substages in Stage B."""
     from omegaconf import OmegaConf
     import logging
-    import sys
     debug_val = True
     if substage == "pairformer":
         # Compose config with stageB_pairformer node and debug_logging

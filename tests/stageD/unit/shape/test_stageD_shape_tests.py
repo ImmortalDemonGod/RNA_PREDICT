@@ -84,7 +84,6 @@ def _create_mismatched_trunk_embeddings(num_atoms=5):
     Returns:
         Dictionary with adjusted trunk embeddings
     """
-    from rna_predict.utils.shape_utils import adjust_tensor_feature_dim
 
     # Create tensors with wrong feature dimensions but compatible shapes
     # s_trunk should have shape [B, N, C] to match z_trunk shape [B, N, N, C]
@@ -824,7 +823,6 @@ def test_problem_size_memory_threshold():
 # ------------------------------------------------------------------------------
 # Test: Unique error for atom-level input to bridge_residue_to_atom
 
-from hypothesis import given, strategies as st
 @given(
     batch_size=st.integers(min_value=1, max_value=2),
     n_residues=st.integers(min_value=2, max_value=8),
@@ -838,7 +836,6 @@ def test_bridge_residue_to_atom_raises_on_atom_level_input(batch_size, n_residue
     [BRIDGE ERROR][UNIQUE_CODE_001]
     """
     import torch
-    from rna_predict.pipeline.stageD.diffusion.bridging.residue_atom_bridge import BridgingInput, bridge_residue_to_atom
     # Simulate atom-level s_emb: [B, N_atom, c_s]
     n_atoms = n_residues * atoms_per_residue
     s_emb = torch.randn(batch_size, n_atoms, c_s)
@@ -873,7 +870,6 @@ def test_run_stageD_raises_on_atom_level_input(batch_size, n_residues, atoms_per
     [RUNSTAGED ERROR][UNIQUE_CODE_003]
     """
     import torch
-    from rna_predict.pipeline.stageD.run_stageD import run_stageD
     # Simulate atom-level s_trunk: [B, N_atom, c_s]
     n_atoms = n_residues * atoms_per_residue
     s_trunk = torch.randn(batch_size, n_atoms, c_s)
@@ -890,7 +886,7 @@ def test_run_stageD_raises_on_atom_level_input(batch_size, n_residues, atoms_per
     else:
         raise AssertionError("run_stageD did not raise on atom-level input!")
 
-from hypothesis import given, strategies as st, settings
+from hypothesis import given, strategies as st
 @settings(deadline=3000, max_examples=10)
 @given(
     batch_size=st.integers(min_value=1, max_value=1),
@@ -944,9 +940,7 @@ def test_forbid_original_trunk_embeddings_ref_after_bridge(batch_size, n_residue
     [STAGED-UNIFIED ERROR][UNIQUE_CODE_005]
     """
     import torch
-    from rna_predict.pipeline.stageD.diffusion.run_stageD_unified import _run_stageD_diffusion_impl
     from rna_predict.pipeline.stageD.diffusion.utils import DiffusionConfig
-    from rna_predict.pipeline.stageD.diffusion.bridging.residue_atom_bridge import BridgingInput
     n_atoms = n_residues * atoms_per_residue
     s_trunk = torch.randn(batch_size, n_residues, c_s)  # residue-level
     z_trunk = torch.randn(batch_size, n_residues, n_residues, c_s)
