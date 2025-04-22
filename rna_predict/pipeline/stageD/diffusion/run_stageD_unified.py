@@ -24,10 +24,29 @@ from rna_predict.pipeline.stageD.diffusion.utils import (
     create_fallback_input_features
 )
 from rna_predict.pipeline.stageD.tensor_fixes import apply_tensor_fixes
+from rna_predict.conf.utils import get_config
 
 # Initialize logger for Stage D unified runner
 logger = logging.getLogger("rna_predict.pipeline.stageD.diffusion.run_stageD_unified")
 
+def get_unified_cfg():
+    import hydra
+    from hydra.core.global_hydra import GlobalHydra
+    from rna_predict.conf.utils import get_config
+    CONFIG_PATH = "/Users/tomriddle1/RNA_PREDICT/rna_predict/conf"  # per user rule
+    if not GlobalHydra.instance().is_initialized():
+        return get_config(config_path=CONFIG_PATH)
+    else:
+        raise RuntimeError("Hydra is already initialized; config must be passed from caller.")
+
+def get_config_driven_dims(cfg=None):
+    if cfg is None:
+        cfg = get_unified_cfg()
+    c_s_inputs = cfg.model.stageD.diffusion.c_s_inputs if hasattr(cfg.model.stageD.diffusion, 'c_s_inputs') else cfg.model.stageD.model_architecture.c_s_inputs
+    c_s = cfg.model.stageD.diffusion.c_s if hasattr(cfg.model.stageD.diffusion, 'c_s') else cfg.model.stageD.model_architecture.c_s
+    c_z = cfg.model.stageD.diffusion.c_z if hasattr(cfg.model.stageD.diffusion, 'c_z') else cfg.model.stageD.model_architecture.c_z
+    seq_len = getattr(cfg.model.stageD.diffusion, 'test_residues_per_batch', 25)
+    return c_s_inputs, c_s, c_z, seq_len
 
 def run_stageD_diffusion(
     config: DiffusionConfig,
@@ -160,7 +179,7 @@ def _run_stageD_diffusion_impl(
             original_trunk_embeddings_ref=config.trunk_embeddings,
         )
 
-        output = run_inference_mode(inference_context)
+        output = run_inference_mode(inference_context, cfg=config)
         if debug_logging:
             logger.debug(f"[StageD] Inference output shape: {output.shape}")
         return output
@@ -206,17 +225,14 @@ def demo_run_diffusion() -> Union[
     device = "mps"
 
     # Create partial coordinates with smaller sequence length
-    partial_coords = torch.randn(1, 25, 3, device=device)
+    c_s_inputs, c_s, c_z, seq_len = get_config_driven_dims()
+    partial_coords = torch.randn(1, seq_len, 3, device=device)
 
     # Create trunk embeddings with smaller dimensions
     trunk_embeddings = {
-        "s_inputs": torch.randn(
-            1, 25, 449, device=device
-        ),
-        "s_trunk": torch.randn(1, 25, 384, device=device),
-        "z_trunk": torch.randn(
-            1, 25, 25, 64, device=device
-        ),
+        "s_inputs": torch.randn(1, seq_len, c_s_inputs, device=device),
+        "s_trunk": torch.randn(1, seq_len, c_s, device=device),
+        "pair": torch.randn(1, seq_len, seq_len, c_z, device=device)
     }
 
     # Create diffusion config with memory-optimized settings
@@ -251,5 +267,11 @@ def demo_run_diffusion() -> Union[
         debug_logging=True,
     )
     refined_coords = run_stageD_diffusion(config=demo_config)
+
+    # --- PATCH: Config-driven assertions for output shapes ---
+    assert partial_coords.shape == (1, seq_len, 3), f"partial_coords shape mismatch: {partial_coords.shape} vs config-driven {(1, seq_len, 3)}"
+    assert trunk_embeddings["s_inputs"].shape == (1, seq_len, c_s_inputs), f"s_inputs shape mismatch: {trunk_embeddings['s_inputs'].shape} vs config-driven {(1, seq_len, c_s_inputs)}"
+    assert trunk_embeddings["s_trunk"].shape == (1, seq_len, c_s), f"s_trunk shape mismatch: {trunk_embeddings['s_trunk'].shape} vs config-driven {(1, seq_len, c_s)}"
+    assert trunk_embeddings["pair"].shape == (1, seq_len, seq_len, c_z), f"pair shape mismatch: {trunk_embeddings['pair'].shape} vs config-driven {(1, seq_len, seq_len, c_z)}"
 
     return refined_coords
