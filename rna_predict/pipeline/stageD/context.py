@@ -25,3 +25,5 @@ class StageDContext:
     device: Optional[str] = None
     mode: Optional[str] = None
     debug_logging: Optional[bool] = None
+    residue_indices: Optional[Any] = None
+    num_residues: Optional[int] = None
