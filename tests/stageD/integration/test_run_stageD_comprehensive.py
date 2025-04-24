@@ -18,8 +18,9 @@ from unittest.mock import patch, MagicMock
 hydra_main = MagicMock()
 hydra_main.return_value = None
 
-# Import run_stageD directly
+# Import run_stageD and StageDContext
 from rna_predict.pipeline.stageD.run_stageD import run_stageD
+from rna_predict.pipeline.stageD.context import StageDContext
 
 
 def make_atom_embeddings(batch_size, seq_len, feature_dim):
@@ -294,7 +295,19 @@ class TestRunStageDComprehensive(unittest.TestCase):
             atom_embeddings = make_atom_embeddings(batch_size, seq_len, feature_dim)
 
             cfg = make_stageD_config(batch_size, seq_len, feature_dim)
-            result = run_stageD(cfg=cfg, coords=atom_coords, s_trunk=atom_embeddings["s_trunk"], z_trunk=atom_embeddings["pair"], s_inputs=atom_embeddings["s_inputs"], input_feature_dict=atom_embeddings, atom_metadata=atom_embeddings.get("atom_metadata"))
+
+            # Create a StageDContext object instead of passing individual parameters
+            context = StageDContext(
+                cfg=cfg,
+                coords=atom_coords,
+                s_trunk=atom_embeddings["s_trunk"],
+                z_trunk=atom_embeddings["pair"],
+                s_inputs=atom_embeddings["s_inputs"],
+                input_feature_dict=atom_embeddings,
+                atom_metadata=atom_embeddings.get("atom_metadata")
+            )
+
+            result = run_stageD(context)
             self.assertIsInstance(result, torch.Tensor)
             output_shape = result.shape
             batch_dim = batch_size
@@ -324,7 +337,19 @@ class TestRunStageDComprehensive(unittest.TestCase):
             captured_output = io.StringIO()
             sys.stdout = captured_output
             try:
-                run_stageD(cfg=cfg, coords=atom_coords, s_trunk=atom_embeddings["s_trunk"], z_trunk=atom_embeddings["pair"], s_inputs=atom_embeddings["s_inputs"], input_feature_dict=atom_embeddings, atom_metadata=atom_embeddings.get("atom_metadata"))
+                # Create a StageDContext object with debug_logging=True
+                context = StageDContext(
+                    cfg=cfg,
+                    coords=atom_coords,
+                    s_trunk=atom_embeddings["s_trunk"],
+                    z_trunk=atom_embeddings["pair"],
+                    s_inputs=atom_embeddings["s_inputs"],
+                    input_feature_dict=atom_embeddings,
+                    atom_metadata=atom_embeddings.get("atom_metadata"),
+                    debug_logging=True
+                )
+
+                run_stageD(context)
                 output = captured_output.getvalue()
                 # Skip checking for "inference scheduler" as it's not printed in the test environment
                 # self.assertIn("inference scheduler", output)
@@ -378,9 +403,21 @@ class TestRunStageDComprehensive(unittest.TestCase):
             atom_coords = torch.randn(batch_size, seq_len, 3)
             atom_embeddings = make_atom_embeddings(batch_size, seq_len, feature_dim)
             invalid_cfg = OmegaConf.create({invalid_config_key: {"some_value": True}})
-            with self.assertRaises(ValueError) as context:
-                run_stageD(cfg=invalid_cfg, coords=atom_coords, s_trunk=atom_embeddings["s_trunk"], z_trunk=atom_embeddings["pair"], s_inputs=atom_embeddings["s_inputs"], input_feature_dict=atom_embeddings, atom_metadata=atom_embeddings.get("atom_metadata"))
-            self.assertIn("Configuration must contain model.stageD section", str(context.exception))
+
+            # Create a StageDContext object with the invalid config
+            context = StageDContext(
+                cfg=invalid_cfg,
+                coords=atom_coords,
+                s_trunk=atom_embeddings["s_trunk"],
+                z_trunk=atom_embeddings["pair"],
+                s_inputs=atom_embeddings["s_inputs"],
+                input_feature_dict=atom_embeddings,
+                atom_metadata=atom_embeddings.get("atom_metadata")
+            )
+
+            with self.assertRaises(ValueError) as context_exception:
+                run_stageD(context)
+            self.assertIn("Configuration must contain model.stageD section", str(context_exception.exception))
 
     @settings(deadline=5000, max_examples=2)
     @given(
@@ -460,8 +497,14 @@ class TestRunStageDComprehensive(unittest.TestCase):
         atoms_per_residue=st.integers(min_value=1, max_value=2)
     )
     def test_hydra_main_with_error(self, feature_dim, error_message, sequence, atoms_per_residue):
+        # Ensure the mock always raises the RuntimeError
         with patch('rna_predict.pipeline.stageD.run_stageD.run_stageD') as mock_run_stageD:
+            # Force the mock to raise the RuntimeError when called
             mock_run_stageD.side_effect = RuntimeError(error_message)
+            # Ensure the mock will be called by setting return_value to None
+            mock_run_stageD.return_value = None
+
+            # Ensure the mock will be called when hydra_main is called
             complete_cfg = OmegaConf.create({
                 "model": {
                     "stageD": {
@@ -543,7 +586,19 @@ class TestRunStageDComprehensive(unittest.TestCase):
             atom_embeddings = make_atom_embeddings(batch_size, seq_len, feature_dim)
 
             cfg = make_stageD_config(batch_size, seq_len, feature_dim)
-            result = run_stageD(cfg=cfg, coords=atom_coords, s_trunk=atom_embeddings["s_trunk"], z_trunk=atom_embeddings["pair"], s_inputs=atom_embeddings["s_inputs"], input_feature_dict=atom_embeddings, atom_metadata=atom_embeddings.get("atom_metadata"))
+
+            # Create a StageDContext object
+            context = StageDContext(
+                cfg=cfg,
+                coords=atom_coords,
+                s_trunk=atom_embeddings["s_trunk"],
+                z_trunk=atom_embeddings["pair"],
+                s_inputs=atom_embeddings["s_inputs"],
+                input_feature_dict=atom_embeddings,
+                atom_metadata=atom_embeddings.get("atom_metadata")
+            )
+
+            result = run_stageD(context)
             self.assertIsInstance(result, torch.Tensor)
             output_shape = result.shape
             self.assertEqual(output_shape[0], batch_size)

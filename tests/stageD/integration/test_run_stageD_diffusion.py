@@ -5,6 +5,7 @@ from unittest.mock import patch, MagicMock
 from hypothesis import given, strategies as st, settings
 
 from rna_predict.pipeline.stageD.run_stageD import run_stageD
+from rna_predict.pipeline.stageD.context import StageDContext
 import pytest
 def create_stage_d_test_config(stage_overrides=None, model_overrides=None, noise_overrides=None) -> DictConfig:
     if stage_overrides is None:
