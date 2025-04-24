@@ -1,6 +1,6 @@
 import unittest
 from unittest.mock import patch
-from omegaconf import OmegaConf, DictConfig # Import OmegaConf types
+from omegaconf import OmegaConf, DictConfig 
 
 import torch
 from hypothesis import given, settings
@@ -9,7 +9,7 @@ from hypothesis import strategies as st
 # Import the class under test
 from rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager import (
     ProtenixDiffusionManager,
-    DiffusionStepInput, # Import DiffusionStepInput
+    DiffusionStepInput, 
 )
 # Import generator class needed for type checking in tests
 from rna_predict.pipeline.stageD.diffusion.generator import (
@@ -28,43 +28,55 @@ def create_stage_d_test_config(stage_overrides=None, model_overrides=None, noise
     if noise_overrides is None:
         noise_overrides = {}
 
-    # Base structure matching stageD.diffusion.yaml and its expected nested groups
+    # Base structure matching model.stageD.diffusion.yaml and its expected nested groups
     base_config = {
-        "stageD": {
-            "diffusion": {
-                "mode": "inference", # Default mode
-                "device": "cpu",
-                # Removed C-specific params like do_ring_closure
-                "angle_representation": "cartesian", # Keep if relevant to diffusion input processing
-                "use_metadata": False, # Keep if relevant
-                "sigma_data": 16.0, # Diffusion param
-                "gamma0": 0.8,
-                "gamma_min": 1.0,
-                "noise_scale_lambda": 1.003,
-                "step_scale_eta": 1.5,
-                "diffusion_chunk_size": None,
-                "attn_chunk_size": None,
-                "inplace_safe": False,
-                "debug_logging": False,
-                "training": { "batch_size": 1 },
-                "inference": {
-                    "num_steps": 2, # Keep low for testing
-                    "temperature": 1.0,
-                    "sampling": {"num_samples": 1, "seed": None, "use_deterministic": False}
-                },
-                "memory": {
-                    "apply_memory_preprocess": False, # Default to False for most tests
-                    "memory_preprocess_max_len": 25
-                },
-                # Sampler params needed for train_diffusion_step test
-                "sampler": {
-                    "p_mean": -1.2,
-                    "p_std": 1.5,
-                    "N_sample": 1
+        "model": {
+            "stageD": {
+                "diffusion": {
+                    "mode": "inference", # Default mode
+                    "device": "cpu",
+                    # Removed C-specific params like do_ring_closure
+                    "angle_representation": "cartesian", # Keep if relevant to diffusion input processing
+                    "use_metadata": False, # Keep if relevant
+                    "diffusion_chunk_size": None,
+                    "attn_chunk_size": None,
+                    "inplace_safe": False,
+                    "debug_logging": False,
+                    "training": { "batch_size": 1 },
+                    "inference": {
+                        "num_steps": 2, # Keep low for testing
+                        "temperature": 1.0,
+                        "sampling": {"num_samples": 1, "seed": None, "use_deterministic": False}
+                    },
+                    "memory": {
+                        "apply_memory_preprocess": False, # Default to False for most tests
+                        "memory_preprocess_max_len": 25
+                    },
+                    # Sampler params needed for train_diffusion_step test
+                    "sampler": {
+                        "p_mean": -1.2,
+                        "p_std": 1.5,
+                        "N_sample": 1
+                    },
+                    # Add model_architecture block as required by validation
+                    "model_architecture": {
+                        "c_atom": 128,
+                        "c_atompair": 16,
+                        "c_token": 384,
+                        "c_s": 384,
+                        "c_z": 32,
+                        "c_s_inputs": 384,
+                        "c_noise_embedding": 128,
+                        "sigma_data": 16.0
+                    },
+                    # Add required subblocks for atom_encoder, atom_decoder, transformer
+                    "atom_encoder": {"n_blocks": 1, "n_heads": 1, "n_queries": 4, "n_keys": 8},
+                    "atom_decoder": {"n_blocks": 1, "n_heads": 1, "n_queries": 4, "n_keys": 8},
+                    "transformer": {"n_blocks": 1, "n_heads": 1}
                 }
             }
         },
-        "diffusion_model": { # Corresponds to DiffusionModule args
+        "diffusion_model": { # Legacy structure kept for backward compatibility
              "c_atom": 128,
              "c_atompair": 16,
              "c_token": 384, # Adjusted based on dummy data below
@@ -89,7 +101,7 @@ def create_stage_d_test_config(stage_overrides=None, model_overrides=None, noise
     # Apply overrides selectively using OmegaConf.merge
     override_cfg = OmegaConf.create({})
     if stage_overrides:
-        OmegaConf.update(override_cfg, "stageD.diffusion", stage_overrides, merge=True)
+        OmegaConf.update(override_cfg, "model.stageD.diffusion", stage_overrides, merge=True)
     if model_overrides:
         OmegaConf.update(override_cfg, "diffusion_model", model_overrides, merge=True)
     if noise_overrides:
@@ -156,8 +168,10 @@ class TestProtenixDiffusionManagerInitialization(unittest.TestCase):
         test_cfg = create_stage_d_test_config(
             stage_overrides={
                 "device": device,
-                "c_atom": c_atom,
-                "c_z": c_z,
+                "model_architecture": {
+                    "c_atom": c_atom,
+                    "c_z": c_z
+                },
                 "transformer": {"n_blocks": n_blocks, "n_heads": n_heads}
             }
         )
@@ -198,13 +212,13 @@ class TestProtenixDiffusionManagerInitialization(unittest.TestCase):
         self.MockDiffusionModuleClass.reset_mock()
 
         if missing_section == "stageD":
-            # Missing stageD section
-            cfg_missing = OmegaConf.create({"diffusion_model": {"c_s": c_s}})
-            expected_error = "Config missing required 'stageD' group"
+            # Missing stageD section (now under model)
+            cfg_missing = OmegaConf.create({"model": {}})
+            expected_error = "Config missing required 'model.stageD' group"
         else:  # missing_section == "diffusion"
-            # Missing diffusion in stageD
-            cfg_missing = OmegaConf.create({"stageD": {"device": device}})
-            expected_error = "Config missing required 'diffusion' group in stageD"
+            # Missing diffusion in stageD (now under model.stageD)
+            cfg_missing = OmegaConf.create({"model": {"stageD": {}}})
+            expected_error = "Config missing required 'diffusion' group in model.stageD"
 
         # Use the actual error message raised by the manager code
         with self.assertRaisesRegex(ValueError, expected_error,
@@ -302,8 +316,8 @@ class TestProtenixDiffusionManagerTrainDiffusionStep(unittest.TestCase):
                      "[ERR-DIFFMAN-023] Wrong diffusion module passed to sample_diffusion_training")
 
         # Check config derived values were passed correctly
-        expected_N_sample = N_sample_override if N_sample_override is not None else current_cfg.stageD.diffusion.sampler.N_sample
-        expected_chunk_size = chunk_override if chunk_override is not None else current_cfg.stageD.diffusion.get('diffusion_chunk_size') # Use get for top level
+        expected_N_sample = N_sample_override if N_sample_override is not None else current_cfg.model.stageD.diffusion.sampler.N_sample
+        expected_chunk_size = chunk_override if chunk_override is not None else current_cfg.model.stageD.diffusion.get('diffusion_chunk_size') # Use get for top level
 
         self.assertEqual(call_kwargs.get('N_sample'), expected_N_sample,
                         f"[ERR-DIFFMAN-024] N_sample mismatch: expected {expected_N_sample}, got {call_kwargs.get('N_sample')}")
@@ -457,7 +471,7 @@ class TestProtenixDiffusionManagerCustomManualLoop(unittest.TestCase):
     def setUp(self):
         # Use the existing MockDiffusionModule class defined at the top of the file
         # Create a test config with small dimensions
-        self.test_cfg = create_stage_d_test_config(model_overrides={"c_s":10, "c_z":10, "c_s_inputs":10})
+        self.test_cfg = create_stage_d_test_config(stage_overrides={"model_architecture": {"c_s":10, "c_z":10, "c_s_inputs":10}})
 
         # Patch the DiffusionModule class where it's imported by the manager
         self.diffusion_module_patcher = patch(
@@ -493,9 +507,10 @@ class TestProtenixDiffusionManagerCustomManualLoop(unittest.TestCase):
         self.MockDiffusionModuleClass.reset_mock()
 
         # Calculate feature dimensions based on multiplier for variety
-        c_s = self.test_cfg.diffusion_model.c_s * feature_dim_multiplier
-        c_s_inputs = self.test_cfg.diffusion_model.c_s_inputs * feature_dim_multiplier
-        c_z = self.test_cfg.diffusion_model.c_z * feature_dim_multiplier
+        # Use the model_architecture values from stageD.diffusion.model_architecture
+        c_s = self.test_cfg.model.stageD.diffusion.model_architecture.c_s * feature_dim_multiplier
+        c_s_inputs = self.test_cfg.model.stageD.diffusion.model_architecture.c_s_inputs * feature_dim_multiplier
+        c_z = self.test_cfg.model.stageD.diffusion.model_architecture.c_z * feature_dim_multiplier
 
         # Dummy embeddings matching dims potentially used by model
         trunk_embeddings = {
