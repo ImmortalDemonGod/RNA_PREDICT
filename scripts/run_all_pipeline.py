@@ -64,7 +64,6 @@ def main():
         os.path.join(PROJECT_ROOT, "rna_predict/pipeline/stageD/run_stageD.py"),
         os.path.join(PROJECT_ROOT, "rna_predict/interface.py"),
         os.path.join(PROJECT_ROOT, "rna_predict/main.py"),
-        os.path.join(PROJECT_ROOT, "rna_predict/print_rna_pipeline_output.py"),
         # os.path.join(PROJECT_ROOT, "rna_predict/run_full_pipeline.py") # Avoid running itself
     ]
     
