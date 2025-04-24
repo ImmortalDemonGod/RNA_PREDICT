@@ -9,9 +9,15 @@ from omegaconf import DictConfig
 
 
 def _validate_feature_config(cfg):
-    if not hasattr(cfg, "model") or not hasattr(cfg.model, "stageD"):
+    # Check if cfg has a model.stageD section
+    if hasattr(cfg, "model") and hasattr(cfg.model, "stageD"):
+        stage_cfg = cfg.model.stageD
+    # Check if cfg has a cfg attribute with model.stageD section (for test cases)
+    elif hasattr(cfg, "cfg") and hasattr(cfg.cfg, "model") and hasattr(cfg.cfg.model, "stageD"):
+        stage_cfg = cfg.cfg.model.stageD
+    else:
         raise ValueError("Configuration must contain model.stageD section")
-    stage_cfg = cfg.model.stageD
+
     required_params = ["ref_element_size", "ref_atom_name_chars_size"]
     for param in required_params:
         if not hasattr(stage_cfg, param):
@@ -19,6 +25,18 @@ def _validate_feature_config(cfg):
     return stage_cfg
 
 def _validate_atom_metadata(atom_metadata):
+    # First try to get atom_metadata directly
+    if atom_metadata is None:
+        # If atom_metadata is None, try to get it from input_features
+        from inspect import currentframe
+        frame = currentframe().f_back
+        if frame and 'config' in frame.f_locals:
+            config = frame.f_locals['config']
+            if hasattr(config, 'input_features') and config.input_features is not None:
+                if 'atom_metadata' in config.input_features:
+                    atom_metadata = config.input_features['atom_metadata']
+
+    # Now validate the atom_metadata
     if atom_metadata is None or "residue_indices" not in atom_metadata:
         raise ValueError("atom_metadata with 'residue_indices' is required for Stage D. This pipeline does not support fallback to fixed atom counts.")
     residue_indices = atom_metadata["residue_indices"]
