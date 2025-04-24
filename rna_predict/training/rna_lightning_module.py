@@ -51,7 +51,8 @@ class RNALightningModule(L.LightningModule):
         self.stageB_pairformer = PairformerWrapper(cfg.model.stageB.pairformer)
         self.stageC = StageCReconstruction()
         print("[DEBUG-LM-STAGED] cfg.model.stageD:", getattr(cfg.model, 'stageD', None))
-        self.stageD = ProtenixDiffusionManager(cfg.model)
+        # Pass the full config to ProtenixDiffusionManager, not just cfg.model
+        self.stageD = ProtenixDiffusionManager(cfg)
 
         # Create a pipeline module that contains all components
         # This ensures the model has trainable parameters for the optimizer
