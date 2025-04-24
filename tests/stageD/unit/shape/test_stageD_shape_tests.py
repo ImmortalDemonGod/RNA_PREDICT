@@ -32,20 +32,65 @@ def _create_diffusion_config():
         Dictionary with diffusion configuration parameters
     """
     return {
+        # Core parameters
+        "device": "cpu",
+        "mode": "inference",
+        "debug_logging": True,
+        "ref_element_size": 128,
+        "ref_atom_name_chars_size": 256,
+        "profile_size": 32,
+
+        # Feature dimensions
         "c_atom": 128,
         "c_s": 384,
         "c_z": 32,
+        "c_s_inputs": 449,
         "c_token": 384,
+        "c_noise_embedding": 128,
+
+        # Model architecture
+        "model_architecture": {
+            "c_token": 384,
+            "c_s": 384,
+            "c_z": 32,
+            "c_s_inputs": 449,
+            "c_atom": 128,
+            "c_atompair": 16,
+            "c_noise_embedding": 128,
+            "sigma_data": 16.0,
+        },
+
+        # Feature dimensions section
+        "feature_dimensions": {
+            "c_s": 384,
+            "c_s_inputs": 449,
+            "c_sing": 384,
+            "s_trunk": 384,
+            "s_inputs": 449
+        },
+
+        # Transformer configuration
         "transformer": {"n_blocks": 1, "n_heads": 2},
+
+        # Conditioning configuration
         "conditioning": {
             "c_s": 384,
             "c_z": 32,
-            "c_s_inputs": 384,
+            "c_s_inputs": 449,
             "c_noise_embedding": 128,
         },
+
+        # Embedder configuration
         "embedder": {"c_atom": 128, "c_atompair": 16, "c_token": 384},
-        "sigma_data": 16.0,
+
+        # Inference configuration
+        "inference": {"num_steps": 2, "N_sample": 1},
+
+        # Initialization
         "initialization": {},
+
+        # Sigma data (should be in model_architecture, but also kept here for backward compatibility)
+        "sigma_data": 16.0,
     }
 
 
@@ -143,17 +188,27 @@ def test_single_sample_shape_expansion():
 
     # Create a Hydra-compatible config structure
     hydra_cfg = OmegaConf.create({
-        "stageD": {
-            "diffusion": {
+        "model": {
+            "stageD": {
+                # Top-level parameters required by StageDContext
+                "enabled": True,
+                "mode": "inference",
                 "device": "cpu",
-                "atom_encoder": {"n_blocks": 1, "n_heads": 2, "n_queries": 8, "n_keys": 8},
-                "atom_decoder": {"n_blocks": 1, "n_heads": 2, "n_queries": 8, "n_keys": 8},
-                "transformer": {"n_blocks": 1, "n_heads": 2},
+                "debug_logging": False,
+                "ref_element_size": 128,
+                "ref_atom_name_chars_size": 256,
+                "profile_size": 32,
+
+                # Feature dimensions required for bridging
                 "feature_dimensions": {
                     "c_s": diffusion_config["c_s"],
                     "c_s_inputs": 449,
-                    "c_sing": diffusion_config["c_s"]
+                    "c_sing": diffusion_config["c_s"],
+                    "s_trunk": diffusion_config["c_s"],
+                    "s_inputs": 449
                 },
+
+                # Model architecture parameters
                 "model_architecture": {
                     "c_atom": diffusion_config["c_atom"],
                     "c_s": diffusion_config["c_s"],
@@ -161,10 +216,53 @@ def test_single_sample_shape_expansion():
                     "c_token": diffusion_config["c_token"],
                     "c_noise_embedding": 128,
                     "c_atompair": diffusion_config["embedder"]["c_atompair"],
-                    "sigma_data": diffusion_config["sigma_data"]
+                    "sigma_data": diffusion_config["sigma_data"],
+                    "num_layers": 1,
+                    "num_heads": 2,
+                    "dropout": 0.0,
+                    "test_residues_per_batch": 25
                 },
-                # Add all diffusion config parameters
-                **diffusion_config
+
+                # Diffusion section
+                "diffusion": {
+                    "enabled": True,
+                    "mode": "inference",
+                    "device": "cpu",
+                    "debug_logging": False,
+                    "atom_encoder": {"n_blocks": 1, "n_heads": 2, "n_queries": 8, "n_keys": 8},
+                    "atom_decoder": {"n_blocks": 1, "n_heads": 2, "n_queries": 8, "n_keys": 8},
+                    "transformer": {"n_blocks": 1, "n_heads": 2},
+                    "inference": {"num_steps": 2, "N_sample": 1},
+                    "ref_element_size": 128,
+                    "ref_atom_name_chars_size": 256,
+                    "profile_size": 32,
+
+                    # Feature dimensions duplicated in diffusion section
+                    "feature_dimensions": {
+                        "c_s": diffusion_config["c_s"],
+                        "c_s_inputs": 449,
+                        "c_sing": diffusion_config["c_s"],
+                        "s_trunk": diffusion_config["c_s"],
+                        "s_inputs": 449
+                    },
+
+                    # Model architecture duplicated in diffusion section
+                    "model_architecture": {
+                        "c_atom": diffusion_config["c_atom"],
+                        "c_s": diffusion_config["c_s"],
+                        "c_z": diffusion_config["c_z"],
+                        "c_token": diffusion_config["c_token"],
+                        "c_s_inputs": diffusion_config["c_s_inputs"],
+                        "c_noise_embedding": 128,
+                        "c_atompair": diffusion_config["embedder"]["c_atompair"],
+                        "sigma_data": diffusion_config["sigma_data"]
+                    },
+
+                    # Add remaining diffusion config parameters
+                    "conditioning": diffusion_config["conditioning"],
+                    "embedder": diffusion_config["embedder"],
+                    "initialization": diffusion_config["initialization"]
+                }
             }
         }
     })
@@ -183,21 +281,23 @@ def test_single_sample_shape_expansion():
     # Update manager's config with inference parameters
     if not hasattr(manager, 'cfg') or not OmegaConf.is_config(manager.cfg):
         manager.cfg = OmegaConf.create({
-            "stageD": {
-                "diffusion": {
-                    "inference": {"N_sample": 1, "num_steps": 2},
-                    "debug_logging": True
+            "model": {
+                "stageD": {
+                    "diffusion": {
+                        "inference": {"N_sample": 1, "num_steps": 2},
+                        "debug_logging": True
+                    }
                 }
             }
         })
     else:
         # Update existing config
-        if "inference" not in manager.cfg.stageD.diffusion:
-            manager.cfg.stageD.diffusion.inference = OmegaConf.create({"N_sample": 1, "num_steps": 2})
+        if "inference" not in manager.cfg.model.stageD.diffusion:
+            manager.cfg.model.stageD.diffusion.inference = OmegaConf.create({"N_sample": 1, "num_steps": 2})
         else:
-            manager.cfg.stageD.diffusion.inference.N_sample = 1
-            manager.cfg.stageD.diffusion.inference.num_steps = 2
-        manager.cfg.stageD.diffusion.debug_logging = True
+            manager.cfg.model.stageD.diffusion.inference.N_sample = 1
+            manager.cfg.model.stageD.diffusion.inference.num_steps = 2
+        manager.cfg.model.stageD.diffusion.debug_logging = True
 
     # Call with updated API
     coords_final = manager.multi_step_inference(
@@ -779,11 +879,7 @@ def test_problem_size_memory_threshold():
 
     # Use smaller model configuration but keep original feature dimensions
     diffusion_config = {
-        "c_atom": 128,  # Original dimension
-        "c_s": 384,  # Original dimension
-        "c_z": 32,  # Original dimension
-        "c_token": 384,  # Original dimension
-        "c_s_inputs": 449,  # Original dimension
+        # Remove top-level dimension parameters to avoid duplication
         "transformer": {
             "n_blocks": 1,  # Reduced from 4
             "n_heads": 2,  # Reduced from 16
@@ -795,8 +891,16 @@ def test_problem_size_memory_threshold():
             "c_noise_embedding": 64,
         },
         "embedder": {"c_atom": 128, "c_atompair": 8, "c_token": 384},
-
         "initialization": {},
+    }
+
+    # Store dimensions separately for use in config creation
+    dimensions = {
+        "c_atom": 128,  # Original dimension
+        "c_s": 384,  # Original dimension
+        "c_z": 32,  # Original dimension
+        "c_token": 384,  # Original dimension
+        "c_s_inputs": 449,  # Original dimension
     }
 
     # Create manager with Hydra-compatible configuration
@@ -804,29 +908,80 @@ def test_problem_size_memory_threshold():
 
     # Create a Hydra-compatible config structure with model_architecture
     hydra_cfg = OmegaConf.create({
-        "stageD": {
-            "diffusion": {
+        "model": {
+            "stageD": {
+                # Top-level parameters required by StageDContext
+                "enabled": True,
+                "mode": "inference",
                 "device": device,
-                "atom_encoder": {"n_blocks": 1, "n_heads": 2, "n_queries": 8, "n_keys": 8},
-                "atom_decoder": {"n_blocks": 1, "n_heads": 2, "n_queries": 8, "n_keys": 8},
-                "transformer": {"n_blocks": 1, "n_heads": 2},
-                "feature_dimensions": {
-                    "c_s": diffusion_config["c_s"],
-                    "c_s_inputs": diffusion_config["c_s_inputs"],
-                    "c_sing": diffusion_config["c_s"]
-                },
+                "debug_logging": False,
+                "ref_element_size": 128,
+                "ref_atom_name_chars_size": 256,
+                "profile_size": 32,
+
+                # Model architecture parameters
                 "model_architecture": {
-                    "c_atom": diffusion_config["c_atom"],
-                    "c_s": diffusion_config["c_s"],
-                    "c_z": diffusion_config["c_z"],
-                    "c_token": diffusion_config["c_token"],
-                    "c_s_inputs": diffusion_config["c_s_inputs"],
+                    "c_atom": dimensions["c_atom"],
+                    "c_s": dimensions["c_s"],
+                    "c_z": dimensions["c_z"],
+                    "c_token": dimensions["c_token"],
+                    "c_s_inputs": dimensions["c_s_inputs"],
                     "c_noise_embedding": 64,
                     "c_atompair": 8,
-                    "sigma_data": 16.0
+                    "sigma_data": 16.0,
+                    "num_layers": 1,
+                    "num_heads": 2,
+                    "dropout": 0.0,
+                    "test_residues_per_batch": 25
                 },
-                # Add all diffusion config parameters
-                **diffusion_config
+
+                # Feature dimensions required for bridging
+                "feature_dimensions": {
+                    "c_s": dimensions["c_s"],
+                    "c_s_inputs": dimensions["c_s_inputs"],
+                    "c_sing": dimensions["c_s"],
+                    "s_trunk": dimensions["c_s"],
+                    "s_inputs": dimensions["c_s_inputs"]
+                },
+
+                # Diffusion section
+                "diffusion": {
+                    "enabled": True,
+                    "mode": "inference",
+                    "device": device,
+                    "debug_logging": False,
+                    "atom_encoder": {"n_blocks": 1, "n_heads": 2, "n_queries": 8, "n_keys": 8},
+                    "atom_decoder": {"n_blocks": 1, "n_heads": 2, "n_queries": 8, "n_keys": 8},
+                    "transformer": {"n_blocks": 1, "n_heads": 2},
+                    "inference": {"num_steps": 2, "N_sample": 1},
+                    "ref_element_size": 128,
+                    "ref_atom_name_chars_size": 256,
+                    "profile_size": 32,
+
+                    # Feature dimensions duplicated in diffusion section
+                    "feature_dimensions": {
+                        "c_s": dimensions["c_s"],
+                        "c_s_inputs": dimensions["c_s_inputs"],
+                        "c_sing": dimensions["c_s"],
+                        "s_trunk": dimensions["c_s"],
+                        "s_inputs": dimensions["c_s_inputs"]
+                    },
+
+                    # Model architecture duplicated in diffusion section
+                    "model_architecture": {
+                        "c_atom": dimensions["c_atom"],
+                        "c_s": dimensions["c_s"],
+                        "c_z": dimensions["c_z"],
+                        "c_token": dimensions["c_token"],
+                        "c_s_inputs": dimensions["c_s_inputs"],
+                        "c_noise_embedding": 64,
+                        "c_atompair": 8,
+                        "sigma_data": 16.0
+                    },
+
+                    # Add all diffusion config parameters
+                    **diffusion_config
+                }
             }
         }
     })
@@ -837,11 +992,11 @@ def test_problem_size_memory_threshold():
     # Create trunk embeddings with correct dimensions
     trunk_embeddings = {
         # Remove singleton dimension for s_trunk and pair
-        "s_trunk": torch.randn(batch_size, num_tokens, diffusion_config["c_s"]),
+        "s_trunk": torch.randn(batch_size, num_tokens, dimensions["c_s"]),
         "pair": torch.randn(
-            batch_size, num_tokens, num_tokens, diffusion_config["c_z"]
+            batch_size, num_tokens, num_tokens, dimensions["c_z"]
         ),
-        "s_inputs": torch.randn(batch_size, num_tokens, diffusion_config["c_s_inputs"]),
+        "s_inputs": torch.randn(batch_size, num_tokens, dimensions["c_s_inputs"]),
     }
 
     # Use fewer steps for inference
@@ -857,21 +1012,23 @@ def test_problem_size_memory_threshold():
         from omegaconf import OmegaConf
         if not hasattr(manager, 'cfg') or not OmegaConf.is_config(manager.cfg):
             manager.cfg = OmegaConf.create({
-                "stageD": {
-                    "diffusion": {
-                        "inference": inference_params,
-                        "debug_logging": False
+                "model": {
+                    "stageD": {
+                        "diffusion": {
+                            "inference": inference_params,
+                            "debug_logging": False
+                        }
                     }
                 }
             })
         else:
             # Update existing config
-            if "inference" not in manager.cfg.stageD.diffusion:
-                manager.cfg.stageD.diffusion.inference = OmegaConf.create(inference_params)
+            if "inference" not in manager.cfg.model.stageD.diffusion:
+                manager.cfg.model.stageD.diffusion.inference = OmegaConf.create(inference_params)
             else:
                 for k, v in inference_params.items():
-                    manager.cfg.stageD.diffusion.inference[k] = v
-            manager.cfg.stageD.diffusion.debug_logging = False
+                    manager.cfg.model.stageD.diffusion.inference[k] = v
+            manager.cfg.model.stageD.diffusion.debug_logging = False
 
         # Call with updated API
         coords_final = manager.multi_step_inference(
