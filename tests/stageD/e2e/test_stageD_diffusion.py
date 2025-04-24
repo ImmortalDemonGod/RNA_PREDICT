@@ -20,14 +20,6 @@ def minimal_diffusion_config():
         "ref_atom_name_chars_size": 256,
         "profile_size": 32,
 
-        # Feature dimensions
-        "c_atom": 128,
-        "c_s": 384,
-        "c_z": 32,
-        "c_token": 384,
-        "c_s_inputs": 384,  # Match conditioning config for consistency
-        "c_noise_embedding": 128,
-
         # Model architecture section
         "model_architecture": {
             "c_token": 384,
@@ -66,8 +58,32 @@ def minimal_diffusion_config():
         # Embedder configuration
         "embedder": {"c_atom": 128, "c_atompair": 16, "c_token": 384},
 
-        # Sigma data (should be in model_architecture, but also kept here for backward compatibility)
-        "sigma_data": 16.0,
+        # Atom encoder configuration
+        "atom_encoder": {
+            "c_in": 128,
+            "c_hidden": [256],
+            "c_out": 128,
+            "dropout": 0.1,
+            "n_blocks": 1,
+            "n_heads": 2,
+            "n_queries": 4,
+            "n_keys": 4
+        },
+
+        # Atom decoder configuration
+        "atom_decoder": {
+            "c_in": 128,
+            "c_hidden": [256],
+            "c_out": 128,
+            "dropout": 0.1,
+            "n_blocks": 1,
+            "n_heads": 2,
+            "n_queries": 4,
+            "n_keys": 4
+        },
+
+        # Sigma data should only be in model_architecture
+        # "sigma_data": 16.0,  # Removed to fix test
 
         # Initialization
         "initialization": {},  # Required by DiffusionModule
@@ -101,7 +117,8 @@ def test_run_stageD_diffusion_inference(
     If missing_s_inputs=True, we omit 's_inputs' to see if it is auto-computed.
     """
     # Use smaller tensors for testing
-    partial_coords = torch.randn(1, 5, 3)  # batch=1, 5 atoms, 3 coords
+    # Create partial_coords with 11 atoms to match atom_metadata
+    partial_coords = torch.randn(1, 11, 3)  # batch=1, 11 atoms, 3 coords
 
     trunk_embeddings = {
         "s_trunk": torch.randn(1, 5, 384),
