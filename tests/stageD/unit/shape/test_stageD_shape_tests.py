@@ -146,6 +146,23 @@ def test_single_sample_shape_expansion():
         "stageD": {
             "diffusion": {
                 "device": "cpu",
+                "atom_encoder": {"n_blocks": 1, "n_heads": 2, "n_queries": 8, "n_keys": 8},
+                "atom_decoder": {"n_blocks": 1, "n_heads": 2, "n_queries": 8, "n_keys": 8},
+                "transformer": {"n_blocks": 1, "n_heads": 2},
+                "feature_dimensions": {
+                    "c_s": diffusion_config["c_s"],
+                    "c_s_inputs": 449,
+                    "c_sing": diffusion_config["c_s"]
+                },
+                "model_architecture": {
+                    "c_atom": diffusion_config["c_atom"],
+                    "c_s": diffusion_config["c_s"],
+                    "c_z": diffusion_config["c_z"],
+                    "c_token": diffusion_config["c_token"],
+                    "c_noise_embedding": 128,
+                    "c_atompair": diffusion_config["embedder"]["c_atompair"],
+                    "sigma_data": diffusion_config["sigma_data"]
+                },
                 # Add all diffusion config parameters
                 **diffusion_config
             }
@@ -325,11 +342,6 @@ def test_local_trunk_small_natom_memory_efficient():
 
         # Use a minimal configuration with fewer transformer blocks and heads
         diffusion_config = {
-            "c_atom": 128,
-            "c_s": 384,
-            "c_z": 32,
-            "c_token": 384,
-            # "c_s_inputs": 449, # This contradicts conditioning['c_s_inputs'], remove or align. Using conditioning value (384).
             "transformer": {"n_blocks": 1, "n_heads": 2},  # Reduced from original
             "conditioning": {
                 "c_s": 384,
@@ -338,12 +350,28 @@ def test_local_trunk_small_natom_memory_efficient():
                 "c_noise_embedding": 128,
             },
             "embedder": {"c_atom": 128, "c_atompair": 16, "c_token": 384},
-            "sigma_data": 16.0,
             "initialization": {},
             "inference": {
                 "num_steps": 2,  # Reduced from default (20)
                 "N_sample": 1,
             },
+            "atom_encoder": {"n_blocks": 1, "n_heads": 2, "n_queries": 8, "n_keys": 8},
+            "atom_decoder": {"n_blocks": 1, "n_heads": 2, "n_queries": 8, "n_keys": 8},
+            "feature_dimensions": {
+                "c_s": 384,
+                "c_s_inputs": 449,
+                "c_sing": 384
+            },
+            "model_architecture": {
+                "c_atom": 128,
+                "c_s": 384,
+                "c_z": 32,
+                "c_token": 384,
+                "c_s_inputs": 449,
+                "c_noise_embedding": 128,
+                "c_atompair": 16,
+                "sigma_data": 16.0
+            }
         }
 
         # Create minimal input_features dictionary with explicit device placement
@@ -375,6 +403,13 @@ def test_local_trunk_small_natom_memory_efficient():
         gc.collect()
         torch.cuda.empty_cache() if torch.cuda.is_available() else None
 
+        # Create a feature_dimensions attribute for the config
+        feature_dimensions = {
+            "c_s": diffusion_config["model_architecture"]["c_s"],
+            "c_s_inputs": diffusion_config["model_architecture"]["c_s_inputs"],
+            "c_sing": diffusion_config["model_architecture"]["c_s"]
+        }
+
         test_config = DiffusionConfig(
              partial_coords=partial_coords,
              trunk_embeddings=trunk_embeddings,
@@ -384,6 +419,9 @@ def test_local_trunk_small_natom_memory_efficient():
              input_features=input_features,
              sequence=sequence,
          )
+
+        # Add feature_dimensions directly to the config object
+        test_config.feature_dimensions = feature_dimensions
         coords_out = run_stageD_diffusion(config=test_config)
 
         current_memory = get_memory_usage()
@@ -723,18 +761,36 @@ def test_problem_size_memory_threshold():
             "c_noise_embedding": 64,
         },
         "embedder": {"c_atom": 128, "c_atompair": 8, "c_token": 384},
-        "sigma_data": 16.0,
+
         "initialization": {},
     }
 
     # Create manager with Hydra-compatible configuration
     from omegaconf import OmegaConf
 
-    # Create a Hydra-compatible config structure
+    # Create a Hydra-compatible config structure with model_architecture
     hydra_cfg = OmegaConf.create({
         "stageD": {
             "diffusion": {
                 "device": device,
+                "atom_encoder": {"n_blocks": 1, "n_heads": 2, "n_queries": 8, "n_keys": 8},
+                "atom_decoder": {"n_blocks": 1, "n_heads": 2, "n_queries": 8, "n_keys": 8},
+                "transformer": {"n_blocks": 1, "n_heads": 2},
+                "feature_dimensions": {
+                    "c_s": diffusion_config["c_s"],
+                    "c_s_inputs": diffusion_config["c_s_inputs"],
+                    "c_sing": diffusion_config["c_s"]
+                },
+                "model_architecture": {
+                    "c_atom": diffusion_config["c_atom"],
+                    "c_s": diffusion_config["c_s"],
+                    "c_z": diffusion_config["c_z"],
+                    "c_token": diffusion_config["c_token"],
+                    "c_s_inputs": diffusion_config["c_s_inputs"],
+                    "c_noise_embedding": 64,
+                    "c_atompair": 8,
+                    "sigma_data": 16.0
+                },
                 # Add all diffusion config parameters
                 **diffusion_config
             }
@@ -909,16 +965,40 @@ def test_unified_runner_raises_on_atom_level_input(batch_size, n_residues, atoms
     coords = torch.randn(batch_size, n_atoms, 3)
     input_features = {"sequence": ["A"] * n_residues}
     trunk_embeddings = {"s_trunk": s_trunk, "pair": z_trunk, "s_inputs": s_inputs}
+    diffusion_config = {
+        "atom_encoder": {"n_blocks": 1, "n_heads": 2, "n_queries": 8, "n_keys": 8},
+        "atom_decoder": {"n_blocks": 1, "n_heads": 2, "n_queries": 8, "n_keys": 8},
+        "transformer": {"n_blocks": 1, "n_heads": 2},
+        "model_architecture": {
+            "c_atom": 32,
+            "c_s": c_s,
+            "c_z": c_s,
+            "c_token": c_s,
+            "c_s_inputs": c_s,
+            "c_noise_embedding": c_s,
+            "c_atompair": 8,
+            "sigma_data": 1.0
+        }
+    }
+
     config = DiffusionConfig(
         partial_coords=coords,
         trunk_embeddings=trunk_embeddings,
-        diffusion_config={},
+        diffusion_config=diffusion_config,
         mode="inference",
         device="cpu",
         input_features=input_features,
         debug_logging=False,
         sequence=["A"] * n_residues
     )
+
+    # Add feature_dimensions directly to the config object
+    feature_dimensions = {
+        "c_s": c_s,
+        "c_s_inputs": c_s,
+        "c_sing": c_s
+    }
+    config.feature_dimensions = feature_dimensions
     try:
         run_stageD_diffusion(config)
     except ValueError as e:
@@ -948,16 +1028,40 @@ def test_forbid_original_trunk_embeddings_ref_after_bridge(batch_size, n_residue
     coords = torch.randn(batch_size, n_atoms, 3)
     input_features = {"sequence": ["A"] * n_residues}
     trunk_embeddings = {"s_trunk": s_trunk, "pair": z_trunk, "s_inputs": s_inputs}
+    diffusion_config = {
+        "atom_encoder": {"n_blocks": 1, "n_heads": 2, "n_queries": 8, "n_keys": 8},
+        "atom_decoder": {"n_blocks": 1, "n_heads": 2, "n_queries": 8, "n_keys": 8},
+        "transformer": {"n_blocks": 1, "n_heads": 2},
+        "model_architecture": {
+            "c_atom": 32,
+            "c_s": c_s,
+            "c_z": c_s,
+            "c_token": c_s,
+            "c_s_inputs": c_s,
+            "c_noise_embedding": c_s,
+            "c_atompair": 8,
+            "sigma_data": 1.0
+        }
+    }
+
     config = DiffusionConfig(
         partial_coords=coords,
         trunk_embeddings=trunk_embeddings,
-        diffusion_config={},
+        diffusion_config=diffusion_config,
         mode="inference",
         device="cpu",
         input_features=input_features,
         debug_logging=False,
         sequence=["A"] * n_residues
     )
+
+    # Add feature_dimensions directly to the config object
+    feature_dimensions = {
+        "c_s": c_s,
+        "c_s_inputs": c_s,
+        "c_sing": c_s
+    }
+    config.feature_dimensions = feature_dimensions
     # Run the function and then try to use original_trunk_embeddings_ref after bridging
     try:
         result = _run_stageD_diffusion_impl(config)
@@ -1005,7 +1109,8 @@ def test_bridge_residue_to_atom_raises_on_missing_feature_dim():
     try:
         bridge_residue_to_atom(bridging_input, config, debug_logging=False)
     except ValueError as e:
-        assert "feature dimension" in str(e) or "c_s_inputs" in str(e), f"Unexpected error message: {e}"
-        assert "[BRIDGE ERROR][UNIQUE_CODE_MISSING_DIM]" in str(e) or "missing" in str(e).lower(), f"Error should mention missing dimension: {e}"
+        # Updated assertion to match the actual error message
+        assert "Configuration missing required 'feature_dimensions' section" in str(e), f"Unexpected error message: {e}"
+        assert "Please ensure this is properly configured in your Hydra config" in str(e), f"Error should mention Hydra config: {e}"
     else:
         raise AssertionError("bridge_residue_to_atom did not raise on missing feature dimension!")
