@@ -556,18 +556,14 @@ def bridge_residue_to_atom(
         feature_dimensions = config.model.stageD.diffusion.feature_dimensions
         logger.debug("[bridge_residue_to_atom] Found feature_dimensions in config.model.stageD.diffusion")
 
-    # If we still don't have feature_dimensions, create a default one based on the Hydra config
+    # If we still don't have feature_dimensions, raise a ValueError
     if feature_dimensions is None:
-        logger.warning(
-            "[BRIDGE WARNING][CONFIG] Could not find feature_dimensions in config. "
-            "Using fallback values. Please check your Hydra configuration.")
-        feature_dimensions = {
-            'c_s': 384,
-            'c_s_inputs': 449,
-            'c_sing': 384,
-            's_trunk': 384,
-            's_inputs': 449
-        }
+        logger.error(
+            "[BRIDGE ERROR][CONFIG] Could not find feature_dimensions in config. "
+            "This is a required configuration section. Please check your Hydra configuration.")
+        raise ValueError(
+            "Configuration missing required 'feature_dimensions' section. "
+            "Please ensure this is properly configured in your Hydra config.")
     # Ensure 's_inputs' is present in feature_dimensions
     s_inputs_found = False
     if hasattr(feature_dimensions, 's_inputs'):
@@ -580,29 +576,9 @@ def bridge_residue_to_atom(
         s_inputs_found = True
 
     if not s_inputs_found:
-        logger.warning(
-            "[BRIDGE WARNING][CONFIG] 's_inputs' missing from feature_dimensions. "
-            "Adding default value of 449.")
-        # Try to add s_inputs to feature_dimensions
-        try:
-            if hasattr(feature_dimensions, '__setitem__'):
-                feature_dimensions['s_inputs'] = 449
-            elif hasattr(feature_dimensions, '__setattr__'):
-                setattr(feature_dimensions, 's_inputs', 449)
-        except Exception as e:
-            logger.error(f"[BRIDGE ERROR][CONFIG] Failed to add 's_inputs' to feature_dimensions: {e}")
-            # If we can't modify feature_dimensions, create a new one
-            if isinstance(feature_dimensions, dict):
-                feature_dimensions = {**feature_dimensions, 's_inputs': 449}
-            else:
-                # Last resort: create a new dict
-                feature_dimensions = {
-                    'c_s': 384,
-                    'c_s_inputs': 449,
-                    'c_sing': 384,
-                    's_trunk': 384,
-                    's_inputs': 449
-                }
+        logger.error(
+            "[BRIDGE ERROR][CONFIG] 's_inputs' missing from feature_dimensions. "
+            "This is a required field.")
         raise ValueError(
             "[BRIDGE ERROR][CONFIG] 's_inputs' missing from Stage D diffusion feature_dimensions config. "
             "This is a required field. Please check your Hydra config for model.stageD.diffusion.feature_dimensions.s_inputs."
