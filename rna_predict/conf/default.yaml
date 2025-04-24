@@ -7,6 +7,7 @@ defaults:
   - model/stageC@model.stageC
   - model/stageB_torsion@model.stageB.torsion_bert
   - model/stageB_pairformer@model.stageB.pairformer
+  - model/stageD_diffusion@stageD_diffusion  # Load stageD_diffusion first
   - model/stageD@model.stageD
   - model/protenix_integration@model.protenix_integration
   - test_data@test_data  # Include test data configuration

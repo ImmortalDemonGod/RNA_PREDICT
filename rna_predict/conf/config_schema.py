@@ -913,6 +913,89 @@ class StageDDiffusionConfig:
     inplace_safe: bool = field(default=False, metadata={"help": "Whether to use inplace operations safely"})
     chunk_size: Optional[int] = field(default=None, metadata={"help": "Chunk size for attention computation"})
 
+    # Add a nested diffusion field to match the structure in stageD_diffusion.yaml
+    diffusion: Optional[Dict[str, Any]] = field(
+        default_factory=lambda: {
+            "enabled": True,
+            "mode": "inference",
+            "device": "cpu",
+            "debug_logging": True,
+            "ref_element_size": 128,
+            "ref_atom_name_chars_size": 256,
+            "profile_size": 32,
+            "feature_dimensions": {
+                "c_s": 384,
+                "c_s_inputs": 449,
+                "c_sing": 384,
+                "s_trunk": 384,
+                "s_inputs": 449
+            },
+            "test_residues_per_batch": 25,
+            "model_architecture": {
+                "c_token": 384,
+                "c_s": 384,
+                "c_z": 128,
+                "c_s_inputs": 449,
+                "c_atom": 128,
+                "c_atompair": 128,
+                "c_noise_embedding": 32,
+                "sigma_data": 16.0
+            },
+            "transformer": {
+                "n_blocks": 6,
+                "n_heads": 8,
+                "blocks_per_ckpt": None
+            },
+            "atom_encoder": {
+                "c_in": 128,
+                "c_hidden": [256],
+                "c_out": 128,
+                "dropout": 0.1,
+                "n_blocks": 2,
+                "n_heads": 4,
+                "n_queries": 8,
+                "n_keys": 8
+            },
+            "atom_decoder": {
+                "c_in": 128,
+                "c_hidden": [256],
+                "c_out": 128,
+                "dropout": 0.1,
+                "n_blocks": 2,
+                "n_heads": 4,
+                "n_queries": 8,
+                "n_keys": 8
+            },
+            "noise_schedule": {
+                "schedule_type": "linear",
+                "s_max": 1.0,
+                "s_min": 0.01,
+                "p": 0.5,
+                "p_mean": 0.0,
+                "p_std": 1.0
+            },
+            "inference": {
+                "num_steps": 2,
+                "temperature": 1.0,
+                "use_ddim": True,
+                "sampling": {
+                    "num_samples": 1,
+                    "gamma0": 0.8,
+                    "gamma_min": 1.0,
+                    "noise_scale_lambda": 1.003,
+                    "step_scale_eta": 1.5
+                }
+            },
+            "use_memory_efficient_kernel": False,
+            "use_deepspeed_evo_attention": False,
+            "use_lma": False,
+            "inplace_safe": False,
+            "chunk_size": None,
+            "init_from_scratch": False
+        },
+        metadata={"help": "Nested diffusion configuration to match stageD_diffusion.yaml structure"}
+    )
+
 @dataclass
 class StageDConfig:
     """Configuration for Stage D (Diffusion)."""
@@ -1136,6 +1219,8 @@ class RNAConfig:
         "stageC": StageCConfig(),
         "stageD": StageDConfig()  # Add stageD under model
     })
+    # Add stageD_diffusion at the root level to match the default.yaml structure
+    stageD_diffusion: StageDDiffusionConfig = field(default_factory=StageDDiffusionConfig)
     pipeline: PipelineConfig = field(default_factory=PipelineConfig)
     latent_merger: LatentMergerConfig = field(default_factory=LatentMergerConfig)
     memory_optimization: MemoryOptimizationConfig = field(default_factory=MemoryOptimizationConfig)
