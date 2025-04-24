@@ -55,7 +55,9 @@ from rna_predict.pipeline.stageD.config_utils import (
 from rna_predict.pipeline.stageD.bridging_utils import check_and_bridge_embeddings
 from rna_predict.pipeline.stageD.output_utils import run_diffusion_and_handle_output
 from rna_predict.pipeline.stageD.context import StageDContext
-from rna_predict.pipeline.stageD.feature_utils import initialize_features_from_config
+from rna_predict.pipeline.stageD.feature_utils import (
+    _validate_feature_config, _validate_atom_metadata, _init_feature_tensors, initialize_features_from_config
+)
 
 print("[HYDRA DEBUG] CWD:", os.getcwd())
 print("[HYDRA DEBUG] SCRIPT DIR:", os.path.dirname(__file__))
@@ -134,13 +136,18 @@ def run_stageD(
     validate_run_stageD_inputs(
         cfg, coords, s_trunk, z_trunk, s_inputs, input_feature_dict, atom_metadata
     )
+    # --- Refactored: validate config and atom metadata
+    stage_cfg = _validate_feature_config(cfg)
+    context.stage_cfg = stage_cfg
+    residue_indices, num_residues = _validate_atom_metadata(atom_metadata)
+    context.residue_indices = residue_indices
+    context.num_residues = num_residues
+    # ---
     trunk_embeddings, features = _prepare_trunk_embeddings(
         s_trunk, s_inputs, z_trunk, input_feature_dict, atom_metadata
     )
     context.trunk_embeddings = trunk_embeddings
     context.features = features
-    stage_cfg = _validate_and_extract_stageD_config(cfg)
-    context.stage_cfg = stage_cfg
     c_s, c_s_inputs, c_z = _extract_diffusion_dims(stage_cfg)
     context.c_s = c_s
     context.c_s_inputs = c_s_inputs
@@ -150,8 +157,16 @@ def run_stageD(
     context.debug_logging = _get_debug_logging(stage_cfg)
     context.diffusion_cfg = getattr(stage_cfg, "diffusion", None)
     log_mem("Before bridging residue-to-atom")
+    # --- Refactored: always use _init_feature_tensors for tensor creation
     if atom_metadata is not None:
-        features = initialize_features_from_config(input_feature_dict, atom_metadata)
+        # Use the correct number of atoms: coords.shape[1] (n_atoms)
+        num_atoms = coords.shape[1]
+        features = _init_feature_tensors(
+            batch_size=s_trunk.shape[0],
+            num_atoms=num_atoms,
+            device=context.device,
+            stage_cfg=stage_cfg
+        )
     check_and_bridge_embeddings(trunk_embeddings, features, input_feature_dict, coords, atom_metadata)
     log_mem("After bridging residue-to-atom")
     log_mem("Before diffusion")
