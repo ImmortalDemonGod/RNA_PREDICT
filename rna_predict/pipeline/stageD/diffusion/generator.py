@@ -256,6 +256,7 @@ def sample_diffusion(
                 z_trunk=z_trunk,
                 chunk_size=attn_chunk_size,
                 inplace_safe=inplace_safe,
+                debug_logging=True,  # Enable debug logging for diffusion module
             )
 
             # Update x_l using Euler step
@@ -358,6 +359,7 @@ def sample_diffusion_training(
             s_inputs=s_inputs,
             s_trunk=s_trunk,
             z_trunk=z_trunk,
+            debug_logging=True,  # Enable debug logging for diffusion module
         )
     else:
         x_denoised = []
@@ -379,6 +381,7 @@ def sample_diffusion_training(
                 s_inputs=s_inputs,
                 s_trunk=s_trunk,
                 z_trunk=z_trunk,
+                debug_logging=True,  # Enable debug logging for diffusion module
             )
             x_denoised.append(x_denoised_i)
         x_denoised = torch.cat(x_denoised, dim=-3)
