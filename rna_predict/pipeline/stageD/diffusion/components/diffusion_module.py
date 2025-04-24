@@ -102,6 +102,8 @@ class DiffusionModule(nn.Module):
         self.use_fine_grained_checkpoint = use_fine_grained_checkpoint
 
         # Use imported DiffusionConditioning
+        print("[DEBUG][DiffusionModule.__init__] Instantiating DiffusionConditioning with:",
+              f"sigma_data={self.sigma_data}, c_z={c_z}, c_s={c_s}, c_s_inputs={c_s_inputs}, c_noise_embedding={c_noise_embedding}")
         self.diffusion_conditioning = DiffusionConditioning(
             sigma_data=self.sigma_data,
             c_z=c_z,
@@ -566,14 +568,19 @@ class DiffusionModule(nn.Module):
         z_trunk: Optional[torch.Tensor] = None,
         chunk_size: Optional[int] = None,
         inplace_safe: bool = False,
+        debug_logging: bool = False,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Forward pass of the diffusion module.
         Handles N_sample detection and prepares inputs for f_forward.
         """
-        # print("[DEBUG] Starting DiffusionModule forward (Refactored)")
-        # print(f"[DEBUG] Initial x_noisy shape: {x_noisy.shape}")
-        # print(f"[DEBUG] Initial t_hat_noise_level shape: {t_hat_noise_level.shape}")
+        import logging
+        logger = logging.getLogger(__name__)
+
+        if debug_logging:
+            logger.debug("[UNIQUE-DEBUG-STAGED-TEST] Stage D diffusion module handling N_sample dimension.")
+            logger.debug(f"[DEBUG] Initial x_noisy shape: {x_noisy.shape}")
+            logger.debug(f"[DEBUG] Initial t_hat_noise_level shape: {t_hat_noise_level.shape}")
 
         # --- Input Shape Handling ---
         # Assume x_noisy arrives as [B, N_atom, 3] or [B, N_sample, N_atom, 3]

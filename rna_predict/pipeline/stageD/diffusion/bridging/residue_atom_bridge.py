@@ -47,11 +47,35 @@ def _process_single_embedding(
     debug_logging: bool,
 ) -> torch.Tensor:
     """Applies residue-to-atom bridging for single embeddings."""
-    bridged_value = residue_to_atoms(value, residue_atom_map)
+    # Check for N_sample dimension (dim=1 in [B, N_sample, N_res, C])
+    has_n_sample = value.dim() == 4
+
+    if has_n_sample:
+        # Handle N_sample dimension by processing each sample separately
+        batch_size, n_sample, n_res, feat_dim = value.shape
+        # Create output tensor with atom dimension
+        n_atoms = sum(len(atoms) for atoms in residue_atom_map)
+        bridged_value = torch.zeros(
+            batch_size, n_sample, n_atoms, feat_dim,
+            device=value.device, dtype=value.dtype
+        )
+
+        # Process each sample separately
+        for i in range(n_sample):
+            # Extract this sample's tensor [B, N_res, C]
+            sample_tensor = value[:, i, :, :]
+            # Bridge to atom level
+            sample_bridged = residue_to_atoms(sample_tensor, residue_atom_map)
+            # Store in the output tensor
+            bridged_value[:, i, :, :] = sample_bridged
+    else:
+        # Standard processing for tensors without N_sample dimension
+        bridged_value = residue_to_atoms(value, residue_atom_map)
+
     if debug_logging:
         logger.debug(
             f"Bridged {key} from shape {value.shape} to {bridged_value.shape} "
-            f"using residue-to-atom mapping"
+            f"using residue-to-atom mapping (has_n_sample={has_n_sample})"
         )
         # SYSTEMATIC DEBUGGING: Print tensor shapes for hypothesis testing
         print(f"[DEBUG][BRIDGE][_process_single_embedding] key={key} value.shape={value.shape} bridged_value.shape={bridged_value.shape}")
@@ -64,52 +88,91 @@ def _process_pair_embedding(value: torch.Tensor, residue_atom_map: list, debug_l
     """
     Expands residue-level pair embeddings to atom-level pair embeddings.
     Args:
-        value (torch.Tensor): Residue-level pair embeddings. Shape [B, N_residue, N_residue, C] or [N_residue, N_residue, C]
+        value (torch.Tensor): Residue-level pair embeddings. Shape [B, N_sample, N_residue, N_residue, C] or [B, N_residue, N_residue, C] or [N_residue, N_residue, C]
         residue_atom_map (List[List[int]]): Mapping from residue indices to atom indices
         debug_logging (bool): Whether to log debug info
         key (str): Name of the embedding
     Returns:
-        torch.Tensor: Atom-level pair embeddings. Shape [B, N_atom, N_atom, C] or [N_atom, N_atom, C]
+        torch.Tensor: Atom-level pair embeddings with corresponding shape
     """
-    import torch
     if debug_logging:
         logger.debug(
             "[_process_pair_embedding] %s shape=%s",
             key,
             getattr(value, "shape", None),
         )
-    # Validate input
+
+    # Early return for non-tensor inputs
     if not isinstance(value, torch.Tensor):
         logger.warning(f"Pair embedding for {key} is not a tensor. Returning as is.")
         return value
+
     n_res = len(residue_atom_map)
     # Determine atom count
     atom_indices = [atom for sublist in residue_atom_map for atom in sublist]
     n_atom = max(atom_indices) + 1 if atom_indices else 0
-    # Handle batch dim
-    is_batched = value.dim() == 4
-    if is_batched:
-        B, N_res1, N_res2, C = value.shape
+
+    # Check for N_sample dimension (dim=1 in [B, N_sample, N_res, N_res, C])
+    has_n_sample = value.dim() == 5
+
+    if has_n_sample:
+        # Handle tensor with N_sample dimension [B, N_sample, N_res, N_res, C]
+        B, N_sample, N_res1, N_res2, C = value.shape
+
         if N_res1 != n_res or N_res2 != n_res:
             logger.warning(f"Shape mismatch in pair embedding bridging for {key}: value.shape={value.shape}, n_res={n_res}")
             return value
+
+        # Create output tensor with atom dimensions
+        out = value.new_zeros((B, N_sample, n_atom, n_atom, C))
+
+        # Process each sample separately
+        for s in range(N_sample):
+            # For each residue pair, copy the embedding to all corresponding atom pairs
+            for i, atom_indices_i in enumerate(residue_atom_map):
+                for j, atom_indices_j in enumerate(residue_atom_map):
+                    # Broadcast the residue-pair embedding to all atom-pairs
+                    out[:, s, atom_indices_i, :][:, :, :, atom_indices_j, :] = value[:, s, i:i+1, j:j+1, :]
+
+        if debug_logging:
+            logger.debug(f"Bridged pair embedding {key} from shape {value.shape} to {out.shape} (with N_sample dimension)")
+        return out
+
+    # Handle standard batched tensor [B, N_res, N_res, C]
+    elif value.dim() == 4:
+        B, N_res1, N_res2, C = value.shape
+
+        if N_res1 != n_res or N_res2 != n_res:
+            logger.warning(f"Shape mismatch in pair embedding bridging for {key}: value.shape={value.shape}, n_res={n_res}")
+            return value
+
         # Expand to atom-level
         out = value.new_zeros((B, n_atom, n_atom, C))
+
+        # For each residue pair, copy the embedding to all corresponding atom pairs
         for i, atom_indices_i in enumerate(residue_atom_map):
             for j, atom_indices_j in enumerate(residue_atom_map):
                 out[:, atom_indices_i, :][:, :, atom_indices_j, :] = value[:, i:i+1, j:j+1, :]
+
         if debug_logging:
             logger.debug(f"Bridged pair embedding {key} from shape {value.shape} to {out.shape}")
         return out
+
+    # Handle unbatched tensor [N_res, N_res, C]
     else:
         N_res1, N_res2, C = value.shape
+
         if N_res1 != n_res or N_res2 != n_res:
             logger.warning(f"Shape mismatch in pair embedding bridging for {key}: value.shape={value.shape}, n_res={n_res}")
             return value
+
         out = value.new_zeros((n_atom, n_atom, C))
+
+        # For each residue pair, copy the embedding to all corresponding atom pairs
         for i, atom_indices_i in enumerate(residue_atom_map):
             for j, atom_indices_j in enumerate(residue_atom_map):
                 out[atom_indices_i, :][:, atom_indices_j, :] = value[i:i+1, j:j+1, :]
+
         if debug_logging:
             logger.debug(f"Bridged pair embedding {key} from shape {value.shape} to {out.shape}")
         return out
@@ -147,13 +210,15 @@ def _process_one_trunk_embedding(
         # Keep non-tensor values as is
         return value
 
-    # Normalize dimensions
-    temp_value = normalize_tensor_dimensions(value, context.batch_size, key=key)
+    # Normalize dimensions - check for N_sample dimension
+    has_n_sample = value.dim() >= 4 and key in ["s_trunk", "s_inputs", "sing"] or value.dim() >= 5 and key in ["pair", "z_trunk"]
+    temp_value = normalize_tensor_dimensions(value, context.batch_size, key=key, preserve_n_sample=has_n_sample)
     if context.debug_logging:
         logger.debug(
-            "[_process_one_trunk_embedding] %s shape=%s",
+            "[_process_one_trunk_embedding] %s shape=%s, has_n_sample=%s",
             key,
             getattr(temp_value, "shape", None),
+            has_n_sample
         )
 
     # CRITICAL FIX: Slice residue dimension if it exceeds residue_atom_map length
@@ -519,6 +584,8 @@ def process_input_features(
         logger.info(f"Created atom_to_token_idx mapping with shape {atom_to_token_idx.shape}")
 
     return fixed_input_features
+
+
 @snoop
 def bridge_residue_to_atom(
     bridging_input: BridgingInput,
@@ -581,8 +648,7 @@ def bridge_residue_to_atom(
             "This is a required field.")
         raise ValueError(
             "[BRIDGE ERROR][CONFIG] 's_inputs' missing from Stage D diffusion feature_dimensions config. "
-            "This is a required field. Please check your Hydra config for model.stageD.diffusion.feature_dimensions.s_inputs."
-        )
+            "This is a required field. Please check your Hydra config for model.stageD.diffusion.feature_dimensions.s_inputs.")
     # --- END PATCH ---
     # --- PATCH: Guard against double-bridging or atom-level input (moved to top, robust) ---
     trunk_embeddings = bridging_input.trunk_embeddings
@@ -632,59 +698,45 @@ def bridge_residue_to_atom(
             else:
                 logger.warning(f"[BRIDGE DEBUG] trunk_embeddings[{k}] is None!")
         logger.debug("(stack trace omitted for performance)")
+    # === SYSTEMATIC DEBUG: Log trunk_embeddings keys at entry ===
+    print(f"[BRIDGE DEBUG] Input trunk_embeddings keys: {list(trunk_embeddings.keys())}")
+    if "s_trunk" in trunk_embeddings:
+        print(f"[BRIDGE DEBUG] s_trunk present, shape: {getattr(trunk_embeddings['s_trunk'], 'shape', 'N/A')}")
+    else:
+        print("[BRIDGE DEBUG] s_trunk MISSING in input trunk_embeddings!")
     # --- original code continues ---
     sequence_list = extract_sequence(sequence, input_features, trunk_embeddings)
+    # PATCH: SYSTEMATIC DEBUGGING FOR ATOM COUNT CONSISTENCY
+    # Print atom_metadata, atom_names, residue_indices, and partial_coords shape if available
+    if atom_metadata is not None:
+        atom_names = atom_metadata.get("atom_names", [])
+        residue_indices = atom_metadata.get("residue_indices", [])
+        print(f"[BRIDGE DEBUG] atom_metadata present: len(atom_names)={len(atom_names)}, len(residue_indices)={len(residue_indices)}")
+    if bridging_input.partial_coords is not None:
+        print(f"[BRIDGE DEBUG] partial_coords.shape={bridging_input.partial_coords.shape}")
+
+    # --- PATCH: Always derive residue_atom_map from atom_metadata if available ---
+    from rna_predict.utils.tensor_utils import derive_residue_atom_map
+    # Use atom_metadata if present, else fallback
     residue_atom_map = derive_residue_atom_map(
-        sequence_list,
-        partial_coords=partial_coords,
-        atom_metadata=atom_metadata,
+        sequence=sequence,
+        partial_coords=bridging_input.partial_coords,
+        atom_metadata=atom_metadata
     )
-    # --- INTEGRATION: Use hybrid_bridging_sparse_to_dense for Stage C output bridging ---
-    if trunk_embeddings.get("stage_c_output") is not None:
-        stage_c_output = trunk_embeddings["stage_c_output"]
-        n_residues = residue_count
-        # PATCH: Strictly require canonical_atom_count from Hydra config
-        if hasattr(config, "get"):
-            canonical_atom_count = config.get("canonical_atom_count", None)
-        else:
-            canonical_atom_count = getattr(config, "canonical_atom_count", None)
-        if canonical_atom_count is None:
-            raise ValueError(
-                "[BRIDGE ERROR][HYDRA_CONF] canonical_atom_count must be set in the Hydra config for Stage D. "
-                "Do not rely on fallback values. Ensure atoms_per_residue is set and propagated via config."
-            )
-        print(f"[DEBUG][BRIDGE][hybrid_bridging_sparse_to_dense] canonical_atom_count (from config): {canonical_atom_count}")
-        logger.info(f"[DEBUG][BRIDGE][hybrid_bridging_sparse_to_dense] canonical_atom_count (from config): {canonical_atom_count}")
-        feature_dim = stage_c_output.shape[-1]
-        batch_size = stage_c_output.shape[0] if stage_c_output.ndim == 4 else 1
-        device = stage_c_output.device
-        dense_atoms, mask = hybrid_bridging_sparse_to_dense(
-            stage_c_output=stage_c_output,
-            residue_atom_map=residue_atom_map,
-            n_residues=n_residues,
-            canonical_atom_count=canonical_atom_count,
-            feature_dim=feature_dim,
-            batch_size=batch_size,
-            fill_value=0.0,
-            device=device
-        )
-        print(f"[DEBUG][BRIDGE][hybrid_bridging_sparse_to_dense] dense_atoms.shape={dense_atoms.shape} atom_mask.shape={mask.shape}")
-        logger.info(f"[DEBUG][BRIDGE][hybrid_bridging_sparse_to_dense] dense_atoms.shape={dense_atoms.shape} atom_mask.shape={mask.shape}")
-        # PATCH: Flatten dense_atoms and atom_mask to [B, n_residues*canonical_atom_count, ...]
-        B, n_residues, n_atoms_per_res, F = dense_atoms.shape
-        dense_atoms_flat = dense_atoms.reshape(B, n_residues * n_atoms_per_res, F)
-        atom_mask_flat = mask.reshape(B, n_residues * n_atoms_per_res)
-        print(f"[DEBUG][BRIDGE][flatten] dense_atoms_flat.shape={dense_atoms_flat.shape} atom_mask_flat.shape={atom_mask_flat.shape}")
-        logger.info(f"[DEBUG][BRIDGE][flatten] dense_atoms_flat.shape={dense_atoms_flat.shape} atom_mask_flat.shape={atom_mask_flat.shape}")
-        trunk_embeddings["dense_atoms"] = dense_atoms_flat
-        trunk_embeddings["atom_mask"] = atom_mask_flat
-        # PATCH: Ensure the encoder uses the correct atom-level tensor for c_l
-        trunk_embeddings["c_l"] = dense_atoms_flat
-        for k, v in trunk_embeddings.items():
-            if hasattr(v, 'shape'):
-                print(f"[DEBUG][BRIDGE][trunk_embeddings] {k}: {v.shape}")
-                logger.info(f"[DEBUG][BRIDGE][trunk_embeddings] {k}: {v.shape}")
-    # Continue with rest of bridging logic as before
+    n_atoms_from_map = sum(len(x) for x in residue_atom_map)
+    print(f"[BRIDGE DEBUG] residue_atom_map: {len(residue_atom_map)} residues, total atoms from map: {n_atoms_from_map}")
+    # Defensive: If atom_names or residue_indices present, check length matches n_atoms_from_map
+    if atom_metadata is not None:
+        if "atom_names" in atom_metadata and len(atom_metadata["atom_names"]) != n_atoms_from_map:
+            raise ValueError(f"[BRIDGE ERROR] atom_names length ({len(atom_metadata['atom_names'])}) does not match total atoms from residue_atom_map ({n_atoms_from_map})")
+        if "residue_indices" in atom_metadata and len(atom_metadata["residue_indices"]) != n_atoms_from_map:
+            raise ValueError(f"[BRIDGE ERROR] residue_indices length ({len(atom_metadata['residue_indices'])}) does not match total atoms from residue_atom_map ({n_atoms_from_map})")
+    # Defensive: If partial_coords present, check shape matches
+    if bridging_input.partial_coords is not None:
+        n_atoms_coords = bridging_input.partial_coords.shape[-2]
+        if n_atoms_coords != n_atoms_from_map:
+            raise ValueError(f"[BRIDGE ERROR] partial_coords.shape[-2] ({n_atoms_coords}) does not match total atoms from residue_atom_map ({n_atoms_from_map})")
+    # Continue with the rest of the function as before
     log_mem("After residue-to-atom mapping")
     if debug_logging:
         logger.debug(f"[bridge_residue_to_atom] residue_atom_map length: {len(residue_atom_map)}")
@@ -719,19 +771,124 @@ def bridge_residue_to_atom(
     )
     # Process input features
     fixed_input_features = process_input_features(input_features, partial_coords, residue_atom_map, batch_size)
-    # Return original coords, bridged embeddings, and fixed features
-    logger.info("bridge_residue_to_atom completed successfully.")
-    log_mem("EXIT")
-    return partial_coords, bridged_trunk_embeddings, fixed_input_features
-
-
-class ResidueToAtomsConfig:
-    def __init__(self, s_emb, residue_atom_map):
-        logger.debug("[BRIDGE DEBUG] ResidueToAtomsConfig __init__ called")
-        logger.debug(f"[BRIDGE DEBUG] s_emb.shape = {getattr(s_emb, 'shape', 'N/A')}")
-        logger.debug(f"[BRIDGE DEBUG] len(residue_atom_map) = {len(residue_atom_map) if hasattr(residue_atom_map, '__len__') else 'N/A'}")
-        logger.debug(f"[BRIDGE DEBUG] residue_atom_map (first 2) = {residue_atom_map[:2] if hasattr(residue_atom_map, '__getitem__') else 'N/A'}")
-        logger.debug("[BRIDGE DEBUG] Call stack:")
-        if logger.isEnabledFor(logging.DEBUG):
-            traceback.print_stack()
-        # ...existing code...
+    # SYSTEMATIC DEBUGGING: Print all keys and check for atom_to_token_idx
+    print("[DEBUG][BRIDGE][bridge_residue_to_atom] fixed_input_features keys:", list(fixed_input_features.keys()))
+    if "atom_to_token_idx" in fixed_input_features:
+        print("[DEBUG][BRIDGE][bridge_residue_to_atom] atom_to_token_idx shape:", getattr(fixed_input_features["atom_to_token_idx"], "shape", type(fixed_input_features["atom_to_token_idx"])))
+    else:
+        print("[ERROR][BRIDGE][bridge_residue_to_atom] atom_to_token_idx is MISSING in fixed_input_features!")
+    output_embeddings = {"trunk_embeddings": bridged_trunk_embeddings, "input_features": fixed_input_features}
+    # === SYSTEMATIC DEBUG: Log output keys ===
+    print(f"[BRIDGE DEBUG] Output embeddings keys: {list(output_embeddings.keys())}")
+    if "s_trunk" in output_embeddings["trunk_embeddings"]:
+        print(f"[BRIDGE DEBUG] s_trunk present in output, shape: {getattr(output_embeddings['trunk_embeddings']['s_trunk'], 'shape', 'N/A')}")
+    else:
+        print("[BRIDGE DEBUG] s_trunk MISSING in output embeddings!")
+    # --- PATCH: Always propagate s_trunk if present in input ---
+    if "s_trunk" not in trunk_embeddings and "s_inputs" in trunk_embeddings:
+        print("[BRIDGE PATCH] s_trunk missing, only s_inputs present. Downstream code may fail if s_trunk is required.")
+    # If s_trunk is present in input, propagate to output (replicate to atom-level if necessary)
+    if "s_trunk" in trunk_embeddings:
+        s_trunk_value = trunk_embeddings["s_trunk"]
+        if s_trunk_value.shape[1] == residue_count:
+            # Residue-level: propagate as is
+            output_embeddings["trunk_embeddings"]["s_trunk"] = s_trunk_value
+            print(f"[BRIDGE PATCH] Propagated residue-level s_trunk shape: {s_trunk_value.shape}")
+        else:
+            # Atom-level: log warning, propagate as is
+            output_embeddings["trunk_embeddings"]["s_trunk"] = s_trunk_value
+            print(f"[BRIDGE PATCH] Propagated atom-level s_trunk shape: {s_trunk_value.shape}")
+    elif "s_inputs" in trunk_embeddings:
+        s_inputs_value = trunk_embeddings["s_inputs"]
+        import torch
+        B, n_second_dim, c = s_inputs_value.shape
+        n_residues = len(residue_atom_map)
+        device = s_inputs_value.device
+        # PATCH: handle both residue-level and atom-level s_inputs
+        if n_second_dim == n_residues:
+            # s_inputs is residue-level: expand to atom-level first
+            n_atoms = sum(len(atom_indices) for atom_indices in residue_atom_map)
+            # Build [B, n_atoms, c] by repeating each residue embedding for its atoms
+            s_inputs_atom = torch.zeros((B, n_atoms, c), device=device, dtype=s_inputs_value.dtype)
+            atom_counter = 0
+            for res_idx, atom_indices in enumerate(residue_atom_map):
+                n_atoms_in_res = len(atom_indices)
+                if n_atoms_in_res == 0:
+                    continue
+                s_inputs_atom[:, atom_counter:atom_counter+n_atoms_in_res, :] = s_inputs_value[:, res_idx:res_idx+1, :].expand(B, n_atoms_in_res, c)
+                atom_counter += n_atoms_in_res
+            # Now average over atoms for each residue (which just gives back the original s_inputs_value)
+            s_trunk_residue = s_inputs_value
+            print(f"[BRIDGE PATCH] s_inputs was residue-level, expanded to atom-level for mapping. s_inputs_atom.shape={s_inputs_atom.shape}")
+        else:
+            # s_inputs is atom-level: average over atoms for each residue
+            s_trunk_residue = torch.zeros((B, n_residues, c), device=device, dtype=s_inputs_value.dtype)
+            for res_idx, atom_indices in enumerate(residue_atom_map):
+                if len(atom_indices) == 0:
+                    continue
+                atom_indices_tensor = torch.tensor(atom_indices, device=device)
+                s_trunk_residue[:, res_idx, :] = s_inputs_value.index_select(1, atom_indices_tensor).mean(dim=1)
+            print(f"[BRIDGE PATCH] s_inputs was atom-level, averaged to residue-level. s_trunk_residue.shape={s_trunk_residue.shape}")
+        output_embeddings["trunk_embeddings"]["s_trunk"] = s_trunk_residue
+        print(f"[BRIDGE PATCH] Set s_trunk in output_embeddings: {s_trunk_residue.shape}")
+    else:
+        print("[BRIDGE PATCH] s_trunk and s_inputs both missing in input trunk_embeddings!")
+    # --- Ensure s_trunk and s_inputs are both atom-level for Stage D diffusion ---
+    # SYSTEMATIC DEBUG: Print initial shapes
+    s_trunk = output_embeddings["trunk_embeddings"].get("s_trunk")
+    s_inputs = output_embeddings["trunk_embeddings"].get("s_inputs")
+    residue_atom_map = derive_residue_atom_map(
+        sequence,
+        partial_coords=partial_coords,
+        atom_metadata=input_features.get("atom_metadata") if input_features else None,
+    )
+    n_atoms = sum(len(atom_indices) for atom_indices in residue_atom_map)
+    n_residues = len(residue_atom_map)
+    # Expand s_trunk to atom-level if needed
+    if s_trunk is not None:
+        if s_trunk.shape[1] == n_residues:
+            # Expand residue-level s_trunk to atom-level
+            B, _, c = s_trunk.shape
+            device = s_trunk.device
+            s_trunk_atom = torch.zeros((B, n_atoms, c), device=device, dtype=s_trunk.dtype)
+            atom_counter = 0
+            for res_idx, atom_indices in enumerate(residue_atom_map):
+                n_atoms_in_res = len(atom_indices)
+                if n_atoms_in_res == 0:
+                    continue
+                s_trunk_atom[:, atom_counter:atom_counter+n_atoms_in_res, :] = s_trunk[:, res_idx:res_idx+1, :].expand(B, n_atoms_in_res, c)
+                atom_counter += n_atoms_in_res
+            output_embeddings["trunk_embeddings"]["s_trunk"] = s_trunk_atom
+            print(f"[BRIDGE PATCH][ATOM-LEVEL] s_trunk expanded to atom-level: {s_trunk_atom.shape}")
+        elif s_trunk.shape[1] == n_atoms:
+            print(f"[BRIDGE PATCH][ATOM-LEVEL] s_trunk already atom-level: {s_trunk.shape}")
+        else:
+            print(f"[BRIDGE PATCH][ATOM-LEVEL][ERROR] s_trunk shape unexpected: {s_trunk.shape}, expected {n_residues} or {n_atoms} in dim 1")
+    else:
+        print("[BRIDGE PATCH][ATOM-LEVEL][ERROR] s_trunk missing from trunk_embeddings!")
+    # Expand s_inputs to atom-level if needed (should already be handled, but double-check)
+    if s_inputs is not None:
+        if s_inputs.shape[1] == n_residues:
+            # Expand residue-level s_inputs to atom-level
+            B, _, c = s_inputs.shape
+            device = s_inputs.device
+            s_inputs_atom = torch.zeros((B, n_atoms, c), device=device, dtype=s_inputs.dtype)
+            atom_counter = 0
+            for res_idx, atom_indices in enumerate(residue_atom_map):
+                n_atoms_in_res = len(atom_indices)
+                if n_atoms_in_res == 0:
+                    continue
+                s_inputs_atom[:, atom_counter:atom_counter+n_atoms_in_res, :] = s_inputs[:, res_idx:res_idx+1, :].expand(B, n_atoms_in_res, c)
+                atom_counter += n_atoms_in_res
+            output_embeddings["trunk_embeddings"]["s_inputs"] = s_inputs_atom
+            print(f"[BRIDGE PATCH][ATOM-LEVEL] s_inputs expanded to atom-level: {s_inputs_atom.shape}")
+        elif s_inputs.shape[1] == n_atoms:
+            print(f"[BRIDGE PATCH][ATOM-LEVEL] s_inputs already atom-level: {s_inputs.shape}")
+        else:
+            print(f"[BRIDGE PATCH][ATOM-LEVEL][ERROR] s_inputs shape unexpected: {s_inputs.shape}, expected {n_residues} or {n_atoms} in dim 1")
+    else:
+        print("[BRIDGE PATCH][ATOM-LEVEL][ERROR] s_inputs missing from trunk_embeddings!")
+    # SYSTEMATIC DEBUG: Print shapes before returning
+    print(f"[BRIDGE PATCH][ATOM-LEVEL][FINAL] s_trunk: {output_embeddings['trunk_embeddings'].get('s_trunk', None).shape if output_embeddings['trunk_embeddings'].get('s_trunk', None) is not None else 'MISSING'}")
+    print(f"[BRIDGE PATCH][ATOM-LEVEL][FINAL] s_inputs: {output_embeddings['trunk_embeddings'].get('s_inputs', None).shape if output_embeddings['trunk_embeddings'].get('s_inputs', None) is not None else 'MISSING'}")
+    return partial_coords, output_embeddings["trunk_embeddings"], output_embeddings["input_features"]
