@@ -634,7 +634,7 @@ def test_stageD_debug_logging_hypothesis(debug_val: bool, atom_metadata: Dict[st
         # Get stage-specific configuration for stageD
         stage = "stageD"
         overrides = [
-            f"+model.{stage}.debug_logging={debug_val}",
+            f"model.{stage}.debug_logging={debug_val}",
             "+model.stageD.atom_metadata={}"
         ]
 

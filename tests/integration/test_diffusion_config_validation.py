@@ -16,42 +16,44 @@ def test_diffusion_manager_config_section_vs_full():
             'debug_logging': False
         }
     })
-    with pytest.raises(ValueError, match="Config missing required 'stageD' group"):
+    with pytest.raises(ValueError, match="Config missing required 'model.stageD' group"):
         DiffusionManagerConfig.from_hydra_cfg(section_cfg)
 
     # Simulate full config (should not raise)
     full_cfg = OmegaConf.create({
-        'stageD': {
-            'diffusion': {
-                'device': 'cpu',
-                'inference': {'num_steps': 2, 'temperature': 1.0},
-                'debug_logging': False,
-                'model_architecture': {
-                    'c_token': 2,
-                    'c_s': 2,
-                    'c_z': 2,
-                    'c_s_inputs': 2,
-                    'c_atom': 2,
-                    'c_noise_embedding': 2,
-                    'num_layers': 1,
-                    'num_heads': 1,
-                    'dropout': 0.0,
-                    'coord_eps': 1e-6,
-                    'coord_min': -1e4,
-                    'coord_max': 1e4,
-                    'coord_similarity_rtol': 1e-3,
-                    'test_residues_per_batch': 1,
-                },
-                'atom_encoder': {
-                    'c_out': 2
-                },
-                'atom_decoder': {
-                    'param': 2
-                },
-                'transformer': {
-                    'n_blocks': 1,
-                    'n_heads': 1,
-                    'blocks_per_ckpt': 1
+        'model': {
+            'stageD': {
+                'diffusion': {
+                    'device': 'cpu',
+                    'inference': {'num_steps': 2, 'temperature': 1.0},
+                    'debug_logging': False,
+                    'model_architecture': {
+                        'c_token': 2,
+                        'c_s': 2,
+                        'c_z': 2,
+                        'c_s_inputs': 2,
+                        'c_atom': 2,
+                        'c_noise_embedding': 2,
+                        'num_layers': 1,
+                        'num_heads': 1,
+                        'dropout': 0.0,
+                        'coord_eps': 1e-6,
+                        'coord_min': -1e4,
+                        'coord_max': 1e4,
+                        'coord_similarity_rtol': 1e-3,
+                        'test_residues_per_batch': 1,
+                    },
+                    'atom_encoder': {
+                        'c_out': 2
+                    },
+                    'atom_decoder': {
+                        'param': 2
+                    },
+                    'transformer': {
+                        'n_blocks': 1,
+                        'n_heads': 1,
+                        'blocks_per_ckpt': 1
+                    }
                 }
             }
         }
