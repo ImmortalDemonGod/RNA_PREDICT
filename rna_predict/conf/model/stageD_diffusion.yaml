@@ -40,6 +40,7 @@ diffusion:
   profile_size: 32
   # Feature dimensions required for bridging
   feature_dimensions:
+    _target_: rna_predict.conf.config_schema.FeatureDimensionsConfig
     c_s: 384
     c_s_inputs: 449
     c_sing: 384

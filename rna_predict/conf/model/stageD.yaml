@@ -18,6 +18,9 @@ ref_element_size: ${stageD_diffusion.ref_element_size}
 ref_atom_name_chars_size: ${stageD_diffusion.ref_atom_name_chars_size}
 profile_size: ${stageD_diffusion.profile_size}
 
+# Expose feature_dimensions at the top level for Hydra/OmegaConf compatibility
+feature_dimensions: ${stageD_diffusion.diffusion.feature_dimensions}
+
 # Copy nested configurations
 model_architecture:
   c_token: ${stageD_diffusion.diffusion.model_architecture.c_token}
@@ -27,7 +30,7 @@ model_architecture:
   c_atom: ${stageD_diffusion.diffusion.model_architecture.c_atom}
   c_atompair: ${stageD_diffusion.diffusion.model_architecture.c_atompair}
   c_noise_embedding: ${stageD_diffusion.diffusion.model_architecture.c_noise_embedding}
-  sigma_data: ${stageD_diffusion.diffusion.model_architecture.sigma_data}
+  # sigma_data: ${stageD_diffusion.diffusion.model_architecture.sigma_data}
   num_layers: 6
   num_heads: 8
   dropout: 0.1
@@ -38,7 +41,7 @@ model_architecture:
   test_residues_per_batch: 25
 
 transformer:
-  n_blocks: ${diffusion.transformer.n_blocks}
+  n_blocks: ${stageD_diffusion.diffusion.transformer.n_blocks}
   n_heads: ${stageD_diffusion.diffusion.transformer.n_heads}
   blocks_per_ckpt: ${stageD_diffusion.diffusion.transformer.blocks_per_ckpt}
 
@@ -47,7 +50,7 @@ atom_encoder:
   c_hidden: ${stageD_diffusion.diffusion.atom_encoder.c_hidden}
   c_out: ${stageD_diffusion.diffusion.atom_encoder.c_out}
   dropout: ${stageD_diffusion.diffusion.atom_encoder.dropout}
-  n_blocks: ${diffusion.atom_encoder.n_blocks}
+  n_blocks: ${stageD_diffusion.diffusion.atom_encoder.n_blocks}
   n_heads: ${stageD_diffusion.diffusion.atom_encoder.n_heads}
   n_queries: ${stageD_diffusion.diffusion.atom_encoder.n_queries}
   n_keys: ${stageD_diffusion.diffusion.atom_encoder.n_keys}
@@ -57,7 +60,7 @@ atom_decoder:
   c_hidden: ${stageD_diffusion.diffusion.atom_decoder.c_hidden}
   c_out: ${stageD_diffusion.diffusion.atom_decoder.c_out}
   dropout: ${stageD_diffusion.diffusion.atom_decoder.dropout}
-  n_blocks: ${diffusion.atom_decoder.n_blocks}
+  n_blocks: ${stageD_diffusion.diffusion.atom_decoder.n_blocks}
   n_heads: ${stageD_diffusion.diffusion.atom_decoder.n_heads}
   n_queries: ${stageD_diffusion.diffusion.atom_decoder.n_queries}
   n_keys: ${stageD_diffusion.diffusion.atom_decoder.n_keys}
@@ -83,7 +86,7 @@ diffusion:
     c_noise_embedding: ${stageD_diffusion.diffusion.model_architecture.c_noise_embedding}
     sigma_data: ${stageD_diffusion.diffusion.model_architecture.sigma_data}
   transformer:
-    n_blocks: ${diffusion.transformer.n_blocks}
+    n_blocks: ${stageD_diffusion.diffusion.transformer.n_blocks}
     n_heads: ${stageD_diffusion.diffusion.transformer.n_heads}
     blocks_per_ckpt: ${stageD_diffusion.diffusion.transformer.blocks_per_ckpt}
   atom_encoder:
@@ -91,7 +94,7 @@ diffusion:
     c_hidden: ${stageD_diffusion.diffusion.atom_encoder.c_hidden}
     c_out: ${stageD_diffusion.diffusion.atom_encoder.c_out}
     dropout: ${stageD_diffusion.diffusion.atom_encoder.dropout}
-    n_blocks: ${diffusion.atom_encoder.n_blocks}
+    n_blocks: ${stageD_diffusion.diffusion.atom_encoder.n_blocks}
     n_heads: ${stageD_diffusion.diffusion.atom_encoder.n_heads}
     n_queries: ${stageD_diffusion.diffusion.atom_encoder.n_queries}
     n_keys: ${stageD_diffusion.diffusion.atom_encoder.n_keys}
@@ -100,7 +103,7 @@ diffusion:
     c_hidden: ${stageD_diffusion.diffusion.atom_decoder.c_hidden}
     c_out: ${stageD_diffusion.diffusion.atom_decoder.c_out}
     dropout: ${stageD_diffusion.diffusion.atom_decoder.dropout}
-    n_blocks: ${diffusion.atom_decoder.n_blocks}
+    n_blocks: ${stageD_diffusion.diffusion.atom_decoder.n_blocks}
     n_heads: ${stageD_diffusion.diffusion.atom_decoder.n_heads}
     n_queries: ${stageD_diffusion.diffusion.atom_decoder.n_queries}
     n_keys: ${stageD_diffusion.diffusion.atom_decoder.n_keys}
