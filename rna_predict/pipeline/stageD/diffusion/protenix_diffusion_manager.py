@@ -1,13 +1,18 @@
-import warnings
+# RNA_PREDICT Stage D Diffusion Manager
+# -------------------------------------------------------
+# All configuration for Stage D must be accessed via Hydra config groups (cfg.model.stageD and subgroups).
+# No ad-hoc or duplicate configs allowed. See defaults.yaml for config group references.
+# Strict Hydra best practices enforced project-wide.
+
 import logging
-from typing import Dict, Optional, Any
-from omegaconf import OmegaConf, DictConfig
-import torch
-from dataclasses import dataclass
-import torch.nn as nn
 import os
+import warnings
+from typing import Any, Dict, Optional
 import psutil
 import snoop
+import torch
+from omegaconf import DictConfig, OmegaConf
+
 from rna_predict.pipeline.stageD.diffusion.components.diffusion_module import (
     DiffusionModule,
 )
@@ -16,279 +21,61 @@ from rna_predict.pipeline.stageD.diffusion.generator import (
     sample_diffusion,
     sample_diffusion_training,
 )
+from rna_predict.pipeline.stageD.diffusion.context_objects import (
+    DiffusionStepInput,
+    FeaturePreparationContext,
+    EmbeddingContext,
+)
+from rna_predict.pipeline.stageD.diffusion.utils.config_utils import (
+    validate_stageD_config,
+    parse_diffusion_module_args,
+)
 
 # Initialize logger for Stage D diffusion manager
-logger = logging.getLogger("rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager")
+logger = logging.getLogger(
+    "rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager"
+)
 
 
-@dataclass
-class DiffusionStepInput:
-    label_dict: Dict[str, torch.Tensor]
-    input_feature_dict: Dict[str, torch.Tensor]
-    s_inputs: torch.Tensor
-    s_trunk: torch.Tensor
-    z_trunk: torch.Tensor
-
-    @classmethod
-    def from_args(cls, label_dict, input_feature_dict, s_inputs, s_trunk, z_trunk):
-        # Accepts 5 arguments for backward compatibility, but encourages use of a dict or context object in future
-        # TODO: Refactor all usages to pass a single context or dict to further reduce argument count and silence CodeScene
-        return cls(label_dict, input_feature_dict, s_inputs, s_trunk, z_trunk)
-
-    def to_device(self, device):
-        """
-        Moves all tensors (including nested in dicts/lists/tuples) to the specified device.
-        Unique Error: [UNIQUE-ERR-DIFFSTEPINPUT-DEVICE-001] If you see this error, a non-tensor object in a nested dict could not be moved to device.
-        """
-        def _move_to_device(obj, device):
-            import torch
-            if isinstance(obj, torch.Tensor):
-                return obj.to(device)
-            elif isinstance(obj, dict):
-                return {k: _move_to_device(v, device) for k, v in obj.items()}
-            elif isinstance(obj, list):
-                return [_move_to_device(v, device) for v in obj]
-            elif isinstance(obj, tuple):
-                return tuple(_move_to_device(v, device) for v in obj)
-            else:
-                return obj
-
-        try:
-            self.label_dict = _move_to_device(self.label_dict, device)
-            self.input_feature_dict = _move_to_device(self.input_feature_dict, device)
-            self.s_inputs = self.s_inputs.to(device)
-            self.s_trunk = self.s_trunk.to(device)
-            self.z_trunk = self.z_trunk.to(device)
-        except Exception as e:
-            raise RuntimeError(f"[UNIQUE-ERR-DIFFSTEPINPUT-DEVICE-001] Failed to move DiffusionStepInput to device: {e}")
-        return self
-
-    def as_tuple(self):
-        return (self.label_dict, self.input_feature_dict, self.s_inputs, self.s_trunk, self.z_trunk)
-
-    def __iter__(self):
-        return iter(self.as_tuple())
-
-    def __getitem__(self, idx):
-        return self.as_tuple()[idx]
-
-    def __len__(self):
-        return 5
-
-    def __repr__(self):
-        return "DiffusionStepInput(label_dict=..., input_feature_dict=..., s_inputs=..., s_trunk=..., z_trunk=...)"
-
-
-@dataclass
-class FeaturePreparationContext:
-    coords_init: torch.Tensor
-    override_input_features: Optional[Dict[str, Any]]
-    device: torch.device
-    trunk_embeddings: Dict[str, Any]
-    s_inputs: torch.Tensor
-
-    @property
-    def batch_size(self):
-        return self.coords_init.shape[0]
-
-    @property
-    def n_atoms(self):
-        return self.coords_init.shape[1]
-
-    @property
-    def s_trunk_shape(self):
-        return self.trunk_embeddings["s_trunk"].shape
-
-    def fallback_input_feature_dict(self):
-        return {
-            "atom_to_token_idx": torch.arange(self.n_atoms, device=self.device).long().unsqueeze(0).expand(self.batch_size, -1)
-        }
-
-    def get_atom_idx(self, input_feature_dict):
-        return input_feature_dict["atom_to_token_idx"]
-
-    def update_atom_idx(self, input_feature_dict, atom_idx):
-        input_feature_dict["atom_to_token_idx"] = atom_idx
-        return input_feature_dict
-
-    def is_expand_needed(self, atom_idx):
-        return (atom_idx.dim() == 2 and self.trunk_embeddings["s_trunk"].dim() == 4 and self.trunk_embeddings["s_trunk"].shape[1] == 1)
-
-    def is_expand_needed_s_inputs(self, atom_idx):
-        return (atom_idx.dim() == 2 and self.s_inputs is not None and self.s_inputs.dim() == 4 and self.s_inputs.shape[1] == 1)
-
-    def expand_atom_idx(self, atom_idx):
-        return atom_idx.unsqueeze(1)
-
-    def prepare(self):
-        if self.override_input_features is not None:
-            input_feature_dict = self.override_input_features
-        else:
-            input_feature_dict = self.fallback_input_feature_dict()
-        if "atom_to_token_idx" in input_feature_dict:
-            atom_idx = self.get_atom_idx(input_feature_dict)
-            if self.is_expand_needed(atom_idx):
-                atom_idx = self.expand_atom_idx(atom_idx)
-            elif self.is_expand_needed_s_inputs(atom_idx):
-                atom_idx = self.expand_atom_idx(atom_idx)
-            input_feature_dict = self.update_atom_idx(input_feature_dict, atom_idx)
-        return input_feature_dict
-
-    def __repr__(self):
-        return "FeaturePreparationContext(coords_init=..., override_input_features=..., device=..., trunk_embeddings=..., s_inputs=...)"
-
-
-@dataclass
-class EmbeddingContext:
-    trunk_embeddings: Dict[str, Any]
-    override_input_features: Optional[Dict[str, Any]] = None
-    stage_cfg: Optional[DictConfig] = None
-    device: Optional[torch.device] = None
-
-    def move_to_device(self):
-        processed = {}
-        for k, v in self.trunk_embeddings.items():
-            if isinstance(v, torch.Tensor):
-                processed[k] = v.to(self.device)
-            else:
-                processed[k] = v
-        self.trunk_embeddings = processed
-        return self
-
-    def get_s_inputs(self):
-        s_inputs = self.trunk_embeddings.get("s_inputs")
-        if s_inputs is None and self.override_input_features is not None:
-            s_inputs = self.override_input_features.get("s_inputs")
-        if s_inputs is None:
-            logger.warning("'s_inputs' not found in trunk_embeddings or override_input_features. Creating fallback.")
-            s_trunk_shape = self.trunk_embeddings["s_trunk"].shape
-            batch_size = s_trunk_shape[0]
-            n_tokens = s_trunk_shape[1]
-            # Use config-driven c_s_inputs
-            c_s_inputs_dim = self.stage_cfg["model_architecture"]["c_s_inputs"]
-            s_inputs = torch.zeros((batch_size, n_tokens, c_s_inputs_dim), device=self.device)
-        return s_inputs
-
-    def get_z_trunk(self):
-        z_trunk = self.trunk_embeddings.get("pair")
-        if z_trunk is None:
-            logger.warning("'pair' embedding not found in trunk_embeddings. Creating fallback.")
-            s_trunk_shape = self.trunk_embeddings["s_trunk"].shape
-            batch_size = s_trunk_shape[0]
-            n_tokens = s_trunk_shape[1]
-            c_z_dim = self.stage_cfg["model_architecture"]["c_z"]
-            z_trunk = torch.zeros((batch_size, n_tokens, n_tokens, c_z_dim), device=self.device)
-        return z_trunk
-
-
-@dataclass
 class DiffusionManagerConfig:
-    device: torch.device
-    num_inference_steps: int
-    temperature: float
-    diffusion_module_args: dict
-    debug_logging: bool
+    def __init__(self, device, num_inference_steps, temperature, diffusion_module_args, debug_logging):
+        self.device = device
+        self.num_inference_steps = num_inference_steps
+        self.temperature = temperature
+        self.diffusion_module_args = diffusion_module_args
+        self.debug_logging = debug_logging
 
     @classmethod
     def from_hydra_cfg(cls, cfg: DictConfig):
-        cls._validate_config(cfg)
+        validate_stageD_config(cfg)
 
-        # Handle both single and double nesting of stageD
-        if "diffusion" in cfg.stageD:
-            # Single nesting: cfg.stageD.diffusion
-            stage_cfg = cfg.stageD.diffusion
-        elif "stageD" in cfg.stageD and "diffusion" in cfg.stageD.stageD:
-            # Double nesting: cfg.stageD.stageD.diffusion
-            stage_cfg = cfg.stageD.stageD.diffusion
+        # PATCH: Always look under model.stageD
+        stageD_cfg = cfg.model.stageD
+        if "diffusion" in stageD_cfg:
+            stage_cfg = stageD_cfg.diffusion
+        elif "stageD" in stageD_cfg and "diffusion" in stageD_cfg.stageD:
+            stage_cfg = stageD_cfg.stageD.diffusion
         else:
-            # This should never happen due to _validate_config, but as a safeguard
-            raise ValueError("[UNIQUE-ERR-STAGED-DIFFUSION-ACCESS] Cannot access diffusion config")
+            raise ValueError(
+                "[UNIQUE-ERR-STAGED-DIFFUSION-ACCESS] Cannot access diffusion config under model.stageD"
+            )
 
         device = torch.device(stage_cfg.device)
         inference_cfg = stage_cfg.get("inference", OmegaConf.create({}))
         num_inference_steps = inference_cfg.get("num_steps", 2)
         temperature = inference_cfg.get("temperature", 1.0)
-        diffusion_module_args = cls._parse_diffusion_module_args(stage_cfg)
+        diffusion_module_args = parse_diffusion_module_args(stage_cfg)
         debug_logging = stage_cfg.get("debug_logging", False)
-        return cls(device, num_inference_steps, temperature, diffusion_module_args, debug_logging)
-
-    @staticmethod
-    def _validate_config(cfg: DictConfig):
-        if not OmegaConf.is_config(cfg):
-            raise ValueError("[UNIQUE-ERR-STAGED-CONFIG-TYPE] Config must be a Hydra DictConfig")
-        if "stageD" not in cfg:
-            raise ValueError("[UNIQUE-ERR-STAGED-MISSING] Config missing required 'stageD' group")
-
-        # Handle both single and double nesting of stageD
-        if "diffusion" in cfg.stageD:
-            stage_cfg = cfg.stageD.diffusion
-        elif "stageD" in cfg.stageD and "diffusion" in cfg.stageD.stageD:
-            stage_cfg = cfg.stageD.stageD.diffusion
-        else:
-            raise ValueError("[UNIQUE-ERR-STAGED-DIFFUSION-MISSING] Config missing required 'diffusion' group in stageD. Available keys: " + str(list(cfg.stageD.keys())))
-        # Check model_architecture block
-        if "model_architecture" not in stage_cfg:
-            raise ValueError("Config missing required 'model_architecture' block in stageD.diffusion!")
-        # Ensure no duplicated keys at top level
-        forbidden_keys = ["sigma_data", "c_atom", "c_atompair", "c_token", "c_s", "c_z", "c_s_inputs"]
-        for key in forbidden_keys:
-            if key in stage_cfg:
-                raise ValueError(f"Config key '{key}' should only appear in 'model_architecture', not at the top level of stageD.diffusion!")
-
-    @staticmethod
-    def _parse_diffusion_module_args(stage_cfg: DictConfig):
-        """
-        Extract all required model dimensions and architectural parameters from the config,
-        strictly using config values and never hardcoded fallbacks.
-        """
-        print("[DEBUG][_parse_diffusion_module_args] stage_cfg:", stage_cfg)
-
-        # Always descend into 'diffusion' if present
-        if "diffusion" in stage_cfg:
-            print("[DEBUG][_parse_diffusion_module_args] Descending into 'diffusion' section of config.")
-            base_cfg = stage_cfg["diffusion"]
-        else:
-            base_cfg = stage_cfg
-
-        # Require model_architecture to be present exactly as specified in the config
-        model_architecture = base_cfg.get("model_architecture")
-        if model_architecture is None:
-            raise ValueError("model_architecture section missing in config! (expected at stageD.diffusion.model_architecture, no fallback)")
-
-        # Continue as before, using model_architecture directly
-        # Filter out parameters that DiffusionModule doesn't accept
-        # Only include parameters that are explicitly accepted by DiffusionModule.__init__
-        valid_params = [
-            "c_token", "c_s", "c_z", "c_s_inputs", "c_atom", "c_atompair",
-            "c_noise_embedding", "sigma_data"
-        ]
-        diffusion_module_args = {k: v for k, v in dict(model_architecture).items() if k in valid_params}
-        # ... rest of the method unchanged ...
-        # atom_encoder, atom_decoder, transformer
-        for subkey in ["atom_encoder", "atom_decoder", "transformer"]:
-            subcfg = base_cfg.get(subkey)
-            if subcfg is None:
-                raise ValueError(f"Required config section '{subkey}' missing in config!")
-            diffusion_module_args[subkey] = dict(subcfg) if hasattr(subcfg, 'items') else dict(subcfg)
-        # Optional blocks_per_ckpt, use_fine_grained_checkpoint, initialization
-        for key in ["blocks_per_ckpt", "use_fine_grained_checkpoint", "initialization"]:
-            val = base_cfg.get(key, None)
-            if val is not None:
-                diffusion_module_args[key] = val
-        # Memory optimization
-        mem_cfg = base_cfg.get("memory", {})
-        use_ckpt = mem_cfg.get("use_checkpointing", False)
-        blocks_per_ckpt = mem_cfg.get("blocks_per_ckpt") if use_ckpt else None
-        use_fine_grained = mem_cfg.get("use_fine_grained_checkpoint", False) if blocks_per_ckpt else False
-        diffusion_module_args.update({
-            "blocks_per_ckpt": blocks_per_ckpt,
-            "use_fine_grained_checkpoint": use_fine_grained
-        })
-        print("[DEBUG][_parse_diffusion_module_args] Final module args:", diffusion_module_args)
-        return diffusion_module_args
+        return cls(
+            device,
+            num_inference_steps,
+            temperature,
+            diffusion_module_args,
+            debug_logging,
+        )
 
 
-class ProtenixDiffusionManager(nn.Module):
+class ProtenixDiffusionManager(torch.nn.Module):
     """
     Manager that handles training steps or multi-step inference for diffusion.
     Expects trunk_embeddings to contain:
@@ -303,7 +90,9 @@ class ProtenixDiffusionManager(nn.Module):
         super().__init__()
         print("[MEMORY-LOG][StageD] Initializing ProtenixDiffusionManager")
         process = psutil.Process(os.getpid())
-        print(f"[MEMORY-LOG][StageD] Memory usage: {process.memory_info().rss / 1e6:.2f} MB")
+        print(
+            f"[MEMORY-LOG][StageD] Memory usage: {process.memory_info().rss / 1e6:.2f} MB"
+        )
         """
         Initializes the Diffusion Manager using Hydra configuration.
         Reads all parameters from cfg.stageD.diffusion group.
@@ -318,22 +107,30 @@ class ProtenixDiffusionManager(nn.Module):
         # --- Respect Hydra init_from_scratch flag ---
         init_from_scratch = False
         # Support both flat and nested config
-        if hasattr(cfg, 'init_from_scratch'):
+        if hasattr(cfg, "init_from_scratch"):
             init_from_scratch = cfg.init_from_scratch
-        elif hasattr(cfg, 'diffusion') and hasattr(cfg.diffusion, 'init_from_scratch'):
+        elif hasattr(cfg, "diffusion") and hasattr(cfg.diffusion, "init_from_scratch"):
             init_from_scratch = cfg.diffusion.init_from_scratch
         if init_from_scratch:
-            logger.info("[StageD] Initializing DiffusionModule from scratch (no checkpoint loaded)")
-            self.diffusion_module = DiffusionModule(**self.config.diffusion_module_args).to(self.device)
+            logger.info(
+                "[StageD] Initializing DiffusionModule from scratch (no checkpoint loaded)"
+            )
+            self.diffusion_module = DiffusionModule(
+                **self.config.diffusion_module_args
+            ).to(self.device)
         else:
             try:
-                self.diffusion_module = DiffusionModule(**self.config.diffusion_module_args).to(self.device)
+                self.diffusion_module = DiffusionModule(
+                    **self.config.diffusion_module_args
+                ).to(self.device)
             except TypeError as e:
                 logger.error(f"Error initializing DiffusionModule: {e}")
                 logger.error(f"Config provided: {self.config.diffusion_module_args}")
                 raise
         print("[MEMORY-LOG][StageD] After super().__init__")
-        print(f"[MEMORY-LOG][StageD] Memory usage: {process.memory_info().rss / 1e6:.2f} MB")
+        print(
+            f"[MEMORY-LOG][StageD] Memory usage: {process.memory_info().rss / 1e6:.2f} MB"
+        )
 
     def _get_sampler_params(self, stage_cfg: DictConfig):
         sampler_cfg = stage_cfg.get("sampler", OmegaConf.create({}))
@@ -355,8 +152,10 @@ class ProtenixDiffusionManager(nn.Module):
         Sampler parameters are read from the stored Hydra config (self.cfg.stageD.diffusion.sampler).
         """
         if not OmegaConf.is_config(self.cfg):
-            raise RuntimeError("train_diffusion_step requires Hydra config (cfg) for parameters.")
-        stage_cfg = self.cfg.stageD.diffusion
+            raise RuntimeError(
+                "train_diffusion_step requires Hydra config (cfg) for parameters."
+            )
+        stage_cfg = self.cfg.model.stageD.diffusion
         sampler_params = self._get_sampler_params(stage_cfg)
         noise_sampler = TrainingNoiseSampler(
             p_mean=sampler_params["p_mean"],
@@ -393,17 +192,23 @@ class ProtenixDiffusionManager(nn.Module):
 
     def _validate_trunk_embeddings(self, trunk_embeddings):
         if "s_trunk" not in trunk_embeddings or trunk_embeddings["s_trunk"] is None:
-            raise ValueError("StageD multi_step_inference requires a valid 's_trunk' in trunk_embeddings.")
+            raise ValueError(
+                "StageD multi_step_inference requires a valid 's_trunk' in trunk_embeddings."
+            )
 
     def _get_noise_schedule(self, num_steps, schedule_type, device):
         if schedule_type == "linear":
             return torch.linspace(1.0, 0.0, steps=num_steps + 1, device=device)
-        warnings.warn(f"Using default linear noise schedule. Unknown type: {schedule_type}")
+        warnings.warn(
+            f"Using default linear noise schedule. Unknown type: {schedule_type}"
+        )
         return torch.linspace(1.0, 0.0, steps=num_steps + 1, device=device)
 
     def _log_shapes(self, debug_logging, coords_init, s_trunk, s_inputs, z_trunk):
         if debug_logging:
-            logger.debug(f"[multi_step_inference] coords_init shape: {coords_init.shape}")
+            logger.debug(
+                f"[multi_step_inference] coords_init shape: {coords_init.shape}"
+            )
             logger.debug(f"[multi_step_inference] s_trunk shape: {s_trunk.shape}")
             if isinstance(s_inputs, torch.Tensor):
                 logger.debug(f"[multi_step_inference] s_inputs shape: {s_inputs.shape}")
@@ -412,7 +217,9 @@ class ProtenixDiffusionManager(nn.Module):
 
     def _log_final_coords(self, debug_logging, coords_final):
         if debug_logging:
-            logger.debug(f"[multi_step_inference] Final coords shape: {coords_final.shape}")
+            logger.debug(
+                f"[multi_step_inference] Final coords shape: {coords_final.shape}"
+            )
 
     def _postprocess_coords(self, coords_final, N_sample, debug_logging):
         if N_sample != 1:
@@ -426,7 +233,9 @@ class ProtenixDiffusionManager(nn.Module):
     def _is_unexpected_shape(self, coords_final):
         n_atoms_inferred = coords_final.shape[2] if coords_final.ndim > 2 else -1
         return (
-            coords_final.ndim == 4 and coords_final.shape[1] == n_atoms_inferred and coords_final.shape[2] == n_atoms_inferred
+            coords_final.ndim == 4
+            and coords_final.shape[1] == n_atoms_inferred
+            and coords_final.shape[2] == n_atoms_inferred
         )
 
     def _handle_unexpected_shape(self, coords_final):
@@ -435,10 +244,13 @@ class ProtenixDiffusionManager(nn.Module):
 
     def _handle_expected_shape(self, coords_final):
         sample_dim_index = 1
-        if (coords_final.ndim > sample_dim_index and coords_final.shape[sample_dim_index] == 1):
+        if (
+            coords_final.ndim > sample_dim_index
+            and coords_final.shape[sample_dim_index] == 1
+        ):
             coords_final = coords_final.squeeze(sample_dim_index)
         return coords_final
-    
+
     @snoop
     def multi_step_inference(
         self,
@@ -452,40 +264,69 @@ class ProtenixDiffusionManager(nn.Module):
         """
         if not OmegaConf.is_config(self.cfg):
             raise ValueError("multi_step_inference requires Hydra config")
-        stage_cfg = self.cfg.stageD.diffusion
+        stage_cfg = self.cfg.model.stageD.diffusion
         # --- PATCH: Handle extra 'diffusion' nesting in config ---
         inference_cfg = stage_cfg.get("inference", None)
-        if inference_cfg is None and "diffusion" in stage_cfg and isinstance(stage_cfg["diffusion"], dict):
-            logger.warning("[HYDRA-CONF-WARN][StageD] Detected extra 'diffusion' nesting in config. Falling back to stage_cfg['diffusion']['inference'].")
-            inference_cfg = stage_cfg["diffusion"].get("inference", OmegaConf.create({}))
+        if (
+            inference_cfg is None
+            and "diffusion" in stage_cfg
+            and isinstance(stage_cfg["diffusion"], dict)
+        ):
+            logger.warning(
+                "[HYDRA-CONF-WARN][StageD] Detected extra 'diffusion' nesting in config. Falling back to stage_cfg['diffusion']['inference']."
+            )
+            inference_cfg = stage_cfg["diffusion"].get(
+                "inference", OmegaConf.create({})
+            )
         elif inference_cfg is None:
             inference_cfg = OmegaConf.create({})
         sampling_cfg = inference_cfg.get("sampling", OmegaConf.create({}))
         N_sample = sampling_cfg.get("num_samples", 1)
         if "num_steps" not in inference_cfg:
             # --- SYSTEMATIC DEBUGGING: Print config state before raising error ---
-            logger.error(f"[HYDRA-CONF-DEBUG][StageD] stage_cfg type: {type(stage_cfg)}")
-            logger.error(f"[HYDRA-CONF-DEBUG][StageD] stage_cfg keys: {list(stage_cfg.keys()) if hasattr(stage_cfg, 'keys') else stage_cfg}")
-            logger.error(f"[HYDRA-CONF-DEBUG][StageD] inference_cfg type: {type(inference_cfg)}")
+            logger.error(
+                f"[HYDRA-CONF-DEBUG][StageD] stage_cfg type: {type(stage_cfg)}"
+            )
+            logger.error(
+                f"[HYDRA-CONF-DEBUG][StageD] stage_cfg keys: {list(stage_cfg.keys()) if hasattr(stage_cfg, 'keys') else stage_cfg}"
+            )
+            logger.error(
+                f"[HYDRA-CONF-DEBUG][StageD] inference_cfg type: {type(inference_cfg)}"
+            )
             logger.error(f"[HYDRA-CONF-DEBUG][StageD] inference_cfg: {inference_cfg}")
             logger.error(f"[HYDRA-CONF-DEBUG][StageD] Full stage_cfg: {stage_cfg}")
-            raise ValueError("[HYDRA-CONF-ERROR][StageD] 'num_steps' missing from inference config. Please ensure it is set in your Hydra config group (stageD_diffusion.yaml) under 'inference'.")
+            raise ValueError(
+                "[HYDRA-CONF-ERROR][StageD] 'num_steps' missing from inference config. Please ensure it is set in your Hydra config group (stageD_diffusion.yaml) under 'inference'."
+            )
         num_steps = inference_cfg["num_steps"]
-        logger.info(f"[HYDRA-CONF-DEBUG][StageD] Using num_steps from config: {num_steps}")
+        logger.info(
+            f"[HYDRA-CONF-DEBUG][StageD] Using num_steps from config: {num_steps}"
+        )
         noise_schedule_cfg = stage_cfg.get("noise_schedule", OmegaConf.create({}))
         debug_logging = stage_cfg.get("debug_logging", False)
         device = self.device
         coords_init = coords_init.to(device)
-        emb_ctx = EmbeddingContext(trunk_embeddings, override_input_features, stage_cfg, device)
+        emb_ctx = EmbeddingContext(
+            trunk_embeddings, override_input_features, stage_cfg, device
+        )
         trunk_embeddings = self._move_trunk_embeddings_to_device(emb_ctx)
         self._validate_trunk_embeddings(trunk_embeddings)
         emb_ctx.trunk_embeddings = trunk_embeddings
         s_inputs = self._get_s_inputs(emb_ctx)
         z_trunk = self._get_z_trunk(emb_ctx)
-        if z_trunk.shape[1] != trunk_embeddings["s_trunk"].shape[1] or z_trunk.shape[2] != trunk_embeddings["s_trunk"].shape[1]:
-            raise RuntimeError(f"shape mismatch between z_trunk {z_trunk.shape} and s_trunk {trunk_embeddings['s_trunk'].shape}")
-        self._log_shapes(debug_logging, coords_init, trunk_embeddings["s_trunk"], s_inputs, z_trunk)
-        ctx = FeaturePreparationContext(coords_init, override_input_features, device, trunk_embeddings, s_inputs)
+        if (
+            z_trunk.shape[1] != trunk_embeddings["s_trunk"].shape[1]
+            or z_trunk.shape[2] != trunk_embeddings["s_trunk"].shape[1]
+        ):
+            raise RuntimeError(
+                f"shape mismatch between z_trunk {z_trunk.shape} and s_trunk {trunk_embeddings['s_trunk'].shape}"
+            )
+        self._log_shapes(
+            debug_logging, coords_init, trunk_embeddings["s_trunk"], s_inputs, z_trunk
+        )
+        ctx = FeaturePreparationContext(
+            coords_init, override_input_features, device, trunk_embeddings, s_inputs
+        )
         input_feature_dict = self._prepare_input_features(ctx)
         schedule_type = noise_schedule_cfg.get("schedule_type", "linear")
         noise_schedule = self._get_noise_schedule(num_steps, schedule_type, device)
@@ -493,7 +334,9 @@ class ProtenixDiffusionManager(nn.Module):
             logger.debug("[multi_step_inference] Before sample_diffusion:")
             logger.debug(f"  coords_init shape: {coords_init.shape}")
             logger.debug(f"  s_trunk shape: {trunk_embeddings['s_trunk'].shape}")
-            logger.debug(f"  noise_schedule (len={len(noise_schedule)}): {noise_schedule}")
+            logger.debug(
+                f"  noise_schedule (len={len(noise_schedule)}): {noise_schedule}"
+            )
             logger.debug(f"  num_steps from config: {num_steps}")
             logger.debug(f"  schedule_type from config: {schedule_type}")
         inplace_safe = inference_cfg.get("inplace_safe", False)
@@ -513,10 +356,12 @@ class ProtenixDiffusionManager(nn.Module):
         self._log_final_coords(debug_logging, coords_final)
         return coords_final
 
-    def _manual_forward_pass(self, x_gt: torch.Tensor, trunk_embeddings: dict, sigma: float) -> tuple[torch.Tensor, torch.Tensor]:
+    def _manual_forward_pass(
+        self, x_gt: torch.Tensor, trunk_embeddings: dict, sigma: float
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         x_gt = x_gt.to(self.device)
         x_noisy = x_gt + torch.randn_like(x_gt) * sigma
-        if not hasattr(self, 'diffusion_module'):
+        if not hasattr(self, "diffusion_module"):
             raise RuntimeError("Diffusion module not initialized. Call __init__ first.")
         x_denoised = self.diffusion_module(
             x_noisy=x_noisy,
