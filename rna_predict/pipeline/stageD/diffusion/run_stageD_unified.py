@@ -25,6 +25,7 @@ from rna_predict.pipeline.stageD.diffusion.utils import (
 )
 from rna_predict.pipeline.stageD.tensor_fixes import apply_tensor_fixes
 from rna_predict.conf.utils import get_config
+from rna_predict.pipeline.stageD.feature_utils import _validate_feature_config, _validate_atom_metadata, _init_feature_tensors
 
 # Initialize logger for Stage D unified runner
 logger = logging.getLogger("rna_predict.pipeline.stageD.diffusion.run_stageD_unified")
@@ -80,10 +81,13 @@ def _run_stageD_diffusion_impl(
         If config.mode == "train":
             Tuple of (x_denoised, x_gt_out, sigma)
     """
+    # --- Refactored: validate config and atom metadata
+    stage_cfg = _validate_feature_config(config)
+    residue_indices, num_residues = _validate_atom_metadata(getattr(config, 'atom_metadata', None))
+    # ---
     debug_logging = getattr(config, 'debug_logging', False)
     if debug_logging:
         logger.debug(f"[StageD] Running diffusion refinement with config: {config}")
-
     if config.mode not in ["inference", "train"]:
         raise ValueError(
             f"Unsupported mode: {config.mode}. Must be 'inference' or 'train'."
@@ -255,6 +259,10 @@ def _run_stageD_diffusion_impl(
     # Store the processed embeddings in the config for potential reuse
     config.trunk_embeddings_internal = trunk_embeddings_internal
 
+    # --- Refactored: always use _init_feature_tensors for tensor creation if needed
+    # Example usage (adapt as needed):
+    # features = _init_feature_tensors(batch_size, num_atoms, device, stage_cfg)
+    # ---
     # Run diffusion based on mode
     if config.mode == "inference":
         from rna_predict.pipeline.stageD.diffusion.inference.inference_mode import InferenceContext
