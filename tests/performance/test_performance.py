@@ -34,11 +34,9 @@ def test_diffusion_single_embed_caching():
     partial_coords = torch.randn(1, N, 3)
     # Also reduce transformer size and add other necessary config keys
     diffusion_config = {
-        "c_atom": 128,
-        "c_s": 384,
-        "c_z": 32,
-        "c_token": 384,  # Reduced from 832
-        "c_s_inputs": 449,  # Added
+        "device": "cpu",
+        "mode": "inference",
+        "debug_logging": True,
         "transformer": {"n_blocks": 1, "n_heads": 2},  # Reduced
         "conditioning": {
             "c_s": 384,
@@ -47,10 +45,76 @@ def test_diffusion_single_embed_caching():
             "c_noise_embedding": 128,
         },  # Added
         "embedder": {"c_atom": 128, "c_atompair": 16, "c_token": 384},  # Added
-        "sigma_data": 16.0,  # Added
         "initialization": {},  # Added
         "inference": {"num_steps": 2, "N_sample": 1},  # Added to limit steps
+        # Feature dimensions required for bridging
+        "feature_dimensions": {
+            "c_s": 384,
+            "c_s_inputs": 449,
+            "c_sing": 384,
+            "s_trunk": 384,
+            "s_inputs": 449
+        },
+        # Model architecture with sigma_data in the correct location
+        "model_architecture": {
+            "c_token": 384,
+            "c_s": 384,
+            "c_z": 32,
+            "c_s_inputs": 449,
+            "c_atom": 128,
+            "c_atompair": 16,
+            "c_noise_embedding": 128,
+            "sigma_data": 16.0
+        },
+        # Add atom encoder configuration
+        "atom_encoder": {
+            "c_in": 128,
+            "c_hidden": [256],
+            "c_out": 128,
+            "dropout": 0.1,
+            "n_blocks": 1,
+            "n_heads": 2,
+            "n_queries": 4,
+            "n_keys": 4
+        },
+        # Add atom decoder configuration
+        "atom_decoder": {
+            "c_in": 128,
+            "c_hidden": [256],
+            "c_out": 128,
+            "dropout": 0.1,
+            "n_blocks": 1,
+            "n_heads": 2,
+            "n_queries": 4,
+            "n_keys": 4
+        }
     }
+
+    # Create a properly structured Hydra config with model.stageD section
+    from omegaconf import OmegaConf
+    hydra_cfg = OmegaConf.create({
+        "model": {
+            "stageD": {
+                # Top-level parameters
+                "enabled": True,
+                "mode": "inference",
+                "device": "cpu",
+                "debug_logging": True,
+                "ref_element_size": 128,
+                "ref_atom_name_chars_size": 256,
+                "profile_size": 32,
+
+                # Feature dimensions
+                "feature_dimensions": diffusion_config["feature_dimensions"],
+
+                # Model architecture
+                "model_architecture": diffusion_config["model_architecture"],
+
+                # Diffusion section
+                "diffusion": diffusion_config
+            }
+        }
+    })
     # Minimal input features needed by conditioning/encoder/decoder
     input_features = {
         "atom_to_token_idx": torch.arange(N).unsqueeze(0),
@@ -72,6 +136,16 @@ def test_diffusion_single_embed_caching():
     diffusion_config.pop("sequence", None)
     input_features.pop("sequence", None)
 
+    # Add atom_metadata to input_features
+    input_features["atom_metadata"] = {
+        "residue_indices": [0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4],  # 11 atoms across 5 residues
+        "atom_names": ["P", "C4'", "N1", "P", "C4'", "P", "C4'", "P", "C4'", "P", "C4'"],
+        "atom_type": [0, 1, 2, 0, 1, 0, 1, 0, 1, 0, 1]  # Add atom_type field
+    }
+
+    # Update partial_coords to match atom_metadata
+    partial_coords = torch.randn(1, 11, 3)  # batch=1, 11 atoms, 3 coords
+
     # 1) First call
     print(f"Memory before 1st call: {get_memory_usage():.2f} MB")
     t1_start = time.time()
@@ -84,7 +158,10 @@ def test_diffusion_single_embed_caching():
         device="cpu",
         input_features=input_features,  # Pass input features
         sequence=sequence,  # Pass as top-level attribute
+        cfg=hydra_cfg  # Pass the Hydra config
     )
+    # Add feature_dimensions directly to the config object
+    config1.feature_dimensions = diffusion_config["feature_dimensions"]
     coords_final_1 = run_stageD_diffusion(config=config1)
     print(f"Memory after 1st call: {get_memory_usage():.2f} MB")
     t1_end = time.time()
@@ -103,9 +180,13 @@ def test_diffusion_single_embed_caching():
         diffusion_config=diffusion_config,
         mode="inference",
         device="cpu",
-        input_features=None,  # No need to pass input_features again
+        input_features=input_features,  # Pass input_features to config2 as well
         sequence=sequence,  # Pass as top-level attribute
+        cfg=hydra_cfg,  # Pass the Hydra config
+        atom_metadata=input_features["atom_metadata"]  # Pass atom_metadata directly
     )
+    # Add feature_dimensions directly to the config object
+    config2.feature_dimensions = diffusion_config["feature_dimensions"]
     coords_final_2 = run_stageD_diffusion(config=config2)
     t2_end = time.time()
 
