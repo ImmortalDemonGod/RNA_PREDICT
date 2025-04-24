@@ -105,8 +105,16 @@ def run_inference_mode(
     atom_count = None
     if 'atom_metadata' in context.input_features:
         atom_metadata = context.input_features['atom_metadata']
-        if hasattr(atom_metadata['atom_type'], 'shape'):
-            atom_count = atom_metadata['atom_type'].shape[0]
+        if 'atom_type' in atom_metadata:
+            if hasattr(atom_metadata['atom_type'], 'shape'):
+                atom_count = atom_metadata['atom_type'].shape[0]
+            elif isinstance(atom_metadata['atom_type'], list):
+                atom_count = len(atom_metadata['atom_type'])
+            else:
+                atom_count = coords.shape[1]
+        elif 'residue_indices' in atom_metadata:
+            # Use residue_indices as fallback
+            atom_count = len(atom_metadata['residue_indices'])
         else:
             atom_count = coords.shape[1]
     else:

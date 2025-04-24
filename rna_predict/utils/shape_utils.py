@@ -8,7 +8,7 @@ which helps prevent shape mismatch errors in operations like LayerNorm and atten
 import logging
 import torch
 import torch.nn.functional as F
-from typing import Tuple
+from typing import Tuple, Dict, Any, Optional, Union
 
 logger = logging.getLogger(__name__)
 
@@ -56,38 +56,38 @@ def adjust_tensor_feature_dim(
 
 
 def adjust_attention_bias(
-    bias: torch.Tensor, 
-    scores_shape: Tuple[int, ...], 
+    bias: torch.Tensor,
+    scores_shape: Tuple[int, ...],
     tensor_name: str = "attention_bias"
 ) -> torch.Tensor:
     """
     Adjusts attention bias tensor to match the shape of attention scores.
-    
+
     This handles the common case where bias has shape [B, H, N_q, N_k] or [1, 1, N_q, N_k]
     and needs to match scores with shape [..., N_q, N_k].
-    
+
     Args:
         bias: The attention bias tensor.
         scores_shape: The shape of the attention scores tensor.
         tensor_name: A descriptive name for logging purposes.
-        
+
     Returns:
         The adjusted bias tensor that can be safely added to scores.
     """
     # Extract the query and key dimensions from scores
     n_queries, n_keys = scores_shape[-2], scores_shape[-1]
-    
+
     # Check if bias already has the right shape for the last two dimensions
     if bias.shape[-2:] == (n_queries, n_keys):
         # If bias has more leading dimensions than needed, we can broadcast
         return bias
-    
+
     # If bias has wrong dimensions, we need to adjust it
     if bias.shape[-2] != n_queries or bias.shape[-1] != n_keys:
         # First ensure bias has at least 2D
         if bias.dim() < 2:
             bias = bias.view(1, 1)
-        
+
         # Adjust query dimension (second to last)
         if bias.shape[-2] < n_queries:
             # Pad with zeros
@@ -101,7 +101,7 @@ def adjust_attention_bias(
             slices = [slice(None)] * bias.dim()
             slices[-2] = slice(0, n_queries)
             bias = bias[tuple(slices)]
-        
+
         # Adjust key dimension (last)
         if bias.shape[-1] < n_keys:
             # Pad with zeros
@@ -115,11 +115,111 @@ def adjust_attention_bias(
             slices = [slice(None)] * bias.dim()
             slices[-1] = slice(0, n_keys)
             bias = bias[tuple(slices)]
-        
+
         logger.debug(
             f"Adjusted '{tensor_name}' to match attention scores. "
             f"Original shape: {bias.shape}, New shape: {bias.shape}, "
             f"Target dimensions: ({n_queries}, {n_keys})"
         )
-    
+
     return bias
+
+
+def expand_tensor_for_samples(
+    tensor: Optional[torch.Tensor],
+    num_samples: int = 1,
+    sample_dim: int = 1,
+    tensor_name: str = "tensor"
+) -> Optional[torch.Tensor]:
+    """
+    Expands a tensor to include a sample dimension for multi-sample diffusion.
+
+    This handles the case where a tensor needs an extra dimension for samples,
+    typically inserted after the batch dimension.
+
+    Args:
+        tensor: The input tensor to expand.
+        num_samples: Number of samples to expand to.
+        sample_dim: The dimension index where the sample dimension should be inserted.
+        tensor_name: A descriptive name for logging purposes.
+
+    Returns:
+        The expanded tensor with an extra sample dimension.
+    """
+    if tensor is None:
+        return None
+
+    # If tensor already has the right number of dimensions and the sample dimension is correct
+    if tensor.dim() > sample_dim and tensor.shape[sample_dim] == num_samples:
+        return tensor
+
+    # Insert a new dimension at the specified position
+    shape = list(tensor.shape)
+    shape.insert(sample_dim, num_samples)
+
+    # Expand the tensor to the new shape
+    expanded = tensor.unsqueeze(sample_dim).expand(shape)
+
+    logger.debug(
+        f"Expanded '{tensor_name}' to include sample dimension. "
+        f"Original shape: {tensor.shape}, New shape: {expanded.shape}"
+    )
+
+    return expanded
+
+
+def ensure_consistent_sample_dimensions(
+    trunk_embeddings: Dict[str, torch.Tensor],
+    input_features: Optional[Dict[str, Any]] = None,
+    num_samples: int = 1,
+    sample_dim: int = 1
+) -> Tuple[Dict[str, torch.Tensor], Optional[Dict[str, Any]]]:
+    """
+    Ensures all tensors in trunk_embeddings and input_features have consistent sample dimensions.
+
+    This is particularly important for diffusion models where some tensors might have an extra
+    sample dimension while others don't.
+
+    Args:
+        trunk_embeddings: Dictionary of trunk embeddings (s_trunk, pair, etc.)
+        input_features: Optional dictionary of input features
+        num_samples: Number of samples to ensure
+        sample_dim: The dimension index where the sample dimension should be
+
+    Returns:
+        Tuple of (updated trunk_embeddings, updated input_features)
+    """
+    # Process trunk_embeddings
+    updated_trunk_embeddings = {}
+    for key, tensor in trunk_embeddings.items():
+        if not isinstance(tensor, torch.Tensor):
+            updated_trunk_embeddings[key] = tensor
+            continue
+
+        # Check if this tensor needs expansion
+        if tensor.dim() <= sample_dim or tensor.shape[sample_dim] != num_samples:
+            updated_trunk_embeddings[key] = expand_tensor_for_samples(
+                tensor, num_samples, sample_dim, f"trunk_embeddings[{key}]"
+            )
+        else:
+            updated_trunk_embeddings[key] = tensor
+
+    # Process input_features if provided
+    if input_features is not None:
+        updated_input_features = {}
+        for key, value in input_features.items():
+            if not isinstance(value, torch.Tensor):
+                updated_input_features[key] = value
+                continue
+
+            # Special handling for atom_to_token_idx which often needs expansion
+            if key == "atom_to_token_idx" and (value.dim() <= sample_dim or value.shape[sample_dim] != num_samples):
+                updated_input_features[key] = expand_tensor_for_samples(
+                    value, num_samples, sample_dim, f"input_features[{key}]"
+                )
+            else:
+                updated_input_features[key] = value
+
+        return updated_trunk_embeddings, updated_input_features
+
+    return updated_trunk_embeddings, input_features
