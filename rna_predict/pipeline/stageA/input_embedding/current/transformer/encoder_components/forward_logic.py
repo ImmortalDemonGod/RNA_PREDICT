@@ -154,10 +154,10 @@ def _process_coordinate_encoding(
 def _process_style_embedding(
     encoder: Any,
     c_l: torch.Tensor,
-    s: torch.Tensor,
-    atom_to_token_idx: torch.Tensor,
+    s: Optional[torch.Tensor],
+    atom_to_token_idx: Optional[torch.Tensor],
 ) -> torch.Tensor:
-    print(f"[DEBUG][CALL] _process_style_embedding c_l.shape={c_l.shape} s.shape={s.shape} atom_to_token_idx.shape={atom_to_token_idx.shape}")
+    print(f"[DEBUG][CALL] _process_style_embedding c_l.shape={getattr(c_l, 'shape', None)} s.shape={getattr(s, 'shape', None)} atom_to_token_idx.shape={getattr(atom_to_token_idx, 'shape', None)}")
     if s is None or atom_to_token_idx is None:  # Check if index is None
         return c_l
 
@@ -181,9 +181,37 @@ def _process_style_embedding(
     # If c_l is [batch, num_residues, emb_dim], broadcast to [batch, num_atoms, emb_dim]
     if c_l.shape[1] != x.shape[1] and atom_to_token_idx is not None:
         print(f"[PATCH][ENCODER][_process_style_embedding] Broadcasting c_l from residues to atoms using atom_to_token_idx")
-        # atom_to_token_idx: [batch, num_atoms]
-        idx = atom_to_token_idx.unsqueeze(-1).expand(-1, -1, c_l.shape[-1])
-        c_l = torch.gather(c_l, 1, idx)
+        # Handle case where c_l has an extra dimension (sample dimension)
+        # c_l shape: [batch, sample, num_atoms, emb_dim], atom_to_token_idx shape: [batch, num_atoms]
+        if c_l.ndim == 4 and atom_to_token_idx.ndim == 2:
+            # Create a 3D index tensor for each sample in the batch
+            # First, add a sample dimension to atom_to_token_idx
+            expanded_idx = atom_to_token_idx.unsqueeze(1)  # [batch, 1, num_atoms]
+            # Then expand to match c_l's sample dimension
+            expanded_idx = expanded_idx.expand(-1, c_l.shape[1], -1)  # [batch, sample, num_atoms]
+
+            # Clamp indices to be within valid range (0 to c_l.shape[2]-1)
+            # This prevents out-of-bounds errors when using torch.gather
+            max_idx = c_l.shape[2] - 1
+            if expanded_idx.max() > max_idx:
+                print(f"[DEBUG][_process_style_embedding] Clamping indices from max {expanded_idx.max().item()} to {max_idx}")
+                expanded_idx = torch.clamp(expanded_idx, max=max_idx)
+
+            # Finally, add the embedding dimension
+            idx = expanded_idx.unsqueeze(-1).expand(-1, -1, -1, c_l.shape[-1])  # [batch, sample, num_atoms, emb_dim]
+            # Now gather using the 4D index tensor
+            c_l = torch.gather(c_l, 2, idx)
+        else:
+            # Original case: c_l shape: [batch, num_atoms, emb_dim], atom_to_token_idx shape: [batch, num_atoms]
+            # Clamp indices to be within valid range (0 to c_l.shape[1]-1)
+            max_idx = c_l.shape[1] - 1
+            clamped_idx = atom_to_token_idx.clone()
+            if clamped_idx.max() > max_idx:
+                print(f"[DEBUG][_process_style_embedding] Clamping indices from max {clamped_idx.max().item()} to {max_idx}")
+                clamped_idx = torch.clamp(clamped_idx, max=max_idx)
+
+            idx = clamped_idx.unsqueeze(-1).expand(-1, -1, c_l.shape[-1])
+            c_l = torch.gather(c_l, 1, idx)
         print(f"[PATCH][ENCODER][_process_style_embedding] New c_l.shape={c_l.shape}")
     try:
         return c_l + x
