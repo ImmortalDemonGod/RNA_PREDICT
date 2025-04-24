@@ -93,6 +93,17 @@ def test_full_pipeline_partial_checkpoint(batch_size, input_dim):
                         "model.stageB.pairformer.c_token=8",
                         "model.stageB.pairformer.c_atom=8",
                         "model.stageB.pairformer.c_pair=4",
+                        # Model architecture parameters
+                        "model.stageD.model_architecture.c_atom=8",
+                        "model.stageD.model_architecture.c_s=8",
+                        "model.stageD.model_architecture.c_z=8",
+                        "model.stageD.model_architecture.c_s_inputs=8",
+                        "model.stageD.model_architecture.c_noise_embedding=8",
+                        "model.stageD.model_architecture.c_token=8",
+                        "model.stageD.model_architecture.c_atompair=8",
+                        "model.stageD.model_architecture.sigma_data=1.0",
+
+                        # Duplicate in diffusion section
                         "model.stageD.diffusion.model_architecture.c_atom=8",
                         "model.stageD.diffusion.model_architecture.c_s=8",
                         "model.stageD.diffusion.model_architecture.c_z=8",
@@ -101,6 +112,20 @@ def test_full_pipeline_partial_checkpoint(batch_size, input_dim):
                         "model.stageD.diffusion.model_architecture.c_token=8",
                         "model.stageD.diffusion.model_architecture.c_atompair=8",
                         "model.stageD.diffusion.model_architecture.sigma_data=1.0",
+
+                        # Feature dimensions
+                        "model.stageD.feature_dimensions.c_s=8",
+                        "model.stageD.feature_dimensions.c_s_inputs=8",
+                        "model.stageD.feature_dimensions.c_sing=8",
+                        "model.stageD.feature_dimensions.s_trunk=8",
+                        "model.stageD.feature_dimensions.s_inputs=8",
+
+                        # Duplicate in diffusion section
+                        "model.stageD.diffusion.feature_dimensions.c_s=8",
+                        "model.stageD.diffusion.feature_dimensions.c_s_inputs=8",
+                        "model.stageD.diffusion.feature_dimensions.c_sing=8",
+                        "model.stageD.diffusion.feature_dimensions.s_trunk=8",
+                        "model.stageD.diffusion.feature_dimensions.s_inputs=8",
                         "model.stageD.diffusion.transformer.n_blocks=1",
                         "model.stageD.diffusion.transformer.n_heads=2",
                         "model.stageD.diffusion.atom_encoder.n_blocks=1",
