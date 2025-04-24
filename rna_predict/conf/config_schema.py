@@ -90,6 +90,7 @@ def register_configs() -> None:
     cs.store(group="pipeline", name="default", node=PipelineConfig)
     cs.store(group="test", name="data", node=TestDataConfig)
     cs.store(group="model", name="protenix_integration", node=ProtenixIntegrationConfig)
+    cs.store(group="feature_dimensions", name="default", node=FeatureDimensionsConfig)
 
 def validate_config(cfg: Union[dict, "RNAConfig"]) -> None:
     """Validate configuration using OmegaConf structured validation.
@@ -997,6 +998,15 @@ class StageDDiffusionConfig:
     )
 
 @dataclass
+class FeatureDimensionsConfig:
+    """Structured config for feature dimensions used in Stage D bridging and diffusion."""
+    c_s: int = 384
+    c_s_inputs: int = 449
+    c_sing: int = 384
+    s_trunk: int = 384
+    s_inputs: int = 449
+
+@dataclass
 class StageDConfig:
     """Configuration for Stage D (Diffusion)."""
     enabled: bool = True
@@ -1024,6 +1034,11 @@ class StageDConfig:
     profile_size: int = field(
         default=32,
         metadata={"help": "Profile embedding size for residue-level features"}
+    )
+    # Expose feature_dimensions at the top level for Stage D config
+    feature_dimensions: FeatureDimensionsConfig = field(
+        default_factory=FeatureDimensionsConfig,
+        metadata={"help": "Dimensions for various features used in bridging and Stage D diffusion"}
     )
     # Add nested configurations for model architecture and components
     model_architecture: StageDModelArchConfig = field(default_factory=StageDModelArchConfig)
