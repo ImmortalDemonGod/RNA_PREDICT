@@ -520,6 +520,16 @@ def process_input_features(
     if input_features is None:
         input_features = {}
 
+    # Import torch here to avoid UnboundLocalError
+    import torch
+
+    # Calculate total number of atoms and residues
+    n_atoms = sum(len(atoms) for atoms in residue_atom_map)
+    n_residues = len(residue_atom_map)
+
+    # Identify residue-level tensors that need to be expanded to atom-level
+    residue_level_keys = ["ref_charge", "ref_element", "ref_atom_name_chars", "ref_mask", "restype", "profile", "deletion_mean"]
+
     for key, value in input_features.items():
         if not isinstance(value, torch.Tensor):
             fixed_input_features[key] = value
@@ -527,7 +537,35 @@ def process_input_features(
 
         # Handle deletion_mean shape specifically using helper
         if key == "deletion_mean":
-            fixed_input_features[key] = _process_deletion_mean(value)
+            value = _process_deletion_mean(value)
+
+        # Check if this is a residue-level tensor that needs expansion
+        if key in residue_level_keys and value.shape[1] == n_residues:
+            # This is a residue-level tensor that needs to be expanded to atom-level
+            print(f"[DEBUG][BRIDGE] Expanding residue-level tensor {key} from shape {value.shape} to atom-level")
+            B, _, *rest_dims = value.shape
+            rest_shape = tuple(rest_dims)
+
+            # Create a new tensor with atom-level dimensions
+            expanded_value = torch.zeros((B, n_atoms, *rest_shape), device=value.device, dtype=value.dtype)
+
+            # Fill in the expanded tensor by repeating each residue's values for its atoms
+            atom_counter = 0
+            for res_idx, atom_indices in enumerate(residue_atom_map):
+                n_atoms_in_res = len(atom_indices)
+                if n_atoms_in_res == 0:
+                    continue
+
+                # Expand the residue's values to all its atoms
+                if len(rest_shape) == 0:  # No extra dimensions
+                    expanded_value[:, atom_counter:atom_counter+n_atoms_in_res] = value[:, res_idx:res_idx+1].expand(B, n_atoms_in_res)
+                else:  # Has extra dimensions
+                    expanded_value[:, atom_counter:atom_counter+n_atoms_in_res] = value[:, res_idx:res_idx+1].expand(B, n_atoms_in_res, *rest_shape)
+
+                atom_counter += n_atoms_in_res
+
+            fixed_input_features[key] = expanded_value
+            print(f"[DEBUG][BRIDGE] Expanded {key} to shape {expanded_value.shape}")
         else:
             # Keep other tensors as is for now
             fixed_input_features[key] = value
@@ -537,51 +575,34 @@ def process_input_features(
 
     # CRITICAL FIX: Create atom_to_token_idx mapping from residue_atom_map
     # This is essential for the diffusion model to correctly map between atom and residue representations
-    if "atom_to_token_idx" not in fixed_input_features:
-        # Create a tensor that maps each atom to its corresponding residue index
-        total_atoms = sum(len(atoms) for atoms in residue_atom_map)
-        residue_count = len(residue_atom_map)
-        print(f"[DEBUG][BRIDGE] residue_atom_map lens={[len(x) for x in residue_atom_map]} total_atoms={total_atoms} residue_count={residue_count}")
-        atom_to_token_idx = torch.zeros(
-            batch_size,
-            total_atoms,
-            dtype=torch.long,
-            device=partial_coords.device,
-        )
+    # Always recreate atom_to_token_idx to ensure it matches the current residue_atom_map
+    # Create a tensor that maps each atom to its corresponding residue index
+    total_atoms = sum(len(atoms) for atoms in residue_atom_map)
+    residue_count = len(residue_atom_map)
+    print(f"[DEBUG][BRIDGE] residue_atom_map lens={[len(x) for x in residue_atom_map]} total_atoms={total_atoms} residue_count={residue_count}")
+    atom_to_token_idx = torch.zeros(
+        batch_size,
+        total_atoms,
+        dtype=torch.long,
+        device=partial_coords.device,
+    )
 
-        # Fill in the mapping
-        for residue_idx, atom_indices in enumerate(residue_atom_map):
-            for atom_idx in atom_indices:
-                atom_to_token_idx[:, atom_idx] = residue_idx
+    # Fill in the mapping
+    for residue_idx, atom_indices in enumerate(residue_atom_map):
+        for atom_idx in atom_indices:
+            atom_to_token_idx[:, atom_idx] = residue_idx
 
-        # DEBUG: Print atom_to_token_idx shape after construction
-        print(f"[DEBUG][BRIDGE] atom_to_token_idx.shape={atom_to_token_idx.shape}")
+    # DEBUG: Print atom_to_token_idx shape after construction
+    print(f"[DEBUG][BRIDGE] atom_to_token_idx.shape={atom_to_token_idx.shape}")
 
-        # UNCONDITIONAL DEBUG: Print all keys and their shapes in fixed_input_features
-        print("[DEBUG][BRIDGE] fixed_input_features keys and shapes:")
-        for k, v in fixed_input_features.items():
-            print(f"[DEBUG][BRIDGE]   {k}: shape={getattr(v, 'shape', 'N/A')} type={type(v)}")
+    # UNCONDITIONAL DEBUG: Print all keys and their shapes in fixed_input_features
+    print("[DEBUG][BRIDGE] fixed_input_features keys and shapes:")
+    for k, v in fixed_input_features.items():
+        print(f"[DEBUG][BRIDGE]   {k}: shape={getattr(v, 'shape', 'N/A')} type={type(v)}")
 
-        # Attempt to find an atom-level tensor for alignment
-        n_valid_atoms = None
-        c_l_tensor = fixed_input_features.get('c_l', None)
-        if c_l_tensor is not None:
-            n_valid_atoms = c_l_tensor.shape[1]
-            print(f"[DEBUG][BRIDGE] fixed_input_features['c_l'].shape={c_l_tensor.shape}")
-        else:
-            print("[DEBUG][BRIDGE] WARNING: 'c_l' not found in fixed_input_features.")
-
-        # If atom_to_token_idx has more atoms than c_l, slice it
-        if n_valid_atoms is not None and total_atoms > n_valid_atoms:
-            print(f"[DEBUG][BRIDGE] Slicing atom_to_token_idx from {total_atoms} to {n_valid_atoms}")
-            atom_to_token_idx = atom_to_token_idx[:, :n_valid_atoms]
-
-        # DEBUG: Print atom_to_token_idx shape after possible slicing
-        print(f"[DEBUG][BRIDGE] (post-slice) atom_to_token_idx.shape={atom_to_token_idx.shape}")
-
-        # Add to input features
-        fixed_input_features["atom_to_token_idx"] = atom_to_token_idx
-        logger.info(f"Created atom_to_token_idx mapping with shape {atom_to_token_idx.shape}")
+    # Add to input features - always overwrite with the correct mapping
+    fixed_input_features["atom_to_token_idx"] = atom_to_token_idx
+    logger.info(f"Created atom_to_token_idx mapping with shape {atom_to_token_idx.shape}")
 
     return fixed_input_features
 
@@ -837,6 +858,9 @@ def bridge_residue_to_atom(
     # SYSTEMATIC DEBUG: Print initial shapes
     s_trunk = output_embeddings["trunk_embeddings"].get("s_trunk")
     s_inputs = output_embeddings["trunk_embeddings"].get("s_inputs")
+    # Import torch here to avoid UnboundLocalError
+    import torch
+
     residue_atom_map = derive_residue_atom_map(
         sequence,
         partial_coords=partial_coords,
@@ -872,6 +896,7 @@ def bridge_residue_to_atom(
             # Expand residue-level s_inputs to atom-level
             B, _, c = s_inputs.shape
             device = s_inputs.device
+            # Use the torch import from above
             s_inputs_atom = torch.zeros((B, n_atoms, c), device=device, dtype=s_inputs.dtype)
             atom_counter = 0
             for res_idx, atom_indices in enumerate(residue_atom_map):
