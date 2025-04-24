@@ -10,8 +10,10 @@ class TestDiffusionConditioning(unittest.TestCase):
         self.c_z = 32  # Pair feature dimension
         # Removed unused attributes: c_hidden, n_heads, n_blocks, dropout, blocks_per_ckpt
         self.c_noise_embedding = 256 # Added required arg
+        self.sigma_data = 16.0  # Default value from documentation
 
         self.module = DiffusionConditioning(
+            sigma_data=self.sigma_data,
             c_s=self.c_s,
             c_s_inputs=self.c_s_inputs,
             c_z=self.c_z,

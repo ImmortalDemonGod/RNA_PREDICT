@@ -75,36 +75,34 @@ cfg = OmegaConf.create({
         },
         'stageC': {},
         'stageD': {
-            # Workaround: nest 'stageD' group inside model.stageD for Stage D pipeline
-            'stageD': {
-                'diffusion': {
-                    'device': 'cpu',
-                    'debug_logging': False,
-                    'inference': {
-                        'num_steps': 2,
-                        'temperature': 1.0
-                    },
-                    'atom_encoder': {'n_blocks': 1, 'n_heads': 1, 'n_queries': 8, 'n_keys': 8},
-                    'transformer': {'n_blocks': 1, 'n_heads': 1},
-                    'atom_decoder': {'n_blocks': 1, 'n_heads': 1, 'n_queries': 8, 'n_keys': 8},
-                    'model_architecture': {
-                        'c_token': 128,
-                        'c_s': 384,
-                        'c_z': 128,
-                        'c_s_inputs': 449,
-                        'c_atom': 128,
-                        'c_atompair': 16,
-                        'c_noise_embedding': 256,
-                        'sigma_data': 16.0,
-                        'num_layers': 1,
-                        'num_heads': 1,
-                        'dropout': 0.0,
-                        'coord_eps': 1e-6,
-                        'coord_min': -10000.0,
-                        'coord_max': 10000.0,
-                        'coord_similarity_rtol': 0.001,
-                        'test_residues_per_batch': 1
-                    }
+            # Direct diffusion config without extra nesting
+            'diffusion': {
+                'device': 'cpu',
+                'debug_logging': False,
+                'inference': {
+                    'num_steps': 2,
+                    'temperature': 1.0
+                },
+                'atom_encoder': {'n_blocks': 1, 'n_heads': 1, 'n_queries': 8, 'n_keys': 8},
+                'transformer': {'n_blocks': 1, 'n_heads': 1},
+                'atom_decoder': {'n_blocks': 1, 'n_heads': 1, 'n_queries': 8, 'n_keys': 8},
+                'model_architecture': {
+                    'c_token': 128,
+                    'c_s': 384,
+                    'c_z': 128,
+                    'c_s_inputs': 449,
+                    'c_atom': 128,
+                    'c_atompair': 16,
+                    'c_noise_embedding': 256,
+                    'sigma_data': 16.0,
+                    'num_layers': 1,
+                    'num_heads': 1,
+                    'dropout': 0.0,
+                    'coord_eps': 1e-6,
+                    'coord_min': -10000.0,
+                    'coord_max': 10000.0,
+                    'coord_similarity_rtol': 0.001,
+                    'test_residues_per_batch': 1
                 }
             }
         }
@@ -119,7 +117,7 @@ def test_trainer_fast_dev_run():
     # Ensure stageD group exists at the top level for pipeline construction
     if 'stageD' not in cfg.model:
         raise AssertionError('[UNIQUE-ERR-TEST-STAGED-GROUP] stageD group missing from config')
-    if 'diffusion' not in cfg.model['stageD']['stageD']:
+    if 'diffusion' not in cfg.model['stageD']:
         raise AssertionError('[UNIQUE-ERR-TEST-STAGED-DIFFUSION] stageD.diffusion group missing from config')
 
     try:
