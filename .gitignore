@@ -215,3 +215,6 @@ scripts/**/.DS_Store
 scripts/**/node_modules/
 scripts/**/.env
 
+tmp_zip_clean/
+package-lock.json
+package.json
