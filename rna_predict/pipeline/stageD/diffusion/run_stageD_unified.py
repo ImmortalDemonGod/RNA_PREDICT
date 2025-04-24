@@ -6,7 +6,7 @@ residue-to-atom bridging for tensor shape compatibility.
 """
 
 import logging
-from typing import Tuple, Union
+from typing import Tuple, Union, Dict, Any, Optional
 
 import torch
 
@@ -26,6 +26,7 @@ from rna_predict.pipeline.stageD.diffusion.utils import (
 from rna_predict.pipeline.stageD.tensor_fixes import apply_tensor_fixes
 from rna_predict.conf.utils import get_config
 from rna_predict.pipeline.stageD.feature_utils import _validate_feature_config, _validate_atom_metadata, _init_feature_tensors
+from rna_predict.utils.shape_utils import expand_tensor_for_samples, ensure_consistent_sample_dimensions
 
 # Initialize logger for Stage D unified runner
 logger = logging.getLogger("rna_predict.pipeline.stageD.diffusion.run_stageD_unified")
@@ -242,6 +243,16 @@ def _run_stageD_diffusion_impl(
         bridging_input=bridging_data,
         config=config,
         debug_logging=config.debug_logging,
+    )
+
+    # Ensure consistent sample dimensions for all tensors
+    # This is particularly important for single-sample cases
+    num_samples = getattr(config.diffusion_config, 'num_samples', 1)
+    trunk_embeddings_internal, input_features = ensure_consistent_sample_dimensions(
+        trunk_embeddings=trunk_embeddings_internal,
+        input_features=input_features,
+        num_samples=num_samples,
+        sample_dim=1  # Sample dimension is typically after batch dimension
     )
 
     # PATCH: Overwrite all downstream references to trunk_embeddings with trunk_embeddings_internal
