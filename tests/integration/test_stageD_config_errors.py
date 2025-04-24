@@ -62,8 +62,11 @@ def test_stageD_missing_s_inputs_in_real_config_raises():
         cfg = compose(config_name="default")
         # Temporarily disable struct mode to allow deletion
         OmegaConf.set_struct(cfg, False)
+        # Delete both s_inputs and c_s_inputs to ensure the test fails
         if "s_inputs" in cfg.model.stageD.diffusion.feature_dimensions:
             del cfg.model.stageD.diffusion.feature_dimensions["s_inputs"]
+        if "c_s_inputs" in cfg.model.stageD.diffusion.feature_dimensions:
+            del cfg.model.stageD.diffusion.feature_dimensions["c_s_inputs"]
         OmegaConf.set_struct(cfg, True)
         bridging_input = make_dummy_bridging_input()
         # Should raise ValueError about missing s_inputs

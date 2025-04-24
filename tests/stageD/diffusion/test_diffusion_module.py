@@ -56,7 +56,7 @@ class TestDiffusionModule(unittest.TestCase):
         seq_len = 24
 
         # Create input tensors
-        x_noisy = torch.randn(batch_size, seq_len, seq_len, 3)
+        x_noisy = torch.randn(batch_size, seq_len, 3)
         t_hat = torch.randn(batch_size, 1)  # Time step tensor
 
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -72,7 +72,7 @@ class TestDiffusionModule(unittest.TestCase):
             "ref_element": torch.randn(batch_size, seq_len, 128, device=device),
             "ref_atom_name_chars": torch.randn(batch_size, seq_len, 4 * 64, device=device),
             "ref_space_uid": torch.randn(batch_size, 1, seq_len, 3, device=device),
-            "atom_to_token_idx": torch.arange(seq_len, device=device).unsqueeze(0).expand(batch_size, -1),
+            "atom_to_token_idx": torch.arange(seq_len, device=device).unsqueeze(0).expand(batch_size, seq_len),
             "restype": torch.zeros(batch_size, seq_len, dtype=torch.long, device=device)
         }
         s_inputs = torch.randn(batch_size, seq_len, self.c_s_inputs, device=device)
@@ -87,7 +87,7 @@ class TestDiffusionModule(unittest.TestCase):
         # The assertLogs check is removed as the specific warning is likely obsolete.
         try:
             self.module.forward(
-                x_noisy=x_noisy, # Note: x_noisy shape [B, N, N, 3] might need update if forward expects [B, S, N, C]
+                x_noisy=x_noisy, # Note: x_noisy shape [B, N, 3] might need update if forward expects [B, S, N, C]
                 t_hat_noise_level=t_hat, # Shape [B, 1]
                 input_feature_dict=input_feature_dict,
                 s_inputs=s_inputs,
@@ -118,7 +118,7 @@ class TestDiffusionModule(unittest.TestCase):
             "ref_element": torch.randn(batch_size, seq_len, 128, device=device),
             "ref_atom_name_chars": torch.randn(batch_size, seq_len, 4 * 64, device=device),
             "ref_space_uid": torch.randn(batch_size, 1, seq_len, 3, device=device),
-            "atom_to_token_idx": torch.arange(seq_len, device=device).unsqueeze(0).expand(batch_size, -1),
+            "atom_to_token_idx": torch.arange(seq_len, device=device).unsqueeze(0).expand(batch_size, seq_len),
             "restype": torch.zeros(batch_size, seq_len, dtype=torch.long, device=device)
         }
         s_inputs = torch.randn(batch_size, seq_len, self.c_s_inputs, device=device)
@@ -169,7 +169,7 @@ class TestDiffusionModule(unittest.TestCase):
             "ref_element": torch.randn(batch_size, seq_len, 128, device=device),
             "ref_atom_name_chars": torch.randn(batch_size, seq_len, 4 * 64, device=device),
             "ref_space_uid": torch.randn(batch_size, 1, seq_len, 3, device=device),
-            "atom_to_token_idx": torch.arange(seq_len, device=device).unsqueeze(0).expand(batch_size, -1),
+            "atom_to_token_idx": torch.arange(seq_len, device=device).unsqueeze(0).expand(batch_size, seq_len),
             "restype": torch.zeros(batch_size, seq_len, dtype=torch.long, device=device)
         }
 
@@ -216,8 +216,8 @@ class TestDiffusionModule(unittest.TestCase):
         assume(seq_len >= n_sample)
 
         # Generate atom_to_token_idx with some out-of-bounds values
-        atom_to_token_idx = torch.arange(seq_len, device=device).unsqueeze(0).repeat(batch_size, 1)
-        # Intentionally set some indices to be out-of-bounds
+        atom_to_token_idx = torch.arange(seq_len, device=device).unsqueeze(0).expand(batch_size, seq_len).clone()
+        # Optionally set out-of-bounds values if needed for the test
         if seq_len > 2:
             atom_to_token_idx[:, -1] = n_sample + 2  # Always out-of-bounds
         # Test with N_sample=1
@@ -255,6 +255,14 @@ class TestDiffusionModule(unittest.TestCase):
         input_feature_dict_n = input_feature_dict.copy()
         input_feature_dict_n["ref_pos"] = input_feature_dict["ref_pos"].expand(-1, n_sample, -1, -1)
         input_feature_dict_n["ref_space_uid"] = input_feature_dict["ref_space_uid"].expand(-1, n_sample, -1, -1)
+        input_feature_dict_n["atom_to_token_idx"] = atom_to_token_idx.unsqueeze(1).expand(batch_size, n_sample, seq_len).clone()
+        # Expand all other relevant features to [batch, n_sample, seq_len, ...] or [batch, n_sample, seq_len]
+        for k in ["ref_charge", "ref_mask", "ref_element", "ref_atom_name_chars", "restype"]:
+            v = input_feature_dict[k]
+            if v.dim() == 3:
+                input_feature_dict_n[k] = v.unsqueeze(1).expand(batch_size, n_sample, seq_len, v.shape[-1]).clone()
+            elif v.dim() == 2:
+                input_feature_dict_n[k] = v.unsqueeze(1).expand(batch_size, n_sample, seq_len).clone()
         # Debug: Print shapes
         print(f"[DEBUG-N_SAMPLE] x_noisy_n shape: {x_noisy_n.shape}, t_hat_n shape: {t_hat_n.shape}, ref_pos_n shape: {input_feature_dict_n['ref_pos'].shape}")
         try:
@@ -291,7 +299,7 @@ class TestDiffusionModule(unittest.TestCase):
             "ref_element": torch.randn(batch_size, seq_len, 128, device=device),
             "ref_atom_name_chars": torch.randn(batch_size, seq_len, 4 * 64, device=device),
             "ref_space_uid": torch.randn(batch_size, 1, seq_len, 3, device=device),
-            "atom_to_token_idx": torch.arange(seq_len, device=device).unsqueeze(0).expand(batch_size, -1),
+            "atom_to_token_idx": torch.arange(seq_len, device=device).unsqueeze(0).expand(batch_size, seq_len),
             "restype": torch.zeros(batch_size, seq_len, dtype=torch.long, device=device)
         }
         s_inputs = torch.randn(batch_size, seq_len, self.c_s_inputs, device=device)
