@@ -62,7 +62,15 @@ def _check_dimension_count(idx_leading_dims: tuple, config_dims: tuple) -> None:
     Raises:
         ValueError: If index tensor has more dimensions than the configuration
     """
+    # Special case: If idx_leading_dims has exactly one more dimension than config_dims,
+    # and that dimension is 1 (a sample dimension), we'll allow it
     if len(idx_leading_dims) > len(config_dims):
+        # Check if it's the special case: one extra dimension of size 1
+        if len(idx_leading_dims) == len(config_dims) + 1 and idx_leading_dims[-1] == 1:
+            # This is the special case we want to handle - don't raise an error
+            print(f"[DEBUG][_check_dimension_count] Special case: idx_leading_dims {idx_leading_dims} has one extra dimension of size 1 compared to config_dims {config_dims}. Allowing it.")
+            return
+        # Otherwise, raise the error as before
         raise ValueError(
             f"atom_to_token_idx shape with leading dims {idx_leading_dims} has more dimensions "
             f"than x_token {config_dims}."
