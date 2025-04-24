@@ -78,7 +78,11 @@ def hydra_cfg_factory():
 
         # Set up the full config tree for ProtenixDiffusionManager
         cfg = OmegaConf.create({
-            "stageD": {"diffusion": diffusion_cfg},
+            "model": {
+                "stageD": {
+                    "diffusion": diffusion_cfg
+                }
+            }
         })
 
         # Add required attributes for test expectations at the top level for test compatibility
@@ -103,13 +107,14 @@ def trunk_embeddings_factory():
     Returns:
         Callable: Factory function that takes batch, length, feat dims and returns embeddings dict
     """
-    def _factory(batch: int = 1, length: int = 50, feat: int = 384) -> dict:
+    def _factory(batch: int = 1, length: int = 50, feat: int = 64) -> dict:
         # Create mock trunk embeddings with standard shapes, using correct feature dims for test
+        # Use the feat parameter to allow tests to specify different feature dimensions
         trunk_embeddings = {
-            "s_trunk": torch.randn(batch, length, 384),
-            "z_trunk": torch.randn(batch, length, length, 128),
-            "s_inputs": torch.randn(batch, length, 32),
-            "pair": torch.randn(batch, length, length, 128),
+            "s_trunk": torch.randn(batch, length, feat),
+            "z_trunk": torch.randn(batch, length, length, feat // 2),
+            "s_inputs": torch.randn(batch, length, feat // 4),
+            "pair": torch.randn(batch, length, length, feat // 2),
             # Add all required meta features with dummy tensors (shape [batch, length] or [batch, length, 1] as needed)
             "ref_space_uid": torch.zeros(batch, length, dtype=torch.long),
             "atom_to_token_idx": torch.zeros(batch, length, dtype=torch.long),
@@ -121,7 +126,7 @@ def trunk_embeddings_factory():
             "restype": torch.zeros(batch, length, 32),
             "profile": torch.zeros(batch, length, 32),
             "deletion_mean": torch.zeros(batch, length, 1),
-            "sing": torch.zeros(batch, length, 449),
+            "sing": torch.zeros(batch, length, feat // 4),
         }
         return trunk_embeddings
 

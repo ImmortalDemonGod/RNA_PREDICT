@@ -394,6 +394,14 @@ def test_local_trunk_small_natom_memory_efficient():
         # Provide a sequence so residue count can be determined by bridge_residue_to_atom
         sequence = ["A"] * num_tokens
 
+        # Create atom_metadata
+        residue_indices = []
+        for i in range(num_tokens):
+            residue_indices.extend([i] * (num_atoms // num_tokens))
+        atom_metadata = {
+            "residue_indices": torch.tensor(residue_indices, device=device)
+        }
+
         current_memory = get_memory_usage()
         print(f"Memory before run_stageD_diffusion: {current_memory:.2f} MB")
 
@@ -410,6 +418,30 @@ def test_local_trunk_small_natom_memory_efficient():
             "c_sing": diffusion_config["model_architecture"]["c_s"]
         }
 
+        # Create a Hydra-compatible config structure with model.stageD section
+        from omegaconf import OmegaConf
+        hydra_cfg = OmegaConf.create({
+            "model": {
+                "stageD": {
+                    "device": device,
+                    "ref_element_size": 128,
+                    "ref_atom_name_chars_size": 256,
+                    "debug_logging": True,
+                    "diffusion": {
+                        "device": device,
+                        "atom_encoder": {"n_blocks": 1, "n_heads": 2, "n_queries": 8, "n_keys": 8},
+                        "atom_decoder": {"n_blocks": 1, "n_heads": 2, "n_queries": 8, "n_keys": 8},
+                        "transformer": {"n_blocks": 1, "n_heads": 2},
+                        "feature_dimensions": feature_dimensions,
+                        "model_architecture": diffusion_config["model_architecture"],
+                        "debug_logging": True,
+                        # Add all diffusion config parameters
+                        **diffusion_config
+                    }
+                }
+            }
+        })
+
         test_config = DiffusionConfig(
              partial_coords=partial_coords,
              trunk_embeddings=trunk_embeddings,
@@ -418,6 +450,8 @@ def test_local_trunk_small_natom_memory_efficient():
              device=device,
              input_features=input_features,
              sequence=sequence,
+             cfg=hydra_cfg,
+             atom_metadata=atom_metadata
          )
 
         # Add feature_dimensions directly to the config object
