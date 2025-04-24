@@ -139,13 +139,21 @@ class EmbeddingContext:
         return self
 
     def get_s_inputs(self):
+        # SYSTEMATIC DEBUGGING: Print trunk_embeddings keys before accessing 's_inputs'
+        logger.debug(f"[DEBUG][get_s_inputs] trunk_embeddings keys: {list(self.trunk_embeddings.keys())}")
         s_inputs = self.trunk_embeddings.get("s_inputs")
         if s_inputs is None and self.override_input_features is not None:
+            logger.debug(f"[DEBUG][get_s_inputs] override_input_features keys: {list(self.override_input_features.keys()) if self.override_input_features is not None else None}")
             s_inputs = self.override_input_features.get("s_inputs")
         if s_inputs is None:
             logger.warning(
                 "'s_inputs' not found in trunk_embeddings or override_input_features. Creating fallback."
             )
+            # SYSTEMATIC DEBUGGING: Print trunk_embeddings before fallback
+            logger.debug(f"[DEBUG][get_s_inputs] trunk_embeddings before fallback: {self.trunk_embeddings}")
+            if "s_trunk" not in self.trunk_embeddings:
+                logger.error("[ERROR][get_s_inputs] 's_trunk' missing from trunk_embeddings. Cannot create fallback s_inputs.")
+                raise KeyError("'s_trunk' missing from trunk_embeddings. Cannot create fallback s_inputs.")
             s_trunk_shape = self.trunk_embeddings["s_trunk"].shape
             batch_size = s_trunk_shape[0]
             n_tokens = s_trunk_shape[1]
