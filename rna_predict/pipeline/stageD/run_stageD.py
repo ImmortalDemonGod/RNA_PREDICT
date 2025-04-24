@@ -38,7 +38,7 @@ sys.path.insert(
 )
 
 import logging
-from typing import Union, Tuple
+from typing import Union, Tuple, Dict, Any, Optional, List
 import hydra
 from omegaconf import DictConfig
 import psutil
@@ -143,6 +143,38 @@ def run_stageD(
     context.residue_indices = residue_indices
     context.num_residues = num_residues
     # ---
+    # Determine expected token dimension for s_trunk from config
+    n_atoms = coords.shape[1]
+    n_residues = s_trunk.shape[1]
+    # DEBUG: Print out all relevant config values before any bridging or model instantiation
+    print("[HYDRA-CONF-DEBUG][StageD] Dumping config values before diffusion:")
+    if hasattr(stage_cfg, 'diffusion'):
+        print("  stage_cfg.diffusion:", dict(stage_cfg.diffusion))
+    if hasattr(stage_cfg, 'model_architecture'):
+        print("  stage_cfg.model_architecture:", dict(stage_cfg.model_architecture))
+    if hasattr(stage_cfg, 'feature_dimensions'):
+        print("  stage_cfg.feature_dimensions:", dict(stage_cfg.feature_dimensions))
+    print("  n_atoms:", n_atoms, "n_residues:", n_residues)
+    print("  s_trunk.shape:", getattr(s_trunk, 'shape', None))
+    print("  s_inputs.shape:", getattr(s_inputs, 'shape', None))
+    print("  z_trunk.shape:", getattr(z_trunk, 'shape', None))
+    print("  atom_metadata keys:", list(atom_metadata.keys()) if atom_metadata else None)
+    print("  context.device:", context.device)
+    print("  context.mode:", context.mode)
+    print("  context.debug_logging:", context.debug_logging)
+    print("[HYDRA-CONF-DEBUG][StageD] END CONFIG DUMP")
+    expected_token_dim = n_atoms if getattr(stage_cfg, 'token_level', 'atom') == 'atom' else n_residues
+    # If config expects atom-level and s_trunk is residue-level, bridge now
+    if expected_token_dim == n_atoms and s_trunk.shape[1] == n_residues:
+        from rna_predict.utils.tensor_utils.embedding import residue_to_atoms
+        # Build residue_atom_map from atom_metadata
+        residue_atom_map = [[] for _ in range(n_residues)]
+        for atom_idx, res_idx in enumerate(atom_metadata['residue_indices']):
+            residue_atom_map[res_idx].append(atom_idx)
+        s_trunk = residue_to_atoms(s_trunk.squeeze(0) if s_trunk.dim() == 3 else s_trunk, residue_atom_map)
+        if s_trunk.dim() == 2:
+            s_trunk = s_trunk.unsqueeze(0)
+        print(f"[HYDRA-CONF-BRIDGE][StageD] Bridged s_trunk to atom-level: {s_trunk.shape}")
     trunk_embeddings, features = _prepare_trunk_embeddings(
         s_trunk, s_inputs, z_trunk, input_feature_dict, atom_metadata
     )
@@ -157,9 +189,7 @@ def run_stageD(
     context.debug_logging = _get_debug_logging(stage_cfg)
     context.diffusion_cfg = getattr(stage_cfg, "diffusion", None)
     log_mem("Before bridging residue-to-atom")
-    # --- Refactored: always use _init_feature_tensors for tensor creation
     if atom_metadata is not None:
-        # Use the correct number of atoms: coords.shape[1] (n_atoms)
         num_atoms = coords.shape[1]
         features = _init_feature_tensors(
             batch_size=s_trunk.shape[0],
