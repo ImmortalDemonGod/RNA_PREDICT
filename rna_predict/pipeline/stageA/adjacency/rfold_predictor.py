@@ -62,9 +62,9 @@ def set_stageA_logger_level(debug_logging: bool):
     Let logs propagate so pytest caplog can capture them.
     """
     if debug_logging:
-        logger.setLevel(logging.DEBUG)
+        logger.setLevel(logging.DEBUG) # Explicitly set DEBUG level
     else:
-        logger.setLevel(logging.WARNING)
+        logger.setLevel(logging.WARNING) # Set WARNING level otherwise
     logger.propagate = True  # Let logs reach root logger for caplog
 
 # PATCH: Make StageARFoldPredictor a torch.nn.Module so it can be used in ModuleDict
