@@ -18,11 +18,11 @@ def get_memory_usage():  # Helper function
 
 # @pytest.mark.performance
 # @pytest.mark.skip(reason="Causes excessive memory usage") 
-@patch("rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager.DiffusionModule")
 @patch("rna_predict.pipeline.stageD.diffusion.components.diffusion_module.DiffusionModule")
+@patch("rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager.DiffusionModule")
 @settings(deadline=None, max_examples=1)
 @given(st.just(True))  # Add a dummy given parameter
-def test_diffusion_single_embed_caching(_dummy, MockDiffusionModule, MockDiffusionModuleComp):
+def test_diffusion_single_embed_caching(_dummy, MockDiffusionModuleComp, MockDiffusionModule):
     """
     Quick check that calling run_stageD_diffusion multiple times
     reuses s_inputs from trunk_embeddings, skipping repeated embedding creation.

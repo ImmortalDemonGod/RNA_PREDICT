@@ -77,7 +77,8 @@ try:
               f"To fix: cd {EXPECTED_CWD} && uv run tests/integration/partial_checkpoint_full_pipeline_script.py\n"
               f"See docs/guides/best_practices/debugging/comprehensive_debugging_guide.md for more info.")
         sys.exit(1)
-    with hydra.initialize(config_path="/Users/tomriddle1/RNA_PREDICT/rna_predict/conf", job_name="partial_checkpoint_full_pipeline_script"):
+    # [HYDRA-PROJECT-RULE] Always use absolute config path for Hydra initialization in RNA_PREDICT
+    with hydra.initialize(config_path="/Users/tomriddle1/RNA_PREDICT/rna_predict/conf", job_name="partial_checkpoint_full_pipeline_script", version_base=None):
         cfg = hydra.compose(config_name="default")
     print("[SCRIPT DEBUG] Hydra loaded config successfully:")
     print(cfg)

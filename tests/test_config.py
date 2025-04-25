@@ -9,24 +9,57 @@ from hydra.core.global_hydra import GlobalHydra
 def get_hydra_conf_path():
     cwd = Path.cwd()
     print(f"[DEBUG][test_config.py] Current working directory: {cwd}", file=sys.stderr)
-    if Path("rna_predict/conf").is_dir():
-        print("[DEBUG][test_config.py] Using config path: rna_predict/conf", file=sys.stderr)
-        return "rna_predict/conf"
-    elif Path("../rna_predict/conf").is_dir():
-        print("[DEBUG][test_config.py] Using config path: ../rna_predict/conf", file=sys.stderr)
-        return "../rna_predict/conf"
-    else:
-        print("[ERROR][test_config.py] Could not find rna_predict/conf relative to current working directory!", file=sys.stderr)
-        print("[ERROR][test_config.py] Please run tests from the project root: /Users/tomriddle1/RNA_PREDICT", file=sys.stderr)
-        raise RuntimeError(f"Could not find rna_predict/conf relative to CWD: {cwd}. Please run tests from the project root: /Users/tomriddle1/RNA_PREDICT")
+
+    # Try multiple possible paths to find the config directory
+    possible_paths = [
+        Path("rna_predict/conf"),           # From project root
+        Path("../rna_predict/conf"),        # From tests/ directory
+        Path("../../rna_predict/conf"),     # From tests/subdirectory/
+        Path(cwd, "rna_predict/conf"),      # Absolute path from CWD
+        Path(cwd.parent, "rna_predict/conf") # Parent of CWD
+    ]
+
+    for path in possible_paths:
+        if path.is_dir():
+            # Convert to relative path for Hydra
+            rel_path = path.relative_to(cwd) if cwd in path.parents else path
+            print(f"[DEBUG][test_config.py] Found config at: {path}", file=sys.stderr)
+            print(f"[DEBUG][test_config.py] Using config path: {rel_path}", file=sys.stderr)
+            return str(rel_path)
+
+    # If we get here, we couldn't find the config directory
+    print("[ERROR][test_config.py] Could not find rna_predict/conf relative to current working directory!", file=sys.stderr)
+    print(f"[ERROR][test_config.py] Searched paths: {[str(p) for p in possible_paths]}", file=sys.stderr)
+    print("[ERROR][test_config.py] Please run tests from the project root: /Users/tomriddle1/RNA_PREDICT", file=sys.stderr)
+    raise RuntimeError(f"Could not find rna_predict/conf relative to CWD: {cwd}. Please run tests from the project root: /Users/tomriddle1/RNA_PREDICT")
 
 @pytest.fixture
 def hydra_config():
     GlobalHydra.instance().clear()  # Clear Hydra's global state before each test
     conf_path = get_hydra_conf_path()
+    print(f"[DEBUG][test_config.py] Initializing Hydra with config_path: {conf_path}", file=sys.stderr)
+
+    # Ensure we're using the correct config directory
     with initialize(version_base=None, config_path=conf_path):
-        cfg = compose(config_name="default")
-    return cfg
+        try:
+            cfg = compose(config_name="default")
+            print("[DEBUG][test_config.py] Successfully loaded config", file=sys.stderr)
+            return cfg
+        except Exception as e:
+            print(f"[ERROR][test_config.py] Error loading config: {e}", file=sys.stderr)
+            # Try to list the contents of the config directory to debug
+            try:
+                import os
+                config_dir = Path(conf_path)
+                if config_dir.is_dir():
+                    print(f"[DEBUG][test_config.py] Contents of {config_dir}:", file=sys.stderr)
+                    for item in os.listdir(config_dir):
+                        print(f"  - {item}", file=sys.stderr)
+                else:
+                    print(f"[ERROR][test_config.py] {config_dir} is not a directory", file=sys.stderr)
+            except Exception as list_error:
+                print(f"[ERROR][test_config.py] Error listing config directory: {list_error}", file=sys.stderr)
+            raise
 
 # Unskipped: Check config file exists (Hydra-based)
 def test_config_file_exists():
