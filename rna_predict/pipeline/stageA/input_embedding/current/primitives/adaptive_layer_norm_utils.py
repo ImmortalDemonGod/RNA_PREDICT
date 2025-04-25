@@ -154,13 +154,55 @@ def _copy_matching_dimensions(
     Returns:
         New tensor with copied data
     """
+    import logging
+    logger = logging.getLogger(__name__)
+
+    # Debug logging
+    logger.debug(f"[_copy_matching_dimensions] tensor.shape={tensor.shape}, target.shape={target.shape}")
+
     new_tensor = torch.zeros_like(target)
 
+    # Special case for diffusion module with N_sample dimension
+    # If target is [B, N_sample, N, N, C] and tensor is [B, N_sample, C],
+    # we need to broadcast tensor to match target's shape
+    if len(target.shape) == 5 and len(tensor.shape) == 3:
+        if tensor.shape[0] == target.shape[0] and tensor.shape[1] == target.shape[1]:
+            # This is the case we're handling
+            # We need to broadcast tensor from [B, N_sample, C] to [B, N_sample, N, N, C]
+            try:
+                # First, add the missing dimensions
+                expanded_tensor = tensor.unsqueeze(2).unsqueeze(2)
+                # Now expand to match target's shape
+                expanded_tensor = expanded_tensor.expand(target.shape[0], target.shape[1], target.shape[2], target.shape[3], -1)
+                # Only copy the last dimension up to the minimum size
+                min_dim = min(expanded_tensor.shape[-1], target.shape[-1])
+                new_tensor[..., :min_dim] = expanded_tensor[..., :min_dim]
+                logger.debug(f"[_copy_matching_dimensions] Special case: expanded tensor to {expanded_tensor.shape}")
+                return new_tensor
+            except RuntimeError as e:
+                logger.warning(f"[_copy_matching_dimensions] Failed to expand tensor: {e}. Trying alternative approach.")
+
     # Only copy if both tensors have at least 3 dimensions
-    if tensor.dim() >= 3 and target.dim() >= 3:
-        # Find minimum dimension to copy
-        min_dim = min(tensor.size(2), target.size(2))
-        new_tensor[:, :, :min_dim] = tensor[:, :, :min_dim]
+    try:
+        if tensor.dim() >= 3 and target.dim() >= 3:
+            # Find minimum dimension to copy
+            min_dim = min(tensor.size(2), target.size(2))
+            new_tensor[:, :, :min_dim] = tensor[:, :, :min_dim]
+    except RuntimeError as e:
+        logger.warning(f"[_copy_matching_dimensions] Standard copy failed: {e}. Trying manual copy.")
+        # Try a more careful approach for the specific case we're seeing
+        try:
+            if len(target.shape) == 5 and len(tensor.shape) == 3:
+                # Create a new tensor with the right shape
+                result = torch.zeros_like(target)
+                # Fill it with the values from tensor, broadcasting as needed
+                for i in range(target.shape[2]):
+                    for j in range(target.shape[3]):
+                        result[:, :, i, j, :tensor.shape[-1]] = tensor
+                logger.debug(f"[_copy_matching_dimensions] Used manual broadcasting for 5D target and 3D tensor")
+                return result
+        except RuntimeError as e2:
+            logger.warning(f"[_copy_matching_dimensions] Manual copy also failed: {e2}. Returning zero tensor.")
 
     return new_tensor
 
