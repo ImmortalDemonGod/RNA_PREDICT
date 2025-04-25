@@ -185,7 +185,8 @@ class TestRunStageDIntegration(unittest.TestCase):
                     "diffusion": diffusion_config,
                     # Add required parameters for _validate_feature_config
                     "ref_element_size": 128,
-                    "ref_atom_name_chars_size": 256
+                    "ref_atom_name_chars_size": 256,
+                    "profile_size": 32
                 }
             }
         })
