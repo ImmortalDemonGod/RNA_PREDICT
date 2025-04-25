@@ -23,7 +23,6 @@ def create_stage_d_test_config(stage_overrides=None, model_overrides=None, noise
                 "device": "cpu",
                 "angle_representation": "cartesian",
                 "use_metadata": False,
-                "sigma_data": 16.0,
                 "gamma0": 0.8,
                 "gamma_min": 1.0,
                 "noise_scale_lambda": 1.003,
@@ -32,14 +31,6 @@ def create_stage_d_test_config(stage_overrides=None, model_overrides=None, noise
                 "attn_chunk_size": None,
                 "inplace_safe": False,
                 "debug_logging": False,
-                "c_atom": 128,
-                "c_atompair": 16,
-                "c_token": 384,
-                "c_s": 384,
-                "c_z": 32,
-                "c_s_inputs": 384,
-                "c_noise_embedding": 128,
-                "test_residues_per_batch": 25,
                 "feature_dimensions": {
                     "c_s": 384,
                     "c_s_inputs": 384,
@@ -52,6 +43,7 @@ def create_stage_d_test_config(stage_overrides=None, model_overrides=None, noise
                     "c_s_inputs": 384,
                     "c_atom": 128,
                     "c_noise_embedding": 128,
+                    "c_atompair": 16,
                     "num_layers": 1,
                     "num_heads": 1,
                     "dropout": 0.0,
@@ -59,7 +51,8 @@ def create_stage_d_test_config(stage_overrides=None, model_overrides=None, noise
                     "coord_min": -1e4,
                     "coord_max": 1e4,
                     "coord_similarity_rtol": 1e-3,
-                    "test_residues_per_batch": 25
+                    "test_residues_per_batch": 25,
+                    "sigma_data": 16.0
                 },
                 "training": {
                     "batch_size": 1
@@ -80,12 +73,12 @@ def create_stage_d_test_config(stage_overrides=None, model_overrides=None, noise
                 "atom_encoder": {"n_blocks": 1, "n_heads": 1, "n_queries": 4, "n_keys": 8, "c_out": 16},
                 "transformer": {"n_blocks": 1, "n_heads": 1},
                 "atom_decoder": {"n_blocks": 1, "n_heads": 1, "n_queries": 4, "n_keys": 8}
+            },
+            "noise_schedule": {
+                "schedule_type": "linear",
+                "beta_start": 0.0001,
+                "beta_end": 0.02
             }
-        },
-        "noise_schedule": {
-             "schedule_type": "linear",
-             "beta_start": 0.0001,
-             "beta_end": 0.02
         }
     }
     cfg = OmegaConf.create(base_config)
@@ -94,14 +87,15 @@ def create_stage_d_test_config(stage_overrides=None, model_overrides=None, noise
     if stage_overrides:
         OmegaConf.update(override_cfg, "stageD_diffusion", stage_overrides, merge=True)
     if model_overrides:
-        OmegaConf.update(override_cfg, "diffusion_model", model_overrides, merge=True)
+        # Patch: Merge model_overrides into model_architecture only
+        OmegaConf.update(override_cfg, "stageD_diffusion.diffusion.model_architecture", model_overrides, merge=True)
     if noise_overrides:
-         OmegaConf.update(override_cfg, "noise_schedule", noise_overrides, merge=True)
+        OmegaConf.update(override_cfg, "stageD_diffusion.noise_schedule", noise_overrides, merge=True)
 
     cfg = OmegaConf.merge(cfg, override_cfg)
 
     if not isinstance(cfg, DictConfig):
-         raise TypeError(f"Merged config is not DictConfig: {type(cfg)}")
+        raise TypeError(f"Merged config is not DictConfig: {type(cfg)}")
     return cfg
 
 
@@ -187,7 +181,15 @@ class TestRunStageDIntegration(unittest.TestCase):
                     # Add required parameters for _validate_feature_config
                     "ref_element_size": 128,
                     "ref_atom_name_chars_size": 256,
-                    "profile_size": 32
+                    "profile_size": 32,
+                    "transformer": {
+                        "c_in": 64,
+                        "c_out": 64,
+                        "num_layers": 1,
+                        "num_heads": 1,
+                        "dropout": 0.0,
+                        "n_blocks": 1
+                    }
                 }
             }
         })
@@ -503,22 +505,29 @@ class TestRunStageDIntegration(unittest.TestCase):
         for k, shape in required_shapes.items():
             assert k in input_feature_dict, f"UNIQUE ERROR: Missing feature '{k}' in input_feature_dict"
             assert input_feature_dict[k].shape == shape, f"UNIQUE ERROR: Feature '{k}' has shape {input_feature_dict[k].shape}, expected {shape}"
-        # PATCH: Ensure config has all required parameters for _validate_feature_config and correct config group structure
+        # Use the canonical config construction function to ensure all config groups and keys are present as in the production pipeline
+        model_overrides = {
+            "transformer": {"n_blocks": 1},
+            "atom_encoder": {"n_blocks": 1},
+            "atom_decoder": {"n_blocks": 1},
+            "model_architecture": {"n_blocks": 1},
+        }
+        # Create the base config
+        base_cfg = create_stage_d_test_config(model_overrides=model_overrides)
+        # Wrap it under model.stageD as required by the pipeline
         from omegaconf import OmegaConf
+        stageD_full = dict(base_cfg.stageD_diffusion)
+        stageD_full["ref_element_size"] = 128
+        stageD_full["ref_atom_name_chars_size"] = 256
+        stageD_full["profile_size"] = 32
         cfg = OmegaConf.create({
             "model": {
-                "stageD": {
-                    "ref_element_size": 128,
-                    "ref_atom_name_chars_size": 256,
-                    "profile_size": 32,
-                    "diffusion": {
-                        # Minimal required diffusion config
-                        "mode": "inference",
-                        "device": "cpu"
-                    }
-                }
+                "stageD": stageD_full
             }
         })
+        # Debug: Print config structure before running Stage D
+        print("[DEBUG][test_inference_mode_property] Config structure before run_stageD:")
+        print(OmegaConf.to_yaml(cfg))
         result = run_stageD(
             cfg,
             atom_coords,

@@ -473,7 +473,18 @@ class TestDemoGradientFlowTest:
                     "debug_logging": True,
                     "torsion_bert": {"device": "cpu"},
                     "pairformer": {
-                        "init_z_from_adjacency": True
+                        "init_z_from_adjacency": True,
+                        "c_s": 64,
+                        "c_z": 32,
+                        "device": "cpu",
+                        "n_blocks": 2,
+                        "n_heads": 4,
+                        "dropout": 0.1,
+                        "use_memory_efficient_kernel": False,
+                        "use_deepspeed_evo_attention": False,
+                        "use_lma": False,
+                        "inplace_safe": False,
+                        "chunk_size": None
                     }
                 }
             },
@@ -585,7 +596,15 @@ class TestRunPipelineHypothesis:
             "stageB_pairformer": {
                 "c_s": 64,
                 "c_z": 32,
-                "device": "cpu"
+                "device": "cpu",
+                "n_blocks": 2,
+                "n_heads": 4,
+                "dropout": 0.1,
+                "use_memory_efficient_kernel": False,
+                "use_deepspeed_evo_attention": False,
+                "use_lma": False,
+                "inplace_safe": False,
+                "chunk_size": null
             }
         })
 
