@@ -131,9 +131,13 @@ class TestRunStageDIntegration(unittest.TestCase):
         # Create a new diffusion_config with model_architecture
         diffusion_config = {}
 
-        # Copy all keys from the base config
+        # Copy all keys from the base config, excluding 'model_architecture' and keys that should only be in model_architecture
+        # These keys should only appear in model_architecture, not at the top level
+        forbidden_top_level_keys = [
+            "sigma_data", "c_atom", "c_atompair", "c_token", "c_s", "c_z", "c_s_inputs", "c_noise_embedding"
+        ]
         for key in base_cfg.stageD_diffusion.diffusion.keys():
-            if key != 'model_architecture':
+            if key != 'model_architecture' and key not in forbidden_top_level_keys:
                 diffusion_config[key] = base_cfg.stageD_diffusion.diffusion[key]
 
         # Create model_architecture section
@@ -178,7 +182,10 @@ class TestRunStageDIntegration(unittest.TestCase):
         self.test_cfg = OmegaConf.create({
             "model": {
                 "stageD": {
-                    "diffusion": diffusion_config
+                    "diffusion": diffusion_config,
+                    # Add required parameters for _validate_feature_config
+                    "ref_element_size": 128,
+                    "ref_atom_name_chars_size": 256
                 }
             }
         })
@@ -441,7 +448,8 @@ class TestRunStageDIntegration(unittest.TestCase):
         c_z=st.integers(min_value=2, max_value=4),
         c_s_inputs=st.integers(min_value=4, max_value=8)
     )#skip too much memory
-    @pytest.mark.skip(reason="skip too much memory")
+    #@pytest.mark.skip(reason="skip too much memory")
+    @pytest.mark.skip(reason="High memory usage—may crash system. Only remove this skip if you are on a high-memory machine and debugging Stage D integration.")
     def test_inference_mode_property(self, batch_size, num_atoms, c_s, c_z, c_s_inputs):
         # --- PATCH: Defensive check against Hypothesis replaying old examples ---
         # Hypothesis may replay old failing examples with batch_size != 1 if .hypothesis/examples is not cleaned.
