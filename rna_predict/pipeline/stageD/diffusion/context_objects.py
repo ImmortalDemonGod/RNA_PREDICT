@@ -86,11 +86,15 @@ class FeaturePreparationContext:
         return input_feature_dict["atom_to_token_idx"]
 
     def is_expand_needed(self, atom_idx):
-        return (
-            atom_idx.dim() == 2
-            and self.trunk_embeddings["s_trunk"].dim() == 4
-            and self.trunk_embeddings["s_trunk"].shape[1] == 1
-        )
+        # Check if atom_idx needs to be expanded to match s_trunk dimensions
+        # Case 1: atom_idx is [B, N_atoms] but s_trunk is [B, N_sample, N_res, C]
+        if atom_idx.dim() == 2 and self.trunk_embeddings["s_trunk"].dim() == 4:
+            return True
+        # Case 2: atom_idx is [B, N_sample, N_atoms] but s_trunk is [B, N_sample, N_res, C]
+        # and they have different N_sample dimensions
+        elif atom_idx.dim() == 3 and self.trunk_embeddings["s_trunk"].dim() == 4:
+            return atom_idx.shape[1] != self.trunk_embeddings["s_trunk"].shape[1]
+        return False
 
     def is_expand_needed_s_inputs(self, atom_idx):
         return (
@@ -101,6 +105,18 @@ class FeaturePreparationContext:
         )
 
     def expand_atom_idx(self, atom_idx):
+        # If atom_idx is [B, N_atoms], expand to [B, N_sample, N_atoms]
+        if atom_idx.dim() == 2 and self.trunk_embeddings["s_trunk"].dim() == 4:
+            n_samples = self.trunk_embeddings["s_trunk"].shape[1]
+            return atom_idx.unsqueeze(1).expand(-1, n_samples, -1)
+        # If atom_idx is [B, N_sample_old, N_atoms], reshape to [B, N_sample_new, N_atoms]
+        elif atom_idx.dim() == 3 and self.trunk_embeddings["s_trunk"].dim() == 4:
+            n_samples = self.trunk_embeddings["s_trunk"].shape[1]
+            # Create a new tensor with the correct shape
+            # Take the first sample and expand it to the required number of samples
+            new_atom_idx = atom_idx[:, 0:1, :].expand(-1, n_samples, -1)
+            return new_atom_idx
+        # Default case: just add a sample dimension
         return atom_idx.unsqueeze(1)
 
     def update_atom_idx(self, input_feature_dict, atom_idx):
@@ -161,6 +177,14 @@ class EmbeddingContext:
             s_inputs = torch.zeros(
                 (batch_size, n_tokens, c_s_inputs_dim), device=self.device
             )
+        else:
+            # Handle multi-sample case with extra dimensions
+            if s_inputs.dim() == 5:  # [B, 1, N_sample, N_res, C]
+                # This is likely a case where we have an extra dimension from the bridging process
+                # Reshape to [B, N_sample, N_res, C] by removing the extra dimension
+                logger.info(f"[EmbeddingContext] Reshaping 5D s_inputs with shape {s_inputs.shape} to 4D")
+                s_inputs = s_inputs.squeeze(1)  # Remove the extra dimension at index 1
+                logger.info(f"[EmbeddingContext] After reshaping, s_inputs shape: {s_inputs.shape}")
         return s_inputs
 
     def get_z_trunk(self):
@@ -176,4 +200,12 @@ class EmbeddingContext:
             z_trunk = torch.zeros(
                 (batch_size, n_tokens, n_tokens, c_z_dim), device=self.device
             )
+        else:
+            # Handle multi-sample case with extra dimensions
+            if z_trunk.dim() == 6:  # [B, 1, N_sample, N_res, N_res, C]
+                # This is likely a case where we have an extra dimension from the bridging process
+                # Reshape to [B, N_sample, N_res, N_res, C] by removing the extra dimension
+                logger.info(f"[EmbeddingContext] Reshaping 6D z_trunk with shape {z_trunk.shape} to 5D")
+                z_trunk = z_trunk.squeeze(1)  # Remove the extra dimension at index 1
+                logger.info(f"[EmbeddingContext] After reshaping, z_trunk shape: {z_trunk.shape}")
         return z_trunk
