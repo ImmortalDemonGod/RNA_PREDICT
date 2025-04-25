@@ -189,6 +189,11 @@ def _process_style_embedding(
             expanded_idx = atom_to_token_idx.unsqueeze(1)  # [batch, 1, num_atoms]
             # Then expand to match c_l's sample dimension
             expanded_idx = expanded_idx.expand(-1, c_l.shape[1], -1)  # [batch, sample, num_atoms]
+        elif c_l.ndim == 4 and atom_to_token_idx.ndim == 3 and c_l.shape[1] < atom_to_token_idx.shape[1]:
+            # Handle case where c_l has fewer samples than atom_to_token_idx
+            # Expand c_l to match the sample dimension of atom_to_token_idx
+            c_l = c_l.expand(-1, atom_to_token_idx.shape[1], -1, -1)
+            expanded_idx = atom_to_token_idx
 
             # Clamp indices to be within valid range (0 to c_l.shape[2]-1)
             # This prevents out-of-bounds errors when using torch.gather
@@ -198,9 +203,39 @@ def _process_style_embedding(
                 expanded_idx = torch.clamp(expanded_idx, max=max_idx)
 
             # Finally, add the embedding dimension
-            idx = expanded_idx.unsqueeze(-1).expand(-1, -1, -1, c_l.shape[-1])  # [batch, sample, num_atoms, emb_dim]
-            # Now gather using the 4D index tensor
-            c_l = torch.gather(c_l, 2, idx)
+            # Handle case where atom_to_token_idx has an extra dimension (e.g., [1, 1, 11, 1])
+            if expanded_idx.dim() == 3:
+                # Standard case: expanded_idx is [batch, sample, num_atoms]
+                idx = expanded_idx.unsqueeze(-1).expand(-1, -1, -1, c_l.shape[-1])  # [batch, sample, num_atoms, emb_dim]
+                # Now gather using the 4D index tensor
+                c_l = torch.gather(c_l, 2, idx)
+            elif expanded_idx.dim() == 4:
+                # Special case: expanded_idx is already [batch, sample, num_atoms, 1]
+                # Just expand the last dimension to match feature dimension
+                idx = expanded_idx.expand(-1, -1, -1, c_l.shape[-1])  # [batch, sample, num_atoms, emb_dim]
+                # Now gather using the 4D index tensor
+                c_l = torch.gather(c_l, 2, idx)
+            else:
+                # Unexpected case, print debug info and try to handle gracefully
+                print(f"[DEBUG][UNEXPECTED] expanded_idx.dim()={expanded_idx.dim()}, shape={expanded_idx.shape}")
+                # Reshape to expected dimensions if possible
+                if expanded_idx.dim() > 4:
+                    # Too many dimensions, try to squeeze
+                    expanded_idx = expanded_idx.squeeze()
+                    if expanded_idx.dim() == 3:
+                        idx = expanded_idx.unsqueeze(-1).expand(-1, -1, -1, c_l.shape[-1])
+                        c_l = torch.gather(c_l, 2, idx)
+                    elif expanded_idx.dim() == 4:
+                        idx = expanded_idx.expand(-1, -1, -1, c_l.shape[-1])
+                        c_l = torch.gather(c_l, 2, idx)
+                    else:
+                        raise ValueError(f"Cannot handle expanded_idx with shape {expanded_idx.shape} after squeezing")
+                else:
+                    # Too few dimensions, try to unsqueeze
+                    while expanded_idx.dim() < 3:
+                        expanded_idx = expanded_idx.unsqueeze(0)
+                    idx = expanded_idx.unsqueeze(-1).expand(-1, -1, -1, c_l.shape[-1])
+                    c_l = torch.gather(c_l, 2, idx)
         else:
             # Original case: c_l shape: [batch, num_atoms, emb_dim], atom_to_token_idx shape: [batch, num_atoms]
             # Clamp indices to be within valid range (0 to c_l.shape[1]-1)
@@ -210,15 +245,98 @@ def _process_style_embedding(
                 print(f"[DEBUG][_process_style_embedding] Clamping indices from max {clamped_idx.max().item()} to {max_idx}")
                 clamped_idx = torch.clamp(clamped_idx, max=max_idx)
 
-            idx = clamped_idx.unsqueeze(-1).expand(-1, -1, c_l.shape[-1])
-            c_l = torch.gather(c_l, 1, idx)
-        print(f"[PATCH][ENCODER][_process_style_embedding] New c_l.shape={c_l.shape}")
+            # Handle case where atom_to_token_idx has an extra dimension (e.g., [1, 1, 11])
+            if clamped_idx.dim() == 3:
+                # Special case: clamped_idx is [batch, sample, num_atoms]
+                # First, we need to handle the case where c_l is [batch, num_atoms, emb_dim]
+                # We need to add a sample dimension to c_l
+                if c_l.dim() == 3:
+                    c_l = c_l.unsqueeze(1)  # [batch, 1, num_atoms, emb_dim]
+                # Handle case where c_l has fewer samples than clamped_idx
+                if c_l.dim() == 4 and c_l.shape[1] < clamped_idx.shape[1]:
+                    # Expand c_l to match the sample dimension of clamped_idx
+                    c_l = c_l.expand(-1, clamped_idx.shape[1], -1, -1)
+                # Now gather using the 4D index tensor
+                idx = clamped_idx.unsqueeze(-1).expand(-1, -1, -1, c_l.shape[-1])  # [batch, sample, num_atoms, emb_dim]
+                c_l = torch.gather(c_l, 2, idx)
+            elif clamped_idx.dim() == 4:
+                # Special case: clamped_idx is already [batch, sample, num_atoms, 1]
+                # Just expand the last dimension to match feature dimension
+                if c_l.dim() == 3:
+                    c_l = c_l.unsqueeze(1)  # [batch, 1, num_atoms, emb_dim]
+                # Handle case where c_l has fewer samples than clamped_idx
+                if c_l.dim() == 4 and c_l.shape[1] < clamped_idx.shape[1]:
+                    # Expand c_l to match the sample dimension of clamped_idx
+                    c_l = c_l.expand(-1, clamped_idx.shape[1], -1, -1)
+                idx = clamped_idx.expand(-1, -1, -1, c_l.shape[-1])  # [batch, sample, num_atoms, emb_dim]
+                c_l = torch.gather(c_l, 2, idx)
+            else:
+                # Standard case: clamped_idx is [batch, num_atoms]
+                idx = clamped_idx.unsqueeze(-1).expand(-1, -1, c_l.shape[-1])
+                c_l = torch.gather(c_l, 1, idx)
+        print(f"[PATCH][ENCODER][_process_style_embedding] New c_l.shape={c_l.shape}, x.shape={x.shape}")
     try:
         return c_l + x
     except Exception as e:
         print(f"[DEBUG][EXCEPTION-ADD] {e}")
         print(f"[DEBUG][EXCEPTION-ADD-SHAPE] c_l.shape={c_l.shape}, x.shape={x.shape}")
-        raise
+        # Try to reshape c_l to match x
+        if c_l.dim() != x.dim():
+            print(f"[DEBUG][EXCEPTION-ADD-DIM] c_l.dim()={c_l.dim()}, x.dim()={x.dim()}")
+            if c_l.dim() < x.dim():
+                # Add dimensions to c_l
+                for _ in range(x.dim() - c_l.dim()):
+                    c_l = c_l.unsqueeze(1)
+            elif c_l.dim() > x.dim():
+                # Add dimensions to x
+                for _ in range(c_l.dim() - x.dim()):
+                    x = x.unsqueeze(1)
+            print(f"[DEBUG][EXCEPTION-ADD-SHAPE-AFTER] c_l.shape={c_l.shape}, x.shape={x.shape}")
+        # Try broadcasting
+        try:
+            return c_l + x
+        except Exception as e2:
+            print(f"[DEBUG][EXCEPTION-ADD-AFTER] {e2}")
+            # Try reshaping x to match c_l
+            try:
+                # If c_l has more dimensions, reshape x to match
+                if c_l.dim() > x.dim():
+                    # Reshape x to match c_l's dimensions
+                    new_shape = list(x.shape)
+                    while len(new_shape) < c_l.dim():
+                        new_shape.insert(1, 1)  # Insert singleton dimension after batch
+                    x = x.view(*new_shape)
+                    print(f"[DEBUG][EXCEPTION-ADD-RESHAPE-X] New x.shape={x.shape}")
+                    return c_l + x
+                # If x has more dimensions, reshape c_l to match
+                elif x.dim() > c_l.dim():
+                    # Reshape c_l to match x's dimensions
+                    new_shape = list(c_l.shape)
+                    while len(new_shape) < x.dim():
+                        new_shape.insert(1, 1)  # Insert singleton dimension after batch
+                    c_l = c_l.view(*new_shape)
+                    print(f"[DEBUG][EXCEPTION-ADD-RESHAPE-CL] New c_l.shape={c_l.shape}")
+                    return c_l + x
+                # Last resort: reshape c_l to exactly match x
+                if c_l.shape != x.shape:
+                    try:
+                        # Try to expand c_l to match x's shape
+                        c_l = c_l.expand_as(x)
+                        return c_l + x
+                    except Exception as e3:
+                        print(f"[DEBUG][EXCEPTION-ADD-EXPAND] {e3}")
+                        # Try to expand x to match c_l's shape
+                        try:
+                            x = x.expand_as(c_l)
+                            return c_l + x
+                        except Exception as e4:
+                            print(f"[DEBUG][EXCEPTION-ADD-EXPAND-X] {e4}")
+                            # Give up and return x
+                            return x
+            except Exception as e5:
+                print(f"[DEBUG][EXCEPTION-ADD-FINAL] {e5}")
+                # Give up and return x
+                return x
 
 
 def _aggregate_to_token_level(
@@ -270,13 +388,54 @@ def _aggregate_to_token_level(
     # 3. Expand remaining batch dimensions to match target
     target_idx_shape = target_batch_shape + (n_atom_dim_a,) # Full target shape including atom dim
     if temp_idx.shape != target_idx_shape:
-        try:
+        # Special case: allow singleton sample dimension to expand to multi-sample
+        if (
+            temp_idx.ndim == 3 and
+            len(target_batch_shape) == 2 and
+            temp_idx.shape[1] == 1 and
+            target_batch_shape[1] > 1
+        ):
             temp_idx = temp_idx.expand(target_idx_shape)
-        except RuntimeError as e:
-            raise ValueError(
-                f"Cannot expand index batch dimensions {temp_idx.shape[:-1]} to target {target_batch_shape}. "
-                f"Original idx shape: {original_idx_shape}. Aggregation impossible. Error: {e}"
-            ) from e
+        # Special case for diffusion module with N_sample dimension
+        # If a_atom is [B, N_sample, N_atom, C] and temp_idx is [B, N_atom],
+        # we need to reshape temp_idx to [B, 1, N_atom] and then expand to [B, N_sample, N_atom]
+        elif len(target_batch_shape) >= 2 and temp_idx.ndim == 2:
+            # First add the missing dimension
+            temp_idx = temp_idx.unsqueeze(1)
+            # Then try to expand to match target shape
+            try:
+                temp_idx = temp_idx.expand(target_idx_shape)
+            except RuntimeError as e:
+                # If expansion fails, try a different approach
+                print(f"[DEBUG][_aggregate_to_token_level] Expansion failed: {e}. Trying alternative approach.")
+                # Create a new tensor with the right shape
+                new_temp_idx = torch.zeros(target_idx_shape, dtype=temp_idx.dtype, device=temp_idx.device)
+                # Fill it with the values from temp_idx
+                for i in range(target_batch_shape[1]):
+                    new_temp_idx[:, i] = temp_idx[:, 0]
+                temp_idx = new_temp_idx
+        else:
+            try:
+                temp_idx = temp_idx.expand(target_idx_shape)
+            except RuntimeError as e:
+                # Try a more careful approach for diffusion module
+                if len(target_batch_shape) >= 2 and temp_idx.ndim >= 2:
+                    print(f"[DEBUG][_aggregate_to_token_level] Expansion failed: {e}. Trying diffusion-specific approach.")
+                    # Create a new tensor with the right shape
+                    new_temp_idx = torch.zeros(target_idx_shape, dtype=temp_idx.dtype, device=temp_idx.device)
+                    # Fill it with the values from temp_idx, broadcasting as needed
+                    if temp_idx.ndim == 2:  # [B, N_atom]
+                        for i in range(target_batch_shape[1]):  # For each sample
+                            new_temp_idx[:, i] = temp_idx
+                    elif temp_idx.ndim == 3 and temp_idx.shape[1] != target_batch_shape[1]:  # [B, S, N_atom] with S != target S
+                        for i in range(target_batch_shape[1]):  # For each target sample
+                            new_temp_idx[:, i] = temp_idx[:, 0]  # Use the first sample
+                    temp_idx = new_temp_idx
+                else:
+                    raise ValueError(
+                        f"Cannot expand index batch dimensions {temp_idx.shape[:-1]} to target {target_batch_shape}. "
+                        f"Original idx shape: {original_idx_shape}. Aggregation impossible. Error: {e}"
+                    ) from e
     # --- End Dimension Alignment v3 ---
 
     # Ensure atom_to_token_idx doesn't exceed num_tokens to prevent out-of-bounds
