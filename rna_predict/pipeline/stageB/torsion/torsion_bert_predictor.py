@@ -9,7 +9,7 @@ from .torsionbert_inference import DummyTorsionBertAutoModel
 import torch.nn as nn
 
 logger = logging.getLogger("rna_predict.pipeline.stageB.torsion.torsion_bert_predictor")
-logger.setLevel(logging.DEBUG)
+# Logger level will be set conditionally in __init__
 logger.propagate = True
 
 # Default values for model configuration
@@ -92,6 +92,14 @@ class StageBTorsionBertPredictor(nn.Module):
         if torsion_cfg is None or not (hasattr(torsion_cfg, 'model_name_or_path') and hasattr(torsion_cfg, 'device')):
             logger.error("[UNIQUE-ERR-TORSIONBERT-NOCONFIG] Configuration error: missing required keys in torsion_bert config. Expected structured config with model_name_or_path and device.")
             raise ValueError("[UNIQUE-ERR-TORSIONBERT-NOCONFIG] Configuration must contain either stageB_torsion or model.stageB.torsion_bert section")
+
+        # --- Set logger level based on the determined debug_logging value ---
+        if self.debug_logging:
+            logger.setLevel(logging.DEBUG)
+        else:
+            # Set to WARNING or INFO to suppress DEBUG messages
+            logger.setLevel(logging.WARNING)
+        # --------------------------------------------------------------------
 
         # Extract configuration values
         self.model_name_or_path = torsion_cfg.model_name_or_path
