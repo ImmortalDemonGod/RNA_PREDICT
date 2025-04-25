@@ -110,12 +110,27 @@ def _validate_and_expand_indices(
     Returns:
         Expanded atom_to_token_idx with compatible leading dimensions
     """
+    import logging
+    logger = logging.getLogger(__name__)
+
     idx_leading_dims = atom_to_token_idx.shape[:-1]
     config_dims = config.original_leading_dims
 
     # If dimensions already match, no expansion needed
     if _check_dimension_match(idx_leading_dims, config_dims):
         return atom_to_token_idx
+
+    # Special case: allow singleton sample dimension to expand to multi-sample
+    if (
+        len(idx_leading_dims) == len(config_dims) - 1 and
+        len(config_dims) >= 2 and
+        config_dims[-2] > 1
+    ):
+        # Insert singleton sample dimension before atom dim
+        atom_to_token_idx = atom_to_token_idx.unsqueeze(-2)
+        idx_leading_dims = atom_to_token_idx.shape[:-1]
+        if _check_dimension_match(idx_leading_dims, config_dims):
+            return atom_to_token_idx.expand(*config_dims, config.n_atom)
 
     # Validate dimensions
     _check_dimension_count(idx_leading_dims, config_dims)
