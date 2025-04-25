@@ -100,7 +100,11 @@ def test_diffusion_single_embed_caching(_dummy):
                 "stageD": {
                     "diffusion": {
                         "feature_dimensions": diffusion_config["feature_dimensions"],
-                        "model_architecture": diffusion_config["model_architecture"]
+                        "model_architecture": diffusion_config["model_architecture"],
+                        "ref_element_size": 128,
+                        "ref_atom_name_chars_size": 256,
+                        "profile_size": 32,
+                        "test_residues_per_batch": 2
                     }
                 }
             }
