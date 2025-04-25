@@ -16,11 +16,20 @@ def set_stageC_logger_level(debug_logging: bool):
     Set logger level for Stage C according to debug_logging flag.
     """
     if debug_logging:
-        logger.setLevel(logging.DEBUG)
+        logger.setLevel(logging.DEBUG) # Explicitly set DEBUG level
     else:
-        # Set to INFO instead of WARNING to avoid suppressing important logs
-        # but still filter out DEBUG messages
+        # Set to INFO or WARNING to suppress DEBUG messages
         logger.setLevel(logging.INFO)
+
+    # Ensure propagation is set correctly
+    logger.propagate = True # Ensure messages reach caplog
+
+    # Make sure all handlers respect the log level
+    for handler in logger.handlers:
+        if debug_logging:
+            handler.setLevel(logging.DEBUG)
+        else:
+            handler.setLevel(logging.INFO)
 
 
 class StageCReconstruction(nn.Module):
