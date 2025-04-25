@@ -1025,20 +1025,15 @@ class StageDConfig:
     # Required parameters for feature initialization
     ref_element_size: int = field(
         default=128,
-        metadata={"help": "Reference element embedding size"}
+        metadata={"help": "Size of reference element embeddings"}
     )
     ref_atom_name_chars_size: int = field(
         default=256,
-        metadata={"help": "Atom name char embedding size"}
+        metadata={"help": "Size of atom name character embeddings"}
     )
     profile_size: int = field(
         default=32,
-        metadata={"help": "Profile embedding size for residue-level features"}
-    )
-    # Expose feature_dimensions at the top level for Stage D config
-    feature_dimensions: FeatureDimensionsConfig = field(
-        default_factory=FeatureDimensionsConfig,
-        metadata={"help": "Dimensions for various features used in bridging and Stage D diffusion"}
+        metadata={"help": "Profile size for input features"}
     )
     # Add nested configurations for model architecture and components
     model_architecture: StageDModelArchConfig = field(default_factory=StageDModelArchConfig)
