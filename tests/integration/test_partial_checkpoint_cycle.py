@@ -37,9 +37,8 @@ def create_dummy_dataloader(batch_size=4, n_samples=12, base_dim=16, adapter_dim
 # Hydra setup (relative path per Hydra requirement; resolves to absolute project conf)
 def setup_hydra():
     import hydra.core.global_hydra
-    # Hydra requires a relative config_path, but this resolves to the absolute conf dir
-    if not hydra.core.global_hydra.GlobalHydra.instance().is_initialized():
-        hydra.initialize(config_path="rna_predict/conf", version_base=None)
+    # [HYDRA-PROJECT-RULE] Hydra requires config_path to be relative to CWD; always run from project root
+    hydra.initialize(config_path="rna_predict/conf", version_base=None)
 
 # Integration test
 

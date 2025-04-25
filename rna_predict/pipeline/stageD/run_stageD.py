@@ -190,7 +190,13 @@ def _run_stageD_impl(
     context.mode = getattr(stage_cfg, "mode", None)
     context.device = getattr(stage_cfg, "device", None)
     context.debug_logging = _get_debug_logging(stage_cfg)
-    context.diffusion_cfg = getattr(stage_cfg, "diffusion", None)
+    # Ensure diffusion_cfg is properly set from stage_cfg or from the original cfg
+    if hasattr(stage_cfg, "diffusion"):
+        context.diffusion_cfg = stage_cfg.diffusion
+    elif hasattr(context.cfg, "model") and hasattr(context.cfg.model, "stageD") and hasattr(context.cfg.model.stageD, "diffusion"):
+        context.diffusion_cfg = context.cfg.model.stageD.diffusion
+    else:
+        context.diffusion_cfg = None
     log_mem("Before bridging residue-to-atom")
     if atom_metadata is not None:
         num_atoms = coords.shape[1]
@@ -436,3 +442,7 @@ def _generate_dummy_inputs(
 
 if __name__ == "__main__":
     hydra_main()
+
+
+# Alias for test and patch compatibility
+run_stageD_diffusion = run_stageD
