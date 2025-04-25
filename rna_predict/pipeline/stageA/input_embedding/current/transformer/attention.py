@@ -173,6 +173,22 @@ class AttentionPairBias(nn.Module):
                     # Check that all sample dimensions match
                     z_sample_dims = z.shape[:-3]
                     a_sample_dims = a.shape[:-2]
+
+                    # Special case for multi-sample tensors with different dimensions
+                    # If z has shape [B, S1, N, N, C] and a has shape [B, S1, S2, N, C],
+                    # we need to reshape z to match a's sample dimensions
+                    if len(z_sample_dims) == 2 and len(a_sample_dims) == 3 and z_sample_dims[0] == a_sample_dims[0]:
+                        # This is the case where z has [B, S1] and a has [B, S1, S2]
+                        # We need to reshape z to have the same sample dimensions as a
+                        z_new_shape = list(z.shape)
+                        # Insert a new dimension at position 2 (after S1)
+                        z_new_shape.insert(2, 1)
+                        # Reshape z to have the same sample dimensions as a
+                        z = z.reshape(z_new_shape)
+                        # Update z_sample_dims
+                        z_sample_dims = z.shape[:-3]
+
+                    # Now check if sample dimensions match
                     if z_sample_dims != a_sample_dims:
                         raise ValueError(
                             f"Sample dimensions must match between z and a. "
@@ -252,6 +268,13 @@ class AttentionPairBias(nn.Module):
         Raises:
             ValueError: If input tensors have incompatible shapes
         """
+        import logging
+        logger = logging.getLogger(__name__)
+
+        # Debug logging for input shapes
+        logger.debug(f"[DEBUG] local_multihead_attention input shapes: a={a.shape}, z={z.shape if isinstance(z, torch.Tensor) else None}")
+        logger.debug(f"[DEBUG] n_queries={n_queries}, n_keys={n_keys}")
+
         # Create a default z tensor if none is provided or it's not a tensor
         if not isinstance(z, torch.Tensor):
             z = self._create_default_z(a)
@@ -261,12 +284,21 @@ class AttentionPairBias(nn.Module):
             # If z has shape [..., N, N, c_z], we need to add the n_blocks dimension
             if len(z.shape) == len(a.shape) + 1:
                 z = z.unsqueeze(-4)  # Add n_blocks dimension
+                logger.debug(f"[DEBUG] Added n_blocks dimension to z: new shape={z.shape}")
             else:
-                # In case of other shape mismatches, try to adapt or raise an error
-                raise ValueError(
-                    f"Cannot adapt z tensor with shape {z.shape} to work with a tensor of shape {a.shape}. "
-                    f"Expected z to have shape compatible with [..., n_blocks, n_queries, n_keys, c_z]"
-                )
+                # Special case for diffusion with N_sample dimension
+                # If a is [B, N_sample, N, C] and z is [B, N_sample, N, N, C_z]
+                if len(a.shape) >= 4 and len(z.shape) >= 5 and z.shape[-1] == self.c_z:
+                    # This is already in the right format, just need to ensure n_blocks dimension
+                    # is properly set for local attention
+                    logger.debug(f"[DEBUG] Detected diffusion tensor shapes: a={a.shape}, z={z.shape}")
+                    # No need to add another dimension, it's already in the right format
+                else:
+                    # In case of other shape mismatches, try to adapt or raise an error
+                    raise ValueError(
+                        f"Cannot adapt z tensor with shape {z.shape} to work with a tensor of shape {a.shape}. "
+                        f"Expected z to have shape compatible with [..., n_blocks, n_queries, n_keys, c_z]"
+                    )
 
         # Verify that z has the expected final dimension
         validate_tensor_shape(z, expected_last_dim=self.c_z, name="z")
@@ -274,6 +306,7 @@ class AttentionPairBias(nn.Module):
         # Apply layer normalization to z
         try:
             normalized_z = self.layernorm_z(z)
+            logger.debug(f"[DEBUG] After layernorm_z: normalized_z.shape={normalized_z.shape}")
         except RuntimeError as e:
             raise ValueError(
                 f"Failed to apply layernorm to z tensor with shape {z.shape}: {str(e)}"
@@ -283,12 +316,28 @@ class AttentionPairBias(nn.Module):
         bias = self.linear_nobias_z(
             normalized_z
         )  # [..., n_blocks, n_queries, n_keys, n_heads]
+        logger.debug(f"[DEBUG] After linear_nobias_z: bias.shape={bias.shape}")
 
         # Permute dimensions for attention
         try:
-            bias = permute_final_dims(
-                bias, [3, 0, 1, 2]
-            )  # [..., n_heads, n_blocks, n_queries, n_keys]
+            # For diffusion with N_sample dimension, we need to be careful with permutation
+            # Standard permutation for 5D tensor: [..., n_blocks, n_queries, n_keys, n_heads] -> [..., n_heads, n_blocks, n_queries, n_keys]
+            if len(bias.shape) == 5:  # Standard case: [B, n_blocks, n_queries, n_keys, n_heads]
+                bias = permute_final_dims(
+                    bias, [3, 0, 1, 2]
+                )  # -> [B, n_heads, n_blocks, n_queries, n_keys]
+            elif len(bias.shape) == 6:  # Diffusion case: [B, N_sample, n_blocks, n_queries, n_keys, n_heads]
+                # Permute the last 4 dimensions
+                bias = permute_final_dims(
+                    bias, [3, 0, 1, 2]
+                )  # -> [B, N_sample, n_heads, n_blocks, n_queries, n_keys]
+            else:
+                # Handle other cases
+                bias = permute_final_dims(
+                    bias, [3, 0, 1, 2]
+                )  # General case, permute last 4 dimensions
+
+            logger.debug(f"[DEBUG] After permute_final_dims: bias.shape={bias.shape}")
         except RuntimeError as e:
             raise ValueError(
                 f"Failed to permute bias tensor with shape {bias.shape}: {str(e)}"
@@ -309,9 +358,12 @@ class AttentionPairBias(nn.Module):
 
         # Apply attention - wrap in try-except to provide better error messages
         try:
+            logger.debug(f"[DEBUG] Before attention call: q_x.shape={a.shape}, trunked_attn_bias.shape={bias.shape}")
             result = self.attention(forward_inputs)
+            logger.debug(f"[DEBUG] After attention call: result.shape={result.shape}")
             return cast(torch.Tensor, result)
         except Exception as e:
+            # Add more detailed error information
             raise ValueError(
                 f"Attention failed with inputs: q_x={a.shape}, bias={bias.shape}, "
                 f"n_queries={n_queries}, n_keys={n_keys}. Error: {str(e)}"
