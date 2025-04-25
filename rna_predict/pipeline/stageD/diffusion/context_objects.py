@@ -200,12 +200,17 @@ class EmbeddingContext:
             z_trunk = torch.zeros(
                 (batch_size, n_tokens, n_tokens, c_z_dim), device=self.device
             )
+            logger.debug(f"[EmbeddingContext] Created fallback z_trunk with shape: {z_trunk.shape}")
         else:
+            logger.debug(f"[EmbeddingContext] Initial z_trunk shape: {z_trunk.shape}")
             # Handle multi-sample case with extra dimensions
             if z_trunk.dim() == 6:  # [B, 1, N_sample, N_res, N_res, C]
-                # This is likely a case where we have an extra dimension from the bridging process
-                # Reshape to [B, N_sample, N_res, N_res, C] by removing the extra dimension
                 logger.info(f"[EmbeddingContext] Reshaping 6D z_trunk with shape {z_trunk.shape} to 5D")
                 z_trunk = z_trunk.squeeze(1)  # Remove the extra dimension at index 1
                 logger.info(f"[EmbeddingContext] After reshaping, z_trunk shape: {z_trunk.shape}")
+            # Patch: If z_trunk is 3D, expand to 4D by adding batch dim
+            elif z_trunk.dim() == 3:  # [N_res, N_res, C]
+                logger.warning(f"[EmbeddingContext] z_trunk is 3D, expanding to 4D. Original shape: {z_trunk.shape}")
+                z_trunk = z_trunk.unsqueeze(0)  # [1, N_res, N_res, C]
+                logger.info(f"[EmbeddingContext] After expanding, z_trunk shape: {z_trunk.shape}")
         return z_trunk
