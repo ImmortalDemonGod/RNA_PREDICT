@@ -326,7 +326,11 @@ def demo_gradient_flow_test(cfg: Optional[DictConfig] = None):
     target = torch.randn((sequence_length, target_dim), device=device)
 
     # Zero gradients
-    torsion_predictor.model.zero_grad()
+    if hasattr(torsion_predictor, 'model') and torsion_predictor.model is not None:
+        torsion_predictor.model.zero_grad()
+    else:
+        # Handle dummy mode
+        logger.info("TorsionBERT predictor is in dummy mode, skipping model.zero_grad()")
     pairformer.zero_grad()
 
     # Forward pass
@@ -373,9 +377,12 @@ def demo_gradient_flow_test(cfg: Optional[DictConfig] = None):
     # Check gradients for torsion model
     if debug_logging:
         logger.info("\nTorsion Model Gradients:")
-        for name, param in torsion_predictor.model.named_parameters():
-            if param.requires_grad and param.grad is not None:
-                logger.info(f"  {name}: {param.grad.norm().item():.4f}")
+        if hasattr(torsion_predictor, 'model') and torsion_predictor.model is not None:
+            for name, param in torsion_predictor.model.named_parameters():
+                if param.requires_grad and param.grad is not None:
+                    logger.info(f"  {name}: {param.grad.norm().item():.4f}")
+        else:
+            logger.info("  TorsionBERT predictor is in dummy mode, no gradients to display")
 
     # Check gradients for pairformer
     if debug_logging:
