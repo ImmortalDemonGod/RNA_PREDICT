@@ -132,7 +132,10 @@ def _process_pair_embedding(value: torch.Tensor, residue_atom_map: list, debug_l
             for i, atom_indices_i in enumerate(residue_atom_map):
                 for j, atom_indices_j in enumerate(residue_atom_map):
                     # Broadcast the residue-pair embedding to all atom-pairs
-                    out[:, s, atom_indices_i, :][:, :, :, atom_indices_j, :] = value[:, s, i:i+1, j:j+1, :]
+                    # Use a more explicit approach to avoid advanced indexing issues
+                    for ai in atom_indices_i:
+                        for aj in atom_indices_j:
+                            out[:, s, ai, aj, :] = value[:, s, i, j, :]
 
         if debug_logging:
             logger.debug(f"Bridged pair embedding {key} from shape {value.shape} to {out.shape} (with N_sample dimension)")
@@ -152,7 +155,10 @@ def _process_pair_embedding(value: torch.Tensor, residue_atom_map: list, debug_l
         # For each residue pair, copy the embedding to all corresponding atom pairs
         for i, atom_indices_i in enumerate(residue_atom_map):
             for j, atom_indices_j in enumerate(residue_atom_map):
-                out[:, atom_indices_i, :][:, :, atom_indices_j, :] = value[:, i:i+1, j:j+1, :]
+                # Use a more explicit approach to avoid advanced indexing issues
+                for ai in atom_indices_i:
+                    for aj in atom_indices_j:
+                        out[:, ai, aj, :] = value[:, i, j, :]
 
         if debug_logging:
             logger.debug(f"Bridged pair embedding {key} from shape {value.shape} to {out.shape}")
@@ -171,7 +177,10 @@ def _process_pair_embedding(value: torch.Tensor, residue_atom_map: list, debug_l
         # For each residue pair, copy the embedding to all corresponding atom pairs
         for i, atom_indices_i in enumerate(residue_atom_map):
             for j, atom_indices_j in enumerate(residue_atom_map):
-                out[atom_indices_i, :][:, atom_indices_j, :] = value[i:i+1, j:j+1, :]
+                # Use a more explicit approach to avoid advanced indexing issues
+                for ai in atom_indices_i:
+                    for aj in atom_indices_j:
+                        out[ai, aj, :] = value[i, j, :]
 
         if debug_logging:
             logger.debug(f"Bridged pair embedding {key} from shape {value.shape} to {out.shape}")
@@ -644,6 +653,17 @@ def bridge_residue_to_atom(
         feature_dimensions = config.model.stageD.diffusion.feature_dimensions
         logger.debug("[bridge_residue_to_atom] Found feature_dimensions in config.model.stageD.diffusion")
 
+    # Path 6: Check if config has cfg.model.stageD.diffusion.feature_dimensions (for DiffusionConfig with cfg)
+    elif hasattr(config, 'cfg') and hasattr(config.cfg, 'model') and hasattr(config.cfg.model, 'stageD') and \
+            hasattr(config.cfg.model.stageD, 'diffusion') and hasattr(config.cfg.model.stageD.diffusion, 'feature_dimensions'):
+        feature_dimensions = config.cfg.model.stageD.diffusion.feature_dimensions
+        logger.debug("[bridge_residue_to_atom] Found feature_dimensions in config.cfg.model.stageD.diffusion")
+
+    # Path 7: Check if config has diffusion_config.feature_dimensions (for DiffusionConfig)
+    elif hasattr(config, 'diffusion_config') and isinstance(config.diffusion_config, dict) and 'feature_dimensions' in config.diffusion_config:
+        feature_dimensions = config.diffusion_config['feature_dimensions']
+        logger.debug("[bridge_residue_to_atom] Found feature_dimensions in config.diffusion_config")
+
     # If we still don't have feature_dimensions, raise a ValueError
     if feature_dimensions is None:
         logger.error(
@@ -687,9 +707,15 @@ def bridge_residue_to_atom(
         )
     if trunk_embeddings.get("s_trunk") is not None:
         s_emb = trunk_embeddings["s_trunk"]
-        if s_emb.shape[1] != residue_count:
+
+        # Handle the case where s_trunk has a sample dimension
+        # If s_emb has 4 dimensions [batch, sample, residue, features], check shape[2]
+        # If s_emb has 3 dimensions [batch, residue, features], check shape[1]
+        residue_dim_idx = 2 if s_emb.dim() == 4 else 1
+
+        if s_emb.shape[residue_dim_idx] != residue_count:
             raise ValueError(
-                f"[BRIDGE ERROR][UNIQUE_CODE_001] s_emb.shape[1] = {s_emb.shape[1]} does not match residue count ({residue_count}). "
+                f"[BRIDGE ERROR][UNIQUE_CODE_001] s_emb.shape[{residue_dim_idx}] = {s_emb.shape[residue_dim_idx]} does not match residue count ({residue_count}). "
                 "This likely means atom-level embeddings were passed to the bridging function, which expects residue-level. "
                 "Check the pipeline for double-bridging or misrouted tensors."
             )

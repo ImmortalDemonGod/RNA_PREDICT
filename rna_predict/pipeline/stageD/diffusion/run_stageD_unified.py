@@ -198,8 +198,14 @@ def _run_stageD_diffusion_impl(
     if isinstance(original_trunk_embeddings_ref, dict) and "s_trunk" in original_trunk_embeddings_ref:
         s_trunk = original_trunk_embeddings_ref["s_trunk"]
         n_residues = len(getattr(config, "sequence", []))
-        if n_residues and s_trunk.shape[1] != n_residues:
-            raise ValueError("[STAGED-UNIFIED ERROR][UNIQUE_CODE_004] Atom-level embeddings detected in s_trunk before bridging. Upstream code must pass residue-level embeddings.")
+
+        # Handle the case where s_trunk has a sample dimension
+        # If s_trunk has 4 dimensions [batch, sample, residue, features], check shape[2]
+        # If s_trunk has 3 dimensions [batch, residue, features], check shape[1]
+        residue_dim_idx = 2 if s_trunk.dim() == 4 else 1
+
+        if n_residues and s_trunk.shape[residue_dim_idx] != n_residues:
+            raise ValueError(f"[STAGED-UNIFIED ERROR][UNIQUE_CODE_004] Atom-level embeddings detected in s_trunk before bridging. Upstream code must pass residue-level embeddings. Expected {n_residues} residues, got {s_trunk.shape[residue_dim_idx]} at dimension {residue_dim_idx} of shape {s_trunk.shape}")
 
     # Bridge residue-level embeddings to atom-level embeddings
     sequence = getattr(config, "sequence", None)
