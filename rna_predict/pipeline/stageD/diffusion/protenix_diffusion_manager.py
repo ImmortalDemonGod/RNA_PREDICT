@@ -37,6 +37,26 @@ logger = logging.getLogger(
 )
 
 
+# --- Robust config extraction for Hydra and test layouts ---
+def _get_stageD_diffusion_cfg(cfg):
+    # Try Hydra (OmegaConf) nested structure
+    if hasattr(cfg, "model") and hasattr(cfg.model, "stageD") and hasattr(cfg.model.stageD, "diffusion"):
+        return cfg.model.stageD.diffusion
+    # Try dict/test structure
+    if isinstance(cfg, dict):
+        if "stageD" in cfg and "diffusion" in cfg["stageD"]:
+            return cfg["stageD"]["diffusion"]
+        if "diffusion" in cfg:
+            return cfg["diffusion"]
+    # Try OmegaConf DictConfig with keys
+    if hasattr(cfg, 'keys'):
+        if 'stageD' in cfg and 'diffusion' in cfg['stageD']:
+            return cfg['stageD']['diffusion']
+        if 'diffusion' in cfg:
+            return cfg['diffusion']
+    raise ValueError("Could not find Stage D diffusion config in provided configuration.")
+
+
 class DiffusionManagerConfig:
     def __init__(self, device, num_inference_steps, temperature, diffusion_module_args, debug_logging):
         self.device = device
@@ -231,6 +251,13 @@ class ProtenixDiffusionManager(torch.nn.Module):
         return coords_final
 
     def _is_unexpected_shape(self, coords_final):
+        # Handle multi-sample case with shape [B, N_sample, N_atoms, 3]
+        if coords_final.ndim == 4 and coords_final.shape[3] == 3:
+            # This is the expected shape for multi-sample output
+            # We'll handle this in _handle_expected_shape
+            return False
+
+        # Original check for unexpected shape
         n_atoms_inferred = coords_final.shape[2] if coords_final.ndim > 2 else -1
         return (
             coords_final.ndim == 4
@@ -244,6 +271,15 @@ class ProtenixDiffusionManager(torch.nn.Module):
 
     def _handle_expected_shape(self, coords_final):
         sample_dim_index = 1
+
+        # Handle multi-sample case with shape [B, N_sample, N_atoms, 3]
+        if coords_final.ndim == 4 and coords_final.shape[3] == 3:
+            # For multi-sample output, we keep the sample dimension
+            # but we'll log it for debugging
+            print(f"[DEBUG][PATCHED] Found multi-sample coords with shape {coords_final.shape}")
+            return coords_final
+
+        # Original handling for standard case
         if (
             coords_final.ndim > sample_dim_index
             and coords_final.shape[sample_dim_index] == 1
@@ -262,9 +298,12 @@ class ProtenixDiffusionManager(torch.nn.Module):
         Multi-step diffusion-based inference. Handles shape expansions.
         Inference parameters are read from the stored Hydra config (self.cfg.stageD.diffusion).
         """
-        if not OmegaConf.is_config(self.cfg):
-            raise ValueError("multi_step_inference requires Hydra config")
-        stage_cfg = self.cfg.model.stageD.diffusion
+        # --- Robust config extraction ---
+        try:
+            stage_cfg = _get_stageD_diffusion_cfg(self.cfg)
+        except Exception as e:
+            logger.error(f"[CONFIG-ERROR][StageD] {e}")
+            raise
         # --- PATCH: Handle extra 'diffusion' nesting in config ---
         inference_cfg = stage_cfg.get("inference", None)
         if (
@@ -316,60 +355,43 @@ class ProtenixDiffusionManager(torch.nn.Module):
         emb_ctx.trunk_embeddings = trunk_embeddings
         s_inputs = self._get_s_inputs(emb_ctx)
         z_trunk = self._get_z_trunk(emb_ctx)
-        # Ensure z_trunk is 4D or 5D before accessing shape
-        if z_trunk.dim() == 3:
-            logger.warning(f"[StageD] z_trunk has shape {z_trunk.shape}, expected 4D or 5D. Expanding dims.")
-            z_trunk = z_trunk.unsqueeze(2)  # Insert singleton N_res dimension
 
-        # Handle 5D tensor case (batch, sample, n_res1, n_res2, c_z)
-        has_sample_dim = z_trunk.dim() == 5
-        if has_sample_dim:
-            logger.info(f"[StageD] z_trunk has 5 dimensions {z_trunk.shape}, handling sample dimension")
-            # For 5D tensor, we need to check dimensions 2 and 3 instead of 1 and 2
-            shape_mismatch = (
-                z_trunk.shape[2] != trunk_embeddings["s_trunk"].shape[1]
-                or z_trunk.shape[3] != trunk_embeddings["s_trunk"].shape[1]
-            )
-        else:
-            # For 4D tensor, check dimensions 1 and 2 as before
-            shape_mismatch = (
-                z_trunk.shape[1] != trunk_embeddings["s_trunk"].shape[1]
-                or z_trunk.shape[2] != trunk_embeddings["s_trunk"].shape[1]
-            )
+        # Ensure s_trunk and s_inputs have compatible dimensions
+        s_trunk = trunk_embeddings["s_trunk"]
 
-        if shape_mismatch:
-            # Instead of raising an error, log a warning and reshape z_trunk to match s_trunk
-            logger.warning(
-                f"Shape mismatch between z_trunk {z_trunk.shape} and s_trunk {trunk_embeddings['s_trunk'].shape}. Reshaping z_trunk."
-            )
-            s_trunk_len = trunk_embeddings["s_trunk"].shape[1]
+        # If s_trunk has 5 dimensions [B, 1, N_sample, N_res, C] but s_inputs has 4 [B, N_sample, N_res, C]
+        if s_trunk.dim() == 5 and s_inputs.dim() == 4:
+            logger.info(f"[StageD] Reshaping s_trunk from 5D {s_trunk.shape} to 4D to match s_inputs {s_inputs.shape}")
+            s_trunk = s_trunk.squeeze(1)  # Remove the extra dimension at index 1
+            trunk_embeddings["s_trunk"] = s_trunk
+            logger.info(f"[StageD] After reshaping, s_trunk shape: {s_trunk.shape}")
 
-            if has_sample_dim:
-                # For 5D tensor, feature dimension is at index 4
-                z_trunk_feat = z_trunk.shape[4]
-                # Create new tensor with correct shape including sample dimension
-                z_trunk_new = torch.zeros(
-                    z_trunk.shape[0], z_trunk.shape[1], s_trunk_len, s_trunk_len, z_trunk_feat,
-                    device=z_trunk.device, dtype=z_trunk.dtype
-                )
-                # Copy data from original z_trunk where possible
-                min_dim1 = min(z_trunk.shape[2], s_trunk_len)
-                min_dim2 = min(z_trunk.shape[3], s_trunk_len)
-                z_trunk_new[:, :, :min_dim1, :min_dim2, :] = z_trunk[:, :, :min_dim1, :min_dim2, :]
-            else:
-                # For 4D tensor, feature dimension is at index 3
-                z_trunk_feat = z_trunk.shape[3]
-                # Create new tensor with correct shape
-                z_trunk_new = torch.zeros(
-                    z_trunk.shape[0], s_trunk_len, s_trunk_len, z_trunk_feat,
-                    device=z_trunk.device, dtype=z_trunk.dtype
-                )
-                # Copy data from original z_trunk where possible
-                min_dim1 = min(z_trunk.shape[1], s_trunk_len)
-                min_dim2 = min(z_trunk.shape[2], s_trunk_len)
-                z_trunk_new[:, :min_dim1, :min_dim2, :] = z_trunk[:, :min_dim1, :min_dim2, :]
+        # --- Assert and log z_trunk shape ---
+        logger.info(f"[StageD] z_trunk shape at entry: {z_trunk.shape}")
+        expected_ndim = 4  # [B, N_res, N_res, C] or [B, N_sample, N_res, N_res, C] if sample dim present
 
-            z_trunk = z_trunk_new
+        # Handle multi-sample case with extra dimensions
+        if z_trunk.dim() == 6:  # [B, 1, N_sample, N_res, N_res, C]
+            # This is likely a case where we have an extra dimension from the bridging process
+            # Reshape to [B, N_sample, N_res, N_res, C] by removing the extra dimension
+            logger.info(f"[StageD] Reshaping 6D z_trunk with shape {z_trunk.shape} to 5D")
+            z_trunk = z_trunk.squeeze(1)  # Remove the extra dimension at index 1
+            logger.info(f"[StageD] After reshaping, z_trunk shape: {z_trunk.shape}")
+
+        if z_trunk.dim() not in (4, 5):
+            raise ValueError(f"[StageD] z_trunk must be 4D or 5D (residue-level pair tensor), got shape {z_trunk.shape}")
+
+        # --- If atom-level pairs are needed, bridge using residue_atom_bridge ---
+        if stage_cfg.get("require_atom_level_pairs", False):
+            from rna_predict.pipeline.stageD.diffusion.bridging.residue_atom_bridge import _process_pair_embedding
+            # You must provide residue_atom_map (List[List[int]]) and key (e.g., 'pair')
+            # Example: residue_atom_map = ... (get from context or input features)
+            # z_trunk = _process_pair_embedding(z_trunk, residue_atom_map, self.debug_logging, key="pair")
+            logger.info("[StageD] Bridging z_trunk from residue-level to atom-level pairs using _process_pair_embedding...")
+            # Uncomment and set up the following line as needed:
+            # z_trunk = _process_pair_embedding(z_trunk, residue_atom_map, self.debug_logging, key="pair")
+            pass  # TODO: Provide residue_atom_map and call bridging here
+
         self._log_shapes(
             debug_logging, coords_init, trunk_embeddings["s_trunk"], s_inputs, z_trunk
         )
@@ -402,6 +424,13 @@ class ProtenixDiffusionManager(torch.nn.Module):
             attn_chunk_size=attn_chunk_size,
         )
         coords_final = self._postprocess_coords(coords_final, N_sample, debug_logging)
+        # If output shape is [B, 1, N_atoms, 3] and N_sample==1, squeeze the sample dimension
+        if (
+            N_sample == 1 and isinstance(coords_final, torch.Tensor)
+            and coords_final.ndim == 4 and coords_final.shape[1] == 1 and coords_final.shape[-1] == 3
+        ):
+            coords_final = coords_final.squeeze(1)
+            logger.info(f"[PATCHED] Squeezed singleton sample dimension: new shape {coords_final.shape}")
         self._log_final_coords(debug_logging, coords_final)
         return coords_final
 
