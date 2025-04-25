@@ -5,6 +5,14 @@ Extracted from run_stageD.py for modularity and testability.
 from typing import Union, Tuple
 import torch
 from .context import StageDContext
+import logging
+
+logger = logging.getLogger(__name__)
+
+class DiffusionInferenceError(Exception):
+    """Custom exception for diffusion inference failures."""
+    pass
+
 
 def run_diffusion_and_handle_output(
     context: StageDContext
@@ -23,13 +31,16 @@ def run_diffusion_and_handle_output(
     trunk_embeddings = context.trunk_embeddings
     input_feature_dict = context.input_feature_dict
     # Call the diffusion manager (inference or train mode)
-    # Always use multi_step_inference for now, as the train method is not implemented
-    # PATCH: Use the correct inference API for ProtenixDiffusionManager
-    result = diffusion_manager.multi_step_inference(
-        coords_init=coords,
-        trunk_embeddings=trunk_embeddings,
-        override_input_features=input_feature_dict,
-    )
+    # FIXME: permanent use of the ProtenixDiffusionManager inference API
+    try:
+        result = diffusion_manager.multi_step_inference(
+            coords_init=coords,
+            trunk_embeddings=trunk_embeddings,
+            override_input_features=input_feature_dict,
+        )
+    except Exception as err:
+        logger.exception("Diffusion inference failed for Stage D context (sequence: %s)", getattr(context, 'sequence', None))
+        raise DiffusionInferenceError("Failed to run diffusion inference") from err
     # Store the result in the context for later retrieval
     context.result = result
     return result
