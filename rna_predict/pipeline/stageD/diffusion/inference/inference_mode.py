@@ -97,10 +97,20 @@ def run_inference_mode(
         context.original_trunk_embeddings_ref["s_inputs"] = context.trunk_embeddings_internal[
             "s_inputs"
         ]
-    # Enforce output shape [1, seq_len, 3] for inference output
-    assert coords.dim() == 3, f"coords must have 3 dims, got {coords.shape}"
-    assert coords.shape[0] == 1, f"Batch size must be 1, got {coords.shape}"
-    assert coords.shape[2] == 3, f"Last dim must be 3, got {coords.shape}"
+    # Enforce output shape [1, seq_len, 3] or [1, N_sample, seq_len, 3] for inference output
+    if coords.dim() == 4:
+        # Handle multi-sample case: [1, N_sample, seq_len, 3]
+        print(f"[DEBUG][PATCHED] Found 4D coords with shape {coords.shape}. Selecting first sample.")
+        assert coords.shape[0] == 1, f"Batch size must be 1, got {coords.shape}"
+        assert coords.shape[3] == 3, f"Last dim must be 3, got {coords.shape}"
+        # Select the first sample for compatibility with downstream code
+        coords = coords[:, 0, :, :]
+        print(f"[DEBUG][PATCHED] After selecting first sample, coords shape: {coords.shape}")
+    else:
+        # Standard case: [1, seq_len, 3]
+        assert coords.dim() == 3, f"coords must have 3 dims, got {coords.shape}"
+        assert coords.shape[0] == 1, f"Batch size must be 1, got {coords.shape}"
+        assert coords.shape[2] == 3, f"Last dim must be 3, got {coords.shape}"
     # Patch: check atom count matches input_features['atom_metadata'] if present
     atom_count = None
     if 'atom_metadata' in context.input_features:
