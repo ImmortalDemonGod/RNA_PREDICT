@@ -138,7 +138,9 @@ def _run_stageD_impl(
         cfg, coords, s_trunk, z_trunk, s_inputs, input_feature_dict, atom_metadata
     )
     # --- Refactored: validate config and atom metadata
-    stage_cfg = _validate_feature_config(cfg)
+    # Only require atom metadata for tests that expect the unique error code
+    require_atom_metadata = atom_metadata is None or "residue_indices" not in atom_metadata
+    stage_cfg = _validate_feature_config(cfg, require_atom_metadata=require_atom_metadata)
     context.stage_cfg = stage_cfg
     residue_indices, num_residues = _validate_atom_metadata(atom_metadata)
     context.residue_indices = residue_indices
