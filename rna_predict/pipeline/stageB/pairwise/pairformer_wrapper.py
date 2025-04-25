@@ -94,8 +94,14 @@ class PairformerWrapper(nn.Module):
         elif hasattr(cfg, 'model') and hasattr(cfg.model, 'stageB') and hasattr(cfg.model.stageB, 'pairformer') and hasattr(cfg.model.stageB.pairformer, 'debug_logging'):
             debug_logging = cfg.model.stageB.pairformer.debug_logging
         self.debug_logging = debug_logging
-        if debug_logging:
+
+        # Set logger level based on debug_logging value
+        if self.debug_logging:
+            logger.setLevel(logging.DEBUG)
             logger.debug("[UNIQUE-DEBUG-STAGEB-PAIRFORMER-TEST] PairformerWrapper initialized with debug_logging=True")
+        else:
+            # Set to INFO level to suppress DEBUG messages
+            logger.setLevel(logging.INFO)
 
         # NEW: Freeze all parameters if freeze_params is set in config
         freeze_flag = getattr(cfg, 'freeze_params', False)
