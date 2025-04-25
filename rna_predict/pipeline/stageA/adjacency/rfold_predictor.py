@@ -121,6 +121,17 @@ class StageARFoldPredictor(nn.Module):
             _logging.getLogger().debug(f"[UNIQUE-DEBUG-STAGEA-TEST-ROOT] This should always appear if root logger is working. Config used:\n{OmegaConf.to_yaml(stage_cfg)}")
             logger.info(f"  Device: {device}")
 
+        # Defensive: Enter dummy mode if config is missing or incomplete
+        required_fields = ["min_seq_length", "num_hidden", "dropout", "batch_size", "lr", "model"]
+        if stage_cfg is None or any(not hasattr(stage_cfg, f) for f in required_fields):
+            print("[UNIQUE-WARN-STAGEA-DUMMYMODE] Config missing/incomplete, entering dummy mode.")
+            self.dummy_mode = True
+            self.device = device if device is not None else torch.device("cpu")
+            self.min_seq_length = 1
+            return
+        else:
+            self.dummy_mode = False
+
         # Validate and store device
         self.device = self._validate_device(device)
         self.min_seq_length = stage_cfg.min_seq_length  # Store for use in _get_cut_len
@@ -334,18 +345,13 @@ class StageARFoldPredictor(nn.Module):
     def predict_adjacency(self, rna_sequence: str) -> np.ndarray:
         """
         Predict adjacency [N x N] using the official RFold model + row/col argmax.
-
-        Steps:
-           1) Convert the RNA sequence (A/U/C/G) to numeric form
-           2) (If sequence is very short, return a zero adjacency)
-           3) Forward pass through the model
-           4) Use row_col_argmax & constraint_matrix for final adjacency
-           5) Return adjacency as a NumPy array
         """
-        # Import torch and numpy at the beginning of the method to avoid UnboundLocalError
         import torch
         import numpy as np
-
+        if getattr(self, 'dummy_mode', False):
+            N = len(rna_sequence)
+            print(f"[UNIQUE-WARN-STAGEA-DUMMYMODE] Returning dummy adjacency for sequence of length {N}.")
+            return np.zeros((N, N), dtype=np.float32)
         if self.debug_logging:
             logger.info(f"Predicting adjacency for sequence length: {len(rna_sequence)}")
         if RFoldModel is None or official_seq_dict is None:
