@@ -7,6 +7,7 @@ from hypothesis import given, strategies as st, settings
 from rna_predict.pipeline.stageD.run_stageD import run_stageD
 from rna_predict.pipeline.stageD.context import StageDContext
 import pytest
+
 def create_stage_d_test_config(stage_overrides=None, model_overrides=None, noise_overrides=None) -> DictConfig:
     if stage_overrides is None:
         stage_overrides = {}
@@ -459,8 +460,14 @@ class TestRunStageDIntegration(unittest.TestCase):
         assert batch_size == 1, "UNIQUE ERROR: Only batch_size=1 is supported in inference mode. If this fails, clean .hypothesis/examples."
         device = "cpu"
         atom_coords = torch.randn(batch_size, num_atoms, 3)
+        n_residues = max(1, min(num_atoms // 2, num_atoms))
+        if n_residues == 0:
+            n_residues = 1
+        s_trunk_res = torch.randn(batch_size, n_residues, c_s)
+        # PATCH: Ensure atom-to-residue mapping for atom_metadata
+        residue_indices = [i % n_residues for i in range(num_atoms)]
         atom_embeddings = {
-            "s_trunk": torch.randn(batch_size, num_atoms, c_s),
+            "s_trunk": s_trunk_res,  # Pass residue-level s_trunk to run_stageD
             "pair": torch.randn(batch_size, num_atoms, num_atoms, c_z),
             "s_inputs": torch.randn(batch_size, num_atoms, c_s_inputs),
             "atom_to_token_idx": torch.arange(num_atoms).unsqueeze(0).long()
@@ -496,62 +503,35 @@ class TestRunStageDIntegration(unittest.TestCase):
         for k, shape in required_shapes.items():
             assert k in input_feature_dict, f"UNIQUE ERROR: Missing feature '{k}' in input_feature_dict"
             assert input_feature_dict[k].shape == shape, f"UNIQUE ERROR: Feature '{k}' has shape {input_feature_dict[k].shape}, expected {shape}"
-        # PATCH: Build config with correct structure for run_stageD
+        # PATCH: Ensure config has all required parameters for _validate_feature_config and correct config group structure
+        from omegaconf import OmegaConf
         cfg = OmegaConf.create({
             "model": {
                 "stageD": {
-                    "c_s": c_s,
-                    "c_z": c_z,
-                    "c_s_inputs": c_s_inputs,
-                    "c_atom": c_s,
-                    "device": device,
                     "ref_element_size": 128,
-                    "ref_atom_name_chars_size": 256
+                    "ref_atom_name_chars_size": 256,
+                    "profile_size": 32,
+                    "diffusion": {
+                        # Minimal required diffusion config
+                        "mode": "inference",
+                        "device": "cpu"
+                    }
                 }
             }
         })
-        # PATCH: Provide valid atom_metadata for bridging
-        atom_metadata = {"residue_indices": list(range(num_atoms))}
-        # PATCH: Ensure run_stageD is called with atom_metadata
-        try:
-            # Create a proper mock for ProtenixDiffusionManager
-            mock_manager = MagicMock()
-            # Configure the mock to return a tensor with the right shape
-            # Important: We need to dynamically set the return value in the mock
-            # to match whatever is passed to multi_step_inference
-            def side_effect(*args, **kwargs):
-                # Extract coords_init from the kwargs
-                if 'coords_init' in kwargs:
-                    return kwargs['coords_init'].clone()
-                # If not in kwargs, it's the first positional argument
-                elif len(args) > 0:
-                    return args[0].clone()
-                # Fallback to original atom_coords if we can't find it
-                return atom_coords.clone()
-
-            mock_manager.multi_step_inference.side_effect = side_effect
-
-            with patch('rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager.ProtenixDiffusionManager', return_value=mock_manager):
-                result = run_stageD(
-                    cfg,
-                    atom_coords,
-                    atom_embeddings["s_trunk"],
-                    atom_embeddings["pair"],
-                    atom_embeddings["s_inputs"],
-                    input_feature_dict,
-                    atom_metadata
-                )
-
-                # Verify the result has the expected shape
-                assert result.shape[0] == atom_coords.shape[0], f"UNIQUE ERROR: Batch dimension mismatch: {result.shape[0]} != {atom_coords.shape[0]}"
-                assert result.shape[2] == atom_coords.shape[2], f"UNIQUE ERROR: Coordinate dimension mismatch: {result.shape[2]} != {atom_coords.shape[2]}"
-                # Note: We don't check the middle dimension as it might be transformed during processing
-        except RuntimeError as e:
-            if 'out of memory' in str(e).lower():
-                raise AssertionError("UNIQUE ERROR: OOM during property-based test")
-            # Defensive: Print error for debugging
-            print(f"[DEBUG][test_inference_mode_property] Exception: {e}")
-            raise
+        result = run_stageD(
+            cfg,
+            atom_coords,
+            atom_embeddings["s_trunk"],
+            atom_embeddings["pair"],
+            atom_embeddings["s_inputs"],
+            input_feature_dict,
+            {"residue_indices": residue_indices}
+        )
+        # Verify the result has the expected shape
+        assert result.shape[0] == atom_coords.shape[0], f"UNIQUE ERROR: Batch dimension mismatch: {result.shape[0]} != {atom_coords.shape[0]}"
+        assert result.shape[2] == atom_coords.shape[2], f"UNIQUE ERROR: Coordinate dimension mismatch: {result.shape[2]} != {atom_coords.shape[2]}"
+        # Note: We don't check the middle dimension as it might be transformed during processing
 
     @settings(deadline=5000, max_examples=2)
     @given(

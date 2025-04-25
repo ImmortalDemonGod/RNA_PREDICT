@@ -29,5 +29,10 @@ class DiffusionConfig:
     cfg: Optional[Any] = None  # Added parameter for Hydra config
     atom_metadata: Optional[Dict[str, Any]] = None  # Added parameter for atom metadata
 
+    # Feature parameters required by _validate_feature_config
+    ref_element_size: int = 128
+    ref_atom_name_chars_size: int = 256
+    profile_size: int = 32
+
     # Internal state (not set by user)
     trunk_embeddings_internal: Dict[str, torch.Tensor] = field(default_factory=dict, init=False)
