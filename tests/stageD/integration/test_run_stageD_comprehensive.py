@@ -521,8 +521,6 @@ class TestRunStageDComprehensive(unittest.TestCase):
             finally:
                 sys.stdout = sys.__stdout__
 
-    # Skip this test for now as it requires more complex setup
-    @unittest.skip("Skipping preprocessing test due to complex setup requirements")
     @settings(deadline=5000, max_examples=2)
     @given(
         batch_size=st.integers(min_value=1, max_value=1),
@@ -543,8 +541,29 @@ class TestRunStageDComprehensive(unittest.TestCase):
             atom_embeddings = make_atom_embeddings(batch_size, seq_len, feature_dim)
             atom_embeddings["sequence"] = "A" * seq_len
 
-            # Skip the actual test logic since we're skipping the test
-            self.assertTrue(True)
+            # Add a dummy preprocessing config to cfg
+            cfg = make_stageD_config(batch_size, seq_len, feature_dim, apply_preprocess=True, preprocess_max_len=preprocess_max_len)
+
+            # Create a StageDContext object
+            context = StageDContext(
+                cfg=cfg,
+                coords=atom_coords,
+                s_trunk=atom_embeddings["s_trunk"],
+                z_trunk=atom_embeddings["pair"],
+                s_inputs=atom_embeddings["s_inputs"],
+                input_feature_dict=atom_embeddings,
+                atom_metadata=atom_embeddings.get("atom_metadata")
+            )
+
+            # Run and check that preprocessing does not error
+            try:
+                run_stageD(context)
+            except Exception as e:
+                self.fail(f"Preprocessing failed with exception: {e}")
+
+            # Optionally, check that sequence was not truncated below preprocess_max_len
+            if "sequence" in context.input_feature_dict:
+                self.assertLessEqual(len(context.input_feature_dict["sequence"]), preprocess_max_len)
 
     @settings(deadline=5000, max_examples=2)
     @given(
