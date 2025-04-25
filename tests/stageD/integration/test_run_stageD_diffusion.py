@@ -533,13 +533,13 @@ class TestRunStageDIntegration(unittest.TestCase):
 
             with patch('rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager.ProtenixDiffusionManager', return_value=mock_manager):
                 result = run_stageD(
-                    cfg=cfg,
-                    coords=atom_coords,
-                    s_trunk=atom_embeddings["s_trunk"],
-                    z_trunk=atom_embeddings["pair"],
-                    s_inputs=atom_embeddings["s_inputs"],
-                    input_feature_dict=input_feature_dict,
-                    atom_metadata=atom_metadata,
+                    cfg,
+                    atom_coords,
+                    atom_embeddings["s_trunk"],
+                    atom_embeddings["pair"],
+                    atom_embeddings["s_inputs"],
+                    input_feature_dict,
+                    atom_metadata
                 )
 
                 # Verify the result has the expected shape
