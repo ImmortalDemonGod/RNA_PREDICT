@@ -18,8 +18,8 @@ ref_element_size: ${stageD_diffusion.ref_element_size}
 ref_atom_name_chars_size: ${stageD_diffusion.ref_atom_name_chars_size}
 profile_size: ${stageD_diffusion.profile_size}
 
-# Expose feature_dimensions at the top level for Hydra/OmegaConf compatibility
-feature_dimensions: ${stageD_diffusion.diffusion.feature_dimensions}
+# feature_dimensions is defined in stageD_diffusion.yaml under diffusion
+# to avoid Hydra interpolation/type errors.
 
 # Copy nested configurations
 model_architecture:
@@ -74,7 +74,6 @@ diffusion:
   ref_element_size: ${stageD_diffusion.ref_element_size}
   ref_atom_name_chars_size: ${stageD_diffusion.ref_atom_name_chars_size}
   profile_size: ${stageD_diffusion.profile_size}
-  feature_dimensions: ${stageD_diffusion.diffusion.feature_dimensions}
   test_residues_per_batch: ${stageD_diffusion.diffusion.test_residues_per_batch}
   model_architecture:
     c_token: ${stageD_diffusion.diffusion.model_architecture.c_token}
@@ -85,6 +84,14 @@ diffusion:
     c_atompair: ${stageD_diffusion.diffusion.model_architecture.c_atompair}
     c_noise_embedding: ${stageD_diffusion.diffusion.model_architecture.c_noise_embedding}
     sigma_data: ${stageD_diffusion.diffusion.model_architecture.sigma_data}
+    num_layers: 6
+    num_heads: 8
+    dropout: 0.1
+    coord_eps: 1e-6
+    coord_min: -1e4
+    coord_max: 1e4
+    coord_similarity_rtol: 1e-3
+    test_residues_per_batch: 25
   transformer:
     n_blocks: ${stageD_diffusion.diffusion.transformer.n_blocks}
     n_heads: ${stageD_diffusion.diffusion.transformer.n_heads}
