@@ -13,14 +13,14 @@ IMPORTANT:
     docs/guides/best_practices/debugging/comprehensive_debugging_guide.md
 """
 import os
-import pathlib
+from pathlib import Path
 PROJECT_ROOT = "/Users/tomriddle1/RNA_PREDICT"
 if os.getcwd() != PROJECT_ROOT:
     print(f"[DEBUG-TOP] Changing CWD from {os.getcwd()} to {PROJECT_ROOT}")
     os.chdir(PROJECT_ROOT)
-conf_path = pathlib.Path(PROJECT_ROOT) / "rna_predict" / "conf"
+conf_path = Path(PROJECT_ROOT) / "rna_predict" / "conf"
 try:
-    rel_conf_path = conf_path.relative_to(pathlib.Path.cwd())
+    rel_conf_path = conf_path.relative_to(Path.cwd())
 except ValueError:
     # If CWD is not a parent of conf_path, fallback to absolute path (Hydra will error, but we log it)
     rel_conf_path = conf_path
@@ -34,8 +34,6 @@ from rna_predict.utils.checkpointing import save_trainable_checkpoint, get_train
 from rna_predict.utils.checkpoint import partial_load_state_dict
 from hypothesis import given, strategies as st, settings
 import tempfile
-from pathlib import Path
-from collections.abc import Mapping
 import traceback
 
 # Project rule: Always use absolute Hydra config path for all initialization/testing
@@ -58,7 +56,6 @@ if actual_cwd != EXPECTED_CWD:
     )
 
 # Instrument with debug output and dynamic config_path selection
-import pathlib
 print(f"[TEST DEBUG] Current working directory: {os.getcwd()}")
 
 @settings(max_examples=1, deadline=None)
@@ -77,9 +74,17 @@ def test_full_pipeline_partial_checkpoint(batch_size, input_dim):
             import hydra.core.global_hydra
             if hydra.core.global_hydra.GlobalHydra.instance().is_initialized():
                 hydra.core.global_hydra.GlobalHydra.instance().clear()
+            # [HYDRA-PROJECT-RULE] Hydra config_path must be relative to the test file location in pytest context
+            test_file = Path(__file__).resolve()
+            config_dir = (test_file.parent.parent.parent / "rna_predict" / "conf").resolve()
+            config_path = os.path.relpath(config_dir, start=test_file.parent)
             print(f"[DEBUG] CWD before hydra.initialize: {os.getcwd()}")
-            # Compose config with debug output to inspect structure
-            with hydra.initialize(config_path="../../rna_predict/conf", job_name="test_full_pipeline_partial_checkpoint", version_base=None):
+            print(f"[DEBUG] Test file __file__: {test_file}")
+            print(f"[DEBUG] Using config_path for hydra.initialize: {config_path}")
+            print(f"[DEBUG] os.path.exists(config_path): {os.path.exists(config_path)}")
+            print(f"[DEBUG] os.path.abspath(config_path): {os.path.abspath(config_path)}")
+            print(f"[DEBUG] os.listdir(os.path.dirname(config_path)): {os.listdir(os.path.dirname(config_path)) if os.path.exists(os.path.dirname(config_path)) else 'N/A'}")
+            with hydra.initialize(config_path=config_path, job_name="test_full_pipeline_partial_checkpoint", version_base=None):
                 cfg = hydra.compose(
                     config_name="default",
                     overrides=[
