@@ -93,6 +93,19 @@ def test_diffusion_single_embed_caching(_dummy):
         # Set up the mock to return a tuple of (coords, loss)
         DummyDiffusionModule.return_value.forward.return_value = (torch.zeros(1, N, 3), torch.tensor(0.0))
 
+        # Create a minimal model.stageD config
+        from omegaconf import OmegaConf
+        cfg = OmegaConf.create({
+            "model": {
+                "stageD": {
+                    "diffusion": {
+                        "feature_dimensions": diffusion_config["feature_dimensions"],
+                        "model_architecture": diffusion_config["model_architecture"]
+                    }
+                }
+            }
+        })
+
         # Create DiffusionConfig object
         config1 = DiffusionConfig(
             partial_coords=partial_coords,
@@ -102,7 +115,7 @@ def test_diffusion_single_embed_caching(_dummy):
             device="cpu",
             input_features=input_features,
             sequence=sequence,
-            cfg=None
+            cfg=cfg
         )
         config1.feature_dimensions = diffusion_config["feature_dimensions"]
         coords_final_1 = run_stageD_diffusion(config=config1)
@@ -121,7 +134,7 @@ def test_diffusion_single_embed_caching(_dummy):
             device="cpu",
             input_features=input_features,
             sequence=sequence,
-            cfg=None
+            cfg=cfg
         )
         config2.feature_dimensions = diffusion_config["feature_dimensions"]
         coords_final_2 = run_stageD_diffusion(config=config2)
