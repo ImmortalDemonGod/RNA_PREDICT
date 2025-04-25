@@ -121,7 +121,7 @@ def _run_diffusion_step(context):
     run_diffusion_and_handle_output(context)
 
 
-def run_stageD(
+def _run_stageD_impl(
     context: StageDContext,
 ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor, torch.Tensor]]:
     """Run diffusion refinement on the input coordinates using the unified Stage D runner."""
@@ -202,7 +202,42 @@ def run_stageD(
     log_mem("Before diffusion")
     print("[DEBUG][run_stageD] Calling unified Stage D runner with DiffusionConfig.")
     _run_diffusion_step(context)
+    # Return the result from the diffusion step
+    if hasattr(context, 'result') and context.result is not None:
+        return context.result
+    # Fallback to returning the diffusion config
     return context.diffusion_cfg
+
+
+def run_stageD(
+    cfg,
+    coords,
+    s_trunk,
+    z_trunk,
+    s_inputs,
+    input_feature_dict,
+    atom_metadata=None
+) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor, torch.Tensor]]:
+    """
+    Compatibility wrapper for the old function signature.
+    Creates a StageDContext and calls the implementation function.
+
+    This maintains backward compatibility with existing tests while allowing
+    the main implementation to use the new context-based approach.
+    """
+    # Create a context object with the provided arguments
+    context = StageDContext(
+        cfg=cfg,
+        coords=coords,
+        s_trunk=s_trunk,
+        z_trunk=z_trunk,
+        s_inputs=s_inputs,
+        input_feature_dict=input_feature_dict,
+        atom_metadata=atom_metadata
+    )
+
+    # Call the implementation function with the context
+    return _run_stageD_impl(context)
 
 
 # Note: register_configs() is already called at the beginning of the file
@@ -361,7 +396,7 @@ def _run_stageD_main_logic_context(context: StageDContext):
             print(f"[DEBUG][run_stageD] z_trunk shape: {z_trunk_tensor.shape}")
             print(f"[DEBUG][run_stageD] s_inputs shape: {s_inputs_tensor.shape}")
             print(f"[DEBUG][run_stageD] num_atoms: {context.coords.shape[1]}")
-        refined_coords = run_stageD(context)
+        refined_coords = _run_stageD_impl(context)
         if context.debug_logging:
             if isinstance(refined_coords, torch.Tensor):
                 log.info(f"Successfully refined coordinates: {refined_coords.shape}")

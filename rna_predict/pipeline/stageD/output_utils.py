@@ -21,32 +21,15 @@ def run_diffusion_and_handle_output(
     # Prepare inputs for the diffusion call
     coords = context.coords
     trunk_embeddings = context.trunk_embeddings
-    features = context.features
     input_feature_dict = context.input_feature_dict
-    s_trunk = context.s_trunk
-    z_trunk = context.z_trunk
-    s_inputs = context.s_inputs
-    atom_metadata = context.atom_metadata
     # Call the diffusion manager (inference or train mode)
-    if context.mode == "inference":
-        # PATCH: Use the correct inference API for ProtenixDiffusionManager
-        result = diffusion_manager.multi_step_inference(
-            coords_init=coords,
-            trunk_embeddings=trunk_embeddings,
-            override_input_features=input_feature_dict,
-        )
-        return result
-    else:
-        # Training mode or other modes can be handled here
-        result = diffusion_manager.train(
-            coords=coords,
-            trunk_embeddings=trunk_embeddings,
-            features=features,
-            input_feature_dict=input_feature_dict,
-            s_trunk=s_trunk,
-            z_trunk=z_trunk,
-            s_inputs=s_inputs,
-            atom_metadata=atom_metadata,
-            device=context.device,
-        )
-        return result
+    # Always use multi_step_inference for now, as the train method is not implemented
+    # PATCH: Use the correct inference API for ProtenixDiffusionManager
+    result = diffusion_manager.multi_step_inference(
+        coords_init=coords,
+        trunk_embeddings=trunk_embeddings,
+        override_input_features=input_feature_dict,
+    )
+    # Store the result in the context for later retrieval
+    context.result = result
+    return result
