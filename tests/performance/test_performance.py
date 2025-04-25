@@ -9,7 +9,7 @@ from rna_predict.pipeline.stageD.diffusion.utils import DiffusionConfig  # Impor
 
 from unittest.mock import patch
 import pytest
-from hypothesis import settings
+from hypothesis import settings, given, strategies as st
 
 def get_memory_usage():  # Helper function
     process = psutil.Process(os.getpid())
@@ -19,7 +19,8 @@ def get_memory_usage():  # Helper function
 # @pytest.mark.performance
 # @pytest.mark.skip(reason="Causes excessive memory usage") # Temporarily unskipped
 @settings(max_examples=1)
-def test_diffusion_single_embed_caching():
+@given(st.just(True))  # Add a dummy given parameter
+def test_diffusion_single_embed_caching(_dummy):
     """
     Quick check that calling run_stageD_diffusion multiple times
     reuses s_inputs from trunk_embeddings, skipping repeated embedding creation.
