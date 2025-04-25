@@ -196,6 +196,7 @@ class TestRunStageDIntegration(unittest.TestCase):
         print(f"[DEBUG-CONFIG] 'model_architecture' in self.test_cfg.model.stageD.diffusion: {'model_architecture' in self.test_cfg.model.stageD.diffusion}")
         if 'model_architecture' in self.test_cfg.model.stageD.diffusion:
             print(f"[DEBUG-CONFIG] self.test_cfg.model.stageD.diffusion.model_architecture keys: {list(self.test_cfg.model.stageD.diffusion.model_architecture.keys())}")
+
         self.num_atoms = 25
         self.num_residues = 5  # 5 residues with 5 atoms each
         self.c_token = 64
@@ -450,7 +451,7 @@ class TestRunStageDIntegration(unittest.TestCase):
         c_s_inputs=st.integers(min_value=4, max_value=8)
     )#skip too much memory
     #@pytest.mark.skip(reason="skip too much memory")
-    @pytest.mark.skip(reason="High memory usage—may crash system. Only remove this skip if you are on a high-memory machine and debugging Stage D integration.")
+    #@pytest.mark.skip(reason="High memory usage—may crash system. Only remove this skip if you are on a high-memory machine and debugging Stage D integration.")
     def test_inference_mode_property(self, batch_size, num_atoms, c_s, c_z, c_s_inputs):
         # --- PATCH: Defensive check against Hypothesis replaying old examples ---
         # Hypothesis may replay old failing examples with batch_size != 1 if .hypothesis/examples is not cleaned.
