@@ -208,7 +208,6 @@ class TestDiffusionModule(unittest.TestCase):
         n_sample=st.integers(min_value=1, max_value=6)
     )
     @settings(deadline=None, max_examples=10)
-    @pytest.mark.xfail(reason="Known issue with attention shape mismatch in N_sample handling")
     def test_n_sample_handling(self, batch_size, seq_len, n_sample):
         """Property-based test: Test handling of different N_sample values, including out-of-bounds atom_to_token_idx."""
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
