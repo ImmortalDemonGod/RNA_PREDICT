@@ -58,7 +58,8 @@ def test_stageB_partial_checkpoint_hydra(sequence):
     for config_path in config_paths:
         try:
             print(f"[DEBUG-HYDRA-CONF] Trying config_path: {config_path}")
-            with hydra.initialize_config_module(config_module="rna_predict.conf", version_base=None):
+            # [HYDRA-PROJECT-RULE] Always use relative config path for Hydra initialization
+            with hydra.initialize(config_path="../../rna_predict/conf", job_name="test_partial_checkpoint_stageB", version_base=None):
                 cfg = hydra.compose(config_name="default")
                 stageB_cfg = cfg.model.stageB
             config_path_selected = config_path
@@ -83,8 +84,8 @@ def test_stageB_partial_checkpoint_hydra(sequence):
 
     # Only allow valid RNA sequences
     sequence = ''.join([c for c in sequence if c in "ACGU"]) or "ACGUACGU"
-    # --- Hydra config load (robust to CWD, always relative path) ---
-    with hydra.initialize_config_module(config_module="rna_predict.conf", version_base=None):
+    # [HYDRA-PROJECT-RULE] Always use relative config path for Hydra initialization
+    with hydra.initialize(config_path="../../rna_predict/conf", job_name="test_partial_checkpoint_stageB", version_base=None):
         cfg = hydra.compose(config_name="default")
         stageB_cfg = cfg.model.stageB
     # --- Instantiate models ---

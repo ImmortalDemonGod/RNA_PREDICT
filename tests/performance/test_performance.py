@@ -17,10 +17,12 @@ def get_memory_usage():  # Helper function
 
 
 # @pytest.mark.performance
-# @pytest.mark.skip(reason="Causes excessive memory usage") # Temporarily unskipped
-@settings(max_examples=1)
+# @pytest.mark.skip(reason="Causes excessive memory usage") 
+@patch("rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager.DiffusionModule")
+@patch("rna_predict.pipeline.stageD.diffusion.components.diffusion_module.DiffusionModule")
+@settings(deadline=None, max_examples=1)
 @given(st.just(True))  # Add a dummy given parameter
-def test_diffusion_single_embed_caching(_dummy):
+def test_diffusion_single_embed_caching(_dummy, MockDiffusionModule, MockDiffusionModuleComp):
     """
     Quick check that calling run_stageD_diffusion multiple times
     reuses s_inputs from trunk_embeddings, skipping repeated embedding creation.
@@ -91,96 +93,108 @@ def test_diffusion_single_embed_caching(_dummy):
         }
     }
 
-    # Patch the diffusion module to a dummy to avoid heavy computation
-    # We need to patch the module where it's imported, not where it's defined
-    with patch("rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager.DiffusionModule") as MockDiffusionModule:
-        # Create a mock class that properly returns a tuple from forward
-        class MockDiffusionModuleImpl(torch.nn.Module):
-            def __init__(self, *args, **kwargs):
-                super().__init__()
-                print("Initialized MockDiffusionModuleImpl")
+    class MockDiffusionModuleImpl(torch.nn.Module):
+        def __init__(self, *args, **kwargs):
+            super().__init__()
+            print("Initialized MockDiffusionModuleImpl")
 
-            def to(self, device):
-                # Mock the to() method to return self
-                return self
+        def to(self, device):
+            # Mock the to() method to return self
+            return self
 
-            def forward(self, x_noisy, t_hat_noise_level, input_feature_dict, s_inputs=None, s_trunk=None, z_trunk=None, chunk_size=None, inplace_safe=False, debug_logging=False):
-                # Return a tuple of (coords, loss) as expected by sample_diffusion
-                return torch.zeros_like(x_noisy), torch.tensor(0.0)
+        def forward(self, x_noisy, t_hat_noise_level, input_feature_dict, s_inputs=None, s_trunk=None, z_trunk=None, chunk_size=None, inplace_safe=False, debug_logging=False):
+            # Return a tuple of (coords, loss) as expected by sample_diffusion
+            return torch.zeros_like(x_noisy), torch.tensor(0.0)
 
-        # Use our mock implementation instead of MagicMock
-        MockDiffusionModule.return_value = MockDiffusionModuleImpl()
+    MockDiffusionModule.return_value = MockDiffusionModuleImpl()
+    MockDiffusionModuleComp.return_value = MockDiffusionModuleImpl()
 
-        # Create a minimal model.stageD config
-        from omegaconf import OmegaConf
-        cfg = OmegaConf.create({
-            "model": {
-                "stageD": {
-                    "ref_element_size": 128,
-                    "ref_atom_name_chars_size": 256,
-                    "profile_size": 32,
-                    "test_residues_per_batch": 2,
-                    "diffusion": {
-                        "feature_dimensions": diffusion_config["feature_dimensions"],
-                        "model_architecture": diffusion_config["model_architecture"]
-                    }
+    # Create a minimal model.stageD config
+    from omegaconf import OmegaConf
+    cfg = OmegaConf.create({
+        "model": {
+            "stageD": {
+                "ref_element_size": 128,
+                "ref_atom_name_chars_size": 256,
+                "profile_size": 32,
+                "test_residues_per_batch": 2,
+                "diffusion": {
+                    "feature_dimensions": diffusion_config["feature_dimensions"],
+                    "model_architecture": diffusion_config["model_architecture"]
                 }
             }
-        })
-
-        # Create DiffusionConfig object
-        config1 = DiffusionConfig(
-            partial_coords=partial_coords,
-            trunk_embeddings=trunk_embeddings,
-            diffusion_config=diffusion_config,
-            mode="inference",
-            device="cpu",
-            input_features=input_features,
-            sequence=sequence,
-            cfg=cfg
-        )
-        # Add required parameters directly to the config object
-        config1.ref_element_size = 128
-        config1.ref_atom_name_chars_size = 256
-        config1.profile_size = 32
-        config1.feature_dimensions = diffusion_config["feature_dimensions"]
-        config1.atom_metadata = {
-            "residue_indices": [0, 1],  # Two residues
-            "atom_names": ["C1", "C2"]  # One atom per residue
         }
-        coords_final_1 = run_stageD_diffusion(config=config1)
-        print(f"Memory after 1st call: {get_memory_usage():.2f} MB")
+    })
 
-        assert isinstance(coords_final_1, torch.Tensor)
-        assert "s_inputs" in trunk_embeddings, "s_inputs should be cached after first call"
+    # Create DiffusionConfig object
+    config1 = DiffusionConfig(
+        partial_coords=partial_coords,
+        trunk_embeddings=trunk_embeddings,
+        diffusion_config=diffusion_config,
+        mode="inference",
+        device="cpu",
+        input_features=input_features,
+        sequence=sequence,
+        cfg=cfg
+    )
+    # Add required parameters directly to the config object
+    config1.ref_element_size = 128
+    config1.ref_atom_name_chars_size = 256
+    config1.profile_size = 32
+    config1.feature_dimensions = diffusion_config["feature_dimensions"]
+    config1.atom_metadata = {
+        "residue_indices": [0, 1],  # Two residues
+        "atom_names": ["C1", "C2"]  # One atom per residue
+    }
+    coords_final_1 = run_stageD_diffusion(config=config1)
+    print(f"Memory after 1st call: {get_memory_usage():.2f} MB")
 
-        # 2) Second call, trunk_embeddings now has "s_inputs"
-        print(f"Memory before 2nd call: {get_memory_usage():.2f} MB")
-        config2 = DiffusionConfig(
-            partial_coords=partial_coords,
-            trunk_embeddings=trunk_embeddings,
-            diffusion_config=diffusion_config,
-            mode="inference",
-            device="cpu",
-            input_features=input_features,
-            sequence=sequence,
-            cfg=cfg
-        )
-        # Add required parameters directly to the config object
-        config2.ref_element_size = 128
-        config2.ref_atom_name_chars_size = 256
-        config2.profile_size = 32
-        config2.feature_dimensions = diffusion_config["feature_dimensions"]
-        config2.atom_metadata = {
-            "residue_indices": [0, 1],  # Two residues
-            "atom_names": ["C1", "C2"]  # One atom per residue
-        }
-        coords_final_2 = run_stageD_diffusion(config=config2)
-        print(f"Memory after 2nd call: {get_memory_usage():.2f} MB")
+    assert isinstance(coords_final_1, torch.Tensor)
+    assert "s_inputs" in trunk_embeddings, "s_inputs should be cached after first call"
 
-        assert isinstance(coords_final_2, torch.Tensor)
-        # Check that the second call was successful
-        assert torch.all(coords_final_2 == 0), "Dummy module should return zeros"
+    # 2) Second call, trunk_embeddings now has "s_inputs"
+    print(f"Memory before 2nd call: {get_memory_usage():.2f} MB")
+    config2 = DiffusionConfig(
+        partial_coords=partial_coords,
+        trunk_embeddings=trunk_embeddings,
+        diffusion_config=diffusion_config,
+        mode="inference",
+        device="cpu",
+        input_features=input_features,
+        sequence=sequence,
+        cfg=cfg
+    )
+    # Add required parameters directly to the config object
+    config2.ref_element_size = 128
+    config2.ref_atom_name_chars_size = 256
+    config2.profile_size = 32
+    config2.feature_dimensions = diffusion_config["feature_dimensions"]
+    config2.atom_metadata = {
+        "residue_indices": [0, 1],  # Two residues
+        "atom_names": ["C1", "C2"]  # One atom per residue
+    }
+    coords_final_2 = run_stageD_diffusion(config=config2)
+    print(f"Memory after 2nd call: {get_memory_usage():.2f} MB")
 
-        # Test passed successfully
-        print("Test completed successfully!")
+    assert isinstance(coords_final_2, torch.Tensor)
+    # Check that the second call was successful
+    assert torch.all(coords_final_2 == 0), "Dummy module should return zeros"
+
+    # --- PATCH: Add robust debug output for atom count assertion ---
+    atom_metadata = config2.atom_metadata
+    seq_len = len(sequence)
+    atom_count = len(atom_metadata['residue_indices']) if atom_metadata and 'residue_indices' in atom_metadata else None
+    print(f"[DEBUG][TEST] coords_final_2.shape = {coords_final_2.shape}")
+    print(f"[DEBUG][TEST] atom_metadata = {atom_metadata}")
+    print(f"[DEBUG][TEST] atom_count = {atom_count}")
+    print(f"[DEBUG][TEST] seq_len = {seq_len}")
+    if coords_final_2.shape[1] != atom_count:
+        print(f"[ERROR][TEST] Atom count mismatch: expected {atom_count}, got {coords_final_2.shape[1]} (seq_len={seq_len})")
+    assert coords_final_2.shape[1] == atom_count, f"Atom count mismatch: expected {atom_count}, got {coords_final_2.shape[1]} (seq_len={seq_len})"
+    # --- END PATCH ---
+
+    # Instrument: print type of actual diffusion module used at inference
+    print(f"[DEBUG][TEST] Type of actual diffusion module: {type(config2.diffusion_manager.diffusion_module)}")
+
+    # Test passed successfully
+    print("Test completed successfully!")
