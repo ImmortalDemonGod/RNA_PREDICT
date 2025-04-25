@@ -1,24 +1,19 @@
-import os
-import psutil
-import pytest
 import torch
-from hypothesis import given, strategies as st, settings
 from omegaconf import OmegaConf
 from rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager import (
     ProtenixDiffusionManager,
 )
 from rna_predict.pipeline.stageD.diffusion.run_stageD_unified import (
     run_stageD_diffusion,
-    _run_stageD_diffusion_impl,
 )
 from rna_predict.pipeline.stageD.diffusion.utils import DiffusionConfig
-from rna_predict.pipeline.stageD.diffusion.bridging.residue_atom_bridge import (
-    BridgingInput,
-    bridge_residue_to_atom,
-)
-from rna_predict.pipeline.stageD.run_stageD import run_stageD
-from rna_predict.utils.shape_utils import adjust_tensor_feature_dim, expand_tensor_for_samples, ensure_consistent_sample_dimensions
+from rna_predict.utils.shape_utils import adjust_tensor_feature_dim, ensure_consistent_sample_dimensions
+import pathlib
 
+# --- Portable project root & config path setup ---
+PROJECT_ROOT = pathlib.Path(__file__).resolve().parents[2]
+EXPECTED_CWD = str(PROJECT_ROOT)
+CONFIG_ABS_PATH = str(PROJECT_ROOT / "rna_predict" / "conf" / "default.yaml")
 
 # ------------------------------------------------------------------------------
 # Test: Single-sample shape expansion using multi_step_inference
@@ -371,7 +366,8 @@ def test_broadcast_token_multisample_fix():
 
     # Check that the result has the correct shape
     assert updated_trunk_embeddings["s_trunk"].shape == (1, 2, n_residues, 64), f"Expected shape (1, 2, {n_residues}, 64), got {updated_trunk_embeddings['s_trunk'].shape}"
-    assert updated_input_features["atom_to_token_idx"].shape == (1, 2, n_atoms, 32), f"Expected shape (1, 2, {n_atoms}, 32), got {updated_input_features['atom_to_token_idx'].shape}"
+    # Per-atom features should NOT be broadcast along sample dimension
+    assert updated_input_features["atom_to_token_idx"].shape == (1, n_atoms, 32), f"Expected shape (1, {n_atoms}, 32), got {updated_input_features['atom_to_token_idx'].shape}"
 
 
 
@@ -386,27 +382,32 @@ def test_multi_sample_shape_fix():
     We provide multi-sample trunk embeddings while leaving atom_to_token_idx at a smaller
     batch dimension, then use ensure_consistent_sample_dimensions to fix it.
     """
-    import numpy as np
     from omegaconf import OmegaConf
 
-    partial_coords = torch.randn(1, 10, 3)
+    # Use n_residues != n_atoms to avoid ambiguity
+    n_residues = 5
+    atoms_per_residue = 2
+    n_atoms = n_residues * atoms_per_residue  # 10 atoms
+    partial_coords = torch.randn(1, n_atoms, 3)
     num_samples = 2
-    s_trunk = torch.randn(1, num_samples, 10, 384)
-    pair = torch.randn(1, 10, 10, 32)
-    s_inputs = torch.randn(1, 10, 449)
+    s_trunk = torch.randn(1, num_samples, n_residues, 384)  # residue-level
+    pair = torch.randn(1, num_samples, n_residues, n_residues, 32)  # residue-level pair
+    s_inputs = torch.randn(1, num_samples, n_residues, 449)  # residue-level
     trunk_embeddings = {
         "s_trunk": s_trunk,
         "pair": pair,
         "s_inputs": s_inputs,
     }
+    # atom_to_token_idx maps each atom to its residue index
+    atom_to_token_idx = torch.repeat_interleave(torch.arange(n_residues), atoms_per_residue).unsqueeze(0)
     input_features = {
-        "atom_to_token_idx": torch.arange(10).unsqueeze(0),
+        "atom_to_token_idx": atom_to_token_idx,
         "ref_pos": partial_coords.clone(),
-        "ref_space_uid": torch.arange(10).unsqueeze(0),
-        "ref_charge": torch.zeros(1, 10, 1),
-        "ref_element": torch.zeros(1, 10, 128),
-        "ref_atom_name_chars": torch.zeros(1, 10, 256),
-        "ref_mask": torch.ones(1, 10, 1),
+        "ref_space_uid": torch.arange(n_atoms).unsqueeze(0),
+        "ref_charge": torch.zeros(1, n_atoms, 1),
+        "ref_element": torch.zeros(1, n_atoms, 128),
+        "ref_atom_name_chars": torch.zeros(1, n_atoms, 256),
+        "ref_mask": torch.ones(1, n_atoms, 1),
     }
     trunk_embeddings, input_features = ensure_consistent_sample_dimensions(
         trunk_embeddings=trunk_embeddings,
@@ -414,11 +415,10 @@ def test_multi_sample_shape_fix():
         num_samples=num_samples,
         sample_dim=1
     )
-    assert trunk_embeddings["s_trunk"].shape[1] == num_samples
-    assert trunk_embeddings["pair"].shape[1] == num_samples
-    assert trunk_embeddings["s_inputs"].shape[1] == num_samples
-    assert input_features["atom_to_token_idx"].shape[1] == num_samples
-
+    assert trunk_embeddings["s_trunk"].shape == (1, num_samples, n_residues, 384)
+    assert trunk_embeddings["pair"].shape == (1, num_samples, n_residues, n_residues, 32)
+    assert trunk_embeddings["s_inputs"].shape == (1, num_samples, n_residues, 449)
+    assert input_features["atom_to_token_idx"].shape == (1, n_atoms)
     hydra_cfg = OmegaConf.create({
         "model": {
             "stageD": {
@@ -458,8 +458,6 @@ def test_multi_sample_shape_fix():
             }
         }
     })
-
-    # Create feature_dimensions dict to be used in diffusion_config
     feature_dimensions = {
         "c_s": 384,
         "c_s_inputs": 449,
@@ -467,10 +465,7 @@ def test_multi_sample_shape_fix():
         "s_trunk": 384,
         "s_inputs": 449
     }
-
-    # Update hydra_cfg to include feature_dimensions in the correct location
     hydra_cfg.model.stageD.diffusion.feature_dimensions = feature_dimensions
-
     test_config = DiffusionConfig(
         partial_coords=partial_coords,
         trunk_embeddings=trunk_embeddings,
@@ -495,8 +490,8 @@ def test_multi_sample_shape_fix():
         device="cpu",
         input_features=input_features,
         cfg=hydra_cfg,
-        atom_metadata={"residue_indices": list(range(10))},
-        sequence="AAAAAAAAAA",  # Add a sequence of 10 residues
+        atom_metadata={"residue_indices": list(range(n_atoms))},
+        sequence="A" * n_residues,  # sequence of 5 residues
     )
     coords_out = run_stageD_diffusion(config=test_config)
-    assert coords_out.shape == (1, 10, 3), f"Expected shape (1, 10, 3), got {coords_out.shape}"
+    assert coords_out.shape == (1, n_atoms, 3), f"Expected shape (1, {n_atoms}, 3), got {coords_out.shape}"
