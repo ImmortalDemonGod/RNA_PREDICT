@@ -316,28 +316,59 @@ class ProtenixDiffusionManager(torch.nn.Module):
         emb_ctx.trunk_embeddings = trunk_embeddings
         s_inputs = self._get_s_inputs(emb_ctx)
         z_trunk = self._get_z_trunk(emb_ctx)
-        # Ensure z_trunk is 4D before accessing shape[3]
+        # Ensure z_trunk is 4D or 5D before accessing shape
         if z_trunk.dim() == 3:
-            logger.warning(f"[StageD] z_trunk has shape {z_trunk.shape}, expected 4D. Expanding dims.")
+            logger.warning(f"[StageD] z_trunk has shape {z_trunk.shape}, expected 4D or 5D. Expanding dims.")
             z_trunk = z_trunk.unsqueeze(2)  # Insert singleton N_res dimension
-        if (
-            z_trunk.shape[1] != trunk_embeddings["s_trunk"].shape[1]
-            or z_trunk.shape[2] != trunk_embeddings["s_trunk"].shape[1]
-        ):
+
+        # Handle 5D tensor case (batch, sample, n_res1, n_res2, c_z)
+        has_sample_dim = z_trunk.dim() == 5
+        if has_sample_dim:
+            logger.info(f"[StageD] z_trunk has 5 dimensions {z_trunk.shape}, handling sample dimension")
+            # For 5D tensor, we need to check dimensions 2 and 3 instead of 1 and 2
+            shape_mismatch = (
+                z_trunk.shape[2] != trunk_embeddings["s_trunk"].shape[1]
+                or z_trunk.shape[3] != trunk_embeddings["s_trunk"].shape[1]
+            )
+        else:
+            # For 4D tensor, check dimensions 1 and 2 as before
+            shape_mismatch = (
+                z_trunk.shape[1] != trunk_embeddings["s_trunk"].shape[1]
+                or z_trunk.shape[2] != trunk_embeddings["s_trunk"].shape[1]
+            )
+
+        if shape_mismatch:
             # Instead of raising an error, log a warning and reshape z_trunk to match s_trunk
             logger.warning(
                 f"Shape mismatch between z_trunk {z_trunk.shape} and s_trunk {trunk_embeddings['s_trunk'].shape}. Reshaping z_trunk."
             )
             s_trunk_len = trunk_embeddings["s_trunk"].shape[1]
-            z_trunk_feat = z_trunk.shape[3]
-            z_trunk_new = torch.zeros(
-                z_trunk.shape[0], s_trunk_len, s_trunk_len, z_trunk_feat,
-                device=z_trunk.device, dtype=z_trunk.dtype
-            )
-            # Copy data from original z_trunk where possible
-            min_dim1 = min(z_trunk.shape[1], s_trunk_len)
-            min_dim2 = min(z_trunk.shape[2], s_trunk_len)
-            z_trunk_new[:, :min_dim1, :min_dim2, :] = z_trunk[:, :min_dim1, :min_dim2, :]
+
+            if has_sample_dim:
+                # For 5D tensor, feature dimension is at index 4
+                z_trunk_feat = z_trunk.shape[4]
+                # Create new tensor with correct shape including sample dimension
+                z_trunk_new = torch.zeros(
+                    z_trunk.shape[0], z_trunk.shape[1], s_trunk_len, s_trunk_len, z_trunk_feat,
+                    device=z_trunk.device, dtype=z_trunk.dtype
+                )
+                # Copy data from original z_trunk where possible
+                min_dim1 = min(z_trunk.shape[2], s_trunk_len)
+                min_dim2 = min(z_trunk.shape[3], s_trunk_len)
+                z_trunk_new[:, :, :min_dim1, :min_dim2, :] = z_trunk[:, :, :min_dim1, :min_dim2, :]
+            else:
+                # For 4D tensor, feature dimension is at index 3
+                z_trunk_feat = z_trunk.shape[3]
+                # Create new tensor with correct shape
+                z_trunk_new = torch.zeros(
+                    z_trunk.shape[0], s_trunk_len, s_trunk_len, z_trunk_feat,
+                    device=z_trunk.device, dtype=z_trunk.dtype
+                )
+                # Copy data from original z_trunk where possible
+                min_dim1 = min(z_trunk.shape[1], s_trunk_len)
+                min_dim2 = min(z_trunk.shape[2], s_trunk_len)
+                z_trunk_new[:, :min_dim1, :min_dim2, :] = z_trunk[:, :min_dim1, :min_dim2, :]
+
             z_trunk = z_trunk_new
         self._log_shapes(
             debug_logging, coords_init, trunk_embeddings["s_trunk"], s_inputs, z_trunk

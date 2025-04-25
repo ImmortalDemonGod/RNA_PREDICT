@@ -178,31 +178,35 @@ def sample_diffusion(
     device = ref_tensor.device
     dtype = ref_tensor.dtype
 
-    # Determine TRUE batch shape, excluding the sample dimension ONLY if the input tensor is 4D+
-    # and the dimension before sequence matches TOTAL N_sample
-    base_shape = ref_tensor.shape[:-2]
-    true_batch_shape = base_shape  # Default to using all leading dims
+    # Determine TRUE batch shape (leading dimensions before N_sample, N_atom, 3)
+    # Use the shape of a reliable input tensor like s_trunk or s_inputs.
+    ref_shape = ref_tensor.shape
 
-    # Only check for sample dim if input tensor has more than 3 dims (B, N, C)
-    if ref_tensor.ndim > 3:
-        # Check if the dimension before sequence looks like the TOTAL sample dimension
-        if len(base_shape) > 0 and base_shape[-1] == N_sample:
-            true_batch_shape = base_shape[:-1]  # Exclude the sample dimension
-        # else: keep true_batch_shape as base_shape if dim doesn't match N_sample
+    # FIXED: Simplified batch shape determination to avoid 5D tensors
+    # We only want a single batch dimension to avoid creating 5D tensors
+    # that would cause errors in the diffusion module's forward method
+    true_batch_shape = ref_shape[:1]  # Just take the first dimension as batch
+
+    # Log the decision for debugging
+    print(f"[DEBUG][FIXED] Using simplified true_batch_shape={true_batch_shape} from ref_shape={ref_shape}")
+
+    print(f"[DEBUG] Determined true_batch_shape: {true_batch_shape} from ref_shape {ref_shape} and N_sample {N_sample}") # DEBUG PRINT
 
     # Ensure true_batch_shape is a tuple
     if not isinstance(true_batch_shape, tuple):
         true_batch_shape = (true_batch_shape,)
 
-    print(f"[DEBUG] Determined true_batch_shape: {true_batch_shape}")  # DEBUG PRINT
 
     def _chunk_sample_diffusion(
         chunk_n_sample: int, inplace_safe: bool
     ) -> torch.Tensor:
         """Process a chunk of samples."""
-        # Initialize noise using the true_batch_shape
+        # Initialize noise using the true_batch_shape and chunk_n_sample
+        # FIXED: Ensure we don't create a 5D tensor by flattening any extra batch dimensions
+        x_l_shape = (true_batch_shape[0], chunk_n_sample, N_atom, 3)
+        print(f"[DEBUG][FIXED] Initializing noise x_l with shape: {x_l_shape}") # DEBUG PRINT
         x_l = noise_schedule[0] * torch.randn(
-            size=(*true_batch_shape, chunk_n_sample, N_atom, 3),  # Use true_batch_shape
+            size=x_l_shape,
             device=device,
             dtype=dtype,
         )
@@ -223,17 +227,16 @@ def sample_diffusion(
                 size=x_l.shape, device=device, dtype=dtype
             )
 
-            # Reshape t_hat for broadcasting using true_batch_shape
-            t_hat = (
-                t_hat.reshape((1,) * (len(true_batch_shape) + 1))
-                .expand(*true_batch_shape, chunk_n_sample)
-                .to(dtype)
-            )
+            # Reshape t_hat for broadcasting: needs shape [B, chunk_n_sample] or similar
+            # FIXED: Ensure t_hat has the right shape to match our simplified x_l_shape
+            t_hat_target_shape = (true_batch_shape[0], chunk_n_sample)
+            t_hat = t_hat.reshape(1).expand(true_batch_shape[0]).unsqueeze(-1).expand(*t_hat_target_shape).to(dtype)
+            print(f"[DEBUG][Generator Loop {step}] Reshaped t_hat shape: {t_hat.shape} to broadcast with x_noisy {x_noisy.shape}") # DEBUG PRINT
 
             # Denoise step
             print(
                 f"[DEBUG][Generator Loop {step}] Before denoise_net - x_noisy: {x_noisy.shape}, t_hat: {t_hat.shape}"
-            )  # DEBUG PRINT
+            ) # DEBUG PRINT
             print("[DEBUG-STAGED-PIPELINE] About to call denoise_net with args:")
             print("  x_noisy:", x_noisy.shape if x_noisy is not None else None)
             print("  t_hat:", t_hat.shape if t_hat is not None else None)
@@ -247,7 +250,9 @@ def sample_diffusion(
             print("  inplace_safe:", inplace_safe)
             if x_noisy is None or t_hat is None:
                 raise ValueError("[ERR-STAGED-PIPELINE-001] x_noisy or t_hat is None before denoise_net call")
-            x_denoised, _ = denoise_net(  # Unpack tuple, ignore loss
+
+            # Call denoise_net, expect (coords, loss) tuple
+            denoise_result = denoise_net(
                 x_noisy=x_noisy,
                 t_hat_noise_level=t_hat,
                 input_feature_dict=input_feature_dict,
@@ -259,16 +264,23 @@ def sample_diffusion(
                 debug_logging=True,  # Enable debug logging for diffusion module
             )
 
+            # Unpack the tuple
+            if not isinstance(denoise_result, tuple) or len(denoise_result) != 2:
+                 raise TypeError(f"denoise_net expected to return (coords, loss) tuple, but got {type(denoise_result)}")
+            x_denoised, _ = denoise_result # Unpack tuple, ignore loss
+
             # Update x_l using Euler step
+            # Add epsilon for stability, ensure t_hat broadcasts correctly [B, chunk_n_sample, 1, 1]
             delta = (x_noisy - x_denoised) / (
-                t_hat[..., None, None] + 1e-8
-            )  # Add epsilon for stability
-            dt = c_tau - t_hat
-            x_l = x_noisy + step_scale_eta * dt[..., None, None] * delta
+                t_hat.view(*t_hat.shape, 1, 1) + 1e-8
+            )
+            # Ensure dt broadcasts correctly [B, chunk_n_sample, 1, 1]
+            dt = (c_tau - t_hat).view(*t_hat.shape, 1, 1)
+            x_l = x_noisy + step_scale_eta * dt * delta
 
         print(
             f"[DEBUG][sample_diffusion] Returning _chunk_sample_diffusion output shape: {x_l.shape}"
-        )  # DEBUG PRINT
+        ) # DEBUG PRINT
         return x_l
 
     # Process all samples or in chunks
@@ -351,16 +363,20 @@ def sample_diffusion_training(
 
     # Get denoising outputs [..., N_sample, N_atom, 3]
     if diffusion_chunk_size is None:
-        # Unpack the tuple: coordinates and loss (ignored)
-        x_denoised, _ = denoise_net(
+        # Call denoise_net, expect (coords, loss) tuple
+        denoise_result = denoise_net(
             x_noisy=x_gt_augment + noise,
             t_hat_noise_level=sigma,
             input_feature_dict=input_feature_dict,
             s_inputs=s_inputs,
             s_trunk=s_trunk,
             z_trunk=z_trunk,
-            debug_logging=True,  # Enable debug logging for diffusion module
+            debug_logging=True, # Enable debug logging for diffusion module
         )
+        # Unpack the tuple
+        if not isinstance(denoise_result, tuple) or len(denoise_result) != 2:
+             raise TypeError(f"denoise_net expected to return (coords, loss) tuple, but got {type(denoise_result)}")
+        x_denoised, _ = denoise_result # Ignore loss for training sample generation
     else:
         x_denoised = []
         no_chunks = N_sample // diffusion_chunk_size + (
@@ -373,16 +389,20 @@ def sample_diffusion_training(
             t_hat_noise_level_i = sigma[
                 ..., i * diffusion_chunk_size : (i + 1) * diffusion_chunk_size
             ]
-            # Unpack the tuple: coordinates and loss (ignored)
-            x_denoised_i, _ = denoise_net(
+            # Call denoise_net, expect (coords, loss) tuple
+            denoise_result_i = denoise_net(
                 x_noisy=x_noisy_i,
                 t_hat_noise_level=t_hat_noise_level_i,
                 input_feature_dict=input_feature_dict,
                 s_inputs=s_inputs,
                 s_trunk=s_trunk,
                 z_trunk=z_trunk,
-                debug_logging=True,  # Enable debug logging for diffusion module
+                debug_logging=True, # Enable debug logging for diffusion module
             )
+            # Unpack the tuple
+            if not isinstance(denoise_result_i, tuple) or len(denoise_result_i) != 2:
+                 raise TypeError(f"denoise_net expected to return (coords, loss) tuple, but got {type(denoise_result_i)}")
+            x_denoised_i, _ = denoise_result_i # Ignore loss
             x_denoised.append(x_denoised_i)
         x_denoised = torch.cat(x_denoised, dim=-3)
 
