@@ -93,11 +93,23 @@ def test_diffusion_single_embed_caching(_dummy):
 
     # Patch the diffusion module to a dummy to avoid heavy computation
     # We need to patch the module where it's imported, not where it's defined
-    with patch("rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager.DiffusionModule", autospec=True) as DummyDiffusionModule:
-        # Set up the mock to return a tuple of (coords, loss)
-        # This is critical for the sample_diffusion function which expects a tuple
-        mock_instance = DummyDiffusionModule.return_value
-        mock_instance.forward.return_value = (torch.zeros(1, N, 3), torch.tensor(0.0))
+    with patch("rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager.DiffusionModule") as MockDiffusionModule:
+        # Create a mock class that properly returns a tuple from forward
+        class MockDiffusionModuleImpl(torch.nn.Module):
+            def __init__(self, *args, **kwargs):
+                super().__init__()
+                print("Initialized MockDiffusionModuleImpl")
+
+            def to(self, device):
+                # Mock the to() method to return self
+                return self
+
+            def forward(self, x_noisy, t_hat_noise_level, input_feature_dict, s_inputs=None, s_trunk=None, z_trunk=None, chunk_size=None, inplace_safe=False, debug_logging=False):
+                # Return a tuple of (coords, loss) as expected by sample_diffusion
+                return torch.zeros_like(x_noisy), torch.tensor(0.0)
+
+        # Use our mock implementation instead of MagicMock
+        MockDiffusionModule.return_value = MockDiffusionModuleImpl()
 
         # Create a minimal model.stageD config
         from omegaconf import OmegaConf
