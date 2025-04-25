@@ -86,8 +86,8 @@ def main():
     if not config_dir.exists():
         raise FileNotFoundError(f"Hydra config directory not found: {config_dir}")
     import hydra
-    # [HYDRA-PROJECT-RULE] Always use absolute config path for Hydra initialization in RNA_PREDICT
-    with hydra.initialize(config_path="/Users/tomriddle1/RNA_PREDICT/rna_predict/conf", version_base=None):
+    # Use relative config path for Hydra initialization as required by Hydra
+    with hydra.initialize(config_path=rel_config_path, version_base=None):
         cfg = hydra.compose(config_name="default.yaml")
 
     # Define standardized test sequence to use across all pipeline stages
