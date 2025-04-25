@@ -207,13 +207,22 @@ def ensure_consistent_sample_dimensions(
     # Process input_features if provided
     if input_features is not None:
         updated_input_features = {}
+        # Whitelist of per-atom features that should NOT be broadcast along sample dimension
+        per_atom_keys = {
+            "atom_to_token_idx", "ref_pos", "ref_space_uid", "ref_charge", "ref_element", "ref_atom_name_chars", "ref_mask"
+        }
         for key, value in input_features.items():
             if not isinstance(value, torch.Tensor):
                 updated_input_features[key] = value
                 continue
 
-            # Special handling for atom_to_token_idx which often needs expansion
-            if key == "atom_to_token_idx" and (value.dim() <= sample_dim or value.shape[sample_dim] != num_samples):
+            # Skip broadcasting for per-atom metadata features
+            if key in per_atom_keys:
+                updated_input_features[key] = value
+                continue
+
+            # Process all other tensor input features to ensure consistent sample dimensions
+            if value.dim() <= sample_dim or value.shape[sample_dim] != num_samples:
                 updated_input_features[key] = expand_tensor_for_samples(
                     value, num_samples, sample_dim, f"input_features[{key}]"
                 )
