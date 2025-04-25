@@ -8,21 +8,43 @@ import torch
 from omegaconf import DictConfig
 
 
-def _validate_feature_config(cfg):
-    # Check if cfg has a model.stageD section
-    if hasattr(cfg, "model") and hasattr(cfg.model, "stageD"):
-        stage_cfg = cfg.model.stageD
-    # Check if cfg has a cfg attribute with model.stageD section (for test cases)
-    elif hasattr(cfg, "cfg") and hasattr(cfg.cfg, "model") and hasattr(cfg.cfg.model, "stageD"):
-        stage_cfg = cfg.cfg.model.stageD
-    else:
-        raise ValueError("Configuration must contain model.stageD section")
-
-    required_params = ["ref_element_size", "ref_atom_name_chars_size"]
+def _validate_feature_config(config, require_atom_metadata: bool = False):
+    """
+    Ensures all required parameters for atom-level feature initialization are present in config or nested config groups.
+    Follows Hydra best practices but supports legacy fallbacks with warnings.
+    If require_atom_metadata is True, raises ValueError with [ERR-STAGED-BRIDGE-002] if any are missing.
+    Otherwise, raises a generic config error.
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    required_params = [
+        "ref_element_size",
+        "ref_atom_name_chars_size",
+        "profile_size",
+    ]
+    # Try all Hydra best-practice locations
+    locations = [
+        config,
+        getattr(config, "model", None),
+        getattr(getattr(config, "model", None), "stageD", None),
+        getattr(getattr(getattr(config, "model", None), "stageD", None), "diffusion", None),
+    ]
     for param in required_params:
-        if not hasattr(stage_cfg, param):
-            raise ValueError(f"Configuration missing required parameter: {param}")
-    return stage_cfg
+        found = False
+        for loc in locations:
+            if loc is not None and hasattr(loc, param):
+                found = True
+                # Warn if not found in config/model.stageD or config/model.stageD/diffusion
+                if loc is not config and loc is not getattr(getattr(config, "model", None), "stageD", None) and loc is not getattr(getattr(getattr(config, "model", None), "stageD", None), "diffusion", None):
+                    logger.warning(f"[HYDRA-CONF-WARN] Found {param} at nonstandard config level: {type(loc)}. Please migrate to model.stageD.diffusion.")
+                break
+        if not found:
+            logger.debug(f"[DEBUG][feature_utils] Missing config param: {param} (require_atom_metadata={require_atom_metadata})")
+            if require_atom_metadata:
+                raise ValueError(f"[ERR-STAGED-BRIDGE-002] Configuration missing required parameter: {param}")
+            else:
+                raise ValueError(f"Configuration missing required parameter: {param}")
+    return config
 
 def _validate_atom_metadata(atom_metadata):
     # First try to get atom_metadata directly
@@ -38,7 +60,7 @@ def _validate_atom_metadata(atom_metadata):
 
     # Now validate the atom_metadata
     if atom_metadata is None or "residue_indices" not in atom_metadata:
-        raise ValueError("atom_metadata with 'residue_indices' is required for Stage D. This pipeline does not support fallback to fixed atom counts.")
+        raise ValueError("[ERR-STAGED-BRIDGE-002] atom_metadata with 'residue_indices' is required for Stage D. This pipeline does not support fallback to fixed atom counts.")
     residue_indices = atom_metadata["residue_indices"]
     if isinstance(residue_indices, torch.Tensor):
         residue_indices = residue_indices.tolist()
@@ -50,10 +72,28 @@ def _init_feature_tensors(batch_size, num_atoms, device, stage_cfg):
     features["ref_pos"] = torch.zeros(batch_size, num_atoms, 3, device=device)
     features["ref_charge"] = torch.zeros(batch_size, num_atoms, 1, device=device)
     features["ref_mask"] = torch.ones(batch_size, num_atoms, 1, device=device)
-    ref_element_dim = getattr(stage_cfg, "ref_element_size", None)
-    ref_atom_name_chars_dim = getattr(stage_cfg, "ref_atom_name_chars_size", None)
+    # Robust config extraction for feature dimensions
+    def extract_dim(cfg, key, default=None):
+        locations = [
+            cfg,
+            getattr(cfg, "model", None),
+            getattr(getattr(cfg, "model", None), "stageD", None),
+            getattr(getattr(getattr(cfg, "model", None), "stageD", None), "diffusion", None),
+        ]
+        for loc in locations:
+            if loc is not None and hasattr(loc, key):
+                value = getattr(loc, key)
+                if value is not None:
+                    print(f"[HYDRA-CONF-DEBUG][feature_utils] Found {key} in {type(loc)}: {value}")
+                    return value
+        print(f"[HYDRA-CONF-DEBUG][feature_utils] {key} not found, using default: {default}")
+        return default
+    ref_element_dim = extract_dim(stage_cfg, "ref_element_size", 128)
+    ref_atom_name_chars_dim = extract_dim(stage_cfg, "ref_atom_name_chars_size", 256)
+    profile_dim = extract_dim(stage_cfg, "profile_size", 32)
     features["ref_element"] = torch.zeros(batch_size, num_atoms, ref_element_dim, device=device)
     features["ref_atom_name_chars"] = torch.zeros(batch_size, num_atoms, ref_atom_name_chars_dim, device=device)
+    features["profile"] = torch.zeros(batch_size, num_atoms, profile_dim, device=device)
     return features
 
 def initialize_features_from_config(
@@ -157,8 +197,11 @@ def initialize_features_from_config(
 
             # Try to get dimensions from config if available
             if 'stage_cfg' in locals():
-                ref_element_size = getattr(stage_cfg, "ref_element_size", ref_element_size)
-                ref_atom_name_chars_size = getattr(stage_cfg, "ref_atom_name_chars_size", ref_atom_name_chars_size)
+                try:
+                    ref_element_size = getattr(stage_cfg, "ref_element_size")
+                    ref_atom_name_chars_size = getattr(stage_cfg, "ref_atom_name_chars_size")
+                except AttributeError:
+                    raise ValueError("[ERR-STAGED-BRIDGE-002] atom_metadata with 'residue_indices' is required for Stage D. This pipeline does not support fallback to fixed atom counts.")
                 profile_size = getattr(stage_cfg, "profile_size", profile_size)
 
             # Only add features if they don't already exist in input_feature_dict
