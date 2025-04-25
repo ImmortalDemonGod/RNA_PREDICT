@@ -59,6 +59,7 @@ from rna_predict.pipeline.stageD.feature_utils import (
     _validate_feature_config, _validate_atom_metadata, _init_feature_tensors, initialize_features_from_config
 )
 
+
 print("[HYDRA DEBUG] CWD:", os.getcwd())
 print("[HYDRA DEBUG] SCRIPT DIR:", os.path.dirname(__file__))
 print("[HYDRA DEBUG] sys.path:", sys.path)
@@ -209,25 +210,19 @@ def _run_stageD_impl(
     return context.diffusion_cfg
 
 
-def run_stageD(
-    cfg,
-    coords,
-    s_trunk,
-    z_trunk,
-    s_inputs,
-    input_feature_dict,
-    atom_metadata=None
-) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor, torch.Tensor]]:
+def run_stageD(context_or_cfg, coords=None, s_trunk=None, z_trunk=None, s_inputs=None, input_feature_dict=None, atom_metadata=None):
     """
-    Compatibility wrapper for the old function signature.
-    Creates a StageDContext and calls the implementation function.
-
-    This maintains backward compatibility with existing tests while allowing
-    the main implementation to use the new context-based approach.
+    Compatibility wrapper for both context-based and argument-based invocation.
+    Accepts either a StageDContext or the legacy argument list.
     """
-    # Create a context object with the provided arguments
+    # If called with a single StageDContext argument
+    from rna_predict.pipeline.stageD.context import StageDContext
+    if isinstance(context_or_cfg, StageDContext):
+        context = context_or_cfg
+        return _run_stageD_impl(context)
+    # Else, called with legacy argument list
     context = StageDContext(
-        cfg=cfg,
+        cfg=context_or_cfg,
         coords=coords,
         s_trunk=s_trunk,
         z_trunk=z_trunk,
@@ -235,8 +230,6 @@ def run_stageD(
         input_feature_dict=input_feature_dict,
         atom_metadata=atom_metadata
     )
-
-    # Call the implementation function with the context
     return _run_stageD_impl(context)
 
 
