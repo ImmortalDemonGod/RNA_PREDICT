@@ -176,7 +176,11 @@ def test_run_stageD_diffusion_inference(
             device="cpu",
             input_features=minimal_input_features,
             sequence=sequence,  # Provide sequence to avoid bridging error
-            cfg=hydra_cfg  # Pass the properly structured Hydra config
+            cfg=hydra_cfg,  # Pass the properly structured Hydra config
+            # Add required feature parameters directly to the config object
+            ref_element_size=128,
+            ref_atom_name_chars_size=256,
+            profile_size=32
         )
 
         # Add feature_dimensions directly to the config object

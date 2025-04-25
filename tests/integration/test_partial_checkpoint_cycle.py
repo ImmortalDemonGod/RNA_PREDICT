@@ -88,7 +88,9 @@ def test_train_save_partial_load_infer(tmp_path):
     # Load only adapter weights into model2
     loaded_sd = torch.load(partial_ckpt_path)
     missing, unexpected = partial_load_state_dict(model2, loaded_sd, strict=False)
-    assert not missing, f"Missing keys when loading adapter checkpoint: {missing}"
+    # We expect base_layer weights to be missing since we're only loading adapter weights
+    expected_missing = ['base_layer.weight', 'base_layer.bias']
+    assert set(missing) == set(expected_missing), f"Expected missing keys {expected_missing}, got {missing}"
     assert not unexpected, f"Unexpected keys when loading adapter checkpoint: {unexpected}"
     # Check adapter params match, base params do not
     for k, v in model2.adapter_layer.state_dict().items():
