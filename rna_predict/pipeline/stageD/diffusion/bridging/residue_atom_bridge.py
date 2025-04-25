@@ -1023,7 +1023,7 @@ def bridge_residue_to_atom(
 
 try:
     import snoop
+    if snoop:  # pragma: no cover
+        bridge_residue_to_atom = snoop()(bridge_residue_to_atom)  # type: ignore
 except ImportError:
     snoop = None
-if snoop:  # pragma: no cover
-    bridge_residue_to_atom = snoop()(bridge_residue_to_atom)  # type: ignore
