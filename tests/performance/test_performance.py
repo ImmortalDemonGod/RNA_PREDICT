@@ -121,6 +121,10 @@ def test_diffusion_single_embed_caching(_dummy):
             sequence=sequence,
             cfg=cfg
         )
+        # Add required parameters directly to the config object
+        config1.ref_element_size = 128
+        config1.ref_atom_name_chars_size = 256
+        config1.profile_size = 32
         config1.feature_dimensions = diffusion_config["feature_dimensions"]
         coords_final_1 = run_stageD_diffusion(config=config1)
         print(f"Memory after 1st call: {get_memory_usage():.2f} MB")
@@ -140,6 +144,10 @@ def test_diffusion_single_embed_caching(_dummy):
             sequence=sequence,
             cfg=cfg
         )
+        # Add required parameters directly to the config object
+        config2.ref_element_size = 128
+        config2.ref_atom_name_chars_size = 256
+        config2.profile_size = 32
         config2.feature_dimensions = diffusion_config["feature_dimensions"]
         coords_final_2 = run_stageD_diffusion(config=config2)
         print(f"Memory after 2nd call: {get_memory_usage():.2f} MB")
