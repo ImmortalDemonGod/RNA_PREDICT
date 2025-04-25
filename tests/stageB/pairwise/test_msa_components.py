@@ -487,6 +487,17 @@ class TestMSAModule(unittest.TestCase):
             train_lowerb=2,
             test_lowerb=4,
             strategy="random",
+            # Add the input_feature_dims with correct dimensions
+            input_feature_dims={
+                "msa": 32,
+                "has_deletion": 1,
+                "deletion_value": 1
+            },
+            # Add required parameters for MSABlock
+            c=8,
+            dropout=0.1,
+            pair_dropout=0.25,
+            blocks_per_ckpt=1
         )
         module = MSAModule(msa_config_obj)
 
@@ -531,6 +542,17 @@ class TestMSAModule(unittest.TestCase):
             c_z=c_z,
             c_s_inputs=8,
             enable=True,
+            # Add the input_feature_dims with correct dimensions
+            input_feature_dims={
+                "msa": 32,
+                "has_deletion": 1,
+                "deletion_value": 1
+            },
+            # Add required parameters for MSABlock
+            c=8,
+            dropout=0.1,
+            pair_dropout=0.25,
+            blocks_per_ckpt=1
         )
         minimal_module = MSAModule(minimal_msa_config)
 
