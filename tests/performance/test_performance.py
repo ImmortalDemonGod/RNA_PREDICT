@@ -84,14 +84,20 @@ def test_diffusion_single_embed_caching(_dummy):
         "restype": torch.zeros(1, N, dtype=torch.long),
         "atom_to_token_idx": torch.zeros(1, N, dtype=torch.long),
         "ref_pos": torch.zeros(1, N, 3),
-        "ref_mask": torch.ones(1, N, 1)
+        "ref_mask": torch.ones(1, N, 1),
+        "atom_metadata": {
+            "residue_indices": [0, 1],  # Two residues
+            "atom_names": ["C1", "C2"]  # One atom per residue
+        }
     }
 
     # Patch the diffusion module to a dummy to avoid heavy computation
     # We need to patch the module where it's imported, not where it's defined
     with patch("rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager.DiffusionModule", autospec=True) as DummyDiffusionModule:
         # Set up the mock to return a tuple of (coords, loss)
-        DummyDiffusionModule.return_value.forward.return_value = (torch.zeros(1, N, 3), torch.tensor(0.0))
+        # This is critical for the sample_diffusion function which expects a tuple
+        mock_instance = DummyDiffusionModule.return_value
+        mock_instance.forward.return_value = (torch.zeros(1, N, 3), torch.tensor(0.0))
 
         # Create a minimal model.stageD config
         from omegaconf import OmegaConf
@@ -126,6 +132,10 @@ def test_diffusion_single_embed_caching(_dummy):
         config1.ref_atom_name_chars_size = 256
         config1.profile_size = 32
         config1.feature_dimensions = diffusion_config["feature_dimensions"]
+        config1.atom_metadata = {
+            "residue_indices": [0, 1],  # Two residues
+            "atom_names": ["C1", "C2"]  # One atom per residue
+        }
         coords_final_1 = run_stageD_diffusion(config=config1)
         print(f"Memory after 1st call: {get_memory_usage():.2f} MB")
 
@@ -149,6 +159,10 @@ def test_diffusion_single_embed_caching(_dummy):
         config2.ref_atom_name_chars_size = 256
         config2.profile_size = 32
         config2.feature_dimensions = diffusion_config["feature_dimensions"]
+        config2.atom_metadata = {
+            "residue_indices": [0, 1],  # Two residues
+            "atom_names": ["C1", "C2"]  # One atom per residue
+        }
         coords_final_2 = run_stageD_diffusion(config=config2)
         print(f"Memory after 2nd call: {get_memory_usage():.2f} MB")
 
