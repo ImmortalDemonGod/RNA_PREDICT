@@ -425,11 +425,21 @@ class DiffusionModule(nn.Module):
 
                     # Aggregate atom-level s_single_proj to token-level
                     s_single_proj_aggregated = []
+
+                    # Handle the case when atom_to_token_idx_reshaped has fewer samples than s_single_proj_reshaped
+                    if atom_to_token_idx_reshaped.shape[0] < s_single_proj_reshaped.shape[0]:
+                        # Create a new tensor with the correct shape
+                        new_atom_to_token_idx = atom_to_token_idx_reshaped[0:1].expand(s_single_proj_reshaped.shape[0], -1)
+                        atom_to_token_idx_reshaped = new_atom_to_token_idx
+
                     for i in range(s_single_proj_reshaped.shape[0]):
+                        # Make sure i is within bounds of atom_to_token_idx_reshaped
+                        idx = min(i, atom_to_token_idx_reshaped.shape[0] - 1)
+
                         # Use scatter_mean to aggregate atoms to tokens
                         aggregated = scatter_mean(
                             s_single_proj_reshaped[i],
-                            atom_to_token_idx_reshaped[i],
+                            atom_to_token_idx_reshaped[idx],
                             dim_size=a_token.shape[-2],
                             dim=0
                         )
