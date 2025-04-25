@@ -134,12 +134,19 @@ class DiffusionConditioning(nn.Module):
                 relpe_output = relpe_output[:z_trunk.shape[0]]
 
         # Handle N_sample dimension (dim 1) if present in z_trunk but not in relpe_output
-        if z_trunk.ndim == 5 and relpe_output.ndim == 4:  # z_trunk has N_sample dimension
+        if z_trunk.ndim >= 5 and relpe_output.ndim == 4:  # z_trunk has N_sample dimension
             # Add N_sample dimension to relpe_output
             n_sample = z_trunk.shape[1]
             relpe_output = relpe_output.unsqueeze(1)
             # Expand to match z_trunk's N_sample dimension
             relpe_output = relpe_output.expand(-1, n_sample, -1, -1, -1)
+
+        # Handle 6D z_trunk case (reshape to 5D for compatibility)
+        if z_trunk.ndim == 6:
+            # Reshape z_trunk to 5D by merging dimensions 1 and 2
+            z_trunk_shape = z_trunk.shape
+            z_trunk = z_trunk.reshape(z_trunk_shape[0], z_trunk_shape[1]*z_trunk_shape[2],
+                                     z_trunk_shape[3], z_trunk_shape[4], z_trunk_shape[5])
 
         print(f"[DEBUG][_process_pair_features] z_trunk.shape={z_trunk.shape}, relpe_output.shape={relpe_output.shape}")
         pair_z = torch.cat([z_trunk, relpe_output], dim=-1)
