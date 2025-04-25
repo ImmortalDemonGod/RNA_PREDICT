@@ -1,7 +1,7 @@
 """
 Integration script for partial checkpointing and full pipeline construction in RNA_PREDICT.
 
-Run from the project root: /Users/tomriddle1/RNA_PREDICT
+Run from the project root directory.
 This script:
     1. Asserts correct CWD and config presence.
     2. Loads config and builds RNALightningModule (currently a placeholder/stub).
@@ -16,38 +16,35 @@ All errors are unique and actionable. See docs/guides/best_practices/debugging/c
 import os
 import pathlib
 import hydra
-from omegaconf import DictConfig
+from omegaconf import DictConfig  # Used when loading cfg from hydra
 import torch
 import sys
 
-EXPECTED_CWD = "/Users/tomriddle1/RNA_PREDICT"
-CONFIG_ABS_PATH = "/Users/tomriddle1/RNA_PREDICT/rna_predict/conf/default.yaml"
+print("Script starting...")
 
-# 1. Assert CWD is project root for robust, actionable error reporting
-actual_cwd = os.getcwd()
-if actual_cwd != EXPECTED_CWD:
-    print(
-        f"[UNIQUE-ERR-HYDRA-CWD] Script must be run from the project root directory.\n"
-        f"Expected CWD: {EXPECTED_CWD}\n"
-        f"Actual CWD:   {actual_cwd}\n"
-        f"To fix: cd {EXPECTED_CWD} && uv run partial_checkpoint_full_pipeline_script.py\n"
-        f"See docs/guides/best_practices/debugging/comprehensive_debugging_guide.md for more info."
-    )
+# 1. Define project root using file location (portable)
+# Assuming the script is in the project root directory
+PROJECT_ROOT = pathlib.Path.cwd()
+print(f"[DEBUG] Using current directory as PROJECT_ROOT: {PROJECT_ROOT}")
+
+# 2. Check if we're in the expected project root by looking for key directories
+if not (PROJECT_ROOT / "rna_predict").is_dir():
+    print(f"[DEBUG] Expected directory 'rna_predict' not found in {PROJECT_ROOT}")
+    sys.exit("[UNIQUE-ERR-CWD] Run from project root (directory containing 'rna_predict')")
+
+# 3. Pre-test: Fail early if config is not accessible (using project root)
+config_path = PROJECT_ROOT / "rna_predict" / "conf" / "default.yaml"
+if not config_path.exists():
+    print(f"[UNIQUE-ERR-HYDRA-CONF-NOT-FOUND] {config_path} not found. Run this script from the project root and ensure config is present. See docs/guides/best_practices/debugging/comprehensive_debugging_guide.md")
     sys.exit(1)
 
-# 2. Pre-test: Fail early if config is not accessible (strict absolute path)
-if not os.path.exists(CONFIG_ABS_PATH):
-    print(f"[UNIQUE-ERR-HYDRA-CONF-NOT-FOUND] {CONFIG_ABS_PATH} not found. Run this script from the project root and ensure config is present at absolute path. See docs/guides/best_practices/debugging/comprehensive_debugging_guide.md")
-    sys.exit(1)
-
-# 3. Instrument with debug output and dynamic config_path selection
-cwd = pathlib.Path(os.getcwd())
-config_candidates = [cwd / "rna_predict" / "conf", cwd / "conf"]
+# 4. Instrument with debug output and dynamic config_path selection
+config_candidates = [PROJECT_ROOT / "rna_predict" / "conf", PROJECT_ROOT / "conf"]
 config_path_selected = None
 for candidate in config_candidates:
     print(f"[SCRIPT DEBUG] Checking for config directory: {candidate}")
     if candidate.exists() and (candidate / "default.yaml").exists():
-        config_path_selected = str(candidate.relative_to(cwd))
+        config_path_selected = str(candidate.relative_to(PROJECT_ROOT))
         print(f"[SCRIPT DEBUG] Found config at: {candidate}, using config_path: {config_path_selected}")
         # Print directory contents and permissions for further debugging
         print(f"[SCRIPT DEBUG] Contents of {candidate}:")
@@ -61,12 +58,13 @@ for candidate in config_candidates:
         print(f"[SCRIPT DEBUG] Absolute path to config directory: {candidate.resolve()}")
         break
 if not config_path_selected:
-    print("[UNIQUE-ERR-HYDRA-CONF-PATH-NOT-FOUND] Neither 'rna_predict/conf' nor 'conf' found relative to current working directory.\nCWD: {}\nChecked: {}\nSee docs/guides/best_practices/debugging/comprehensive_debugging_guide.md".format(os.getcwd(), [str(c) for c in config_candidates]))
+    print("[UNIQUE-ERR-HYDRA-CONF-PATH-NOT-FOUND] Neither 'rna_predict/conf' nor 'conf' found relative to project root.\nProject root: {}\nChecked: {}\nSee docs/guides/best_practices/debugging/comprehensive_debugging_guide.md".format(PROJECT_ROOT, [str(c) for c in config_candidates]))
     sys.exit(1)
 
-# 4. Load config and build pipeline
+# 5. Load config and build pipeline
 try:
-    with hydra.initialize(config_path="/Users/tomriddle1/RNA_PREDICT/rna_predict/conf", job_name="partial_checkpoint_full_pipeline_script"):
+    # [HYDRA-PROJECT-RULE] Always use absolute config path for Hydra initialization in RNA_PREDICT
+    with hydra.initialize(config_path="/Users/tomriddle1/RNA_PREDICT/rna_predict/conf", job_name="partial_checkpoint_full_pipeline_script", version_base=None):
         cfg = hydra.compose(config_name="default")
     print("[SCRIPT DEBUG] Hydra loaded config successfully:")
     print(cfg)
@@ -74,7 +72,7 @@ except Exception as e:
     print(f"[UNIQUE-ERR-HYDRA-INIT] Exception during hydra.initialize: {e}")
     sys.exit(1)
 
-# 5. Instantiate RNALightningModule (placeholder-aware)
+# 6. Instantiate RNALightningModule (placeholder-aware)
 try:
     from rna_predict.training.rna_lightning_module import RNALightningModule
     model = RNALightningModule(cfg)
@@ -85,7 +83,7 @@ except Exception as e:
     print(f"[UNIQUE-ERR-LIGHTNING-INSTANTIATION] Exception during RNALightningModule instantiation: {e}")
     sys.exit(1)
 
-# 6. Save a "partial" checkpoint (stub logic)
+# 7. Save a "partial" checkpoint (stub logic)
 import tempfile
 partial_ckpt_path = tempfile.mktemp(suffix="_partial.ckpt")
 try:
@@ -96,7 +94,7 @@ except Exception as e:
     print(f"[UNIQUE-ERR-CHECKPOINT-SAVE] Exception during save_trainable_checkpoint: {e}")
     sys.exit(1)
 
-# 7. Load checkpoint using partial_load_state_dict (stub logic)
+# 8. Load checkpoint using partial_load_state_dict (stub logic)
 try:
     import torch
     checkpoint = torch.load(partial_ckpt_path)
@@ -114,7 +112,7 @@ except Exception as e:
     print(f"[UNIQUE-ERR-CHECKPOINT-LOAD] Exception during checkpoint load: {e}")
     sys.exit(1)
 
-# 8. Run a forward pass (stub logic)
+# 9. Run a forward pass (stub logic)
 try:
     dummy_input = torch.zeros(4, 16)  # matches dummy dataloader in RNALightningModule
     output = model(dummy_input)
@@ -129,7 +127,7 @@ except Exception as e:
     print(f"[UNIQUE-ERR-FORWARD] Exception during forward pass: {e}")
     sys.exit(1)
 
-# 9. Compare checkpoint sizes (stub logic)
+# 10. Compare checkpoint sizes (stub logic)
 try:
     import os
     # Save a full checkpoint for comparison
