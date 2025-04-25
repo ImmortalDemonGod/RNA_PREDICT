@@ -13,6 +13,7 @@ import hydra
 from rna_predict.pipeline.stageA.adjacency.rfold_predictor import StageARFoldPredictor
 import pathlib
 import sys
+from pathlib import Path
 
 # --- Pytest/Hydra warning for single-file runs ---
 import warnings
@@ -72,8 +73,17 @@ def test_partial_checkpoint_stageA(tmp_path):
     conf_dir = os.path.join(os.getcwd(), "rna_predict", "conf")
     print(f"[DEBUG] config dir exists: {os.path.isdir(conf_dir)} at {conf_dir}")
 
-    # Use robust, dynamically selected config path for Hydra
-    with hydra.initialize_config_module(config_module="rna_predict.conf"):
+    # [HYDRA-PROJECT-RULE] Hydra config_path must be relative to the test file location in pytest context
+    test_file = Path(__file__).resolve()
+    config_dir = (test_file.parent.parent.parent / "rna_predict" / "conf").resolve()
+    config_path = os.path.relpath(config_dir, start=test_file.parent)
+    print(f"[DEBUG] CWD before hydra.initialize: {os.getcwd()}")
+    print(f"[DEBUG] Test file __file__: {test_file}")
+    print(f"[DEBUG] Using config_path for hydra.initialize: {config_path}")
+    print(f"[DEBUG] os.path.exists(config_path): {os.path.exists(config_path)}")
+    print(f"[DEBUG] os.path.abspath(config_path): {os.path.abspath(config_path)}")
+    print(f"[DEBUG] os.listdir(os.path.dirname(config_path)): {os.listdir(os.path.dirname(config_path)) if os.path.exists(os.path.dirname(config_path)) else 'N/A'}")
+    with hydra.initialize(config_path=config_path, job_name="test_partial_checkpoint_stageA", version_base=None):
         cfg = hydra.compose(config_name=CONFIG_NAME)
     stage_cfg = cfg.model.stageA
     device = torch.device("cpu")
