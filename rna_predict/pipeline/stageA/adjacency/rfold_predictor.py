@@ -15,11 +15,14 @@ instead, we keep them here and append the new version after the old one.
 
 import logging
 import os
+import random
 from typing import Optional
 
 import numpy as np
 import torch
 import torch.nn.functional as F
+import torch.nn as nn
+import psutil
 
 # Import necessary for type hint checks if needed and OmegaConf utilities
 from omegaconf import DictConfig, ListConfig, OmegaConf
@@ -33,8 +36,7 @@ from rna_predict.pipeline.stageA.adjacency.RFold_code import (
 # Global official_seq_dict for optional usage
 official_seq_dict = {"A": 0, "U": 1, "C": 2, "G": 3}
 
-# PATCH: Seed all RNGs for determinism (if possible) - move to top of file for global effect
-import random
+# PATCH: Seed all RNGs for determinism (if possible)
 random.seed(42)
 np.random.seed(42)
 torch.manual_seed(42)
@@ -68,8 +70,6 @@ def set_stageA_logger_level(debug_logging: bool):
     logger.propagate = True  # Let logs reach root logger for caplog
 
 # PATCH: Make StageARFoldPredictor a torch.nn.Module so it can be used in ModuleDict
-import torch.nn as nn
-import psutil
 
 class StageARFoldPredictor(nn.Module):
     """
@@ -85,6 +85,10 @@ class StageARFoldPredictor(nn.Module):
 
     def __init__(self, stage_cfg: DictConfig, device: torch.device):
         super().__init__()
+        print(f"[DEBUG-STAGEA-INIT] __init__ called with device: {device}")
+        print(f"[DEBUG-STAGEA-INIT] torch.cuda.is_available(): {torch.cuda.is_available()}")
+        print(f"[DEBUG-STAGEA-INIT] torch.backends.mps.is_available(): {getattr(torch.backends, 'mps', None) and torch.backends.mps.is_available()}")
+        print(f"[DEBUG-STAGEA-INIT] type(device): {type(device)}, device: {device}")
         print("[MEMORY-LOG][StageA] Initializing StageARFoldPredictor")
         process = psutil.Process(os.getpid())
         print(f"[MEMORY-LOG][StageA] Memory usage: {process.memory_info().rss / 1e6:.2f} MB")
@@ -120,7 +124,6 @@ class StageARFoldPredictor(nn.Module):
             import logging as _logging
             _logging.getLogger().debug(f"[UNIQUE-DEBUG-STAGEA-TEST-ROOT] This should always appear if root logger is working. Config used:\n{OmegaConf.to_yaml(stage_cfg)}")
             logger.info(f"  Device: {device}")
-
         # Defensive: Enter dummy mode if config is missing or incomplete
         required_fields = ["min_seq_length", "num_hidden", "dropout", "batch_size", "lr", "model"]
         if stage_cfg is None or any(not hasattr(stage_cfg, f) for f in required_fields):
@@ -131,23 +134,20 @@ class StageARFoldPredictor(nn.Module):
             return
         else:
             self.dummy_mode = False
-
         # Validate and store device
-        self.device = self._validate_device(device)
-        self.min_seq_length = stage_cfg.min_seq_length  # Store for use in _get_cut_len
-
-        # Precompute strategy functions based on device type
+        self.device = torch.device(str(device))
+        print(f"[DEBUG-STAGEA-INIT] self.device after torch.device: {self.device}")
+        # Precompute strategy functions based on device type (must be after device validation!)
         is_mps = self.device.type == "mps"
         self._seq_tensor_fn = (
-            self._create_sequence_tensor_mps
-            if is_mps
-            else self._create_sequence_tensor_cpu
+            self._create_sequence_tensor_mps if is_mps else self._create_sequence_tensor_cpu
         )
-        self._one_hot_fn = self._one_hot_mps if is_mps else self._one_hot_cpu
-
+        self._one_hot_fn = (
+            self._one_hot_mps if is_mps else self._one_hot_cpu
+        )
+        self.min_seq_length = stage_cfg.min_seq_length  # Store for use in _get_cut_len
         # Get checkpoint path from config for loading logic below
         checkpoint_path = stage_cfg.checkpoint_path
-
         # Create a config dict expected by args_namespace/RFoldModel
         # Flatten the nested structure from the Hydra config
         config_dict = {
@@ -182,28 +182,16 @@ class StageARFoldPredictor(nn.Module):
         }
         if self.debug_logging:
             logger.debug(f"Passing flattened config_dict to args_namespace: {config_dict}")
-
         # Use the existing helper to create the args object RFoldModel expects
         fake_args = args_namespace(config_dict)
-
-        # Special handling for MPS device
-        if self.device.type == "mps":
-            # Initialize model on CPU first, then move to MPS
-            self.model = RFoldModel(fake_args)
-            # Then move to MPS
-            self.model.to(self.device)
-        else:
-            # Normal initialization for CPU/CUDA
-            self.model = RFoldModel(fake_args)
-            self.model.to(self.device)
-
+        # Always construct model and move to device explicitly
+        self.model = RFoldModel(fake_args)
+        self.model.to(self.device)
         self.model.eval()
-
         # Load weights using the specific checkpoint path and device
         self._load_checkpoint(
             checkpoint_path, getattr(stage_cfg, "checkpoint_url", None)
         )
-
         # NEW: Freeze all parameters if freeze_params is set in config
         freeze_flag = getattr(stage_cfg, 'freeze_params', False)
         if freeze_flag:
@@ -214,9 +202,14 @@ class StageARFoldPredictor(nn.Module):
         else:
             if self.debug_logging:
                 logger.info("[StageA] Model parameters are trainable (freeze_params is False or missing).")
-
         print("[MEMORY-LOG][StageA] After super().__init__")
         print(f"[MEMORY-LOG][StageA] Memory usage: {process.memory_info().rss / 1e6:.2f} MB")
+
+    def get_model_device(self):
+        try:
+            return next(self.model.parameters()).device
+        except Exception:
+            return None
 
     def _load_checkpoint(
         self, checkpoint_path: Optional[str], checkpoint_url: Optional[str]
@@ -264,7 +257,7 @@ class StageARFoldPredictor(nn.Module):
             if self.debug_logging:
                 logger.warning(f"Failed to load checkpoint: {e}. Using random weights.")
 
-    def _validate_device(self, device: torch.device) -> torch.device:
+    def _validate_device(self, device: torch.device):
         """
         Validate the device and handle fallbacks if necessary.
 
@@ -274,26 +267,19 @@ class StageARFoldPredictor(nn.Module):
         Returns:
             The validated device (may be different if fallback was needed)
         """
-        # Check CUDA availability
-        if device.type == "cuda" and not torch.cuda.is_available():
-            if self.debug_logging:
-                logger.warning("CUDA specified but not available. Falling back to CPU.")
-            return torch.device("cpu")
-
-        # Check MPS (Apple Silicon) availability
-        if device.type == "mps":
-            if not hasattr(torch, "mps") or not torch.backends.mps.is_available():
-                if self.debug_logging:
-                    logger.warning("MPS specified but not available. Falling back to CPU.")
-                return torch.device("cpu")
-            else:
-                if self.debug_logging:
-                    logger.info(
-                        "Using MPS device. Some operations may be moved to CPU for compatibility."
-                    )
-
-        # Device is valid
-        return device
+        import torch
+        print(f"[DEBUG-VALIDATE-DEVICE] Requested device: {device}")
+        # If device is mps and mps is available, honor it
+        if device.type == "mps" and getattr(torch.backends, 'mps', None) and torch.backends.mps.is_available():
+            print("[DEBUG-VALIDATE-DEVICE] Returning requested mps device.")
+            return device
+        # If device is cuda and cuda is available, honor it
+        if device.type == "cuda" and torch.cuda.is_available():
+            print("[DEBUG-VALIDATE-DEVICE] Returning requested cuda device.")
+            return device
+        # Otherwise, fallback to cpu
+        print("[DEBUG-VALIDATE-DEVICE] Falling back to cpu.")
+        return torch.device("cpu")
 
     def _get_cut_len(self, length: int) -> int:
         """
@@ -305,29 +291,34 @@ class StageARFoldPredictor(nn.Module):
         # round up to nearest multiple of 16
         return ((length - 1) // 16 + 1) * 16
 
-    def _create_sequence_tensor(
-        self, seq_idxs: list, padded_len: int, original_len: int
-    ) -> torch.Tensor:
-        """Creates the padded sequence tensor using the appropriate device strategy."""
-        return self._seq_tensor_fn(seq_idxs, padded_len, original_len)
+    def _create_sequence_tensor(self, seq_idxs, padded_len, original_len):
+        # Debug: Print info before and after tensor creation
+        print(f"[DEBUG-SEQ-TENSOR] Entered _create_sequence_tensor with device: {self.device}")
+        tensor = self._seq_tensor_fn(seq_idxs, padded_len, original_len)
+        print(f"[DEBUG-SEQ-TENSOR] Output tensor device: {tensor.device}, shape: {tensor.shape}, dtype: {tensor.dtype}")
+        return tensor
 
-    def _create_sequence_tensor_cpu(
-        self, seq_idxs: list, padded_len: int, original_len: int
-    ) -> torch.Tensor:
-        """Creates sequence tensor for CPU/CUDA devices."""
-        tensor = torch.tensor(seq_idxs, dtype=torch.long, device=self.device)
-        if padded_len > original_len:
-            tensor = F.pad(tensor, (0, padded_len - original_len))
-        return tensor.unsqueeze(0)
+    def _create_sequence_tensor_cpu(self, seq_idxs, padded_len, original_len):
+        import torch
+        # Debug: Print info before tensor creation
+        print(f"[DEBUG-SEQ-TENSOR-CPU] Creating tensor on CPU with device: {self.device}")
+        tensor = torch.full((1, padded_len), fill_value=0, dtype=torch.long)
+        tensor[0, :original_len] = torch.tensor(seq_idxs, dtype=torch.long)
+        # PATCH: Always move to self.device
+        tensor = tensor.to(self.device)
+        print(f"[DEBUG-SEQ-TENSOR-CPU] Tensor device after creation (patched): {tensor.device}, shape: {tensor.shape}")
+        return tensor
 
-    def _create_sequence_tensor_mps(
-        self, seq_idxs: list, padded_len: int, original_len: int
-    ) -> torch.Tensor:
-        """Creates sequence tensor for MPS device by building on CPU first."""
-        tensor = torch.tensor(seq_idxs, dtype=torch.long)
-        if padded_len > original_len:
-            tensor = F.pad(tensor, (0, padded_len - original_len))
-        return tensor.unsqueeze(0).to(self.device)
+    def _create_sequence_tensor_mps(self, seq_idxs, padded_len, original_len):
+        import torch
+        # Debug: Print info before tensor creation
+        print(f"[DEBUG-SEQ-TENSOR-MPS] Creating tensor for MPS with device: {self.device}")
+        tensor = torch.full((1, padded_len), fill_value=0, dtype=torch.long)
+        tensor[0, :original_len] = torch.tensor(seq_idxs, dtype=torch.long)
+        # PATCH: Always move to self.device (should be mps)
+        tensor = tensor.to(self.device)
+        print(f"[DEBUG-SEQ-TENSOR-MPS] Tensor device after creation (patched): {tensor.device}, shape: {tensor.shape}")
+        return tensor
 
     def _create_one_hot_tensor(self, seq_tensor: torch.Tensor) -> torch.Tensor:
         """Creates the one-hot encoded tensor using the appropriate device strategy."""
@@ -375,6 +366,10 @@ class StageARFoldPredictor(nn.Module):
 
         # 2) Create padded sequence tensor
         seq_tensor = self._create_sequence_tensor(seq_idxs, padded_len, original_len)
+        # Debug: Print device info for seq_tensor before model call
+        print(f"[DEBUG-PREDICT-ADJACENCY] seq_tensor.device: {seq_tensor.device}")
+        print(f"[DEBUG-PREDICT-ADJACENCY] self.model.device: {self.get_model_device()}")
+        print(f"[DEBUG-PREDICT-ADJACENCY] self.model.seq2map.tok_embedding.weight.device: {self.model.seq2map.tok_embedding.weight.device}")
 
         # 3) Forward pass with no grad
         with torch.no_grad():
