@@ -2,7 +2,6 @@ import subprocess
 from datetime import datetime
 import os
 import hydra
-import torch
 from pathlib import Path
 
 # Determine the project root directory (parent of rna_predict/)
@@ -85,10 +84,9 @@ def main():
     print(f"[HYDRA DEBUG] Using config path: {rel_config_path}")
     if not config_dir.exists():
         raise FileNotFoundError(f"Hydra config directory not found: {config_dir}")
-    import hydra
     # Use relative config path for Hydra initialization as required by Hydra
     with hydra.initialize(config_path=rel_config_path, version_base=None):
-        cfg = hydra.compose(config_name="default.yaml")
+        hydra.compose(config_name="default.yaml")
 
     # Define standardized test sequence to use across all pipeline stages
     # This should match the sequence in test_data.yaml

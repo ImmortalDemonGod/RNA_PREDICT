@@ -1,6 +1,5 @@
 # Standard library imports
 import logging
-from dataclasses import dataclass
 from typing import Optional, TypedDict, Any, Dict
 
 import numpy as np
@@ -18,8 +17,8 @@ from rna_predict.pipeline.stageB.pairwise.pairformer_wrapper import PairformerWr
 from rna_predict.pipeline.stageB.torsion.torsion_bert_predictor import (
     StageBTorsionBertPredictor,
 )
-from rna_predict.pipeline.stageC.stage_c_reconstruction import run_stageC, run_stageC_rna_mpnerf
-from rna_predict.pipeline.stageD.run_stageD import run_stageD, run_stageD_diffusion
+from rna_predict.pipeline.stageC.stage_c_reconstruction import run_stageC
+from rna_predict.pipeline.stageD.run_stageD import run_stageD
 from rna_predict.utils.tensor_utils.embedding import residue_to_atoms
 
 # Configure logging
@@ -29,88 +28,6 @@ logger = logging.getLogger(__name__)
 # Stage A
 
 # Stage B
-
-
-# Group all merger inputs into a dataclass for clarity and code quality
-@dataclass
-class LatentInputs:
-    adjacency: torch.Tensor
-    angles: torch.Tensor
-    s_emb: torch.Tensor
-    z_emb: torch.Tensor
-    partial_coords: Optional[torch.Tensor] = None
-
-
-class SimpleLatentMerger(torch.nn.Module):
-    """
-    Optional: merges adjacency, angles, single embeddings, pair embeddings,
-    plus partial coords, into a single per-residue latent.
-    """
-
-    def __init__(self, dim_angles: int, dim_s: int, dim_z: int, dim_out: int):
-        super().__init__()
-        # For example: after pooling z, we have (N, dim_z)
-        # angles: (N, dim_angles)
-        # s_emb:  (N, dim_s)
-        # => total in_dim = dim_angles + dim_s + dim_z
-        self.expected_dim_angles = dim_angles
-        self.expected_dim_s = dim_s
-        self.expected_dim_z = dim_z
-        self.dim_out = dim_out
-
-        # Initialize with a placeholder MLP that will be replaced in forward()
-        # This fixes the linter errors about assigning Sequential to None
-        in_dim = dim_angles + dim_s + dim_z  # Initial expected dimensions
-        self.mlp = torch.nn.Sequential(
-            torch.nn.Linear(in_dim, dim_out),
-            torch.nn.ReLU(),
-            torch.nn.Linear(dim_out, dim_out),
-        )
-
-    def forward(self, inputs: LatentInputs):
-        """
-        Merge multiple representations into a unified latent
-
-        Args:
-            inputs: LatentInputs dataclass containing adjacency, angles, s_emb, z_emb, and partial_coords
-
-        Returns:
-            [N, dim_out] unified latent representation
-        """
-        # Use the inputs from the dataclass
-        adjacency = inputs.adjacency
-        angles = inputs.angles
-        s_emb = inputs.s_emb
-        z_emb = inputs.z_emb
-        partial_coords = inputs.partial_coords
-
-        # Example: pool z => shape [N, dim_z]
-        z_pooled = z_emb.mean(dim=1)
-
-        # Get actual dimensions
-        actual_dim_angles = angles.shape[-1]
-        actual_dim_s = s_emb.shape[-1]
-        actual_dim_z = z_pooled.shape[-1]
-
-        # Create MLP if dimensions have changed from the current MLP
-        total_in_dim = actual_dim_angles + actual_dim_s + actual_dim_z
-        if self.mlp[0].in_features != total_in_dim:
-            print(
-                f"[Debug] Creating MLP with dimensions: {total_in_dim} -> {self.dim_out}"
-            )
-            self.mlp = torch.nn.Sequential(
-                torch.nn.Linear(total_in_dim, self.dim_out),
-                torch.nn.ReLU(),
-                torch.nn.Linear(self.dim_out, self.dim_out),
-            ).to(angles.device)
-        elif self.mlp[0].weight.device != angles.device:
-            # Ensure MLP is on the correct device
-            self.mlp = self.mlp.to(angles.device)
-
-        # cat angles + s_emb + z_pooled
-        x = torch.cat([angles, s_emb, z_pooled], dim=-1)
-        out = self.mlp(x)
-        return out
 
 
 class AtomMetadata(TypedDict):
@@ -223,6 +140,9 @@ def run_stage_a(cfg: DictConfig) -> tuple[torch.Tensor, str]:
         stageA_cfg = getattr(cfg.model, "stageA", None) if hasattr(cfg, "model") else None
         if stageA_cfg is None:
             logger.warning("[UNIQUE-WARN-STAGEA-DUMMYMODE] model.stageA config missing, running Stage A in dummy mode.")
+            # Convert None to empty DictConfig for compatibility
+            from omegaconf import OmegaConf
+            stageA_cfg = OmegaConf.create({})
         stageA_predictor = StageARFoldPredictor(stage_cfg=stageA_cfg, device=device)
     adjacency_np: NDArray = stageA_predictor.predict_adjacency(sequence)
     adjacency_np = check_for_nans(adjacency_np, "adjacency_np (Stage A output)", cfg)
@@ -362,7 +282,7 @@ def run_stage_d(
     if residue_indices is None:
         raise ValueError("atom_metadata must contain 'residue_indices' for Stage D bridging.")
     n_residues = max(residue_indices) + 1
-    residue_atom_map = [[] for _ in range(n_residues)]
+    residue_atom_map: list[list[int]] = [[] for _ in range(n_residues)]
     for atom_idx, res_idx in enumerate(residue_indices):
         residue_atom_map[res_idx].append(atom_idx)
     atom_s_inputs = residue_to_atoms(s_embeddings, residue_atom_map)
@@ -391,6 +311,11 @@ def run_full_pipeline(cfg: DictConfig) -> dict:
     Orchestrates the RNA prediction pipeline (Stages A, B, C, and D).
     Returns a dictionary of pipeline outputs.
     """
+    # Device validation (Hydra best practice)
+    if not (hasattr(cfg, 'device') and (isinstance(cfg.device, str) or isinstance(cfg.device, torch.device))):
+        logger.error(f"Invalid device config: {getattr(cfg, 'device', None)} (type: {type(getattr(cfg, 'device', None))}) - Defaulting to 'cpu'.")
+        cfg.device = 'cpu'
+    logger.info(f"Pipeline device: {cfg.device}")
     try:
         logger.info(f"Pipeline device: {cfg.device}")
 
@@ -398,7 +323,7 @@ def run_full_pipeline(cfg: DictConfig) -> dict:
         if len(cfg.sequence) == 0:
             logger.warning("Empty sequence provided, returning empty tensors")
             device = torch_device(cfg.device)
-            return {
+            result = {
                 "adjacency": torch.zeros((0, 0), device=device),
                 "torsion_angles": torch.zeros((0, 7), device=device),
                 "s_embeddings": torch.zeros((0, 64), device=device),
@@ -411,6 +336,8 @@ def run_full_pipeline(cfg: DictConfig) -> dict:
                 "unified_latent": None,
                 "final_coords": None,
             }
+
+            return result
 
         # Stage A
         adjacency, sequence = run_stage_a(cfg)
@@ -462,15 +389,39 @@ def run_full_pipeline(cfg: DictConfig) -> dict:
         # Handle merge_latent flag
         unified_latent = None
         if getattr(cfg, "merge_latent", False):
-            print("[DEBUG-MERGE] merge_latent is True. Checking merger inputs...")
-            print(f"[DEBUG-MERGE] torsion_angles: {torsion_angles.shape if torsion_angles is not None else None}")
-            print(f"[DEBUG-MERGE] s_embeddings: {s_embeddings.shape if s_embeddings is not None else None}")
-            print(f"[DEBUG-MERGE] z_embeddings: {z_embeddings.shape if z_embeddings is not None else None}")
-            print(f"[DEBUG-MERGE] partial_coords: {partial_coords.shape if partial_coords is not None else None}")
+            logger.info("merge_latent is True. Checking merger inputs...")
+            logger.debug(f"torsion_angles: {torsion_angles.shape if torsion_angles is not None else None}")
+            logger.debug(f"s_embeddings: {s_embeddings.shape if s_embeddings is not None else None}")
+            logger.debug(f"z_embeddings: {z_embeddings.shape if z_embeddings is not None else None}")
+            logger.debug(f"partial_coords: {partial_coords.shape if partial_coords is not None else None}")
             try:
-                from rna_predict.run_full_pipeline import SimpleLatentMerger
-                merger = SimpleLatentMerger(7, 64, 32, 128)
-                print(f"[DEBUG-MERGE] merger: {merger}")
+                # First check if merger is provided in _objects (for testing)
+                merger = None
+                if hasattr(cfg, "_objects") and "merger" in cfg._objects:
+                    merger = cfg._objects["merger"]
+                    logger.info("Using merger from _objects")
+                # If not in _objects, try to use the global latent_merger
+                elif 'latent_merger' in globals():
+                    merger = globals()['latent_merger']
+                    logger.info("Using merger from globals()")
+                # If still not found, create a new SimpleLatentMerger
+                else:
+                    # Create a simple merger with default dimensions
+                    from rna_predict.pipeline.merger.simple_latent_merger import SimpleLatentMerger
+                    dim_angles = torsion_angles.shape[-1] if torsion_angles is not None else 7
+                    dim_s = s_embeddings.shape[-1] if s_embeddings is not None else 8
+                    dim_z = z_embeddings.shape[-1] if z_embeddings is not None else 4
+                    dim_out = getattr(cfg.latent_merger, "output_dim", 8) if hasattr(cfg, "latent_merger") else 8
+                    merger = SimpleLatentMerger(
+                        dim_angles=dim_angles,
+                        dim_s=dim_s,
+                        dim_z=dim_z,
+                        dim_out=dim_out
+                    ).to(device=torch_device(cfg.device))
+                    logger.info(f"Created new SimpleLatentMerger with dims: angles={dim_angles}, s={dim_s}, z={dim_z}, out={dim_out}")
+
+                # Create inputs and run the merger
+                from rna_predict.pipeline.merger.simple_latent_merger import LatentInputs
                 inputs = LatentInputs(
                     adjacency=adjacency,
                     angles=torsion_angles,
@@ -479,15 +430,29 @@ def run_full_pipeline(cfg: DictConfig) -> dict:
                     partial_coords=partial_coords,
                 )
                 unified_latent = merger(inputs)
-                print(f"[DEBUG-MERGE] unified_latent shape: {unified_latent.shape if unified_latent is not None else None}")
+                logger.info(f"unified_latent shape: {unified_latent.shape if unified_latent is not None else None}")
             except Exception as e:
-                print(f"[DEBUG-MERGE-ERROR] Exception in merger: {e}")
+                logger.error(f"[UniqueErrorID-MergerError] Exception in merger: {e}")
                 unified_latent = None
 
-        # Handle final_coords
-        final_coords = stage_d_output if stage_d_output is not None else None
+        # Determine if Stage D is enabled - BOTH conditions must be true
+        stageD_enabled = True
 
-        return {
+        # Check if run_stageD is False at the top level
+        if hasattr(cfg, "run_stageD") and not cfg.run_stageD:
+            stageD_enabled = False
+
+        # Also check if model.stageD.enabled is False (used in tests)
+        if hasattr(cfg, "model") and hasattr(cfg.model, "stageD") and hasattr(cfg.model.stageD, "enabled") and not cfg.model.stageD.enabled:
+            stageD_enabled = False
+
+        # Only prepare final_coords if Stage D is enabled
+        final_coords = None
+        if stageD_enabled and stage_d_output is not None:
+            final_coords = stage_d_output
+
+        # Build the result dictionary
+        result = {
             "adjacency": adjacency,
             "torsion_angles": torsion_angles,
             "s_embeddings": s_embeddings,
@@ -500,12 +465,14 @@ def run_full_pipeline(cfg: DictConfig) -> dict:
             "unified_latent": unified_latent,
             "final_coords": final_coords,
         }
+
+        return result
     except (RuntimeError, AssertionError) as e:
         logger.error(f"[UniqueErrorID-InvalidDevice] Device error or invalid device string: {e}")
         # Return dummy outputs with expected keys
         def dummy():
             return torch.empty(0)
-        return {
+        result = {
             "adjacency": dummy(),
             "torsion_angles": dummy(),
             "s_embeddings": dummy(),
@@ -518,3 +485,5 @@ def run_full_pipeline(cfg: DictConfig) -> dict:
             "unified_latent": None,
             "final_coords": None,
         }
+
+        return result
