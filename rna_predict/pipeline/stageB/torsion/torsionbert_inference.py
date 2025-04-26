@@ -119,9 +119,23 @@ class TorsionBertModel(nn.Module):
         self.device = torch.device(device)
         self.return_dict = return_dict
 
+        # Validate device against available devices
+        if self.device.type == "cuda" and not torch.cuda.is_available():
+            raise RuntimeError(f"[HYDRA-DEVICE-ERROR] CUDA requested in Hydra config, but no CUDA device is available. Config device: {device}")
+        if self.device.type == "mps" and not torch.backends.mps.is_available():
+            raise RuntimeError(f"[HYDRA-DEVICE-ERROR] MPS requested in Hydra config, but no MPS device is available. Config device: {device}")
+
         # Initialize tokenizer and model
         self.tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
         self.model = AutoModel.from_pretrained(model_path, trust_remote_code=True).to(self.device)
+
+        # After moving model, validate all params/buffers are on the correct device
+        for name, param in self.model.named_parameters():
+            if param.device != self.device:
+                raise RuntimeError(f"[HYDRA-DEVICE-ERROR] Model parameter '{name}' is on {param.device}, expected {self.device} from Hydra config. Config device: {device}")
+        for name, buf in self.model.named_buffers():
+            if buf.device != self.device:
+                raise RuntimeError(f"[HYDRA-DEVICE-ERROR] Model buffer '{name}' is on {buf.device}, expected {self.device} from Hydra config. Config device: {device}")
 
         # If model is mocked (for testing), replace with dummy model
         if isinstance(self.model, MagicMock):
