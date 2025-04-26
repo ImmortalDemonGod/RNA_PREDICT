@@ -1,0 +1,2 @@
+id,target_id,sequence_path,pdb_path
+1SCL_A,1SCL_A,/Volumes/Totallynotaharddrive/RNA_structure_PREDICT/kaggle/stanford-rna-3d-folding/train_sequences.csv,/Users/tomriddle1/RNA_PREDICT/rna_predict/dataset/examples/synthetic_cppc_0000001.pdb
