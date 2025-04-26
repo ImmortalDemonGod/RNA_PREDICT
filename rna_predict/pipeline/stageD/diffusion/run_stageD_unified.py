@@ -93,7 +93,29 @@ def _run_stageD_diffusion_impl(
     # Create and initialize the diffusion manager
     # Convert DiffusionConfig to DictConfig for compatibility
     from omegaconf import OmegaConf
-    config_dict = OmegaConf.create(vars(config))
+
+    # Create a clean dictionary without PyTorch tensors
+    clean_config_dict = {}
+    for key, value in vars(config).items():
+        # Skip PyTorch tensors and other non-serializable objects
+        if isinstance(value, torch.Tensor):
+            continue
+        elif isinstance(value, dict):
+            # Handle nested dictionaries
+            clean_dict = {}
+            for k, v in value.items():
+                if not isinstance(v, torch.Tensor):
+                    clean_dict[k] = v
+            clean_config_dict[key] = clean_dict
+        else:
+            clean_config_dict[key] = value
+
+    # Create OmegaConf config with the required model.stageD structure
+    config_dict = OmegaConf.create({
+        "model": {
+            "stageD": clean_config_dict
+        }
+    })
     diffusion_manager = ProtenixDiffusionManager(cfg=config_dict)
 
     # Prepare input features if not provided (basic fallback)
@@ -109,15 +131,33 @@ def _run_stageD_diffusion_impl(
     # Defensive check: s_trunk must be residue-level at entry to unified runner
     if isinstance(original_trunk_embeddings_ref, dict) and "s_trunk" in original_trunk_embeddings_ref:
         s_trunk = original_trunk_embeddings_ref["s_trunk"]
-        n_residues = len(getattr(config, "sequence", []))
 
-        # Handle the case where s_trunk has a sample dimension
-        # If s_trunk has 4 dimensions [batch, sample, residue, features], check shape[2]
-        # If s_trunk has 3 dimensions [batch, residue, features], check shape[1]
-        residue_dim_idx = 2 if s_trunk.dim() == 4 else 1
+        # Get the number of residues from the sequence or from atom_metadata
+        sequence = getattr(config, "sequence", None)
+        n_residues = len(sequence) if sequence else 0
 
-        if n_residues and s_trunk.shape[residue_dim_idx] != n_residues:
-            raise ValueError(f"[STAGED-UNIFIED ERROR][UNIQUE_CODE_004] Atom-level embeddings detected in s_trunk before bridging. Upstream code must pass residue-level embeddings. Expected {n_residues} residues, got {s_trunk.shape[residue_dim_idx]} at dimension {residue_dim_idx} of shape {s_trunk.shape}")
+        # If sequence is None or empty, try to get n_residues from atom_metadata
+        if n_residues == 0 and hasattr(config, 'atom_metadata') and config.atom_metadata:
+            if 'residue_indices' in config.atom_metadata:
+                # Get the maximum residue index + 1 to get the number of residues
+                residue_indices = config.atom_metadata['residue_indices']
+                if residue_indices:
+                    n_residues = max(residue_indices) + 1
+
+        # If we still don't have n_residues, use the shape of s_trunk
+        if n_residues == 0:
+            # If s_trunk has 4 dimensions [batch, sample, residue, features], use shape[2]
+            # If s_trunk has 3 dimensions [batch, residue, features], use shape[1]
+            residue_dim_idx = 2 if s_trunk.dim() == 4 else 1
+            n_residues = s_trunk.shape[residue_dim_idx]
+        else:
+            # Handle the case where s_trunk has a sample dimension
+            # If s_trunk has 4 dimensions [batch, sample, residue, features], check shape[2]
+            # If s_trunk has 3 dimensions [batch, residue, features], check shape[1]
+            residue_dim_idx = 2 if s_trunk.dim() == 4 else 1
+
+            if n_residues and s_trunk.shape[residue_dim_idx] != n_residues:
+                raise ValueError(f"[STAGED-UNIFIED ERROR][UNIQUE_CODE_004] Atom-level embeddings detected in s_trunk before bridging. Upstream code must pass residue-level embeddings. Expected {n_residues} residues, got {s_trunk.shape[residue_dim_idx]} at dimension {residue_dim_idx} of shape {s_trunk.shape}")
 
     # Bridge residue-level embeddings to atom-level embeddings
     sequence = getattr(config, "sequence", None)
