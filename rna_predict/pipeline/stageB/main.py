@@ -157,7 +157,7 @@ def run_stageB_combined(
                     c_atom = protenix_cfg.c_atom if hasattr(protenix_cfg, 'c_atom') else 128
                     restype_dim = protenix_cfg.restype_dim if hasattr(protenix_cfg, 'restype_dim') else 32
                     profile_dim = protenix_cfg.profile_dim if hasattr(protenix_cfg, 'profile_dim') else 32
-                    c_token = protenix_cfg.c_token if hasattr(protenix_cfg, 'c_token') else 2
+                    protenix_cfg.c_token if hasattr(protenix_cfg, 'c_token') else 2
 
                     # Use smaller dimensions for testing to speed up tensor generation
                     # For testing purposes, we'll use a reduced c_atom size

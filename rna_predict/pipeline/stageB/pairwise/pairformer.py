@@ -274,15 +274,42 @@ class PairformerStack(nn.Module):
         self.blocks_per_ckpt = cfg.blocks_per_ckpt
 
         # Create block configuration with all fields from PairformerBlockConfig
-        block_cfg_kwargs = {
-            k: getattr(cfg, k, getattr(PairformerBlockConfig, k, None))
-            for k in PairformerBlockConfig.__dataclass_fields__
-        }
-        block_cfg_kwargs["c_z"] = self.c_z  # Force c_z to match stack
-        block_cfg_kwargs["c_s"] = self.c_s  # Force c_s to match stack
-        block_cfg_kwargs["n_heads"] = self.n_heads  # Force n_heads to match stack
-        block_cfg_kwargs["dropout"] = self.dropout  # Force dropout to match stack
-        block_cfg = PairformerBlockConfig(**block_cfg_kwargs)
+
+        # Use hardcoded default values if needed
+        # These values match the defaults in PairformerBlockConfig
+        c_hidden_mul = 4
+        c_hidden_pair_att = 32
+        no_heads_pair = 8
+
+        # Try to get values from config if available
+        if hasattr(cfg, "c_hidden_mul") and cfg.c_hidden_mul is not None:
+            try:
+                c_hidden_mul = int(cfg.c_hidden_mul)
+            except (TypeError, ValueError):
+                pass  # Keep default
+
+        if hasattr(cfg, "c_hidden_pair_att") and cfg.c_hidden_pair_att is not None:
+            try:
+                c_hidden_pair_att = int(cfg.c_hidden_pair_att)
+            except (TypeError, ValueError):
+                pass  # Keep default
+
+        if hasattr(cfg, "no_heads_pair") and cfg.no_heads_pair is not None:
+            try:
+                no_heads_pair = int(cfg.no_heads_pair)
+            except (TypeError, ValueError):
+                pass  # Keep default
+
+        # Create a new PairformerBlockConfig with explicit parameters
+        block_cfg = PairformerBlockConfig(
+            n_heads=self.n_heads,  # Force n_heads to match stack
+            c_z=self.c_z,  # Force c_z to match stack
+            c_s=self.c_s,  # Force c_s to match stack
+            c_hidden_mul=c_hidden_mul,
+            c_hidden_pair_att=c_hidden_pair_att,
+            no_heads_pair=no_heads_pair,
+            dropout=self.dropout  # Force dropout to match stack
+        )
 
         # Initialize blocks
         self.blocks = nn.ModuleList()
@@ -561,16 +588,26 @@ class MSABlock(nn.Module):
             )
             self.msa_stack = MSAStack(cfg=msa_stack_cfg)
 
-        # Pair stack - create configuration with all fields from PairformerBlockConfig
-        # Start with defaults, then override with values from cfg where available
-        pair_block_cfg_kwargs = {k: PairformerBlockConfig.__dataclass_fields__[k].default
-                                 for k in PairformerBlockConfig.__dataclass_fields__}
-        pair_block_cfg_kwargs.update({
-            'c_z': self.c_z,
-            'c_s': 0,  # No single representation in pair stack
-            'dropout': self.pair_dropout
-        })
-        pair_block_cfg = PairformerBlockConfig(**pair_block_cfg_kwargs)
+        # Pair stack - create configuration with explicit parameters
+        # Use hardcoded defaults from PairformerBlockConfig
+
+        # Use hardcoded default values if needed
+        # These values match the defaults in PairformerBlockConfig
+        c_hidden_mul = 4
+        c_hidden_pair_att = 32
+        no_heads_pair = 8
+        n_heads = 8
+
+        # Create a new PairformerBlockConfig with explicit parameters
+        pair_block_cfg = PairformerBlockConfig(
+            n_heads=n_heads,
+            c_z=self.c_z,
+            c_s=0,  # No single representation in pair stack
+            c_hidden_mul=c_hidden_mul,
+            c_hidden_pair_att=c_hidden_pair_att,
+            no_heads_pair=no_heads_pair,
+            dropout=self.pair_dropout
+        )
         self.pair_stack = PairformerBlock(cfg=pair_block_cfg)
 
     def forward(
