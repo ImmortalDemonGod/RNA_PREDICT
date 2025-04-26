@@ -1,5 +1,4 @@
 import os
-os.chdir("/Users/tomriddle1/RNA_PREDICT")
 import sys
 import pytest
 import torch
@@ -19,12 +18,13 @@ from rna_predict.pipeline.stageA.adjacency.rfold_predictor import (
 from rna_predict.pipeline.stageC.stage_c_reconstruction import (
     StageCReconstruction,
 )
+from pathlib import Path
 
-sys.path.insert(0, "/Users/tomriddle1/RNA_PREDICT")
-# ENFORCE: Tests must be run from the project root for Hydra config to resolve correctly.
-EXPECTED_CWD = "/Users/tomriddle1/RNA_PREDICT"
-if os.getcwd() != EXPECTED_CWD:
-    raise RuntimeError(f"Tests must be run from {EXPECTED_CWD} for Hydra config_path to resolve. Current CWD: {os.getcwd()}")
+# Derive project_root from __file__
+project_root = Path(__file__).resolve().parents[2]
+config_dir = project_root / "rna_predict" / "conf"
+if not config_dir.is_dir():
+    pytest.fail(f"[HYDRA-CONF-NOT-FOUND] Expected config dir at {config_dir}")
 
 # NOTE: Hydra's initialize(config_path=...) requires a RELATIVE path. However, under pytest, Hydra resolves config_path relative to the test file's directory, not the process CWD. Therefore, we must use '../../rna_predict/conf' for tests in tests/stageB.
 """
@@ -604,7 +604,7 @@ class TestRunPipelineHypothesis:
                 "use_deepspeed_evo_attention": False,
                 "use_lma": False,
                 "inplace_safe": False,
-                "chunk_size": null
+                "chunk_size": None
             }
         })
 
