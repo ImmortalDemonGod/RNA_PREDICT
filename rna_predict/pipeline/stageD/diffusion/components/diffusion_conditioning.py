@@ -301,7 +301,7 @@ class DiffusionConditioning(nn.Module):
         print(f"[STAGED DEBUG] After transitions: single_s.shape={single_s.shape}")
         return single_s
 
-    #@snoop
+    ##@snoop
     def _ensure_input_feature_dict(
         self,
         input_feature_dict: Dict[str, Union[torch.Tensor, int, float, Dict[str, Any]]],

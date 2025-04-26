@@ -258,7 +258,7 @@ def initialize_features_from_config(
 
     return features
 
-@snoop
+#@snoop
 def extract_atom_features(input_feature_dict, encoder_input_feature_config, debug_logging=False):
     features = []
     feature_names = []
