@@ -152,29 +152,45 @@ def create_pair_embedding(
     minimal_dim = getattr(encoder, 'minimal_pair_embedding_dim', None)
     if minimal_dim is not None:
         # Use the minimal allowed size for dry/test runs
-        batch_shape = ref_pos.shape[:-2] if ref_pos is not None else (1,)
-        n_atoms = min(ref_pos.shape[-2], minimal_dim) if ref_pos is not None else minimal_dim
+        # Handle the case where ref_pos is None
+        if ref_pos is not None:
+            batch_shape = ref_pos.shape[:-2]
+            n_atoms = min(ref_pos.shape[-2], minimal_dim)
+            device = ref_pos.device
+            dtype = ref_pos.dtype
+        else:
+            batch_shape = torch.Size([1])
+            n_atoms = minimal_dim
+            device = torch.device('cpu')
+            dtype = torch.float32
+
         c_atompair = getattr(encoder, 'c_atompair', 1)
-        p_lm = torch.zeros((*batch_shape, n_atoms, n_atoms, c_atompair), device=ref_pos.device, dtype=ref_pos.dtype)
+        p_lm = torch.zeros((*batch_shape, n_atoms, n_atoms, c_atompair), device=device, dtype=dtype)
         return p_lm
 
     # Create all-pairs distance tensor
-    n_atoms = ref_pos.shape[-2]
+    n_atoms = ref_pos.shape[-2] if ref_pos is not None else 0
 
     # Initialize the pair embedding tensor based on N_atom x N_atom
     # Shape: [..., N_atom, N_atom, c_atompair]
-    p_lm = torch.zeros(
-        (*ref_pos.shape[:-2], n_atoms, n_atoms, encoder.c_atompair),  # Use n_atoms
-        device=ref_pos.device,
-        dtype=ref_pos.dtype,
-    )
+    if ref_pos is not None:
+        p_lm = torch.zeros(
+            (*ref_pos.shape[:-2], n_atoms, n_atoms, encoder.c_atompair),  # Use n_atoms
+            device=ref_pos.device,
+            dtype=ref_pos.dtype,
+        )
+    else:
+        # Fallback if ref_pos is None
+        p_lm = torch.zeros((1, n_atoms, n_atoms, encoder.c_atompair))
 
     # Return empty embedding if there are no atoms
     if n_atoms == 0:
         return p_lm
 
     # Process distance and charge information
-    p_lm = _process_distances(encoder, p_lm, ref_pos)
-    p_lm = _process_charges(encoder, p_lm, ref_charge)
+    if ref_pos is not None:
+        p_lm = _process_distances(encoder, p_lm, ref_pos)
+    if ref_charge is not None:
+        p_lm = _process_charges(encoder, p_lm, ref_charge)
 
     return p_lm
