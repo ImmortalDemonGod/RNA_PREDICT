@@ -75,14 +75,18 @@ def main(cfg: DictConfig):
         print("[DEBUG][main] First batch keys:", list(first_batch.keys()))
         for k, v in first_batch.items():
             if hasattr(v, 'shape'):
-                print(f"[DEBUG][main] Key: {k}, Shape: {getattr(v, 'shape', None)}, Dtype: {getattr(v, 'dtype', None)}, requires_grad: {getattr(v, 'requires_grad', 'N/A')}")
+                # Handle potential bytes objects by using repr for display
+                shape_val = getattr(v, 'shape', None)
+                dtype_val = getattr(v, 'dtype', None)
+                requires_grad_val = getattr(v, 'requires_grad', 'N/A')
+                print(f"[DEBUG][main] Key: {k!r}, Shape: {shape_val!r}, Dtype: {dtype_val!r}, requires_grad: {requires_grad_val!r}")
             else:
-                print(f"[DEBUG][main] Key: {k}, Type: {type(v)}")
-        print("[DEBUG] First batch device: {}".format(first_batch['coords_true'].device))
+                print(f"[DEBUG][main] Key: {k!r}, Type: {type(v)!r}")
+        print("[DEBUG] First batch device: {!r}".format(first_batch['coords_true'].device))
         trainer = L.Trainer(fast_dev_run=True)
         trainer.fit(model, dl)
     except Exception as e:
-        print("[ERROR] Exception during dataset/dataloader setup: {}".format(e))
+        print("[ERROR] Exception during dataset/dataloader setup: {!r}".format(e))
 
 if __name__ == "__main__":
     main()
