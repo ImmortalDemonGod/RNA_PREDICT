@@ -235,7 +235,7 @@ class TestRNAPredictorMpNerfNaN(unittest.TestCase):
     @given(
         sequence=st.text(alphabet=["A", "C", "G", "U"], min_size=5, max_size=20)
     )
-    def test_predict_3d_structure_with_mpnerf_no_nan(self, sequence):
+    def test_predict_3d_structure_with_mpnerf_no_nan_extended(self, sequence):
         """
         Property-based test: Verify that predict_3d_structure directly returns a non-NaN coordinate tensor
         when using the mp_nerf method for any valid RNA sequence.
