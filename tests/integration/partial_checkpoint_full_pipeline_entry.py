@@ -1,11 +1,13 @@
 import os
+import pathlib
+import sys
 import hydra
 from omegaconf import DictConfig
 
-EXPECTED_CWD = "/Users/tomriddle1/RNA_PREDICT"
-CONFIG_ABS_PATH = "/Users/tomriddle1/RNA_PREDICT/rna_predict/conf/default.yaml"
+# Define project root using file location (portable)
+PROJECT_ROOT = pathlib.Path(__file__).resolve().parents[2]
 
-@hydra.main(config_path="rna_predict/conf", config_name="default")
+@hydra.main(config_path="../../rna_predict/conf", config_name="default", version_base=None)
 def main(cfg: DictConfig):
     print(f"[HYDRA MAIN DEBUG] Current working directory: {os.getcwd()}")
     print(f"[HYDRA MAIN DEBUG] Config keys: {list(cfg.keys())}")
@@ -16,16 +18,13 @@ def main(cfg: DictConfig):
 
 if __name__ == "__main__":
     # Assert CWD is project root for robust, actionable error reporting
-    actual_cwd = os.getcwd()
-    if actual_cwd != EXPECTED_CWD:
-        print(f"[UNIQUE-ERR-HYDRA-CWD] Test must be run from the project root directory.\n"
-              f"Expected CWD: {EXPECTED_CWD}\n"
-              f"Actual CWD:   {actual_cwd}\n"
-              f"To fix: cd {EXPECTED_CWD} && uv run partial_checkpoint_full_pipeline_entry.py\n"
-              f"See docs/guides/best_practices/debugging/comprehensive_debugging_guide.md for more info.")
-        exit(1)
-    # Pre-test: Fail early if config is not accessible (strict absolute path)
-    if not os.path.exists(CONFIG_ABS_PATH):
-        print(f"[UNIQUE-ERR-HYDRA-CONF-NOT-FOUND] {CONFIG_ABS_PATH} not found. Run this test from the project root and ensure config is present at absolute path. See docs/guides/best_practices/debugging/comprehensive_debugging_guide.md")
-        exit(1)
+    if pathlib.Path.cwd() != PROJECT_ROOT:
+        sys.exit("[UNIQUE-ERR-CWD] Run from project root")
+
+    # Pre-test: Fail early if config is not accessible (using project root)
+    config_path = PROJECT_ROOT / "rna_predict" / "conf" / "default.yaml"
+    if not config_path.exists():
+        print(f"[UNIQUE-ERR-HYDRA-CONF-NOT-FOUND] {config_path} not found. Run this script from the project root and ensure config is present.")
+        sys.exit(1)
+
     main()
