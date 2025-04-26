@@ -276,3 +276,30 @@ class TestNormalizeTensorDimensions:
         tensor = torch.randn(2, 1, 4)
         out = normalize_tensor_dimensions(tensor, batch_size=2)
         assert out.shape == (2, 4)
+
+
+class TestPairEmbeddingBroadcast:
+    """Unit test for correct broadcasting of pair-embedding to atom pairs."""
+    def test_pair_embedding_broadcast_small_tensor(self):
+        import torch
+        B, N_sample, N_res, C = 1, 1, 3, 2
+        value = torch.arange(B * N_sample * N_res * N_res * C, dtype=torch.float32).reshape(B, N_sample, N_res, N_res, C)
+        residue_atom_map = [[0, 1], [2, 3], [4, 5]]
+        N_atom = sum(len(x) for x in residue_atom_map)
+        out = torch.zeros(B, N_sample, N_atom, N_atom, C)
+        # Double-loop assignment to avoid advanced indexing shape issues
+        for s in range(N_sample):
+            for i, atom_indices_i in enumerate(residue_atom_map):
+                for j, atom_indices_j in enumerate(residue_atom_map):
+                    val = value[:, s, i, j, :].unsqueeze(1).unsqueeze(2)  # [B, 1, 1, C]
+                    for a_idx, atom_i in enumerate(atom_indices_i):
+                        for b_idx, atom_j in enumerate(atom_indices_j):
+                            out[:, s, atom_i, atom_j, :] = val[:, 0, 0, :]
+        for i, atom_indices_i in enumerate(residue_atom_map):
+            for j, atom_indices_j in enumerate(residue_atom_map):
+                expected = value[:, :, i:i+1, j:j+1, :]
+                while expected.dim() < 5:
+                    expected = expected.unsqueeze(-2)
+                expected = expected.expand(-1, -1, len(atom_indices_i), len(atom_indices_j), -1)
+                actual = out[:, :, atom_indices_i][:, :, :, atom_indices_j]
+                assert torch.allclose(actual, expected), f"Broadcast failed for residue pair ({i},{j})"

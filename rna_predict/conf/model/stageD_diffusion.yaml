@@ -5,84 +5,104 @@
 defaults:
   - _self_
 
-# Core settings
 enabled: true
-mode: "inference"
-device: "cpu"
 debug_logging: true
-sigma_data: 16.0
-c_atom: 128
-c_s: 384
-c_z: 128
-c_s_inputs: 449
-c_noise_embedding: 32
+# Required parameters for feature initialization
 ref_element_size: 128
 ref_atom_name_chars_size: 256
+profile_size: 32
 
-# Required model architecture configuration
 model_architecture:
-  c_token: 384
-  c_s: 384
-  c_z: 128
-  c_s_inputs: 449
-  c_atom: 128
-  c_noise_embedding: 32
-  num_layers: 6
-  num_heads: 8
-  dropout: 0.1
-  coord_eps: 1e-6
-  coord_min: -1e4
-  coord_max: 1e4
-  coord_similarity_rtol: 1e-3
-  test_residues_per_batch: 25
+  c_token: 8
+  c_s: 8
+  c_z: 4
+  c_s_inputs: 8
+  c_atom: 4
+  c_atompair: 4
+  c_noise_embedding: 4
+  sigma_data: 1.0
 
-# Required transformer configuration
-transformer:
-  n_blocks: 6
-  n_heads: 8
-  blocks_per_ckpt: null
-
-# Required atom encoder configuration
-atom_encoder:
-  c_in: 3
-  c_hidden: [32, 64, 128]
-  c_out: 64
-  dropout: 0.1
-
-# Required atom decoder configuration
 atom_decoder:
-  c_in: 64
-  c_hidden: [128, 64, 32]
+  c_in: 4
+  c_hidden: [8, 4, 2]
   c_out: 3
   dropout: 0.1
 
-# Noise schedule configuration
-noise_schedule:
-  schedule_type: "linear"
-  sigma_data: 16.0
-  s_max: 160.0
-  s_min: 4e-4
-  p: 7.0
-  p_mean: -1.2
-  p_std: 1.5
-
-# Inference parameters
-inference:
-  num_steps: 2
-  temperature: 1.0
-  use_ddim: true
-  sampling:
-    num_samples: 1
-    gamma0: 0.8
-    gamma_min: 1.0
-    noise_scale_lambda: 1.003
-    step_scale_eta: 1.5
-
-# Memory optimization flags
-use_memory_efficient_kernel: false
-use_deepspeed_evo_attention: false
-use_lma: false
-inplace_safe: false
-chunk_size: null
-
-atom_metadata: null
+diffusion:
+  # Core settings
+  init_from_scratch: false
+  enabled: true
+  mode: "inference"
+  device: "cpu"
+  debug_logging: true
+  ref_element_size: 128
+  ref_atom_name_chars_size: 256
+  profile_size: 32
+  # Feature dimensions required for bridging
+  feature_dimensions:
+    c_s: 8
+    c_s_inputs: 8
+    c_sing: 8
+    s_trunk: 8
+    s_inputs: 8
+  # Required for residue-to-atom bridging and inference shape checks
+  test_residues_per_batch: 2
+  # Required model architecture configuration
+  model_architecture:
+    c_token: 8
+    c_s: 8
+    c_z: 4
+    c_s_inputs: 8
+    c_atom: 4
+    c_atompair: 4
+    c_noise_embedding: 4
+    sigma_data: 1.0
+  # Required transformer configuration
+  transformer:
+    n_blocks: 2
+    n_heads: 2
+    blocks_per_ckpt: null
+  # Atom encoder/decoder configs
+  atom_encoder:
+    c_in: 4
+    c_hidden: [8]
+    c_out: 4
+    dropout: 0.1
+    n_blocks: 1
+    n_heads: 2
+    n_queries: 2
+    n_keys: 2
+  atom_decoder:
+    c_in: 4
+    c_hidden: [8]
+    c_out: 4
+    dropout: 0.1
+    n_blocks: 1
+    n_heads: 2
+    n_queries: 2
+    n_keys: 2
+  # Noise schedule config
+  noise_schedule:
+    schedule_type: "linear"
+    s_max: 1.0
+    s_min: 0.01
+    p: 0.5
+    p_mean: 0.0
+    p_std: 1.0
+  # Inference config
+  inference:
+    num_steps: 2
+    temperature: 1.0
+    use_ddim: true
+    sampling:
+      num_samples: 1
+      gamma0: 0.8
+      gamma_min: 1.0
+      noise_scale_lambda: 1.003
+      step_scale_eta: 1.5
+  # Memory optimization
+  use_memory_efficient_kernel: false
+  use_deepspeed_evo_attention: false
+  use_lma: false
+  inplace_safe: false
+  chunk_size: null

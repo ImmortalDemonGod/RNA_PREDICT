@@ -39,56 +39,71 @@ class DiffusionModule(nn.Module):
 
     def __init__(
         self,
-        sigma_data: float = 16.0,
-        c_atom: int = 128,
-        c_atompair: int = 16,
-        c_token: int = 768,
-        c_s: int = 384,
-        c_z: int = 128,
-        c_s_inputs: int = 449,
-        c_noise_embedding: int = 256,  # Added for DiffusionConditioning init
-        atom_encoder: dict[str, int] = {"n_blocks": 3, "n_heads": 4},
-        transformer: dict[str, int] = {"n_blocks": 24, "n_heads": 16},
-        atom_decoder: dict[str, int] = {"n_blocks": 3, "n_heads": 4},
+        sigma_data: float,
+        c_atom: int,
+        c_atompair: int,
+        c_token: int,
+        c_s: int,
+        c_z: int,
+        c_s_inputs: int,
+        c_noise_embedding: int,
+        atom_encoder: dict,
+        transformer: dict,
+        atom_decoder: dict,
         blocks_per_ckpt: Optional[int] = None,
         use_fine_grained_checkpoint: bool = False,
-        initialization: Optional[dict[str, Union[str, float, bool]]] = None,
+        initialization: Optional[dict] = None,
     ) -> None:
         """
-        Args:
-            sigma_data (torch.float, optional): the standard deviation of the data. Defaults to 16.0.
-            c_atom (int, optional): embedding dim for atom feature. Defaults to 128.
-            c_atompair (int, optional): embedding dim for atompair feature. Defaults to 16.
-            c_token (int, optional): feature channel of token (single a). Defaults to 768.
-            c_s (int, optional):  hidden dim [for single embedding]. Defaults to 384.
-            c_z (int, optional): hidden dim [for pair embedding]. Defaults to 128.
-            c_s_inputs (int, optional): hidden dim [for single input embedding]. Defaults to 449.
-            c_noise_embedding (int, optional): noise embedding dim for conditioning. Defaults to 256.
-            atom_encoder (dict[str, int], optional): configs in AtomAttentionEncoder. Defaults to {"n_blocks": 3, "n_heads": 4}.
-            transformer (dict[str, int], optional): configs in DiffusionTransformer. Defaults to {"n_blocks": 24, "n_heads": 16}.
-            atom_decoder (dict[str, int], optional): configs in AtomAttentionDecoder. Defaults to {"n_blocks": 3, "n_heads": 4}.
-            blocks_per_ckpt: number of atom_encoder/transformer/atom_decoder blocks in each activation checkpoint
-                Size of each chunk. A higher value corresponds to fewer
-                checkpoints, and trades memory for speed. If None, no checkpointing is performed.
-            use_fine_grained_checkpoint: whether use fine-gained checkpoint for finetuning stage 2
-                only effective if blocks_per_ckpt is not None.
-            initialization: initialize the diffusion module according to initialization config.
+        All model size/config arguments are REQUIRED and must come from Hydra config (no defaults).
         """
-
         super(DiffusionModule, self).__init__()
+        # Debug logging for all model sizes
+        print("[DEBUG][DiffusionModule.__init__] sigma_data:", sigma_data)
+        print("[DEBUG][DiffusionModule.__init__] c_atom:", c_atom)
+        print("[DEBUG][DiffusionModule.__init__] c_atompair:", c_atompair)
+        print("[DEBUG][DiffusionModule.__init__] c_token:", c_token)
+        print("[DEBUG][DiffusionModule.__init__] c_s:", c_s)
+        print("[DEBUG][DiffusionModule.__init__] c_z:", c_z)
+        print("[DEBUG][DiffusionModule.__init__] c_s_inputs:", c_s_inputs)
+        print("[DEBUG][DiffusionModule.__init__] c_noise_embedding:", c_noise_embedding)
+        print("[DEBUG][DiffusionModule.__init__] atom_encoder:", atom_encoder)
+        print("[DEBUG][DiffusionModule.__init__] transformer:", transformer)
+        print("[DEBUG][DiffusionModule.__init__] atom_decoder:", atom_decoder)
+        # Assert all required args are not None
+        assert sigma_data is not None, "sigma_data must be set by config"
+        assert c_atom is not None, "c_atom must be set by config"
+        assert c_atompair is not None, "c_atompair must be set by config"
+        assert c_token is not None, "c_token must be set by config"
+        assert c_s is not None, "c_s must be set by config"
+        assert c_z is not None, "c_z must be set by config"
+        assert c_s_inputs is not None, "c_s_inputs must be set by config"
+        assert c_noise_embedding is not None, "c_noise_embedding must be set by config"
+        assert atom_encoder is not None, "atom_encoder must be set by config"
+        assert transformer is not None, "transformer must be set by config"
+        assert atom_decoder is not None, "atom_decoder must be set by config"
         self.sigma_data = sigma_data
         self.c_atom = c_atom
         self.c_atompair = c_atompair
         self.c_token = c_token
-        self.c_s_inputs = c_s_inputs
         self.c_s = c_s
         self.c_z = c_z
+        self.c_s_inputs = c_s_inputs
+        self.c_noise_embedding = c_noise_embedding
+        self.atom_encoder = atom_encoder
+        self.transformer = transformer
+        self.atom_decoder = atom_decoder
+        self.blocks_per_ckpt = blocks_per_ckpt
+        self.use_fine_grained_checkpoint = use_fine_grained_checkpoint
+        self.initialization = initialization
 
         # Grad checkpoint setting
         self.blocks_per_ckpt = blocks_per_ckpt
         self.use_fine_grained_checkpoint = use_fine_grained_checkpoint
 
         # Use imported DiffusionConditioning
+        print("[DEBUG][DiffusionModule.__init__] Instantiating DiffusionConditioning with:",
+              f"sigma_data={self.sigma_data}, c_z={c_z}, c_s={c_s}, c_s_inputs={c_s_inputs}, c_noise_embedding={c_noise_embedding}")
         self.diffusion_conditioning = DiffusionConditioning(
             sigma_data=self.sigma_data,
             c_z=c_z,
@@ -99,6 +114,7 @@ class DiffusionModule(nn.Module):
 
         # --- AtomAttentionEncoder ---
         encoder_config_dict = atom_encoder
+        print(f"[DEBUG][DiffusionModule.__init__] encoder_config_dict: {encoder_config_dict}")
         encoder_config = AtomAttentionConfig(
             c_atom=c_atom,
             c_atompair=c_atompair,
@@ -107,10 +123,10 @@ class DiffusionModule(nn.Module):
             c_s=c_s,
             c_z=c_z,
             blocks_per_ckpt=blocks_per_ckpt,
-            n_blocks=encoder_config_dict.get("n_blocks", 3),
-            n_heads=encoder_config_dict.get("n_heads", 4),
-            n_queries=encoder_config_dict.get("n_queries", 32),  # Add default
-            n_keys=encoder_config_dict.get("n_keys", 128),  # Add default
+            n_blocks=encoder_config_dict["n_blocks"],
+            n_heads=encoder_config_dict["n_heads"],
+            n_queries=encoder_config_dict["n_queries"],
+            n_keys=encoder_config_dict["n_keys"],
         )
         self.atom_attention_encoder = AtomAttentionEncoder(config=encoder_config)
 
@@ -120,8 +136,8 @@ class DiffusionModule(nn.Module):
 
         # --- DiffusionTransformer Instantiation ---
         transformer_params = {
-            "n_blocks": transformer.get("n_blocks", 24),
-            "n_heads": transformer.get("n_heads", 16),
+            "n_blocks": transformer["n_blocks"],
+            "n_heads": transformer["n_heads"],
             "c_a": c_token,
             "c_s": c_s,
             "c_z": c_z,
@@ -140,10 +156,10 @@ class DiffusionModule(nn.Module):
             c_s=c_s,
             c_z=c_z,
             blocks_per_ckpt=blocks_per_ckpt,
-            n_blocks=decoder_config_dict.get("n_blocks", 3),
-            n_heads=decoder_config_dict.get("n_heads", 4),
-            n_queries=decoder_config_dict.get("n_queries", 32),  # Add default
-            n_keys=decoder_config_dict.get("n_keys", 128),  # Add default
+            n_blocks=decoder_config_dict["n_blocks"],
+            n_heads=decoder_config_dict["n_heads"],
+            n_queries=decoder_config_dict["n_queries"],
+            n_keys=decoder_config_dict["n_keys"],
         )
         self.atom_attention_decoder = AtomAttentionDecoder(config=decoder_config)
 
@@ -409,11 +425,21 @@ class DiffusionModule(nn.Module):
 
                     # Aggregate atom-level s_single_proj to token-level
                     s_single_proj_aggregated = []
+
+                    # Handle the case when atom_to_token_idx_reshaped has fewer samples than s_single_proj_reshaped
+                    if atom_to_token_idx_reshaped.shape[0] < s_single_proj_reshaped.shape[0]:
+                        # Create a new tensor with the correct shape
+                        new_atom_to_token_idx = atom_to_token_idx_reshaped[0:1].expand(s_single_proj_reshaped.shape[0], -1)
+                        atom_to_token_idx_reshaped = new_atom_to_token_idx
+
                     for i in range(s_single_proj_reshaped.shape[0]):
+                        # Make sure i is within bounds of atom_to_token_idx_reshaped
+                        idx = min(i, atom_to_token_idx_reshaped.shape[0] - 1)
+
                         # Use scatter_mean to aggregate atoms to tokens
                         aggregated = scatter_mean(
                             s_single_proj_reshaped[i],
-                            atom_to_token_idx_reshaped[i],
+                            atom_to_token_idx_reshaped[idx],
                             dim_size=a_token.shape[-2],
                             dim=0
                         )
@@ -552,14 +578,19 @@ class DiffusionModule(nn.Module):
         z_trunk: Optional[torch.Tensor] = None,
         chunk_size: Optional[int] = None,
         inplace_safe: bool = False,
+        debug_logging: bool = False,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Forward pass of the diffusion module.
         Handles N_sample detection and prepares inputs for f_forward.
         """
-        # print("[DEBUG] Starting DiffusionModule forward (Refactored)")
-        # print(f"[DEBUG] Initial x_noisy shape: {x_noisy.shape}")
-        # print(f"[DEBUG] Initial t_hat_noise_level shape: {t_hat_noise_level.shape}")
+        import logging
+        logger = logging.getLogger(__name__)
+
+        if debug_logging:
+            logger.debug("[UNIQUE-DEBUG-STAGED-TEST] Stage D diffusion module handling N_sample dimension.")
+            logger.debug(f"[DEBUG] Initial x_noisy shape: {x_noisy.shape}")
+            logger.debug(f"[DEBUG] Initial t_hat_noise_level shape: {t_hat_noise_level.shape}")
 
         # --- Input Shape Handling ---
         # Assume x_noisy arrives as [B, N_atom, 3] or [B, N_sample, N_atom, 3]

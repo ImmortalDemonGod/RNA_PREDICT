@@ -28,10 +28,10 @@ class TrainingContext:
     diffusion_manager: ProtenixDiffusionManager
     partial_coords: torch.Tensor
     trunk_embeddings_internal: Dict[str, torch.Tensor]
-    original_trunk_embeddings_ref: Dict[str, torch.Tensor]
     diffusion_config: Dict[str, Any]
     input_features: Dict[str, Any]
     device: str
+    original_trunk_embeddings_ref: Dict[str, torch.Tensor]
 
 
 def run_training_mode(

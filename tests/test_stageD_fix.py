@@ -30,6 +30,7 @@ def create_test_config():
                 # Add required parameters that were missing
                 "ref_element_size": 128,
                 "ref_atom_name_chars_size": 256,
+                "profile_size": 32,  # Added missing profile_size parameter
                 "input_features": {
                     "atom_to_token_idx": {
                         "repeats": 44  # Standard RNA residue has ~44 atoms

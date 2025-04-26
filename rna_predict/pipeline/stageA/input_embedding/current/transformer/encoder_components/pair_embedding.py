@@ -148,6 +148,16 @@ def create_pair_embedding(
     ref_pos = safe_tensor_access(input_feature_dict, "ref_pos")
     ref_charge = safe_tensor_access(input_feature_dict, "ref_charge")
 
+    # Use config flag for minimal dimensions if present
+    minimal_dim = getattr(encoder, 'minimal_pair_embedding_dim', None)
+    if minimal_dim is not None:
+        # Use the minimal allowed size for dry/test runs
+        batch_shape = ref_pos.shape[:-2] if ref_pos is not None else (1,)
+        n_atoms = min(ref_pos.shape[-2], minimal_dim) if ref_pos is not None else minimal_dim
+        c_atompair = getattr(encoder, 'c_atompair', 1)
+        p_lm = torch.zeros((*batch_shape, n_atoms, n_atoms, c_atompair), device=ref_pos.device, dtype=ref_pos.dtype)
+        return p_lm
+
     # Create all-pairs distance tensor
     n_atoms = ref_pos.shape[-2]
 

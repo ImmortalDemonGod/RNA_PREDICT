@@ -72,10 +72,11 @@ class ProtenixIntegration:
         # Get device from config
         device_str = protenix_cfg.device
         self.device = torch.device(device_str)
-        debug_logging = False
+        # Set debug_logging as an instance attribute
+        self.debug_logging = False
         if hasattr(cfg, 'model') and hasattr(cfg.model, 'stageB') and hasattr(cfg.model.stageB, 'debug_logging'):
-            debug_logging = cfg.model.stageB.debug_logging
-        if debug_logging:
+            self.debug_logging = cfg.model.stageB.debug_logging
+        if self.debug_logging:
             logger.info(f"[ProtenixIntegration] Using device: {self.device}")
 
         # Get embedding dimensions from config
@@ -84,8 +85,15 @@ class ProtenixIntegration:
         c_pair = protenix_cfg.c_pair
         r_max = protenix_cfg.r_max
         s_max = protenix_cfg.s_max
-        if debug_logging:
+        if self.debug_logging:
             logger.info(f"[ProtenixIntegration] Using c_token: {c_token}, c_atom: {c_atom}, c_pair: {c_pair}")
+
+        # Store as instance attributes for later use
+        self.c_token = c_token
+        self.c_atom = c_atom
+        self.c_pair = c_pair
+        self.r_max = r_max
+        self.s_max = s_max
 
         # Initialize the input embedder using Protenix's InputFeatureEmbedder
         self.input_embedder = ProtenixInputEmbedder(
@@ -138,6 +146,25 @@ class ProtenixIntegration:
                 shape_uid, dtype=torch.long, device=input_features["ref_pos"].device
             )
 
+        # Instrumentation: Log feature shapes and sample values for debugging shape mismatches
+        if self.debug_logging:
+            logger.info("[DEBUG][ProtenixIntegration] Input features summary before embedding:")
+            for k, v in input_features.items():
+                if isinstance(v, torch.Tensor):
+                    logger.info(f"  Feature '{k}': shape={v.shape}, dtype={v.dtype}, sample={v.flatten()[:5]}")
+                else:
+                    logger.info(f"  Feature '{k}': type={type(v)}")
+            # Log configured embedding dimensions
+            logger.info(f"[DEBUG][ProtenixIntegration] Configured c_token: {self.c_token}, c_atom: {self.c_atom}, c_pair: {self.c_pair}")
+
+        # Compute total concatenated feature dimension for input to embedder
+        concat_dim = 0
+        for k, v in input_features.items():
+            if isinstance(v, torch.Tensor) and v.dim() == 2 and k != "atom_to_token_idx":
+                concat_dim += v.shape[1]
+        if self.debug_logging:
+            logger.info(f"[DEBUG][ProtenixIntegration] Total concatenated input feature dimension: {concat_dim}")
+
         # Iterate through each key in input_features to ensure proper dimensions for each feature.
         keys_to_process = list(input_features.keys()) # Create a list to iterate over as dict size might change
         for key in keys_to_process:
@@ -165,6 +192,21 @@ class ProtenixIntegration:
                     )
                 input_features[key] = val
 
+            # Special handling for 'ref_element': ensure it has a fixed length of 128.
+            # This is critical to match the expected input dimension in the atom attention encoder.
+            if key == "ref_element":
+                if val.size(1) < 128:
+                    pad_len = 128 - val.size(1)
+                    val = F.pad(val, (0, pad_len), "constant", 0)
+                    if self.debug_logging:
+                        logger.info(f"[DEBUG][ProtenixIntegration] Padded ref_element from {val.size(1)-pad_len} to 128 dimensions")
+                elif val.size(1) > 128:
+                    # Truncate to 128 dimensions
+                    val = val[:, :128]
+                    if self.debug_logging:
+                        logger.info("[DEBUG][ProtenixIntegration] Truncated ref_element to 128 dimensions")
+                input_features[key] = val
+
             # Verify that each feature has exactly 2 dimensions,
             # UNLESS it's atom_to_token_idx which should remain 1D.
             if key != "atom_to_token_idx" and val.dim() != 2:
@@ -172,6 +214,17 @@ class ProtenixIntegration:
                     f"Expected feature '{key}' to have 2D shape [batch, feat_dim], "
                     f"but got {val.shape}."
                 )
+
+        # Add additional debug logging for feature dimensions before embedding
+        if self.debug_logging:
+            logger.info("[DEBUG][ProtenixIntegration] Feature dimensions before embedding:")
+            for key in ["ref_pos", "ref_charge", "ref_mask", "ref_element", "ref_atom_name_chars"]:
+                if key in input_features:
+                    logger.info(f"  {key}: {input_features[key].shape}")
+
+            # Calculate expected total dimension
+            expected_dim = 3 + 1 + 1 + 128 + 256  # ref_pos + ref_charge + ref_mask + ref_element + ref_atom_name_chars
+            logger.info(f"[DEBUG][ProtenixIntegration] Expected total feature dimension: {expected_dim}")
 
         # Generate the single-token embedding (s_inputs) from the processed input features.
         s_inputs = self.input_embedder(input_feature_dict=input_features)

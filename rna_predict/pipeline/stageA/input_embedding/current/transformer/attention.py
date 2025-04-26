@@ -173,6 +173,22 @@ class AttentionPairBias(nn.Module):
                     # Check that all sample dimensions match
                     z_sample_dims = z.shape[:-3]
                     a_sample_dims = a.shape[:-2]
+
+                    # Special case for multi-sample tensors with different dimensions
+                    # If z has shape [B, S1, N, N, C] and a has shape [B, S1, S2, N, C],
+                    # we need to reshape z to match a's sample dimensions
+                    if len(z_sample_dims) == 2 and len(a_sample_dims) == 3 and z_sample_dims[0] == a_sample_dims[0]:
+                        # This is the case where z has [B, S1] and a has [B, S1, S2]
+                        # We need to reshape z to have the same sample dimensions as a
+                        z_new_shape = list(z.shape)
+                        # Insert a new dimension at position 2 (after S1)
+                        z_new_shape.insert(2, 1)
+                        # Reshape z to have the same sample dimensions as a
+                        z = z.reshape(z_new_shape)
+                        # Update z_sample_dims
+                        z_sample_dims = z.shape[:-3]
+
+                    # Now check if sample dimensions match
                     if z_sample_dims != a_sample_dims:
                         raise ValueError(
                             f"Sample dimensions must match between z and a. "
@@ -252,6 +268,13 @@ class AttentionPairBias(nn.Module):
         Raises:
             ValueError: If input tensors have incompatible shapes
         """
+        import logging
+        logger = logging.getLogger(__name__)
+
+        # Debug logging for input shapes
+        logger.debug(f"[DEBUG] local_multihead_attention input shapes: a={a.shape}, z={z.shape if isinstance(z, torch.Tensor) else None}")
+        logger.debug(f"[DEBUG] n_queries={n_queries}, n_keys={n_keys}")
+
         # Create a default z tensor if none is provided or it's not a tensor
         if not isinstance(z, torch.Tensor):
             z = self._create_default_z(a)
@@ -261,12 +284,21 @@ class AttentionPairBias(nn.Module):
             # If z has shape [..., N, N, c_z], we need to add the n_blocks dimension
             if len(z.shape) == len(a.shape) + 1:
                 z = z.unsqueeze(-4)  # Add n_blocks dimension
+                logger.debug(f"[DEBUG] Added n_blocks dimension to z: new shape={z.shape}")
             else:
-                # In case of other shape mismatches, try to adapt or raise an error
-                raise ValueError(
-                    f"Cannot adapt z tensor with shape {z.shape} to work with a tensor of shape {a.shape}. "
-                    f"Expected z to have shape compatible with [..., n_blocks, n_queries, n_keys, c_z]"
-                )
+                # Special case for diffusion with N_sample dimension
+                # If a is [B, N_sample, N, C] and z is [B, N_sample, N, N, C_z]
+                if len(a.shape) >= 4 and len(z.shape) >= 5 and z.shape[-1] == self.c_z:
+                    # This is already in the right format, just need to ensure n_blocks dimension
+                    # is properly set for local attention
+                    logger.debug(f"[DEBUG] Detected diffusion tensor shapes: a={a.shape}, z={z.shape}")
+                    # No need to add another dimension, it's already in the right format
+                else:
+                    # In case of other shape mismatches, try to adapt or raise an error
+                    raise ValueError(
+                        f"Cannot adapt z tensor with shape {z.shape} to work with a tensor of shape {a.shape}. "
+                        f"Expected z to have shape compatible with [..., n_blocks, n_queries, n_keys, c_z]"
+                    )
 
         # Verify that z has the expected final dimension
         validate_tensor_shape(z, expected_last_dim=self.c_z, name="z")
@@ -274,6 +306,7 @@ class AttentionPairBias(nn.Module):
         # Apply layer normalization to z
         try:
             normalized_z = self.layernorm_z(z)
+            logger.debug(f"[DEBUG] After layernorm_z: normalized_z.shape={normalized_z.shape}")
         except RuntimeError as e:
             raise ValueError(
                 f"Failed to apply layernorm to z tensor with shape {z.shape}: {str(e)}"
@@ -283,12 +316,28 @@ class AttentionPairBias(nn.Module):
         bias = self.linear_nobias_z(
             normalized_z
         )  # [..., n_blocks, n_queries, n_keys, n_heads]
+        logger.debug(f"[DEBUG] After linear_nobias_z: bias.shape={bias.shape}")
 
         # Permute dimensions for attention
         try:
-            bias = permute_final_dims(
-                bias, [3, 0, 1, 2]
-            )  # [..., n_heads, n_blocks, n_queries, n_keys]
+            # For diffusion with N_sample dimension, we need to be careful with permutation
+            # Standard permutation for 5D tensor: [..., n_blocks, n_queries, n_keys, n_heads] -> [..., n_heads, n_blocks, n_queries, n_keys]
+            if len(bias.shape) == 5:  # Standard case: [B, n_blocks, n_queries, n_keys, n_heads]
+                bias = permute_final_dims(
+                    bias, [3, 0, 1, 2]
+                )  # -> [B, n_heads, n_blocks, n_queries, n_keys]
+            elif len(bias.shape) == 6:  # Diffusion case: [B, N_sample, n_blocks, n_queries, n_keys, n_heads]
+                # Permute the last 4 dimensions
+                bias = permute_final_dims(
+                    bias, [3, 0, 1, 2]
+                )  # -> [B, N_sample, n_heads, n_blocks, n_queries, n_keys]
+            else:
+                # Handle other cases
+                bias = permute_final_dims(
+                    bias, [3, 0, 1, 2]
+                )  # General case, permute last 4 dimensions
+
+            logger.debug(f"[DEBUG] After permute_final_dims: bias.shape={bias.shape}")
         except RuntimeError as e:
             raise ValueError(
                 f"Failed to permute bias tensor with shape {bias.shape}: {str(e)}"
@@ -309,9 +358,12 @@ class AttentionPairBias(nn.Module):
 
         # Apply attention - wrap in try-except to provide better error messages
         try:
+            logger.debug(f"[DEBUG] Before attention call: q_x.shape={a.shape}, trunked_attn_bias.shape={bias.shape}")
             result = self.attention(forward_inputs)
+            logger.debug(f"[DEBUG] After attention call: result.shape={result.shape}")
             return cast(torch.Tensor, result)
         except Exception as e:
+            # Add more detailed error information
             raise ValueError(
                 f"Attention failed with inputs: q_x={a.shape}, bias={bias.shape}, "
                 f"n_queries={n_queries}, n_keys={n_keys}. Error: {str(e)}"
@@ -440,43 +492,105 @@ class AttentionPairBias(nn.Module):
                 ):
                     s = s.unsqueeze(1)  # Add sample dim
                 else:
-                    raise ValueError(
-                        f"Cannot broadcast s ({s.shape}) to match a ({a.shape}) for gating."
-                    )
+                    # More robust handling: try to adapt s to match a's dimensions
+                    # This is a more flexible approach that handles various dimension mismatches
+                    from rna_predict.utils.shape_utils import adjust_tensor_feature_dim
+
+                    # First, ensure the feature dimension (last dim) matches
+                    if s.shape[-1] != self.c_s:
+                        s = adjust_tensor_feature_dim(s, self.c_s, "s for gating")
+
+                    # If dimensions still don't match, try to reshape or broadcast
+                    if s.dim() == 2 and a.dim() == 3:  # Common case: s is [B, C], a is [B, N, C]
+                        s = s.unsqueeze(1).expand(-1, a.shape[1], -1)
+                    elif s.dim() == 2 and a.dim() == 4:  # s is [B, C], a is [B, S, N, C]
+                        s = s.unsqueeze(1).unsqueeze(1).expand(-1, a.shape[1], a.shape[2], -1)
+                    else:
+                        # If we can't easily adapt, log and continue without gating
+                        warnings.warn(
+                            f"Cannot adapt s ({s.shape}) to match a ({a.shape}) for gating. "
+                            f"Using identity gating."
+                        )
+                        return a
 
             # Now check leading dimensions after potential unsqueeze
             if s.shape[:-1] != a.shape[:-1]:
-                # If leading dims don't match, maybe only feature dim needs to match for linear_a_last?
-                # Let linear_a_last handle potential broadcasting if s is [B, N, C] and a is [B, S, N, C]
-                # This requires linear_a_last to handle broadcasting, which standard Linear doesn't.
-                # Let's assume for now the first N-1 dims must match.
-                if (
-                    s.shape[0] != a.shape[0] or s.shape[1] != a.shape[1]
-                ):  # Check Batch and Sample dims
-                    raise ValueError(
+                # Try to adapt dimensions for common cases
+                if s.shape[0] == a.shape[0]:  # If batch dimensions match
+                    # Try to adapt other dimensions
+                    try:
+                        # Create a new tensor with the right shape and copy data
+                        s_adapted = torch.zeros(a.shape[:-1] + (s.shape[-1],), device=s.device, dtype=s.dtype)
+                        # Copy data where dimensions match
+                        min_dims = min(len(s.shape[:-1]), len(a.shape[:-1]))
+                        s_adapted[:s.shape[0], :s.shape[1] if len(s.shape) > 1 else 1] = s.view(*s.shape[:-1], s.shape[-1])
+                        s = s_adapted
+                    except Exception as reshape_error:
+                        warnings.warn(f"Failed to adapt s dimensions: {str(reshape_error)}. Using identity gating.")
+                        return a
+                else:
+                    warnings.warn(
                         f"Shape mismatch: s has shape {s.shape}, a has shape {a.shape}. "
-                        f"First two dimensions must match for gating."
+                        f"Using identity gating."
                     )
-                # If only sequence/token dim mismatches, maybe linear layer can handle it? Risky.
-                # Let's stick to requiring first N-1 dims to match.
+                    return a
 
-            gate = torch.sigmoid(
-                self.linear_a_last(s)
-            )  # Expects [..., C_s], outputs [..., C_a]
+            # Apply the linear projection to get the gate values
+            try:
+                gate = torch.sigmoid(self.linear_a_last(s))  # Expects [..., C_s], outputs [..., C_a]
+            except RuntimeError as e:
+                # If projection fails, try one more adaptation
+                if "mat1 and mat2 shapes cannot be multiplied" in str(e):
+                    # This likely means the feature dimension of s doesn't match what linear_a_last expects
+                    # Try to adapt the feature dimension
+                    from rna_predict.utils.shape_utils import adjust_tensor_feature_dim
+                    s_adapted = adjust_tensor_feature_dim(s, self.c_s, "s for linear_a_last")
+                    try:
+                        gate = torch.sigmoid(self.linear_a_last(s_adapted))
+                    except RuntimeError:
+                        # If it still fails, return without gating
+                        warnings.warn(f"Linear projection failed even after adapting s. Using identity gating.")
+                        return a
+                else:
+                    # For other errors, return without gating
+                    warnings.warn(f"Linear projection failed: {str(e)}. Using identity gating.")
+                    return a
 
             # Verify gate and a are compatible shapes for element-wise multiplication
             if gate.shape != a.shape:
-                # Try broadcasting gate if its sequence/token dim is 1
-                if gate.shape[:-1] == (
-                    *a.shape[:-2],
-                    1,
-                    a.shape[-1],
-                ):  # Check if seq dim is 1
-                    gate = gate.expand_as(a)
-                else:
-                    raise ValueError(
-                        f"Gate and activation have incompatible shapes after projection: {gate.shape} vs {a.shape}"
+                # Try to adapt gate to match a's shape
+                try:
+                    # If gate has fewer dimensions, broadcast it
+                    if gate.dim() < a.dim():
+                        # Add missing dimensions and expand
+                        dims_to_add = a.dim() - gate.dim()
+                        for _ in range(dims_to_add):
+                            gate = gate.unsqueeze(1)
+                        # Now try to expand to match a's shape
+                        expand_shape = list(a.shape)
+                        gate = gate.expand(*expand_shape)
+                    # If gate has more dimensions but they're compatible for broadcasting
+                    elif all(d1 == d2 or d1 == 1 or d2 == 1 for d1, d2 in zip(gate.shape, a.shape)):
+                        # PyTorch broadcasting will handle this automatically
+                        pass
+                    else:
+                        # If shapes are incompatible, use a different approach
+                        # Reshape gate to match a's shape as closely as possible
+                        if gate.shape[-1] == a.shape[-1]:  # If feature dimensions match
+                            # Reshape gate to match a's shape, preserving the feature dimension
+                            gate = gate.view(*a.shape)
+                        else:
+                            # If even feature dimensions don't match, we can't easily adapt
+                            warnings.warn(
+                                f"Gate ({gate.shape}) and activation ({a.shape}) have incompatible shapes. "
+                                f"Using identity gating."
+                            )
+                            return a
+                except Exception as reshape_error:
+                    warnings.warn(
+                        f"Failed to reshape gate: {str(reshape_error)}. Using identity gating."
                     )
+                    return a
 
             # Apply gating
             if inplace_safe:

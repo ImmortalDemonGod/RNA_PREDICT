@@ -585,6 +585,14 @@ class TestProtenixIntegrationBuildEmbeddings(unittest.TestCase):
         # Restore the original rel_pos_encoding
         self.integrator.rel_pos_encoding = original_rel_pos_encoding
 
+    def test_no_nameerror_on_build_embeddings(self):
+        """Test that build_embeddings does not raise NameError for c_token/c_atom/c_pair (regression for UNIQUE-ERR-PROTENIX-NAMEERROR-001)."""
+        input_features = self.create_basic_input_features()
+        try:
+            self.integrator.build_embeddings(input_features)
+        except NameError as e:
+            self.fail(f"[UNIQUE-ERR-PROTENIX-NAMEERROR-001] NameError occurred: {e}")
+
 
 class TestProtenixIntegrationErrorHandling(unittest.TestCase):
     """Tests for error handling in the ProtenixIntegration class."""

@@ -84,14 +84,19 @@ class TestMemoryFix(unittest.TestCase):
         # Clear memory before starting
         clear_memory()
         
-        # Create large tensors similar to the ones in the logs
-        self.partial_coords = torch.randn(1, 100, 3)  # [batch, seq_len, 3]
-        
-        # Create trunk embeddings with large dimensions
+        # Use config-driven test shapes for toy/test configs
+        from rna_predict.conf.utils import get_config
+        cfg = get_config(config_path="/Users/tomriddle1/RNA_PREDICT/rna_predict/conf")
+        c_s_inputs = cfg.model.stageD.diffusion.c_s_inputs if hasattr(cfg.model.stageD.diffusion, 'c_s_inputs') else cfg.model.stageD.model_architecture.c_s_inputs
+        c_s = cfg.model.stageD.diffusion.c_s if hasattr(cfg.model.stageD.diffusion, 'c_s') else cfg.model.stageD.model_architecture.c_s
+        c_z = cfg.model.stageD.diffusion.c_z if hasattr(cfg.model.stageD.diffusion, 'c_z') else cfg.model.stageD.model_architecture.c_z
+        seq_len = 25  # Or cfg.model.stageD.diffusion.test_residues_per_batch if present
+
+        self.partial_coords = torch.randn(1, seq_len, 3)  # [batch, seq_len, 3]
         self.trunk_embeddings = {
-            "s_inputs": torch.randn(1, 100, 449),  # [batch, seq_len, 449]
-            "s_trunk": torch.randn(1, 100, 384),   # [batch, seq_len, 384]
-            "pair": torch.randn(1, 100, 100, 64)   # [batch, seq_len, seq_len, pair_dim]
+            "s_inputs": torch.randn(1, seq_len, c_s_inputs),  # [batch, seq_len, c_s_inputs]
+            "s_trunk": torch.randn(1, seq_len, c_s),         # [batch, seq_len, c_s]
+            "pair": torch.randn(1, seq_len, seq_len, c_z)    # [batch, seq_len, seq_len, c_z]
         }
         
         # Create diffusion config with large dimensions
@@ -110,10 +115,10 @@ class TestMemoryFix(unittest.TestCase):
                 "num_steps": 100,  # Original value
                 "noise_schedule": "linear",
             },
-            "c_s_inputs": 449,
-            "c_z": 64,
+            "c_s_inputs": c_s_inputs,
+            "c_z": c_z,
             "c_atom": 128,
-            "c_s": 384,
+            "c_s": c_s,
             "c_token": 832,
             "transformer": {"n_blocks": 4, "n_heads": 16}
         }
@@ -133,8 +138,8 @@ class TestMemoryFix(unittest.TestCase):
         self.assertEqual(fixed_config["manager"]["num_layers"], 2)
         
         # Check that feature dimensions are kept consistent
-        self.assertEqual(fixed_config["c_s"], 384)
-        self.assertEqual(fixed_config["c_z"], 64)
+        self.assertEqual(fixed_config["c_s"], self.diffusion_config["c_s"])
+        self.assertEqual(fixed_config["c_z"], self.diffusion_config["c_z"])
         self.assertEqual(fixed_config["c_token"], 832)
         
         # Check memory-efficient options
@@ -149,9 +154,9 @@ class TestMemoryFix(unittest.TestCase):
         
         # Check shapes
         self.assertEqual(coords.shape, (1, 25, 3))
-        self.assertEqual(embeddings["s_inputs"].shape, (1, 25, 449))
-        self.assertEqual(embeddings["s_trunk"].shape, (1, 25, 384))
-        self.assertEqual(embeddings["pair"].shape, (1, 25, 25, 64))
+        self.assertEqual(embeddings["s_inputs"].shape, (1, 25, self.diffusion_config["c_s_inputs"]))
+        self.assertEqual(embeddings["s_trunk"].shape, (1, 25, self.diffusion_config["c_s"]))
+        self.assertEqual(embeddings["pair"].shape, (1, 25, 25, self.diffusion_config["c_z"]))
 
     @profile
     def test_memory_usage_with_fixes(self):

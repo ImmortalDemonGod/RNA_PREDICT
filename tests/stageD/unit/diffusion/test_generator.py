@@ -1,3 +1,4 @@
+# tests/stageD/unit/diffusion/test_generator.py
 from typing import Any, Dict, Optional
 
 import pytest
@@ -31,6 +32,7 @@ def mock_denoise_net():
         z_trunk: torch.Tensor,
         chunk_size: Optional[int] = None,
         inplace_safe: bool = False,
+        debug_logging: bool = False,
     ) -> tuple[torch.Tensor, torch.Tensor]:  # Return a tuple (coords, loss)
         # Return something shaped like x_noisy but offset to test differences
         mock_coords = x_noisy - 0.1  # simple offset
@@ -209,10 +211,8 @@ class TestSampleDiffusion:
             s_trunk=s_trunk,
             z_trunk=z_trunk,
             noise_schedule=noise_schedule,
-            N_sample=1,
-            diffusion_chunk_size=None,
+            N_sample=1
         )
-
         assert isinstance(x_l, torch.Tensor)
         # Expect [batch, N_sample, n_atoms, 3] from sample_diffusion
         assert x_l.ndim == 4, f"Expected 4 dimensions, got {x_l.ndim}"
@@ -297,7 +297,9 @@ class TestSampleDiffusion:
             N_sample=n_sample,
             diffusion_chunk_size=chunk,
         )
-        assert x_l.shape == (1, n_sample, 2, 3)
+        # Expected shape: [batch_size, N_sample, n_atoms, 3]
+        # Our batch_size is 1, n_atoms is 2
+        assert x_l.shape == (1, n_sample, 2, 3), f"Expected shape (1, {n_sample}, 2, 3), got {x_l.shape}"
 
 
 class TestSampleDiffusionTraining:
@@ -341,9 +343,13 @@ class TestSampleDiffusionTraining:
         # x_gt_aug => [1, 3, 4, 3]
         # x_denoised => [1, 3, 4, 3]
         # sigma => [1, 3]
-        assert x_gt_aug.shape == (1, 3, 4, 3)
-        assert x_denoised.shape == (1, 3, 4, 3)
-        assert sigma.shape == (1, 3)
+        # Expected shapes:
+        # x_gt_aug: [batch, N_sample, n_atoms, 3] -> [1, 3, 4, 3]
+        # x_denoised: [batch, N_sample, n_atoms, 3] -> [1, 3, 4, 3]
+        # sigma: [batch, N_sample] -> [1, 3]
+        assert x_gt_aug.shape == (1, 3, 4, 3), f"Expected x_gt_aug shape (1, 3, 4, 3), got {x_gt_aug.shape}"
+        assert x_denoised.shape == (1, 3, 4, 3), f"Expected x_denoised shape (1, 3, 4, 3), got {x_denoised.shape}"
+        assert sigma.shape == (1, 3), f"Expected sigma shape (1, 3), got {sigma.shape}"
 
     def test_sample_diffusion_training_with_chunk(
         self, mock_denoise_net, label_dict_fixture
@@ -370,9 +376,13 @@ class TestSampleDiffusionTraining:
             N_sample=5,
             diffusion_chunk_size=2,
         )
-        assert x_gt_aug.shape == (1, 5, 4, 3)
-        assert x_denoised.shape == (1, 5, 4, 3)
-        assert sigma.shape == (1, 5)
+        # Expected shapes:
+        # x_gt_aug: [batch, N_sample, n_atoms, 3] -> [1, 5, 4, 3]
+        # x_denoised: [batch, N_sample, n_atoms, 3] -> [1, 5, 4, 3]
+        # sigma: [batch, N_sample] -> [1, 5]
+        assert x_gt_aug.shape == (1, 5, 4, 3), f"Expected x_gt_aug shape (1, 5, 4, 3), got {x_gt_aug.shape}"
+        assert x_denoised.shape == (1, 5, 4, 3), f"Expected x_denoised shape (1, 5, 4, 3), got {x_denoised.shape}"
+        assert sigma.shape == (1, 5), f"Expected sigma shape (1, 5), got {sigma.shape}"
 
     @settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
     @given(

@@ -109,7 +109,7 @@ def create_atom_transformer(config: AtomAttentionConfig) -> AtomTransformer:
     Returns:
         Configured AtomTransformer instance
     """
-    return AtomTransformer(
+    atom_transformer = AtomTransformer(
         n_blocks=config.n_blocks,
         n_heads=config.n_heads,
         c_atom=config.c_atom,
@@ -119,6 +119,10 @@ def create_atom_transformer(config: AtomAttentionConfig) -> AtomTransformer:
         n_keys=config.n_keys,
         blocks_per_ckpt=config.blocks_per_ckpt,
     )
+    # Pass minimal_pair_embedding_dim from config if present
+    if hasattr(config, 'minimal_pair_embedding_dim'):
+        atom_transformer.minimal_pair_embedding_dim = config.minimal_pair_embedding_dim
+    return atom_transformer
 
 
 def init_residual_layers(

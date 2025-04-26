@@ -7,7 +7,6 @@ import torch
 from unittest.mock import MagicMock, patch
 from hypothesis import given, settings, strategies as st, HealthCheck
 from omegaconf import OmegaConf
-from transformers import AutoModel, AutoTokenizer
 
 from rna_predict.pipeline.stageB.torsion.torsion_bert_predictor import StageBTorsionBertPredictor
 

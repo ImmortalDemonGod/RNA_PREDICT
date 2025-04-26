@@ -61,7 +61,6 @@ class TestStageBTorsionBertPredictorVerification:
         """
         import torch
         from omegaconf import OmegaConf
-        from unittest.mock import patch, MagicMock
 
         class DummyTokenizer:
             def __call__(self, *args, **kwargs):
