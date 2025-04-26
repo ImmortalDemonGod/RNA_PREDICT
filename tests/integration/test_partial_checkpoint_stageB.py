@@ -1,4 +1,3 @@
-print("[DEBUG-CANARY] Top of test file")
 """
 Integration test for Stage B (TorsionBERT + Pairformer) partial checkpointing using real Hydra config.
 Covers all partial checkpoint plan criteria and lessons learned from previous Hydra/config issues.
@@ -16,6 +15,8 @@ import pathlib
 from hypothesis import given, strategies as st, settings
 import tempfile
 
+print("[DEBUG-CANARY] Top of test file")
+
 @pytest.mark.integration
 @pytest.mark.slow
 @given(sequence=st.text(alphabet=st.characters(whitelist_categories=["Lu"], whitelist_characters=["A","C","G","U"]), min_size=8, max_size=24))
@@ -24,20 +25,12 @@ def test_stageB_partial_checkpoint_hydra(sequence):
     print("[DEBUG-ENTER-TEST] Entered test function")
     # --- Compute config_path relative to test file dir ---
     test_file_dir = os.path.dirname(__file__)
-    config_dir = "/Users/tomriddle1/RNA_PREDICT/rna_predict/conf"
+    project_root = pathlib.Path(__file__).resolve().parents[2]
+    config_dir = project_root / "rna_predict" / "conf"
+    if not config_dir.is_dir():
+        pytest.fail(f"[HYDRA-CONF-NOT-FOUND] Expected config dir at {config_dir}")
     rel_config_path_from_test = os.path.relpath(config_dir, test_file_dir)
     print(f"[DEBUG-HYDRA-CONF] rel_config_path_from_test: {rel_config_path_from_test}")
-
-    # --- Ensure CWD is project root for Hydra ---
-    expected_root = "/Users/tomriddle1/RNA_PREDICT"
-    actual_cwd = os.getcwd()
-    print(f"[DEBUG-HYDRA-CONF] Actual os.getcwd() before Hydra: {actual_cwd}")
-    if actual_cwd != expected_root:
-        print(f"[DEBUG-HYDRA-CONF] Forcing os.chdir to {expected_root}")
-        os.chdir(expected_root)
-        actual_cwd = os.getcwd()
-    print(f"[DEBUG-HYDRA-CONF] CWD after possible chdir: {actual_cwd}")
-    print(f"[DEBUG-HYDRA-CONF] CWD contents before Hydra: {os.listdir(actual_cwd)}")
 
     # --- Dynamic config_path logic with evidence-driven debugging ---
     cwd = pathlib.Path(os.getcwd())
