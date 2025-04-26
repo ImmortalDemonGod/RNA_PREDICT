@@ -4,6 +4,7 @@ Feature processing components for atom attention.
 """
 
 import torch
+from typing import Optional
 
 from rna_predict.pipeline.stageA.input_embedding.current.primitives import (
     LinearNoBias,
@@ -200,7 +201,7 @@ class FeatureProcessor:
         return aggregate_atom_to_token(a_atom, atom_to_token_idx, num_tokens)
 
     def broadcast_to_atom_level(
-        self, a_token: torch.Tensor, atom_to_token_idx: torch.Tensor, num_atoms: int
+        self, a_token: torch.Tensor, atom_to_token_idx: torch.Tensor, num_atoms: Optional[int] = None
     ) -> torch.Tensor:
         """
         Broadcast token-level features to atom level.
@@ -208,9 +209,10 @@ class FeatureProcessor:
         Args:
             a_token: Token-level features
             atom_to_token_idx: Mapping from atoms to tokens
-            num_atoms: Number of atoms
+            num_atoms: Number of atoms (not used, kept for backward compatibility)
 
         Returns:
             Atom-level features
         """
-        return broadcast_token_to_atom(a_token, atom_to_token_idx, num_atoms)
+        # num_atoms parameter is not used by broadcast_token_to_atom
+        return broadcast_token_to_atom(a_token, atom_to_token_idx)
