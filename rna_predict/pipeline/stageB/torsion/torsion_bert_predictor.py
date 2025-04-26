@@ -23,13 +23,8 @@ class StageBTorsionBertPredictor(nn.Module):
 
     def __init__(self, cfg: DictConfig):
         super().__init__()
-        print("[MEMORY-LOG][StageB] Initializing StageBTorsionBertPredictor")
-        process = psutil.Process(os.getpid())
-        print(f"[MEMORY-LOG][StageB] Memory usage: {process.memory_info().rss / 1e6:.2f} MB")
-
-        # Always set debug_logging to a default value first
+        # --- Logging: Always log essential info, only gate debug ---
         self.debug_logging = False
-        # Try to extract debug_logging from various possible structures
         if hasattr(cfg, 'debug_logging'):
             self.debug_logging = cfg.debug_logging
         elif hasattr(cfg, 'stageB_torsion') and hasattr(cfg.stageB_torsion, 'debug_logging'):
@@ -50,7 +45,8 @@ class StageBTorsionBertPredictor(nn.Module):
             cfg: Hydra configuration object containing model settings
         """
         # Log the full config for systematic debugging
-        logger.info(f"[DEBUG-INST-STAGEB-002] Full config received in StageBTorsionBertPredictor: {cfg}")
+        if self.debug_logging:
+            logger.info(f"[DEBUG-INST-STAGEB-002] Full config received in StageBTorsionBertPredictor: {cfg}")
 
         # Handle different configuration structures
         # 1. Direct attributes (model_name_or_path, device, etc.)
@@ -111,11 +107,19 @@ class StageBTorsionBertPredictor(nn.Module):
             self.dummy_mode = False
 
         # --- Set logger level based on the determined debug_logging value ---
-        if self.debug_logging:
-            logger.setLevel(logging.DEBUG)
-        else:
-            # Set to WARNING or INFO to suppress DEBUG messages
-            logger.setLevel(logging.WARNING)
+        level = logging.DEBUG if self.debug_logging else logging.INFO
+        logger.setLevel(level)
+        if not any(isinstance(h, logging.StreamHandler) for h in logger.handlers):
+            handler = logging.StreamHandler()
+            handler.setLevel(level)
+            formatter = logging.Formatter('[%(asctime)s][%(name)s][%(levelname)s] - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+            handler.setFormatter(formatter)
+            logger.addHandler(handler)
+        for h in logger.handlers:
+            h.setLevel(level)
+        logger.info("Initializing StageBTorsionBertPredictor...")
+        process = psutil.Process(os.getpid())
+        logger.info(f"[MEMORY-LOG][StageB] Memory usage: {process.memory_info().rss / 1e6:.2f} MB")
         # --------------------------------------------------------------------
 
         # Extract configuration values
@@ -144,10 +148,11 @@ class StageBTorsionBertPredictor(nn.Module):
         # debug_logging is already set earlier
         self.lora_cfg = getattr(torsion_cfg, 'lora', None)
 
-        logger.info(f"Initializing TorsionBERT predictor with device: {self.device}")
-        logger.info(f"Model path: {self.model_name_or_path}")
-        logger.info(f"Angle mode: {self.angle_mode}")
-        logger.info(f"Max length: {self.max_length}")
+        if self.debug_logging:
+            logger.info(f"Initializing TorsionBERT predictor with device: {self.device}")
+            logger.info(f"Model path: {self.model_name_or_path}")
+            logger.info(f"Angle mode: {self.angle_mode}")
+            logger.info(f"Max length: {self.max_length}")
 
         # --- Load Model and Tokenizer ---
         if getattr(cfg, 'init_from_scratch', False):
@@ -184,12 +189,8 @@ class StageBTorsionBertPredictor(nn.Module):
             self.output_dim = self.num_angles * 2
         else:
             self.output_dim = self.num_angles
-        logger.info(f"Expected model output dimension: {self.output_dim}")
-
         if self.debug_logging:
-            logger.debug(f"[TorsionBERT] Model config: {self.model.config}")
-            logger.debug(f"[TorsionBERT] Model output dim: {self.output_dim}")
-
+            logger.info(f"Expected model output dimension: {self.output_dim}")
 
     def _preprocess_sequence(self, sequence: str) -> Dict[str, torch.Tensor]:
         """Preprocesses the RNA sequence for the TorsionBERT model."""
@@ -214,11 +215,9 @@ class StageBTorsionBertPredictor(nn.Module):
             for k, v in result.items():
                 result[k] = v.to(self.device)
             # --- BEGIN DEVICE DEBUGGING ---
-            for k, v in result.items():
-                logger.error(f"[DEVICE-DEBUG-PREPROCESS] Output tensor '{k}' device: {v.device} (should match self.device: {self.device})")
-                print(f"[DEVICE-DEBUG-PREPROCESS][DEBUG] Output tensor '{k}' device: {v.device} (str: {str(v.device)}), self.device: {self.device} (str: {str(self.device)})")
-                if str(v.device) != str(self.device):
-                    print(f"[DEVICE-DEBUG-PREPROCESS][MISMATCH] {k}: {str(v.device)} != {str(self.device)}")
+            if self.debug_logging:
+                for k, v in result.items():
+                    logger.debug(f"[DEVICE-DEBUG-PREPROCESS] Output tensor '{k}' device: {v.device} (should match self.device: {self.device})")
             # --- END DEVICE DEBUGGING ---
             return result
         except Exception as e:
@@ -250,9 +249,10 @@ class StageBTorsionBertPredictor(nn.Module):
             inputs = self._preprocess_sequence(sequence)
 
             # --- DEVICE DEBUGGING INSTRUMENTATION ---
-            logger.error(f"[DEVICE-DEBUG] Model device: {getattr(self.model, 'device', 'N/A')}")
-            for k, v in inputs.items():
-                logger.error(f"[DEVICE-DEBUG] Input tensor '{k}' device: {v.device}")
+            if self.debug_logging:
+                logger.debug(f"[DEVICE-DEBUG] Model device: {getattr(self.model, 'device', 'N/A')}")
+                for k, v in inputs.items():
+                    logger.debug(f"[DEVICE-DEBUG] Input tensor '{k}' device: {v.device}")
             # --- END DEVICE DEBUGGING ---
 
             # --- ENSURE INPUT TENSORS ARE ON MODEL DEVICE ---
