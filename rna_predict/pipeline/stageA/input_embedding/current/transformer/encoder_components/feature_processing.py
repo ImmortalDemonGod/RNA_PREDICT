@@ -60,11 +60,39 @@ def _process_feature(
             default_tensor = torch.zeros((batch_size, n_atoms, expected_dim), device=default_device)
 
         # Add the default tensor to the input_feature_dict
-        input_feature_dict[feature_name] = default_tensor
+        # Use setitem method for TypedDict to avoid mypy errors
+        if feature_name == "atom_to_token_idx":
+            input_feature_dict["atom_to_token_idx"] = default_tensor
+        elif feature_name == "ref_pos":
+            input_feature_dict["ref_pos"] = default_tensor
+        elif feature_name == "ref_charge":
+            input_feature_dict["ref_charge"] = default_tensor
+        elif feature_name == "ref_mask":
+            input_feature_dict["ref_mask"] = default_tensor
+        elif feature_name == "ref_element":
+            input_feature_dict["ref_element"] = default_tensor
+        elif feature_name == "ref_atom_name_chars":
+            input_feature_dict["ref_atom_name_chars"] = default_tensor
+        elif feature_name == "ref_space_uid":
+            input_feature_dict["ref_space_uid"] = default_tensor
+        elif feature_name == "restype":
+            input_feature_dict["restype"] = default_tensor
+        elif feature_name == "profile":
+            input_feature_dict["profile"] = default_tensor
+        elif feature_name == "deletion_mean":
+            input_feature_dict["deletion_mean"] = default_tensor
         return default_tensor
 
-    # Using string literal for TypedDict key access
-    feature = input_feature_dict[feature_name]  # type: ignore
+    # Access the feature from the dictionary
+    feature = input_feature_dict.get(feature_name)
+    if feature is None:
+        warnings.warn(f"Feature {feature_name} not found in input_feature_dict.")
+        return None
+
+    # Ensure feature is a tensor
+    if not isinstance(feature, torch.Tensor):
+        warnings.warn(f"Feature {feature_name} is not a tensor.")
+        return None
 
     # Check if shape is already correct
     if feature.dim() > 0 and feature.shape[-1] == expected_dim:
@@ -128,6 +156,7 @@ def extract_atom_features(
     Returns:
         Tensor of atom features
     """
+    print(f"[DEBUG][extract_atom_features] encoder.input_feature config: {encoder.input_feature}")
     features = []
 
     # Ensure encoder.input_feature is a dictionary before iterating
@@ -150,7 +179,7 @@ def extract_atom_features(
 
     # Check if we have any valid features
     if not features:
-        # Create default features if none are found
+        print("[DEBUG][extract_atom_features] No valid features found, creating defaults.")
         default_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         # Create default tensors for required features
@@ -165,31 +194,37 @@ def extract_atom_features(
                 n_atoms = atom_to_token_idx.shape[1]
 
         # Create default features with appropriate shapes
-        for feature_name, feature_dim in encoder.input_feature.items(): # type: ignore[union-attr]
+        for feature_name, feature_dim in encoder.input_feature.items():
+            print(f"[DEBUG][extract_atom_features] Creating default for {feature_name} with dim {feature_dim}")
             if feature_name == "ref_pos":
                 # Position tensor with shape [batch_size, n_atoms, 3]
                 default_tensor = torch.zeros((batch_size, n_atoms, 3), device=default_device)
-                input_feature_dict[feature_name] = default_tensor
+                # Use explicit key for TypedDict
+                input_feature_dict["ref_pos"] = default_tensor
                 features.append(default_tensor)
             elif feature_name == "ref_charge":
                 # Charge tensor with shape [batch_size, n_atoms, 1]
                 default_tensor = torch.zeros((batch_size, n_atoms, 1), device=default_device)
-                input_feature_dict[feature_name] = default_tensor
+                # Use explicit key for TypedDict
+                input_feature_dict["ref_charge"] = default_tensor
                 features.append(default_tensor)
             elif feature_name == "ref_mask":
                 # Mask tensor with shape [batch_size, n_atoms, 1]
                 default_tensor = torch.ones((batch_size, n_atoms, 1), device=default_device)
-                input_feature_dict[feature_name] = default_tensor
+                # Use explicit key for TypedDict
+                input_feature_dict["ref_mask"] = default_tensor
                 features.append(default_tensor)
             elif feature_name == "ref_element":
                 # Element tensor with shape [batch_size, n_atoms, feature_dim]
                 default_tensor = torch.zeros((batch_size, n_atoms, feature_dim), device=default_device)
-                input_feature_dict[feature_name] = default_tensor
+                # Use explicit key for TypedDict
+                input_feature_dict["ref_element"] = default_tensor
                 features.append(default_tensor)
             elif feature_name == "ref_atom_name_chars":
                 # Atom name tensor with shape [batch_size, n_atoms, feature_dim]
                 default_tensor = torch.zeros((batch_size, n_atoms, feature_dim), device=default_device)
-                input_feature_dict[feature_name] = default_tensor
+                # Use explicit key for TypedDict
+                input_feature_dict["ref_atom_name_chars"] = default_tensor
                 features.append(default_tensor)
 
         # If we still have no features, raise an error

@@ -76,6 +76,7 @@ class FeatureProcessor:
             Processed atom features tensor
         """
         # Extract features
+        # Safely access tensors with default values to avoid None issues
         ref_pos = safe_tensor_access(input_feature_dict, "ref_pos")
         ref_charge = safe_tensor_access(input_feature_dict, "ref_charge")
         ref_mask = safe_tensor_access(input_feature_dict, "ref_mask")
@@ -83,6 +84,35 @@ class FeatureProcessor:
         ref_atom_name_chars = safe_tensor_access(
             input_feature_dict, "ref_atom_name_chars"
         )
+
+        # Ensure all tensors are not None before proceeding
+        if ref_pos is None or ref_charge is None or ref_mask is None or ref_element is None or ref_atom_name_chars is None:
+            # Create default tensors if any are missing
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            batch_size = 1
+            n_atoms = 1
+
+            # Try to get dimensions from any available tensor
+            for tensor in [ref_pos, ref_charge, ref_mask, ref_element, ref_atom_name_chars]:
+                if tensor is not None and tensor.dim() >= 2:
+                    batch_size = tensor.shape[0]
+                    n_atoms = tensor.shape[1]
+                    device = tensor.device
+                    break
+
+            # Create default tensors for any missing ones
+            if ref_pos is None:
+                ref_pos = torch.zeros((batch_size, n_atoms, 3), device=device)
+            if ref_charge is None:
+                ref_charge = torch.zeros((batch_size, n_atoms, 1), device=device)
+            if ref_mask is None:
+                ref_mask = torch.ones((batch_size, n_atoms, 1), device=device)
+            if ref_element is None:
+                ref_element = torch.zeros((batch_size, n_atoms, self.c_ref_element), device=device)
+            if ref_atom_name_chars is None:
+                ref_atom_name_chars = torch.zeros((batch_size, n_atoms, 4 * 64), device=device)
+
+        # Now we can safely check shapes
         print(f"[DEBUG][FeatureProcessor] extract_atom_features: ref_element.shape={ref_element.shape}, expected={self.c_ref_element}")
         assert ref_element.shape[-1] == self.c_ref_element, (
             f"UNIQUE ERROR: ref_element last dim {ref_element.shape[-1]} does not match expected {self.c_ref_element}")
@@ -114,16 +144,28 @@ class FeatureProcessor:
             ref_charge = safe_tensor_access(input_feature_dict, "ref_charge")  # [N, 1]
         except ValueError:
             # Create a default ref_charge tensor with zeros
+            # First ensure ref_pos is not None
+            if ref_pos is None:
+                # Create a default ref_pos if it's None
+                device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+                ref_pos = torch.zeros((1, 1, 3), device=device)
             ref_charge = torch.zeros((ref_pos.shape[0], 1), device=ref_pos.device)
 
-        # Get number of atoms
-        ref_pos.shape[0]
+        # Get number of atoms if ref_pos is not None
+        if ref_pos is not None:
+            ref_pos.shape[0]
+        else:
+            pass  # Default value if ref_pos is None
 
         # Process distance features
         d = self.linear_no_bias_d(ref_pos)  # [N, c_atompair]
 
         # Calculate inverse distance features
         # First calculate inverse distances
+        # Ensure ref_pos is not None before using it
+        if ref_pos is None:
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            ref_pos = torch.zeros((1, 3), device=device)
         inv_pos = 1.0 / (ref_pos + 1e-6)  # [N, 3]
         invd = self.linear_no_bias_invd(inv_pos)  # [N, c_atompair]
 
