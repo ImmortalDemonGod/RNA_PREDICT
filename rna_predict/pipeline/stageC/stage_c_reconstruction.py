@@ -40,11 +40,11 @@ class StageCReconstruction(nn.Module):
 
     def __init__(self, device: Optional[torch.device] = None, *args, **kwargs):
         super().__init__()
-        print("[MEMORY-LOG][StageC] Initializing StageCReconstruction")
+        logger.info("[MEMORY-LOG][StageC] Initializing StageCReconstruction")
         process = psutil.Process(os.getpid())
-        print(f"[MEMORY-LOG][StageC] Memory usage: {process.memory_info().rss / 1e6:.2f} MB")
-        print("[MEMORY-LOG][StageC] After super().__init__")
-        print(f"[MEMORY-LOG][StageC] Memory usage: {process.memory_info().rss / 1e6:.2f} MB")
+        logger.info(f"[MEMORY-LOG][StageC] Memory usage: {process.memory_info().rss / 1e6:.2f} MB")
+        logger.info("[MEMORY-LOG][StageC] After super().__init__")
+        logger.info(f"[MEMORY-LOG][StageC] Memory usage: {process.memory_info().rss / 1e6:.2f} MB")
         self.debug_logging = False
         if device is None:
             # Default to CPU, but prefer config-driven device
