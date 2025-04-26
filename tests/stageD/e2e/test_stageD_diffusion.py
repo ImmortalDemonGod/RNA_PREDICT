@@ -140,6 +140,10 @@ def test_run_stageD_diffusion_inference():
             "ref_charge": torch.zeros(1, 5, 1),
             "ref_mask": torch.ones(1, 5, 1),
             "profile": torch.randn(1, 5, 32),
+            "atom_metadata": {
+                "residue_indices": list(range(5)),  # 5 atoms, 1 per residue
+                "atom_names": ["P", "C4'", "N1", "P", "C4'"]
+            }
         }
         # Minimal trunk_embeddings for test
         trunk_embeddings = {
@@ -167,7 +171,13 @@ def test_run_stageD_diffusion_inference():
         # Patch in required config sections for validation
         test_config.model_architecture = dict(cfg.model.stageD["model_architecture"])
         test_config.diffusion = dict(cfg.model.stageD["diffusion"])
-        test_config.feature_dimensions = dict(cfg.model.stageD["feature_dimensions"])
+
+        # Check if feature_dimensions exists in the config
+        if "feature_dimensions" in cfg.model.stageD:
+            test_config.feature_dimensions = dict(cfg.model.stageD["feature_dimensions"])
+        else:
+            # Use the feature_dimensions from the diffusion section
+            test_config.feature_dimensions = dict(cfg.model.stageD.diffusion["feature_dimensions"])
         # Run the pipeline with the config group
         out_coords = run_stageD_diffusion(config=test_config)
         assert isinstance(out_coords, torch.Tensor)
@@ -252,6 +262,28 @@ def test_run_stageD_diffusion_inference_original(
 
         # Add feature_dimensions directly to the config object
         test_config.feature_dimensions = minimal_diffusion_config["feature_dimensions"]
+
+        # Add model_architecture section required by run_stageD_diffusion
+        test_config.model_architecture = {
+            "c_atom": 128,
+            "c_s": 384,
+            "c_z": 32,
+            "c_token": 384,
+            "c_s_inputs": 449,
+            "c_atompair": 8,
+            "c_noise_embedding": 32,
+            "sigma_data": 1.0,
+        }
+
+        # Add diffusion section required by run_stageD_diffusion
+        test_config.diffusion = {
+            "transformer": minimal_diffusion_config["transformer"],
+            "atom_encoder": minimal_diffusion_config["atom_encoder"],
+            "atom_decoder": minimal_diffusion_config["atom_decoder"],
+            "inference": minimal_diffusion_config["inference"],
+            "feature_dimensions": minimal_diffusion_config["feature_dimensions"],
+        }
+
         # Call the refactored function with the config object
         out_coords = run_stageD_diffusion(config=test_config)
 
