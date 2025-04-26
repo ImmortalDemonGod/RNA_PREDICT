@@ -1,5 +1,4 @@
-from typing import Any, Dict, Tuple, Union
-
+from typing import Any, Dict, Tuple, Union, Optional, cast
 import torch
 import torch.nn as nn
 
@@ -12,7 +11,6 @@ from rna_predict.pipeline.stageA.input_embedding.current.primitives import (
     LinearNoBias,
     Transition,
 )
-
 from .diffusion_utils import (
     InputFeatureDict,
     create_zero_tensor_like,
@@ -303,45 +301,45 @@ class DiffusionConditioning(nn.Module):
         print(f"[STAGED DEBUG] After transitions: single_s.shape={single_s.shape}")
         return single_s
 
+    #@snoop
     def _ensure_input_feature_dict(
         self,
-        input_feature_dict: Dict[str, Union[torch.Tensor, int, float, Dict[Any, Any]]],
+        input_feature_dict: Dict[str, Union[torch.Tensor, int, float, Dict[str, Any]]],
         t_hat_noise_level: torch.Tensor,
-    ) -> InputFeatureDict:
+        device: Optional[torch.device] = None,
+    ) -> Dict[str, Any]:
         """Ensure the input feature dictionary has required keys and correct types."""
-        result: InputFeatureDict = {
-            "ref_charge": torch.tensor(0.0, device=t_hat_noise_level.device),
-            "ref_pos": torch.tensor(0.0, device=t_hat_noise_level.device),
-            "expected_n_tokens": 0,
-        }
+        # Always use the provided device or fall back to t_hat_noise_level.device
+        target_device = device if device is not None else t_hat_noise_level.device
+        print(f"[DEVICE-DEBUG][StageD] _ensure_input_feature_dict: using device {target_device}")
+        result: Dict[str, Any] = {}
 
-        if "ref_charge" not in input_feature_dict:
-            if "ref_pos" in input_feature_dict and isinstance(
-                input_feature_dict["ref_pos"], torch.Tensor
-            ):
-                result["ref_charge"] = create_zero_tensor_like(
-                    input_feature_dict["ref_pos"],
-                    input_feature_dict["ref_pos"].shape[:-1],
-                )
-            else:
-                result["ref_charge"] = create_zero_tensor_like(
-                    t_hat_noise_level, (1, 0)
-                )
-        else:
-            ref_charge = input_feature_dict["ref_charge"]
-            if isinstance(ref_charge, torch.Tensor):
-                result["ref_charge"] = ref_charge
-            elif isinstance(ref_charge, (int, float)):
-                result["ref_charge"] = torch.tensor(
-                    float(ref_charge), device=t_hat_noise_level.device
-                )
-            else:
-                raise ValueError(f"Invalid type for ref_charge: {type(ref_charge)}")
+        # List of keys to always pass through if present
+        allowed_keys = [
+            "ref_charge", "ref_pos", "expected_n_tokens", "atom_to_token_idx", "ref_mask", "ref_element", "ref_atom_name_chars", "ref_space_uid", "restype", "profile", "deletion_mean"
+        ]
 
-        if "ref_pos" in input_feature_dict and isinstance(
-            input_feature_dict["ref_pos"], torch.Tensor
-        ):
-            result["ref_pos"] = input_feature_dict["ref_pos"]
+        # Copy allowed keys from input_feature_dict, moving tensors to the correct device
+        for k in allowed_keys:
+            if k in input_feature_dict:
+                v = input_feature_dict[k]
+                if isinstance(v, torch.Tensor):
+                    result[k] = v.to(target_device)
+                else:
+                    result[k] = v
+
+        # Fallbacks for ref_charge and ref_pos if not present
+        if "ref_charge" not in result:
+            if "ref_pos" in result and isinstance(result["ref_pos"], torch.Tensor):
+                result["ref_charge"] = torch.zeros(result["ref_pos"].shape[:-1], device=target_device)
+            else:
+                result["ref_charge"] = torch.tensor(0.0, device=target_device)
+        if "ref_pos" not in result:
+            result["ref_pos"] = torch.tensor(0.0, device=target_device)
+
+        # Always set expected_n_tokens if not present
+        if "expected_n_tokens" not in result:
+            result["expected_n_tokens"] = 0
 
         return result
 
@@ -353,6 +351,7 @@ class DiffusionConditioning(nn.Module):
         s_trunk: torch.Tensor,
         z_trunk: torch.Tensor,
         inplace_safe: bool = False,
+        device: Optional[torch.device] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Forward pass of the diffusion conditioning module.
@@ -364,6 +363,7 @@ class DiffusionConditioning(nn.Module):
             s_trunk: Single feature embedding from PairFormer [..., N_tokens, c_s]
             z_trunk: Pair feature embedding from PairFormer [..., N_tokens, N_tokens, c_z]
             inplace_safe: Whether to use inplace operations
+            device: Device to use for tensor allocations
 
         Returns:
             Tuple of processed single and pair embeddings
@@ -373,7 +373,7 @@ class DiffusionConditioning(nn.Module):
 
         # Ensure required keys are present with correct types
         processed_input_dict = self._ensure_input_feature_dict(
-            input_feature_dict, t_hat_noise_level
+            input_feature_dict, t_hat_noise_level, device=device
         )
 
         # Process pair features
@@ -383,7 +383,7 @@ class DiffusionConditioning(nn.Module):
                 s_trunk, (*batch_dims, s_trunk.shape[-2], s_trunk.shape[-2], self.c_z)
             )
         pair_z = self._process_pair_features(
-            z_trunk, processed_input_dict, inplace_safe
+            z_trunk, cast(InputFeatureDict, processed_input_dict), inplace_safe
         )
 
         # Process single features
