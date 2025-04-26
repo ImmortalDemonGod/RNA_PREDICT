@@ -6,7 +6,6 @@ Extracted from run_stageD.py to reduce file size and improve cohesion.
 from typing import Any, Dict, Optional, Union
 import torch
 from omegaconf import DictConfig
-import snoop
 
 def _validate_feature_config(config, require_atom_metadata: bool = False):
     """
