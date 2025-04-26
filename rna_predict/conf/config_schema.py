@@ -92,6 +92,7 @@ def register_configs() -> None:
     cs.store(group="test", name="data", node=TestDataConfig)
     cs.store(group="model", name="protenix_integration", node=ProtenixIntegrationConfig)
     cs.store(group="feature_dimensions", name="default", node=FeatureDimensionsConfig)
+    cs.store(group="data", name="default", node=DataConfig)
 
 def validate_config(cfg: Union[dict, "RNAConfig"]) -> None:
     """Validate configuration using OmegaConf structured validation.
@@ -1246,8 +1247,37 @@ class TestDataConfig:
         },
         metadata={"help": "Dimensions for various embeddings"}
     )
+
+    # Kaggle minimal loader test config
+    sequence_path: Optional[str] = field(
+        default=None,
+        metadata={"help": "Path to sequence CSV file for testing"}
+    )
+    data_index: Optional[str] = field(
+        default=None,
+        metadata={"help": "Path to data index CSV file for testing"}
+    )
+    target_id: Optional[str] = field(
+        default=None,
+        metadata={"help": "Target ID for testing"}
+    )
+
     # Allow arbitrary model group for test config composition
     model: Optional[Any] = None
+
+@dataclass
+class DataConfig:
+    """Structured config for all dataset/data loading parameters."""
+    index_csv: str = field(default="./data/index.csv", metadata={"help": "Path to dataset index CSV"})
+    root_dir: str = field(default="./data/", metadata={"help": "Root directory for data files"})
+    max_residues: int = field(default=512, metadata={"help": "Pad/truncate all sequences to this residue length"})
+    max_atoms: int = field(default=4096, metadata={"help": "Pad/truncate all atom arrays to this length"})
+    C_element: int = field(default=128, metadata={"help": "Element embedding size"})
+    C_char: int = field(default=256, metadata={"help": "Atom name character embedding size"})
+    batch_size: int = field(default=4, metadata={"help": "DataLoader batch size"})
+    num_workers: int = field(default=8, metadata={"help": "Number of DataLoader workers"})
+    load_adj: bool = field(default=False, metadata={"help": "Whether to load adjacency ground truth"})
+    load_ang: bool = field(default=False, metadata={"help": "Whether to load angle ground truth"})
 
 @dataclass
 class RNAConfig:
@@ -1268,6 +1298,24 @@ class RNAConfig:
         default=44,
         metadata={"help": "Standard RNA residue has ~44 atoms"}
     )
+    # Pipeline stage control flags
+    run_stageD: bool = field(
+        default=True,
+        metadata={"help": "Enable Stage D diffusion refinement"}
+    )
+    enable_stageC: bool = field(
+        default=True,
+        metadata={"help": "Enable partial coordinates from Stage C"}
+    )
+    merge_latent: bool = field(
+        default=True,
+        metadata={"help": "Enable latent merging"}
+    )
+    # Optional flag for initializing z embeddings from adjacency
+    init_z_from_adjacency: bool = field(
+        default=False,
+        metadata={"help": "Whether to initialize Z from adjacency matrix"}
+    )
     dimensions: DimensionsConfig = field(default_factory=DimensionsConfig)
     model: Dict[str, Any] = field(default_factory=lambda: {
         "stageA": StageAConfig(),
@@ -1287,3 +1335,4 @@ class RNAConfig:
     memory_optimization: MemoryOptimizationConfig = field(default_factory=MemoryOptimizationConfig)
     energy_minimization: EnergyMinimizationConfig = field(default_factory=EnergyMinimizationConfig)
     test_data: TestDataConfig = field(default_factory=TestDataConfig)
+    data: DataConfig = field(default_factory=DataConfig)
