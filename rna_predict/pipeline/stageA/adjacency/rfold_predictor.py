@@ -59,14 +59,19 @@ torch.manual_seed(42)
 logger = logging.getLogger("rna_predict.pipeline.stageA.adjacency.rfold_predictor")
 
 def set_stageA_logger_level(debug_logging: bool):
-    """
-    Set logger level for Stage A according to debug_logging flag.
-    Let logs propagate so pytest caplog can capture them.
-    """
-    if debug_logging:
-        logger.setLevel(logging.DEBUG) # Explicitly set DEBUG level
-    else:
-        logger.setLevel(logging.WARNING) # Set WARNING level otherwise
+    # Always set at least INFO level for essential output
+    level = logging.DEBUG if debug_logging else logging.INFO
+    logger.setLevel(level)
+    # Ensure a StreamHandler is attached for console output
+    if not any(isinstance(h, logging.StreamHandler) for h in logger.handlers):
+        handler = logging.StreamHandler()
+        handler.setLevel(level)
+        formatter = logging.Formatter('[%(asctime)s][%(name)s][%(levelname)s] - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+    # Also set handler levels appropriately
+    for h in logger.handlers:
+        h.setLevel(level)
     logger.propagate = True  # Let logs reach root logger for caplog
 
 # PATCH: Make StageARFoldPredictor a torch.nn.Module so it can be used in ModuleDict
@@ -85,49 +90,36 @@ class StageARFoldPredictor(nn.Module):
 
     def __init__(self, stage_cfg: DictConfig, device: torch.device):
         super().__init__()
-        print(f"[DEBUG-STAGEA-INIT] __init__ called with device: {device}")
-        print(f"[DEBUG-STAGEA-INIT] torch.cuda.is_available(): {torch.cuda.is_available()}")
-        print(f"[DEBUG-STAGEA-INIT] torch.backends.mps.is_available(): {getattr(torch.backends, 'mps', None) and torch.backends.mps.is_available()}")
-        print(f"[DEBUG-STAGEA-INIT] type(device): {type(device)}, device: {device}")
-        print("[MEMORY-LOG][StageA] Initializing StageARFoldPredictor")
         process = psutil.Process(os.getpid())
-        print(f"[MEMORY-LOG][StageA] Memory usage: {process.memory_info().rss / 1e6:.2f} MB")
-        """
-        Initialize the RFold Predictor using configuration object.
-
-        Args:
-            stage_cfg: OmegaConf DictConfig object containing all Stage A parameters.
-            device: The torch.device (CPU or CUDA) to run the model on.
-        """
-
-        debug_logging = False
+        self.debug_logging = False
         # Accept debug_logging from all plausible config locations for robust testability
         if hasattr(stage_cfg, 'debug_logging'):
-            debug_logging = stage_cfg.debug_logging
+            self.debug_logging = stage_cfg.debug_logging
         elif hasattr(stage_cfg, 'model') and hasattr(stage_cfg.model, 'stageA') and hasattr(stage_cfg.model.stageA, 'debug_logging'):
-            debug_logging = stage_cfg.model.stageA.debug_logging
+            self.debug_logging = stage_cfg.model.stageA.debug_logging
         elif hasattr(stage_cfg, 'model') and hasattr(stage_cfg.model, 'debug_logging'):
-            debug_logging = stage_cfg.model.debug_logging
+            self.debug_logging = stage_cfg.model.debug_logging
         elif hasattr(stage_cfg, 'debug_logging'):
-            debug_logging = stage_cfg.debug_logging
-        self.debug_logging = debug_logging
+            self.debug_logging = stage_cfg.debug_logging
         set_stageA_logger_level(self.debug_logging)
-        # Instrument: Print the effective debug_logging value, logger level, and handler levels
-        print(f"[DEBUG-INST-STAGEA-001] Effective debug_logging in StageARFoldPredictor.__init__: {self.debug_logging}")
-        print(f"[DEBUG-INST-STAGEA-002] logger.level: {logger.level}")
-        print(f"[DEBUG-INST-STAGEA-003] logger.handlers: {logger.handlers}")
-        for idx, h in enumerate(logger.handlers):
-            print(f"[DEBUG-INST-STAGEA-004] Handler {idx} level: {h.level}")
+        # Always log pipeline start/info regardless of debug_logging
+        logger.info("Initializing StageARFoldPredictor...")
+        logger.info(f"  Device: {device}")
+        logger.info(f"  Checkpoint path: {stage_cfg.checkpoint_path}")
+        logger.info(f"  Example sequence length: {len(getattr(stage_cfg, 'example_sequence', ''))}")
+        logger.info(f"  Freeze params: {getattr(stage_cfg, 'freeze_params', False)}")
+        logger.info(f"  Run example: {getattr(stage_cfg, 'run_example', False)}")
+        # Instrument: Log the effective debug_logging value, logger level, and handler levels
         if self.debug_logging:
-            logger.info("Initializing StageARFoldPredictor...")
-            logger.debug(f"[UNIQUE-DEBUG-STAGEA-TEST] This should always appear if logger is working. Config used:\n{OmegaConf.to_yaml(stage_cfg)}")
-            import logging as _logging
-            _logging.getLogger().debug(f"[UNIQUE-DEBUG-STAGEA-TEST-ROOT] This should always appear if root logger is working. Config used:\n{OmegaConf.to_yaml(stage_cfg)}")
-            logger.info(f"  Device: {device}")
+            logger.debug(f"[DEBUG-INST-STAGEA-001] Effective debug_logging in StageARFoldPredictor.__init__: {self.debug_logging}")
+            logger.debug(f"[DEBUG-INST-STAGEA-002] logger.level: {logger.level}")
+            logger.debug(f"[DEBUG-INST-STAGEA-003] logger.handlers: {logger.handlers}")
+            for idx, h in enumerate(logger.handlers):
+                logger.debug(f"[DEBUG-INST-STAGEA-004] Handler {idx} level: {h.level}")
         # Defensive: Enter dummy mode if config is missing or incomplete
         required_fields = ["min_seq_length", "num_hidden", "dropout", "batch_size", "lr", "model"]
         if stage_cfg is None or any(not hasattr(stage_cfg, f) for f in required_fields):
-            print("[UNIQUE-WARN-STAGEA-DUMMYMODE] Config missing/incomplete, entering dummy mode.")
+            logger.warning("[UNIQUE-WARN-STAGEA-DUMMYMODE] Config missing/incomplete, entering dummy mode.")
             self.dummy_mode = True
             self.device = device if device is not None else torch.device("cpu")
             self.min_seq_length = 1
@@ -136,7 +128,7 @@ class StageARFoldPredictor(nn.Module):
             self.dummy_mode = False
         # Validate and store device
         self.device = torch.device(str(device))
-        print(f"[DEBUG-STAGEA-INIT] self.device after torch.device: {self.device}")
+        logger.info(f"[INFO] self.device after torch.device: {self.device}")
         # Precompute strategy functions based on device type (must be after device validation!)
         is_mps = self.device.type == "mps"
         self._seq_tensor_fn = (
@@ -188,6 +180,7 @@ class StageARFoldPredictor(nn.Module):
         self.model = RFoldModel(fake_args)
         self.model.to(self.device)
         self.model.eval()
+        self._rfold_debug_logging = self.debug_logging  # propagate debug_logging for RFoldModel
         # Load weights using the specific checkpoint path and device
         self._load_checkpoint(
             checkpoint_path, getattr(stage_cfg, "checkpoint_url", None)
@@ -197,13 +190,12 @@ class StageARFoldPredictor(nn.Module):
         if freeze_flag:
             for name, param in self.model.named_parameters():
                 param.requires_grad = False
-            if self.debug_logging:
-                logger.info("[StageA] All model parameters frozen (requires_grad=False) per freeze_params config.")
+            logger.info("[StageA] All model parameters frozen (requires_grad=False) per freeze_params config.")
         else:
-            if self.debug_logging:
-                logger.info("[StageA] Model parameters are trainable (freeze_params is False or missing).")
-        print("[MEMORY-LOG][StageA] After super().__init__")
-        print(f"[MEMORY-LOG][StageA] Memory usage: {process.memory_info().rss / 1e6:.2f} MB")
+            logger.info("[StageA] Model parameters are trainable (freeze_params is False or missing).")
+        if self.debug_logging:
+            logger.info("[MEMORY-LOG][StageA] After super().__init__")
+            logger.info(f"[MEMORY-LOG][StageA] Memory usage: {process.memory_info().rss / 1e6:.2f} MB")
 
     def get_model_device(self):
         try:
@@ -216,46 +208,39 @@ class StageARFoldPredictor(nn.Module):
     ):
         """Loads the model checkpoint, handling missing files and logging."""
         if checkpoint_path is None:
-            if self.debug_logging:
-                logger.warning(
-                    "No checkpoint_path provided, model is initialized with random weights."
-                )
+            logger.warning(
+                "No checkpoint_path provided, model is initialized with random weights."
+            )
             return
 
         if not os.path.isfile(checkpoint_path):
             # Attempt to use the checkpoint_url from config if file not found
             if checkpoint_url:
-                if self.debug_logging:
-                    logger.warning(
-                        f"Checkpoint not found at {checkpoint_path}. External download logic should handle this."
-                    )
+                logger.warning(
+                    f"Checkpoint not found at {checkpoint_path}. External download logic should handle this."
+                )
                 # Note: Actual download logic resides elsewhere (e.g., run_stageA.py).
                 # This predictor assumes the checkpoint exists if path is provided.
-                if self.debug_logging:
-                    logger.warning(
-                        "Continuing with random weights as checkpoint file is missing."
-                    )
+                logger.warning(
+                    "Continuing with random weights as checkpoint file is missing."
+                )
             else:
-                if self.debug_logging:
-                    logger.warning(
-                        f"Checkpoint not found: {checkpoint_path} and no download URL provided. Using random weights."
-                    )
+                logger.warning(
+                    f"Checkpoint not found: {checkpoint_path} and no download URL provided. Using random weights."
+                )
             return  # Exit loading if file not found
 
         # File exists, attempt to load
         try:
-            if self.debug_logging:
-                logger.info(f"[Load] Loading checkpoint from {checkpoint_path}")
+            logger.info(f"[Load] Loading checkpoint from {checkpoint_path}")
             # Load directly onto the target device
             ckp = torch.load(checkpoint_path, map_location=self.device)
             self.model.load_state_dict(
                 ckp, strict=False
             )  # strict=False might be needed
-            if self.debug_logging:
-                logger.info("[Load] Checkpoint loaded successfully.")
+            logger.info("[Load] Checkpoint loaded successfully.")
         except Exception as e:
-            if self.debug_logging:
-                logger.warning(f"Failed to load checkpoint: {e}. Using random weights.")
+            logger.warning(f"Failed to load checkpoint: {e}. Using random weights.")
 
     def _validate_device(self, device: torch.device):
         """
@@ -268,17 +253,21 @@ class StageARFoldPredictor(nn.Module):
             The validated device (may be different if fallback was needed)
         """
         import torch
-        print(f"[DEBUG-VALIDATE-DEVICE] Requested device: {device}")
+        if self.debug_logging:
+            logger.debug(f"[DEBUG-VALIDATE-DEVICE] Requested device: {device}")
         # If device is mps and mps is available, honor it
         if device.type == "mps" and getattr(torch.backends, 'mps', None) and torch.backends.mps.is_available():
-            print("[DEBUG-VALIDATE-DEVICE] Returning requested mps device.")
+            if self.debug_logging:
+                logger.debug("[DEBUG-VALIDATE-DEVICE] Returning requested mps device.")
             return device
         # If device is cuda and cuda is available, honor it
         if device.type == "cuda" and torch.cuda.is_available():
-            print("[DEBUG-VALIDATE-DEVICE] Returning requested cuda device.")
+            if self.debug_logging:
+                logger.debug("[DEBUG-VALIDATE-DEVICE] Returning requested cuda device.")
             return device
         # Otherwise, fallback to cpu
-        print("[DEBUG-VALIDATE-DEVICE] Falling back to cpu.")
+        if self.debug_logging:
+            logger.debug("[DEBUG-VALIDATE-DEVICE] Falling back to cpu.")
         return torch.device("cpu")
 
     def _get_cut_len(self, length: int) -> int:
@@ -292,32 +281,38 @@ class StageARFoldPredictor(nn.Module):
         return ((length - 1) // 16 + 1) * 16
 
     def _create_sequence_tensor(self, seq_idxs, padded_len, original_len):
-        # Debug: Print info before and after tensor creation
-        print(f"[DEBUG-SEQ-TENSOR] Entered _create_sequence_tensor with device: {self.device}")
+        # Debug: Log info before and after tensor creation
+        if self.debug_logging:
+            logger.debug(f"[DEBUG-SEQ-TENSOR] Entered _create_sequence_tensor with device: {self.device}")
         tensor = self._seq_tensor_fn(seq_idxs, padded_len, original_len)
-        print(f"[DEBUG-SEQ-TENSOR] Output tensor device: {tensor.device}, shape: {tensor.shape}, dtype: {tensor.dtype}")
+        if self.debug_logging:
+            logger.debug(f"[DEBUG-SEQ-TENSOR] Output tensor device: {tensor.device}, shape: {tensor.shape}, dtype: {tensor.dtype}")
         return tensor
 
     def _create_sequence_tensor_cpu(self, seq_idxs, padded_len, original_len):
         import torch
-        # Debug: Print info before tensor creation
-        print(f"[DEBUG-SEQ-TENSOR-CPU] Creating tensor on CPU with device: {self.device}")
+        # Debug: Log info before tensor creation
+        if self.debug_logging:
+            logger.debug(f"[DEBUG-SEQ-TENSOR-CPU] Creating tensor on CPU with device: {self.device}")
         tensor = torch.full((1, padded_len), fill_value=0, dtype=torch.long)
         tensor[0, :original_len] = torch.tensor(seq_idxs, dtype=torch.long)
         # PATCH: Always move to self.device
         tensor = tensor.to(self.device)
-        print(f"[DEBUG-SEQ-TENSOR-CPU] Tensor device after creation (patched): {tensor.device}, shape: {tensor.shape}")
+        if self.debug_logging:
+            logger.debug(f"[DEBUG-SEQ-TENSOR-CPU] Tensor device after creation (patched): {tensor.device}, shape: {tensor.shape}")
         return tensor
 
     def _create_sequence_tensor_mps(self, seq_idxs, padded_len, original_len):
         import torch
-        # Debug: Print info before tensor creation
-        print(f"[DEBUG-SEQ-TENSOR-MPS] Creating tensor for MPS with device: {self.device}")
+        # Debug: Log info before tensor creation
+        if self.debug_logging:
+            logger.debug(f"[DEBUG-SEQ-TENSOR-MPS] Creating tensor for MPS with device: {self.device}")
         tensor = torch.full((1, padded_len), fill_value=0, dtype=torch.long)
         tensor[0, :original_len] = torch.tensor(seq_idxs, dtype=torch.long)
         # PATCH: Always move to self.device (should be mps)
         tensor = tensor.to(self.device)
-        print(f"[DEBUG-SEQ-TENSOR-MPS] Tensor device after creation (patched): {tensor.device}, shape: {tensor.shape}")
+        if self.debug_logging:
+            logger.debug(f"[DEBUG-SEQ-TENSOR-MPS] Tensor device after creation (patched): {tensor.device}, shape: {tensor.shape}")
         return tensor
 
     def _create_one_hot_tensor(self, seq_tensor: torch.Tensor) -> torch.Tensor:
@@ -341,10 +336,9 @@ class StageARFoldPredictor(nn.Module):
         import numpy as np
         if getattr(self, 'dummy_mode', False):
             N = len(rna_sequence)
-            print(f"[UNIQUE-WARN-STAGEA-DUMMYMODE] Returning dummy adjacency for sequence of length {N}.")
+            logger.warning(f"[UNIQUE-WARN-STAGEA-DUMMYMODE] Returning dummy adjacency for sequence of length {N}.")
             return np.zeros((N, N), dtype=np.float32)
-        if self.debug_logging:
-            logger.info(f"Predicting adjacency for sequence length: {len(rna_sequence)}")
+        logger.info(f"Predicting adjacency for sequence length: {len(rna_sequence)}")
         if RFoldModel is None or official_seq_dict is None:
             # fallback approach using local
             mapping = {"A": 0, "U": 1, "C": 2, "G": 3}
@@ -353,8 +347,7 @@ class StageARFoldPredictor(nn.Module):
 
         # Special case for short sequences
         if len(rna_sequence) < 4:
-            if self.debug_logging:
-                logger.info("Sequence too short, returning zero adjacency matrix.")
+            logger.info("Sequence too short, returning zero adjacency matrix.")
             return np.zeros((len(rna_sequence), len(rna_sequence)), dtype=np.float32)
 
         # If an unknown character appears, fallback to 'G' index 3
@@ -366,14 +359,15 @@ class StageARFoldPredictor(nn.Module):
 
         # 2) Create padded sequence tensor
         seq_tensor = self._create_sequence_tensor(seq_idxs, padded_len, original_len)
-        # Debug: Print device info for seq_tensor before model call
-        print(f"[DEBUG-PREDICT-ADJACENCY] seq_tensor.device: {seq_tensor.device}")
-        print(f"[DEBUG-PREDICT-ADJACENCY] self.model.device: {self.get_model_device()}")
-        print(f"[DEBUG-PREDICT-ADJACENCY] self.model.seq2map.tok_embedding.weight.device: {self.model.seq2map.tok_embedding.weight.device}")
+        # Debug: Log device info for seq_tensor before model call
+        if self.debug_logging:
+            logger.debug(f"[DEBUG-PREDICT-ADJACENCY] seq_tensor.device: {seq_tensor.device}")
+            logger.debug(f"[DEBUG-PREDICT-ADJACENCY] self.model.device: {self.get_model_device()}")
+            logger.debug(f"[DEBUG-PREDICT-ADJACENCY] self.model.seq2map.tok_embedding.weight.device: {self.model.seq2map.tok_embedding.weight.device}")
 
         # 3) Forward pass with no grad
         with torch.no_grad():
-            raw_preds = self.model(seq_tensor)  # shape (1, padded_len, padded_len)
+            raw_preds = self.model(seq_tensor, debug_logging=self._rfold_debug_logging)  # shape (1, padded_len, padded_len)
             if self.debug_logging:
                 logger.debug(f"Raw predictions shape: {raw_preds.shape}")
 
@@ -401,9 +395,8 @@ class StageARFoldPredictor(nn.Module):
                 f"adjacency_sym[:5,:5]=\n{adjacency_sym[:5,:5]}\n"
                 f"adjacency_sym.T[:5,:5]=\n{adjacency_sym.T[:5,:5]}\n"
             )
-        if self.debug_logging:
-            logger.info(f"Adjacency matrix shape: {adjacency_sym.shape}")
-            logger.debug(f"Adjacency matrix data type: {adjacency_sym.dtype}")
+        logger.info(f"Adjacency matrix shape: {adjacency_sym.shape}")
+        logger.info(f"Adjacency matrix data type: {adjacency_sym.dtype}")
         return adjacency_sym
 
 
