@@ -36,7 +36,7 @@ class InferenceContext:
     input_features: Dict[str, Any]
     device: str
 
-##@snoop
+###@snoop
 def run_inference_mode(
     context: InferenceContext,
     cfg=None,
