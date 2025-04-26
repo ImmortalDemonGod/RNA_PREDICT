@@ -9,7 +9,6 @@ import os
 import warnings
 from typing import Any, Dict, Optional
 import psutil
-import snoop
 import torch
 from omegaconf import DictConfig, OmegaConf
 
@@ -37,6 +36,25 @@ logger = logging.getLogger(
 )
 
 
+def set_stageD_logger_level(debug_logging: bool):
+    """
+    Set logger level for Stage D according to debug_logging flag.
+    Let logs propagate so pytest caplog can capture them.
+    """
+    if debug_logging:
+        logger.setLevel(logging.DEBUG)  # Explicitly set DEBUG level
+    else:
+        logger.setLevel(logging.INFO)  # Set INFO level otherwise
+    logger.propagate = True  # Let logs reach root logger for caplog
+
+    # Make sure all handlers respect the log level
+    for handler in logger.handlers:
+        if debug_logging:
+            handler.setLevel(logging.DEBUG)
+        else:
+            handler.setLevel(logging.INFO)
+
+
 # --- Robust config extraction for Hydra and test layouts ---
 def _get_stageD_diffusion_cfg(cfg):
     # Try Hydra (OmegaConf) nested structure
@@ -59,6 +77,7 @@ def _get_stageD_diffusion_cfg(cfg):
 
 class DiffusionManagerConfig:
     def __init__(self, device, num_inference_steps, temperature, diffusion_module_args, debug_logging):
+        logger.debug(f"[StageD] DiffusionManagerConfig.__init__: device={device}")
         self.device = device
         self.num_inference_steps = num_inference_steps
         self.temperature = temperature
@@ -80,12 +99,16 @@ class DiffusionManagerConfig:
                 "[UNIQUE-ERR-STAGED-DIFFUSION-ACCESS] Cannot access diffusion config under model.stageD"
             )
 
+        logger.debug(f"[StageD] from_hydra_cfg: stage_cfg.device={stage_cfg.device}")
+        logger.debug(f"[StageD] from_hydra_cfg: full stage_cfg={OmegaConf.to_container(stage_cfg, resolve=True)}")
         device = torch.device(stage_cfg.device)
         inference_cfg = stage_cfg.get("inference", OmegaConf.create({}))
         num_inference_steps = inference_cfg.get("num_steps", 2)
         temperature = inference_cfg.get("temperature", 1.0)
         diffusion_module_args = parse_diffusion_module_args(stage_cfg)
         debug_logging = stage_cfg.get("debug_logging", False)
+        # Set logger level based on debug_logging flag
+        set_stageD_logger_level(debug_logging)
         return cls(
             device,
             num_inference_steps,
@@ -108,17 +131,40 @@ class ProtenixDiffusionManager(torch.nn.Module):
 
     def __init__(self, cfg: DictConfig):
         super().__init__()
-        print("[MEMORY-LOG][StageD] Initializing ProtenixDiffusionManager")
+        logger.info("[StageD] Initializing ProtenixDiffusionManager")
         process = psutil.Process(os.getpid())
-        print(
-            f"[MEMORY-LOG][StageD] Memory usage: {process.memory_info().rss / 1e6:.2f} MB"
+        logger.info(
+            f"[StageD] Memory usage: {process.memory_info().rss / 1e6:.2f} MB"
         )
         """
         Initializes the Diffusion Manager using Hydra configuration.
         Reads all parameters from cfg.stageD.diffusion group.
         """
         self.cfg = cfg
+
+        # First validate the config structure before accessing any attributes
+        # This will raise appropriate errors if required sections are missing
+        try:
+            # Check if model.stageD exists
+            if not hasattr(cfg, "model") or not hasattr(cfg.model, "stageD"):
+                raise ValueError("[UNIQUE-ERR-STAGED-MISSING] Config missing required 'model.stageD' group")
+
+            # Check if model.stageD.diffusion exists
+            if not hasattr(cfg.model.stageD, "diffusion"):
+                raise ValueError("[UNIQUE-ERR-STAGED-DIFFUSION-MISSING] Config missing required 'diffusion' group in model.stageD")
+
+            # Now it's safe to access these attributes
+            logger.debug(f"[StageD] ProtenixDiffusionManager.__init__: cfg.model.stageD.diffusion.device={cfg.model.stageD.diffusion.device}")
+            logger.debug(f"[StageD] ProtenixDiffusionManager.__init__: full cfg.model.stageD.diffusion={OmegaConf.to_container(cfg.model.stageD.diffusion, resolve=True)}")
+        except ValueError:
+            # Re-raise the validation errors
+            raise
+        except Exception as e:
+            # For other errors, provide a more helpful message
+            raise ValueError(f"Error accessing config: {e}")
+
         self.config = DiffusionManagerConfig.from_hydra_cfg(cfg)
+        logger.debug(f"[StageD] ProtenixDiffusionManager.__init__: self.config.device={self.config.device}")
         self.device = self.config.device
         self.num_inference_steps = self.config.num_inference_steps
         self.temperature = self.config.temperature
@@ -147,9 +193,9 @@ class ProtenixDiffusionManager(torch.nn.Module):
                 logger.error(f"Error initializing DiffusionModule: {e}")
                 logger.error(f"Config provided: {self.config.diffusion_module_args}")
                 raise
-        print("[MEMORY-LOG][StageD] After super().__init__")
-        print(
-            f"[MEMORY-LOG][StageD] Memory usage: {process.memory_info().rss / 1e6:.2f} MB"
+        logger.debug("[StageD] After super().__init__")
+        logger.info(
+            f"[StageD] Memory usage after initialization: {process.memory_info().rss / 1e6:.2f} MB"
         )
 
     def _get_sampler_params(self, stage_cfg: DictConfig):
@@ -167,6 +213,7 @@ class ProtenixDiffusionManager(torch.nn.Module):
         self,
         step_input: DiffusionStepInput,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        logger.debug(f"[StageD] train_diffusion_step: self.device={self.device}")
         """
         Performs a single-step training pass with random noise injection.
         Sampler parameters are read from the stored Hydra config (self.cfg.stageD.diffusion.sampler).
@@ -185,16 +232,32 @@ class ProtenixDiffusionManager(torch.nn.Module):
 
         step_input = step_input.to_device(self.device)
 
+        # Move label_dict tensors to the correct device
+        label_dict = {}
+        for k, v in step_input.label_dict.items():
+            if isinstance(v, torch.Tensor):
+                label_dict[k] = v.to(self.device)
+            else:
+                label_dict[k] = v
+
+        input_feature_dict = {}
+        for k, v in step_input.input_feature_dict.items():
+            if isinstance(v, torch.Tensor):
+                input_feature_dict[k] = v.to(self.device)
+            else:
+                input_feature_dict[k] = v
+
         x_gt_augment, x_denoised, sigma = sample_diffusion_training(
             noise_sampler=noise_sampler,
             denoise_net=self.diffusion_module,
-            label_dict=step_input.label_dict,
-            input_feature_dict=step_input.input_feature_dict,
-            s_inputs=step_input.s_inputs,
-            s_trunk=step_input.s_trunk,
-            z_trunk=step_input.z_trunk,
+            label_dict=label_dict,
+            input_feature_dict=input_feature_dict,
+            s_inputs=step_input.s_inputs.to(self.device) if step_input.s_inputs is not None else None,
+            s_trunk=step_input.s_trunk.to(self.device) if step_input.s_trunk is not None else None,
+            z_trunk=step_input.z_trunk.to(self.device) if step_input.z_trunk is not None else None,
             N_sample=sampler_params["N_sample"],
             diffusion_chunk_size=sampler_params["diffusion_chunk_size"],
+            device=self.device
         )
         return x_gt_augment, x_denoised, sigma
 
@@ -241,7 +304,9 @@ class ProtenixDiffusionManager(torch.nn.Module):
                 f"[multi_step_inference] Final coords shape: {coords_final.shape}"
             )
 
-    def _postprocess_coords(self, coords_final, N_sample, debug_logging):
+    def _postprocess_coords(self, coords_final, N_sample, debug_logging=False):
+        # Use self.debug_logging if available, otherwise use the parameter
+        debug_logging = getattr(self, 'debug_logging', debug_logging)
         if N_sample != 1:
             return coords_final
         if self._is_unexpected_shape(coords_final):
@@ -276,7 +341,7 @@ class ProtenixDiffusionManager(torch.nn.Module):
         if coords_final.ndim == 4 and coords_final.shape[3] == 3:
             # For multi-sample output, we keep the sample dimension
             # but we'll log it for debugging
-            print(f"[DEBUG][PATCHED] Found multi-sample coords with shape {coords_final.shape}")
+            logger.debug(f"[PATCHED] Found multi-sample coords with shape {coords_final.shape}")
             return coords_final
 
         # Original handling for standard case
@@ -287,7 +352,7 @@ class ProtenixDiffusionManager(torch.nn.Module):
             coords_final = coords_final.squeeze(sample_dim_index)
         return coords_final
 
-    @snoop
+
     def multi_step_inference(
         self,
         coords_init: torch.Tensor,
@@ -368,7 +433,6 @@ class ProtenixDiffusionManager(torch.nn.Module):
 
         # --- Assert and log z_trunk shape ---
         logger.info(f"[StageD] z_trunk shape at entry: {z_trunk.shape}")
-        expected_ndim = 4  # [B, N_res, N_res, C] or [B, N_sample, N_res, N_res, C] if sample dim present
 
         # Handle multi-sample case with extra dimensions
         if z_trunk.dim() == 6:  # [B, 1, N_sample, N_res, N_res, C]
@@ -383,7 +447,6 @@ class ProtenixDiffusionManager(torch.nn.Module):
 
         # --- If atom-level pairs are needed, bridge using residue_atom_bridge ---
         if stage_cfg.get("require_atom_level_pairs", False):
-            from rna_predict.pipeline.stageD.diffusion.bridging.residue_atom_bridge import _process_pair_embedding
             # You must provide residue_atom_map (List[List[int]]) and key (e.g., 'pair')
             # Example: residue_atom_map = ... (get from context or input features)
             # z_trunk = _process_pair_embedding(z_trunk, residue_atom_map, self.debug_logging, key="pair")

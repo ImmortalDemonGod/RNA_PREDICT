@@ -38,24 +38,24 @@ sys.path.insert(
 )
 
 import logging
-from typing import Union, Tuple, Dict, Any, Optional, List
+from typing import Union, Tuple
 import hydra
 from omegaconf import DictConfig
 import psutil
 import torch
 from rna_predict.conf.config_schema import register_configs
-from rna_predict.pipeline.stageD.validation_utils import validate_run_stageD_inputs
-from rna_predict.pipeline.stageD.config_utils import (
+from rna_predict.pipeline.stageD.stage_d_utils.validation_utils import validate_run_stageD_inputs
+from rna_predict.pipeline.stageD.stage_d_utils.config_utils import (
     _print_config_debug,
     _validate_and_extract_stageD_config,
     _get_debug_logging,
     _validate_and_extract_test_data_cfg,
     _extract_diffusion_dims,
 )
-from rna_predict.pipeline.stageD.bridging_utils import check_and_bridge_embeddings
-from rna_predict.pipeline.stageD.output_utils import run_diffusion_and_handle_output
+from rna_predict.pipeline.stageD.stage_d_utils.bridging_utils import check_and_bridge_embeddings
+from rna_predict.pipeline.stageD.stage_d_utils.output_utils import run_diffusion_and_handle_output
 from rna_predict.pipeline.stageD.context import StageDContext
-from rna_predict.pipeline.stageD.feature_utils import (
+from rna_predict.pipeline.stageD.stage_d_utils.feature_utils import (
     _validate_feature_config, _validate_atom_metadata, _init_feature_tensors, initialize_features_from_config
 )
 
@@ -115,9 +115,9 @@ def _run_diffusion_step(context):
     s_trunk_tensor, z_trunk_tensor, s_inputs_tensor, atom_metadata = _prepare_diffusion_inputs(context)
     # Debug logging for shape verification
     if context.debug_logging:
-        print(f"[DEBUG][run_stageD] s_trunk shape: {s_trunk_tensor.shape}")
-        print(f"[DEBUG][run_stageD] z_trunk shape: {z_trunk_tensor.shape}")
-        print(f"[DEBUG][run_stageD] s_inputs shape: {s_inputs_tensor.shape}")
+        log.debug(f"[run_stageD] s_trunk shape: {s_trunk_tensor.shape}")
+        log.debug(f"[run_stageD] z_trunk shape: {z_trunk_tensor.shape}")
+        log.debug(f"[run_stageD] s_inputs shape: {s_inputs_tensor.shape}")
     # Call diffusion manager and handle output
     run_diffusion_and_handle_output(context)
 
@@ -127,6 +127,9 @@ def _run_stageD_impl(
 ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor, torch.Tensor]]:
     """Run diffusion refinement on the input coordinates using the unified Stage D runner."""
     log_mem("StageD ENTRY")
+    log.debug("[run_stageD] input_feature_dict at Stage D entry:")
+    for k, v in context.input_feature_dict.items():
+        log.debug(f"[run_stageD] input_feature_dict['{k}'] type: {type(v)}, shape: {getattr(v, 'shape', None)}")
     cfg = context.cfg
     coords = context.coords
     s_trunk = context.s_trunk
@@ -150,34 +153,36 @@ def _run_stageD_impl(
     n_atoms = coords.shape[1]
     n_residues = s_trunk.shape[1]
     # DEBUG: Print out all relevant config values before any bridging or model instantiation
-    print("[HYDRA-CONF-DEBUG][StageD] Dumping config values before diffusion:")
+    log.debug("[HYDRA-CONF-DEBUG][StageD] Dumping config values before diffusion:")
     if hasattr(stage_cfg, 'diffusion'):
-        print("  stage_cfg.diffusion:", dict(stage_cfg.diffusion))
+        log.debug("  stage_cfg.diffusion: %s", dict(stage_cfg.diffusion))
     if hasattr(stage_cfg, 'model_architecture'):
-        print("  stage_cfg.model_architecture:", dict(stage_cfg.model_architecture))
+        log.debug("  stage_cfg.model_architecture: %s", dict(stage_cfg.model_architecture))
     if hasattr(stage_cfg, 'feature_dimensions'):
-        print("  stage_cfg.feature_dimensions:", dict(stage_cfg.feature_dimensions))
-    print("  n_atoms:", n_atoms, "n_residues:", n_residues)
-    print("  s_trunk.shape:", getattr(s_trunk, 'shape', None))
-    print("  s_inputs.shape:", getattr(s_inputs, 'shape', None))
-    print("  z_trunk.shape:", getattr(z_trunk, 'shape', None))
-    print("  atom_metadata keys:", list(atom_metadata.keys()) if atom_metadata else None)
-    print("  context.device:", context.device)
-    print("  context.mode:", context.mode)
-    print("  context.debug_logging:", context.debug_logging)
-    print("[HYDRA-CONF-DEBUG][StageD] END CONFIG DUMP")
+        log.debug("  stage_cfg.feature_dimensions: %s", dict(stage_cfg.feature_dimensions))
+    log.debug("  n_atoms: %d, n_residues: %d", n_atoms, n_residues)
+    log.debug("  s_trunk.shape: %s", getattr(s_trunk, 'shape', None))
+    log.debug("  s_inputs.shape: %s", getattr(s_inputs, 'shape', None))
+    log.debug("  z_trunk.shape: %s", getattr(z_trunk, 'shape', None))
+    log.debug("  atom_metadata keys: %s", list(atom_metadata.keys()) if atom_metadata else None)
+    log.debug("  context.device: %s", context.device)
+    log.debug("  context.mode: %s", context.mode)
+    log.debug("  context.debug_logging: %s", context.debug_logging)
+    log.debug("[HYDRA-CONF-DEBUG][StageD] END CONFIG DUMP")
     expected_token_dim = n_atoms if getattr(stage_cfg, 'token_level', 'atom') == 'atom' else n_residues
     # If config expects atom-level and s_trunk is residue-level, bridge now
     if expected_token_dim == n_atoms and s_trunk.shape[1] == n_residues:
         from rna_predict.utils.tensor_utils.embedding import residue_to_atoms
         # Build residue_atom_map from atom_metadata
-        residue_atom_map = [[] for _ in range(n_residues)]
-        for atom_idx, res_idx in enumerate(atom_metadata['residue_indices']):
-            residue_atom_map[res_idx].append(atom_idx)
+        residue_atom_map: list[list[int]] = [[] for _ in range(n_residues)]
+        # Safely access residue_indices with a check
+        if atom_metadata is not None and 'residue_indices' in atom_metadata:
+            for atom_idx, res_idx in enumerate(atom_metadata['residue_indices']):
+                residue_atom_map[res_idx].append(atom_idx)
         s_trunk = residue_to_atoms(s_trunk.squeeze(0) if s_trunk.dim() == 3 else s_trunk, residue_atom_map)
         if s_trunk.dim() == 2:
             s_trunk = s_trunk.unsqueeze(0)
-        print(f"[HYDRA-CONF-BRIDGE][StageD] Bridged s_trunk to atom-level: {s_trunk.shape}")
+        log.debug(f"[HYDRA-CONF-BRIDGE][StageD] Bridged s_trunk to atom-level: %s", s_trunk.shape)
     trunk_embeddings, features = _prepare_trunk_embeddings(
         s_trunk, s_inputs, z_trunk, input_feature_dict, atom_metadata
     )
@@ -209,7 +214,7 @@ def _run_stageD_impl(
     check_and_bridge_embeddings(trunk_embeddings, features, input_feature_dict, coords, atom_metadata)
     log_mem("After bridging residue-to-atom")
     log_mem("Before diffusion")
-    print("[DEBUG][run_stageD] Calling unified Stage D runner with DiffusionConfig.")
+    log.debug("[run_stageD] Calling unified Stage D runner with DiffusionConfig.")
     _run_diffusion_step(context)
     # Return the result from the diffusion step
     if hasattr(context, 'result') and context.result is not None:
@@ -248,41 +253,12 @@ def run_stageD(context_or_cfg, coords=None, s_trunk=None, z_trunk=None, s_inputs
 @hydra.main(version_base=None, config_path="../../conf", config_name="default.yaml")
 def hydra_main(cfg: DictConfig) -> None:
     _print_config_debug(cfg)
-    print("[DEBUG][hydra_main] cfg.model:", cfg.model)
+    log.debug("[hydra_main] cfg.model: %s", cfg.model)
     if hasattr(cfg.model, "stageD"):
-        print("[DEBUG][hydra_main] cfg.model.stageD:", cfg.model.stageD)
+        log.debug("[hydra_main] cfg.model.stageD: %s", cfg.model.stageD)
     else:
-        print("[DEBUG][hydra_main] cfg.model.stageD is missing!")
+        log.debug("[hydra_main] cfg.model.stageD is missing!")
 
-    # Provide default values for stageD configuration if missing
-    if not hasattr(cfg.model, "stageD"):
-        log.warning("model.stageD configuration missing, creating default configuration")
-        from omegaconf import OmegaConf
-        default_stageD_config = {
-            "enabled": True,
-            "mode": "inference",
-            "device": "cpu",
-            "debug_logging": True,
-            "ref_element_size": 128,
-            "ref_atom_name_chars_size": 256,
-            "profile_size": 32,
-            "model_architecture": {
-                "c_token": 384,
-                "c_s": 384,
-                "c_z": 128,
-                "c_s_inputs": 449,
-                "c_atom": 128,
-                "c_atompair": 32,
-                "c_noise_embedding": 32,
-                "sigma_data": 16.0
-            },
-            "diffusion": {
-                "enabled": True,
-                "mode": "inference",
-                "device": "cpu"
-            }
-        }
-        cfg.model.stageD = OmegaConf.create(default_stageD_config)
 
     stage_cfg = _validate_and_extract_stageD_config(cfg)
     debug_logging = _get_debug_logging(stage_cfg)
@@ -327,17 +303,13 @@ def _log_stageD_start(debug_logging):
 def _extract_sequence_and_dims(cfg, stage_cfg, batch_size):
     sequence_str, atoms_per_residue = _validate_and_extract_test_data_cfg(cfg)
     c_s, c_s_inputs, c_z = _extract_diffusion_dims(stage_cfg)
-    print(
-        f"Using standardized test sequence: {sequence_str} with {atoms_per_residue} atoms per residue"
-    )
+    log.debug("Using standardized test sequence: %s with %d atoms per residue", sequence_str, atoms_per_residue)
     return sequence_str, atoms_per_residue, c_s, c_s_inputs, c_z
 
 
 def _debug_entry_shapes(debug_logging, batch_size, sequence_str, c_z):
     if debug_logging:
-        print(
-            f"[DEBUG][run_stageD] ENTRY: z_trunk.shape = {torch.randn(batch_size, len(sequence_str), len(sequence_str), c_z).shape}"
-        )
+        log.debug("[run_stageD] ENTRY: z_trunk.shape = %s", torch.randn(batch_size, len(sequence_str), len(sequence_str), c_z).shape)
 
 
 def _main_stageD_orchestration(cfg):
@@ -377,6 +349,22 @@ def _run_stageD_main_logic_context(context: StageDContext):
     """Executes Stage D given a StageDContext object. Handles errors and logs as needed."""
     import torch
     try:
+        # --- DEBUG: Print all relevant context fields and types ---
+        if context.debug_logging:
+            log.debug("[run_stageD] s_trunk type: %s, shape: %s", type(context.s_trunk), getattr(context.s_trunk, 'shape', None))
+            log.debug("[run_stageD] z_trunk type: %s, shape: %s", type(context.z_trunk), getattr(context.z_trunk, 'shape', None))
+            log.debug("[run_stageD] s_inputs type: %s, shape: %s", type(context.s_inputs), getattr(context.s_inputs, 'shape', None))
+            log.debug("[run_stageD] input_feature_dict type: %s", type(context.input_feature_dict))
+            for k, v in context.input_feature_dict.items():
+                log.debug("[run_stageD] input_feature_dict['%s'] type: %s, shape: %s", k, type(v), getattr(v, 'shape', None))
+            log.debug("[run_stageD] atom_metadata type: %s", type(context.atom_metadata))
+            log.debug("[run_stageD] trunk_embeddings type: %s", type(context.trunk_embeddings))
+            log.debug("[run_stageD] features type: %s", type(context.features))
+            log.debug("[run_stageD] stage_cfg type: %s", type(context.stage_cfg))
+            log.debug("[run_stageD] diffusion_cfg type: %s", type(context.diffusion_cfg))
+            log.debug("[run_stageD] device: %s", context.device)
+            log.debug("[run_stageD] mode: %s", context.mode)
+            log.debug("[run_stageD] debug_logging: %s", context.debug_logging)
         # Ensure we have proper tensor types
         s_trunk_tensor = context.s_trunk
         z_trunk_tensor = context.z_trunk
@@ -388,23 +376,37 @@ def _run_stageD_main_logic_context(context: StageDContext):
             raise TypeError(f"z_trunk must be a torch.Tensor, got {type(z_trunk_tensor)}")
         if not isinstance(s_inputs_tensor, torch.Tensor):
             raise TypeError(f"s_inputs must be a torch.Tensor, got {type(s_inputs_tensor)}")
-        # Ensure atom_metadata is a dictionary
-        if context.atom_metadata is not None and not isinstance(context.atom_metadata, dict):
-            context.atom_metadata = {}
-        # Debug logging for shape verification
         if context.debug_logging:
-            print(f"[DEBUG][run_stageD] s_trunk shape: {s_trunk_tensor.shape}")
-            print(f"[DEBUG][run_stageD] z_trunk shape: {z_trunk_tensor.shape}")
-            print(f"[DEBUG][run_stageD] s_inputs shape: {s_inputs_tensor.shape}")
-            print(f"[DEBUG][run_stageD] num_atoms: {context.coords.shape[1]}")
-        refined_coords = _run_stageD_impl(context)
+            log.debug("[run_stageD] s_trunk shape: %s", s_trunk_tensor.shape)
+            log.debug("[run_stageD] z_trunk shape: %s", z_trunk_tensor.shape)
+            log.debug("[run_stageD] s_inputs shape: %s", s_inputs_tensor.shape)
+            log.debug("[run_stageD] num_atoms: %d", context.coords.shape[1])
+        # --- WRAP main logic in try/except for operand errors ---
+        try:
+            refined_coords = _run_stageD_impl(context)
+        except TypeError as e:
+            if context.debug_logging:
+                log.error("[run_stageD] TypeError during _run_stageD_impl: %s", e)
+                log.error("[run_stageD] Context dump:")
+                log.error("  s_trunk: %s, shape: %s", type(context.s_trunk), getattr(context.s_trunk, 'shape', None))
+                log.error("  z_trunk: %s, shape: %s", type(context.z_trunk), getattr(context.z_trunk, 'shape', None))
+                log.error("  s_inputs: %s, shape: %s", type(context.s_inputs), getattr(context.s_inputs, 'shape', None))
+                log.error("  input_feature_dict: %s", type(context.input_feature_dict))
+                for k, v in context.input_feature_dict.items():
+                    log.error("    input_feature_dict['%s']: %s, shape: %s", k, type(v), getattr(v, 'shape', None))
+            raise
+        # Always log whether coordinates were refined successfully
+        if isinstance(refined_coords, torch.Tensor):
+            log.info("Successfully refined coordinates: %s", refined_coords.shape)
+        else:
+            log.warning("Coordinates were NOT refined as a tensor (training mode or error)")
         if context.debug_logging:
             if isinstance(refined_coords, torch.Tensor):
-                log.info(f"Successfully refined coordinates: {refined_coords.shape}")
+                log.debug("[DEBUG] Successfully refined coordinates: %s", refined_coords.shape)
             else:
-                log.info("Successfully refined coordinates (training mode)")
+                log.debug("[DEBUG] Successfully refined coordinates (training mode)")
     except Exception as e:
-        log.error(f"Error during Stage D execution: {str(e)}")
+        log.error("Error during Stage D execution: %s", str(e))
         raise
 
 
