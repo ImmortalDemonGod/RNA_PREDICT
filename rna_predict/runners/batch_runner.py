@@ -109,7 +109,8 @@ def main():
     # Additional files to run without test sequence override
     additional_files = [
         os.path.join(PROJECT_ROOT, "rna_predict/interface.py"),
-        os.path.join(PROJECT_ROOT, "rna_predict/main.py"),
+        os.path.join(PROJECT_ROOT, "rna_predict/runners/demo_entry.py"),
+        os.path.join(PROJECT_ROOT, "rna_predict/runners/full_pipeline.py"),
         # os.path.join(PROJECT_ROOT, "rna_predict/print_rna_pipeline_output.py"),
         # os.path.join(PROJECT_ROOT, "rna_predict/run_full_pipeline.py") # Avoid running itself
     ]
