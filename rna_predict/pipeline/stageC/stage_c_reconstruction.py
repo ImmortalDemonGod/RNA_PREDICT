@@ -32,6 +32,23 @@ def set_stageC_logger_level(debug_logging: bool):
             handler.setLevel(logging.INFO)
 
 
+def ensure_stageC_logger_visible():
+    """
+    Ensure the Stage C logger always propagates to the root logger and has a StreamHandler at INFO level if none are present.
+    This guarantees that INFO logs are visible even when Stage C is called as a submodule.
+    """
+    global logger
+    logger.propagate = True
+    if not logger.handlers:
+        handler = logging.StreamHandler()
+        handler.setLevel(logging.INFO)
+        formatter = logging.Formatter('[%(asctime)s][%(name)s][%(levelname)s] - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+
+# Call this at module import and in all entrypoints
+ensure_stageC_logger_visible()
+
 class StageCReconstruction(nn.Module):
     """
     Legacy fallback approach for Stage C. Used if method != 'mp_nerf'.
@@ -178,6 +195,7 @@ def run_stageC_rna_mpnerf(
         ValidationError: If configuration is invalid
         ValueError: If torsion angles have incorrect dimensions
     """
+    print("[DEBUG-ENTRY] Entered run_stageC_rna_mpnerf in", __file__)
     if cfg.model.stageC.debug_logging:
         logger.debug("Entered run_stageC_rna_mpnerf")
         logger.debug(f"predicted_torsions.requires_grad: {getattr(predicted_torsions, 'requires_grad', None)}")
@@ -226,11 +244,33 @@ def run_stageC_rna_mpnerf(
         logger.debug(f"scaffolds['torsions'] grad_fn: {getattr(scaffolds['torsions'], 'grad_fn', None)}")
     scaffolds = skip_missing_atoms(sequence, scaffolds)
     scaffolds = handle_mods(sequence, scaffolds)
+    # SYSTEMATIC DEBUGGING: Dump scaffolds fields for residue 3 before rna_fold
+    if hasattr(scaffolds, 'keys'):
+        for k in scaffolds.keys():
+            try:
+                val = scaffolds[k]
+                if isinstance(val, torch.Tensor) and val.shape[0] > 3:
+                    logger.error(f"[DEBUG-SCAFFOLDS-RES3] {k}[3] = {val[3]}")
+                elif isinstance(val, (list, tuple)) and len(val) > 3:
+                    logger.error(f"[DEBUG-SCAFFOLDS-RES3] {k}[3] = {val[3]}")
+                else:
+                    logger.error(f"[DEBUG-SCAFFOLDS-RES3] {k}: type={type(val)}, shape/len={getattr(val, 'shape', getattr(val, '__len__', lambda: None)())}")
+            except Exception as e:
+                logger.error(f"[DEBUG-SCAFFOLDS-RES3] {k}: error accessing index 3: {e}")
+    else:
+        logger.error(f"[DEBUG-SCAFFOLDS-RES3] scaffolds has no keys() method, type={type(scaffolds)}")
     coords_bb = rna_fold(scaffolds, device=device, do_ring_closure=do_ring_closure)
+    # SYSTEMATIC DEBUGGING: Dump backbone coordinates for residue 3 right after rna_fold
+    if coords_bb.shape[0] > 3:
+        logger.error(f"[DEBUG-BB-COORDS-RES3] coords_bb[3] = {coords_bb[3]}")
+    else:
+        logger.error(f"[DEBUG-BB-COORDS-RES3] coords_bb shape: {coords_bb.shape}, not enough residues to check residue 3")
     if stage_cfg.debug_logging:
         logger.debug(f"coords_bb requires_grad: {getattr(coords_bb, 'requires_grad', None)}")
         logger.debug(f"coords_bb grad_fn: {getattr(coords_bb, 'grad_fn', None)}")
+    print("[DEBUG-PLACE_BASES] place_bases:", place_bases)
     if place_bases:
+        print("[DEBUG-GRAD-PRINT-CALLSITE] coords_bb (input to place_rna_bases) requires_grad:", getattr(coords_bb, 'requires_grad', None), "grad_fn:", getattr(coords_bb, 'grad_fn', None))
         coords_full = place_rna_bases(
             coords_bb, sequence, scaffolds["angles_mask"], device=device
         )
@@ -291,6 +331,18 @@ def run_stageC_rna_mpnerf(
         "atom_metadata": atom_metadata,
     }
 
+    # SYSTEMATIC DEBUGGING: Always emit a summary log and print, regardless of debug_logging
+    print("REACHED STAGE C SUMMARY LOG [run_stageC_rna_mpnerf]")
+    coords_shape = getattr(output['coords'], 'shape', 'unknown')
+    coords_device = getattr(output['coords'], 'device', 'unknown')
+    atom_count = output.get('atom_count', 'unknown')
+    logger.info(
+        f"StageC completed: sequence={sequence}, residues={len(sequence)}, "
+        f"atoms={atom_count}, coords_shape={coords_shape}, device={coords_device}"
+    )
+    import logging as _logging
+    _logging.getLogger().info(f"ROOT: StageC completed: sequence={sequence}, residues={len(sequence)}, atoms={atom_count}, coords_shape={coords_shape}, device={coords_device}")
+
     if stage_cfg.debug_logging:
         # Use getattr to safely access shape attribute
         coords_shape = getattr(output['coords'], 'shape', 'unknown')
@@ -333,6 +385,7 @@ def run_stageC(
     Raises:
         ValidationError: If configuration is invalid
     """
+    ensure_stageC_logger_visible()
     if cfg is None:
         cfg = OmegaConf.create({
             "model": {
@@ -374,12 +427,7 @@ def run_stageC(
 
 @hydra.main(config_path="../../conf", config_name="default", version_base=None)
 def hydra_main(cfg: DictConfig) -> None:
-    """
-    Main entry point for running Stage C reconstruction with Hydra configuration.
-
-    Args:
-        cfg: Hydra configuration object
-    """
+    ensure_stageC_logger_visible()
     # Set logger level according to debug_logging config (Hydra best practice)
     debug_logging = False
     if hasattr(cfg, 'model') and hasattr(cfg.model, 'stageC') and hasattr(cfg.model.stageC, 'debug_logging'):
@@ -416,15 +464,6 @@ def hydra_main(cfg: DictConfig) -> None:
         logger.debug(f"Using dummy torsions shape: {dummy_torsions.shape}")
 
     output = run_stageC(cfg=cfg, sequence=sample_seq, torsion_angles=dummy_torsions)
-
-    # Always log a summary at INFO level for user visibility
-    coords_shape = getattr(output['coords'], 'shape', 'unknown')
-    coords_device = getattr(output['coords'], 'device', 'unknown')
-    atom_count = output.get('atom_count', 'unknown')
-    logger.info(
-        f"StageC completed: sequence={sample_seq}, residues={len(sample_seq)}, "
-        f"atoms={atom_count}, coords_shape={coords_shape}, device={coords_device}"
-    )
 
     if debug_logging:
         logger.debug("\nStage C Output:")
