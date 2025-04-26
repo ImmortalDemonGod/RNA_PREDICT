@@ -36,7 +36,6 @@ from .encoder_components.initialization import (
     setup_pair_projections,
     setup_small_mlp,
 )
-from rna_predict.pipeline.stageA.input_embedding.current.transformer.atom_attention.components.atom_attention_feature_processing import FeatureProcessor
 
 class AtomAttentionEncoder(nn.Module):
     """
