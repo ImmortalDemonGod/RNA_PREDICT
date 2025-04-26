@@ -120,7 +120,23 @@ class StageBTorsionBertPredictor(nn.Module):
 
         # Extract configuration values
         self.model_name_or_path = torsion_cfg.model_name_or_path
-        self.device = torch.device(torsion_cfg.device)
+        # --- DEVICE SELECTION PATCH (HYDRA OVERRIDE) ---
+        # Prefer global cfg.device if present and non-cpu, otherwise fall back to nested config
+        hydra_device = None
+        if hasattr(cfg, 'device'):
+            hydra_device = str(cfg.device)
+        nested_device = None
+        if hasattr(cfg, 'device'):
+            nested_device = str(cfg.device)
+        elif hasattr(cfg, 'torsion_bert') and hasattr(cfg.torsion_bert, 'device'):
+            nested_device = str(cfg.torsion_bert.device)
+        # Use hydra_device if it is set and not 'cpu', else fallback to nested_device, else 'cpu'
+        final_device = hydra_device if hydra_device and hydra_device != 'cpu' else nested_device if nested_device else 'cpu'
+        if hydra_device and nested_device and hydra_device != nested_device:
+            logger.warning(f"[HYDRA-DEVICE-OVERRIDE] Overriding nested torsion_bert device '{nested_device}' with global device '{hydra_device}' from Hydra config.")
+        self.device = torch.device(final_device)
+        logger.info(f"[HYDRA-DEVICE-SELECTED] TorsionBERT using device: {self.device}")
+        # --- END DEVICE SELECTION PATCH ---
         self.angle_mode = getattr(torsion_cfg, 'angle_mode', DEFAULT_ANGLE_MODE)
         self.num_angles = getattr(torsion_cfg, 'num_angles', DEFAULT_NUM_ANGLES)
         self.max_length = getattr(torsion_cfg, 'max_length', DEFAULT_MAX_LENGTH)
@@ -186,40 +202,25 @@ class StageBTorsionBertPredictor(nn.Module):
                 "attention_mask": torch.ones((1, len(sequence)), dtype=torch.long, device=self.device)
             }
 
-        # Convert U to T as TorsionBERT might be DNA-BERT based
-        sequence = sequence.upper().replace("U", "T")
-        # Tokenize using k-mers (assuming k=3 if not specified otherwise)
-        # This part might need adjustment based on the specific TorsionBERT tokenizer
-        tokens = [
-            sequence[i : i + 3] for i in range(len(sequence) - 2)
-        ] # Basic 3-mer tokenization
-        if not tokens: # Handle short sequences
-             tokens = [sequence] if sequence else ["A"]  # Use a dummy token for empty sequences
-
-        # Tokenize using the model's tokenizer
         try:
-            tokenized_input = self.tokenizer(
-                " ".join(tokens), # Join k-mers with spaces
+            # Tokenize input and move to device
+            result = self.tokenizer(
+                sequence,
                 return_tensors="pt",
                 padding="max_length",
                 max_length=self.max_length,
                 truncation=True,
             )
-
-            # Defensive: fail fast if tokenizer returns empty dict
-            if not tokenized_input:
-                raise ValueError("[UNIQUE-ERR-TORSIONBERT-EMPTYTOKENIZER] Tokenizer returned empty dict for sequence: {}".format(sequence))
-
-            # Ensure input_ids is present
-            if "input_ids" not in tokenized_input:
-                logger.warning("[UNIQUE-WARN-TORSIONBERT-NOINPUTIDS] Tokenizer did not return input_ids, creating dummy input.")
-                tokenized_input["input_ids"] = torch.zeros((1, len(sequence) or 1), dtype=torch.long, device=self.device)
-
-            # Ensure attention_mask is present
-            if "attention_mask" not in tokenized_input:
-                tokenized_input["attention_mask"] = torch.ones_like(tokenized_input["input_ids"])
-
-            return {k: v.to(self.device) for k, v in tokenized_input.items()}
+            for k, v in result.items():
+                result[k] = v.to(self.device)
+            # --- BEGIN DEVICE DEBUGGING ---
+            for k, v in result.items():
+                logger.error(f"[DEVICE-DEBUG-PREPROCESS] Output tensor '{k}' device: {v.device} (should match self.device: {self.device})")
+                print(f"[DEVICE-DEBUG-PREPROCESS][DEBUG] Output tensor '{k}' device: {v.device} (str: {str(v.device)}), self.device: {self.device} (str: {str(self.device)})")
+                if str(v.device) != str(self.device):
+                    print(f"[DEVICE-DEBUG-PREPROCESS][MISMATCH] {k}: {str(v.device)} != {str(self.device)}")
+            # --- END DEVICE DEBUGGING ---
+            return result
         except Exception as e:
             logger.error(f"[UNIQUE-ERR-TORSIONBERT-TOKENIZER-EXCEPTION] Exception during tokenization: {e}")
             # Fallback to dummy input
@@ -248,6 +249,21 @@ class StageBTorsionBertPredictor(nn.Module):
 
             # Normal processing for real model
             inputs = self._preprocess_sequence(sequence)
+
+            # --- DEVICE DEBUGGING INSTRUMENTATION ---
+            logger.error(f"[DEVICE-DEBUG] Model device: {getattr(self.model, 'device', 'N/A')}")
+            for k, v in inputs.items():
+                logger.error(f"[DEVICE-DEBUG] Input tensor '{k}' device: {v.device}")
+            # --- END DEVICE DEBUGGING ---
+
+            # --- ENSURE INPUT TENSORS ARE ON MODEL DEVICE ---
+            model_device = getattr(self.model, 'device', self.device)
+            for k in list(inputs.keys()):
+                if isinstance(inputs[k], torch.Tensor):
+                    if inputs[k].device != model_device:
+                        logger.warning(f"[DEVICE-FIX] Moving input '{k}' from {inputs[k].device} to {model_device}")
+                        inputs[k] = inputs[k].to(model_device)
+            # --- END ENSURE INPUT TENSORS ARE ON MODEL DEVICE ---
 
             if self.debug_logging:
                 logger.debug(f"[DEBUG-PREDICTOR] Inputs to model: {inputs}")
