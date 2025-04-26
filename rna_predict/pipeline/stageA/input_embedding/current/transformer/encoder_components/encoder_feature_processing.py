@@ -217,3 +217,12 @@ def extract_atom_features(
             if feature_name == "ref_pos":
                 # Position tensor with shape [batch_size, n_atoms, 3]
                 default_tensor = torch.zeros((batch_size, n_atoms, 3), device=default_device)
+                features.append(default_tensor)
+
+    # Concatenate features if available, otherwise return empty tensor
+    if features:
+        return torch.cat(features, dim=-1)
+    else:
+        # Return empty tensor with appropriate device
+        default_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        return torch.zeros((1, 1, 1), device=default_device)
