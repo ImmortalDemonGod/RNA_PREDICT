@@ -113,7 +113,17 @@ def _run_stageD_diffusion_impl(
     # Create OmegaConf config with the required model.stageD structure
     config_dict = OmegaConf.create({
         "model": {
-            "stageD": clean_config_dict
+            "stageD": {
+                "diffusion": {
+                    "device": getattr(config, "device", "cpu"),
+                    "feature_dimensions": clean_config_dict.get("feature_dimensions", {}),
+                    "model_architecture": clean_config_dict.get("model_architecture", {}),
+                    "transformer": clean_config_dict.get("diffusion", {}).get("transformer", {}),
+                    "atom_encoder": clean_config_dict.get("diffusion", {}).get("atom_encoder", {}),
+                    "atom_decoder": clean_config_dict.get("diffusion", {}).get("atom_decoder", {}),
+                    "inference": clean_config_dict.get("diffusion", {}).get("inference", {"num_steps": 2}),
+                }
+            }
         }
     })
     diffusion_manager = ProtenixDiffusionManager(cfg=config_dict)
