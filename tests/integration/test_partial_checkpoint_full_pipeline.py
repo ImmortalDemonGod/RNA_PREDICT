@@ -14,21 +14,8 @@ IMPORTANT:
 """
 import os
 from pathlib import Path
-PROJECT_ROOT = "/Users/tomriddle1/RNA_PREDICT"
-if os.getcwd() != PROJECT_ROOT:
-    print(f"[DEBUG-TOP] Changing CWD from {os.getcwd()} to {PROJECT_ROOT}")
-    os.chdir(PROJECT_ROOT)
-conf_path = Path(PROJECT_ROOT) / "rna_predict" / "conf"
-try:
-    rel_conf_path = conf_path.relative_to(Path.cwd())
-except ValueError:
-    # If CWD is not a parent of conf_path, fallback to absolute path (Hydra will error, but we log it)
-    rel_conf_path = conf_path
-print(f"[DEBUG-TOP] CWD at import time: {os.getcwd()}")
-print(f"[DEBUG-TOP] Using config_path={rel_conf_path}")
 import torch
 import pytest
-from omegaconf import DictConfig
 from rna_predict.training.rna_lightning_module import RNALightningModule
 from rna_predict.utils.checkpointing import save_trainable_checkpoint, get_trainable_params
 from rna_predict.utils.checkpoint import partial_load_state_dict
@@ -36,24 +23,17 @@ from hypothesis import given, strategies as st, settings
 import tempfile
 import traceback
 
+project_root = Path(__file__).resolve().parents[2]
+config_dir = project_root / "rna_predict" / "conf"
+if not config_dir.is_dir():
+    pytest.fail(f"[HYDRA-CONF-NOT-FOUND] Expected config dir at {config_dir}")
+
+print(f"[DEBUG-TOP] CWD at import time: {os.getcwd()}")
+print(f"[DEBUG-TOP] Using config_path={config_dir}")
+
 # Project rule: Always use absolute Hydra config path for all initialization/testing
 # See MEMORY[ab8a7679-fc73-4f8b-af9a-6ad058010c5a]
-CONFIG_ABS_PATH = "/Users/tomriddle1/RNA_PREDICT/rna_predict/conf/default.yaml"
-
-# Force CWD to project root before Hydra config logic
-EXPECTED_CWD = "/Users/tomriddle1/RNA_PREDICT"
-actual_cwd = os.getcwd()
-assert os.getcwd().endswith("RNA_PREDICT"), (
-    f"Test must be run from project root. Current CWD: {os.getcwd()}"
-)
-if actual_cwd != EXPECTED_CWD:
-    pytest.fail(
-        f"[UNIQUE-ERR-HYDRA-CWD] Test must be run from the project root directory.\n"
-        f"Expected CWD: {EXPECTED_CWD}\n"
-        f"Actual CWD:   {actual_cwd}\n"
-        f"To fix: cd {EXPECTED_CWD} && uv run -m pytest tests/integration/test_partial_checkpoint_full_pipeline.py\n"
-        f"See docs/guides/best_practices/debugging/comprehensive_debugging_guide.md for more info."
-    )
+CONFIG_ABS_PATH = config_dir / "default.yaml"
 
 # Instrument with debug output and dynamic config_path selection
 print(f"[TEST DEBUG] Current working directory: {os.getcwd()}")
@@ -76,7 +56,6 @@ def test_full_pipeline_partial_checkpoint(batch_size, input_dim):
                 hydra.core.global_hydra.GlobalHydra.instance().clear()
             # [HYDRA-PROJECT-RULE] Hydra config_path must be relative to the test file location in pytest context
             test_file = Path(__file__).resolve()
-            config_dir = (test_file.parent.parent.parent / "rna_predict" / "conf").resolve()
             config_path = os.path.relpath(config_dir, start=test_file.parent)
             print(f"[DEBUG] CWD before hydra.initialize: {os.getcwd()}")
             print(f"[DEBUG] Test file __file__: {test_file}")
