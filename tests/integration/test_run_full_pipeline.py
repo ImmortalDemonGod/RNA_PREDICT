@@ -716,7 +716,7 @@ class TestRunFullPipeline(unittest.TestCase):
 
         # Patch both the ProtenixDiffusionManager constructor and run_stageD function
         with patch("rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager.ProtenixDiffusionManager", return_value=mock_diffusion_manager), \
-             patch("rna_predict.run_full_pipeline.run_stageD", mock_run_stageD):
+             patch("rna_predict.runners.full_pipeline.run_stageD", mock_run_stageD):
             result = run_full_pipeline(cfg=cfg)
 
             # Verify the mock was called
