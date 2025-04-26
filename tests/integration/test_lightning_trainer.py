@@ -1,8 +1,13 @@
 import lightning as L
 import torch
+import torch.utils.data
 from unittest.mock import MagicMock, patch
 from omegaconf import OmegaConf
 from rna_predict.training.rna_lightning_module import RNALightningModule
+from rna_predict.pipeline.stageA.adjacency.rfold_predictor import StageARFoldPredictor
+from rna_predict.pipeline.stageB.torsion.torsion_bert_predictor import StageBTorsionBertPredictor
+from rna_predict.pipeline.stageB.pairwise.pairformer_wrapper import PairformerWrapper
+from rna_predict.pipeline.merger.simple_latent_merger import SimpleLatentMerger
 
 # Patch the transformers classes before they are imported
 patch('transformers.AutoTokenizer.from_pretrained', return_value=MagicMock()).start()
