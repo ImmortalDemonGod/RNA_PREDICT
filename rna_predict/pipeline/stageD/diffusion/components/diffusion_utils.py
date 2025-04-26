@@ -3,12 +3,14 @@ from typing import Optional, Protocol, TypedDict, Union
 import torch
 
 
-class InputFeatureDict(TypedDict):
+class InputFeatureDict(TypedDict, total=False):
     """Type definition for input feature dictionary."""
 
     ref_charge: torch.Tensor
     ref_pos: torch.Tensor
     expected_n_tokens: int
+    # Allow any other keys
+    # This makes it compatible with Dict[str, Any]
 
 
 class DiffusionError(Exception):
