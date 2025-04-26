@@ -8,7 +8,7 @@ which helps prevent shape mismatch errors in operations like LayerNorm and atten
 import logging
 import torch
 import torch.nn.functional as F
-from typing import Tuple, Dict, Any, Optional, Union
+from typing import Tuple, Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -173,7 +173,7 @@ def ensure_consistent_sample_dimensions(
     input_features: Optional[Dict[str, Any]] = None,
     num_samples: int = 1,
     sample_dim: int = 1
-) -> Tuple[Dict[str, torch.Tensor], Optional[Dict[str, Any]]]:
+) -> Tuple[Dict[str, Any], Optional[Dict[str, Any]]]:
     """
     Ensures all tensors in trunk_embeddings and input_features have consistent sample dimensions.
 
