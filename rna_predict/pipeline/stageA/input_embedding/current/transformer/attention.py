@@ -522,7 +522,7 @@ class AttentionPairBias(nn.Module):
                         # Create a new tensor with the right shape and copy data
                         s_adapted = torch.zeros(a.shape[:-1] + (s.shape[-1],), device=s.device, dtype=s.dtype)
                         # Copy data where dimensions match
-                        min_dims = min(len(s.shape[:-1]), len(a.shape[:-1]))
+                        min(len(s.shape[:-1]), len(a.shape[:-1]))
                         s_adapted[:s.shape[0], :s.shape[1] if len(s.shape) > 1 else 1] = s.view(*s.shape[:-1], s.shape[-1])
                         s = s_adapted
                     except Exception as reshape_error:
@@ -549,7 +549,7 @@ class AttentionPairBias(nn.Module):
                         gate = torch.sigmoid(self.linear_a_last(s_adapted))
                     except RuntimeError:
                         # If it still fails, return without gating
-                        warnings.warn(f"Linear projection failed even after adapting s. Using identity gating.")
+                        warnings.warn("Linear projection failed even after adapting s. Using identity gating.")
                         return a
                 else:
                     # For other errors, return without gating
