@@ -1,6 +1,6 @@
 import unittest
 from unittest.mock import patch
-from omegaconf import OmegaConf, DictConfig 
+from omegaconf import OmegaConf, DictConfig
 
 import torch
 from hypothesis import given, settings
@@ -9,7 +9,7 @@ from hypothesis import strategies as st
 # Import the class under test
 from rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager import (
     ProtenixDiffusionManager,
-    DiffusionStepInput, 
+    DiffusionStepInput,
 )
 # Import generator class needed for type checking in tests
 from rna_predict.pipeline.stageD.diffusion.generator import (
@@ -212,12 +212,15 @@ class TestProtenixDiffusionManagerInitialization(unittest.TestCase):
         self.MockDiffusionModuleClass.reset_mock()
 
         if missing_section == "stageD":
-            # Missing stageD section (now under model)
-            cfg_missing = OmegaConf.create({"model": {}})
+            # Create a config with model but no stageD section
+            # We need to use a dict first to avoid OmegaConf creating empty nodes automatically
+            cfg_dict = {"model": {}}
+            cfg_missing = OmegaConf.create(cfg_dict)
             expected_error = "Config missing required 'model.stageD' group"
         else:  # missing_section == "diffusion"
             # Missing diffusion in stageD (now under model.stageD)
-            cfg_missing = OmegaConf.create({"model": {"stageD": {}}})
+            cfg_dict = {"model": {"stageD": {}}}
+            cfg_missing = OmegaConf.create(cfg_dict)
             expected_error = "Config missing required 'diffusion' group in model.stageD"
 
         # Use the actual error message raised by the manager code
