@@ -129,6 +129,9 @@ def test_full_pipeline_partial_checkpoint(batch_size, input_dim):
         model = RNALightningModule(cfg)
         model.train()
 
+        # Explicitly set integration test mode for this test
+        model._integration_test_mode = True
+
         # 2. Save initial trainable params for comparison
         initial_params = get_trainable_params(model)
 
@@ -177,6 +180,10 @@ def test_full_pipeline_partial_checkpoint(batch_size, input_dim):
         # 5. Instantiate a new model and load partial checkpoint
         model2 = RNALightningModule(cfg)
         model2.eval()
+
+        # Explicitly set integration test mode for the second model
+        model2._integration_test_mode = True
+
         loaded_partial = torch.load(partial_ckpt_path)
         missing, unexpected = partial_load_state_dict(model2, loaded_partial, strict=False)
         assert not unexpected, f"[UNIQUE-ERR-PARTIAL-LOAD-UNEXPECTED] Unexpected keys on partial load: {unexpected}"
