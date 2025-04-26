@@ -7,6 +7,7 @@ from typing import Optional, Dict, Any
 import logging
 import os
 import psutil
+import time
 
 # Initialize logger
 logger = logging.getLogger("rna_predict.pipeline.stageC.stage_c_reconstruction")
@@ -195,8 +196,8 @@ def run_stageC_rna_mpnerf(
         ValidationError: If configuration is invalid
         ValueError: If torsion angles have incorrect dimensions
     """
-    print("[DEBUG-ENTRY] Entered run_stageC_rna_mpnerf in", __file__)
     if cfg.model.stageC.debug_logging:
+        logger.debug(f"[DEBUG-ENTRY] Entered run_stageC_rna_mpnerf in {__file__}")
         logger.debug("Entered run_stageC_rna_mpnerf")
         logger.debug(f"predicted_torsions.requires_grad: {getattr(predicted_torsions, 'requires_grad', None)}")
         logger.debug(f"predicted_torsions.grad_fn: {getattr(predicted_torsions, 'grad_fn', None)}")
@@ -245,34 +246,42 @@ def run_stageC_rna_mpnerf(
     scaffolds = skip_missing_atoms(sequence, scaffolds)
     scaffolds = handle_mods(sequence, scaffolds)
     # SYSTEMATIC DEBUGGING: Dump scaffolds fields for residue 3 before rna_fold
-    if hasattr(scaffolds, 'keys'):
-        for k in scaffolds.keys():
-            try:
-                val = scaffolds[k]
-                if isinstance(val, torch.Tensor) and val.shape[0] > 3:
-                    logger.error(f"[DEBUG-SCAFFOLDS-RES3] {k}[3] = {val[3]}")
-                elif isinstance(val, (list, tuple)) and len(val) > 3:
-                    logger.error(f"[DEBUG-SCAFFOLDS-RES3] {k}[3] = {val[3]}")
-                else:
-                    logger.error(f"[DEBUG-SCAFFOLDS-RES3] {k}: type={type(val)}, shape/len={getattr(val, 'shape', getattr(val, '__len__', lambda: None)())}")
-            except Exception as e:
-                logger.error(f"[DEBUG-SCAFFOLDS-RES3] {k}: error accessing index 3: {e}")
-    else:
-        logger.error(f"[DEBUG-SCAFFOLDS-RES3] scaffolds has no keys() method, type={type(scaffolds)}")
-    coords_bb = rna_fold(scaffolds, device=device, do_ring_closure=do_ring_closure)
+    # Only emit these logs if debug_logging is enabled
+    if stage_cfg.debug_logging:
+        if hasattr(scaffolds, 'keys'):
+            for k in scaffolds.keys():
+                try:
+                    val = scaffolds[k]
+                    if isinstance(val, torch.Tensor) and val.shape[0] > 3:
+                        logger.debug(f"[DEBUG-SCAFFOLDS-RES3] {k}[3] = {val[3]}")
+                    elif isinstance(val, (list, tuple)) and len(val) > 3:
+                        logger.debug(f"[DEBUG-SCAFFOLDS-RES3] {k}[3] = {val[3]}")
+                    else:
+                        logger.debug(f"[DEBUG-SCAFFOLDS-RES3] {k}: type={type(val)}, shape/len={getattr(val, 'shape', getattr(val, '__len__', lambda: None)())}")
+                except Exception as e:
+                    logger.debug(f"[DEBUG-SCAFFOLDS-RES3] {k}: error accessing index 3: {e}")
+        else:
+            logger.debug(f"[DEBUG-SCAFFOLDS-RES3] scaffolds has no keys() method, type={type(scaffolds)}")
+    start_time = time.time()
+    coords_bb = rna_fold(scaffolds, device=device, do_ring_closure=do_ring_closure, debug_logging=stage_cfg.debug_logging)
+    elapsed = time.time() - start_time
     # SYSTEMATIC DEBUGGING: Dump backbone coordinates for residue 3 right after rna_fold
     if coords_bb.shape[0] > 3:
-        logger.error(f"[DEBUG-BB-COORDS-RES3] coords_bb[3] = {coords_bb[3]}")
+        if stage_cfg.debug_logging:
+            logger.debug(f"[DEBUG-BB-COORDS-RES3] coords_bb[3] = {coords_bb[3]}")
     else:
-        logger.error(f"[DEBUG-BB-COORDS-RES3] coords_bb shape: {coords_bb.shape}, not enough residues to check residue 3")
+        if stage_cfg.debug_logging:
+            logger.debug(f"[DEBUG-BB-COORDS-RES3] coords_bb shape: {coords_bb.shape}, not enough residues to check residue 3")
     if stage_cfg.debug_logging:
         logger.debug(f"coords_bb requires_grad: {getattr(coords_bb, 'requires_grad', None)}")
         logger.debug(f"coords_bb grad_fn: {getattr(coords_bb, 'grad_fn', None)}")
-    print("[DEBUG-PLACE_BASES] place_bases:", place_bases)
+    if stage_cfg.debug_logging:
+        logger.debug(f"[DEBUG-PLACE_BASES] place_bases: {place_bases}")
     if place_bases:
-        print("[DEBUG-GRAD-PRINT-CALLSITE] coords_bb (input to place_rna_bases) requires_grad:", getattr(coords_bb, 'requires_grad', None), "grad_fn:", getattr(coords_bb, 'grad_fn', None))
+        if stage_cfg.debug_logging:
+            logger.debug(f"[DEBUG-GRAD-PRINT-CALLSITE] coords_bb (input to place_rna_bases) requires_grad: {getattr(coords_bb, 'requires_grad', None)}, grad_fn: {getattr(coords_bb, 'grad_fn', None)}")
         coords_full = place_rna_bases(
-            coords_bb, sequence, scaffolds["angles_mask"], device=device
+            coords_bb, sequence, scaffolds["angles_mask"], device=device, debug_logging=stage_cfg.debug_logging
         )
         if stage_cfg.debug_logging:
             logger.debug(f"coords_full (after place_bases) requires_grad: {getattr(coords_full, 'requires_grad', None)}")
@@ -332,16 +341,12 @@ def run_stageC_rna_mpnerf(
     }
 
     # SYSTEMATIC DEBUGGING: Always emit a summary log and print, regardless of debug_logging
-    print("REACHED STAGE C SUMMARY LOG [run_stageC_rna_mpnerf]")
-    coords_shape = getattr(output['coords'], 'shape', 'unknown')
-    coords_device = getattr(output['coords'], 'device', 'unknown')
-    atom_count = output.get('atom_count', 'unknown')
     logger.info(
         f"StageC completed: sequence={sequence}, residues={len(sequence)}, "
-        f"atoms={atom_count}, coords_shape={coords_shape}, device={coords_device}"
+        f"atoms={output['atom_count']}, coords_shape={output['coords'].shape}, device={output['coords'].device}, elapsed_time={elapsed:.2f}s"
     )
     import logging as _logging
-    _logging.getLogger().info(f"ROOT: StageC completed: sequence={sequence}, residues={len(sequence)}, atoms={atom_count}, coords_shape={coords_shape}, device={coords_device}")
+    _logging.getLogger().info(f"ROOT: StageC completed: sequence={sequence}, residues={len(sequence)}, atoms={output['atom_count']}, coords_shape={output['coords'].shape}, device={output['coords'].device}, elapsed_time={elapsed:.2f}s")
 
     if stage_cfg.debug_logging:
         # Use getattr to safely access shape attribute
