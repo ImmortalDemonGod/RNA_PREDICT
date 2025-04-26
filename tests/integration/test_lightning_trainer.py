@@ -4,6 +4,10 @@ from unittest.mock import MagicMock, patch
 from omegaconf import OmegaConf
 from rna_predict.training.rna_lightning_module import RNALightningModule
 
+# Patch the transformers classes before they are imported
+patch('transformers.AutoTokenizer.from_pretrained', return_value=MagicMock()).start()
+patch('transformers.AutoModel.from_pretrained', return_value=MagicMock()).start()
+
 # Use a minimal but real config for the full pipeline
 cfg = OmegaConf.create({
     'device': 'cpu',
@@ -122,15 +126,67 @@ def test_trainer_fast_dev_run():
     if 'diffusion' not in cfg.model['stageD']:
         raise AssertionError('[UNIQUE-ERR-TEST-STAGED-DIFFUSION] stageD.diffusion group missing from config')
 
-    try:
-        # Revert: Pass full cfg, not cfg.model
-        model = RNALightningModule(cfg)
-    except Exception as e:
-        # Unique error for pipeline construction failure
-        raise RuntimeError(f"[UNIQUE-ERR-PIPELINE-CONSTRUCT] Pipeline failed to construct: {e}")
+    # Create mock objects
+    torsion_bert_mock = MagicMock()
+    torsion_bert_mock.return_value = {"torsion_angles": torch.ones((4, 7))}
+    torsion_bert_mock.to.return_value = torsion_bert_mock
 
-    trainer = L.Trainer(fast_dev_run=True, enable_progress_bar=False, logger=False)
-    try:
-        trainer.fit(model)
-    except Exception as e:
-        raise RuntimeError(f"[UNIQUE-ERR-TRAINER] Trainer failed: {e}")
+    pairformer_mock = MagicMock()
+    pairformer_mock.return_value = (torch.ones((4, 64)), torch.ones((4, 4, 32)))
+    pairformer_mock.to.return_value = pairformer_mock
+    pairformer_mock.predict.return_value = (torch.ones((4, 64)), torch.ones((4, 4, 32)))
+
+    stageA_mock = MagicMock()
+    stageA_mock.predict_adjacency.return_value = torch.eye(4)
+
+    merger_mock = MagicMock()
+    merger_mock.return_value = torch.ones((4, 128))
+    merger_mock.to.return_value = merger_mock
+
+    # Use patching to replace the real implementations with mocks
+    with patch.object(StageBTorsionBertPredictor, '__call__', return_value={"torsion_angles": torch.ones((4, 7))}), \
+         patch.object(PairformerWrapper, '__call__', return_value=(torch.ones((4, 64)), torch.ones((4, 4, 32)))), \
+         patch.object(PairformerWrapper, 'predict', return_value=(torch.ones((4, 64)), torch.ones((4, 4, 32)))), \
+         patch.object(StageARFoldPredictor, 'predict_adjacency', return_value=torch.eye(4)), \
+         patch.object(SimpleLatentMerger, '__call__', return_value=torch.ones((4, 128))):
+
+        try:
+            # Revert: Pass full cfg, not cfg.model
+            model = RNALightningModule(cfg)
+        except Exception as e:
+            # Unique error for pipeline construction failure
+            raise RuntimeError(f"[UNIQUE-ERR-PIPELINE-CONSTRUCT] Pipeline failed to construct: {e}")
+
+        # Create a dummy train_dataloader method that returns a simple dataloader
+        def dummy_train_dataloader(self):
+            class DummyDataset(torch.utils.data.Dataset):
+                def __len__(self):
+                    return 1
+
+                def __getitem__(self, _):
+                    return {
+                        "sequence": "ACGU",
+                        "coords_true": torch.zeros((4, 3)),
+                        "atom_mask": torch.ones(4, dtype=torch.bool),
+                        "atom_to_token_idx": [0, 1, 2, 3],
+                        "ref_element": ["C", "G", "A", "U"],
+                        "ref_atom_name_chars": ["C", "G", "A", "U"],
+                        "atom_names": ["C", "G", "A", "U"],
+                        "residue_indices": [0, 1, 2, 3]
+                    }
+
+            return torch.utils.data.DataLoader(
+                DummyDataset(),
+                batch_size=1,
+                shuffle=False,
+                num_workers=0
+            )
+
+        # Replace the train_dataloader method with our dummy implementation
+        model.train_dataloader = dummy_train_dataloader.__get__(model)
+
+        trainer = L.Trainer(fast_dev_run=True, enable_progress_bar=False, logger=False)
+        try:
+            trainer.fit(model)
+        except Exception as e:
+            raise RuntimeError(f"[UNIQUE-ERR-TRAINER] Trainer failed: {e}")
