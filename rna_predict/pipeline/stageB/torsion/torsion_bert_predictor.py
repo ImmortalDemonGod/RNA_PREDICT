@@ -229,7 +229,6 @@ class StageBTorsionBertPredictor(nn.Module):
                 "attention_mask": torch.ones((1, len(sequence) or 1), dtype=torch.long, device=self.device)
             }
 
-    @torch.no_grad()
     def predict_angles_from_sequence(self, sequence: str) -> torch.Tensor:
         """Predicts torsion angles for a given RNA sequence."""
         if not sequence:
