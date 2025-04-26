@@ -153,7 +153,8 @@ class RNAPredictor:
             }
 
             # Add coordinate columns
-            coords_np = coords.cpu().numpy()
+            # Detach the tensor before converting to numpy to avoid gradient issues
+            coords_np = coords.detach().cpu().numpy()
             for i in range(1, repeats + 1):
                 base_data[f"x_{i}"] = coords_np[:, 0]
                 base_data[f"y_{i}"] = coords_np[:, 1]
