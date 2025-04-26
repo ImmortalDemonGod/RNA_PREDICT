@@ -272,6 +272,6 @@ def test_main_happy_path(temp_dir: Path) -> None:
     # However, main sets output_dir to "generated_tests" in the current directory,
     # so we check just the call with folder_path = temp_dir, output_dir = Path("generated_tests").
     mock_pf.assert_called_once()
-    args, kwargs = mock_pf.call_args
+    args = mock_pf.call_args[0]
     assert args[0] == Path(temp_dir)
     assert str(args[1]) == "generated_tests"
