@@ -4,7 +4,7 @@ Memory optimization utility functions for stageD.
 
 import torch
 import gc
-from typing import Dict, Tuple, Any
+from typing import Dict, Tuple, Any, Union
 import warnings
 
 def clear_memory():
@@ -62,5 +62,90 @@ def preprocess_inputs(
 
     return processed_coords, processed_embeddings
 
-# Removed apply_memory_fixes function. Memory settings should be controlled via Hydra config.
-# Removed run_stageD_with_memory_fixes function. Core logic moved to run_stageD.py.
+def apply_memory_fixes(diffusion_config: Dict[str, Any]) -> Dict[str, Any]:
+    """Apply memory optimization fixes to the diffusion configuration.
+
+    Args:
+        diffusion_config: The original diffusion configuration.
+
+    Returns:
+        The modified diffusion configuration with memory optimizations applied.
+    """
+    # Create a copy of the config to avoid modifying the original
+    fixed_config = diffusion_config.copy() if isinstance(diffusion_config, dict) else diffusion_config
+
+    # Apply memory-saving configuration changes
+    if isinstance(fixed_config, dict):
+        # Reduce number of diffusion steps
+        if 'inference' in fixed_config:
+            fixed_config['inference']['num_steps'] = 5
+
+        # Reduce transformer complexity
+        if 'transformer' in fixed_config:
+            fixed_config['transformer']['n_heads'] = 2
+            fixed_config['transformer']['n_blocks'] = 1
+
+        # Reduce conditioning complexity
+        if 'conditioning' in fixed_config:
+            fixed_config['conditioning']['hidden_dim'] = 16
+            fixed_config['conditioning']['num_layers'] = 2
+
+        # Reduce manager complexity
+        if 'manager' in fixed_config:
+            fixed_config['manager']['hidden_dim'] = 16
+            fixed_config['manager']['num_layers'] = 2
+
+    return fixed_config
+
+
+def run_stageD_with_memory_fixes(
+    partial_coords: torch.Tensor,
+    trunk_embeddings: Dict[str, Any],
+    diffusion_config: Dict[str, Any],
+    mode: str = "inference",
+    device: str = "cuda"
+) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor, torch.Tensor]]:
+    """Run Stage D with memory optimizations applied.
+
+    Args:
+        partial_coords: Input coordinates tensor.
+        trunk_embeddings: Dictionary of trunk embeddings.
+        diffusion_config: Diffusion configuration.
+        mode: Mode to run in ("inference" or "train").
+        device: Device to run on ("cuda" or "cpu").
+
+    Returns:
+        Refined coordinates tensor.
+    """
+    # Import here to avoid circular imports
+    from rna_predict.pipeline.stageD.diffusion.run_stageD_unified import run_stageD_diffusion
+    from rna_predict.pipeline.stageD.diffusion.utils import DiffusionConfig
+
+    # Clear memory before starting
+    clear_memory()
+
+    # Apply memory fixes to config
+    fixed_config = apply_memory_fixes(diffusion_config)
+
+    # Preprocess inputs to reduce memory usage
+    processed_coords, processed_embeddings = preprocess_inputs(
+        partial_coords, trunk_embeddings, max_seq_len=25
+    )
+
+    # Create DiffusionConfig object
+    config = DiffusionConfig(
+        partial_coords=processed_coords,
+        trunk_embeddings=processed_embeddings,
+        diffusion_config=fixed_config,
+        mode=mode,
+        device=device,
+        debug_logging=True
+    )
+
+    # Run Stage D with memory-optimized inputs and config
+    refined_coords = run_stageD_diffusion(config=config)
+
+    # Clear memory after completion
+    clear_memory()
+
+    return refined_coords
