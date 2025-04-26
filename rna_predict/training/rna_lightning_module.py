@@ -4,13 +4,19 @@ import numpy as np
 from typing import Optional
 from omegaconf import DictConfig
 from rna_predict.pipeline.merger.simple_latent_merger import LatentInputs
-import snoop
 from rna_predict.pipeline.stageA.adjacency.rfold_predictor import StageARFoldPredictor
 from rna_predict.pipeline.stageB.torsion.torsion_bert_predictor import StageBTorsionBertPredictor
 from rna_predict.pipeline.stageB.pairwise.pairformer_wrapper import PairformerWrapper
 from rna_predict.pipeline.stageC.stage_c_reconstruction import StageCReconstruction, run_stageC
 from rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager import ProtenixDiffusionManager
 from rna_predict.pipeline.merger.simple_latent_merger import SimpleLatentMerger
+import logging
+import sys
+import os
+import shutil
+import urllib.request
+import zipfile
+logger = logging.getLogger("rna_predict.training.rna_lightning_module")
 
 class RNALightningModule(L.LightningModule):
     """
@@ -30,43 +36,89 @@ class RNALightningModule(L.LightningModule):
         # Dummy layer for integration test to ensure trainability
         self._integration_test_dummy = torch.nn.Linear(16, 21 * 3)
 
+    def _download_file(self, url: str, dest_path: str, debug_logging: bool = False):
+        if os.path.isfile(dest_path):
+            if dest_path.lower().endswith(".zip"):
+                try:
+                    with zipfile.ZipFile(dest_path, "r") as zip_ref:
+                        bad_file_test = zip_ref.testzip()
+                        if bad_file_test is not None:
+                            raise zipfile.BadZipFile(f"Corrupted member: {bad_file_test}")
+                except zipfile.BadZipFile:
+                    if debug_logging:
+                        logger.warning(f"[Warning] Existing .zip is invalid or corrupted. Re-downloading: {dest_path}")
+                    os.remove(dest_path)
+                else:
+                    if debug_logging:
+                        logger.info(f"[Info] File already exists and is valid zip, skipping download: {dest_path}")
+                    return
+            else:
+                if debug_logging:
+                    logger.info(f"[Info] File already exists, skipping download: {dest_path}")
+                return
+        if debug_logging:
+            logger.info(f"[Download] Fetching {url}")
+        with urllib.request.urlopen(url) as r, open(dest_path, "wb") as f:
+            shutil.copyfileobj(r, f)
+        if debug_logging:
+            logger.info(f"[Download] Saved to {dest_path}")
+
+    def _unzip_file(self, zip_path: str, extract_dir: str, debug_logging: bool = False):
+        if not os.path.isfile(zip_path):
+            if debug_logging:
+                logger.warning(f"[Warning] Zip file not found: {zip_path}")
+            return
+        if debug_logging:
+            logger.info(f"[Unzip] Extracting {zip_path} into {extract_dir}")
+        os.makedirs(extract_dir, exist_ok=True)
+        with zipfile.ZipFile(zip_path, "r") as zip_ref:
+            zip_ref.extractall(extract_dir)
+
     def _instantiate_pipeline(self, cfg):
         """
         Instantiate all pipeline stages as module attributes using Hydra config.
         This is the single source of pipeline construction, following Hydra best practices.
         """
-
-
-        print("[DEBUG-LM] torch.cuda.is_available():", torch.cuda.is_available())
-        print("[DEBUG-LM] torch.backends.mps.is_available():", getattr(torch.backends, 'mps', None) and torch.backends.mps.is_available())
-        print("[DEBUG-LM] cfg.device:", getattr(cfg, 'device', None))
-
-        print("[DEBUG-LM] cfg.model.stageB:", getattr(cfg.model, 'stageB', None))
+        logger.debug("[DEBUG-LM] torch.cuda.is_available(): %s", torch.cuda.is_available())
+        logger.debug("[DEBUG-LM] torch.backends.mps.is_available(): %s", getattr(torch.backends, 'mps', None) and torch.backends.mps.is_available())
+        logger.debug("[DEBUG-LM] cfg.device: %s", getattr(cfg, 'device', None))
+        logger.debug("[DEBUG-LM] cfg.model.stageB: %s", getattr(cfg.model, 'stageB', None))
         if hasattr(cfg.model, 'stageB'):
-            print("[DEBUG-LM] cfg.model.stageB keys:", list(cfg.model.stageB.keys()) if hasattr(cfg.model.stageB, 'keys') else str(cfg.model.stageB))
+            logger.debug("[DEBUG-LM] cfg.model.stageB keys: %s", list(cfg.model.stageB.keys()) if hasattr(cfg.model.stageB, 'keys') else str(cfg.model.stageB))
             if hasattr(cfg.model.stageB, 'pairformer'):
-                print("[DEBUG-LM] cfg.model.stageB.pairformer keys:", list(cfg.model.stageB.pairformer.keys()) if hasattr(cfg.model.stageB.pairformer, 'keys') else str(cfg.model.stageB.pairformer))
+                logger.debug("[DEBUG-LM] cfg.model.stageB.pairformer keys: %s", list(cfg.model.stageB.pairformer.keys()) if hasattr(cfg.model.stageB.pairformer, 'keys') else str(cfg.model.stageB.pairformer))
             else:
-                print("[DEBUG-LM] cfg.model.stageB.pairformer: NOT FOUND")
+                logger.debug("[DEBUG-LM] cfg.model.stageB.pairformer: NOT FOUND")
         else:
-            print("[DEBUG-LM] cfg.model.stageB: NOT FOUND")
+            logger.debug("[DEBUG-LM] cfg.model.stageB: NOT FOUND")
 
         self.device_ = torch.device(cfg.device) if hasattr(cfg, 'device') else torch.device('cpu')
-        print(f"[DEBUG-LM] self.device_ in RNALightningModule: {self.device_}")
-        # Ensure Stage A is always moved to the same device as the rest of the model
-        self.stageA = StageARFoldPredictor(cfg.model.stageA, self.device_)
+        logger.debug("[DEBUG-LM] self.device_ in RNALightningModule: %s", self.device_)
+
+        # --- Stage A Checkpoint Handling ---
+        stageA_cfg = cfg.model.stageA
+        checkpoint_dir = os.path.dirname(stageA_cfg.checkpoint_path)
+        os.makedirs(checkpoint_dir, exist_ok=True)
+        checkpoint_url = stageA_cfg.checkpoint_url
+        checkpoint_zip = stageA_cfg.checkpoint_zip_path
+        debug_logging = getattr(stageA_cfg, 'debug_logging', False)
+        self._download_file(checkpoint_url, checkpoint_zip, debug_logging)
+        self._unzip_file(checkpoint_zip, os.path.dirname(checkpoint_dir), debug_logging)
+        # --- End Stage A Checkpoint Handling ---
+
+        self.stageA = StageARFoldPredictor(stageA_cfg, self.device_)
         if hasattr(self.stageA, 'model'):
-            print(f"[DEBUG-LM] After StageARFoldPredictor init, self.stageA.device: {getattr(self.stageA, 'device', None)}")
-            print(f"[DEBUG-LM] After StageARFoldPredictor init, self.stageA.model.device: {getattr(getattr(self.stageA, 'model', None), 'device', 'NO DEVICE ATTR')}")
+            logger.debug("[DEBUG-LM] After StageARFoldPredictor init, self.stageA.device: %s", getattr(self.stageA, 'device', None))
+            logger.debug("[DEBUG-LM] After StageARFoldPredictor init, self.stageA.model.device: %s", getattr(getattr(self.stageA, 'model', None), 'device', 'NO DEVICE ATTR'))
             self.stageA.model.to(self.device_)
         self.stageB_torsion = StageBTorsionBertPredictor(cfg.model.stageB.torsion_bert)
-        print("[DEBUG-LM] About to access cfg.model.stageB.pairformer. Keys:", list(cfg.model.stageB.keys()) if hasattr(cfg.model.stageB, 'keys') else str(cfg.model.stageB))
+        logger.debug("[DEBUG-LM] About to access cfg.model.stageB.pairformer. Keys: %s", list(cfg.model.stageB.keys()) if hasattr(cfg.model.stageB, 'keys') else str(cfg.model.stageB))
         if "pairformer" not in cfg.model.stageB:
             raise ValueError("[UNIQUE-ERR-PAIRFORMER-MISSING] pairformer not found in cfg.model.stageB. Available keys: " + str(list(cfg.model.stageB.keys())))
         self.stageB_pairformer = PairformerWrapper(cfg.model.stageB.pairformer)
         # Use unified Stage C entrypoint (mp_nerf or fallback) per config
         self.stageC = StageCReconstruction()
-        print("[DEBUG-LM-STAGED] cfg.model.stageD:", getattr(cfg.model, 'stageD', None))
+        logger.debug("[DEBUG-LM-STAGED] cfg.model.stageD: %s", getattr(cfg.model, 'stageD', None))
         # Pass the full config to ProtenixDiffusionManager, not just cfg.model
         self.stageD = ProtenixDiffusionManager(cfg)
 
@@ -90,32 +142,56 @@ class RNALightningModule(L.LightningModule):
         })
 
         # Debug: Print model.stageB and model.stageB.torsion_bert config for systematic debugging
-        print(f"[DEBUG-RNA-LM-STAGEB] model.stageB: {getattr(cfg.model, 'stageB', None)}")
-        print(f"[DEBUG-RNA-LM-STAGEB] model.stageB.torsion_bert: {getattr(getattr(cfg.model, 'stageB', None), 'torsion_bert', None)}")
+        logger.debug("[DEBUG-RNA-LM-STAGEB] model.stageB: %s", getattr(cfg.model, 'stageB', None))
+        logger.debug("[DEBUG-RNA-LM-STAGEB] model.stageB.torsion_bert: %s", getattr(getattr(cfg.model, 'stageB', None), 'torsion_bert', None))
 
-    ###@snoop
+    #@snoop
     def forward(self, batch, **kwargs):
-        print("[DEBUG-LM] Entered forward")
-        print(f"[DEBUG-LM] batch keys: {list(batch.keys())}")
+        print("[DEBUG-ENTRY] Entered forward")
+        sys.stdout.flush()
+        logger.debug("[DEBUG-LM] Entered forward")
+        logger.debug("[DEBUG-LM] batch keys: %s", list(batch.keys()))
         sequence = batch["sequence"][0]  # assumes batch size 1 for now
-        print(f"[DEBUG-LM] StageA input sequence: {sequence}")
+        logger.debug("[DEBUG-LM] StageA input sequence: %s", sequence)
         adj = self.stageA.predict_adjacency(sequence)
-        print(f"[DEBUG-LM] StageA output adj type: {type(adj)}")
+        logger.debug("[DEBUG-LM] StageA output adj type: %s", type(adj))
         outB_torsion = self.stageB_torsion(sequence, adjacency=adj)
-        print(f"[DEBUG-LM] StageB_torsion output keys: {list(outB_torsion.keys())}")
+        logger.debug("[DEBUG-LM] StageB_torsion output keys: %s", list(outB_torsion.keys()))
         torsion_angles = outB_torsion["torsion_angles"]
-        print(f"[DEBUG-LM] torsion_angles shape: {getattr(torsion_angles, 'shape', None)}")
+        logger.debug("[DEBUG-LM][STAGEB] torsion_angles.requires_grad: %s", getattr(torsion_angles, 'requires_grad', None))
+        logger.debug("[DEBUG-LM][STAGEB] torsion_angles.grad_fn: %s", getattr(torsion_angles, 'grad_fn', None))
+        logger.debug("[DEBUG-LM][STAGEB] torsion_angles.device: %s", getattr(torsion_angles, 'device', None))
+        print("[EXPERIMENT-STAGEB] torsion_angles.requires_grad:", getattr(torsion_angles, 'requires_grad', None))
+        print("[EXPERIMENT-STAGEB] torsion_angles.grad_fn:", getattr(torsion_angles, 'grad_fn', None))
+        print("[EXPERIMENT-STAGEB] torsion_angles.device:", getattr(torsion_angles, 'device', None))
+        sys.stdout.flush()
+        print("REACHED STAGEB PRE-STAGEC PRINTS")
+        sys.stdout.flush()
+        logger.debug("[DEBUG-LM] [PRE-STAGEC] torsion_angles requires_grad: %s", getattr(torsion_angles, 'requires_grad', None))
+        logger.debug("[DEBUG-LM] [PRE-STAGEC] torsion_angles grad_fn: %s", getattr(torsion_angles, 'grad_fn', None))
+        logger.debug("[DEBUG-LM] [PRE-STAGEC] torsion_angles device: %s", getattr(torsion_angles, 'device', None))
+        print("[EXPERIMENT-PRE-STAGEC] torsion_angles.requires_grad:", getattr(torsion_angles, 'requires_grad', None))
+        print("[EXPERIMENT-PRE-STAGEC] torsion_angles.grad_fn:", getattr(torsion_angles, 'grad_fn', None))
+        print("[EXPERIMENT-PRE-STAGEC] torsion_angles.device:", getattr(torsion_angles, 'device', None))
+        sys.stdout.flush()
         outB_pairformer = self.stageB_pairformer.predict(sequence, adjacency=adj)
-        print(f"[DEBUG-LM] StageB_pairformer output type: {type(outB_pairformer)}")
-        # Use unified Stage C entrypoint (mp_nerf or fallback) per config
-        print("[DEBUG-LM] Calling run_stageC entrypoint with debug_logging:", getattr(self.cfg.model.stageC, 'debug_logging', None))
+        logger.debug("[DEBUG-LM] StageB_pairformer output type: %s", type(outB_pairformer))
+        # Additional: Check for .detach(), .cpu(), .numpy(), .clone(), .to(), or torch.no_grad() in this section
+        logger.debug("[DEBUG-LM][CHECK] About to call run_stageC with torsion_angles id: %s", id(torsion_angles))
         outC = run_stageC(sequence=sequence, torsion_angles=torsion_angles, cfg=self.cfg)
-        print(f"[DEBUG-LM] run_stageC output keys: {list(outC.keys())}")
+        logger.debug("[DEBUG-LM] run_stageC output keys: %s", list(outC.keys()))
+        logger.debug("[DEBUG-LM][POST-STAGEC] torsion_angles.requires_grad: %s", getattr(torsion_angles, 'requires_grad', None))
+        logger.debug("[DEBUG-LM][POST-STAGEC] torsion_angles.grad_fn: %s", getattr(torsion_angles, 'grad_fn', None))
+        logger.debug("[DEBUG-LM][POST-STAGEC] torsion_angles.device: %s", getattr(torsion_angles, 'device', None))
         coords = outC["coords"]
-        print(f"[DEBUG-LM] coords shape: {getattr(coords, 'shape', None)}")
+        logger.debug("[DEBUG-LM] coords shape: %s", getattr(coords, 'shape', None))
+        logger.debug("[DEBUG-LM] coords requires_grad: %s", getattr(coords, 'requires_grad', None))
+        logger.debug("[DEBUG-LM] coords grad_fn: %s", getattr(coords, 'grad_fn', None))
         device = getattr(self.cfg, 'device', outB_pairformer[0].device)
         coords = coords.to(device)
-        print(f"[DEBUG-LM] coords_init shape (after .to(device)): {coords.shape}, dtype: {coords.dtype}, device: {coords.device}")
+        logger.debug("[DEBUG-LM] coords_init shape (after .to(device)): %s, dtype: %s, device: %s", coords.shape, coords.dtype, coords.device)
+        logger.debug("[DEBUG-LM] coords_init requires_grad (after .to(device)): %s", getattr(coords, 'requires_grad', None))
+        logger.debug("[DEBUG-LM] coords_init grad_fn (after .to(device)): %s", getattr(coords, 'grad_fn', None))
         s_emb, z_emb = outB_pairformer
         s_trunk = s_emb.unsqueeze(0)
         z_trunk = z_emb.unsqueeze(0)
@@ -133,9 +209,9 @@ class RNALightningModule(L.LightningModule):
         else:
             override_input_features = input_feature_dict
         self.debug_print_devices(override_input_features)
-        print(f"[DEBUG-LM] s_trunk shape: {s_trunk.shape}, dtype: {s_trunk.dtype}, device: {s_trunk.device}")
-        print(f"[DEBUG-LM] z_trunk shape: {z_trunk.shape}, dtype: {z_trunk.dtype}, device: {z_trunk.device}")
-        print(f"[DEBUG-LM] s_inputs shape: {s_inputs.shape}, dtype: {s_inputs.dtype}, device: {s_inputs.device}")
+        logger.debug("[DEBUG-LM] s_trunk shape: %s, dtype: %s, device: %s", s_trunk.shape, s_trunk.dtype, s_trunk.device)
+        logger.debug("[DEBUG-LM] z_trunk shape: %s, dtype: %s, device: %s", z_trunk.shape, z_trunk.dtype, z_trunk.device)
+        logger.debug("[DEBUG-LM] s_inputs shape: %s, dtype: %s, device: %s", s_inputs.shape, s_inputs.dtype, s_inputs.device)
         # --- Unified Latent Merger Integration ---
         inputs = LatentInputs(
             adjacency=adj,
@@ -145,7 +221,7 @@ class RNALightningModule(L.LightningModule):
             partial_coords=coords,
         )
         unified_latent = self.latent_merger(inputs)
-        print(f"[DEBUG-LM] unified_latent shape: {unified_latent.shape if unified_latent is not None else None}")
+        logger.debug("[DEBUG-LM] unified_latent shape: %s", unified_latent.shape if unified_latent is not None else None)
         # Stage D: Pass unified_latent as condition (update Stage D logic as needed)
         # Example: self.stageD(coords, unified_latent, ...)
         # TODO: Update Stage D to accept and use unified_latent
@@ -164,45 +240,52 @@ class RNALightningModule(L.LightningModule):
             output["atom_metadata"] = outC["atom_metadata"]
         if outC.get("atom_count") is not None:
             output["atom_count"] = outC["atom_count"]
-        print(f"[DEBUG-LM-FORWARD-RETURN] Returning output with keys: {list(output.keys())}")
+        logger.debug("[DEBUG-LM-FORWARD-RETURN] Returning output with keys: %s", list(output.keys()))
         if output.get("atom_metadata") is not None:
-            print(f"[DEBUG-LM-FORWARD-RETURN] output['atom_metadata'] keys: {list(output['atom_metadata'].keys())}")
+            logger.debug("[DEBUG-LM-FORWARD-RETURN] output['atom_metadata'] keys: %s", list(output['atom_metadata'].keys()))
         else:
-            print("[DEBUG-LM-FORWARD-RETURN] output['atom_metadata'] is None")
+            logger.debug("[DEBUG-LM-FORWARD-RETURN] output['atom_metadata'] is None")
         return output
 
     #@snoop
     def training_step(self, batch, batch_idx):
-        print("[DEBUG-LM] Entered training_step")
+        print("[DEBUG-ENTRY] Entered training_step")
+        sys.stdout.flush()
+        logger.debug("[DEBUG-LM] Entered training_step")
         # Print requires_grad for all model parameters
-        print("[DEBUG][training_step] Model parameters requires_grad status:")
+        logger.debug("[DEBUG][training_step] Model parameters requires_grad status:")
         for name, param in self.named_parameters():
-            print(f"  {name}: requires_grad={param.requires_grad}")
+            logger.debug("  %s: requires_grad=%s", name, param.requires_grad)
 
         input_tensor = batch["coords_true"]
         target_tensor = batch["coords_true"]
-        print(f"[DEBUG-LM] input_tensor.shape: {input_tensor.shape}, dtype: {input_tensor.dtype}")
-        print(f"[DEBUG-LM] target_tensor.shape: {target_tensor.shape}, dtype: {target_tensor.dtype}")
+        logger.debug("[DEBUG-LM] input_tensor.shape: %s, dtype: %s", input_tensor.shape, input_tensor.dtype)
+        logger.debug("[DEBUG-LM] target_tensor.shape: %s, dtype: %s", target_tensor.shape, target_tensor.dtype)
         output = self.forward(batch)
-        print(f"[DEBUG-LM] output.keys(): {list(output.keys())}")
-        print(f"[DEBUG-LM] output['atom_metadata']: {output.get('atom_metadata', None)}")
-        print(f"[DEBUG-LM] batch.keys(): {list(batch.keys())}")
+        logger.debug("[DEBUG-LM] output.keys(): %s", list(output.keys()))
+        logger.debug("[DEBUG-LM] output['atom_metadata']: %s", output.get('atom_metadata', None))
+        logger.debug("[DEBUG-LM] batch.keys(): %s", list(batch.keys()))
         for k in ["atom_mask", "atom_names", "residue_indices"]:
             if k in batch:
                 v = batch[k]
                 if hasattr(v, 'shape'):
-                    print(f"[DEBUG-LM] batch['{k}'].shape: {v.shape}")
+                    logger.debug("[DEBUG-LM] batch['%s'].shape: %s", k, v.shape)
                 else:
-                    print(f"[DEBUG-LM] batch['{k}']: {v}")
+                    logger.debug("[DEBUG-LM] batch['%s']: %s", k, v)
         predicted_coords = output["coords"] if isinstance(output, dict) and "coords" in output else output
-        print(f"[DEBUG-LM] predicted_coords.requires_grad: {getattr(predicted_coords, 'requires_grad', 'N/A')}, grad_fn: {getattr(predicted_coords, 'grad_fn', 'N/A')}")
+        logger.debug("[DEBUG-LM][GRAD-CHECK] Stage C predicted_coords.requires_grad: %s", getattr(predicted_coords, 'requires_grad', None))
+        logger.debug("[DEBUG-LM][GRAD-CHECK] Stage C predicted_coords.grad_fn: %s", getattr(predicted_coords, 'grad_fn', None))
+        print("[DEBUG-PRE-ERROR] About to check differentiability")
+        sys.stdout.flush()
+        assert getattr(predicted_coords, 'requires_grad', False), "Stage C output coords must be differentiable!"
+        assert getattr(predicted_coords, 'grad_fn', None) is not None, "Stage C output coords must have a grad_fn!"
         pred_atom_metadata = output.get("atom_metadata", None)
         # Force systematic masking if atom_metadata is present
         if pred_atom_metadata is not None:
-            print("[DEBUG-LM] Running systematic masking logic!")
+            logger.debug("[DEBUG-LM] Running systematic masking logic!")
             # Gather predicted atom keys
             pred_keys = list(zip(pred_atom_metadata["residue_indices"], pred_atom_metadata["atom_names"]))
-            print(f"[DEBUG-LM] pred_keys (first 10): {pred_keys[:10]}")
+            logger.debug("[DEBUG-LM] pred_keys (first 10): %s", pred_keys[:10])
             # Gather target atom keys from batch metadata if available
             batch_atom_names = batch.get("atom_names", None)
             batch_res_indices = batch.get("residue_indices", None)
@@ -219,16 +302,16 @@ class RNALightningModule(L.LightningModule):
                 for idx in mask_indices:
                     if idx < len(pred_atom_metadata["residue_indices"]):
                         tgt_keys.append((pred_atom_metadata["residue_indices"][idx], pred_atom_metadata["atom_names"][idx]))
-            print(f"[DEBUG-LM] tgt_keys (first 10): {tgt_keys[:10]}")
+            logger.debug("[DEBUG-LM] tgt_keys (first 10): %s", tgt_keys[:10])
             # Build boolean mask over predicted atoms for those present in target
             tgt_keys_set = set(tgt_keys)
             mask_pred_np = np.array([(ri, an) in tgt_keys_set for ri, an in pred_keys])
             mask_pred = torch.from_numpy(mask_pred_np).to(predicted_coords.device)
             mask_pred = mask_pred.bool()
             n_matched = mask_pred.sum().item()
-            print(f"[DEBUG-LM] n_matched: {n_matched} / {len(pred_keys)}")
+            logger.debug("[DEBUG-LM] n_matched: %s / %s", n_matched, len(pred_keys))
             if n_matched == 0:
-                print("[DEBUG-LM][WARNING] No matched atoms found! Setting loss to zero.")
+                logger.debug("[DEBUG-LM][WARNING] No matched atoms found! Setting loss to zero.")
                 loss = torch.tensor(0.0, device=predicted_coords.device, requires_grad=True)
             else:
                 pred_sel = predicted_coords[mask_pred]
@@ -239,29 +322,29 @@ class RNALightningModule(L.LightningModule):
                 true_sel_all = target_tensor[batch["atom_mask"].bool()]
                 true_sel = true_sel_all[target_indices_tensor]
                 # Instrumentation for debugging requires_grad chain
-                print(f"[DEBUG-LM] pred_sel.requires_grad: {pred_sel.requires_grad}, pred_sel.grad_fn: {getattr(pred_sel, 'grad_fn', None)}")
-                print(f"[DEBUG-LM] true_sel.requires_grad: {true_sel.requires_grad}, true_sel.grad_fn: {getattr(true_sel, 'grad_fn', None)}")
-                print(f"[DEBUG-LM] predicted_coords.requires_grad: {predicted_coords.requires_grad}, predicted_coords.grad_fn: {getattr(predicted_coords, 'grad_fn', None)}")
-                print(f"[DEBUG-LM] target_tensor.requires_grad: {target_tensor.requires_grad}, target_tensor.grad_fn: {getattr(target_tensor, 'grad_fn', None)}")
-                print(f"[DEBUG-LM] mask_pred dtype: {mask_pred.dtype}, device: {mask_pred.device}")
-                print(f"[DEBUG-LM] target_indices_tensor dtype: {target_indices_tensor.dtype}, device: {target_indices_tensor.device}")
-                print(f"[DEBUG-LM] true_sel_all.requires_grad: {true_sel_all.requires_grad}, true_sel_all.grad_fn: {getattr(true_sel_all, 'grad_fn', None)}")
+                logger.debug("[DEBUG-LM] pred_sel.requires_grad: %s, pred_sel.grad_fn: %s", pred_sel.requires_grad, getattr(pred_sel, 'grad_fn', None))
+                logger.debug("[DEBUG-LM] true_sel.requires_grad: %s, true_sel.grad_fn: %s", true_sel.requires_grad, getattr(true_sel, 'grad_fn', None))
+                logger.debug("[DEBUG-LM] predicted_coords.requires_grad: %s, predicted_coords.grad_fn: %s", predicted_coords.requires_grad, getattr(predicted_coords, 'grad_fn', None))
+                logger.debug("[DEBUG-LM] target_tensor.requires_grad: %s, target_tensor.grad_fn: %s", target_tensor.requires_grad, getattr(target_tensor, 'grad_fn', None))
+                logger.debug("[DEBUG-LM] mask_pred dtype: %s, device: %s", mask_pred.dtype, mask_pred.device)
+                logger.debug("[DEBUG-LM] target_indices_tensor dtype: %s, device: %s", target_indices_tensor.dtype, target_indices_tensor.device)
+                logger.debug("[DEBUG-LM] true_sel_all.requires_grad: %s, true_sel_all.grad_fn: %s", true_sel_all.requires_grad, getattr(true_sel_all, 'grad_fn', None))
                 if pred_sel.shape[0] != true_sel.shape[0]:
-                    print(f"[DEBUG-LM][MISMATCH-FILTERED] pred_sel.shape={pred_sel.shape}, true_sel.shape={true_sel.shape}")
+                    logger.debug("[DEBUG-LM][MISMATCH-FILTERED] pred_sel.shape=%s, true_sel.shape=%s", pred_sel.shape, true_sel.shape)
                     loss = torch.tensor(0.0, device=pred_sel.device, requires_grad=True)
                 else:
                     loss = ((pred_sel - true_sel) ** 2).mean()
-                    print(f"[DEBUG-LM] Masked-aligned filtered loss value: {loss.item()}")
+                    logger.debug("[DEBUG-LM] Masked-aligned filtered loss value: %s", loss.item())
         else:
-            print("[DEBUG-LM] Systematic masking not possible: atom_metadata missing!")
+            logger.debug("[DEBUG-LM] Systematic masking not possible: atom_metadata missing!")
             real_target_coords = target_tensor[batch["atom_mask"].bool()]
             if predicted_coords.shape[0] != real_target_coords.shape[0]:
-                print(f"[DEBUG-LM][MISMATCH] predicted_coords.shape[0]={predicted_coords.shape[0]}, real_target_coords.shape[0]={real_target_coords.shape[0]}")
+                logger.debug("[DEBUG-LM][MISMATCH] predicted_coords.shape[0]=%s, real_target_coords.shape[0]=%s", predicted_coords.shape[0], real_target_coords.shape[0])
                 loss = torch.tensor(0.0, device=predicted_coords.device, requires_grad=True)
             else:
                 loss = ((predicted_coords - real_target_coords) ** 2).mean()
-                print(f"[DEBUG-LM] Masked-aligned loss value: {loss.item()}")
-        print(f"[DEBUG-LM] loss.requires_grad: {loss.requires_grad}, loss.grad_fn: {loss.grad_fn}")
+                logger.debug("[DEBUG-LM] Masked-aligned loss value: %s", loss.item())
+        logger.debug("[DEBUG-LM] loss.requires_grad: %s, loss.grad_fn: %s", loss.requires_grad, loss.grad_fn)
         return {"loss": loss}
 
     def train_dataloader(self):
@@ -313,4 +396,4 @@ class RNALightningModule(L.LightningModule):
             for i, v in enumerate(obj):
                 self.debug_print_devices(v, prefix=f"{prefix}[{i}]")
         elif hasattr(obj, 'device'):
-            print(f"[DEBUG-LM] {prefix} device: {obj.device}")
+            logger.debug("[DEBUG-LM] %s device: %s", prefix, obj.device)
