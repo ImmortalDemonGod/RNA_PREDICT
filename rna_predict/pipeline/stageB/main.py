@@ -23,11 +23,19 @@ def run_stageB_combined(
     cfg: Optional[DictConfig] = None
 ) -> Dict[str, Any]:
     # Debug logging
-    logger.info(f"[DEBUG] Starting run_stageB_combined with sequence: {sequence}")
-    logger.info(f"[DEBUG] torsion_bert_model: {torsion_bert_model}")
-    logger.info(f"[DEBUG] pairformer_model: {pairformer_model}")
-    logger.info(f"[DEBUG] device: {device}")
-    logger.info(f"[DEBUG] init_z_from_adjacency: {init_z_from_adjacency}")
+    debug_logging = False
+    if hasattr(cfg, 'model') and hasattr(cfg.model, 'stageB') and hasattr(cfg.model.stageB, 'debug_logging'):
+        debug_logging = cfg.model.stageB.debug_logging
+    logger.setLevel(logging.DEBUG if debug_logging else logging.INFO)
+    if debug_logging:
+        logger.debug("Debug logging is enabled for StageB main.")
+
+    if debug_logging:
+        logger.debug(f"Starting run_stageB_combined with sequence: {sequence}")
+        logger.debug(f"torsion_bert_model: {torsion_bert_model}")
+        logger.debug(f"pairformer_model: {pairformer_model}")
+        logger.debug(f"device: {device}")
+        logger.debug(f"init_z_from_adjacency: {init_z_from_adjacency}")
     """
     Run Stage B models (TorsionBERT and Pairformer) to predict torsion angles and pairwise features.
 
@@ -97,12 +105,14 @@ def run_stageB_combined(
     pair_mask = torch.ones((1, N, N), device=torch_device)
 
     # 3) Forward pass in Pairformer
-    logger.info(f"[DEBUG] Running pairformer_model with init_s shape: {init_s.shape}, init_z_tensor shape: {init_z_tensor.shape}, pair_mask shape: {pair_mask.shape}")
+    if debug_logging:
+        logger.debug(f"Running pairformer_model with init_s shape: {init_s.shape}, init_z_tensor shape: {init_z_tensor.shape}, pair_mask shape: {pair_mask.shape}")
     try:
         pairformer_output = pairformer_model(init_s, init_z_tensor, pair_mask)
-        logger.info(f"[DEBUG] pairformer_output: {pairformer_output}")
+        if debug_logging:
+            logger.debug(f"pairformer_output: {pairformer_output}")
     except Exception as e:
-        logger.error(f"[DEBUG] Error in pairformer_model: {str(e)}")
+        logger.error(f"Error in pairformer_model: {str(e)}")
         logger.error("Stack trace:", exc_info=True)
         # Create dummy output for testing
         s_up = torch.ones((1, N, c_s), device=torch_device)
@@ -114,40 +124,48 @@ def run_stageB_combined(
     # This is because the test is verifying that we're using the mock's return values
 
     # Extract the mock's return values
-    logger.info(f"[DEBUG] Extracting values from pairformer_output: {pairformer_output}")
+    if debug_logging:
+        logger.debug(f"Extracting values from pairformer_output: {pairformer_output}")
     if hasattr(pairformer_model, 'return_value') and isinstance(pairformer_model.return_value, tuple) and len(pairformer_model.return_value) == 2:
         # Use the mock's return value directly
-        logger.info(f"[DEBUG] Using return_value from pairformer_model: {pairformer_model.return_value}")
+        if debug_logging:
+            logger.debug(f"Using return_value from pairformer_model: {pairformer_model.return_value}")
         s_up, z_up = pairformer_model.return_value
     elif isinstance(pairformer_output, tuple) and len(pairformer_output) == 2:
         # Normal case - pairformer returns a tuple
-        logger.info("[DEBUG] Using tuple from pairformer_output")
+        if debug_logging:
+            logger.debug("Using tuple from pairformer_output")
         s_up, z_up = pairformer_output
     else:
         # Fallback case
-        logger.info("[DEBUG] Using fallback values for s_up and z_up")
+        if debug_logging:
+            logger.debug("Using fallback values for s_up and z_up")
         s_up = torch.ones((1, N, c_s), device=torch_device)
         z_up = torch.ones((1, N, N, c_z), device=torch_device)
 
     # --- NEW: Build s_inputs using ProtenixIntegration ---
     s_inputs = None
-    logger.info(f"[DEBUG] cfg is {type(cfg)}")
+    if debug_logging:
+        logger.debug(f"cfg is {type(cfg)}")
 
     try:
         from rna_predict.pipeline.stageB.pairwise.protenix_integration import ProtenixIntegration
 
         # Check if cfg is None or doesn't have the required attributes
         if cfg is None:
-            logger.info("[DEBUG] cfg is None, skipping ProtenixIntegration")
+            if debug_logging:
+                logger.debug("cfg is None, skipping ProtenixIntegration")
         elif not (hasattr(cfg, 'model') and hasattr(cfg.model, 'stageB') and hasattr(cfg.model.stageB, 'pairformer')):
-            logger.info("[DEBUG] cfg doesn't have required attributes, skipping ProtenixIntegration")
+            if debug_logging:
+                logger.debug("cfg doesn't have required attributes, skipping ProtenixIntegration")
         else:
             try:
                 # Build input_features using config-driven dimensions and logic matching demo_run_protenix_embeddings
                 pairformer_cfg = cfg.model.stageB.pairformer
 
                 if not hasattr(pairformer_cfg, 'protenix_integration'):
-                    logger.info("[DEBUG] pairformer_cfg doesn't have protenix_integration, skipping")
+                    if debug_logging:
+                        logger.debug("pairformer_cfg doesn't have protenix_integration, skipping")
                 else:
                     protenix_cfg = pairformer_cfg.protenix_integration
                     N_token = N
@@ -188,18 +206,20 @@ def run_stageB_combined(
                         if hasattr(modified_cfg.model.stageB.pairformer, 'protenix_integration'):
                             # Ensure c_token matches s_up dimensions to avoid attention gating issues
                             modified_cfg.model.stageB.pairformer.protenix_integration.c_token = c_s
-                            logger.info(f"[DEBUG] Modified protenix_integration.c_token to {c_s} to match s_up dimensions")
+                            if debug_logging:
+                                logger.debug(f"Modified protenix_integration.c_token to {c_s} to match s_up dimensions")
 
                     integrator = ProtenixIntegration(modified_cfg)
                     embeddings = integrator.build_embeddings(input_features)
                     s_inputs = embeddings["s_inputs"]
-                    logger.info(f"[DEBUG] Using ProtenixIntegration for s_inputs with shape {s_inputs.shape}")
+                    if debug_logging:
+                        logger.debug(f"Using ProtenixIntegration for s_inputs with shape {s_inputs.shape}")
             except Exception as e:
-                logger.error(f"[DEBUG] Error accessing config attributes: {str(e)}")
+                logger.error(f"Error accessing config attributes: {str(e)}")
                 logger.error("Stack trace:", exc_info=True)
     except Exception as e:
         # Log the error and fall back to using s_up directly
-        logger.error(f"[DEBUG] ProtenixIntegration not available: {str(e)}")
+        logger.error(f"ProtenixIntegration not available: {str(e)}")
         logger.error("Stack trace:", exc_info=True)
         s_inputs = None
 
@@ -399,9 +419,9 @@ def main(cfg: DictConfig) -> None:
     debug_logging = False
     if hasattr(cfg, 'model') and hasattr(cfg.model, 'stageB') and hasattr(cfg.model.stageB, 'debug_logging'):
         debug_logging = cfg.model.stageB.debug_logging
+    logger.setLevel(logging.DEBUG if debug_logging else logging.INFO)
     if debug_logging:
-        logger.info("Starting Stage B execution with Hydra config")
-        logger.info(f"Config:\n{OmegaConf.to_yaml(cfg)}")
+        logger.debug("Debug logging is enabled for StageB main.")
 
     # Get sample input data from config
     sample_seq = cfg.test_data.sequence
@@ -409,17 +429,17 @@ def main(cfg: DictConfig) -> None:
     # Run the pipeline with the sample sequence
     try:
         if debug_logging:
-            logger.info(f"Running pipeline with sequence: {sample_seq}")
+            logger.debug(f"Running pipeline with sequence: {sample_seq}")
         result = run_pipeline(sample_seq, cfg)
         if debug_logging:
-            logger.info(f"Pipeline result: {result}")
+            logger.debug(f"Pipeline result: {result}")
     except Exception as e:
         logger.error(f"Error running pipeline: {e}")
 
     # Demonstrate gradient flow
     try:
         if debug_logging:
-            logger.info("\nRunning gradient flow test...")
+            logger.debug("\nRunning gradient flow test...")
         demo_gradient_flow_test(cfg)
     except Exception as e:
         logger.error(f"Error in gradient flow test: {e}")
