@@ -7,11 +7,8 @@ import pytest
 from omegaconf import OmegaConf
 import torch
 from rna_predict.pipeline.stageD.diffusion.bridging.residue_atom_bridge import bridge_residue_to_atom, BridgingInput
-import hydra
 from hydra import compose, initialize
-from omegaconf import OmegaConf
 import os
-import sys
 
 # Enforce running from project root for Hydra config correctness
 assert os.path.basename(os.getcwd()) == "RNA_PREDICT", (
