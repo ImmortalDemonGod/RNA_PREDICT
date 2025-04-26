@@ -1,12 +1,9 @@
 import unittest
 import torch
 from omegaconf import OmegaConf, DictConfig
-from unittest.mock import patch, MagicMock
 from hypothesis import given, strategies as st, settings
 
 from rna_predict.pipeline.stageD.run_stageD import run_stageD
-from rna_predict.pipeline.stageD.context import StageDContext
-import pytest
 
 def create_stage_d_test_config(stage_overrides=None, model_overrides=None, noise_overrides=None) -> DictConfig:
     if stage_overrides is None:
@@ -460,7 +457,6 @@ class TestRunStageDIntegration(unittest.TestCase):
         # Hypothesis may replay old failing examples with batch_size != 1 if .hypothesis/examples is not cleaned.
         # If this assertion fails, delete the .hypothesis/examples directory and rerun.
         assert batch_size == 1, "UNIQUE ERROR: Only batch_size=1 is supported in inference mode. If this fails, clean .hypothesis/examples."
-        device = "cpu"
         atom_coords = torch.randn(batch_size, num_atoms, 3)
         n_residues = max(1, min(num_atoms // 2, num_atoms))
         if n_residues == 0:
