@@ -20,7 +20,7 @@ from .encoder_components.config import (
 )
 from .encoder_components.feature_processing import (
     ensure_space_uid,
-    extract_atom_features,
+    extract_atom_features as canonical_extract_atom_features,
 )
 from .encoder_components.forward_logic import (
     _process_simple_embedding,
@@ -36,7 +36,7 @@ from .encoder_components.initialization import (
     setup_pair_projections,
     setup_small_mlp,
 )
-
+from rna_predict.pipeline.stageA.input_embedding.current.transformer.atom_attention.components.atom_attention_feature_processing import FeatureProcessor
 
 class AtomAttentionEncoder(nn.Module):
     """
@@ -101,6 +101,7 @@ class AtomAttentionEncoder(nn.Module):
             he_normal_init_atom_encoder_output,
         )
 
+    #@snoop
     def forward(
         self, *args, **kwargs
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, Optional[torch.Tensor]]:
@@ -116,8 +117,7 @@ class AtomAttentionEncoder(nn.Module):
             r_l = params.r_l
             s = params.s
             z = params.z
-            # inplace_safe = params.inplace_safe # Not used in refactored logic directly
-            chunk_size = params.chunk_size
+            chunk_size = getattr(params, 'chunk_size', None)
         else:
             if len(args) > 0:
                 input_feature_dict = args[0]
@@ -130,8 +130,9 @@ class AtomAttentionEncoder(nn.Module):
             r_l = kwargs.get("r_l")
             s = kwargs.get("s")
             z = kwargs.get("z")
-            # inplace_safe = kwargs.get("inplace_safe", False) # Not used
             chunk_size = kwargs.get("chunk_size")
+
+        print("[DEBUG][AtomAttentionEncoder.forward] input_feature_dict keys:", list(input_feature_dict.keys()))
 
         # Simple path for no coordinates case
         if not self.has_coords:
@@ -141,7 +142,11 @@ class AtomAttentionEncoder(nn.Module):
         ensure_space_uid(input_feature_dict)
 
         # Extract atom features from input dictionary
-        c_l = extract_atom_features(self, input_feature_dict)
+        print("[DEBUG][AtomAttentionEncoder.forward] Extracting c_l...")
+        c_l = self.extract_atom_features(input_feature_dict)
+        print("[DEBUG][AtomAttentionEncoder.forward] c_l type:", type(c_l), "shape:", getattr(c_l, 'shape', None), "value:", c_l)
+        if c_l is None:
+            print("[WARNING][AtomAttentionEncoder.forward] c_l is None!")
 
         # Create ProcessInputsParams object for coordinated case
         process_params = ProcessInputsParams(
@@ -192,3 +197,45 @@ class AtomAttentionEncoder(nn.Module):
 
         # Validate and create encoder
         return cls(config)
+
+    def forward_debug(
+        self, r_l, t_hat_noise_level, input_feature_dict, s, z=None, inplace_safe=False, debug_logging=False, chunk_size=None
+    ):
+        # SYSTEMATIC DEBUGGING: Log atom_to_token_idx at entry
+        print(f"[DEBUG][AtomAttentionEncoder.forward] Entry: input_feature_dict['atom_to_token_idx']: {input_feature_dict.get('atom_to_token_idx', 'MISSING')}")
+        if 'atom_to_token_idx' in input_feature_dict:
+            atom_idx_val = input_feature_dict['atom_to_token_idx']
+            print(f"[DEBUG][AtomAttentionEncoder.forward] type: {type(atom_idx_val)}, shape: {getattr(atom_idx_val, 'shape', None)}, value: {atom_idx_val if isinstance(atom_idx_val, (int, float)) else ''}")
+        else:
+            print("[DEBUG][AtomAttentionEncoder.forward] atom_to_token_idx MISSING!")
+
+        # Ensure ref_space_uid exists and has correct shape
+        ensure_space_uid(input_feature_dict)
+
+        # Extract atom features from input dictionary - CRITICAL FIX
+        # This was missing in the original forward_debug method
+        c_l = self.extract_atom_features(input_feature_dict)
+        print(f"[DEBUG][AtomAttentionEncoder.forward_debug] Extracted c_l shape: {getattr(c_l, 'shape', None)}")
+
+        # Create process_params as in the original forward
+        from rna_predict.pipeline.stageA.input_embedding.current.transformer.encoder_components.config import ProcessInputsParams
+        process_params = ProcessInputsParams(
+            input_feature_dict=input_feature_dict,
+            r_l=r_l,
+            s=s,
+            z=z,
+            c_l=c_l,  # Now properly initialized
+            chunk_size=chunk_size,
+        )
+        return process_inputs_with_coords(self, process_params)
+
+    def extract_atom_features(self, input_feature_dict):
+        print("[DEBUG][extract_atom_features] input_feature_dict keys:", list(input_feature_dict.keys()))
+        for k, v in input_feature_dict.items():
+            print(f"    key: {k}, type: {type(v)}, shape: {getattr(v, 'shape', None)}")
+        # --- Begin actual extraction logic ---
+        # Use the canonical extract_atom_features from encoder_components/feature_processing.py
+        c_l = canonical_extract_atom_features(self, input_feature_dict)
+        # --- End extraction logic ---
+        print("[DEBUG][extract_atom_features] returning c_l type:", type(c_l), "shape:", getattr(c_l, 'shape', None), "value:", c_l)
+        return c_l
