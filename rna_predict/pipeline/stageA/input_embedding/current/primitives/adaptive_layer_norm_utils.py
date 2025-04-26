@@ -199,7 +199,7 @@ def _copy_matching_dimensions(
                 for i in range(target.shape[2]):
                     for j in range(target.shape[3]):
                         result[:, :, i, j, :tensor.shape[-1]] = tensor
-                logger.debug(f"[_copy_matching_dimensions] Used manual broadcasting for 5D target and 3D tensor")
+                logger.debug("[_copy_matching_dimensions] Used manual broadcasting for 5D target and 3D tensor")
                 return result
         except RuntimeError as e2:
             logger.warning(f"[_copy_matching_dimensions] Manual copy also failed: {e2}. Returning zero tensor.")
