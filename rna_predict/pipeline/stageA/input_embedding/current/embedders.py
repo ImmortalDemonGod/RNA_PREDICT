@@ -47,7 +47,7 @@ class InputFeatureEmbedder(nn.Module):
     and returns a final tensor of shape [..., N_token, c_token].
     """
 
-    # ####@snoop
+    # #####@snoop
     def __init__(
         self,
         c_atom: int = 128,
@@ -112,7 +112,7 @@ class InputFeatureEmbedder(nn.Module):
         # Optionally, place a final layer norm after summing
         self.final_ln = nn.LayerNorm(self.c_token)
 
-    # ####@snoop
+    # #####@snoop
     def forward(
         self,
         input_feature_dict: InputFeatureDict,
