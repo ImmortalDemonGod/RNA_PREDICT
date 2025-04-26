@@ -318,6 +318,7 @@ def sample_diffusion_training(
     z_trunk: torch.Tensor,
     N_sample: int = 1,
     diffusion_chunk_size: Optional[int] = None,
+    device: torch.device = torch.device("cpu"),
 ) -> tuple[torch.Tensor, ...]:
     """Implements diffusion training as described in AF3 Appendix at page 23.
     It performances denoising steps from time 0 to time T.
@@ -338,28 +339,30 @@ def sample_diffusion_training(
         z_trunk (torch.Tensor): pair feature embedding from PairFormer (Alg17)
             [..., N_tokens, N_tokens, c_z]
         N_sample (int): number of training samples
+        device (torch.device): device to use for all allocations
     Returns:
         torch.Tensor: the denoised coordinates of x in inference stage
             [..., N_sample, N_atom, 3]
     """
     batch_size_shape = label_dict["coordinate"].shape[:-2]
-    device = label_dict["coordinate"].device
     dtype = label_dict["coordinate"].dtype
+    print(f"[DEVICE-DEBUG][StageD] sample_diffusion_training: device={device}")
     # Areate N_sample versions of the input structure by randomly rotating and translating
     x_gt_augment = centre_random_augmentation(
         x_input_coords=label_dict["coordinate"],
         N_sample=N_sample,
         mask=label_dict["coordinate_mask"],
-    ).to(dtype)  # [..., N_sample, N_atom, 3]
+    ).to(device=device, dtype=dtype)
 
     # Add independent noise to each structure
     # sigma: independent noise-level [..., N_sample]
-    # Ensure the size argument is passed as torch.Size, constructing it explicitly
     sigma_size_list = list(batch_size_shape) + [N_sample]
     sigma_size = torch.Size(sigma_size_list)
     sigma = noise_sampler(size=sigma_size, device=device).to(dtype)
+    print(f"[DEVICE-DEBUG][StageD] sample_diffusion_training: sigma.device={sigma.device}")
     # noise: [..., N_sample, N_atom, 3]
-    noise = torch.randn_like(x_gt_augment, dtype=dtype) * sigma[..., None, None]
+    noise = torch.randn_like(x_gt_augment, dtype=dtype, device=device) * sigma[..., None, None]
+    print(f"[DEVICE-DEBUG][StageD] sample_diffusion_training: noise.device={noise.device}")
 
     # Get denoising outputs [..., N_sample, N_atom, 3]
     if diffusion_chunk_size is None:
