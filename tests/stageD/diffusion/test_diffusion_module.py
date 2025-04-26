@@ -1,5 +1,4 @@
 import unittest
-import pytest
 import torch
 from hypothesis import given, strategies as st, settings, assume
 from rna_predict.pipeline.stageD.diffusion.components.diffusion_module import DiffusionModule
