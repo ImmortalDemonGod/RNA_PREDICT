@@ -842,7 +842,27 @@ def bridge_residue_to_atom(
     # Defensive: If atom_names or residue_indices present, check length matches n_atoms_from_map
     if atom_metadata is not None:
         if "atom_names" in atom_metadata and len(atom_metadata["atom_names"]) != n_atoms_from_map:
-            raise ValueError(f"[BRIDGE ERROR] atom_names length ({len(atom_metadata['atom_names'])}) does not match total atoms from residue_atom_map ({n_atoms_from_map})")
+            # If residue_atom_map is empty but we have atom_names, use atom_names to create a default map
+            if n_atoms_from_map == 0 and len(atom_metadata["atom_names"]) > 0:
+                logger.warning(f"[BRIDGE WARNING] residue_atom_map is empty but atom_names has {len(atom_metadata['atom_names'])} entries. Creating default map.")
+                # Create a default map with one atom per residue
+                if "residue_indices" in atom_metadata and len(atom_metadata["residue_indices"]) > 0:
+                    # Use residue_indices to create the map
+                    residue_indices = atom_metadata["residue_indices"]
+                    n_residues = max(residue_indices) + 1
+                    residue_atom_map = [[] for _ in range(n_residues)]
+                    for atom_idx, res_idx in enumerate(residue_indices):
+                        residue_atom_map[res_idx].append(atom_idx)
+                    n_atoms_from_map = len(atom_metadata["atom_names"])
+                    logger.info(f"[BRIDGE INFO] Created residue_atom_map with {n_residues} residues and {n_atoms_from_map} atoms.")
+                else:
+                    # Create a simple 1:1 mapping
+                    n_atoms = len(atom_metadata["atom_names"])
+                    residue_atom_map = [[i] for i in range(n_atoms)]
+                    n_atoms_from_map = n_atoms
+                    logger.info(f"[BRIDGE INFO] Created 1:1 residue_atom_map with {n_atoms} atoms.")
+            else:
+                raise ValueError(f"[BRIDGE ERROR] atom_names length ({len(atom_metadata['atom_names'])}) does not match total atoms from residue_atom_map ({n_atoms_from_map})")
         if "residue_indices" in atom_metadata and len(atom_metadata["residue_indices"]) != n_atoms_from_map:
             raise ValueError(f"[BRIDGE ERROR] residue_indices length ({len(atom_metadata['residue_indices'])}) does not match total atoms from residue_atom_map ({n_atoms_from_map})")
     # Defensive: If partial_coords present, check shape matches
