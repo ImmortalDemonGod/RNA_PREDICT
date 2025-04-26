@@ -3,12 +3,10 @@ Inference mode functions for Stage D diffusion.
 
 This module provides functions for running inference in the Stage D diffusion process.
 """
-import snoop
 import logging
 import torch
 from typing import Any, Dict
 from dataclasses import dataclass
-
 from rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager import (
     ProtenixDiffusionManager,
 )
@@ -38,7 +36,7 @@ class InferenceContext:
     input_features: Dict[str, Any]
     device: str
 
-@snoop
+#@snoop
 def run_inference_mode(
     context: InferenceContext,
     cfg=None,

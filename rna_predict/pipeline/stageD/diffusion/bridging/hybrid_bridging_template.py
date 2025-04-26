@@ -1,6 +1,5 @@
 import torch
 from typing import List, Optional
-from rna_predict.utils.tensor_utils import residue_to_atoms
 
 # --- DEBUG PATCH START ---
 def debug_print_hybrid_bridging_inputs(stage_c_output, residue_atom_map, n_residues, canonical_atom_count, feature_dim, batch_size, fill_value, device):
@@ -57,9 +56,14 @@ def hybrid_bridging_sparse_to_dense(
     expected_atoms = n_residues * canonical_atom_count
     print(f"  [PATCH CHECK] Expected total atoms: {expected_atoms}")
     # --- Existing logic ---
-    dense_atoms = torch.full((batch_size, n_residues, canonical_atom_count, feature_dim), fill_value, device=device)
-    mask = torch.zeros((batch_size, n_residues, canonical_atom_count), dtype=torch.bool, device=device)
-    for b in range(batch_size):
+    # Ensure all dimensions are integers for torch.full
+    batch_size_int = int(batch_size) if batch_size is not None else 1
+    n_residues_int = int(n_residues)
+    canonical_atom_count_int = int(canonical_atom_count)
+    feature_dim_int = int(feature_dim)
+    dense_atoms = torch.full((batch_size_int, n_residues_int, canonical_atom_count_int, feature_dim_int), fill_value, device=device)
+    mask = torch.zeros((batch_size_int, n_residues_int, canonical_atom_count_int), dtype=torch.bool, device=device)
+    for b in range(batch_size_int):
         for i, atom_indices in enumerate(residue_atom_map):
             # PATCH: Print atom_indices for each residue
             print(f"    [DEBUG] residue {i}: atom_indices={atom_indices}")
