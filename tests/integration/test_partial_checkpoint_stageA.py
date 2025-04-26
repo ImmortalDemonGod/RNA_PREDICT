@@ -26,18 +26,11 @@ warnings.warn(
 
 # Project rule: Always use absolute Hydra config path for all initialization/testing
 CONFIG_NAME = "default"
-EXPECTED_CWD = "/Users/tomriddle1/RNA_PREDICT"
 
-# Assert CWD is project root for robust, actionable error reporting
-actual_cwd = os.getcwd()
-if actual_cwd != EXPECTED_CWD:
-    pytest.fail(
-        f"[UNIQUE-ERR-HYDRA-CWD] Test must be run from the project root directory.\n"
-        f"Expected CWD: {EXPECTED_CWD}\n"
-        f"Actual CWD:   {actual_cwd}\n"
-        f"To fix: cd {EXPECTED_CWD} && uv run -m pytest tests/integration/test_partial_checkpoint_stageA.py\n"
-        f"See docs/guides/best_practices/debugging/comprehensive_debugging_guide.md for more info."
-    )
+project_root = Path(__file__).resolve().parents[2]
+config_dir = project_root / "rna_predict" / "conf"
+if not config_dir.is_dir():
+    pytest.fail(f"[HYDRA-CONF-NOT-FOUND] Expected config dir at {config_dir}")
 
 # Instrument with debug output and robust config_path selection
 print(f"[TEST DEBUG] Current working directory: {os.getcwd()}")
@@ -48,14 +41,14 @@ if any(
     arg.endswith("test_partial_checkpoint_stageA.py") for arg in sys.argv
 ):
     # Single-file run (pytest invoked directly on this file)
-    config_path_selected = "/Users/tomriddle1/RNA_PREDICT/rna_predict/conf"
+    config_path_selected = "rna_predict/conf"
     abs_config_path = os.path.abspath(os.path.join(os.path.dirname(__file__), config_path_selected))
-    print("[TEST DEBUG] Single-file run detected. Using config_path: /Users/tomriddle1/RNA_PREDICT/rna_predict/conf")
+    print("[TEST DEBUG] Single-file run detected. Using config_path: rna_predict/conf")
 else:
     # Suite run (pytest invoked from project root)
-    config_path_selected = "/Users/tomriddle1/RNA_PREDICT/rna_predict/conf"
+    config_path_selected = "rna_predict/conf"
     abs_config_path = os.path.join(os.getcwd(), config_path_selected)
-    print("[TEST DEBUG] Suite run detected. Using config_path: /Users/tomriddle1/RNA_PREDICT/rna_predict/conf")
+    print("[TEST DEBUG] Suite run detected. Using config_path: rna_predict/conf")
 if not os.path.isdir(abs_config_path):
     pytest.fail(
         f"[UNIQUE-ERR-HYDRA-CONF-ABSENT] Hydra config directory not found at {abs_config_path}.\n"
