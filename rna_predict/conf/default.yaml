@@ -3,6 +3,7 @@
 
 defaults:
   - _self_  # Load this file's contents first
+  - data: default
   - model/stageA@model.stageA
   - model/stageC@model.stageC
   - model/stageB_torsion@model.stageB.torsion_bert
@@ -19,6 +20,11 @@ sequence: ${test_data.sequence}  # Default to test sequence
 device: "cpu"  # Global device setting, can be overridden per stage
 seed: 42
 atoms_per_residue: 44
+
+# Pipeline stage control flags
+run_stageD: true  # Enable Stage D diffusion refinement
+enable_stageC: true  # Enable partial coordinates from Stage C
+merge_latent: true  # Enable latent merging
 
 # Project metadata
 # project:

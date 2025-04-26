@@ -123,7 +123,7 @@ The pipeline, inspired by AlphaFold but specialized for RNA, includes:
 
 ```bash
 cd rna_predict
-python main.py
+python runners/demo_entry.py
 ```
 
 ---
@@ -163,4 +163,3 @@ for i in range(1, N_res):
 🌟 **Conclusion:**
 
 Structured, MkDocs-friendly documentation, explicitly detailed with filenames, pipeline stages, algorithmic insights, and clear performance guidelines to enhance readability and comprehensive understanding.
-

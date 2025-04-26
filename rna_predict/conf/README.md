@@ -6,7 +6,7 @@ This directory contains the Hydra configuration files for the RNA_PREDICT projec
 
 The project uses a single main configuration file:
 
-- `default.yaml` - Used by all scripts including `main.py` and individual stage scripts
+- `default.yaml` - Used by all scripts including `demo_entry.py` and individual stage scripts
 
 This file serves as the central configuration for the entire project, ensuring consistency across all components.
 
