@@ -100,7 +100,7 @@ class AtomAttentionEncoder(nn.Module):
             he_normal_init_atom_encoder_output,
         )
 
-    ##@snoop
+    ###@snoop
     def forward(
         self, *args, **kwargs
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, Optional[torch.Tensor]]:
