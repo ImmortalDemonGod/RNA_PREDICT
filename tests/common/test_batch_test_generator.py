@@ -45,7 +45,7 @@ else:
 
 
 @pytest.fixture
-def temp_dir(tmp_path: Path) -> Path:
+def temp_dir(tmp_path: Path) -> Generator[Path, None, None]:
     """
     Creates a temporary directory structure for testing.
     Yields a pathlib.Path to the directory.
