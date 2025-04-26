@@ -1,10 +1,8 @@
 import os  # Add os
-import time
 import torch
 
 import psutil  # Add psutil
 from unittest.mock import patch
-import pytest
 from hypothesis import settings, given, strategies as st
 
 def get_memory_usage():  # Helper function
@@ -90,7 +88,6 @@ def test_diffusion_single_embed_caching(_dummy):
     with patch("rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager.DiffusionModule") as MockDiffusionModule, \
          patch("rna_predict.pipeline.stageD.diffusion.components.diffusion_module.DiffusionModule") as MockDiffusionModuleComp:
         # Move all pipeline imports inside the patch context (but do NOT import torch here)
-        import numpy as np
         from omegaconf import OmegaConf
         from rna_predict.pipeline.stageD.diffusion.run_stageD_unified import run_stageD_diffusion
         from rna_predict.pipeline.stageD.diffusion.utils import DiffusionConfig
@@ -177,7 +174,6 @@ def test_diffusion_single_embed_caching(_dummy):
             "atom_names": ["C1", "C2"]  # One atom per residue
         }
         # Instrument: print call stack, id, and type at inference point
-        import traceback
         print("[DEBUG][TEST] Before inference call (second run_stageD_diffusion):")
         traceback.print_stack(limit=10)
         # Now call inference
