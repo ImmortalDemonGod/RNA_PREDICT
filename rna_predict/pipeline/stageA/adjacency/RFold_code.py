@@ -27,6 +27,11 @@ def print_log(message, debug_logging: bool = False):
         logger.info(message)
 
 
+def debug_log(message, debug_logging: bool = False):
+    if debug_logging:
+        logger.debug(message)
+
+
 def output_namespace(namespace):
     configs = namespace.__dict__
     message = ""
@@ -381,12 +386,11 @@ class Seq2Map(nn.Module):
         self.pos_embedding = nn.Embedding(self.max_length, num_hidden)
         self.layer = Attn(dim=num_hidden, query_key_dim=num_hidden, dropout=dropout)
 
-    def forward(self, src):
+    def forward(self, src, debug_logging: bool = False):
         batch_size, src_len = src.shape[:2]
-        # Debug: Print device info
-        print(f"[DEBUG-SEQ2MAP] tok_embedding.weight.device: {self.tok_embedding.weight.device}")
-        print(f"[DEBUG-SEQ2MAP] src.device: {src.device}")
-        print(f"[DEBUG-SEQ2MAP] self.device: {self.device}")
+        debug_log(f"[DEBUG-SEQ2MAP] tok_embedding.weight.device: {self.tok_embedding.weight.device}", debug_logging)
+        debug_log(f"[DEBUG-SEQ2MAP] src.device: {src.device}", debug_logging)
+        debug_log(f"[DEBUG-SEQ2MAP] self.device: {self.device}", debug_logging)
         # Create pos tensor on the same device as src
         pos = torch.arange(0, src_len, device=src.device).unsqueeze(0).repeat(batch_size, 1)
         src = self.tok_embedding(src) * self.scale
@@ -421,10 +425,9 @@ class RFoldModel(nn.Module):
         # PATCH: Move all model parameters and buffers to the correct device
         self.to(device_val)
 
-    def forward(self, seqs):
-        # Debug: Print device info for input and embedding
-        print(f"[DEBUG-RFOLDMODEL] seqs.device: {seqs.device}")
-        print(f"[DEBUG-RFOLDMODEL] seq2map.tok_embedding.weight.device: {self.seq2map.tok_embedding.weight.device}")
+    def forward(self, seqs, debug_logging: bool = False):
+        debug_log(f"[DEBUG-RFOLDMODEL] seqs.device: {seqs.device}", debug_logging)
+        debug_log(f"[DEBUG-RFOLDMODEL] seq2map.tok_embedding.weight.device: {self.seq2map.tok_embedding.weight.device}", debug_logging)
         # For tests, check if we're in test mode (small batch sizes/dimensions)
         is_test = seqs.shape[0] <= 2 and seqs.shape[1] <= 16
 
@@ -434,7 +437,7 @@ class RFoldModel(nn.Module):
                 (seqs.shape[0], seqs.shape[1], seqs.shape[1]), device=seqs.device
             )
 
-        attention = self.seq2map(seqs)
+        attention = self.seq2map(seqs, debug_logging=debug_logging)
         x = (attention * torch.sigmoid(attention)).unsqueeze(1)
 
         # Test mode - simplified processing
