@@ -179,6 +179,8 @@ def run_stageC_rna_mpnerf(
         ValueError: If torsion angles have incorrect dimensions
     """
     print("[DEBUG-STAGEC-ENTRY] Entered run_stageC_rna_mpnerf")
+    print("[DEBUG-STAGEC] predicted_torsions.requires_grad:", getattr(predicted_torsions, 'requires_grad', None))
+    print("[DEBUG-STAGEC] predicted_torsions.grad_fn:", getattr(predicted_torsions, 'grad_fn', None))
     validate_stageC_config(cfg)
 
     stage_cfg: StageCConfig = cfg.model.stageC
@@ -209,45 +211,34 @@ def run_stageC_rna_mpnerf(
             f"Expected 7, got {predicted_torsions.size(1)}"
         )
 
+    print("[DEBUG-MPNEF] predicted_torsions requires_grad:", getattr(predicted_torsions, 'requires_grad', None))
+    print("[DEBUG-MPNEF] predicted_torsions grad_fn:", getattr(predicted_torsions, 'grad_fn', None))
     scaffolds = build_scaffolds_rna_from_torsions(
         seq=sequence,
         torsions=predicted_torsions,
         device=device,
         sugar_pucker=sugar_pucker,
     )
-
+    print("[DEBUG-MPNEF] scaffolds['torsions'] requires_grad:", getattr(scaffolds['torsions'], 'requires_grad', None))
+    print("[DEBUG-MPNEF] scaffolds['torsions'] grad_fn:", getattr(scaffolds['torsions'], 'grad_fn', None))
     scaffolds = skip_missing_atoms(sequence, scaffolds)
     scaffolds = handle_mods(sequence, scaffolds)
-
     coords_bb = rna_fold(scaffolds, device=device, do_ring_closure=do_ring_closure)
-    if stage_cfg.debug_logging:
-        logger.debug(f"[DEBUG][StageC] coords_bb shape: {coords_bb.shape}")
-        logger.debug(f"[DEBUG][StageC] coords_bb sample: {coords_bb[:3]}")
-        logger.debug(f"[DEBUG][StageC] coords_bb has nan: {torch.isnan(coords_bb).any()}, has inf: {torch.isinf(coords_bb).any()}")
-
+    print("[DEBUG-MPNEF] coords_bb requires_grad:", getattr(coords_bb, 'requires_grad', None))
+    print("[DEBUG-MPNEF] coords_bb grad_fn:", getattr(coords_bb, 'grad_fn', None))
     if place_bases:
         coords_full = place_rna_bases(
             coords_bb, sequence, scaffolds["angles_mask"], device=device
         )
+        print("[DEBUG-MPNEF] coords_full (after place_bases) requires_grad:", getattr(coords_full, 'requires_grad', None))
+        print("[DEBUG-MPNEF] coords_full (after place_bases) grad_fn:", getattr(coords_full, 'grad_fn', None))
     else:
         coords_full = coords_bb
-    if stage_cfg.debug_logging:
-        logger.debug(f"[DEBUG][StageC] coords_full shape: {coords_full.shape}")
-        logger.debug(f"[DEBUG][StageC] coords_full sample: {coords_full[:3]}")
-        logger.debug(f"[DEBUG][StageC] coords_full has nan: {torch.isnan(coords_full).any()}, has inf: {torch.isinf(coords_full).any()}")
-
+        print("[DEBUG-MPNEF] coords_full (no place_bases) requires_grad:", getattr(coords_full, 'requires_grad', None))
+        print("[DEBUG-MPNEF] coords_full (no place_bases) grad_fn:", getattr(coords_full, 'grad_fn', None))
     if coords_full.dim() == 2:
         coords_full = coords_full.unsqueeze(1)
-
-    if stage_cfg.debug_logging:
-        logger.debug(f"[DEBUG][StageC] predicted_torsions shape: {predicted_torsions.shape}")
-        logger.debug(f"[DEBUG][StageC] predicted_torsions sample: {predicted_torsions.flatten()[:10]}")
-
-    if "angles_mask" in scaffolds:
-        if stage_cfg.debug_logging:
-            logger.debug(f"[DEBUG][StageC] angles_mask shape: {scaffolds['angles_mask'].shape}")
-            logger.debug(f"[DEBUG][StageC] angles_mask sample: {scaffolds['angles_mask'].flatten()[:10]}")
-
+    L, max_atoms, D = coords_full.shape
     from rna_predict.utils.tensor_utils.types import STANDARD_RNA_ATOMS
     atom_names = []
     residue_indices = []
@@ -259,24 +250,23 @@ def run_stageC_rna_mpnerf(
         valid_atom_mask.extend([True] * len(atom_list))
         if len(atom_list) < coords_full.shape[1]:
             valid_atom_mask.extend([False] * (coords_full.shape[1] - len(atom_list)))
+    coords_full_flat = coords_full.reshape(L * max_atoms, D)[valid_atom_mask]
+    print("[DEBUG-MPNEF] coords_full_flat requires_grad:", getattr(coords_full_flat, 'requires_grad', None))
+    print("[DEBUG-MPNEF] coords_full_flat grad_fn:", getattr(coords_full_flat, 'grad_fn', None))
+    atom_metadata = {
+        "atom_names": atom_names,
+        "residue_indices": residue_indices,
+    }
 
     if stage_cfg.debug_logging:
         logger.debug(f"[DEBUG][StageC] Sequence used for atom metadata: {sequence}")
         logger.debug(f"[DEBUG][StageC] Atom counts for each residue: {[len(STANDARD_RNA_ATOMS[res]) for res in sequence]}")
         logger.debug(f"[DEBUG][StageC] Total atom count: {len(atom_names)}")
 
-    L, max_atoms, D = coords_full.shape
-    coords_full_flat = coords_full.reshape(L * max_atoms, D)[valid_atom_mask]
-
     n_atoms_metadata = len(residue_indices)
     n_atoms_coords = coords_full_flat.shape[0]
     if n_atoms_metadata != n_atoms_coords:
         raise ValueError(f"Mismatch between atom_metadata['residue_indices'] (len={n_atoms_metadata}) and coords_full (num_atoms={n_atoms_coords}). Possible bug in atom mapping or coordinate construction.")
-
-    atom_metadata = {
-        "atom_names": atom_names,
-        "residue_indices": residue_indices,
-    }
 
     # [DEBUGGING INSTRUMENTATION] Print atom set details before returning output
     print("[DEBUG-STAGEC] sequence length:", len(sequence))
