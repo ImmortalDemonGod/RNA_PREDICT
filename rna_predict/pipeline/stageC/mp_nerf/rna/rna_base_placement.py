@@ -3,13 +3,15 @@ RNA base placement functions for MP-NeRF implementation.
 """
 
 import torch
-
+import logging
 from .rna_constants import BACKBONE_ATOMS
 from .rna_atom_positioning import calculate_atom_position
 from ..final_kb_rna import (
     get_base_geometry,
     get_connectivity,
 )
+
+logger = logging.getLogger("rna_predict.pipeline.stageC.mp_nerf.rna_base_placement")
 
 def place_rna_bases(
     backbone_coords: torch.Tensor,
@@ -144,21 +146,22 @@ def place_rna_bases(
                             print(f"[DEBUG] Creating artificial non-collinear reference for {atom_name} at residue {i}")
                             # Create a perpendicular vector to v1
                             if torch.abs(v1[0]) > 1e-6 or torch.abs(v1[1]) > 1e-6:
-                                perp = torch.tensor([-v1[1], v1[0], 0.0], device=device)
+                                perp = v1.new_tensor([-v1[1], v1[0], 0.0])
                             else:
-                                perp = torch.tensor([1.0, 0.0, 0.0], device=device)
+                                perp = v1.new_tensor([1.0, 0.0, 0.0])
                             if torch.norm(perp) < 1e-6:
                                 print(f"[UNIQUE-ERR-RNA-NAN-FALLBACK] Perpendicular vector is near zero for {atom_name} at residue {i}, using default [1,0,0]")
-                                perp = torch.tensor([1.0, 0.0, 0.0], device=device)
+                                perp = v1.new_tensor([1.0, 0.0, 0.0])
                             perp = perp / torch.norm(perp)
                             ref3 = ref1 + perp
                             unique_refs[2] = "artificial"
                             collinear = False
                     # --- NAN DEBUG ---
                     # Check for degenerate or ill-separated references
-                    sep12 = torch.norm(ref2 - ref1) if isinstance(ref1, torch.Tensor) and isinstance(ref2, torch.Tensor) else torch.tensor(0.0, device=device)
-                    sep13 = torch.norm(ref3 - ref1) if isinstance(ref1, torch.Tensor) and isinstance(ref3, torch.Tensor) else torch.tensor(0.0, device=device)
-                    sep23 = torch.norm(ref3 - ref2) if isinstance(ref2, torch.Tensor) and isinstance(ref3, torch.Tensor) else torch.tensor(0.0, device=device)
+                    default_tensor = torch.tensor(0.0, device=device)
+                    sep12 = torch.norm(ref2 - ref1) if isinstance(ref1, torch.Tensor) and isinstance(ref2, torch.Tensor) else default_tensor
+                    sep13 = torch.norm(ref3 - ref1) if isinstance(ref1, torch.Tensor) and isinstance(ref3, torch.Tensor) else default_tensor
+                    sep23 = torch.norm(ref3 - ref2) if isinstance(ref2, torch.Tensor) and isinstance(ref3, torch.Tensor) else default_tensor
                     # Check for NaN values in reference tensors
                     has_nan = False
                     if isinstance(ref1, torch.Tensor) and torch.isnan(ref1).any():
