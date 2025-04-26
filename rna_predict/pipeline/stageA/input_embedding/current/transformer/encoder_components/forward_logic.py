@@ -496,7 +496,7 @@ def _aggregate_to_token_level(
     )
 
 
-#@snoop
+##@snoop
 def _process_inputs_with_coords_impl(
     encoder: Any,
     params: ProcessInputsParams,
@@ -640,7 +640,7 @@ def _process_inputs_with_coords_impl(
     return a, q_l, c_l, p_lm
 
 
-###@snoop
+####@snoop
 def process_inputs_with_coords(
     encoder: Any,
     params: ProcessInputsParams,

@@ -93,7 +93,7 @@ class RNALightningModule(L.LightningModule):
         print(f"[DEBUG-RNA-LM-STAGEB] model.stageB: {getattr(cfg.model, 'stageB', None)}")
         print(f"[DEBUG-RNA-LM-STAGEB] model.stageB.torsion_bert: {getattr(getattr(cfg.model, 'stageB', None), 'torsion_bert', None)}")
 
-    ##@snoop
+    ###@snoop
     def forward(self, batch, **kwargs):
         print("[DEBUG-LM] Entered forward")
         print(f"[DEBUG-LM] batch keys: {list(batch.keys())}")
@@ -171,9 +171,14 @@ class RNALightningModule(L.LightningModule):
             print("[DEBUG-LM-FORWARD-RETURN] output['atom_metadata'] is None")
         return output
 
-    @snoop
+    #@snoop
     def training_step(self, batch, batch_idx):
         print("[DEBUG-LM] Entered training_step")
+        # Print requires_grad for all model parameters
+        print("[DEBUG][training_step] Model parameters requires_grad status:")
+        for name, param in self.named_parameters():
+            print(f"  {name}: requires_grad={param.requires_grad}")
+
         input_tensor = batch["coords_true"]
         target_tensor = batch["coords_true"]
         print(f"[DEBUG-LM] input_tensor.shape: {input_tensor.shape}, dtype: {input_tensor.dtype}")
@@ -189,7 +194,8 @@ class RNALightningModule(L.LightningModule):
                     print(f"[DEBUG-LM] batch['{k}'].shape: {v.shape}")
                 else:
                     print(f"[DEBUG-LM] batch['{k}']: {v}")
-        predicted_coords = output["coords"]
+        predicted_coords = output["coords"] if isinstance(output, dict) and "coords" in output else output
+        print(f"[DEBUG-LM] predicted_coords.requires_grad: {getattr(predicted_coords, 'requires_grad', 'N/A')}, grad_fn: {getattr(predicted_coords, 'grad_fn', 'N/A')}")
         pred_atom_metadata = output.get("atom_metadata", None)
         # Force systematic masking if atom_metadata is present
         if pred_atom_metadata is not None:

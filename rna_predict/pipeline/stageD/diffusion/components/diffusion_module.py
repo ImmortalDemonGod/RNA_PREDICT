@@ -248,7 +248,7 @@ class DiffusionModule(nn.Module):
             else:
                 warnings.warn("Could not apply zero_init_dit_output.")
 
-    #@snoop
+    ##@snoop
     def _run_with_checkpointing(
         self, module: Union[nn.Module, Callable], *args, **kwargs
     ) -> Any:  # Changed return type hint to support both Module and Callable
@@ -336,7 +336,7 @@ class DiffusionModule(nn.Module):
             chunk_size=chunk_size,
         )
 
-    #@snoop
+    ##@snoop
     def f_forward(
         self,
         r_noisy: torch.Tensor,  # Expected shape [B, N_sample, N_atom, 3] or similar
@@ -598,7 +598,7 @@ class DiffusionModule(nn.Module):
 
         return r_update
 
-    #@snoop
+    ##@snoop
     def forward(
         self,
         x_noisy: torch.Tensor,
