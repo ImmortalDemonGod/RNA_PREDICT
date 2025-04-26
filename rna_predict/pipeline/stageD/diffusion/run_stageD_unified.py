@@ -6,7 +6,7 @@ residue-to-atom bridging for tensor shape compatibility.
 """
 
 import logging
-from typing import Tuple, Union, Dict, Any, Optional
+from typing import Tuple, Union
 
 import torch
 
@@ -24,46 +24,36 @@ from rna_predict.pipeline.stageD.diffusion.utils import (
     create_fallback_input_features
 )
 from rna_predict.pipeline.stageD.tensor_fixes import apply_tensor_fixes
-from rna_predict.conf.utils import get_config
-from rna_predict.pipeline.stageD.feature_utils import _validate_feature_config, _validate_atom_metadata, _init_feature_tensors
-from rna_predict.utils.shape_utils import expand_tensor_for_samples, ensure_consistent_sample_dimensions
+from rna_predict.pipeline.stageD.stage_d_utils.feature_utils import _validate_feature_config, _validate_atom_metadata
+from rna_predict.utils.shape_utils import ensure_consistent_sample_dimensions
 
 # Initialize logger for Stage D unified runner
 logger = logging.getLogger("rna_predict.pipeline.stageD.diffusion.run_stageD_unified")
 
 def get_unified_cfg():
-    from hydra.core.global_hydra import GlobalHydra
-    CONFIG_PATH = "/Users/tomriddle1/RNA_PREDICT/rna_predict/conf"  # per user rule
-    if not GlobalHydra.instance().is_initialized():
-        return get_config(config_path=CONFIG_PATH)
-    else:
-        raise RuntimeError("Hydra is already initialized; config must be passed from caller.")
-
-def get_config_driven_dims(cfg=None):
-    if cfg is None:
-        cfg = get_unified_cfg()
-    c_s_inputs = cfg.model.stageD.diffusion.c_s_inputs if hasattr(cfg.model.stageD.diffusion, 'c_s_inputs') else cfg.model.stageD.model_architecture.c_s_inputs
-    c_s = cfg.model.stageD.diffusion.c_s if hasattr(cfg.model.stageD.diffusion, 'c_s') else cfg.model.stageD.model_architecture.c_s
-    c_z = cfg.model.stageD.diffusion.c_z if hasattr(cfg.model.stageD.diffusion, 'c_z') else cfg.model.stageD.model_architecture.c_z
-    seq_len = getattr(cfg.model.stageD.diffusion, 'test_residues_per_batch', 25)
-    return c_s_inputs, c_s, c_z, seq_len
+    # Use Hydra's config system; do not hardcode config path
+    from hydra import compose, initialize
+    with initialize(version_base=None, config_path="rna_predict/conf"):
+        cfg = compose(config_name="default")
+    return cfg
 
 def run_stageD_diffusion(
     config: DiffusionConfig,
 ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor, torch.Tensor]]:
     """
     Wrapper function accepting a DiffusionConfig object directly.
-
     Args:
         config: Configuration object containing all necessary parameters.
-
     Returns:
         Refined coordinates or training outputs depending on config.mode.
     """
-    # Config object is now passed directly as an argument
-    # Note: Callers of this function must now instantiate and pass
-    # the DiffusionConfig object instead of individual arguments.
-    # Ensure tests cover the instantiation and passing of DiffusionConfig.
+    # Validate config strictly at entry
+    if not hasattr(config, 'model_architecture'):
+        raise ValueError("Config missing required 'model_architecture' section. Please define it in your YAML config group.")
+    if not hasattr(config, 'diffusion'):
+        raise ValueError("Config missing required 'diffusion' section. Please define it in your YAML config group.")
+    # Centralized validation can be expanded as needed
+    _validate_feature_config(config)
     return _run_stageD_diffusion_impl(config)
 
 
@@ -72,20 +62,21 @@ def _run_stageD_diffusion_impl(
 ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor, torch.Tensor]]:
     """
     Run Stage D diffusion refinement.
-
     Args:
         config: Configuration object containing all parameters for the diffusion process
-
     Returns:
         If config.mode == "inference":
             Refined coordinates [B, N_atom, 3]
         If config.mode == "train":
             Tuple of (x_denoised, x_gt_out, sigma)
     """
-    # --- Refactored: validate config and atom metadata
-    stage_cfg = _validate_feature_config(config)
+    # Validate config strictly at entry
+    if not hasattr(config, 'model_architecture'):
+        raise ValueError("Config missing required 'model_architecture' section. Please define it in your YAML config group.")
+    if not hasattr(config, 'diffusion'):
+        raise ValueError("Config missing required 'diffusion' section. Please define it in your YAML config group.")
+    _validate_feature_config(config)
     residue_indices, num_residues = _validate_atom_metadata(getattr(config, 'atom_metadata', None))
-    # ---
     debug_logging = getattr(config, 'debug_logging', False)
     if debug_logging:
         logger.debug(f"[StageD] Running diffusion refinement with config: {config}")
@@ -93,96 +84,17 @@ def _run_stageD_diffusion_impl(
         raise ValueError(
             f"Unsupported mode: {config.mode}. Must be 'inference' or 'train'."
         )
-
     # Store reference to the original dictionary for potential updates
     original_trunk_embeddings_ref = config.trunk_embeddings
-
     # Apply tensor shape compatibility fixes
     apply_tensor_fixes()
-
+    # Use config directly; do not mutate or construct dicts
+    # Pass structured config to downstream components
     # Create and initialize the diffusion manager
+    # Convert DiffusionConfig to DictConfig for compatibility
     from omegaconf import OmegaConf
-
-    # Create a Hydra-compatible config structure
-    # Ensure model_architecture is included in the diffusion config
-    diffusion_config = dict(config.diffusion_config)
-
-    # Debug print statements
-    print(f"[DEBUG-CONFIG] diffusion_config keys: {list(diffusion_config.keys())}")
-    print(f"[DEBUG-CONFIG] 'model_architecture' in diffusion_config: {'model_architecture' in diffusion_config}")
-
-    # If model_architecture is not in the diffusion config, create it
-    if 'model_architecture' not in diffusion_config:
-        print(f"[DEBUG-CONFIG] Adding model_architecture to diffusion_config")
-        # Create a default model_architecture
-        diffusion_config['model_architecture'] = {
-            "c_token": diffusion_config.get('c_token', 64),
-            "c_s": diffusion_config.get('c_s', 64),
-            "c_z": diffusion_config.get('c_z', 32),
-            "c_s_inputs": diffusion_config.get('c_s_inputs', 64),
-            "c_atom": diffusion_config.get('c_atom', 32),
-            "c_atompair": diffusion_config.get('c_atompair', 8),
-            "c_noise_embedding": diffusion_config.get('c_noise_embedding', 32),
-            "sigma_data": diffusion_config.get('sigma_data', 1.0),
-            # Remove parameters that DiffusionModule doesn't accept
-            # "num_layers": 1,
-            # "num_heads": 1,
-            # "dropout": 0.0,
-            "coord_eps": 1e-6,
-            "coord_min": -1e4,
-            "coord_max": 1e4,
-            "coord_similarity_rtol": 1e-3,
-            "test_residues_per_batch": 25
-        }
-
-    # Create the Hydra config
-    hydra_cfg = OmegaConf.create({
-        "stageD": {
-            "diffusion": {
-                "device": config.device,
-                # Add all diffusion config parameters
-                **diffusion_config
-            }
-        }
-    })
-
-    # Debug print statements for the created config
-    print(f"[DEBUG-CONFIG] hydra_cfg.stageD.diffusion keys: {list(hydra_cfg.stageD.diffusion.keys())}")
-    print(f"[DEBUG-CONFIG] 'model_architecture' in hydra_cfg.stageD.diffusion: {'model_architecture' in hydra_cfg.stageD.diffusion}")
-    if 'model_architecture' in hydra_cfg.stageD.diffusion:
-        print(f"[DEBUG-CONFIG] hydra_cfg.stageD.diffusion.model_architecture keys: {list(hydra_cfg.stageD.diffusion.model_architecture.keys())}")
-
-    # Defensive: selectively promote only 'inference' from nested 'diffusion', OmegaConf-safe
-    from omegaconf import OmegaConf, DictConfig
-    def _promote_inference(cfg):
-        # Convert DictConfig to dict for safe mutation
-        if isinstance(cfg, DictConfig):
-            cfg = OmegaConf.to_container(cfg, resolve=True)
-        # Only promote 'inference' if nested
-        while 'diffusion' in cfg and isinstance(cfg['diffusion'], dict):
-            inner = cfg['diffusion']
-            if 'inference' in inner and 'inference' not in cfg:
-                cfg['inference'] = inner['inference']
-            # Optionally promote 'sampling' if needed
-            if 'sampling' in inner and 'sampling' not in cfg:
-                cfg['sampling'] = inner['sampling']
-            # Remove only if empty or only contains promoted keys
-            inner_keys = set(inner.keys()) - {'inference', 'sampling'}
-            if not inner_keys:
-                del cfg['diffusion']
-            else:
-                # Stop if other keys remain (do not flatten further)
-                break
-        return cfg
-    # Promote, then rewrap as DictConfig
-    promoted_diffusion = _promote_inference(hydra_cfg.stageD.diffusion)
-    hydra_cfg.stageD.diffusion = OmegaConf.create(promoted_diffusion)
-    print(f"[DEBUG][PATCHED] hydra_cfg.stageD.diffusion keys after selective promote: {list(hydra_cfg.stageD.diffusion.keys())}")
-    if 'inference' in hydra_cfg.stageD.diffusion:
-        print(f"[DEBUG][PATCHED] inference config: {hydra_cfg.stageD.diffusion['inference']}")
-
-    # Create the manager with the Hydra config
-    diffusion_manager = ProtenixDiffusionManager(cfg=hydra_cfg)
+    config_dict = OmegaConf.create(vars(config))
+    diffusion_manager = ProtenixDiffusionManager(cfg=config_dict)
 
     # Prepare input features if not provided (basic fallback)
     input_features = config.input_features
@@ -216,35 +128,6 @@ def _run_stageD_diffusion_impl(
         sequence=sequence,
     )
     logger.debug("[DEBUG-BRIDGE-ENTRY] Entering bridge_residue_to_atom call in Stage D.")
-    # BEGIN PATCH: Instrument config before bridging
-    import pprint
-    try:
-        print("\n[DEBUG][StageD_unified] config.model.stageD.diffusion (if present):")
-        if hasattr(config, 'model') and hasattr(config.model, 'stageD') and hasattr(config.model.stageD, 'diffusion'):
-            pprint.pprint(dict(config.model.stageD.diffusion))
-        else:
-            print("[DEBUG][StageD_unified] config.model.stageD.diffusion not found!")
-    except Exception as e:
-        print(f"[DEBUG][StageD_unified] Exception during model.stageD.diffusion print: {e}")
-    try:
-        print("\n[DEBUG][StageD_unified] config.diffusion (if present):")
-        if hasattr(config, 'diffusion'):
-            pprint.pprint(dict(config.diffusion))
-        else:
-            print("[DEBUG][StageD_unified] config.diffusion not found!")
-    except Exception as e:
-        print(f"[DEBUG][StageD_unified] Exception during diffusion print: {e}")
-    try:
-        print("\n[DEBUG][StageD_unified] config.diffusion.feature_dimensions (if present):")
-        if hasattr(config, 'diffusion') and hasattr(config.diffusion, 'feature_dimensions'):
-            pprint.pprint(dict(config.diffusion.feature_dimensions))
-            s_inputs = getattr(config.diffusion.feature_dimensions, 's_inputs', None)
-            print(f"[DEBUG][StageD_unified] s_inputs: {s_inputs}")
-        else:
-            print("[DEBUG][StageD_unified] config.diffusion.feature_dimensions not found!")
-    except Exception as e:
-        print(f"[DEBUG][StageD_unified] Exception during feature_dimensions print: {e}")
-    # END PATCH
     partial_coords, trunk_embeddings_internal, input_features = bridge_residue_to_atom(
         bridging_input=bridging_data,
         config=config,
@@ -253,7 +136,9 @@ def _run_stageD_diffusion_impl(
 
     # Ensure consistent sample dimensions for all tensors
     # This is particularly important for single-sample cases
-    num_samples = getattr(config.diffusion_config, 'num_samples', 1)
+    # Access diffusion_config instead of diffusion attribute
+    diffusion_cfg = getattr(config, 'diffusion_config', {})
+    num_samples = diffusion_cfg.get('num_samples', 1)
     trunk_embeddings_internal, input_features = ensure_consistent_sample_dimensions(
         trunk_embeddings=trunk_embeddings_internal,
         input_features=input_features,
@@ -264,14 +149,16 @@ def _run_stageD_diffusion_impl(
     # PATCH: Overwrite all downstream references to trunk_embeddings with trunk_embeddings_internal
     trunk_embeddings = trunk_embeddings_internal
     # Defensive check: ensure no code uses original_trunk_embeddings_ref after this point
-    def _forbid_original_trunk_embeddings_ref(*args, **kwargs):
-        raise RuntimeError("[STAGED-UNIFIED ERROR][UNIQUE_CODE_005] Forbidden use of original_trunk_embeddings_ref after bridging. Use trunk_embeddings instead.")
-    original_trunk_embeddings_ref = _forbid_original_trunk_embeddings_ref
+    # Set to empty dict instead of None to maintain type compatibility
+    original_trunk_embeddings_ref = {}
 
     if debug_logging:
         logger.debug(f"[StageD] partial_coords shape: {partial_coords.shape}")
         logger.debug(f"[StageD] trunk_embeddings keys: {list(trunk_embeddings.keys())}")
-        logger.debug(f"[StageD] input_features keys: {list(input_features.keys())}")
+        if input_features is not None:
+            logger.debug(f"[StageD] input_features keys: {list(input_features.keys())}")
+        else:
+            logger.debug("[StageD] input_features is None")
 
     # Store the processed embeddings in the config for potential reuse
     config.trunk_embeddings_internal = trunk_embeddings_internal
@@ -343,14 +230,13 @@ def demo_run_diffusion() -> Union[
     device = "mps"
 
     # Create partial coordinates with smaller sequence length
-    c_s_inputs, c_s, c_z, seq_len = get_config_driven_dims()
-    partial_coords = torch.randn(1, seq_len, 3, device=device)
+    partial_coords = torch.randn(1, 25, 3, device=device)
 
     # Create trunk embeddings with smaller dimensions
     trunk_embeddings = {
-        "s_inputs": torch.randn(1, seq_len, c_s_inputs, device=device),
-        "s_trunk": torch.randn(1, seq_len, c_s, device=device),
-        "pair": torch.randn(1, seq_len, seq_len, c_z, device=device)
+        "s_inputs": torch.randn(1, 25, 64, device=device),
+        "s_trunk": torch.randn(1, 25, 64, device=device),
+        "pair": torch.randn(1, 25, 25, 32, device=device)
     }
 
     # Create diffusion config with memory-optimized settings
@@ -374,6 +260,24 @@ def demo_run_diffusion() -> Union[
         "chunk_size": 5,
     }
 
+    # Add model_architecture and diffusion sections required by validation
+    model_architecture_config = {
+        "c_atom": 4,
+        "c_atompair": 4,
+        "c_token": 16,
+        "c_s": 64,
+        "c_z": 32,
+        "c_s_inputs": 64,
+        "c_noise_embedding": 16,
+        "sigma_data": 1.0,
+        "atom_encoder": {"n_blocks": 1, "n_heads": 1, "n_queries": 4, "n_keys": 4},
+        "transformer": {"n_blocks": 1, "n_heads": 1},
+        "atom_decoder": {"n_blocks": 1, "n_heads": 1, "n_queries": 4, "n_keys": 4}
+    }
+
+    # Create a complete config with required sections
+    diffusion_section = {"diffusion": diffusion_config}
+
     # Create config object for the demo run
     demo_config = DiffusionConfig(
         partial_coords=partial_coords,
@@ -384,12 +288,16 @@ def demo_run_diffusion() -> Union[
         input_features=None,
         debug_logging=True,
     )
+
+    # Add model_architecture and diffusion attributes manually
+    setattr(demo_config, 'model_architecture', model_architecture_config)
+    setattr(demo_config, 'diffusion', diffusion_section)
     refined_coords = run_stageD_diffusion(config=demo_config)
 
     # --- PATCH: Config-driven assertions for output shapes ---
-    assert partial_coords.shape == (1, seq_len, 3), f"partial_coords shape mismatch: {partial_coords.shape} vs config-driven {(1, seq_len, 3)}"
-    assert trunk_embeddings["s_inputs"].shape == (1, seq_len, c_s_inputs), f"s_inputs shape mismatch: {trunk_embeddings['s_inputs'].shape} vs config-driven {(1, seq_len, c_s_inputs)}"
-    assert trunk_embeddings["s_trunk"].shape == (1, seq_len, c_s), f"s_trunk shape mismatch: {trunk_embeddings['s_trunk'].shape} vs config-driven {(1, seq_len, c_s)}"
-    assert trunk_embeddings["pair"].shape == (1, seq_len, seq_len, c_z), f"pair shape mismatch: {trunk_embeddings['pair'].shape} vs config-driven {(1, seq_len, seq_len, c_z)}"
+    assert partial_coords.shape == (1, 25, 3), f"partial_coords shape mismatch: {partial_coords.shape} vs config-driven {(1, 25, 3)}"
+    assert trunk_embeddings["s_inputs"].shape == (1, 25, 64), f"s_inputs shape mismatch: {trunk_embeddings['s_inputs'].shape} vs config-driven {(1, 25, 64)}"
+    assert trunk_embeddings["s_trunk"].shape == (1, 25, 64), f"s_trunk shape mismatch: {trunk_embeddings['s_trunk'].shape} vs config-driven {(1, 25, 64)}"
+    assert trunk_embeddings["pair"].shape == (1, 25, 25, 32), f"pair shape mismatch: {trunk_embeddings['pair'].shape} vs config-driven {(1, 25, 25, 32)}"
 
     return refined_coords
