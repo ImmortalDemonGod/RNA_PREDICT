@@ -84,7 +84,24 @@ cfg = OmegaConf.create({
                 }
             }
         },
-        'stageC': {},
+        'stageC': {
+            'enabled': True,
+            'method': 'mp_nerf',
+            'device': 'cpu',
+            'do_ring_closure': True,
+            'place_bases': True,
+            'sugar_pucker': 'C3_endo',
+            'angle_representation': 'degrees',
+            'use_metadata': True,
+            'use_memory_efficient_kernel': False,
+            'use_deepspeed_evo_attention': False,
+            'use_lma': False,
+            'inplace_safe': True,
+            'debug_logging': False,
+            'mp_nerf': {
+                'enabled': True
+            }
+        },
         'stageD': {
             # Direct diffusion config without extra nesting
             'diffusion': {
@@ -153,7 +170,15 @@ def test_trainer_fast_dev_run():
          patch.object(PairformerWrapper, '__call__', return_value=(torch.ones((4, 64)), torch.ones((4, 4, 32)))), \
          patch.object(PairformerWrapper, 'predict', return_value=(torch.ones((4, 64)), torch.ones((4, 4, 32)))), \
          patch.object(StageARFoldPredictor, 'predict_adjacency', return_value=torch.eye(4)), \
-         patch.object(SimpleLatentMerger, '__call__', return_value=torch.ones((4, 128))):
+         patch.object(SimpleLatentMerger, '__call__', return_value=torch.ones((4, 128))), \
+         patch('rna_predict.pipeline.stageC.stage_c_reconstruction.run_stageC', return_value={
+             "coords": torch.ones((4, 3)),
+             "atom_count": 4,
+             "atom_metadata": {
+                 "residue_indices": torch.tensor([0, 1, 2, 3]),
+                 "atom_names": ["C", "G", "A", "U"]
+             }
+         }):
 
         try:
             # Revert: Pass full cfg, not cfg.model
