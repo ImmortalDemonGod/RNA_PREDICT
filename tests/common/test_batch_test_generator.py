@@ -25,6 +25,7 @@ import pytest
 # Import the module under test using importlib
 import importlib.util
 import os
+from typing import cast, Any
 
 # Get the absolute path to the batch_test_generator.py file
 script_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
@@ -32,8 +33,11 @@ script_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__fil
 
 # Load the module dynamically
 spec = importlib.util.spec_from_file_location("batch_test_generator", script_path)
-batch_test_generator = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(batch_test_generator)
+if spec is not None and spec.loader is not None:
+    batch_test_generator = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(batch_test_generator)
+else:
+    raise ImportError(f"Could not load module from {script_path}")
 
 #################
 # FIXTURES
