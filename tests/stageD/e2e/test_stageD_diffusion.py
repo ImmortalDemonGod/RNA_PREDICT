@@ -1,11 +1,25 @@
 import pytest
 import torch
+from hydra import initialize, compose
+import os
 
 from rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager import (
     ProtenixDiffusionManager,
 )
 from rna_predict.pipeline.stageD.diffusion.run_stageD_unified import run_stageD_diffusion
 from rna_predict.pipeline.stageD.diffusion.utils import DiffusionConfig  # Import needed class
+
+
+def ensure_project_root():
+    """Ensure test is running from the project root for Hydra config resolution."""
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    cwd = os.getcwd()
+    print(f"[DEBUG][test_stageD_diffusion] Current working directory: {cwd}")
+    if cwd != project_root:
+        raise RuntimeError(
+            f"Test must be run from project root ({project_root}), not {cwd}. "
+            "Please run: cd /Users/tomriddle1/RNA_PREDICT && uv run -m pytest ..."
+        )
 
 
 @pytest.fixture(scope="function")
@@ -108,8 +122,61 @@ def minimal_input_features():
     }
 
 
+@pytest.mark.integration
+def test_run_stageD_diffusion_inference():
+    """Test Stage D diffusion using Hydra-composed config group, not ad-hoc dict."""
+    ensure_project_root()
+    with initialize(config_path="../../../rna_predict/conf"):
+        # Compose the config using the default chain (which must include model/stageD)
+        cfg = compose(config_name="default")
+        # Optionally override device or mode for test speed
+        cfg.model.stageD.device = "cpu"
+        cfg.model.stageD.mode = "inference"
+        # Compose or generate minimal valid input features for the test
+        input_features = {
+            "atom_to_token_idx": torch.zeros((1, 5), dtype=torch.long),
+            "ref_pos": torch.randn(1, 5, 3),
+            "ref_space_uid": torch.arange(5).unsqueeze(0),
+            "ref_charge": torch.zeros(1, 5, 1),
+            "ref_mask": torch.ones(1, 5, 1),
+            "profile": torch.randn(1, 5, 32),
+        }
+        # Minimal trunk_embeddings for test
+        trunk_embeddings = {
+            "s_inputs": torch.randn(1, 5, 384),
+            "s_trunk": torch.randn(1, 5, 384),
+            "pair": torch.randn(1, 5, 5, 32)
+        }
+        # Minimal partial_coords for test
+        partial_coords = torch.randn(1, 5, 3)
+        # Build DiffusionConfig
+        test_config = DiffusionConfig(
+            partial_coords=partial_coords,
+            trunk_embeddings=trunk_embeddings,
+            diffusion_config=dict(cfg.model.stageD.diffusion),
+            mode=cfg.model.stageD.mode,
+            device=cfg.model.stageD.device,
+            input_features=input_features,
+            debug_logging=cfg.model.stageD.get("debug_logging", False),
+            sequence=None,
+            ref_element_size=cfg.model.stageD.get("ref_element_size", 128),
+            ref_atom_name_chars_size=cfg.model.stageD.get("ref_atom_name_chars_size", 256),
+            profile_size=cfg.model.stageD.get("profile_size", 32),
+            cfg=cfg.model.stageD,
+        )
+        # Patch in required config sections for validation
+        test_config.model_architecture = dict(cfg.model.stageD["model_architecture"])
+        test_config.diffusion = dict(cfg.model.stageD["diffusion"])
+        test_config.feature_dimensions = dict(cfg.model.stageD["feature_dimensions"])
+        # Run the pipeline with the config group
+        out_coords = run_stageD_diffusion(config=test_config)
+        assert isinstance(out_coords, torch.Tensor)
+        assert out_coords.ndim == 3  # [batch, n_atoms, 3]
+        assert out_coords.shape[2] == 3  # Check coordinate dimension
+
+
 @pytest.mark.parametrize("missing_s_inputs", [True, False])
-def test_run_stageD_diffusion_inference(
+def test_run_stageD_diffusion_inference_original(
     missing_s_inputs, minimal_diffusion_config, minimal_input_features
 ):
     """
