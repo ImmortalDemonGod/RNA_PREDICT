@@ -22,8 +22,18 @@ from unittest.mock import patch
 
 import pytest
 
-# Import the module under test
-import scripts.test_utils.batch_test_generator as batch_test_generator
+# Import the module under test using importlib
+import importlib.util
+import os
+
+# Get the absolute path to the batch_test_generator.py file
+script_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+                          "scripts", "test_utils", "batch_test_generator.py")
+
+# Load the module dynamically
+spec = importlib.util.spec_from_file_location("batch_test_generator", script_path)
+batch_test_generator = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(batch_test_generator)
 
 #################
 # FIXTURES
