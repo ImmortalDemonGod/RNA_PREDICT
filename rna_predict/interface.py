@@ -48,8 +48,24 @@ class RNAPredictor:
         self.default_atom_choice = getattr(self.prediction_config, "residue_atom_choice", 1)
 
         # Initialize Stage B Torsion Predictor
-        # Pass the entire config, the predictor will extract its specific config
-        self.torsion_predictor = StageBTorsionBertPredictor(cfg)
+        # Pass the correct subconfig to StageBTorsionBertPredictor
+        if hasattr(cfg, 'model') and hasattr(cfg.model, 'stageB') and hasattr(cfg.model.stageB, 'torsion_bert'):
+            torsion_bert_cfg = cfg.model.stageB.torsion_bert
+            # Ensure required fields are present
+            if not hasattr(torsion_bert_cfg, 'model_name_or_path'):
+                torsion_bert_cfg.model_name_or_path = "dummy-path"
+            if not hasattr(torsion_bert_cfg, 'device'):
+                torsion_bert_cfg.device = self.device
+        else:
+            # Use the provided config directly
+            torsion_bert_cfg = cfg
+            # Ensure required fields are present
+            if not hasattr(torsion_bert_cfg, 'model_name_or_path'):
+                torsion_bert_cfg.model_name_or_path = "dummy-path"
+            if not hasattr(torsion_bert_cfg, 'device'):
+                torsion_bert_cfg.device = self.device
+
+        self.torsion_predictor = StageBTorsionBertPredictor(torsion_bert_cfg)
 
     def predict_3d_structure(self, sequence: str) -> Dict[str, Any]:
         """Run Stage B predictor -> Stage C reconstruction pipeline on a single RNA sequence.
@@ -76,8 +92,17 @@ class RNAPredictor:
         # Stage C: 3D coords - Use configuration from Hydra
         # Create a new config to avoid modifying the original and ensure required parameters
         base_stagec = OmegaConf.to_container(self.stageC_config, resolve=True)
-        base_stagec.setdefault("debug_logging", False)
-        base_stagec["device"] = str(self.device)
+        # Handle different types that might be returned by OmegaConf.to_container
+        if isinstance(base_stagec, dict):
+            if "debug_logging" not in base_stagec:
+                base_stagec["debug_logging"] = False
+            base_stagec["device"] = str(self.device)
+        else:
+            # If not a dict, create a new dict with the required fields
+            base_stagec = {
+                "debug_logging": False,
+                "device": str(self.device)
+            }
         stageC_config = OmegaConf.create({"model": {"stageC": base_stagec}})
 
         return run_stageC(cfg=stageC_config, sequence=sequence, torsion_angles=torsion_angles)

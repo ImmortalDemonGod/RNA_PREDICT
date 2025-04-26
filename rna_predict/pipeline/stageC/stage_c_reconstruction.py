@@ -2,8 +2,11 @@ from rna_predict.conf.config_schema import StageCConfig
 import hydra
 from omegaconf import DictConfig, OmegaConf, ValidationError
 import torch
+import torch.nn as nn
 from typing import Optional, Dict, Any
 import logging
+import os
+import psutil
 
 # Initialize logger
 logger = logging.getLogger("rna_predict.pipeline.stageC.stage_c_reconstruction")
@@ -13,18 +16,35 @@ def set_stageC_logger_level(debug_logging: bool):
     Set logger level for Stage C according to debug_logging flag.
     """
     if debug_logging:
-        logger.setLevel(logging.DEBUG)
+        logger.setLevel(logging.DEBUG) # Explicitly set DEBUG level
     else:
-        logger.setLevel(logging.WARNING)
+        # Set to INFO or WARNING to suppress DEBUG messages
+        logger.setLevel(logging.INFO)
+
+    # Ensure propagation is set correctly
+    logger.propagate = True # Ensure messages reach caplog
+
+    # Make sure all handlers respect the log level
+    for handler in logger.handlers:
+        if debug_logging:
+            handler.setLevel(logging.DEBUG)
+        else:
+            handler.setLevel(logging.INFO)
 
 
-class StageCReconstruction:
+class StageCReconstruction(nn.Module):
     """
     Legacy fallback approach for Stage C. Used if method != 'mp_nerf'.
     Returns trivial coords (N*3, 3).
     """
 
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+        print("[MEMORY-LOG][StageC] Initializing StageCReconstruction")
+        process = psutil.Process(os.getpid())
+        print(f"[MEMORY-LOG][StageC] Memory usage: {process.memory_info().rss / 1e6:.2f} MB")
+        print("[MEMORY-LOG][StageC] After super().__init__")
+        print(f"[MEMORY-LOG][StageC] Memory usage: {process.memory_info().rss / 1e6:.2f} MB")
         self.debug_logging = False
 
     def __call__(self, torsion_angles: torch.Tensor):

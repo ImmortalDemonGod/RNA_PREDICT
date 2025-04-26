@@ -9,7 +9,6 @@ import torch
 
 from rna_predict.pipeline.stageA.input_embedding.current.transformer.common import (
     InputFeatureDict,
-    safe_tensor_access,
 )
 
 

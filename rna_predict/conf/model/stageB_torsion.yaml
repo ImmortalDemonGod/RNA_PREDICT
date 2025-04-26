@@ -6,6 +6,7 @@ num_angles: 7          # Standard number of torsion angles
 max_length: 512        # Default max sequence length
 checkpoint_path: null  # No specific checkpoint by default
 debug_logging: true    # Debug logging for TorsionBert (added for testing/logging control)
+init_from_scratch: false
 
 # Optional LoRA configuration
 lora:

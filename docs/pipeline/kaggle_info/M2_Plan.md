@@ -33,6 +33,7 @@ The following must be demonstrably working by the end of M2:
 8.  **Inference Script:** A separate inference script (`rna_predict/predict.py` or similar) exists for generating predictions from saved checkpoints.
 9.  **Checkpoint Loading (Partial):** The inference script successfully loads the *trainable* parameters from a saved M2 checkpoint into the corresponding pipeline model structure using a partial loading mechanism (handling potentially missing base model weights in the checkpoint).
 10. **Initial Prediction Generation:** The inference script, using a loaded M2 checkpoint, successfully generates and saves 3D coordinate outputs (e.g., `.pdb` or `.pt` format) for a representative subset of the validation data without crashing.
+11. **LanceDB Logging Stub:** A stub LanceDB logger is present in the codebase (`rna_predict/utils/lance_logger.py`), with no-op logging methods and a config flag (`PipelineConfig.lance_db.enabled`) controlling activation. For M2, this logger is a placeholder; real logging will be implemented in M3.
 
 **4. Key Technical Tasks & Recommended Approaches**
 
@@ -47,6 +48,7 @@ To achieve the M2 requirements, the following technical tasks should be prioriti
     *   Implement `validation_step`: Similar to `training_step` but uses `torch.no_grad()`. Logs validation loss and basic coordinate metrics (e.g., MAE).
     *   Implement `configure_optimizers`: Defines the optimizer (e.g., AdamW) targeting *only* trainable parameters (Task 4.3) and optionally sets up an LR scheduler.
     *   Override `load_state_dict` or use the `on_load_checkpoint` hook to integrate partial checkpoint loading logic (Task 4.4).
+    *   Integrate config flags for LanceDB logging (stub for M2, see `PipelineConfig.lance_db`).
 *   **Reference (`ProjectEquiSurv`):**
     *   `quick_fixes/advanced/training/lightning_survival_module.py` (`LightningSurvivalModule`)
     *   `quick_fixes/advanced/training/optim_wrappers.py` (`configure_optimizers`)
@@ -138,7 +140,7 @@ To achieve the M2 requirements, the following technical tasks should be prioriti
 
 **6. Definition of Done (M2)**
 
-M2 is complete when all 10 "Must-Have" requirements listed in Section 3 are met and verified. This signifies that the integrated pipeline is demonstrably trainable using LoRA and capable of producing initial 3D outputs from saved checkpoints.
+M2 is complete when all 11 "Must-Have" requirements listed in Section 3 are met and verified. This signifies that the integrated pipeline is demonstrably trainable using LoRA and capable of producing initial 3D outputs from saved checkpoints.
 
 **7. Next Steps (Post-M2)**
 
@@ -200,6 +202,7 @@ The following must be demonstrably working by the end of M2:
 8.  **Inference Script:** A separate inference script (`rna_predict/predict.py`) exists for generating predictions from saved checkpoints.
 9.  **Checkpoint Loading (Partial):** The inference script successfully loads the *trainable* parameters from a saved M2 checkpoint into the corresponding pipeline model structure using a partial loading mechanism (e.g., `partial_load_state_dict` adapted from `ProjectEquiSurv`), gracefully handling the absence of base model weights in the checkpoint.
 10. **Initial Prediction Generation:** The inference script, using a loaded M2 checkpoint, successfully generates and saves 3D coordinate outputs (e.g., `.pdb` format) for a small, representative subset of the validation data without crashing.
+11. **LanceDB Logging Stub:** A stub LanceDB logger is present in the codebase (`rna_predict/utils/lance_logger.py`), with no-op logging methods and a config flag (`PipelineConfig.lance_db.enabled`) controlling activation. For M2, this logger is a placeholder; real logging will be implemented in M3.
 
 **4. Key Technical Tasks & Recommended Approaches**
 
@@ -227,6 +230,7 @@ The following must be demonstrably working by the end of M2:
     *   `validation_step`: Call `forward` with `torch.no_grad()`, compute loss(es), compute basic coordinate MAE, log `val/loss`, `val/mae`.
     *   `configure_optimizers`: Instantiate optimizer (e.g., AdamW from `cfg.training.optimizer`) targeting *only* trainable parameters (Task 4.3). Optionally build LR scheduler (using `build_scheduler` pattern from `ProjectEquiSurv`).
     *   `load_state_dict`: Override to use `partial_load_state_dict` (Task 4.4).
+    *   Integrate config flags for LanceDB logging (stub for M2, see `PipelineConfig.lance_db`).
 *   **Reference (`ProjectEquiSurv`):** `lightning_survival_module.py`, `optim_wrappers.py`.
 
 **4.2. Establish Configuration Management (Leverage Hydra)**
@@ -296,7 +300,7 @@ The following must be demonstrably working by the end of M2:
 
 **6. Definition of Done (M2)**
 
-M2 is complete when all 10 "Must-Have" requirements listed in Section 3 are met and verified. The integrated pipeline is demonstrably trainable using LoRA, and initial 3D coordinate predictions can be generated from saved checkpoints for validation data.
+M2 is complete when all 11 "Must-Have" requirements listed in Section 3 are met and verified. The integrated pipeline is demonstrably trainable using LoRA, and initial 3D coordinate predictions can be generated from saved checkpoints for validation data.
 
 **7. Next Steps (Post-M2)**
 

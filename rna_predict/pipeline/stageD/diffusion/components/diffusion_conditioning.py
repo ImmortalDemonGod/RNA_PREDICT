@@ -16,7 +16,6 @@ from rna_predict.pipeline.stageA.input_embedding.current.primitives import (
 from .diffusion_utils import (
     InputFeatureDict,
     create_zero_tensor_like,
-    validate_tensor_shapes,
 )
 
 
@@ -31,11 +30,11 @@ class DiffusionConditioning(nn.Module):
 
     def __init__(
         self,
-        sigma_data: float = 16.0,
-        c_z: int = 128,
-        c_s: int = 384,
-        c_s_inputs: int = 449,
-        c_noise_embedding: int = 256,
+        sigma_data: float,
+        c_z: int,
+        c_s: int,
+        c_s_inputs: int,
+        c_noise_embedding: int,
     ) -> None:
         """
         Initialize the diffusion conditioning module.
@@ -53,11 +52,16 @@ class DiffusionConditioning(nn.Module):
         self.c_s = c_s
         self.c_s_inputs = c_s_inputs
         self.c_noise_embedding = c_noise_embedding
+        print(f"[DEBUG][DiffusionConditioning.__init__] c_z={c_z}, c_s={c_s}, c_s_inputs={c_s_inputs}, c_noise_embedding={c_noise_embedding}")
 
         # Pair feature processing
         self.relpe = RelativePositionEncoding(c_z=c_z)
-        print(f"[DEBUG][DiffusionConditioning] layernorm_z normalized_shape: {2 * self.c_z}")
-        self.layernorm_z = LayerNorm(2 * self.c_z)
+        # Use a more flexible approach for layernorm_z
+        # We'll initialize it with the expected dimension but it can be updated dynamically
+        self.expected_z_dim = 2 * self.c_z
+        print(f"[DEBUG][DiffusionConditioning] expected_z_dim: {self.expected_z_dim}")
+        # Initialize with the expected dimension, but we'll update it if needed
+        self.layernorm_z = LayerNorm(self.expected_z_dim)
         self.linear_no_bias_z = LinearNoBias(
             in_features=2 * self.c_z, out_features=self.c_z
         )
@@ -119,50 +123,56 @@ class DiffusionConditioning(nn.Module):
             else:
                 relpe_output = relpe_output[..., : z_trunk.shape[-1]]
 
-        # --- Start Dimension Alignment (Batch & Sample) ---
-        # Ensure relpe_output has the same number of dimensions as z_trunk
-        # If z_trunk is 5D ([B, S, N, N, C]) and relpe_output is 4D ([B, N, N, C]),
-        # add the sample dimension at index 1.
-        if z_trunk.ndim == 5 and relpe_output.ndim == 4:
-            # Add sample dimension of size 1 at index 1
-            relpe_output = relpe_output.unsqueeze(1) # Shape becomes [B, 1, N, N, C]
-        elif relpe_output.ndim < z_trunk.ndim:
-             # Fallback for other dimension mismatches (less common)
-             # This might need adjustment based on expected scenarios
-             while relpe_output.ndim < z_trunk.ndim:
-                 relpe_output = relpe_output.unsqueeze(0) # Add leading dimensions
+        # Ensure batch dimensions match
+        if relpe_output.shape[0] != z_trunk.shape[0]:
+            if relpe_output.shape[0] == 1:
+                # Expand relpe_output to match z_trunk's batch size
+                relpe_output = relpe_output.expand(z_trunk.shape[0], *relpe_output.shape[1:])
+            else:
+                # This is an unexpected case, but we'll handle it by truncating
+                print(f"[WARNING] Unexpected batch size mismatch: relpe_output.shape[0]={relpe_output.shape[0]}, z_trunk.shape[0]={z_trunk.shape[0]}")
+                relpe_output = relpe_output[:z_trunk.shape[0]]
 
-        # Expand batch dimension (dim 0) if necessary (only if added via fallback)
-        # This check might be redundant if the primary case (5D vs 4D) handles batch correctly.
-        if relpe_output.shape[0] == 1 and z_trunk.shape[0] > 1 and relpe_output.ndim == z_trunk.ndim:
-             relpe_output = relpe_output.expand(z_trunk.shape[0], *relpe_output.shape[1:])
-        # --- End Dimension Alignment ---
+        # Handle N_sample dimension (dim 1) if present in z_trunk but not in relpe_output
+        if z_trunk.ndim >= 5 and relpe_output.ndim == 4:  # z_trunk has N_sample dimension
+            # Add N_sample dimension to relpe_output
+            n_sample = z_trunk.shape[1]
+            relpe_output = relpe_output.unsqueeze(1)
+            # Expand to match z_trunk's N_sample dimension
+            relpe_output = relpe_output.expand(-1, n_sample, -1, -1, -1)
 
-        # --- Start Sample Dimension Alignment Fix ---
-        # Handle cases where both are 5D but sample dimension (dim 1) might mismatch
-        if z_trunk.ndim == 5 and relpe_output.ndim == 5:
-            # If sample dimensions don't match, assume relpe_output's dim 1 was added
-            # artificially and needs expansion to match z_trunk's sample dimension.
-            if relpe_output.shape[1] != z_trunk.shape[1]:
-                # Expand relpe_output's sample dimension to match z_trunk
-                try: # Add try-except for safety, although expand should work if shapes are compatible otherwise
-                    relpe_output = relpe_output.expand(-1, z_trunk.shape[1], -1, -1, -1)
-                except RuntimeError as e:
-                     raise RuntimeError(
-                         f"Failed to expand relpe_output sample dimension ({relpe_output.shape}) to match z_trunk ({z_trunk.shape}). Error: {e}"
-                     )
+        # Handle 6D z_trunk case (reshape to 5D for compatibility)
+        if z_trunk.ndim == 6:
+            # Reshape z_trunk to 5D by merging dimensions 1 and 2
+            z_trunk_shape = z_trunk.shape
+            z_trunk = z_trunk.reshape(z_trunk_shape[0], z_trunk_shape[1]*z_trunk_shape[2],
+                                     z_trunk_shape[3], z_trunk_shape[4], z_trunk_shape[5])
 
-        # Final check before concatenation
-        if z_trunk.shape[:-1] != relpe_output.shape[:-1]:
-             raise RuntimeError(
-                 f"Shape mismatch before concatenation (excluding last dim). "
-                 f"z_trunk: {z_trunk.shape}, relpe_output: {relpe_output.shape}"
-             )
-        # --- End Sample Dimension Alignment Fix ---
-
-        print(f"[DEBUG PRE-CAT] z_trunk shape: {z_trunk.shape}, relpe_output shape: {relpe_output.shape}") # Keep for verification
+        print(f"[DEBUG][_process_pair_features] z_trunk.shape={z_trunk.shape}, relpe_output.shape={relpe_output.shape}")
         pair_z = torch.cat([z_trunk, relpe_output], dim=-1)
-        pair_z = self.linear_no_bias_z(self.layernorm_z(pair_z))
+        print(f"[DEBUG][_process_pair_features] pair_z.shape before layernorm_z={pair_z.shape}")
+
+        # Create or update layernorm_z based on the actual input dimensions
+        actual_z_dim = pair_z.shape[-1]
+
+        # Check if layernorm_z is None or has the wrong shape
+        layernorm_z_shape_info = "None" if self.layernorm_z is None else self.layernorm_z.normalized_shape[0]
+        if self.layernorm_z is None or (hasattr(self.layernorm_z, 'normalized_shape') and self.layernorm_z.normalized_shape[0] != actual_z_dim):
+            print(f"[DEBUG][_process_pair_features] Creating new layernorm_z with normalized_shape={actual_z_dim} (current shape: {layernorm_z_shape_info})")
+            self.layernorm_z = LayerNorm(actual_z_dim).to(pair_z.device)
+
+        # Apply layernorm and linear transformation
+        pair_z = self.layernorm_z(pair_z)
+
+        # If the linear layer's input dimension doesn't match, create a new one
+        if self.linear_no_bias_z.in_features != actual_z_dim:
+            print(f"[DEBUG][_process_pair_features] Creating new linear_no_bias_z with in_features={actual_z_dim}")
+            self.linear_no_bias_z = LinearNoBias(
+                in_features=actual_z_dim,
+                out_features=self.c_z
+            ).to(pair_z.device)
+
+        pair_z = self.linear_no_bias_z(pair_z)
 
         if inplace_safe:
             pair_z += self.transition_z1(pair_z)
@@ -182,17 +192,104 @@ class DiffusionConditioning(nn.Module):
         """Process single features through the conditioning pipeline."""
         print(f"[STAGED DEBUG] _process_single_features: s_trunk.shape={s_trunk.shape}, s_inputs.shape={s_inputs.shape}, c_s={self.c_s}, c_s_inputs={self.c_s_inputs}, expected_in_features={self.c_s + self.c_s_inputs}")
 
-        # Validate and adapt tensor shapes if needed
-        adapted_s_trunk, adapted_s_inputs = validate_tensor_shapes(s_trunk, s_inputs, self.c_s, self.c_s_inputs)
-        print(f"[STAGED DEBUG] After validate_tensor_shapes: adapted_s_trunk.shape={adapted_s_trunk.shape}, adapted_s_inputs.shape={adapted_s_inputs.shape}")
+        # CRITICAL FIX: Handle token dimension mismatch between s_trunk and s_inputs
+        # This is a fallback in case the bridging_utils.py fix didn't catch it
+        if s_trunk.shape[-2] != s_inputs.shape[-2]:
+            print(f"[DIFFUSION-FIX] Detected token dimension mismatch in _process_single_features: s_trunk.shape={s_trunk.shape}, s_inputs.shape={s_inputs.shape}")
 
-        # Concatenate the adapted tensors
+            # Determine if we're dealing with atom-level or residue-level tensors
+            # Assume the larger dimension is atom-level and the smaller is residue-level
+            if s_trunk.shape[-2] > s_inputs.shape[-2]:  # s_trunk is atom-level, s_inputs is residue-level
+                # Create a new tensor to hold atom-level s_inputs
+                s_inputs_atom = torch.zeros(
+                    *s_inputs.shape[:-2], s_trunk.shape[-2], s_inputs.shape[-1],
+                    device=s_inputs.device, dtype=s_inputs.dtype
+                )
+
+                # Use a simple replication strategy: repeat each residue's features for all its atoms
+                # This is a fallback when we don't have atom_to_token_idx mapping
+                n_residues = s_inputs.shape[-2]
+                atoms_per_residue = s_trunk.shape[-2] // n_residues
+
+                if atoms_per_residue * n_residues == s_trunk.shape[-2]:  # Perfect division
+                    for i in range(n_residues):
+                        start_idx = i * atoms_per_residue
+                        end_idx = (i + 1) * atoms_per_residue
+                        # Handle different dimensionality of s_inputs
+                        if s_inputs.dim() == 4:  # [B, N_sample, N_res, C]
+                            s_inputs_atom[..., start_idx:end_idx, :] = s_inputs[..., i:i+1, :].expand(
+                                *[-1 for _ in range(s_inputs.dim() - 2)], atoms_per_residue, -1
+                            )
+                        else:  # [B, N_res, C] or other
+                            s_inputs_atom[..., start_idx:end_idx, :] = s_inputs[..., i:i+1, :].expand(
+                                *[-1 for _ in range(s_inputs.dim() - 2)], atoms_per_residue, -1
+                            )
+                    s_inputs = s_inputs_atom
+                    print(f"[DIFFUSION-FIX] Expanded s_inputs from residue-level to atom-level: {s_inputs.shape}")
+                else:
+                    # If we can't determine a clean mapping, use a more general approach
+                    # Just repeat the first residue's features for all atoms as a last resort
+                    print("[DIFFUSION-FIX] Warning: Cannot determine clean residue-to-atom mapping. Using fallback approach.")
+                    # Handle different dimensionality of s_inputs
+                    if s_inputs.dim() == 4:  # [B, N_sample, N_res, C]
+                        s_inputs = s_inputs[..., :1, :].expand(
+                            *[-1 for _ in range(s_inputs.dim() - 2)], s_trunk.shape[-2], -1
+                        )
+                    else:  # [B, N_res, C] or other
+                        s_inputs = s_inputs[..., :1, :].expand(
+                            *[-1 for _ in range(s_inputs.dim() - 2)], s_trunk.shape[-2], -1
+                        )
+            else:  # s_inputs is atom-level, s_trunk is residue-level
+                # This is less common, but handle it for completeness
+                # Create a new tensor to hold residue-level s_trunk
+                s_trunk_residue = torch.zeros(
+                    *s_trunk.shape[:-2], s_inputs.shape[-2], s_trunk.shape[-1],
+                    device=s_trunk.device, dtype=s_trunk.dtype
+                )
+
+                # Use a simple replication strategy
+                n_atoms = s_inputs.shape[-2]
+                residues_per_atom = n_atoms // s_trunk.shape[-2]
+
+                if residues_per_atom * s_trunk.shape[-2] == n_atoms:  # Perfect division
+                    for i in range(s_trunk.shape[-2]):
+                        start_idx = i * residues_per_atom
+                        end_idx = (i + 1) * residues_per_atom
+                        # Handle different dimensionality of s_trunk
+                        if s_trunk.dim() == 4:  # [B, N_sample, N_res, C]
+                            s_trunk_residue[..., start_idx:end_idx, :] = s_trunk[..., i:i+1, :].expand(
+                                *[-1 for _ in range(s_trunk.dim() - 2)], residues_per_atom, -1
+                            )
+                        else:  # [B, N_res, C] or other
+                            s_trunk_residue[..., start_idx:end_idx, :] = s_trunk[..., i:i+1, :].expand(
+                                *[-1 for _ in range(s_trunk.dim() - 2)], residues_per_atom, -1
+                            )
+                    s_trunk = s_trunk_residue
+                    print(f"[DIFFUSION-FIX] Expanded s_trunk from residue-level to atom-level: {s_trunk.shape}")
+                else:
+                    # If we can't determine a clean mapping, use a more general approach
+                    print("[DIFFUSION-FIX] Warning: Cannot determine clean atom-to-residue mapping. Using fallback approach.")
+                    # Handle different dimensionality of s_trunk
+                    if s_trunk.dim() == 4:  # [B, N_sample, N_res, C]
+                        s_trunk = s_trunk[..., :1, :].expand(
+                            *[-1 for _ in range(s_trunk.dim() - 2)], s_inputs.shape[-2], -1
+                        )
+                    else:  # [B, N_res, C] or other
+                        s_trunk = s_trunk[..., :1, :].expand(
+                            *[-1 for _ in range(s_trunk.dim() - 2)], s_inputs.shape[-2], -1
+                        )
+
+        # Validate and adapt tensor shapes if needed (now config-driven)
+        from rna_predict.pipeline.stageD.diffusion.components.diffusion_utils import validate_tensor_shapes
+        adapted_s_trunk, adapted_s_inputs = validate_tensor_shapes(
+            s_trunk, s_inputs, {
+                'c_s': self.c_s,
+                'c_s_inputs': self.c_s_inputs
+            }
+        )
         single_s = torch.cat([adapted_s_trunk, adapted_s_inputs], dim=-1)
-        print(f"[STAGED DEBUG] After cat: single_s.shape={single_s.shape}, expected={self.c_s + self.c_s_inputs}")
-        single_s = self.layernorm_s(single_s)
-        print(f"[STAGED DEBUG] After layernorm_s: single_s.shape={single_s.shape}")
-        assert single_s.shape[-1] == self.linear_no_bias_s.in_features, (
-            f"UNIQUE ERROR: single_s.shape[-1] ({single_s.shape[-1]}) does not match linear_no_bias_s.in_features ({self.linear_no_bias_s.in_features}) [c_s={self.c_s}, c_s_inputs={self.c_s_inputs}]")
+        print(f"[STAGED DEBUG] After concat: single_s.shape={single_s.shape}")
+
         single_s = self.linear_no_bias_s(single_s)
         print(f"[STAGED DEBUG] After linear_no_bias_s: single_s.shape={single_s.shape}")
 

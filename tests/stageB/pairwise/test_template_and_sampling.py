@@ -6,8 +6,6 @@ import unittest
 import pytest
 import numpy as np
 import torch
-from hypothesis import given, strategies as st
-from hypothesis.extra import numpy as np_strategies
 
 from rna_predict.pipeline.stageB.pairwise.pairformer import (
     TemplateEmbedder,

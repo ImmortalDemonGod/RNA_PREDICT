@@ -279,6 +279,8 @@ def residue_to_atoms(
         ValueError: If input shapes are inconsistent (e.g., `len(residue_atom_map)` != `s_emb.shape[-2]`)
                     or `residue_atom_map` is invalid (e.g., gaps or overlaps in atom indices).
     """
+    print("[DEBUG] residue_to_atoms: s_emb.shape=", getattr(s_emb, 'shape', None), "type=", type(s_emb))
+    print("[DEBUG] residue_to_atoms: residue_atom_map length=", len(residue_atom_map), "type=", type(residue_atom_map))
     # Handle empty inputs
     empty_result = handle_empty_inputs(residue_atom_map, s_emb)
     if empty_result is not None:

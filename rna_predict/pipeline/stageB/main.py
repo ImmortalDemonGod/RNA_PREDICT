@@ -121,11 +121,11 @@ def run_stageB_combined(
         s_up, z_up = pairformer_model.return_value
     elif isinstance(pairformer_output, tuple) and len(pairformer_output) == 2:
         # Normal case - pairformer returns a tuple
-        logger.info(f"[DEBUG] Using tuple from pairformer_output")
+        logger.info("[DEBUG] Using tuple from pairformer_output")
         s_up, z_up = pairformer_output
     else:
         # Fallback case
-        logger.info(f"[DEBUG] Using fallback values for s_up and z_up")
+        logger.info("[DEBUG] Using fallback values for s_up and z_up")
         s_up = torch.ones((1, N, c_s), device=torch_device)
         z_up = torch.ones((1, N, N, c_z), device=torch_device)
 
@@ -138,16 +138,16 @@ def run_stageB_combined(
 
         # Check if cfg is None or doesn't have the required attributes
         if cfg is None:
-            logger.info(f"[DEBUG] cfg is None, skipping ProtenixIntegration")
+            logger.info("[DEBUG] cfg is None, skipping ProtenixIntegration")
         elif not (hasattr(cfg, 'model') and hasattr(cfg.model, 'stageB') and hasattr(cfg.model.stageB, 'pairformer')):
-            logger.info(f"[DEBUG] cfg doesn't have required attributes, skipping ProtenixIntegration")
+            logger.info("[DEBUG] cfg doesn't have required attributes, skipping ProtenixIntegration")
         else:
             try:
                 # Build input_features using config-driven dimensions and logic matching demo_run_protenix_embeddings
                 pairformer_cfg = cfg.model.stageB.pairformer
 
                 if not hasattr(pairformer_cfg, 'protenix_integration'):
-                    logger.info(f"[DEBUG] pairformer_cfg doesn't have protenix_integration, skipping")
+                    logger.info("[DEBUG] pairformer_cfg doesn't have protenix_integration, skipping")
                 else:
                     protenix_cfg = pairformer_cfg.protenix_integration
                     N_token = N
@@ -157,6 +157,7 @@ def run_stageB_combined(
                     c_atom = protenix_cfg.c_atom if hasattr(protenix_cfg, 'c_atom') else 128
                     restype_dim = protenix_cfg.restype_dim if hasattr(protenix_cfg, 'restype_dim') else 32
                     profile_dim = protenix_cfg.profile_dim if hasattr(protenix_cfg, 'profile_dim') else 32
+                    c_token = protenix_cfg.c_token if hasattr(protenix_cfg, 'c_token') else 2
 
                     # Use smaller dimensions for testing to speed up tensor generation
                     # For testing purposes, we'll use a reduced c_atom size
@@ -180,7 +181,16 @@ def run_stageB_combined(
                         "residue_index": torch.arange(N_token, device=torch_device),
                     }
 
-                    integrator = ProtenixIntegration(cfg)
+                    # Create a modified config with matching dimensions to avoid shape mismatch
+                    # This ensures that the attention mechanism doesn't encounter dimension mismatches
+                    modified_cfg = cfg.copy() if hasattr(cfg, 'copy') else cfg
+                    if hasattr(modified_cfg, 'model') and hasattr(modified_cfg.model, 'stageB') and hasattr(modified_cfg.model.stageB, 'pairformer'):
+                        if hasattr(modified_cfg.model.stageB.pairformer, 'protenix_integration'):
+                            # Ensure c_token matches s_up dimensions to avoid attention gating issues
+                            modified_cfg.model.stageB.pairformer.protenix_integration.c_token = c_s
+                            logger.info(f"[DEBUG] Modified protenix_integration.c_token to {c_s} to match s_up dimensions")
+
+                    integrator = ProtenixIntegration(modified_cfg)
                     embeddings = integrator.build_embeddings(input_features)
                     s_inputs = embeddings["s_inputs"]
                     logger.info(f"[DEBUG] Using ProtenixIntegration for s_inputs with shape {s_inputs.shape}")
@@ -316,7 +326,11 @@ def demo_gradient_flow_test(cfg: Optional[DictConfig] = None):
     target = torch.randn((sequence_length, target_dim), device=device)
 
     # Zero gradients
-    torsion_predictor.model.zero_grad()
+    if hasattr(torsion_predictor, 'model') and torsion_predictor.model is not None:
+        torsion_predictor.model.zero_grad()
+    else:
+        # Handle dummy mode
+        logger.info("TorsionBERT predictor is in dummy mode, skipping model.zero_grad()")
     pairformer.zero_grad()
 
     # Forward pass
@@ -363,9 +377,12 @@ def demo_gradient_flow_test(cfg: Optional[DictConfig] = None):
     # Check gradients for torsion model
     if debug_logging:
         logger.info("\nTorsion Model Gradients:")
-        for name, param in torsion_predictor.model.named_parameters():
-            if param.requires_grad and param.grad is not None:
-                logger.info(f"  {name}: {param.grad.norm().item():.4f}")
+        if hasattr(torsion_predictor, 'model') and torsion_predictor.model is not None:
+            for name, param in torsion_predictor.model.named_parameters():
+                if param.requires_grad and param.grad is not None:
+                    logger.info(f"  {name}: {param.grad.norm().item():.4f}")
+        else:
+            logger.info("  TorsionBERT predictor is in dummy mode, no gradients to display")
 
     # Check gradients for pairformer
     if debug_logging:

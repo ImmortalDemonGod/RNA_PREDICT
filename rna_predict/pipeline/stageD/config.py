@@ -37,17 +37,17 @@ class InferenceConfig:
 @dataclass
 class AtomEncoderConfig:
     """Configuration for the atom encoder."""
-    c_in: int = 3
-    c_hidden: List[int] = field(default_factory=lambda: [32, 64, 128])
-    c_out: int = 64
+    c_in: int = 4
+    c_hidden: List[int] = field(default_factory=lambda: [8])
+    c_out: int = 4
     dropout: float = 0.1
 
 @dataclass
 class AtomDecoderConfig:
     """Configuration for the atom decoder."""
-    c_in: int = 64
-    c_hidden: List[int] = field(default_factory=lambda: [128, 64, 32])
-    c_out: int = 3
+    c_in: int = 4
+    c_hidden: List[int] = field(default_factory=lambda: [8, 4, 2])
+    c_out: int = 4
     dropout: float = 0.1
 
 @dataclass
@@ -100,6 +100,11 @@ class InputFeaturesConfig:
     atom_to_token_idx: AtomToTokenConfig = field(default_factory=AtomToTokenConfig)
 
 @dataclass
+class FeatureDimensionsConfig:
+    """Feature dimensions for Stage D diffusion."""
+    s_inputs: int = 8
+
+@dataclass
 class DiffusionConfig:
     """Main configuration for Stage D diffusion refinement."""
     # Core settings
@@ -109,12 +114,15 @@ class DiffusionConfig:
     debug_logging: bool = True
 
     # Core diffusion parameters
-    sigma_data: float = 16.0
-    c_atom: int = 128
-    c_s: int = 384
-    c_z: int = 128
-    c_s_inputs: int = 32
-    c_noise_embedding: int = 32
+    sigma_data: float = 1.0
+    c_atom: int = 4
+    c_s: int = 8
+    c_z: int = 4
+    c_s_inputs: int = 8
+    c_noise_embedding: int = 4
+
+    # Feature dimensions group
+    feature_dimensions: FeatureDimensionsConfig = field(default_factory=FeatureDimensionsConfig)
 
     # Component configurations
     noise_schedule: NoiseScheduleConfig = field(default_factory=NoiseScheduleConfig)
@@ -151,3 +159,4 @@ cs.store(name="stageD/transformer", node=TransformerConfig)
 cs.store(name="stageD/input_features", node=InputFeaturesConfig)
 cs.store(name="stageD/input_feature", node=InputFeatureConfig)
 cs.store(name="stageD/atom_to_token", node=AtomToTokenConfig)
+cs.store(name="stageD/feature_dimensions", node=FeatureDimensionsConfig)

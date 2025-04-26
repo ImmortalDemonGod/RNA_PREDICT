@@ -73,11 +73,15 @@ class TestRNAPredictorInitialization(unittest.TestCase):
             "device": "cpu",
             "model": {
                 "stageC": OmegaConf.to_container(self.minimal_stageC_config(method="mp_nerf", enabled=True, do_ring_closure=True, place_bases=True, sugar_pucker="C3'-endo", angle_representation="sin_cos", use_metadata=False, use_memory_efficient_kernel=False, use_deepspeed_evo_attention=False, use_lma=False, inplace_safe=False)),
-                "stageB": {"torsion_bert": {"dummy": True, "debug_logging": False}}
+                "stageB": {"torsion_bert": {"dummy": True, "debug_logging": False, "model_name_or_path": "dummy-path", "device": "cpu"}}
             },
             "prediction": {"repeats": 5, "residue_atom_choice": 0}
         })
-        predictor = RNAPredictor(minimal_cfg)
+
+        # Mock the Hugging Face model loading to avoid network calls
+        with patch("transformers.AutoModel.from_pretrained"), \
+             patch("transformers.AutoTokenizer.from_pretrained"):
+            predictor = RNAPredictor(minimal_cfg)
         self.assertIsNotNone(
             predictor.torsion_predictor,
             "Should initialize torsion_predictor by default.",
@@ -103,11 +107,15 @@ class TestRNAPredictorInitialization(unittest.TestCase):
             "device": "cpu",
             "model": {
                 "stageC": OmegaConf.to_container(self.minimal_stageC_config(method="other_method", enabled=True, do_ring_closure=True, place_bases=True, sugar_pucker="C3'-endo", angle_representation="sin_cos", use_metadata=False, use_memory_efficient_kernel=False, use_deepspeed_evo_attention=False, use_lma=False, inplace_safe=False)),
-                "stageB": {"torsion_bert": {"dummy": True, "debug_logging": False, "angle_mode": "sin_cos", "num_angles": 5, "max_length": 256, "model_name_or_path": "custom/path"}}
+                "stageB": {"torsion_bert": {"dummy": True, "debug_logging": False, "angle_mode": "sin_cos", "num_angles": 5, "max_length": 256, "model_name_or_path": "custom/path", "device": "cpu"}}
             },
             "prediction": {"repeats": 5, "residue_atom_choice": 0}
         })
-        predictor = RNAPredictor(custom_cfg)
+
+        # Mock the Hugging Face model loading to avoid network calls
+        with patch("transformers.AutoModel.from_pretrained"), \
+             patch("transformers.AutoTokenizer.from_pretrained"):
+            predictor = RNAPredictor(custom_cfg)
         self.assertEqual(str(predictor.device), "cpu")
         self.assertEqual(predictor.stageC_config.method, "other_method")
         # The following are not checked since torsion_predictor is mocked
@@ -144,7 +152,7 @@ class TestRNAPredictorInitialization(unittest.TestCase):
             "device": device or "cpu",
             "model": {
                 "stageC": OmegaConf.to_container(self.minimal_stageC_config(method=stageC_method, enabled=True, do_ring_closure=True, place_bases=True, sugar_pucker="C3'-endo", angle_representation="sin_cos", use_metadata=False, use_memory_efficient_kernel=False, use_deepspeed_evo_attention=False, use_lma=False, inplace_safe=False)),
-                "stageB": {"torsion_bert": {"dummy": True, "debug_logging": False, "angle_mode": angle_mode, "num_angles": num_angles, "max_length": max_length, "model_name_or_path": model_name_or_path}}
+                "stageB": {"torsion_bert": {"dummy": True, "debug_logging": False, "angle_mode": angle_mode, "num_angles": num_angles, "max_length": max_length, "model_name_or_path": model_name_or_path, "device": device or "cpu"}}
             },
             "prediction": {"repeats": 5, "residue_atom_choice": 0}
         })
@@ -160,7 +168,7 @@ def test_rnapredictor_invalid_model_name_raises(monkeypatch, bad_model_name):
         "device": "cpu",
         "model": {
             "stageC": OmegaConf.to_container(TestRNAPredictorInitialization.minimal_stageC_config(method="mp_nerf", enabled=True, do_ring_closure=True, place_bases=True, sugar_pucker="C3'-endo", angle_representation="sin_cos", use_metadata=False, use_memory_efficient_kernel=False, use_deepspeed_evo_attention=False, use_lma=False, inplace_safe=False)),
-            "stageB": {"torsion_bert": {"model_name_or_path": bad_model_name, "debug_logging": False}}
+            "stageB": {"torsion_bert": {"model_name_or_path": bad_model_name, "debug_logging": False, "device": "cpu"}}
         },
         "prediction": {"repeats": 5, "residue_atom_choice": 0}
     })
@@ -189,11 +197,15 @@ class TestPredict3DStructure(unittest.TestCase):
             "device": "cpu",
             "model": {
                 "stageC": OmegaConf.to_container(self.minimal_stageC_config(method="mp_nerf", enabled=True, do_ring_closure=True, place_bases=True, sugar_pucker="C3'-endo", angle_representation="sin_cos", use_metadata=False, use_memory_efficient_kernel=False, use_deepspeed_evo_attention=False, use_lma=False, inplace_safe=False)),
-                "stageB": {"torsion_bert": {"dummy": True, "debug_logging": False}}
+                "stageB": {"torsion_bert": {"dummy": True, "debug_logging": False, "model_name_or_path": "dummy-path", "device": "cpu"}}
             },
             "prediction": {"repeats": 5, "residue_atom_choice": 0}
         })
-        self.predictor = RNAPredictor(minimal_cfg)
+
+        # Mock the Hugging Face model loading to avoid network calls
+        with patch("transformers.AutoModel.from_pretrained"), \
+             patch("transformers.AutoTokenizer.from_pretrained"):
+            self.predictor = RNAPredictor(minimal_cfg)
 
     @staticmethod
     def minimal_stageC_config(**overrides):
@@ -327,7 +339,8 @@ class TestPredictSubmission(unittest.TestCase):
     and replicating NaN propagation from missing bond lengths.
     """
 
-    def setUp(self):
+    @patch("rna_predict.interface.RNAPredictor.predict_3d_structure")
+    def setUp(self, mock_predict_3d):
         """Instantiate a RNAPredictor for repeated usage."""
         random.seed(42)
         torch.manual_seed(42)
@@ -342,11 +355,15 @@ class TestPredictSubmission(unittest.TestCase):
             "device": "cpu",
             "model": {
                 "stageC": OmegaConf.to_container(self.minimal_stageC_config(method="mp_nerf", enabled=True, do_ring_closure=True, place_bases=True, sugar_pucker="C3'-endo", angle_representation="sin_cos", use_metadata=False, use_memory_efficient_kernel=False, use_deepspeed_evo_attention=False, use_lma=False, inplace_safe=False)),
-                "stageB": {"torsion_bert": {"dummy": True, "debug_logging": False}}
+                "stageB": {"torsion_bert": {"dummy": True, "debug_logging": False, "model_name_or_path": "dummy-path", "device": "cpu"}}
             },
             "prediction": {"repeats": 5, "residue_atom_choice": 0}
         })
-        self.predictor = RNAPredictor(minimal_cfg)
+
+        # Mock the Hugging Face model loading to avoid network calls
+        with patch("transformers.AutoModel.from_pretrained"), \
+             patch("transformers.AutoTokenizer.from_pretrained"):
+            self.predictor = RNAPredictor(minimal_cfg)
         # Patch the torsion_predictor's model.forward to accept any kwargs and return a dummy tensor
         import types
         def dummy_forward(*args, **kwargs):
@@ -478,7 +495,7 @@ class TestPredictSubmission(unittest.TestCase):
         else:
             # Uniform atom count per residue
             self.assertEqual(len(df), len(sequence),
-                           f"[UniqueErrorID-CustomRepeats] DataFrame rows should match number of residues for uniform atom case.")
+                           "[UniqueErrorID-CustomRepeats] DataFrame rows should match number of residues for uniform atom case.")
             for col in expected_cols:
                 self.assertIn(col, df.columns,
                              f"[UniqueErrorID-CustomRepeats] Missing column {col} in uniform output")
@@ -568,7 +585,7 @@ class TestPredictSubmission(unittest.TestCase):
                     break
 
             self.assertTrue(has_nans,
-                          f"[UniqueErrorID-NaNHandling] At least one coordinate column should contain NaNs when all input coordinates are NaN")
+                          "[UniqueErrorID-NaNHandling] At least one coordinate column should contain NaNs when all input coordinates are NaN")
 
     @given(
         sequence=st.text(alphabet="ACGU", min_size=1, max_size=10),
@@ -640,11 +657,15 @@ class TestPredictSubmissionParametricShapes(unittest.TestCase):
             "device": "cpu",
             "model": {
                 "stageC": OmegaConf.to_container(self.minimal_stageC_config(method="mp_nerf", enabled=True, do_ring_closure=True, place_bases=True, sugar_pucker="C3'-endo", angle_representation="sin_cos", use_metadata=False, use_memory_efficient_kernel=False, use_deepspeed_evo_attention=False, use_lma=False, inplace_safe=False)),
-                "stageB": {"torsion_bert": {"dummy": True, "debug_logging": False}}
+                "stageB": {"torsion_bert": {"dummy": True, "debug_logging": False, "model_name_or_path": "dummy-path", "device": "cpu"}}
             },
             "prediction": {"repeats": 5, "residue_atom_choice": 0}
         })
-        self.predictor = RNAPredictor(minimal_cfg)
+
+        # Mock the Hugging Face model loading to avoid network calls
+        with patch("transformers.AutoModel.from_pretrained"), \
+             patch("transformers.AutoTokenizer.from_pretrained"):
+            self.predictor = RNAPredictor(minimal_cfg)
 
     @staticmethod
     def minimal_stageC_config(**overrides):
@@ -754,7 +775,7 @@ def test_stageC_requires_do_ring_closure(present, expected_error):
         "device": "cpu",
         "model": {
             "stageC": OmegaConf.to_container(stageC_config),
-            "stageB": {"torsion_bert": {"dummy": True, "debug_logging": False}}
+            "stageB": {"torsion_bert": {"dummy": True, "debug_logging": False, "model_name_or_path": "dummy-path", "device": "cpu"}}
         },
         "prediction": {"repeats": 5, "residue_atom_choice": 0}
     })
@@ -769,10 +790,14 @@ def test_stageC_requires_do_ring_closure(present, expected_error):
 
             if expected_error:
                 with pytest.raises(ValidationError, match="do_ring_closure"):
-                    RNAPredictor(bad_cfg).predict_3d_structure("ACGU")
+                    # Create a new predictor instance with the bad config
+                    predictor = RNAPredictor(bad_cfg)
+                    # Call predict_3d_structure which should trigger the validation error
+                    predictor.predict_3d_structure("ACGU")
             else:
                 # Should not raise
-                RNAPredictor(bad_cfg).predict_3d_structure("ACGU")
+                predictor = RNAPredictor(bad_cfg)
+                predictor.predict_3d_structure("ACGU")
 
 
 # --- NEW TEST: property-based config structure validation ---
@@ -797,7 +822,7 @@ def test_stageb_torsionbert_config_structure_property(config_dict):
         cfg = OmegaConf.create(config_dict)
         with pytest.raises(ValueError) as excinfo:
             StageBTorsionBertPredictor(cfg)
-        assert "[ERR-TORSIONBERT-CONFIG-001]" in str(excinfo.value)
+        assert "[UNIQUE-ERR-TORSIONBERT-NOCONFIG]" in str(excinfo.value)
 
 
 # --------------------------------------------------------------------------------------

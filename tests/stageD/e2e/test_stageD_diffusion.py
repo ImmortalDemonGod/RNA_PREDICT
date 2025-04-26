@@ -12,21 +12,80 @@ from rna_predict.pipeline.stageD.diffusion.utils import DiffusionConfig  # Impor
 def minimal_diffusion_config():
     """Provide a minimal but valid diffusion config for testing"""
     return {
-        "c_atom": 128,
-        "c_s": 384,
-        "c_z": 32,
-        "c_token": 384,
-        "c_s_inputs": 384,  # Match conditioning config for consistency
+        # Core parameters
+        "device": "cpu",
+        "mode": "inference",
+        "debug_logging": True,
+        "ref_element_size": 128,
+        "ref_atom_name_chars_size": 256,
+        "profile_size": 32,
+
+        # Model architecture section
+        "model_architecture": {
+            "c_token": 384,
+            "c_s": 384,
+            "c_z": 32,
+            "c_s_inputs": 384,
+            "c_atom": 128,
+            "c_atompair": 16,
+            "c_noise_embedding": 128,
+            "sigma_data": 16.0,  # Required for noise sampling
+        },
+
+        # Feature dimensions section
+        "feature_dimensions": {
+            "c_s": 384,
+            "c_s_inputs": 384,
+            "c_sing": 384,
+            "s_trunk": 384,
+            "s_inputs": 384
+        },
+
+        # Transformer configuration
         "transformer": {"n_blocks": 1, "n_heads": 2},
+
+        # Inference configuration
         "inference": {"num_steps": 2, "N_sample": 1},  # Reduced steps for testing
+
+        # Conditioning configuration
         "conditioning": {
             "c_s": 384,
             "c_z": 32,
             "c_s_inputs": 384,
             "c_noise_embedding": 128,
         },
+
+        # Embedder configuration
         "embedder": {"c_atom": 128, "c_atompair": 16, "c_token": 384},
-        "sigma_data": 16.0,  # Required for noise sampling
+
+        # Atom encoder configuration
+        "atom_encoder": {
+            "c_in": 128,
+            "c_hidden": [256],
+            "c_out": 128,
+            "dropout": 0.1,
+            "n_blocks": 1,
+            "n_heads": 2,
+            "n_queries": 4,
+            "n_keys": 4
+        },
+
+        # Atom decoder configuration
+        "atom_decoder": {
+            "c_in": 128,
+            "c_hidden": [256],
+            "c_out": 128,
+            "dropout": 0.1,
+            "n_blocks": 1,
+            "n_heads": 2,
+            "n_queries": 4,
+            "n_keys": 4
+        },
+
+        # Sigma data should only be in model_architecture
+        # "sigma_data": 16.0,  # Removed to fix test
+
+        # Initialization
         "initialization": {},  # Required by DiffusionModule
     }
 
@@ -58,7 +117,8 @@ def test_run_stageD_diffusion_inference(
     If missing_s_inputs=True, we omit 's_inputs' to see if it is auto-computed.
     """
     # Use smaller tensors for testing
-    partial_coords = torch.randn(1, 5, 3)  # batch=1, 5 atoms, 3 coords
+    # Create partial_coords with 11 atoms to match atom_metadata
+    partial_coords = torch.randn(1, 11, 3)  # batch=1, 11 atoms, 3 coords
 
     trunk_embeddings = {
         "s_trunk": torch.randn(1, 5, 384),
@@ -69,10 +129,45 @@ def test_run_stageD_diffusion_inference(
         trunk_embeddings["s_inputs"] = torch.randn(1, 5, 384)
 
     # Provide a minimal sequence matching the number of residues/atoms (5)
-    sequence = ["A", "C", "G", "U", "A"]
+    # Convert list to string for DiffusionConfig which expects str or None
+    sequence = "ACGUA"
+
+    # Add atom_metadata to minimal_input_features
+    minimal_input_features["atom_metadata"] = {
+        "residue_indices": [0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4],  # 11 atoms across 5 residues
+        "atom_names": ["P", "C4'", "N1", "P", "C4'", "P", "C4'", "P", "C4'", "P", "C4'"]
+    }
 
     try:
         # Create the config object using the variables available in the test scope
+        from omegaconf import OmegaConf
+
+        # Create a properly structured Hydra config with model.stageD section
+        hydra_cfg = OmegaConf.create({
+            "model": {
+                "stageD": {
+                    # Top-level parameters
+                    "enabled": True,
+                    "mode": "inference",
+                    "device": "cpu",
+                    "debug_logging": True,
+                    "ref_element_size": 128,
+                    "ref_atom_name_chars_size": 256,
+                    "profile_size": 32,
+
+                    # Feature dimensions
+                    "feature_dimensions": minimal_diffusion_config["feature_dimensions"],
+
+                    # Model architecture
+                    "model_architecture": minimal_diffusion_config["model_architecture"],
+
+                    # Diffusion section
+                    "diffusion": minimal_diffusion_config
+                }
+            }
+        })
+
+        # Create the DiffusionConfig with all required parameters
         test_config = DiffusionConfig(
             partial_coords=partial_coords,
             trunk_embeddings=trunk_embeddings,
@@ -80,8 +175,16 @@ def test_run_stageD_diffusion_inference(
             mode="inference",
             device="cpu",
             input_features=minimal_input_features,
-            sequence=sequence,  # PATCH: provide sequence to avoid bridging error
+            sequence=sequence,  # Provide sequence to avoid bridging error
+            cfg=hydra_cfg,  # Pass the properly structured Hydra config
+            # Add required feature parameters directly to the config object
+            ref_element_size=128,
+            ref_atom_name_chars_size=256,
+            profile_size=32
         )
+
+        # Add feature_dimensions directly to the config object
+        test_config.feature_dimensions = minimal_diffusion_config["feature_dimensions"]
         # Call the refactored function with the config object
         out_coords = run_stageD_diffusion(config=test_config)
 

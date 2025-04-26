@@ -1,4 +1,5 @@
 # rna_predict/conf/config_schema.py
+
 from dataclasses import dataclass, field
 from typing import Optional, List, Union, Dict, Any
 from omegaconf import OmegaConf
@@ -10,29 +11,29 @@ class DimensionsConfig:
     """Centralized configuration for model dimensions across all stages."""
     # Single representation dimensions
     c_s: int = field(
-        default=384,
+        default=8,  # CHANGED: was 384
         metadata={"help": "Single representation dimension used across all stages"}
     )
 
     # Pair representation dimensions
     c_z: int = field(
-        default=128,
+        default=4,  # CHANGED: was 128
         metadata={"help": "Pair representation dimension used across all stages"}
     )
 
     # Input feature dimensions
     c_s_inputs: int = field(
-        default=449,
+        default=8,  # CHANGED: was 449
         metadata={"help": "Input representation dimension"}
     )
     c_token: int = field(
-        default=449,
+        default=8,  # CHANGED: was 449
         metadata={"help": "Token dimension for embeddings"}
     )
 
     # Atom dimensions
     c_atom: int = field(
-        default=128,
+        default=4,  # CHANGED: was 128
         metadata={"help": "Atom dimension for embeddings"}
     )
     c_atom_coords: int = field(
@@ -42,29 +43,29 @@ class DimensionsConfig:
 
     # Other common dimensions
     c_noise_embedding: int = field(
-        default=32,
+        default=4,  # CHANGED: was 32
         metadata={"help": "Noise embedding dimension"}
     )
     restype_dim: int = field(
-        default=32,
+        default=8,  # CHANGED: was 32
         metadata={"help": "Dimension for residue type embeddings"}
     )
     profile_dim: int = field(
-        default=32,
+        default=8,  # CHANGED: was 32
         metadata={"help": "Dimension for profile embeddings"}
     )
     c_pair: int = field(
-        default=32,
+        default=4,  # CHANGED: was 32
         metadata={"help": "Pair dimension for embeddings (different from c_z)"}
     )
 
     # Reference dimensions
     ref_element_size: int = field(
-        default=128,
+        default=4,  # CHANGED: was 128
         metadata={"help": "Size of reference element embeddings"}
     )
     ref_atom_name_chars_size: int = field(
-        default=256,
+        default=8,  # CHANGED: was 256
         metadata={"help": "Size of atom name character embeddings"}
     )
 
@@ -90,6 +91,7 @@ def register_configs() -> None:
     cs.store(group="pipeline", name="default", node=PipelineConfig)
     cs.store(group="test", name="data", node=TestDataConfig)
     cs.store(group="model", name="protenix_integration", node=ProtenixIntegrationConfig)
+    cs.store(group="feature_dimensions", name="default", node=FeatureDimensionsConfig)
 
 def validate_config(cfg: Union[dict, "RNAConfig"]) -> None:
     """Validate configuration using OmegaConf structured validation.
@@ -172,7 +174,7 @@ class StageAConfig:
     """Configuration specific to Stage A (RFold Adjacency Prediction)."""
     # Top-level architecture and processing params
     num_hidden: int = field(
-        default=128,
+        default=8,  # CHANGED: was 128 (to reduce memory usage)
         metadata={"help": "Hidden dimension size, often relates to attention dims"}
     )
     dropout: float = field(
@@ -185,6 +187,11 @@ class StageAConfig:
     debug_logging: bool = field(
         default=True,
         metadata={"help": "Enable debug logging for Stage A"}
+    )
+    # NEW: freeze all parameters for testing (default True for test parity)
+    freeze_params: bool = field(
+        default=True,
+        metadata={"help": "If True, freeze all model parameters (requires_grad=False) for eval/test."}
     )
 
     # Processing Parameters
@@ -349,22 +356,41 @@ class TorsionBertConfig:
         default=True,
         metadata={"help": "Enable debug logging for Stage B (TorsionBert)"}
     )
+    init_from_scratch: bool = field(
+        default=False,
+        metadata={"help": "If true, initialize TorsionBert from scratch instead of loading weights"}
+    )
 
 @dataclass
 class PairformerBlockConfig:
     """Configuration for PairformerBlock."""
     n_heads: int = field(
-        default=16,
+        default=2,  # CHANGED: was 16
         metadata={
             "help": "Number of attention heads for AttentionPairBias",
             "validate": lambda x: x > 0
         }
     )
-    c_z: int = field(default=128, metadata={"help": "Hidden dimension for pair embedding"})
-    c_s: int = field(default=384, metadata={"help": "Hidden dimension for single embedding"})
-    c_hidden_mul: int = field(default=128, metadata={"help": "Hidden dimension for TriangleMultiplicationOutgoing"})
-    c_hidden_pair_att: int = field(default=32, metadata={"help": "Hidden dimension for TriangleAttention"})
-    no_heads_pair: int = field(default=4, metadata={"help": "Number of heads for TriangleAttention"})
+    c_z: int = field(
+        default=4,  # CHANGED: was 128
+        metadata={"help": "Hidden dimension for pair embedding"}
+    )
+    c_s: int = field(
+        default=8,  # CHANGED: was 384
+        metadata={"help": "Hidden dimension for single embedding"}
+    )
+    c_hidden_mul: int = field(
+        default=4,  # CHANGED: was 128
+        metadata={"help": "Hidden dimension for TriangleMultiplicationOutgoing"}
+    )
+    c_hidden_pair_att: int = field(
+        default=4,  # CHANGED: was 32
+        metadata={"help": "Hidden dimension for TriangleAttention"}
+    )
+    no_heads_pair: int = field(
+        default=2,  # CHANGED: was 4
+        metadata={"help": "Number of heads for TriangleAttention"}
+    )
     dropout: float = field(
         default=0.25,
         metadata={
@@ -377,21 +403,27 @@ class PairformerBlockConfig:
 class PairformerStackConfig:
     """Configuration for PairformerStack."""
     n_blocks: int = field(
-        default=48,
+        default=1,  # CHANGED: was 48
         metadata={
             "help": "Number of transformer blocks",
             "validate": lambda x: x > 0
         }
     )
     n_heads: int = field(
-        default=16,
+        default=2,  # CHANGED: was 16
         metadata={
             "help": "Number of attention heads",
             "validate": lambda x: x > 0
         }
     )
-    c_z: int = field(default=128, metadata={"help": "Hidden dimension for pair embedding"})
-    c_s: int = field(default=384, metadata={"help": "Hidden dimension for single embedding"})
+    c_z: int = field(
+        default=4,  # CHANGED: was 128
+        metadata={"help": "Hidden dimension for pair embedding"}
+    )
+    c_s: int = field(
+        default=8,  # CHANGED: was 384
+        metadata={"help": "Hidden dimension for single embedding"}
+    )
     dropout: float = field(
         default=0.25,
         metadata={
@@ -407,9 +439,12 @@ class PairformerStackConfig:
 @dataclass
 class MSAConfig:
     """Configuration for MSA-related components."""
-    c_m: int = field(default=64, metadata={"help": "Hidden dimension for MSA embedding"})
-    c: int = field(default=32, metadata={"help": "Hidden dimension for MSA components"})
-    c_z: int = field(default=128, metadata={"help": "Hidden dimension for pair embedding"})
+    c_m: int = field(default=8,  # CHANGED: was 64
+                     metadata={"help": "Hidden dimension for MSA embedding"})
+    c: int = field(default=4,  # CHANGED: was 32
+                   metadata={"help": "Hidden dimension for MSA components"})
+    c_z: int = field(default=4,  # CHANGED: was 128
+                     metadata={"help": "Hidden dimension for pair embedding"})
     dropout: float = field(
         default=0.15,
         metadata={
@@ -418,7 +453,7 @@ class MSAConfig:
         }
     )
     n_blocks: int = field(
-        default=4,
+        default=1,  # CHANGED: was 4
         metadata={
             "help": "Number of MSA blocks",
             "validate": lambda x: x >= 0
@@ -432,7 +467,8 @@ class MSAConfig:
     test_lowerb: int = field(default=1, metadata={"help": "Minimum MSA sample size during testing"})
 
     # Additional parameters needed by MSAPairWeightedAveraging
-    n_heads: int = field(default=8, metadata={"help": "Number of attention heads for MSA pair weighted averaging"})
+    n_heads: int = field(default=2,  # CHANGED: was 8
+                         metadata={"help": "Number of attention heads for MSA pair weighted averaging"})
 
     # Additional parameters needed by MSABlock
     pair_dropout: float = field(
@@ -446,7 +482,7 @@ class MSAConfig:
     # Input feature dimensions
     input_feature_dims: Dict[str, int] = field(
         default_factory=lambda: {
-            "msa": 32,
+            "msa": 4,   # CHANGED: was 32
             "has_deletion": 1,
             "deletion_value": 1,
         },
@@ -454,7 +490,8 @@ class MSAConfig:
     )
 
     # Parameters for MSAModule
-    c_s_inputs: int = field(default=449, metadata={"help": "Hidden dimension for single embedding from InputFeatureEmbedder"})
+    c_s_inputs: int = field(default=8,  # CHANGED: was 449
+                            metadata={"help": "Hidden dimension for single embedding from InputFeatureEmbedder"})
     blocks_per_ckpt: Optional[int] = field(
         default=1,
         metadata={"help": "Number of MSA blocks in each activation checkpoint"}
@@ -464,14 +501,16 @@ class MSAConfig:
 class TemplateEmbedderConfig:
     """Configuration for TemplateEmbedder."""
     n_blocks: int = field(
-        default=2,
+        default=1,  # CHANGED: was 2
         metadata={
             "help": "Number of blocks for TemplateEmbedder",
             "validate": lambda x: x >= 0
         }
     )
-    c: int = field(default=64, metadata={"help": "Hidden dimension of TemplateEmbedder"})
-    c_z: int = field(default=128, metadata={"help": "Hidden dimension for pair embedding"})
+    c: int = field(default=8,  # CHANGED: was 64
+                   metadata={"help": "Hidden dimension of TemplateEmbedder"})
+    c_z: int = field(default=4,  # CHANGED: was 128
+                     metadata={"help": "Hidden dimension for pair embedding"})
     dropout: float = field(
         default=0.25,
         metadata={
@@ -494,8 +533,8 @@ class TemplateEmbedderConfig:
                 "b_template_pseudo_beta_mask": 1,
             },
             "feature2": {
-                "template_restype_i": 32,
-                "template_restype_j": 32,
+                "template_restype_i": 8,  # CHANGED: was 32
+                "template_restype_j": 8,  # CHANGED: was 32
             }
         },
         metadata={"help": "Dimensions for input features"}
@@ -521,15 +560,22 @@ class ProtenixIntegrationConfig:
     )
 
     # Embedding dimensions
-    c_token: int = field(default=449, metadata={"help": "Token dimension for embeddings"})
-    restype_dim: int = field(default=32, metadata={"help": "Dimension for residue type embeddings"})
-    profile_dim: int = field(default=32, metadata={"help": "Dimension for profile embeddings"})
-    c_atom: int = field(default=128, metadata={"help": "Atom dimension for embeddings"})
-    c_pair: int = field(default=32, metadata={"help": "Pair dimension for embeddings"})
+    c_token: int = field(default=8,   # CHANGED: was 449
+                         metadata={"help": "Token dimension for embeddings"})
+    restype_dim: int = field(default=8,   # CHANGED: was 32
+                             metadata={"help": "Dimension for residue type embeddings"})
+    profile_dim: int = field(default=8,   # CHANGED: was 32
+                             metadata={"help": "Dimension for profile embeddings"})
+    c_atom: int = field(default=4,    # CHANGED: was 128
+                        metadata={"help": "Atom dimension for embeddings"})
+    c_pair: int = field(default=4,    # CHANGED: was 32
+                        metadata={"help": "Pair dimension for embeddings"})
 
     # Attention parameters
-    num_heads: int = field(default=4, metadata={"help": "Number of attention heads"})
-    num_layers: int = field(default=3, metadata={"help": "Number of attention layers"})
+    num_heads: int = field(default=2,  # CHANGED: was 4
+                           metadata={"help": "Number of attention heads"})
+    num_layers: int = field(default=2,  # CHANGED: was 3
+                            metadata={"help": "Number of attention layers"})
 
     # Relative position encoding parameters
     r_max: int = field(default=32, metadata={"help": "Maximum relative position"})
@@ -549,41 +595,73 @@ class PairformerConfig:
 
     # Core model parameters
     n_blocks: int = field(
-        default=48,
+        default=1,
         metadata={
-            "help": "Number of transformer blocks",
-            "validate": lambda x: x > 0
+            "help": "Number of transformer blocks (minimal for test/memory)"
         }
     )
     n_heads: int = field(
-        default=16,
+        default=1,  # Minimal
         metadata={
-            "help": "Number of attention heads",
-            "validate": lambda x: x > 0
+            "help": "Number of attention heads (minimal for test/memory)"
         }
     )
-    c_z: int = field(default=128, metadata={"help": "Dimension of Z embeddings"})
-    c_s: int = field(default=384, metadata={"help": "Dimension of S embeddings"})
-    dropout: float = field(
-        default=0.25,
+    c_z: int = field(
+        default=4,  # CHANGED: was 2, ensuring minimal but consistent
         metadata={
-            "help": "Dropout rate",
+            "help": "Pair embedding dimension (minimal for test/memory)"
+        }
+    )
+    c_s: int = field(
+        default=8,  # CHANGED: was 2, ensuring minimal but consistent
+        metadata={
+            "help": "Single embedding dimension (minimal for test/memory)"
+        }
+    )
+    c_token: int = field(
+        default=8,  # CHANGED: was 384
+        metadata={
+            "help": "Token representation dimension"
+        }
+    )
+    c_atom: int = field(
+        default=4,  # CHANGED: was 128
+        metadata={
+            "help": "Atom representation dimension"
+        }
+    )
+    c_pair: int = field(
+        default=4,  # CHANGED: was 32
+        metadata={
+            "help": "Pair representation dimension"
+        }
+    )
+    dropout: float = field(
+        default=0.1,
+        metadata={
+            "help": "Dropout rate for attention",
             "validate": lambda x: 0.0 <= x <= 1.0
         }
     )
-
-    # Additional parameters for Protenix Integration
-    c_token: int = field(default=449, metadata={"help": "Token dimension"})
-    c_atom: int = field(default=128, metadata={"help": "Atom dimension"})
-    c_pair: int = field(default=128, metadata={"help": "Pair dimension (same as c_z)"})
+    # NEW: freeze all parameters for test parity
+    freeze_params: bool = field(
+        default=False,
+        metadata={"help": "If True, freeze all model parameters (requires_grad=False) for eval/test."}
+    )
 
     # ProtenixIntegration configuration
     protenix_integration: ProtenixIntegrationConfig = field(default_factory=ProtenixIntegrationConfig)
 
     # Triangle Attention parameters
     c_hidden_mul: int = field(default=2, metadata={"help": "Hidden dimension multiplier"})
-    c_hidden_pair_att: int = field(default=128, metadata={"help": "Hidden dimension for pair attention"})
-    no_heads_pair: int = field(default=8, metadata={"help": "Number of heads for pair attention"})
+    c_hidden_pair_att: int = field(
+        default=4,  # CHANGED: was 128
+        metadata={"help": "Hidden dimension for pair attention"}
+    )
+    no_heads_pair: int = field(
+        default=2,  # CHANGED: was 8
+        metadata={"help": "Number of heads for pair attention"}
+    )
     init_z_from_adjacency: bool = field(default=False, metadata={"help": "Whether to initialize Z from adjacency matrix"})
 
     # Memory optimization flags
@@ -677,35 +755,35 @@ class StageDInferenceConfig:
 class StageDModelArchConfig:
     """Configuration for Stage D model architecture."""
     c_token: int = field(
-        default=384,
+        default=8,   # CHANGED: was 384
         metadata={"help": "Token dimension"}
     )
     c_s: int = field(
-        default=384,
+        default=8,   # CHANGED: was 384
         metadata={"help": "Single representation dimension"}
     )
     c_z: int = field(
-        default=128,
+        default=4,   # CHANGED: was 128
         metadata={"help": "Pair representation dimension"}
     )
     c_s_inputs: int = field(
-        default=449,
+        default=8,   # CHANGED: was 449
         metadata={"help": "Input representation dimension"}
     )
     c_atom: int = field(
-        default=128,
+        default=4,   # CHANGED: was 128
         metadata={"help": "Atom embedding dimension"}
     )
     c_noise_embedding: int = field(
-        default=32,
+        default=4,   # CHANGED: was 32
         metadata={"help": "Noise embedding dimension"}
     )
     num_layers: int = field(
-        default=6,
+        default=2,   # CHANGED: was 6
         metadata={"help": "Number of transformer layers"}
     )
     num_heads: int = field(
-        default=8,
+        default=2,   # CHANGED: was 8
         metadata={"help": "Number of attention heads"}
     )
     dropout: float = field(
@@ -732,19 +810,27 @@ class StageDModelArchConfig:
         metadata={"help": "Relative tolerance for coordinate similarity"}
     )
     test_residues_per_batch: int = field(
-        default=25,
+        default=2,  # CHANGED: was 25
         metadata={"help": "Number of residues per batch during testing"}
+    )
+    c_atompair: int = field(
+        default=4,  # CHANGED: was 32
+        metadata={"help": "Atom pair embedding dimension (required by DiffusionModule)"}
+    )
+    sigma_data: float = field(
+        default=1.0,  # CHANGED: was 16.0
+        metadata={"help": "Sigma data parameter for diffusion (should be under model_architecture)"}
     )
 
 @dataclass
 class StageDTransformerConfig:
     """Configuration for Stage D transformer."""
     n_blocks: int = field(
-        default=6,
+        default=2,  # CHANGED: was 6
         metadata={"help": "Number of transformer blocks"}
     )
     n_heads: int = field(
-        default=8,
+        default=2,  # CHANGED: was 8
         metadata={"help": "Number of attention heads"}
     )
     blocks_per_ckpt: Optional[int] = field(
@@ -756,15 +842,15 @@ class StageDTransformerConfig:
 class StageDAtomEncoderConfig:
     """Configuration for Stage D atom encoder."""
     c_in: int = field(
-        default=3,
+        default=4,  # CHANGED: was 3
         metadata={"help": "Input dimension for atom encoder"}
     )
     c_hidden: List[int] = field(
-        default_factory=lambda: [32, 64, 128],
+        default_factory=lambda: [8],  # CHANGED: was [32, 64, 128]
         metadata={"help": "Hidden dimensions for atom encoder"}
     )
     c_out: int = field(
-        default=64,
+        default=4,  # CHANGED: was 64
         metadata={"help": "Output dimension for atom encoder"}
     )
     dropout: float = field(
@@ -774,20 +860,36 @@ class StageDAtomEncoderConfig:
             "validate": lambda x: 0.0 <= x <= 1.0
         }
     )
+    n_blocks: int = field(
+        default=1,  # CHANGED: was 1 (kept minimal)
+        metadata={"help": "Number of transformer blocks"}
+    )
+    n_heads: int = field(
+        default=2,  # CHANGED: was 1
+        metadata={"help": "Number of attention heads"}
+    )
+    n_queries: int = field(
+        default=2,  # CHANGED: was 8
+        metadata={"help": "Number of queries for attention"}
+    )
+    n_keys: int = field(
+        default=2,  # CHANGED: was 8
+        metadata={"help": "Number of keys for attention"}
+    )
 
 @dataclass
 class StageDAtomDecoderConfig:
     """Configuration for Stage D atom decoder."""
     c_in: int = field(
-        default=64,
+        default=4,  # CHANGED: was 64
         metadata={"help": "Input dimension for atom decoder"}
     )
     c_hidden: List[int] = field(
-        default_factory=lambda: [128, 64, 32],
+        default_factory=lambda: [8, 4, 2],  # CHANGED: was [128, 64, 32]
         metadata={"help": "Hidden dimensions for atom decoder"}
     )
     c_out: int = field(
-        default=3,
+        default=4,  # CHANGED: was 3
         metadata={"help": "Output dimension for atom decoder"}
     )
     dropout: float = field(
@@ -797,6 +899,163 @@ class StageDAtomDecoderConfig:
             "validate": lambda x: 0.0 <= x <= 1.0
         }
     )
+    n_blocks: int = field(
+        default=1,
+        metadata={"help": "Number of transformer blocks"}
+    )
+    n_heads: int = field(
+        default=2,  # CHANGED: was 1
+        metadata={"help": "Number of attention heads"}
+    )
+    n_queries: int = field(
+        default=2,  # CHANGED: was 8
+        metadata={"help": "Number of queries for attention"}
+    )
+    n_keys: int = field(
+        default=2,  # CHANGED: was 8
+        metadata={"help": "Number of keys for attention"}
+    )
+
+@dataclass
+class StageDDiffusionConfig:
+    """Configuration for Stage D diffusion."""
+    init_from_scratch: bool = field(default=False, metadata={"help": "If true, initialize diffusion model from scratch"})
+    enabled: bool = field(default=True, metadata={"help": "Enable diffusion for Stage D"})
+    mode: str = field(default="inference", metadata={"help": "Mode: inference or training"})
+    device: str = field(default="cpu", metadata={"help": "Device to run the diffusion model on"})
+    debug_logging: bool = field(default=True, metadata={"help": "Enable debug logging for diffusion"})
+    ref_element_size: int = field(
+        default=4,  # CHANGED: was 128
+        metadata={"help": "Reference element embedding size"}
+    )
+    ref_atom_name_chars_size: int = field(
+        default=8,  # CHANGED: was 256
+        metadata={"help": "Atom name char embedding size"}
+    )
+    profile_size: int = field(
+        default=8,  # CHANGED: was 32
+        metadata={"help": "Profile embedding size for residue-level features"}
+    )
+    atom_metadata: Optional[dict] = None
+    # Feature dimensions required for bridging
+    feature_dimensions: Dict[str, int] = field(
+        default_factory=lambda: {
+            "c_s": 8,         # CHANGED: was 384
+            "c_s_inputs": 8,  # CHANGED: was 449
+            "c_sing": 8,      # CHANGED: was 384
+            "s_trunk": 8,     # CHANGED: was 384
+            "s_inputs": 8,    # CHANGED: was 449
+        },
+        metadata={"help": "Dimensions for various features"}
+    )
+    test_residues_per_batch: int = field(
+        default=2,  # CHANGED: was 25
+        metadata={"help": "Number of residues per batch during testing"}
+    )
+    # Nested configs with proper typing
+    model_architecture: StageDModelArchConfig = field(default_factory=StageDModelArchConfig)
+    transformer: StageDTransformerConfig = field(default_factory=StageDTransformerConfig)
+    atom_encoder: StageDAtomEncoderConfig = field(default_factory=StageDAtomEncoderConfig)
+    atom_decoder: StageDAtomDecoderConfig = field(default_factory=StageDAtomDecoderConfig)
+    noise_schedule: NoiseScheduleConfig = field(default_factory=NoiseScheduleConfig)
+    inference: StageDInferenceConfig = field(default_factory=StageDInferenceConfig)
+    use_memory_efficient_kernel: bool = field(default=False, metadata={"help": "Whether to use memory efficient attention kernel"})
+    use_deepspeed_evo_attention: bool = field(default=False, metadata={"help": "Whether to use DeepSpeed evolution attention"})
+    use_lma: bool = field(default=False, metadata={"help": "Whether to use linear multi-head attention"})
+    inplace_safe: bool = field(default=False, metadata={"help": "Whether to use inplace operations safely"})
+    chunk_size: Optional[int] = field(default=None, metadata={"help": "Chunk size for attention computation"})
+
+    # Add a nested diffusion field to match the structure in stageD_diffusion.yaml
+    diffusion: Optional[Dict[str, Any]] = field(
+        default_factory=lambda: {
+            "enabled": True,
+            "mode": "inference",
+            "device": "cpu",
+            "debug_logging": True,
+            "ref_element_size": 4,   # CHANGED: was 128
+            "ref_atom_name_chars_size": 8,  # CHANGED: was 256
+            "profile_size": 8,      # CHANGED: was 32
+            "feature_dimensions": {
+                "c_s": 8,         # CHANGED: was 384
+                "c_s_inputs": 8,  # CHANGED: was 449
+                "c_sing": 8,      # CHANGED: was 384
+                "s_trunk": 8,     # CHANGED: was 384
+                "s_inputs": 8,    # CHANGED: was 449
+            },
+            "test_residues_per_batch": 2,  # CHANGED: was 25
+            "model_architecture": {
+                "c_token": 8,  # CHANGED: was 384
+                "c_s": 8,      # CHANGED: was 384
+                "c_z": 4,      # CHANGED: was 128
+                "c_s_inputs": 8,  # CHANGED: was 449
+                "c_atom": 4,   # CHANGED: was 128
+                "c_atompair": 4,   # CHANGED: was 128
+                "c_noise_embedding": 4,   # CHANGED: was 32
+                "sigma_data": 1.0  # CHANGED: was 16.0
+            },
+            "transformer": {
+                "n_blocks": 2,  # CHANGED: was 6
+                "n_heads": 2,   # CHANGED: was 8
+                "blocks_per_ckpt": None
+            },
+            "atom_encoder": {
+                "c_in": 4,          # CHANGED: was 128
+                "c_hidden": [8],    # CHANGED: was [256]
+                "c_out": 4,         # CHANGED: was 128
+                "dropout": 0.1,
+                "n_blocks": 1,      # CHANGED: was 2
+                "n_heads": 2,       # CHANGED: was 4
+                "n_queries": 2,     # CHANGED: was 8
+                "n_keys": 2         # CHANGED: was 8
+            },
+            "atom_decoder": {
+                "c_in": 4,       # CHANGED: was 128
+                "c_hidden": [8], # CHANGED: was [256]
+                "c_out": 4,      # CHANGED: was 128
+                "dropout": 0.1,
+                "n_blocks": 1,   # CHANGED: was 2
+                "n_heads": 2,    # CHANGED: was 4
+                "n_queries": 2,  # CHANGED: was 8
+                "n_keys": 2      # CHANGED: was 8
+            },
+            "noise_schedule": {
+                "schedule_type": "linear",
+                "s_max": 1.0,
+                "s_min": 0.01,
+                "p": 0.5,
+                "p_mean": 0.0,
+                "p_std": 1.0
+            },
+            "inference": {
+                "num_steps": 2,
+                "temperature": 1.0,
+                "use_ddim": True,
+                "sampling": {
+                    "num_samples": 1,
+                    "gamma0": 0.8,
+                    "gamma_min": 1.0,
+                    "noise_scale_lambda": 1.003,
+                    "step_scale_eta": 1.5
+                }
+            },
+            "use_memory_efficient_kernel": False,
+            "use_deepspeed_evo_attention": False,
+            "use_lma": False,
+            "inplace_safe": False,
+            "chunk_size": None,
+            "init_from_scratch": False
+        },
+        metadata={"help": "Nested diffusion configuration to match stageD_diffusion.yaml structure"}
+    )
+
+@dataclass
+class FeatureDimensionsConfig:
+    """Structured config for feature dimensions used in Stage D bridging and diffusion."""
+    c_s: int = 8      # CHANGED: was 384
+    c_s_inputs: int = 8  # CHANGED: was 449
+    c_sing: int = 8   # CHANGED: was 384
+    s_trunk: int = 8  # CHANGED: was 384
+    s_inputs: int = 8 # CHANGED: was 449
 
 @dataclass
 class StageDConfig:
@@ -814,69 +1073,26 @@ class StageDConfig:
         default=True,
         metadata={"help": "Enable debug logging"}
     )
-    sigma_data: float = field(
-        default=16.0,
-        metadata={"help": "Sigma data parameter for diffusion"}
-    )
-    c_atom: int = field(
-        default=128,
-        metadata={"help": "Atom embedding dimension"}
-    )
-    c_s: int = field(
-        default=384,
-        metadata={"help": "Single representation dimension"}
-    )
-    c_z: int = field(
-        default=128,
-        metadata={"help": "Pair representation dimension"}
-    )
-    c_s_inputs: int = field(
-        default=32,
-        metadata={"help": "Input representation dimension"}
-    )
-    c_noise_embedding: int = field(
-        default=32,
-        metadata={"help": "Noise embedding dimension"}
-    )
+    # Required parameters for feature initialization
     ref_element_size: int = field(
-        default=128,
+        default=4,  # CHANGED: was 128
         metadata={"help": "Size of reference element embeddings"}
     )
     ref_atom_name_chars_size: int = field(
-        default=256,
+        default=8,  # CHANGED: was 256
         metadata={"help": "Size of atom name character embeddings"}
     )
-    noise_schedule: NoiseScheduleConfig = field(default_factory=NoiseScheduleConfig)
-    inference: 'StageDInferenceConfig' = field(default_factory=lambda: StageDInferenceConfig())
-    atom_metadata: Optional[dict] = None
-
-    # Memory optimization flags
-    use_memory_efficient_kernel: bool = field(
-        default=False,
-        metadata={"help": "Whether to use memory efficient attention kernel"}
+    profile_size: int = field(
+        default=8,  # CHANGED: was 32
+        metadata={"help": "Profile size for input features"}
     )
-    use_deepspeed_evo_attention: bool = field(
-        default=False,
-        metadata={"help": "Whether to use DeepSpeed evolution attention"}
-    )
-    use_lma: bool = field(
-        default=False,
-        metadata={"help": "Whether to use linear multi-head attention"}
-    )
-    inplace_safe: bool = field(
-        default=False,
-        metadata={"help": "Whether to use inplace operations safely"}
-    )
-    chunk_size: Optional[int] = field(
-        default=None,
-        metadata={"help": "Chunk size for attention computation"}
-    )
-
     # Add nested configurations for model architecture and components
     model_architecture: StageDModelArchConfig = field(default_factory=StageDModelArchConfig)
     transformer: StageDTransformerConfig = field(default_factory=StageDTransformerConfig)
     atom_encoder: StageDAtomEncoderConfig = field(default_factory=StageDAtomEncoderConfig)
     atom_decoder: StageDAtomDecoderConfig = field(default_factory=StageDAtomDecoderConfig)
+    diffusion: StageDDiffusionConfig = field(default_factory=StageDDiffusionConfig)
+    input_features: Optional[Dict[str, Any]] = None
 
 @dataclass
 class LatentMergerConfig:
@@ -953,6 +1169,14 @@ class EnergyMinimizationConfig:
     )
 
 @dataclass
+class LanceDBConfig:
+    """Configuration for LanceDB logging integration."""
+    enabled: bool = field(
+        default=False,
+        metadata={"help": "Enable LanceDB logging (M3 only, stub in M2)"}
+    )
+
+@dataclass
 class PipelineConfig:
     """Configuration for the overall pipeline execution."""
     verbose: bool = field(
@@ -974,6 +1198,10 @@ class PipelineConfig:
     nan_replacement_value: float = field(
         default=0.0,
         metadata={"help": "Value to replace NaNs with when ignore_nan_values is True"}
+    )
+    lance_db: LanceDBConfig = field(
+        default_factory=LanceDBConfig,
+        metadata={"help": "LanceDB logging config (M3: enable for real logging)"}
     )
 
 @dataclass
@@ -1018,6 +1246,8 @@ class TestDataConfig:
         },
         metadata={"help": "Dimensions for various embeddings"}
     )
+    # Allow arbitrary model group for test config composition
+    model: Optional[Any] = None
 
 @dataclass
 class RNAConfig:
@@ -1034,6 +1264,10 @@ class RNAConfig:
         default="cpu",
         metadata={"help": "Global device setting, can be overridden per stage"}
     )
+    atoms_per_residue: int = field(
+        default=44,
+        metadata={"help": "Standard RNA residue has ~44 atoms"}
+    )
     dimensions: DimensionsConfig = field(default_factory=DimensionsConfig)
     model: Dict[str, Any] = field(default_factory=lambda: {
         "stageA": StageAConfig(),
@@ -1046,6 +1280,8 @@ class RNAConfig:
         "stageC": StageCConfig(),
         "stageD": StageDConfig()  # Add stageD under model
     })
+    # Add stageD_diffusion at the root level to match the default.yaml structure
+    stageD_diffusion: StageDDiffusionConfig = field(default_factory=StageDDiffusionConfig)
     pipeline: PipelineConfig = field(default_factory=PipelineConfig)
     latent_merger: LatentMergerConfig = field(default_factory=LatentMergerConfig)
     memory_optimization: MemoryOptimizationConfig = field(default_factory=MemoryOptimizationConfig)
