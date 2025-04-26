@@ -1,0 +1,10 @@
+index_csv: "./data/index.csv"
+root_dir: "./data/"
+max_residues: 512
+max_atoms: 4096
+C_element: 128
+C_char: 256
+batch_size: 4
+num_workers: 8
+load_adj: false
+load_ang: false
