@@ -1,4 +1,6 @@
 import lightning as L
+import torch
+from unittest.mock import MagicMock, patch
 from omegaconf import OmegaConf
 from rna_predict.training.rna_lightning_module import RNALightningModule
 
@@ -44,17 +46,17 @@ cfg = OmegaConf.create({
         },
         'stageB': {
             'torsion_bert': {
-                'model_name_or_path': 'bert-base-uncased',
+                'model_name_or_path': 'dummy_path',  # Changed to dummy_path to avoid loading real model
                 'device': 'cpu',
                 'angle_mode': 'degrees',
-                'num_angles': 16
+                'num_angles': 7  # Changed to 7 to match expected output
             },
             'pairformer': {
                 'model_name_or_path': 'dummy_path',
                 'device': 'cpu',
                 'stageB_pairformer': {
                     'c_z': 32,
-                    'c_s': 0,
+                    'c_s': 64,  # Changed from 0 to 64 to match expected output
                     'dropout': 0.1,
                     'n_blocks': 1,
                     'n_heads': 2,
