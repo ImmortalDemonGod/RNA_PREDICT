@@ -25,7 +25,7 @@ import pytest
 # Import the module under test using importlib
 import importlib.util
 import os
-from typing import cast, Any
+from typing import Generator
 
 # Get the absolute path to the batch_test_generator.py file
 script_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
