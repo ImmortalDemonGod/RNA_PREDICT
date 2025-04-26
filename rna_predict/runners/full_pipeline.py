@@ -140,9 +140,38 @@ def run_stage_a(cfg: DictConfig) -> tuple[torch.Tensor, str]:
         stageA_cfg = getattr(cfg.model, "stageA", None) if hasattr(cfg, "model") else None
         if stageA_cfg is None:
             logger.warning("[UNIQUE-WARN-STAGEA-DUMMYMODE] model.stageA config missing, running Stage A in dummy mode.")
-            # Convert None to empty DictConfig for compatibility
+            # Convert None to DictConfig with required fields for compatibility
             from omegaconf import OmegaConf
-            stageA_cfg = OmegaConf.create({})
+            stageA_cfg = OmegaConf.create({
+                "checkpoint_path": "",  # Empty string for checkpoint_path
+                "min_seq_length": 80,  # Default value
+                "num_hidden": 128,     # Default value
+                "dropout": 0.3,        # Default value
+                "batch_size": 32,      # Default value
+                "lr": 0.001,           # Default value
+                "debug_logging": True, # Enable debug logging
+                "model": {             # Minimal model config
+                    "conv_channels": [64, 128, 256, 512],
+                    "residual": True,
+                    "c_in": 1,
+                    "c_out": 1,
+                    "c_hid": 32,
+                    "seq2map": {
+                        "input_dim": 4,
+                        "max_length": 3000,
+                        "attention_heads": 8,
+                        "attention_dropout": 0.1,
+                        "positional_encoding": True,
+                        "query_key_dim": 128,
+                        "expansion_factor": 2.0,
+                        "heads": 1
+                    },
+                    "decoder": {
+                        "up_conv_channels": [256, 128, 64],
+                        "skip_connections": True
+                    }
+                }
+            })
         stageA_predictor = StageARFoldPredictor(stage_cfg=stageA_cfg, device=device)
     adjacency_np: NDArray = stageA_predictor.predict_adjacency(sequence)
     adjacency_np = check_for_nans(adjacency_np, "adjacency_np (Stage A output)", cfg)
