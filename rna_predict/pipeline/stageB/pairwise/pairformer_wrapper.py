@@ -97,7 +97,7 @@ class PairformerWrapper(nn.Module):
         required_keys = ["c_z", "c_s"]
 
         # Check if we're in a test environment
-        is_test_mode = os.environ.get('PYTEST_CURRENT_TEST') is not None
+        os.environ.get('PYTEST_CURRENT_TEST') is not None
         current_test = str(os.environ.get('PYTEST_CURRENT_TEST', ''))
 
         if not all(hasattr(pairformer_cfg, key) for key in required_keys):
@@ -141,22 +141,18 @@ class PairformerWrapper(nn.Module):
             # Set to INFO level to suppress DEBUG messages
             logger.setLevel(logging.INFO)
 
-        # NEW: Freeze all parameters if freeze_params is set in config
-        freeze_flag = getattr(cfg, 'freeze_params', False)
-        if freeze_flag:
-            for name, param in self.named_parameters():
-                param.requires_grad = False
-            if debug_logging:
-                logger.info("[StageB-Pairformer] All model parameters frozen (requires_grad=False) per freeze_params config.")
-        else:
-            if debug_logging:
-                logger.info("[StageB-Pairformer] Model parameters are trainable (freeze_params is False or missing).")
+        # Store freeze_flag for later use after stack initialization
+        self.freeze_flag = getattr(cfg, 'freeze_params', False)
+        if debug_logging:
+            if self.freeze_flag:
+                logger.info("[StageB-Pairformer] Will freeze parameters after stack initialization.")
+            else:
+                logger.info("[StageB-Pairformer] Model parameters will be trainable (freeze_params is False or missing).")
 
         # Extract configuration
-        self.device = getattr(cfg, "device", "cuda" if torch.cuda.is_available() else "cpu")
+        device_str = getattr(cfg, "device", "cuda" if torch.cuda.is_available() else "cpu")
         # Ensure device is torch.device object
-        if isinstance(self.device, str):
-            self.device = torch.device(self.device)
+        self.device = torch.device(device_str) if isinstance(device_str, str) else device_str
 
         # Get other configuration values with defaults
         self.init_z_from_adjacency = getattr(pairformer_cfg, "init_z_from_adjacency", True)
@@ -169,11 +165,11 @@ class PairformerWrapper(nn.Module):
         logger.info(f"Init z from adjacency: {self.init_z_from_adjacency}")
 
         # Validate required parameters
-        required_params = ["n_heads", "dropout", "use_memory_efficient_kernel",
+        required_param_names = ["n_heads", "dropout", "use_memory_efficient_kernel",
                           "use_deepspeed_evo_attention", "use_lma", "inplace_safe", "chunk_size"]
-        for param in required_params:
-            if not hasattr(pairformer_cfg, param):
-                logger.warning(f"Configuration missing parameter: {param}, using default value")
+        for param_name in required_param_names:
+            if not hasattr(pairformer_cfg, param_name):
+                logger.warning(f"Configuration missing parameter: {param_name}, using default value")
 
         # Store config parameters with defaults
         # Using test-compatible defaults
@@ -219,6 +215,13 @@ class PairformerWrapper(nn.Module):
 
         # Instantiate the underlying PairformerStack with parameters from config
         self.stack = PairformerStack(stack_cfg)
+
+        # Now freeze parameters if needed
+        if hasattr(self, 'freeze_flag') and self.freeze_flag:
+            for _name, param in self.named_parameters():
+                param.requires_grad = False
+            if debug_logging:
+                logger.info("[StageB-Pairformer] All model parameters frozen (requires_grad=False).")
 
         # Optional: Apply LoRA if enabled in config
         if hasattr(pairformer_cfg, "lora") and hasattr(pairformer_cfg.lora, "enabled") and pairformer_cfg.lora.enabled:
