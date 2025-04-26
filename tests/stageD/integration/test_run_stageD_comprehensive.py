@@ -14,7 +14,6 @@ from rna_predict.pipeline.stageD.run_stageD import run_stageD
 from rna_predict.pipeline.stageD.context import StageDContext
 
 # Mock the hydra_main function to avoid import errors
-from unittest.mock import MagicMock
 hydra_main = MagicMock()
 hydra_main.return_value = None
 
