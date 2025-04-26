@@ -18,10 +18,30 @@ from rna_predict.pipeline.stageA.input_embedding.current.utils import (
 )
 
 from .config import ProcessInputsParams
-from .feature_processing import adapt_tensor_dimensions, extract_atom_features
+from .encoder_feature_processing import adapt_tensor_dimensions, extract_atom_features
 from .pair_embedding import create_pair_embedding
 
-import snoop
+def get_atom_to_token_idx(input_feature_dict, num_tokens=None):
+    """
+    Centralized logic to safely retrieve atom_to_token_idx with shape and value checks.
+    Args:
+        input_feature_dict (dict): Feature dict containing atom_to_token_idx.
+        num_tokens (int, optional): Maximum allowed index value (for clipping).
+    Returns:
+        torch.Tensor or None: The atom_to_token_idx tensor, or None if not found.
+    """
+    atom_to_token_idx = safe_tensor_access(input_feature_dict, "atom_to_token_idx")
+    if atom_to_token_idx is not None:
+        if num_tokens is not None and atom_to_token_idx.numel() > 0 and atom_to_token_idx.max() >= num_tokens:
+            warnings.warn(
+                f"[get_atom_to_token_idx] atom_to_token_idx max value {atom_to_token_idx.max()} >= num_tokens {num_tokens}. "
+                f"Clipping indices to prevent out-of-bounds error."
+            )
+            atom_to_token_idx = torch.clamp(atom_to_token_idx, max=num_tokens - 1)
+    else:
+        warnings.warn("[get_atom_to_token_idx] atom_to_token_idx is None. Cannot perform aggregation.")
+    return atom_to_token_idx
+
 
 def _process_simple_embedding(
     encoder: Any, input_feature_dict: InputFeatureDict
@@ -81,22 +101,7 @@ def _process_simple_embedding(
     # --- End Fix ---
 
     # Get atom to token mapping
-    atom_to_token_idx = safe_tensor_access(input_feature_dict, "atom_to_token_idx")
-
-    # Ensure atom_to_token_idx doesn't exceed num_tokens and is not None
-    if atom_to_token_idx is not None:
-        if atom_to_token_idx.numel() > 0 and atom_to_token_idx.max() >= num_tokens:
-            warnings.warn(
-                f"[AtomAttentionEncoder] atom_to_token_idx max value {atom_to_token_idx.max()} >= num_tokens {num_tokens}. "
-                f"Clipping indices to prevent out-of-bounds error."
-            )
-            atom_to_token_idx = torch.clamp(atom_to_token_idx, max=num_tokens - 1)
-    else:
-        # Handle case where atom_to_token_idx might be missing
-        warnings.warn("atom_to_token_idx is None. Cannot perform aggregation.")
-        # Depending on desired behavior, either raise error or return default
-        # For now, let's allow _aggregate_to_token_level to handle it (might error there)
-        pass
+    atom_to_token_idx = get_atom_to_token_idx(input_feature_dict, num_tokens=num_tokens)
 
     # Aggregate atom features to token level
     # Ensure atom_to_token_idx is not None before passing
@@ -131,35 +136,57 @@ def _process_coordinate_encoding(
     Returns:
         Updated atom features with positional encoding
     """
+    print("[DEBUG] _process_coordinate_encoding ENTRY:")
+    print("  q_l type:", type(q_l), "q_l:", q_l)
+    print("  r_l type:", type(r_l), "r_l shape:", getattr(r_l, "shape", None))
+    print("  ref_pos type:", type(ref_pos), "ref_pos shape:", getattr(ref_pos, "shape", None))
+    assert q_l is not None, "q_l is None at entry to _process_coordinate_encoding! Upstream bug."
+
     if r_l is None:
+        print("[DEBUG] Branch: r_l is None, returning q_l")
         return q_l
 
-    # Handle None ref_pos
     if ref_pos is None:
-        warnings.warn("ref_pos is None in _process_coordinate_encoding. Using r_l directly.")
+        print("[DEBUG] Branch: ref_pos is None, returning q_l + encoder.linear_no_bias_r(r_l)")
         return q_l + encoder.linear_no_bias_r(r_l)
 
-    # Check coordinates shape matches expected
     if r_l.ndim >= 2 and r_l.size(-1) == 3 and r_l.size(-2) == ref_pos.size(-2):
+        print("[DEBUG] Branch: r_l shape matches ref_pos, returning q_l + encoder.linear_no_bias_r(r_l)")
         return q_l + encoder.linear_no_bias_r(r_l)
     else:
-        # Log shape mismatch and skip linear transformation
+        print("[DEBUG] Branch: r_l shape mismatch, returning q_l. r_l shape:", r_l.shape, "ref_pos shape:", ref_pos.shape)
         warnings.warn(
             f"Warning: r_l shape mismatch. Expected [..., {ref_pos.size(-2)}, 3], "
             f"got {r_l.shape}. Skipping linear_no_bias_r."
         )
         return q_l
 
-##@snoop
+
 def _process_style_embedding(
     encoder: Any,
     c_l: torch.Tensor,
     s: Optional[torch.Tensor],
     atom_to_token_idx: Optional[torch.Tensor],
 ) -> torch.Tensor:
+    """Process style embedding by combining with atom embedding.
+
+    Args:
+        encoder: The encoder module instance
+        c_l: Atom-level embedding
+        s: Optional token-level style embedding
+        atom_to_token_idx: Optional mapping from atoms to tokens
+
+    Returns:
+        Updated atom-level embedding
+    """
+    # Debug logging
     print(f"[DEBUG][CALL] _process_style_embedding c_l.shape={getattr(c_l, 'shape', None)} s.shape={getattr(s, 'shape', None)} atom_to_token_idx.shape={getattr(atom_to_token_idx, 'shape', None)}")
-    if s is None or atom_to_token_idx is None:  # Check if index is None
+
+    # Early return if inputs are missing
+    if s is None or atom_to_token_idx is None:
         return c_l
+
+    # Add explicit return at the end to satisfy mypy
 
     # Broadcast token-level s to atom-level
     broadcasted_s = broadcast_token_to_atom(s, atom_to_token_idx)
@@ -180,7 +207,7 @@ def _process_style_embedding(
     # PATCH: Ensure c_l is atom-level before addition
     # If c_l is [batch, num_residues, emb_dim], broadcast to [batch, num_atoms, emb_dim]
     if c_l.shape[1] != x.shape[1] and atom_to_token_idx is not None:
-        print(f"[PATCH][ENCODER][_process_style_embedding] Broadcasting c_l from residues to atoms using atom_to_token_idx")
+        print("[PATCH][ENCODER][_process_style_embedding] Broadcasting c_l from residues to atoms using atom_to_token_idx")
         # Handle case where c_l has an extra dimension (sample dimension)
         # c_l shape: [batch, sample, num_atoms, emb_dim], atom_to_token_idx shape: [batch, num_atoms]
         if c_l.ndim == 4 and atom_to_token_idx.ndim == 2:
@@ -206,14 +233,13 @@ def _process_style_embedding(
             # Handle case where atom_to_token_idx has an extra dimension (e.g., [1, 1, 11, 1])
             if expanded_idx.dim() == 3:
                 # Standard case: expanded_idx is [batch, sample, num_atoms]
-                idx = expanded_idx.unsqueeze(-1).expand(-1, -1, -1, c_l.shape[-1])  # [batch, sample, num_atoms, emb_dim]
                 # Now gather using the 4D index tensor
+                idx = expanded_idx.unsqueeze(-1).expand(-1, -1, -1, c_l.shape[-1])  # [batch, sample, num_atoms, emb_dim]
                 c_l = torch.gather(c_l, 2, idx)
             elif expanded_idx.dim() == 4:
                 # Special case: expanded_idx is already [batch, sample, num_atoms, 1]
                 # Just expand the last dimension to match feature dimension
                 idx = expanded_idx.expand(-1, -1, -1, c_l.shape[-1])  # [batch, sample, num_atoms, emb_dim]
-                # Now gather using the 4D index tensor
                 c_l = torch.gather(c_l, 2, idx)
             else:
                 # Unexpected case, print debug info and try to handle gracefully
@@ -337,6 +363,9 @@ def _process_style_embedding(
                 print(f"[DEBUG][EXCEPTION-ADD-FINAL] {e5}")
                 # Give up and return x
                 return x
+
+    # Final fallback return to satisfy mypy
+    return c_l
 
 
 def _aggregate_to_token_level(
@@ -492,10 +521,7 @@ def _process_inputs_with_coords_impl(
     p_lm = create_pair_embedding(encoder, params.input_feature_dict)
 
     # Get required tensors
-    atom_to_token_idx = safe_tensor_access(
-        params.input_feature_dict, "atom_to_token_idx"
-    )
-    ref_pos = safe_tensor_access(params.input_feature_dict, "ref_pos")
+    atom_to_token_idx = get_atom_to_token_idx(params.input_feature_dict, num_tokens=None)
 
     # Create a default restype tensor if not found
     default_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -507,6 +533,8 @@ def _process_inputs_with_coords_impl(
     print(f"[DEBUG][PRE-CALL] c_l.shape={params.c_l.shape if params.c_l is not None else None} s.shape={params.s.shape if params.s is not None else None} atom_to_token_idx.shape={atom_to_token_idx.shape if atom_to_token_idx is not None else None}")
 
     # Process coordinates and style embedding
+    # Get ref_pos from input_feature_dict
+    ref_pos = safe_tensor_access(params.input_feature_dict, "ref_pos")
     q_l = _process_coordinate_encoding(encoder, params.c_l, params.r_l, ref_pos)
     print(f"[DEBUG][PRE-CALL-TYPE] c_l={type(params.c_l)} s={type(params.s)} atom_to_token_idx={type(atom_to_token_idx)}")
     try:
@@ -590,16 +618,29 @@ def _process_inputs_with_coords_impl(
 
     # Aggregate to token level
     # --- DEBUG PRINT ---
-    print(f"[DEBUG AGG] a_atom shape: {a_atom.shape}")
-    print(f"[DEBUG AGG] atom_to_token_idx shape: {atom_to_token_idx.shape}")
+    print(f"[DEBUG AGG] a_atom shape: {getattr(a_atom, 'shape', None)}")
+    print(f"[DEBUG AGG] atom_to_token_idx shape: {getattr(atom_to_token_idx, 'shape', None)}")
     print(f"[DEBUG AGG] num_tokens: {num_tokens}")
     # --- END DEBUG PRINT ---
+
+    # Ensure atom_to_token_idx is not None before passing to _aggregate_to_token_level
+    if atom_to_token_idx is None:
+        # Create a default atom_to_token_idx if it's missing
+        warnings.warn(
+            "Creating default atom_to_token_idx mapping all atoms to token 0."
+        )
+        atom_to_token_idx = torch.zeros(
+            a_atom.shape[:-1], dtype=torch.long, device=a_atom.device
+        )
+        if num_tokens == 0:
+            num_tokens = 1  # Avoid n_token=0 if using default index
+
     a = _aggregate_to_token_level(encoder, a_atom, atom_to_token_idx, num_tokens)
 
     return a, q_l, c_l, p_lm
 
 
-#@snoop
+###@snoop
 def process_inputs_with_coords(
     encoder: Any,
     params: ProcessInputsParams,
