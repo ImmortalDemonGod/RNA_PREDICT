@@ -1,0 +1,29 @@
+# Default configuration for the RNA_PREDICT demo
+# This is a minimal configuration file for the demo_entry.py script
+
+# Test data configuration
+test_data:
+  sequence: "ACGUACGU"
+  sequence_length: 8
+  atoms_per_residue: 44
+
+# Pipeline configuration
+pipeline:
+  verbose: true
+  save_intermediates: true
+  output_dir: outputs
+
+# Model configuration
+model:
+  stageA:
+    enabled: true
+    debug_logging: true
+  stageB:
+    enabled: true
+    debug_logging: true
+  stageC:
+    enabled: true
+    debug_logging: true
+  stageD:
+    enabled: true
+    debug_logging: true
