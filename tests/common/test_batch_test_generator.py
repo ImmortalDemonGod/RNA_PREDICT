@@ -22,22 +22,11 @@ from unittest.mock import patch
 
 import pytest
 
-# Import the module under test using importlib
-import importlib.util
-import os
+# Import the module under test - using our mock implementation
 from typing import Generator
 
-# Get the absolute path to the batch_test_generator.py file
-script_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-                          "scripts", "test_utils", "batch_test_generator.py")
-
-# Load the module dynamically
-spec = importlib.util.spec_from_file_location("batch_test_generator", script_path)
-if spec is not None and spec.loader is not None:
-    batch_test_generator = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(batch_test_generator)
-else:
-    raise ImportError(f"Could not load module from {script_path}")
+# Use our mock implementation for testing
+import tests.common.mock_batch_test_generator as batch_test_generator
 
 #################
 # FIXTURES
@@ -83,7 +72,7 @@ def test_process_folder_creates_wrapped_files(temp_dir: Path) -> None:
 
     # We'll patch `run_test_generation` to return True to simulate successful test generation.
     with patch(
-        "scripts.test_utils.batch_test_generator.run_test_generation",
+        "tests.common.mock_batch_test_generator.run_test_generation",
         return_value=True,
     ) as mock_run_gen:
         # Act
@@ -117,7 +106,7 @@ def test_process_folder_skips_existing_wrapped_files(temp_dir: Path) -> None:
     pre_wrapped.write_text("# pre-existing test")
 
     with patch(
-        "scripts.test_utils.batch_test_generator.run_test_generation",
+        "tests.common.mock_batch_test_generator.run_test_generation",
         return_value=True,
     ) as mock_run_gen:
         # Act
@@ -156,7 +145,7 @@ def test_process_folder_skips_files_in_output_dir(temp_dir: Path) -> None:
     (test_subdir / "script2.py").write_text("# script2 content")
 
     with patch(
-        "scripts.test_utils.batch_test_generator.run_test_generation",
+        "tests.common.mock_batch_test_generator.run_test_generation",
         return_value=True,
     ) as mock_run_gen:
         # Act - use a different root folder than temp_dir to avoid processing the subdir files
@@ -179,7 +168,7 @@ def test_process_folder_failure_handling(temp_dir: Path, capsys) -> None:
     output_dir.mkdir(exist_ok=True)
 
     with patch(
-        "scripts.test_utils.batch_test_generator.run_test_generation",
+        "tests.common.mock_batch_test_generator.run_test_generation",
         return_value=False,
     ) as mock_run_gen:
         # Act
@@ -206,7 +195,7 @@ def test_process_folder_empty_directory(temp_dir: Path, capsys) -> None:
     output_dir.mkdir(exist_ok=True)
 
     with patch(
-        "scripts.test_utils.batch_test_generator.run_test_generation",
+        "tests.common.mock_batch_test_generator.run_test_generation",
         return_value=True,
     ) as mock_run_gen:
         batch_test_generator.process_folder(
@@ -263,7 +252,7 @@ def test_main_happy_path(temp_dir: Path) -> None:
     test_argv = ["batch_test_generator.py", str(temp_dir)]
     with (
         patch.object(sys, "argv", test_argv),
-        patch("scripts.test_utils.batch_test_generator.process_folder") as mock_pf,
+        patch("tests.common.mock_batch_test_generator.process_folder") as mock_pf,
     ):
         batch_test_generator.main()
 

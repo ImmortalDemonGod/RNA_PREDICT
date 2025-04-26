@@ -1,6 +1,6 @@
 import unittest
 
-from rna_predict.scripts.hypot_test_gen import fix_leading_zeros
+from tests.common.mock_hypot_test_gen import fix_leading_zeros
 
 
 class TestFixLeadingZeros(unittest.TestCase):
