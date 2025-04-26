@@ -182,7 +182,7 @@ def _run_stageD_impl(
         s_trunk = residue_to_atoms(s_trunk.squeeze(0) if s_trunk.dim() == 3 else s_trunk, residue_atom_map)
         if s_trunk.dim() == 2:
             s_trunk = s_trunk.unsqueeze(0)
-        log.debug(f"[HYDRA-CONF-BRIDGE][StageD] Bridged s_trunk to atom-level: %s", s_trunk.shape)
+        log.debug("[HYDRA-CONF-BRIDGE][StageD] Bridged s_trunk to atom-level: %s", s_trunk.shape)
     trunk_embeddings, features = _prepare_trunk_embeddings(
         s_trunk, s_inputs, z_trunk, input_feature_dict, atom_metadata
     )
