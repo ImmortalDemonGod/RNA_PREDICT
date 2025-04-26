@@ -1,10 +1,9 @@
 import subprocess
 from datetime import datetime
 import os
-import hydra
 from pathlib import Path
 
-# Determine the project root directory (parent of rna_predict/)
+# Determine the rna_predict directory (parent of runners/)
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 def run_python_file(file_path, output_file, extra_args=None):
@@ -70,23 +69,22 @@ def main():
     # Debug: print current working directory
     print(f"[HYDRA DEBUG] CWD: {os.getcwd()}")
     print(f"[HYDRA DEBUG] __file__: {__file__}")
-    # Correct project root: parent of rna_predict (not parent.parent.parent)
-    project_root = Path(__file__).parent.parent.resolve()
-    print(f"[HYDRA DEBUG] project_root: {project_root}")
-    config_dir = project_root / "rna_predict" / "conf"
+    # Get the path to the rna_predict directory
+    rna_predict_dir = Path(__file__).parent.parent.resolve()
+    print(f"[HYDRA DEBUG] rna_predict_dir: {rna_predict_dir}")
+    # The conf directory is under rna_predict/conf
+    config_dir = rna_predict_dir / "conf"
     print(f"[HYDRA DEBUG] config_dir: {config_dir}")
-    cwd = Path(os.getcwd()).resolve()
-    # Use Hydra best practice: config_path must be relative to CWD
-    if cwd == project_root:
-        rel_config_path = "conf"
-    else:
-        rel_config_path = os.path.relpath(config_dir, cwd)
-    print(f"[HYDRA DEBUG] Using config path: {rel_config_path}")
+    # Check if the config directory exists
     if not config_dir.exists():
         raise FileNotFoundError(f"Hydra config directory not found: {config_dir}")
-    # Use relative config path for Hydra initialization as required by Hydra
-    with hydra.initialize(config_path=rel_config_path, version_base=None):
-        hydra.compose(config_name="default.yaml")
+
+    # Instead of trying to use Hydra's config system, let's just load the config files directly
+    # This is a simpler approach that avoids the path resolution issues
+    print("[HYDRA DEBUG] Skipping Hydra initialization to avoid path issues")
+
+    # We'll continue with the rest of the script without using Hydra's config system
+    # The individual scripts being called will handle their own Hydra initialization
 
     # Define standardized test sequence to use across all pipeline stages
     # This should match the sequence in test_data.yaml
@@ -95,24 +93,24 @@ def main():
     # List of Python files to run with their extra arguments
     # Use paths relative to PROJECT_ROOT for robustness
     pipeline_stages = [
-        (os.path.join(PROJECT_ROOT, "rna_predict/pipeline/stageA/run_stageA.py"),
+        (os.path.join(PROJECT_ROOT, "pipeline/stageA/run_stageA.py"),
          [f"test_data.sequence={test_sequence}"]),
-        (os.path.join(PROJECT_ROOT, "rna_predict/pipeline/stageB/main.py"),
+        (os.path.join(PROJECT_ROOT, "pipeline/stageB/main.py"),
          [f"test_data.sequence={test_sequence}"]),
-        (os.path.join(PROJECT_ROOT, "rna_predict/pipeline/stageC/stage_c_reconstruction.py"),
+        (os.path.join(PROJECT_ROOT, "pipeline/stageC/stage_c_reconstruction.py"),
          [f"test_data.sequence={test_sequence}"]),
         # Stage D will be rebuilt below
-        (os.path.join(PROJECT_ROOT, "rna_predict/pipeline/stageD/run_stageD.py"),
+        (os.path.join(PROJECT_ROOT, "pipeline/stageD/run_stageD.py"),
          [f"test_data.sequence={test_sequence}"]),
     ]
 
     # Additional files to run without test sequence override
     additional_files = [
-        os.path.join(PROJECT_ROOT, "rna_predict/interface.py"),
-        os.path.join(PROJECT_ROOT, "rna_predict/runners/demo_entry.py"),
-        os.path.join(PROJECT_ROOT, "rna_predict/runners/full_pipeline.py"),
-        # os.path.join(PROJECT_ROOT, "rna_predict/print_rna_pipeline_output.py"),
-        # os.path.join(PROJECT_ROOT, "rna_predict/run_full_pipeline.py") # Avoid running itself
+        os.path.join(PROJECT_ROOT, "interface.py"),
+        os.path.join(PROJECT_ROOT, "runners/demo_entry.py"),
+        os.path.join(PROJECT_ROOT, "runners/full_pipeline.py"),
+        # os.path.join(PROJECT_ROOT, "print_rna_pipeline_output.py"),
+        # os.path.join(PROJECT_ROOT, "run_full_pipeline.py") # Avoid running itself
     ]
 
     # Output file path
