@@ -70,7 +70,10 @@ def place_rna_bases(
         base_connectivity = get_connectivity(base)
         merged_connectivity = list(backbone_connectivity) + list(base_connectivity)
         # Place all atoms in atom_list, including backbone and base atoms
-        placed_atoms = {name: None for name in atom_list}
+        # Initialize placed_atoms with None values, but use torch.zeros for tensor placeholders
+        placed_atoms = {}
+        for name in atom_list:
+            placed_atoms[name] = torch.zeros(3, device=device) if name in BACKBONE_ATOMS else None
         # First, copy backbone atoms
         for idx, atom_name in enumerate(BACKBONE_ATOMS):
             if atom_name in atom_list:
@@ -89,14 +92,14 @@ def place_rna_bases(
             # --- DEBUG: Print connectivity for OP1/OP2 ---
             if atom_name in ["OP1", "OP2"]:
                 print(f"[DEBUG-NAN-TRACE] Attempting to place {atom_name} at residue {i}, placement index {idx}, seq={seq}")
-                print(f"[DEBUG-NAN-TRACE] Already placed atoms: {[k for k, v in placed_atoms.items() if v is not None]}")
+                print(f"[DEBUG-NAN-TRACE] Already placed atoms: {[k for k, v in placed_atoms.items() if isinstance(v, torch.Tensor)]}")
                 print(f"[DEBUG-NAN-TRACE] Connectivity pairs for {atom_name}: {bond_partners}")
                 print(f"[DEBUG-NAN-TRACE] All connectivity for this residue: {merged_connectivity}")
             # Special logic for OP1/OP2 placement: require three unique, non-collinear reference atoms
             if atom_name in ["OP1", "OP2"]:
                 # Preferred order: O5', O3', C5'
                 possible_refs = ["O5'", "O3'", "C5'"]
-                placed_ref_names = [partner for partner in possible_refs if placed_atoms.get(partner) is not None]
+                placed_ref_names = [partner for partner in possible_refs if partner in placed_atoms and isinstance(placed_atoms[partner], torch.Tensor)]
                 ref_candidates = ["P"] + placed_ref_names
                 seen = set()
                 unique_refs = []
@@ -106,7 +109,7 @@ def place_rna_bases(
                         unique_refs.append(ref)
                 if len(unique_refs) < 3:
                     for extra in atom_list[:idx]:
-                        if extra not in unique_refs and placed_atoms.get(extra) is not None:
+                        if extra not in unique_refs and extra in placed_atoms and isinstance(placed_atoms[extra], torch.Tensor):
                             unique_refs.append(extra)
                         if len(unique_refs) == 3:
                             break
@@ -115,8 +118,8 @@ def place_rna_bases(
                     ref2 = placed_atoms[unique_refs[1]]
                     ref3 = placed_atoms[unique_refs[2]]
                     # Check for collinearity: compute the area of the triangle they form
-                    v1 = ref2 - ref1
-                    v2 = ref3 - ref1
+                    v1 = ref2 - ref1 if isinstance(ref1, torch.Tensor) and isinstance(ref2, torch.Tensor) else torch.zeros(3, device=device)
+                    v2 = ref3 - ref1 if isinstance(ref1, torch.Tensor) and isinstance(ref3, torch.Tensor) else torch.zeros(3, device=device)
                     cross = torch.linalg.cross(v1, v2, dim=-1)
                     collinear = torch.norm(cross) < 1e-3
 
@@ -125,9 +128,9 @@ def place_rna_bases(
                         print(f"[DEBUG] Collinear references detected for {atom_name} at residue {i}: {unique_refs}")
                         # Try to find a non-collinear third reference among other placed atoms
                         for extra in atom_list[:idx]:
-                            if extra not in unique_refs[:2] and placed_atoms.get(extra) is not None:
+                            if extra not in unique_refs[:2] and extra in placed_atoms and isinstance(placed_atoms[extra], torch.Tensor):
                                 candidate = placed_atoms[extra]
-                                v2 = candidate - ref1
+                                v2 = candidate - ref1 if isinstance(ref1, torch.Tensor) and isinstance(candidate, torch.Tensor) else torch.zeros(3, device=device)
                                 cross = torch.linalg.cross(v1, v2, dim=-1)
                                 if torch.norm(cross) >= 1e-3:
                                     ref3 = candidate
@@ -153,11 +156,19 @@ def place_rna_bases(
                             collinear = False
                     # --- NAN DEBUG ---
                     # Check for degenerate or ill-separated references
-                    sep12 = torch.norm(ref2 - ref1)
-                    sep13 = torch.norm(ref3 - ref1)
-                    sep23 = torch.norm(ref3 - ref2)
-                    if torch.isnan(ref1).any() or torch.isnan(ref2).any() or torch.isnan(ref3).any() \
-                        or sep12 < 1e-6 or sep13 < 1e-6 or sep23 < 1e-6:
+                    sep12 = torch.norm(ref2 - ref1) if isinstance(ref1, torch.Tensor) and isinstance(ref2, torch.Tensor) else torch.tensor(0.0, device=device)
+                    sep13 = torch.norm(ref3 - ref1) if isinstance(ref1, torch.Tensor) and isinstance(ref3, torch.Tensor) else torch.tensor(0.0, device=device)
+                    sep23 = torch.norm(ref3 - ref2) if isinstance(ref2, torch.Tensor) and isinstance(ref3, torch.Tensor) else torch.tensor(0.0, device=device)
+                    # Check for NaN values in reference tensors
+                    has_nan = False
+                    if isinstance(ref1, torch.Tensor) and torch.isnan(ref1).any():
+                        has_nan = True
+                    if isinstance(ref2, torch.Tensor) and torch.isnan(ref2).any():
+                        has_nan = True
+                    if isinstance(ref3, torch.Tensor) and torch.isnan(ref3).any():
+                        has_nan = True
+
+                    if has_nan or sep12 < 1e-6 or sep13 < 1e-6 or sep23 < 1e-6:
                         print(f"[UNIQUE-ERR-RNA-NAN-REFS-SEP] NaN or degenerate/ill-separated references for {atom_name} at residue {i} ({unique_refs}) in seq {seq}. sep12={sep12}, sep13={sep13}, sep23={sep23}. Skipping placement.")
                         continue  # Skip placement if references are invalid
                     print(f"[DEBUG] Reference values for {atom_name} at residue {i}: ref1={ref1}, ref2={ref2}, ref3={ref3}")
@@ -165,7 +176,7 @@ def place_rna_bases(
                     # --- END NAN DEBUG ---
                     try:
                         pos = calculate_atom_position(ref3, ref2, bond_lengths.get(f"P-{atom_name}", 1.5), bond_angles.get(f"P-{atom_name}", 120.0), 0.0, device)
-                        if torch.isnan(pos).any():
+                        if isinstance(pos, torch.Tensor) and torch.isnan(pos).any():
                             print(f"[UNIQUE-ERR-RNA-NAN-POS] Atom placement produced NaN for {atom_name} at residue {i} (refs={unique_refs}, sep12={sep12}, sep13={sep13}, sep23={sep23}) in seq {seq}. Skipping placement.")
                             continue  # Skip placement if output is NaN
                         print(f"[DEBUG] Output position for {atom_name} at residue {i}: pos={pos}")
@@ -179,7 +190,7 @@ def place_rna_bases(
             ref_partner = None
             for pair in bond_partners:
                 partner = pair[0] if pair[1] == atom_name else pair[1]
-                if placed_atoms.get(partner) is not None:
+                if partner in placed_atoms and isinstance(placed_atoms[partner], torch.Tensor):
                     ref_atom = placed_atoms[partner]
                     ref_partner = partner
                     break
@@ -192,7 +203,7 @@ def place_rna_bases(
             bond_angle_key = f"{ref_partner}-{atom_name}" if f"{ref_partner}-{atom_name}" in bond_angles else f"{atom_name}-{ref_partner}"
             bond_angle = bond_angles.get(bond_angle_key, 120.0)
             # Place the atom
-            prev_atoms = [name for name in atom_list[:idx] if placed_atoms[name] is not None]
+            prev_atoms = [name for name in atom_list[:idx] if name in placed_atoms and isinstance(placed_atoms[name], torch.Tensor)]
             if len(prev_atoms) < 2:
                 print(f"[ERR-RNAPREDICT-NAN-SKIP-002] Residue {i} base {base}: Atom '{atom_name}' cannot be placed, not enough previously placed atoms ({prev_atoms}).")
                 continue
@@ -200,7 +211,7 @@ def place_rna_bases(
             prev2 = placed_atoms[prev_atoms[-2]]
             try:
                 pos = calculate_atom_position(prev2, prev1, bond_length, bond_angle, 0.0, device)
-                if torch.isnan(pos).any():
+                if isinstance(pos, torch.Tensor) and torch.isnan(pos).any():
                     print(f"[DEBUG] Residue {i} base {base}: Atom '{atom_name}' placement produced NaN. prev2={prev_atoms[-2]}, prev1={prev_atoms[-1]}, ref={ref_partner}, bond_length={bond_length}, bond_angle={bond_angle}")
                 full_coords[i, idx, :] = pos
                 placed_atoms[atom_name] = pos
@@ -208,10 +219,10 @@ def place_rna_bases(
                 print(f"[DEBUG] Residue {i} base {base}: Atom '{atom_name}' placement failed with error: {e}")
                 continue
             # Universal NaN check after any atom placement
-            if torch.isnan(full_coords[i, idx, :]).any():
+            if isinstance(full_coords, torch.Tensor) and torch.isnan(full_coords[i, idx, :]).any():
                 print(f"[UNIQUE-ERR-RNA-NAN-GENERAL] NaN after placing atom {atom_name} at residue {i} (base {base}), seq={seq}")
     # After all placements, fill any remaining NaNs with zero and log unique error
-    if torch.isnan(full_coords).any():
+    if isinstance(full_coords, torch.Tensor) and torch.isnan(full_coords).any():
         print("[UNIQUE-ERR-RNA-NAN-ZERO-FILL] NaNs detected in output after placement; filling with zeros.")
         full_coords = torch.nan_to_num(full_coords, nan=0.0)
     return full_coords
