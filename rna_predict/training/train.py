@@ -14,7 +14,7 @@ register_configs()
 
 # Use a relative config path instead of absolute
 @hydra.main(config_path="../conf", config_name="default.yaml", version_base="1.1")
-###@snoop
+####@snoop
 def main(cfg: DictConfig):
     # Debug configuration
     print("[DEBUG] Configuration keys:")

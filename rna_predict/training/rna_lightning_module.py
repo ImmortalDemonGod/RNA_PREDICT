@@ -154,7 +154,7 @@ class RNALightningModule(L.LightningModule):
         logger.debug("[DEBUG-RNA-LM-STAGEB] model.stageB: %s", getattr(cfg.model, 'stageB', None))
         logger.debug("[DEBUG-RNA-LM-STAGEB] model.stageB.torsion_bert: %s", getattr(getattr(cfg.model, 'stageB', None), 'torsion_bert', None))
 
-    #@snoop
+    ##@snoop
     def forward(self, batch, **kwargs):
         print("[DEBUG-ENTRY] Entered forward")
         sys.stdout.flush()
@@ -264,7 +264,7 @@ class RNALightningModule(L.LightningModule):
             logger.debug("[DEBUG-LM-FORWARD-RETURN] output['atom_metadata'] is None")
         return output
 
-    #@snoop
+    ##@snoop
     def training_step(self, batch, batch_idx):
         print("[DEBUG-ENTRY] Entered training_step")
         sys.stdout.flush()
