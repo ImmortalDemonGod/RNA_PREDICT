@@ -38,7 +38,7 @@ class StageCReconstruction(nn.Module):
     Returns trivial coords (N*3, 3).
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, device: Optional[torch.device] = None, *args, **kwargs):
         super().__init__()
         print("[MEMORY-LOG][StageC] Initializing StageCReconstruction")
         process = psutil.Process(os.getpid())
@@ -46,11 +46,15 @@ class StageCReconstruction(nn.Module):
         print("[MEMORY-LOG][StageC] After super().__init__")
         print(f"[MEMORY-LOG][StageC] Memory usage: {process.memory_info().rss / 1e6:.2f} MB")
         self.debug_logging = False
+        if device is None:
+            # Default to CPU, but prefer config-driven device
+            device = torch.device("cpu")
+        self.device = device
 
     def __call__(self, torsion_angles: torch.Tensor):
         N = torsion_angles.size(0)
-        coords = torch.zeros((N * 3, 3))
-        coords_3d = torch.zeros((N, 3, 3))
+        coords = torch.zeros((N * 3, 3), device=self.device)
+        coords_3d = torch.zeros((N, 3, 3), device=self.device)
         return {
             "coords": coords,
             "coords_3d": coords_3d,
@@ -174,6 +178,7 @@ def run_stageC_rna_mpnerf(
         ValidationError: If configuration is invalid
         ValueError: If torsion angles have incorrect dimensions
     """
+    print("[DEBUG-STAGEC-ENTRY] Entered run_stageC_rna_mpnerf")
     validate_stageC_config(cfg)
 
     stage_cfg: StageCConfig = cfg.model.stageC
@@ -273,6 +278,14 @@ def run_stageC_rna_mpnerf(
         "residue_indices": residue_indices,
     }
 
+    # [DEBUGGING INSTRUMENTATION] Print atom set details before returning output
+    print("[DEBUG-STAGEC] sequence length:", len(sequence))
+    print("[DEBUG-STAGEC] coords_full_flat.shape:", coords_full_flat.shape)
+    print("[DEBUG-STAGEC] atom_names (len):", len(atom_names), atom_names[:20])
+    print("[DEBUG-STAGEC] residue_indices (len):", len(residue_indices), residue_indices[:20])
+    print("[DEBUG-STAGEC] valid_atom_mask (sum):", sum(valid_atom_mask))
+    print("[DEBUG-STAGEC] place_bases:", place_bases)
+
     output = {
         "coords": coords_full_flat,
         "coords_3d": coords_full,
@@ -281,8 +294,11 @@ def run_stageC_rna_mpnerf(
     }
 
     if stage_cfg.debug_logging:
-        logger.debug(f"[DEBUG][StageC] output['coords'] shape: {output['coords'].shape}")
-        logger.debug(f"[DEBUG][StageC] output['coords_3d'] shape: {output['coords_3d'].shape}")
+        # Use getattr to safely access shape attribute
+        coords_shape = getattr(output['coords'], 'shape', 'unknown')
+        coords_3d_shape = getattr(output['coords_3d'], 'shape', 'unknown')
+        logger.debug(f"[DEBUG][StageC] output['coords'] shape: {coords_shape}")
+        logger.debug(f"[DEBUG][StageC] output['coords_3d'] shape: {coords_3d_shape}")
         logger.debug(f"[DEBUG][StageC] output['atom_count']: {output['atom_count']}")
 
     return output
@@ -352,7 +368,9 @@ def run_stageC(
             predicted_torsions=torsion_angles,
         )
     else:
-        stageC = StageCReconstruction()
+        # Convert string device to torch.device
+        device_obj = torch.device(stage_cfg.device) if isinstance(stage_cfg.device, str) else stage_cfg.device
+        stageC = StageCReconstruction(device=device_obj)
         return stageC(torsion_angles)
 
 
