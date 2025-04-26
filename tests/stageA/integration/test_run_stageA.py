@@ -28,7 +28,7 @@ import unittest
 import urllib.error
 import zipfile
 from typing import Any
-from unittest.mock import MagicMock, patch, ANY # Import ANY for loose matching
+from unittest.mock import MagicMock, patch # Import ANY for loose matching
 
 import pytest
 import torch
