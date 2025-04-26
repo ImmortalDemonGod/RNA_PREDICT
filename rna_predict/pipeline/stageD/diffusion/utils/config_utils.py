@@ -5,13 +5,13 @@ This module provides functions for handling configuration in the Stage D diffusi
 """
 
 import torch
-from typing import Any, Dict
+from typing import Any, Dict, Union
 from .config_types import DiffusionConfig
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import OmegaConf
 
 
 def get_embedding_dimension(
-    diffusion_config: DiffusionConfig, key: str, default_value: int
+    diffusion_config: Union[DiffusionConfig, Dict[str, Any]], key: str, default_value: int
 ) -> int:
     """
     Get embedding dimension from diffusion config with fallback.
@@ -24,12 +24,19 @@ def get_embedding_dimension(
     Returns:
         Embedding dimension
     """
-    conditioning_config = diffusion_config.diffusion_config.get("conditioning", {})
-    return diffusion_config.diffusion_config.get(key, conditioning_config.get(key, default_value))
+    # Handle both DiffusionConfig and dict types
+    if hasattr(diffusion_config, 'diffusion_config'):
+        # It's a DiffusionConfig object
+        conditioning_config = diffusion_config.diffusion_config.get("conditioning", {})
+        return diffusion_config.diffusion_config.get(key, conditioning_config.get(key, default_value))
+    else:
+        # It's a dict
+        conditioning_config = diffusion_config.get("conditioning", {})
+        return diffusion_config.get(key, conditioning_config.get(key, default_value))
 
 
 def create_fallback_input_features(
-    partial_coords: torch.Tensor, diffusion_config: DiffusionConfig, device: str
+    partial_coords: torch.Tensor, diffusion_config: Union[DiffusionConfig, Dict[str, Any]], device: str
 ) -> Dict[str, Any]:
     """
     Create fallback input features when none are provided.
@@ -43,23 +50,32 @@ def create_fallback_input_features(
         Dict of fallback input features
     """
     N = partial_coords.shape[1]
+
+    # Handle both DiffusionConfig and dict types
+    if hasattr(diffusion_config, 'diffusion_config'):
+        # It's a DiffusionConfig object
+        config_dict = diffusion_config.diffusion_config
+    else:
+        # It's a dict
+        config_dict = diffusion_config
+
     # Get the dimension for s_inputs
-    c_s_inputs_dim = diffusion_config.diffusion_config.get("c_s_inputs", None)
+    c_s_inputs_dim = config_dict.get("c_s_inputs", None)
     if c_s_inputs_dim is None:
         raise ValueError("Missing config value for 'c_s_inputs'")
 
     # Get the dimension for ref_element
-    ref_element_dim = diffusion_config.diffusion_config.get("ref_element_dim", None)
+    ref_element_dim = config_dict.get("ref_element_dim", None)
     if ref_element_dim is None:
         raise ValueError("Missing config value for 'ref_element_dim'")
 
     # Get the dimension for ref_atom_name_chars
-    ref_atom_name_chars_dim = diffusion_config.diffusion_config.get("ref_atom_name_chars_dim", None)
+    ref_atom_name_chars_dim = config_dict.get("ref_atom_name_chars_dim", None)
     if ref_atom_name_chars_dim is None:
         raise ValueError("Missing config value for 'ref_atom_name_chars_dim'")
 
     # Get the dimension for restype and profile
-    restype_dim = diffusion_config.diffusion_config.get("restype_dim", None)
+    restype_dim = config_dict.get("restype_dim", None)
     if restype_dim is None:
         raise ValueError("Missing config value for 'restype_dim'")
 
