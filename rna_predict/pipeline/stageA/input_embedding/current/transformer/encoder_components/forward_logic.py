@@ -193,10 +193,38 @@ def _process_style_embedding(
 
     # Ensure compatible shape for layernorm
     if broadcasted_s.size(-1) != encoder.c_s:
+        print(f"[DEBUG][_process_style_embedding] Adapting broadcasted_s from shape {broadcasted_s.shape} to match c_s={encoder.c_s}")
         broadcasted_s = adapt_tensor_dimensions(broadcasted_s, encoder.c_s)
 
     # Apply layer norm and add to atom embedding
-    x = encoder.linear_no_bias_s(encoder.layernorm_s(broadcasted_s))
+    try:
+        # Try the normal path first
+        x = encoder.linear_no_bias_s(encoder.layernorm_s(broadcasted_s))
+    except RuntimeError as e:
+        # If there's a dimension mismatch in layernorm, create a compatible layer norm
+        if "expected input with shape" in str(e) and "but got input of size" in str(e):
+            print(f"[DEBUG][_process_style_embedding] LayerNorm dimension mismatch: {e}")
+            print(f"[DEBUG][_process_style_embedding] Creating compatible LayerNorm for broadcasted_s with shape {broadcasted_s.shape}")
+            # Create a new layer norm with the correct dimension
+            import torch.nn as nn
+            compatible_layernorm = nn.LayerNorm(broadcasted_s.size(-1), device=broadcasted_s.device)
+            normalized_s = compatible_layernorm(broadcasted_s)
+
+            # If linear_no_bias_s input dimension doesn't match, create a compatible linear layer
+            if normalized_s.size(-1) != encoder.c_s:
+                print(f"[DEBUG][_process_style_embedding] Creating compatible linear layer for normalized_s with shape {normalized_s.shape}")
+                from rna_predict.pipeline.stageA.input_embedding.current.primitives import LinearNoBias
+                compatible_linear = LinearNoBias(
+                    in_features=normalized_s.size(-1),
+                    out_features=encoder.c_atom,
+                    device=normalized_s.device
+                )
+                x = compatible_linear(normalized_s)
+            else:
+                x = encoder.linear_no_bias_s(normalized_s)
+        else:
+            # If it's a different error, re-raise
+            raise
     print(f"[DEBUG][PRE-ADD] c_l.shape={c_l.shape}, x.shape={x.shape}, broadcasted_s.shape={broadcasted_s.shape}")
     print(f"[DEBUG][ENCODER][_process_style_embedding] c_l.shape={getattr(c_l, 'shape', None)}, x.shape={getattr(x, 'shape', None)}")
     print(f"[DEBUG][ENCODER][_process_style_embedding] c_l type={type(c_l)}, x type={type(x)}")
