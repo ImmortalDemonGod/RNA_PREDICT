@@ -1,7 +1,7 @@
 import torch
 import hydra
 from omegaconf import DictConfig
-from rna_predict.run_full_pipeline import run_full_pipeline
+from rna_predict.runners.full_pipeline import run_full_pipeline
 
 @hydra.main(config_path="conf", config_name="default", version_base=None)
 def main(cfg: DictConfig) -> None:
