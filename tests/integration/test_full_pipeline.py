@@ -1,10 +1,15 @@
 import unittest
+import logging
 from unittest.mock import MagicMock
 
 import numpy as np
 import torch
 from omegaconf import OmegaConf
 from hypothesis import given, settings, strategies as st
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Import removed as we're using a mock instead
 # from rna_predict.pipeline.stageB.pairwise.pairformer_wrapper import PairformerWrapper
@@ -106,8 +111,26 @@ class TestFullPipeline(unittest.TestCase):
             "merger": self.merger,
         }
 
-        # Stage D is never enabled unless explicitly required
-        self.has_stageD = False
+        # Enable Stage D for testing
+        self.has_stageD = True
+
+        # Create a mock for Stage D
+        try:
+            # Check if Stage D modules can be imported
+            import importlib.util
+            stageD_spec = importlib.util.find_spec("rna_predict.pipeline.stageD.run_stageD")
+            context_spec = importlib.util.find_spec("rna_predict.pipeline.stageD.context")
+            # If we get here and both modules are available, Stage D is available
+            if stageD_spec is not None and context_spec is not None:
+                self.has_stageD = True
+                logger.info("Stage D modules are available for testing")
+            else:
+                self.has_stageD = False
+                logger.warning("Stage D modules not found, skipping Stage D tests")
+        except (ImportError, ModuleNotFoundError):
+            # If there's an error checking for Stage D modules, assume they're not available
+            self.has_stageD = False
+            logger.warning("Error checking for Stage D modules, skipping Stage D tests")
 
     @given(
         sequence=st.text(alphabet="ACGU", min_size=4, max_size=8),
@@ -238,7 +261,7 @@ class TestFullPipeline(unittest.TestCase):
                         f"[UniqueErrorID-BasicPipeline] s_embeddings contains NaNs for sequence {sequence}")
         self.assertFalse(torch.isnan(result["z_embeddings"]).any(),
                         f"[UniqueErrorID-BasicPipeline] z_embeddings contains NaNs for sequence {sequence}")
-        if "unified_latent" in result:
+        if "unified_latent" in result and result["unified_latent"] is not None:
             self.assertFalse(torch.isnan(result["unified_latent"]).any(),
                            f"[UniqueErrorID-BasicPipeline] unified_latent contains NaNs for sequence {sequence}")
         if "partial_coords" in result and result["partial_coords"] is not None:
