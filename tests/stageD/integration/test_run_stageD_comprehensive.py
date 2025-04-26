@@ -4,23 +4,19 @@ Comprehensive tests for run_stageD.py to improve test coverage.
 
 import torch
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 from omegaconf import OmegaConf
 import sys
 import io
 from hypothesis import given, strategies as st, settings
 from contextlib import contextmanager
-
-# Mock the hydra_main function to avoid import errors
-from unittest.mock import patch, MagicMock
-
-# Create a mock for hydra_main
-hydra_main = MagicMock()
-hydra_main.return_value = None
-
-# Import run_stageD and StageDContext
 from rna_predict.pipeline.stageD.run_stageD import run_stageD
 from rna_predict.pipeline.stageD.context import StageDContext
+
+# Mock the hydra_main function to avoid import errors
+from unittest.mock import MagicMock
+hydra_main = MagicMock()
+hydra_main.return_value = None
 
 
 def make_atom_embeddings(batch_size, seq_len, feature_dim):
