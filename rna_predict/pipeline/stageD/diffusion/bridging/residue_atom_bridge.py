@@ -216,7 +216,10 @@ def _process_one_trunk_embedding(
         return value
 
     # Normalize dimensions - check for N_sample dimension
-    has_n_sample = value.dim() >= 4 and key in ["s_trunk", "s_inputs", "sing"] or value.dim() >= 5 and key in ["pair", "z_trunk"]
+    has_n_sample = (
+        (value.dim() >= 4 and key in {"s_trunk", "s_inputs", "sing"})
+        or (value.dim() >= 5 and key in {"pair", "z_trunk"})
+    )
     temp_value = normalize_tensor_dimensions(value, context.batch_size, key=key, preserve_n_sample=has_n_sample)
     if context.debug_logging:
         logger.debug(
@@ -481,8 +484,20 @@ def process_trunk_embeddings(
                 logger.debug(f"[DEBUG][StageD] s_emb (first residue): {s_emb[0]}")
         atom_metadata = trunk_embeddings.get('atom_metadata')
         if atom_metadata is not None and 'residue_indices' in atom_metadata:
-            logger.debug(f"[DEBUG][StageD] atom_metadata['residue_indices'] (len): {len(atom_metadata['residue_indices'])}")
-            logger.debug(f"[DEBUG][StageD] atom_metadata['residue_indices'] (first 10): {atom_metadata['residue_indices'][:10]}")
+            # Check if atom_metadata is a dict and access residue_indices
+            if atom_metadata is not None and isinstance(atom_metadata, dict):
+                residue_indices = atom_metadata.get('residue_indices')
+            else:
+                residue_indices = None
+            if isinstance(residue_indices, list):
+                logger.debug(f"[DEBUG][StageD] atom_metadata['residue_indices'] (len): {len(residue_indices)}")
+                logger.debug(f"[DEBUG][StageD] atom_metadata['residue_indices'] (first 10): {residue_indices[:10] if len(residue_indices) > 10 else residue_indices}")
+            elif isinstance(residue_indices, torch.Tensor):
+                # Handle tensor case
+                logger.debug(f"[DEBUG][StageD] atom_metadata['residue_indices'] (shape): {residue_indices.shape}")
+                logger.debug(f"[DEBUG][StageD] atom_metadata['residue_indices'] (first 10): {residue_indices[:10] if residue_indices.shape[0] > 10 else residue_indices}")
+            else:
+                logger.debug(f"[DEBUG][StageD] atom_metadata['residue_indices'] has unexpected type: {type(residue_indices)}")
 
     # Process each tensor in trunk_embeddings
     for key, value in trunk_embeddings.items():
@@ -817,7 +832,7 @@ def bridge_residue_to_atom(
     from rna_predict.utils.tensor_utils import derive_residue_atom_map
     # Use atom_metadata if present, else fallback
     residue_atom_map = derive_residue_atom_map(
-        sequence=sequence,
+        sequence=sequence if sequence is not None else "",
         partial_coords=bridging_input.partial_coords,
         atom_metadata=atom_metadata
     )
@@ -956,7 +971,7 @@ def bridge_residue_to_atom(
     import torch
 
     residue_atom_map = derive_residue_atom_map(
-        sequence,
+        sequence if sequence is not None else "",
         partial_coords=partial_coords,
         atom_metadata=input_features.get("atom_metadata") if input_features else None,
     )
