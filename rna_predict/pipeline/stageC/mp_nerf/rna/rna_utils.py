@@ -3,6 +3,7 @@ RNA utility functions for MP-NeRF implementation.
 """
 
 from typing import Dict, Any, List, Optional
+import logging
 
 import torch
 
@@ -45,7 +46,8 @@ def skip_missing_atoms(seq, scaffolds=None):
     """
     if scaffolds is not None:
         return scaffolds
-    print("[ERR-RNAPREDICT-NOSCAFF-001] skip_missing_atoms: No scaffolds provided for seq='{}', returning empty dict.".format(seq))
+    logger = logging.getLogger(__name__)
+    logger.error(f"[ERR-RNAPREDICT-NOSCAFF-001] skip_missing_atoms: No scaffolds provided for seq='{seq}', returning empty dict.")
     return {}
 
 
