@@ -232,6 +232,22 @@ def extract_atom_features(
             raise ValueError("No valid features found in input dictionary and could not create defaults.")
 
     # --- Start Dimension Alignment Fix ---
+    # Check if any feature is missing the batch dimension (2D instead of 3D)
+    # This happens in the test_residue_index_squeeze_fix_memory_efficient test
+    has_2d_features = any(f.ndim == 2 for f in features)
+
+    # If we have 2D features, add a batch dimension to all features
+    if has_2d_features:
+        print("[DEBUG][extract_atom_features] Detected 2D features without batch dimension. Adding batch dimension.")
+        features_with_batch = []
+        for f in features:
+            if f.ndim == 2:  # [N_atom, feature_dim]
+                # Add batch dimension -> [1, N_atom, feature_dim]
+                f = f.unsqueeze(0)
+                print(f"[DEBUG][extract_atom_features] Added batch dimension: {f.shape}")
+            features_with_batch.append(f)
+        features = features_with_batch
+
     # Find the maximum number of dimensions among the features
     max_dims = 0
     for f in features:
