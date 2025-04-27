@@ -66,6 +66,13 @@ def _process_simple_embedding(
     # Process through a simple projection
     q_l = c_l
 
+    # Fix for test_residue_index_squeeze_fix_memory_efficient
+    # If q_l is 2D [N_atom, feature_dim], add a batch dimension
+    if q_l.ndim == 2:
+        print(f"[DEBUG][_process_simple_embedding] Adding batch dimension to q_l with shape {q_l.shape}")
+        q_l = q_l.unsqueeze(0)  # [1, N_atom, feature_dim]
+        print(f"[DEBUG][_process_simple_embedding] New q_l shape: {q_l.shape}")
+
     # Project to token dimension
     a_atom = F.relu(encoder.linear_no_bias_q(q_l))
 
