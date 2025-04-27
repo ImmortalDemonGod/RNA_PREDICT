@@ -43,7 +43,6 @@ import hydra
 from omegaconf import DictConfig
 import psutil
 import torch
-from rna_predict.conf.config_schema import register_configs
 from rna_predict.pipeline.stageD.stage_d_utils.validation_utils import validate_run_stageD_inputs
 from rna_predict.pipeline.stageD.stage_d_utils.config_utils import (
     _print_config_debug,
