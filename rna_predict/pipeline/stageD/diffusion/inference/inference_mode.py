@@ -40,6 +40,7 @@ class InferenceContext:
 def run_inference_mode(
     context: InferenceContext,
     cfg=None,
+    debug_logging=False,
 ) -> torch.Tensor:
     """
     Run diffusion in inference mode.
@@ -47,6 +48,7 @@ def run_inference_mode(
     Args:
         context: Inference context with all required parameters
         cfg: Optional Hydra config
+        debug_logging: Flag to enable debug logging
 
     Returns:
         Refined coordinates tensor
@@ -56,7 +58,8 @@ def run_inference_mode(
     # PATCH: Hydra best practice: always use config-driven value, never fallback to hardcoded default
     test_residues_per_batch = None
     # Print config structure for debugging
-    print(f"[DEBUG][CONFIG STRUCTURE] cfg type: {type(cfg)}; keys: {list(cfg.keys()) if hasattr(cfg, 'keys') else dir(cfg)}")
+    if debug_logging:
+        logger.debug(f"[DEBUG][CONFIG STRUCTURE] cfg type: {type(cfg)}; keys: {list(cfg.keys()) if hasattr(cfg, 'keys') else dir(cfg)}")
     # Try to extract from standard Hydra config structure
     if hasattr(cfg, 'model') and hasattr(cfg.model, 'stageD') and hasattr(cfg.model.stageD, 'diffusion'):
         test_residues_per_batch = getattr(cfg.model.stageD.diffusion, 'test_residues_per_batch', None)
@@ -74,7 +77,8 @@ def run_inference_mode(
         else:
             # Use a default value as last resort
             test_residues_per_batch = 25
-        print(f"[DEBUG][PATCHED] Using default test_residues_per_batch={test_residues_per_batch}")
+        if debug_logging:
+            logger.debug(f"[DEBUG][PATCHED] Using default test_residues_per_batch={test_residues_per_batch}")
     seq_len = test_residues_per_batch
 
     # Note: We no longer need to pass inference_params directly to multi_step_inference
@@ -97,13 +101,14 @@ def run_inference_mode(
         ]
     # Enforce output shape [1, seq_len, 3] or [1, N_sample, seq_len, 3] for inference output
     if coords.dim() == 4:
-        # Handle multi-sample case: [1, N_sample, seq_len, 3]
-        print(f"[DEBUG][PATCHED] Found 4D coords with shape {coords.shape}. Selecting first sample.")
+        if debug_logging:
+            logger.debug(f"[DEBUG][PATCHED] Found 4D coords with shape {coords.shape}. Selecting first sample.")
         assert coords.shape[0] == 1, f"Batch size must be 1, got {coords.shape}"
         assert coords.shape[3] == 3, f"Last dim must be 3, got {coords.shape}"
         # Select the first sample for compatibility with downstream code
         coords = coords[:, 0, :, :]
-        print(f"[DEBUG][PATCHED] After selecting first sample, coords shape: {coords.shape}")
+        if debug_logging:
+            logger.debug(f"[DEBUG][PATCHED] After selecting first sample, coords shape: {coords.shape}")
     else:
         # Standard case: [1, seq_len, 3]
         assert coords.dim() == 3, f"coords must have 3 dims, got {coords.shape}"
@@ -127,7 +132,8 @@ def run_inference_mode(
             atom_count = coords.shape[1]
     else:
         atom_count = coords.shape[1]
-    print(f"[DEBUG][PATCHED] Checking atom count: coords.shape[1]={coords.shape[1]}, atom_count={atom_count}, seq_len={seq_len}")
+    if debug_logging:
+        logger.debug(f"[DEBUG][PATCHED] Checking atom count: coords.shape[1]={coords.shape[1]}, atom_count={atom_count}, seq_len={seq_len}")
     assert coords.shape[1] == atom_count, f"Atom count mismatch: expected {atom_count}, got {coords.shape[1]} (seq_len={seq_len})"
     if atom_count != seq_len:
         print(f"[WARN][PATCHED] Atom count ({atom_count}) != residue-level seq_len ({seq_len}). This is expected for atom-level output.")
