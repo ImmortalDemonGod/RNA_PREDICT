@@ -202,8 +202,6 @@ class AtomTransformer(torch.nn.Module):
                 - Updated s tensor
                 - Updated p tensor
                 - Original q dimensions
-                - Original s dimensions
-                - Original p dimensions
         """
         # Store original dimensions
         q_dim = q.dim()
@@ -218,7 +216,7 @@ class AtomTransformer(torch.nn.Module):
 
         return q, s, p, q_dim
 
-    def _determine_attention_type(self, p: torch.Tensor, n_queries: Optional[int], n_keys: Optional[int]) -> Tuple[Optional[int], Optional[int], bool]:
+    def _determine_attention_type(self, p: torch.Tensor, n_queries: Optional[int], n_keys: Optional[int], debug_logging: bool) -> Tuple[Optional[int], Optional[int], bool]:
         """
         Determine the type of attention to use based on tensor shapes and provided parameters.
 
@@ -226,6 +224,7 @@ class AtomTransformer(torch.nn.Module):
             p: Pair features tensor
             n_queries: Number of queries for local attention (if provided)
             n_keys: Number of keys for local attention (if provided)
+            debug_logging: Whether to print debug messages
 
         Returns:
             Tuple containing:
@@ -242,18 +241,20 @@ class AtomTransformer(torch.nn.Module):
         )
 
         # Debug print
-        print(f"DEBUG: p.shape={p.shape}, current_p_dim={current_p_dim}, n_queries={n_queries}, n_keys={n_keys}")
+        if debug_logging:
+            print(f"DEBUG: p.shape={p.shape}, current_p_dim={current_p_dim}, n_queries={n_queries}, n_keys={n_keys}")
 
         # Use provided n_queries and n_keys if available, otherwise use class attributes or None
         n_q_to_use = n_queries or self.n_queries if is_potentially_local else None
         n_k_to_use = n_keys or self.n_keys if is_potentially_local else None
 
         # Debug print
-        print(f"DEBUG: Using n_queries={n_q_to_use}, n_keys={n_k_to_use}, is_potentially_local={is_potentially_local}")
+        if debug_logging:
+            print(f"DEBUG: Using n_queries={n_q_to_use}, n_keys={n_k_to_use}, is_potentially_local={is_potentially_local}")
 
         return n_q_to_use, n_k_to_use, is_potentially_local
 
-    def forward(self, q: torch.Tensor, s: torch.Tensor, p: torch.Tensor, **kwargs) -> torch.Tensor:
+    def forward(self, q: torch.Tensor, s: torch.Tensor, p: torch.Tensor, debug_logging: bool = False, **kwargs) -> torch.Tensor:
         """
         Process atom embeddings through the AtomTransformer, conditioned by token-level features.
 
@@ -265,6 +266,7 @@ class AtomTransformer(torch.nn.Module):
             q: Atom embeddings of shape [..., N_atom, c_atom]
             s: Token-level style/conditioning embeddings of shape [..., N_token, c_s]
             p: Pair embeddings with varying dimensions based on use case
+            debug_logging: Whether to print debug messages
             inplace_safe: Whether inplace operations are safe
             chunk_size: Size of chunks for memory optimization
             n_queries: Number of queries for local attention (optional)
@@ -287,7 +289,7 @@ class AtomTransformer(torch.nn.Module):
         n_keys = kwargs.get('n_keys', None)
 
         # Determine attention type
-        n_q_to_use, n_k_to_use, _ = self._determine_attention_type(p, n_queries, n_keys)
+        n_q_to_use, n_k_to_use, _ = self._determine_attention_type(p, n_queries, n_keys, debug_logging)
 
         # Get optional parameters with defaults
         inplace_safe = kwargs.get('inplace_safe', False)
