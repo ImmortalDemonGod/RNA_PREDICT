@@ -60,14 +60,6 @@ from rna_predict.pipeline.stageD.stage_d_utils.feature_utils import (
 )
 
 
-print("[HYDRA DEBUG] CWD:", os.getcwd())
-print("[HYDRA DEBUG] SCRIPT DIR:", os.path.dirname(__file__))
-print("[HYDRA DEBUG] sys.path:", sys.path)
-
-# Removed unused snoop import and decorator
-
-log = logging.getLogger(__name__)
-
 # Configure the logger to ensure debug messages are output
 def set_stageD_logger_level(debug_logging: bool):
     """
@@ -93,9 +85,18 @@ def set_stageD_logger_level(debug_logging: bool):
         else:
             handler.setLevel(logging.INFO)
 
-# Register Hydra configurations
-register_configs()
+# Ensure logger level is set at the very start using Hydra config
+def ensure_logger_config(cfg):
+    # Try to extract debug_logging from Hydra config
+    debug_logging = False
+    if hasattr(cfg, 'debug_logging'):
+        debug_logging = cfg.debug_logging
+    elif hasattr(cfg, 'model') and hasattr(cfg.model, 'stageD') and hasattr(cfg.model.stageD, 'diffusion') and hasattr(cfg.model.stageD.diffusion, 'debug_logging'):
+        debug_logging = cfg.model.stageD.diffusion.debug_logging
+    set_stageD_logger_level(debug_logging)
+    return debug_logging
 
+log = logging.getLogger(__name__)
 
 def log_mem(stage):
     process = psutil.Process(os.getpid())
@@ -311,6 +312,11 @@ def run_stageD(context_or_cfg, coords=None, s_trunk=None, z_trunk=None, s_inputs
 # PATCH: Specify config_path and config_name for Hydra best practices
 @hydra.main(version_base=None, config_path="../../conf", config_name="default.yaml")
 def hydra_main(cfg: DictConfig) -> None:
+    debug_logging = ensure_logger_config(cfg)
+    if debug_logging:
+        print("[HYDRA DEBUG] CWD:", os.getcwd())
+        print("[HYDRA DEBUG] SCRIPT DIR:", os.path.dirname(__file__))
+        print("[HYDRA DEBUG] sys.path:", sys.path)
     _print_config_debug(cfg)
     log.debug("[hydra_main] cfg.model: %s", cfg.model)
     if hasattr(cfg.model, "stageD"):
@@ -320,7 +326,6 @@ def hydra_main(cfg: DictConfig) -> None:
 
 
     stage_cfg = _validate_and_extract_stageD_config(cfg)
-    debug_logging = _get_debug_logging(stage_cfg)
     _log_stageD_start(debug_logging)
     batch_size = 1  # Use a single batch for testing
     sequence_str, atoms_per_residue, c_s, c_s_inputs, c_z = _extract_sequence_and_dims(cfg, stage_cfg, batch_size)
