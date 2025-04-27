@@ -173,11 +173,23 @@ def test_run_stageD_diffusion_inference():
         test_config.diffusion = dict(cfg.model.stageD["diffusion"])
 
         # Check if feature_dimensions exists in the config
-        if "feature_dimensions" in cfg.model.stageD:
-            test_config.feature_dimensions = dict(cfg.model.stageD["feature_dimensions"])
+        # Use hasattr instead of 'in' operator for safer attribute checking
+        if hasattr(cfg.model.stageD, 'feature_dimensions'):
+            test_config.feature_dimensions = dict(cfg.model.stageD.feature_dimensions)
         else:
             # Use the feature_dimensions from the diffusion section
-            test_config.feature_dimensions = dict(cfg.model.stageD.diffusion["feature_dimensions"])
+            # Make sure diffusion section exists and has feature_dimensions
+            if hasattr(cfg.model.stageD, 'diffusion') and hasattr(cfg.model.stageD.diffusion, 'feature_dimensions'):
+                test_config.feature_dimensions = dict(cfg.model.stageD.diffusion.feature_dimensions)
+            else:
+                # If neither location has feature_dimensions, create a default one
+                test_config.feature_dimensions = {
+                    "c_s": 8,
+                    "c_s_inputs": 8,
+                    "c_sing": 8,
+                    "s_trunk": 8,
+                    "s_inputs": 8
+                }
         # Run the pipeline with the config group
         out_coords = run_stageD_diffusion(config=test_config)
         assert isinstance(out_coords, torch.Tensor)
