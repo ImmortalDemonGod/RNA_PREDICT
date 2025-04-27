@@ -4,6 +4,9 @@ Extracted from run_stageD.py for code quality and modularity.
 """
 from typing import Any, Dict, Optional
 import torch
+import logging
+
+logger = logging.getLogger(__name__)
 
 def check_and_bridge_embeddings(
     trunk_embeddings: Dict[str, torch.Tensor],
@@ -11,6 +14,7 @@ def check_and_bridge_embeddings(
     input_feature_dict: Dict[str, Any],
     coords: torch.Tensor,
     atom_metadata: Optional[Dict[str, Any]] = None,
+    debug_logging: bool = False,
 ) -> None:
     """
     Defensive shape checks and bridging for atom count and feature mismatches.
@@ -64,7 +68,8 @@ def check_and_bridge_embeddings(
             n_atoms = coords.shape[1] if hasattr(coords, 'shape') and len(coords.shape) > 1 else 0
             input_feature_dict['atom_to_token_idx'] = torch.arange(n_atoms, device=coords.device if hasattr(coords, 'device') else 'cpu').long().unsqueeze(0)
 
-    print("[DEBUG][check_and_bridge_embeddings] BEFORE bridging: atom_to_token_idx type:", type(input_feature_dict.get("atom_to_token_idx")), "shape:", getattr(input_feature_dict.get("atom_to_token_idx"), 'shape', None))
+    if debug_logging:
+        logger.debug("[DEBUG][check_and_bridge_embeddings] BEFORE bridging: atom_to_token_idx type: %s shape: %s", type(input_feature_dict.get("atom_to_token_idx")), getattr(input_feature_dict.get("atom_to_token_idx"), 'shape', None))
 
     # CRITICAL FIX: Check for token dimension mismatch between s_trunk and s_inputs
     # If s_trunk is at atom level but s_inputs is at residue level, bridge s_inputs to atom level
@@ -96,8 +101,8 @@ def check_and_bridge_embeddings(
                     for b in range(batch_size):
                         for atom_idx in range(n_atoms):
                             # SYSTEMATIC DEBUGGING: Print atom_to_token_idx inside bridging loop
-                            if b == 0 and atom_idx == 0:
-                                print("[DEBUG][check_and_bridge_embeddings] INSIDE bridging: atom_to_token_idx type:", type(atom_to_token_idx), "shape:", getattr(atom_to_token_idx, 'shape', None))
+                            if debug_logging and b == 0 and atom_idx == 0:
+                                logger.debug("[DEBUG][check_and_bridge_embeddings] INSIDE bridging: atom_to_token_idx type: %s shape: %s", type(atom_to_token_idx), getattr(atom_to_token_idx, 'shape', None))
                             # Extract residue index safely from atom_to_token_idx
                             if atom_to_token_idx.dim() > 1:
                                 residue_idx = atom_to_token_idx[0, atom_idx].item()
@@ -108,8 +113,11 @@ def check_and_bridge_embeddings(
 
                     # Replace the residue-level s_inputs with atom-level s_inputs
                     trunk_embeddings['s_inputs'] = s_inputs_atom
-                    print(f"[BRIDGE-FIX] Successfully bridged s_inputs from residue level to atom level: {s_inputs.shape} -> {s_inputs_atom.shape}")
+                    if debug_logging:
+                        logger.debug(f"[BRIDGE-FIX] Successfully bridged s_inputs from residue level to atom level: {s_inputs.shape} -> {s_inputs_atom.shape}")
                 else:
-                    print("[BRIDGE-FIX] Warning: atom_to_token_idx is not a tensor, cannot bridge s_inputs")
+                    if debug_logging:
+                        logger.debug("[BRIDGE-FIX] Warning: atom_to_token_idx is not a tensor, cannot bridge s_inputs")
 
-    print("[DEBUG][check_and_bridge_embeddings] AFTER bridging: atom_to_token_idx type:", type(input_feature_dict.get("atom_to_token_idx")), "shape:", getattr(input_feature_dict.get("atom_to_token_idx"), 'shape', None))
+    if debug_logging:
+        logger.debug("[DEBUG][check_and_bridge_embeddings] AFTER bridging: atom_to_token_idx type: %s shape: %s", type(input_feature_dict.get("atom_to_token_idx")), getattr(input_feature_dict.get("atom_to_token_idx"), 'shape', None))
