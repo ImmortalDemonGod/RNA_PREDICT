@@ -16,6 +16,7 @@
 from typing import Any, Callable, Optional
 
 import torch
+import logging
 
 from rna_predict.pipeline.stageA.input_embedding.current.utils import (
     centre_random_augmentation,
@@ -138,6 +139,7 @@ def sample_diffusion(
     diffusion_chunk_size: Optional[int] = None,
     inplace_safe: bool = False,
     attn_chunk_size: Optional[int] = None,
+    debug_logging: bool = False,
 ) -> torch.Tensor:
     """Implements Algorithm 18 in AF3.
     It performances denoising steps from time 0 to time T.
@@ -167,6 +169,7 @@ def sample_diffusion(
         torch.Tensor: the denoised coordinates of x in inference stage
             [..., N_sample, N_atom, 3]
     """
+    logger = logging.getLogger(__name__)
     # Ensure noise_schedule is a 1D tensor
     noise_schedule = noise_schedule.flatten()
 
@@ -188,9 +191,11 @@ def sample_diffusion(
     true_batch_shape = ref_shape[:1]  # Just take the first dimension as batch
 
     # Log the decision for debugging
-    print(f"[DEBUG][FIXED] Using simplified true_batch_shape={true_batch_shape} from ref_shape={ref_shape}")
+    if debug_logging:
+        logger.debug(f"[DEBUG][FIXED] Using simplified true_batch_shape={true_batch_shape} from ref_shape={ref_shape}")
 
-    print(f"[DEBUG] Determined true_batch_shape: {true_batch_shape} from ref_shape {ref_shape} and N_sample {N_sample}") # DEBUG PRINT
+    if debug_logging:
+        logger.debug(f"[DEBUG] Determined true_batch_shape: {true_batch_shape} from ref_shape {ref_shape} and N_sample {N_sample}")
 
     # Ensure true_batch_shape is a tuple
     if not isinstance(true_batch_shape, tuple):
@@ -204,7 +209,9 @@ def sample_diffusion(
         # Initialize noise using the true_batch_shape and chunk_n_sample
         # FIXED: Ensure we don't create a 5D tensor by flattening any extra batch dimensions
         x_l_shape = (true_batch_shape[0], chunk_n_sample, N_atom, 3)
-        print(f"[DEBUG][FIXED] Initializing noise x_l with shape: {x_l_shape}") # DEBUG PRINT
+        if debug_logging:
+            logger.debug(f"[DEBUG][FIXED] Initializing noise x_l with shape: {x_l_shape}")
+
         x_l = noise_schedule[0] * torch.randn(
             size=x_l_shape,
             device=device,
@@ -231,23 +238,22 @@ def sample_diffusion(
             # FIXED: Ensure t_hat has the right shape to match our simplified x_l_shape
             t_hat_target_shape = (true_batch_shape[0], chunk_n_sample)
             t_hat = t_hat.reshape(1).expand(true_batch_shape[0]).unsqueeze(-1).expand(*t_hat_target_shape).to(dtype)
-            print(f"[DEBUG][Generator Loop {step}] Reshaped t_hat shape: {t_hat.shape} to broadcast with x_noisy {x_noisy.shape}") # DEBUG PRINT
+            if debug_logging:
+                logger.debug(f"[DEBUG][Generator Loop {step}] Reshaped t_hat shape: {t_hat.shape} to broadcast with x_noisy {x_noisy.shape}")
 
             # Denoise step
-            print(
-                f"[DEBUG][Generator Loop {step}] Before denoise_net - x_noisy: {x_noisy.shape}, t_hat: {t_hat.shape}"
-            ) # DEBUG PRINT
-            print("[DEBUG-STAGED-PIPELINE] About to call denoise_net with args:")
-            print("  x_noisy:", x_noisy.shape if x_noisy is not None else None)
-            print("  t_hat:", t_hat.shape if t_hat is not None else None)
-            print(
-                "  input_feature_dict:", type(input_feature_dict), list(input_feature_dict.keys()) if isinstance(input_feature_dict, dict) else None
-            )
-            print("  s_inputs:", s_inputs.shape if s_inputs is not None else None)
-            print("  s_trunk:", s_trunk.shape if s_trunk is not None else None)
-            print("  z_trunk:", z_trunk.shape if z_trunk is not None else None)
-            print("  chunk_size:", attn_chunk_size)
-            print("  inplace_safe:", inplace_safe)
+            if debug_logging:
+                logger.debug(f"[DEBUG][Generator Loop {step}] Before denoise_net - x_noisy: {x_noisy.shape}, t_hat: {t_hat.shape}")
+            if debug_logging:
+                logger.debug("[DEBUG-STAGED-PIPELINE] About to call denoise_net with args:")
+                logger.debug("  x_noisy: %s", x_noisy.shape if x_noisy is not None else None)
+                logger.debug("  t_hat: %s", t_hat.shape if t_hat is not None else None)
+                logger.debug("  input_feature_dict: %s", list(input_feature_dict.keys()) if isinstance(input_feature_dict, dict) else None)
+                logger.debug("  s_inputs: %s", s_inputs.shape if s_inputs is not None else None)
+                logger.debug("  s_trunk: %s", s_trunk.shape if s_trunk is not None else None)
+                logger.debug("  z_trunk: %s", z_trunk.shape if z_trunk is not None else None)
+                logger.debug("  chunk_size: %s", attn_chunk_size)
+                logger.debug("  inplace_safe: %s", inplace_safe)
             if x_noisy is None or t_hat is None:
                 raise ValueError("[ERR-STAGED-PIPELINE-001] x_noisy or t_hat is None before denoise_net call")
 
@@ -261,7 +267,7 @@ def sample_diffusion(
                 z_trunk=z_trunk,
                 chunk_size=attn_chunk_size,
                 inplace_safe=inplace_safe,
-                debug_logging=True,  # Enable debug logging for diffusion module
+                debug_logging=debug_logging,  # Enable debug logging for diffusion module
             )
 
             # Unpack the tuple
@@ -278,9 +284,10 @@ def sample_diffusion(
             dt = (c_tau - t_hat).view(*t_hat.shape, 1, 1)
             x_l = x_noisy + step_scale_eta * dt * delta
 
-        print(
-            f"[DEBUG][sample_diffusion] Returning _chunk_sample_diffusion output shape: {x_l.shape}"
-        ) # DEBUG PRINT
+        if debug_logging:
+            logger.debug(
+                f"[DEBUG][sample_diffusion] Returning _chunk_sample_diffusion output shape: {x_l.shape}"
+            )
         return x_l
 
     # Process all samples or in chunks
@@ -302,9 +309,10 @@ def sample_diffusion(
         # Concatenate results along the sample dimension (which follows the true batch dimensions)
         sample_dim_index = len(true_batch_shape)
         final_result = torch.cat(results, dim=sample_dim_index)
-        print(
-            f"[DEBUG][sample_diffusion] Returning chunked output shape: {final_result.shape}"
-        )  # DEBUG PRINT
+        if debug_logging:
+            logger.debug(
+                f"[DEBUG][sample_diffusion] Returning chunked output shape: {final_result.shape}"
+            )
         return final_result
 
 
@@ -319,6 +327,7 @@ def sample_diffusion_training(
     N_sample: int = 1,
     diffusion_chunk_size: Optional[int] = None,
     device: torch.device = torch.device("cpu"),
+    debug_logging: bool = False,
 ) -> tuple[torch.Tensor, ...]:
     """Implements diffusion training as described in AF3 Appendix at page 23.
     It performances denoising steps from time 0 to time T.
@@ -344,6 +353,7 @@ def sample_diffusion_training(
         torch.Tensor: the denoised coordinates of x in inference stage
             [..., N_sample, N_atom, 3]
     """
+    logger = logging.getLogger(__name__)
     batch_size_shape = label_dict["coordinate"].shape[:-2]
     dtype = label_dict["coordinate"].dtype
     print(f"[DEVICE-DEBUG][StageD] sample_diffusion_training: device={device}")
@@ -374,7 +384,7 @@ def sample_diffusion_training(
             s_inputs=s_inputs,
             s_trunk=s_trunk,
             z_trunk=z_trunk,
-            debug_logging=True, # Enable debug logging for diffusion module
+            debug_logging=debug_logging, # Enable debug logging for diffusion module
         )
         # Unpack the tuple
         if not isinstance(denoise_result, tuple) or len(denoise_result) != 2:
@@ -400,7 +410,7 @@ def sample_diffusion_training(
                 s_inputs=s_inputs,
                 s_trunk=s_trunk,
                 z_trunk=z_trunk,
-                debug_logging=True, # Enable debug logging for diffusion module
+                debug_logging=debug_logging, # Enable debug logging for diffusion module
             )
             # Unpack the tuple
             if not isinstance(denoise_result_i, tuple) or len(denoise_result_i) != 2:
