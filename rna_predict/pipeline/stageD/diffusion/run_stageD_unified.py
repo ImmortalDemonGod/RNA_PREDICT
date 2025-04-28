@@ -30,6 +30,35 @@ from rna_predict.utils.shape_utils import ensure_consistent_sample_dimensions
 # Initialize logger for Stage D unified runner
 logger = logging.getLogger("rna_predict.pipeline.stageD.diffusion.run_stageD_unified")
 
+def set_stageD_logger_level(debug_logging: bool):
+    """
+    Set logger level for Stage D according to debug_logging flag.
+    """
+    if debug_logging:
+        logger.setLevel(logging.DEBUG)
+    else:
+        logger.setLevel(logging.INFO)
+    logger.propagate = True
+    if not logger.handlers:
+        handler = logging.StreamHandler()
+        formatter = logging.Formatter('[%(asctime)s][%(name)s][%(levelname)s] - %(message)s')
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+    for handler in logger.handlers:
+        if debug_logging:
+            handler.setLevel(logging.DEBUG)
+        else:
+            handler.setLevel(logging.INFO)
+
+def ensure_logger_config(config):
+    debug_logging = False
+    if hasattr(config, 'debug_logging'):
+        debug_logging = config.debug_logging
+    elif hasattr(config, 'diffusion') and hasattr(config.diffusion, 'debug_logging'):
+        debug_logging = config.diffusion.debug_logging
+    set_stageD_logger_level(debug_logging)
+    return debug_logging
+
 def get_unified_cfg():
     # Use Hydra's config system; do not hardcode config path
     from hydra import compose, initialize
@@ -47,6 +76,8 @@ def run_stageD_diffusion(
     Returns:
         Refined coordinates or training outputs depending on config.mode.
     """
+    # Patch: Set logger level based on config at entry
+    ensure_logger_config(config)
     # Validate config strictly at entry
     if not hasattr(config, 'model_architecture'):
         raise ValueError("Config missing required 'model_architecture' section. Please define it in your YAML config group.")
