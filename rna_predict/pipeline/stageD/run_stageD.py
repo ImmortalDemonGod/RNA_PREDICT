@@ -26,6 +26,26 @@ Configuration Requirements:
 
 """
 
+# --- PATCH: Configure all relevant loggers at import time ---
+import logging
+for name in [
+    "rna_predict.pipeline.stageA.input_embedding.current.transformer.atom_attention.components.feature_processing",
+    "rna_predict.pipeline.stageA.input_embedding.current.transformer.atom_attention.encoder",
+    "rna_predict.pipeline.stageA.input_embedding.current.transformer.atom_attention",
+    "rna_predict.pipeline.stageA.input_embedding.current.transformer",
+    "rna_predict.pipeline.stageA.input_embedding.current",
+]:
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.DEBUG)
+    handler = logging.StreamHandler()
+    handler.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('[%(levelname)s][%(name)s] %(message)s')
+    handler.setFormatter(formatter)
+    if not logger.hasHandlers():
+        logger.addHandler(handler)
+    logger.propagate = True
+# --- END PATCH ---
+
 import os
 import sys
 
@@ -62,27 +82,36 @@ from rna_predict.pipeline.stageD.stage_d_utils.feature_utils import (
 # Configure the logger to ensure debug messages are output
 def set_stageD_logger_level(debug_logging: bool):
     """
-    Set logger level for Stage D according to debug_logging flag.
-    Let logs propagate so pytest caplog can capture them.
+    Set logger level for Stage D and its children according to debug_logging flag.
+    Also set the root logger to ensure all descendant loggers inherit the correct level.
     """
-    if debug_logging:
-        log.setLevel(logging.DEBUG)  # Explicitly set DEBUG level
-    else:
-        log.setLevel(logging.INFO)  # Set INFO level otherwise
-    log.propagate = True  # Let logs reach root logger for caplog
+    import sys
+    level = logging.DEBUG if debug_logging else logging.INFO
+    log.setLevel(level)
+    log.propagate = True
 
-    # Make sure all handlers respect the log level
-    if not log.handlers:
-        handler = logging.StreamHandler()
+    # Set root logger level for global effect
+    root_logger = logging.getLogger()
+    root_logger.setLevel(level)
+
+    # Ensure the root logger has at least one handler
+    if not root_logger.handlers:
+        handler = logging.StreamHandler(sys.stdout)
         formatter = logging.Formatter('[%(asctime)s][%(name)s][%(levelname)s] - %(message)s')
         handler.setFormatter(formatter)
-        log.addHandler(handler)
+        root_logger.addHandler(handler)
 
-    for handler in log.handlers:
-        if debug_logging:
-            handler.setLevel(logging.DEBUG)
-        else:
-            handler.setLevel(logging.INFO)
+    # Set all handlers on root logger to correct level
+    for handler in root_logger.handlers:
+        handler.setLevel(level)
+
+    # Optionally, set the main Stage D package logger as well
+    stageD_package_logger = logging.getLogger("rna_predict.pipeline.stageD")
+    stageD_package_logger.setLevel(level)
+    stageD_package_logger.propagate = True
+    for handler in stageD_package_logger.handlers:
+        handler.setLevel(level)
+
 
 # Ensure logger level is set at the very start using Hydra config
 def ensure_logger_config(cfg):
@@ -250,7 +279,8 @@ def _run_stageD_impl(
             batch_size=s_trunk.shape[0],
             num_atoms=num_atoms,
             device=context.device,
-            stage_cfg=stage_cfg
+            stage_cfg=stage_cfg,
+            debug_logging=context.debug_logging
         )
     check_and_bridge_embeddings(trunk_embeddings, features, input_feature_dict, coords, atom_metadata)
     log_mem("After bridging residue-to-atom")
