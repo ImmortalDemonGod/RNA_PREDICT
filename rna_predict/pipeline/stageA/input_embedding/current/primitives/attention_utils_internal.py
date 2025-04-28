@@ -255,7 +255,7 @@ def _infer_and_reshape(o, target_hidden, logger):
                 if o.shape[-2] * o.shape[-1] == 1024 and target_hidden == 128:
                     # Special case for the test_n_sample_handling test
                     if o.numel() == 8192 and target_hidden == 128:
-                        logger.info(f"[wrap_up] Special case for tensor of size 8192 -> [64, 128]")
+                        logger.info("[wrap_up] Special case for tensor of size 8192 -> [64, 128]")
                         return o.reshape(64, 128)  # 64 * 128 = 8192
 
                     flat_batch_size = 1
@@ -289,7 +289,7 @@ def _infer_and_reshape(o, target_hidden, logger):
 
     # Special case for the test_n_sample_handling test
     if total_elements == 8192 and target_hidden == 128:
-        logger.info(f"[wrap_up] Special case for tensor of size 8192 -> [64, 128]")
+        logger.info("[wrap_up] Special case for tensor of size 8192 -> [64, 128]")
         return o.reshape(64, 128)  # 64 * 128 = 8192
 
     other_dims_product = total_elements // last_dim_size
