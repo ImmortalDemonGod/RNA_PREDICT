@@ -1,8 +1,6 @@
 import sys
 import os
-import types
 import torch
-import hydra
 from omegaconf import OmegaConf
 
 # Add the project root to the Python path
@@ -25,24 +23,107 @@ config = OmegaConf.create({
             "torsion_bert": {},
             "pairformer": {},
         },
+        "stageC": {
+            "enabled": True,
+            "method": "mp_nerf",
+            "device": "cpu",
+            "do_ring_closure": False,
+            "place_bases": True,
+            "sugar_pucker": "C3'-endo",
+            "angle_representation": "degrees",
+            "use_metadata": False,
+            "use_memory_efficient_kernel": False,
+            "use_deepspeed_evo_attention": False,
+            "use_lma": False,
+            "inplace_safe": True,
+            "debug_logging": False,
+        },
+        "stageD": {
+            "enabled": True,
+            "device": "cpu",
+            "diffusion": {
+                "enabled": True,
+                "device": "cpu",
+                "model_architecture": {
+                    "sigma_data": 1.0,
+                    "c_atom": 64,
+                    "c_atompair": 32,
+                    "c_token": 64,
+                    "c_s": 64,
+                    "c_z": 32,
+                    "c_s_inputs": 64,
+                    "c_noise_embedding": 32
+                },
+                "atom_encoder": {
+                    "n_blocks": 2,
+                    "n_heads": 4,
+                    "n_queries": 4,
+                    "n_keys": 4
+                },
+                "atom_decoder": {
+                    "n_blocks": 2,
+                    "n_heads": 4,
+                    "n_queries": 4,
+                    "n_keys": 4
+                },
+                "transformer": {
+                    "n_blocks": 2,
+                    "n_heads": 4,
+                    "n_queries": 4,
+                    "n_keys": 4
+                },
+                "inference": {
+                    "num_steps": 2,
+                    "inplace_safe": True
+                },
+                "debug_logging": False
+            }
+        },
+        "latent_merger": {
+            "dim_angles": 7,
+            "dim_s": 64,
+            "dim_z": 32,
+            "output_dim": 128
+        }
     },
 })
 
-# Create RNALightningModule
-print("Creating RNALightningModule...")
-model = RNALightningModule(config)
-model._integration_test_mode = True
-print(f"Model type: {type(model)}")
+import pytest
 
-# Test forward pass
-print("Testing forward pass...")
-dummy_batch = {
-    "sequence": ["AUGC"],
-    "atom_to_token_idx": torch.zeros(1, dtype=torch.long),
-    "ref_element": torch.zeros(1, dtype=torch.long),
-    "ref_atom_name_chars": torch.zeros(1, dtype=torch.long),
-    "atom_mask": torch.ones(1, dtype=torch.bool),
-}
-output = model(dummy_batch)
-print(f"Output keys: {list(output.keys())}")
-print("Success!")
+def test_rna_lightning_module_initialization():
+    """Test that the RNALightningModule can be initialized with the config."""
+    print("Creating RNALightningModule...")
+    model = RNALightningModule(config)
+    model._integration_test_mode = True
+    print(f"Model type: {type(model)}")
+    assert isinstance(model, RNALightningModule)
+
+def test_rna_lightning_module_forward():
+    """Test that the RNALightningModule can perform a forward pass."""
+    print("Creating RNALightningModule...")
+    model = RNALightningModule(config)
+    model._integration_test_mode = True
+
+    # Test forward pass
+    print("Testing forward pass...")
+    dummy_batch = {
+        "sequence": ["AUGC"],
+        "atom_to_token_idx": torch.zeros(1, dtype=torch.long),
+        "ref_element": torch.zeros(1, dtype=torch.long),
+        "ref_atom_name_chars": torch.zeros(1, dtype=torch.long),
+        "atom_mask": torch.ones(1, dtype=torch.bool),
+    }
+    output = model(dummy_batch)
+    print(f"Output keys: {list(output.keys())}")
+
+    # Check that the output contains the expected keys
+    expected_keys = ['adjacency', 'torsion_angles', 's_embeddings', 'z_embeddings', 'coords', 'unified_latent']
+    for key in expected_keys:
+        assert key in output, f"Expected key {key} not found in output"
+
+    print("Success!")
+
+if __name__ == "__main__":
+    # For direct script execution
+    test_rna_lightning_module_initialization()
+    test_rna_lightning_module_forward()
