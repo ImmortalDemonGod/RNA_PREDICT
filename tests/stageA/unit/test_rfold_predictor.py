@@ -7,7 +7,7 @@ from omegaconf import OmegaConf
 import numpy as np
 import torch
 
-from rna_predict.pipeline.stageA.adjacency.rfold_predictor import StageARFoldPredictor
+# Import StageARFoldPredictor inside the test methods to allow for patching
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -81,6 +81,9 @@ class TestStageARFoldPredictor(unittest.TestCase):
 
     def test_instantiation(self):
         """Test successful instantiation of StageARFoldPredictor."""
+        # Import StageARFoldPredictor inside the test method to allow for patching
+        from rna_predict.pipeline.stageA.adjacency.rfold_predictor import StageARFoldPredictor
+
         try:
             device = torch.device("cpu")
             StageARFoldPredictor(stage_cfg=self.stage_cfg, device=device)
@@ -92,6 +95,9 @@ class TestStageARFoldPredictor(unittest.TestCase):
 
     def test_instantiation_with_checkpoint(self):
         """Test instantiation with checkpoint if available."""
+        # Import StageARFoldPredictor inside the test method to allow for patching
+        from rna_predict.pipeline.stageA.adjacency.rfold_predictor import StageARFoldPredictor
+
         if self.checkpoint_path is None:
             logger.warning(
                 "Skipping test_instantiation_with_checkpoint as no checkpoint file was found."
@@ -113,6 +119,9 @@ class TestStageARFoldPredictor(unittest.TestCase):
 
     def test_config_loading(self):
         """Test correct loading of configuration parameters."""
+        # Import StageARFoldPredictor inside the test method to allow for patching
+        from rna_predict.pipeline.stageA.adjacency.rfold_predictor import StageARFoldPredictor
+
         device = torch.device("cpu")
         predictor = StageARFoldPredictor(stage_cfg=self.stage_cfg, device=device)
         self.assertIsNotNone(predictor.model, "Model not loaded")
@@ -121,6 +130,9 @@ class TestStageARFoldPredictor(unittest.TestCase):
 
     def test_model_weights_loading(self):
         """Test successful loading of pre-trained RFold model weights."""
+        # Import StageARFoldPredictor inside the test method to allow for patching
+        from rna_predict.pipeline.stageA.adjacency.rfold_predictor import StageARFoldPredictor
+
         device = torch.device("cpu")
         predictor = StageARFoldPredictor(stage_cfg=self.stage_cfg, device=device)
         # Check if model weights are loaded correctly
@@ -133,6 +145,9 @@ class TestStageARFoldPredictor(unittest.TestCase):
 
     def test_device_configuration(self):
         """Test correct configuration of the computational device (CPU or GPU)."""
+        # Import StageARFoldPredictor inside the test method to allow for patching
+        from rna_predict.pipeline.stageA.adjacency.rfold_predictor import StageARFoldPredictor
+
         device = torch.device("cpu")
         predictor = StageARFoldPredictor(stage_cfg=self.stage_cfg, device=device)
         self.assertEqual(
@@ -142,6 +157,9 @@ class TestStageARFoldPredictor(unittest.TestCase):
 
     def test_predict_adjacency_method_exists(self):
         """Test the existence and accessibility of the predict_adjacency method."""
+        # Import StageARFoldPredictor inside the test method to allow for patching
+        from rna_predict.pipeline.stageA.adjacency.rfold_predictor import StageARFoldPredictor
+
         device = torch.device("cpu")
         predictor = StageARFoldPredictor(stage_cfg=self.stage_cfg, device=device)
         self.assertTrue(
@@ -155,6 +173,9 @@ class TestStageARFoldPredictor(unittest.TestCase):
 
     def test_predict_adjacency_accepts_sequence(self):
         """Test that the method accepts a standard RNA sequence string as input."""
+        # Import StageARFoldPredictor inside the test method to allow for patching
+        from rna_predict.pipeline.stageA.adjacency.rfold_predictor import StageARFoldPredictor
+
         device = torch.device("cpu")
         predictor = StageARFoldPredictor(stage_cfg=self.stage_cfg, device=device)
         try:
@@ -215,6 +236,9 @@ class TestStageARFoldPredictor(unittest.TestCase):
 
     def test_basic_operational_functionality(self):
         """Test basic operational functionality."""
+        # Import StageARFoldPredictor inside the test method to allow for patching
+        from rna_predict.pipeline.stageA.adjacency.rfold_predictor import StageARFoldPredictor
+
         device = torch.device("cpu")
         predictor = StageARFoldPredictor(stage_cfg=self.stage_cfg, device=device)
         sequence = "AUCGUACGA"
