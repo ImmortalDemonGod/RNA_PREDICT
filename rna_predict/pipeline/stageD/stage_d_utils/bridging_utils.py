@@ -82,7 +82,8 @@ def check_and_bridge_embeddings(
 
         # Check if there's a token dimension mismatch
         if s_trunk.shape[1] != s_inputs.shape[1]:
-            print(f"[BRIDGE-FIX] Detected token dimension mismatch: s_trunk.shape={s_trunk.shape}, s_inputs.shape={s_inputs.shape}")
+            if debug_logging:
+                print(f"[BRIDGE-FIX] Detected token dimension mismatch: s_trunk.shape={s_trunk.shape}, s_inputs.shape={s_inputs.shape}")
 
             # If atom_to_token_idx is available, use it to bridge s_inputs to atom level
             if 'atom_to_token_idx' in input_feature_dict:
