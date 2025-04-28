@@ -443,7 +443,6 @@ def hydra_main(cfg: DictConfig) -> None:
 
     validate_stageC_config(cfg)
 
-    stage_cfg: StageCConfig = cfg.model.stageC
 
     if debug_logging:
         logger.info("Running Stage C with Hydra configuration:")
