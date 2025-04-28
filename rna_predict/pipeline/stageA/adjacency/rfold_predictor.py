@@ -88,11 +88,20 @@ class StageARFoldPredictor(nn.Module):
         # adjacency = predictor.predict_adjacency("AUGCUAG...")
     """
 
-    def __init__(self, stage_cfg: DictConfig, device: torch.device):
+    def __init__(self, stage_cfg: Optional[DictConfig], device: torch.device):
         # Call super().__init__() to properly initialize nn.Module
-        super(StageARFoldPredictor, self).__init__()
+        super().__init__()
         process = psutil.Process(os.getpid())
         self.debug_logging = False
+
+        # Handle the case when stage_cfg is None
+        if stage_cfg is None:
+            logger.warning("[UNIQUE-WARN-STAGEA-DUMMYMODE] Config is None, entering dummy mode.")
+            self.dummy_mode = True
+            self.device = device if device is not None else torch.device("cpu")
+            self.min_seq_length = 1
+            return
+
         # Accept debug_logging from all plausible config locations for robust testability
         if hasattr(stage_cfg, 'debug_logging'):
             self.debug_logging = stage_cfg.debug_logging
@@ -117,10 +126,10 @@ class StageARFoldPredictor(nn.Module):
             logger.debug(f"[DEBUG-INST-STAGEA-003] logger.handlers: {logger.handlers}")
             for idx, h in enumerate(logger.handlers):
                 logger.debug(f"[DEBUG-INST-STAGEA-004] Handler {idx} level: {h.level}")
-        # Defensive: Enter dummy mode if config is missing or incomplete
+        # Defensive: Enter dummy mode if config is incomplete
         required_fields = ["min_seq_length", "num_hidden", "dropout", "batch_size", "lr", "model"]
-        if stage_cfg is None or any(not hasattr(stage_cfg, f) for f in required_fields):
-            logger.warning("[UNIQUE-WARN-STAGEA-DUMMYMODE] Config missing/incomplete, entering dummy mode.")
+        if any(not hasattr(stage_cfg, f) for f in required_fields):
+            logger.warning("[UNIQUE-WARN-STAGEA-DUMMYMODE] Config incomplete, entering dummy mode.")
             self.dummy_mode = True
             self.device = device if device is not None else torch.device("cpu")
             self.min_seq_length = 1
