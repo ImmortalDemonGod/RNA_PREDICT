@@ -159,6 +159,13 @@ def main(cfg: DictConfig) -> None:
     # Pass the whole stage config object and the determined device
     predictor = StageARFoldPredictor(stage_cfg=stage_cfg, device=device)
 
+    # --- ENFORCE: Assert that dummy_mode is not active for training ---
+    if hasattr(cfg, 'train') and cfg.train.get('enabled', False):
+        assert not getattr(predictor, 'dummy_mode', False), (
+            "[STAGEA-TRAIN-ERROR] Dummy model is active! Training cannot proceed. "
+            "Check your Hydra config for missing or incomplete fields."
+        )
+
     # Predictor is now built
 
     # 4) Example inference (conditional based on config)
