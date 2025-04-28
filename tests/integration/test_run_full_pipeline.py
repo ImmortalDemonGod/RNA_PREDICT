@@ -34,13 +34,24 @@ from rna_predict.run_full_pipeline import run_full_pipeline
 from rna_predict.pipeline.merger.simple_latent_merger import SimpleLatentMerger, LatentInputs
 
 
-class DummyStageAPredictor:
-    def predict_adjacency(self, seq: str) -> np.ndarray:
-        N = len(seq)
-        arr = np.eye(N, dtype=np.float32)
-        if N > 1:
-            arr[0, 1] = arr[1, 0] = 1.0
-        return arr
+# Define a factory function to create DummyStageAPredictor instances
+def dummy_stagea_factory(stage_cfg=None, device=None):
+    """Factory function to create DummyStageAPredictor instances."""
+    class DummyStageAPredictor(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.device = device if device is not None else torch.device("cpu")
+            # Add a dummy parameter to make it a proper nn.Module
+            self.dummy_param = torch.nn.Parameter(torch.zeros(1), requires_grad=False)
+
+        def predict_adjacency(self, seq: str) -> np.ndarray:
+            N = len(seq)
+            arr = np.eye(N, dtype=np.float32)
+            if N > 1:
+                arr[0, 1] = arr[1, 0] = 1.0
+            return arr
+
+    return DummyStageAPredictor()
 
 
 class DummyConfig:
@@ -346,7 +357,7 @@ class TestRunFullPipeline(unittest.TestCase):
             "sequence": "AUGC"
         })
         # Patch model constructors to use dummies
-        self.stageA_patcher = patch('rna_predict.pipeline.stageA.adjacency.rfold_predictor.StageARFoldPredictor', DummyStageAPredictor)
+        self.stageA_patcher = patch('rna_predict.pipeline.stageA.adjacency.rfold_predictor.StageARFoldPredictor', dummy_stagea_factory)
         self.torsion_patcher = patch('rna_predict.pipeline.stageB.torsion.torsion_bert_predictor.StageBTorsionBertPredictor', DummyTorsionModel)
         self.pairformer_patcher = patch('rna_predict.pipeline.stageB.pairwise.pairformer_wrapper.PairformerWrapper', DummyPairformerModel)
         self.automodel_patcher = patch('transformers.AutoModel.from_pretrained', return_value=DummyTorsionModel())
