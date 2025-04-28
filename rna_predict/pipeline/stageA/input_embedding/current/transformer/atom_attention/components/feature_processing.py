@@ -3,6 +3,7 @@ Feature processing components for atom attention.
 """
 
 import torch
+import logging
 
 from rna_predict.pipeline.stageA.input_embedding.current.primitives import (
     LinearNoBias,
@@ -16,11 +17,13 @@ from rna_predict.pipeline.stageA.input_embedding.current.utils import (
     broadcast_token_to_atom,
 )
 
+logger = logging.getLogger("rna_predict.pipeline.stageA.input_embedding.current.transformer.atom_attention.components.feature_processing")
+
 
 class FeatureProcessor:
     """Handles processing of atom features and embeddings."""
 
-    def __init__(self, c_atom: int, c_atompair: int, c_s: int, c_z: int, c_ref_element: int = 128):
+    def __init__(self, c_atom: int, c_atompair: int, c_s: int, c_z: int, c_ref_element: int = 128, debug_logging: bool = False):
         """
         Initialize the feature processor.
 
@@ -30,12 +33,32 @@ class FeatureProcessor:
             c_s: Single embedding dimension
             c_z: Pair embedding dimension
             c_ref_element: ref_element embedding dimension (config-driven)
+            debug_logging: Whether to print debug logs
         """
         self.c_atom = c_atom
         self.c_atompair = c_atompair
         self.c_s = c_s
         self.c_z = c_z
         self.c_ref_element = c_ref_element
+        self.debug_logging = debug_logging
+
+        # --- EXPERIMENT: Force log handler and level for this logger ---
+        handler = logging.StreamHandler()
+        handler.setLevel(logging.DEBUG)
+        formatter = logging.Formatter('[%(levelname)s][%(name)s] %(message)s')
+        handler.setFormatter(formatter)
+        if not logger.hasHandlers():
+            logger.addHandler(handler)
+        logger.setLevel(logging.DEBUG)
+        logger.propagate = True
+        logger.debug("TEST: FeatureProcessor constructed (forced handler)")
+        logger.warning("TEST: FeatureProcessor WARNING (forced handler)")
+        logger.error("TEST: FeatureProcessor ERROR (forced handler)")
+
+        logger.debug("TEST: FeatureProcessor constructed")
+        logger.debug(f"[FeatureProcessor] __init__ debug_logging={self.debug_logging}")
+        logger.warning("TEST: FeatureProcessor WARNING")
+        logger.error("TEST: FeatureProcessor ERROR")
 
         # Define expected feature dimensions (config-driven)
         self.input_feature = {
@@ -45,7 +68,8 @@ class FeatureProcessor:
             "ref_element": self.c_ref_element,
             "ref_atom_name_chars": 4 * 64,
         }
-        print(f"[DEBUG][FeatureProcessor] ref_element expected dim: {self.c_ref_element}")
+        if self.debug_logging:
+            logger.debug(f"[DEBUG][FeatureProcessor] ref_element expected dim: {self.c_ref_element}")
         self._setup_encoders()
 
     def _setup_encoders(self) -> None:
@@ -113,7 +137,8 @@ class FeatureProcessor:
                 ref_atom_name_chars = torch.zeros((batch_size, n_atoms, 4 * 64), device=device)
 
         # Now we can safely check shapes
-        print(f"[DEBUG][FeatureProcessor] extract_atom_features: ref_element.shape={ref_element.shape}, expected={self.c_ref_element}")
+        if self.debug_logging:
+            logger.debug(f"[DEBUG][FeatureProcessor] extract_atom_features: ref_element.shape={ref_element.shape}, expected={self.c_ref_element}")
         assert ref_element.shape[-1] == self.c_ref_element, (
             f"UNIQUE ERROR: ref_element last dim {ref_element.shape[-1]} does not match expected {self.c_ref_element}")
         # Concatenate features
@@ -211,4 +236,4 @@ class FeatureProcessor:
         Returns:
             Atom-level broadcast features
         """
-        return broadcast_token_to_atom(a_token, atom_to_token_idx)
+        return broadcast_token_to_atom(a_token, atom_to_token_idx, debug_logging=self.debug_logging)
