@@ -4,9 +4,7 @@ Tests for shape handling in Stage D.
 
 import os
 import torch
-import pytest
 from rna_predict.pipeline.stageA.input_embedding.current.utils import broadcast_token_to_atom
-from rna_predict.utils.shape_utils import ensure_consistent_sample_dimensions
 
 
 def test_multi_sample_shape_fix_simplified():
