@@ -4,6 +4,7 @@ Atom attention encoder module.
 
 import torch
 import torch.nn as nn
+import logging
 
 from rna_predict.pipeline.stageA.input_embedding.current.primitives import LinearNoBias
 from rna_predict.pipeline.stageA.input_embedding.current.transformer.atom_attention.components import (
@@ -15,6 +16,8 @@ from rna_predict.pipeline.stageA.input_embedding.current.transformer.atom_attent
     AtomAttentionConfig,
     EncoderForwardParams,
 )
+
+logger = logging.getLogger("rna_predict.pipeline.stageA.input_embedding.current.transformer.atom_attention.encoder")
 
 
 class AtomAttentionEncoder(nn.Module):
@@ -40,15 +43,20 @@ class AtomAttentionEncoder(nn.Module):
         self.n_queries = config.n_queries
         self.n_keys = config.n_keys
 
+        logger.debug("TEST: AtomAttentionEncoder constructed")
+        logger.debug(f"[AtomAttentionEncoder] __init__ debug_logging={getattr(config, 'debug_logging', None)}")
+
         # Initialize components
         c_ref_element = getattr(config, 'c_ref_element', 128)
-        print(f"[DEBUG][AtomAttentionEncoder] Using c_ref_element={c_ref_element}")
+        logger.debug(f"[DEBUG][AtomAttentionEncoder] Using c_ref_element={c_ref_element}")
+        logger.debug(f"[DEBUG][AtomAttentionEncoder] debug_logging in config: {getattr(config, 'debug_logging', None)}")
         self.feature_processor = FeatureProcessor(
             c_atom=self.c_atom,
             c_atompair=self.c_atompair,
             c_s=self.c_s,
             c_z=self.c_z,
             c_ref_element=c_ref_element,
+            debug_logging=getattr(config, 'debug_logging', None),
         )
 
         if self.has_coords:
@@ -214,25 +222,11 @@ class AtomAttentionEncoder(nn.Module):
         n_queries: int = 32,
         n_keys: int = 128,
         blocks_per_ckpt: int | None = None,
+        debug_logging: bool = False,
     ) -> "AtomAttentionEncoder":
         """
         Create an AtomAttentionEncoder instance from arguments.
-
-        Args:
-            has_coords: Whether to use coordinate information
-            c_token: Token embedding dimension
-            c_atom: Atom embedding dimension
-            c_atompair: Atom pair embedding dimension
-            c_s: Single embedding dimension
-            c_z: Pair embedding dimension
-            n_blocks: Number of transformer blocks
-            n_heads: Number of attention heads
-            n_queries: Number of queries
-            n_keys: Number of keys
-            blocks_per_ckpt: Number of blocks per checkpoint
-
-        Returns:
-            Configured AtomAttentionEncoder instance
+        All arguments should be set via Hydra config for best practices.
         """
         config = AtomAttentionConfig(
             has_coords=has_coords,
@@ -246,5 +240,6 @@ class AtomAttentionEncoder(nn.Module):
             n_queries=n_queries,
             n_keys=n_keys,
             blocks_per_ckpt=blocks_per_ckpt,
+            debug_logging=debug_logging,
         )
         return cls(config)
