@@ -51,6 +51,17 @@ class TestStageARFoldPredictor(unittest.TestCase):
             }
         })
 
+        # Recursively convert all nested dicts to OmegaConf nodes to ensure attribute access
+        def recursive_omegaconf(obj):
+            from omegaconf import OmegaConf
+            if isinstance(obj, dict):
+                return OmegaConf.create({k: recursive_omegaconf(v) for k, v in obj.items()})
+            elif isinstance(obj, list):
+                return [recursive_omegaconf(i) for i in obj]
+            else:
+                return obj
+        self.stage_cfg = recursive_omegaconf(self.stage_cfg)
+
         # Create a temporary checkpoint file with a dummy state dict
         self.temp_checkpoint = tempfile.NamedTemporaryFile(delete=False, suffix=".pt")
         torch.save({}, self.temp_checkpoint.name)
