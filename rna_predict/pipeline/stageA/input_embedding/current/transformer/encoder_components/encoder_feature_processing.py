@@ -162,7 +162,7 @@ def adapt_tensor_dimensions(tensor: torch.Tensor, expected_dim: int) -> torch.Te
 
 
 def extract_atom_features(
-    encoder: torch.nn.Module, input_feature_dict: InputFeatureDict
+    encoder: torch.nn.Module, input_feature_dict: InputFeatureDict, debug_logging: bool = False
 ) -> torch.Tensor:
     """
     Extract atom features from input dictionary.
@@ -170,11 +170,13 @@ def extract_atom_features(
     Args:
         encoder: The encoder module instance (to access input_feature and linear_no_bias_f)
         input_feature_dict: Dictionary containing atom features
+        debug_logging: Whether to print debug logs
 
     Returns:
         Tensor of atom features
     """
-    print(f"[DEBUG][extract_atom_features] encoder.input_feature config: {encoder.input_feature}")
+    if debug_logging:
+        print(f"[DEBUG][extract_atom_features] encoder.input_feature config: {encoder.input_feature}")
     features = []
 
     # Ensure encoder.input_feature is a dictionary before iterating
@@ -187,17 +189,20 @@ def extract_atom_features(
 
     # Process each feature individually
     for feature_name, feature_dim in encoder.input_feature.items(): # type: ignore[union-attr] # Ignore previous error after check
-        print(f"[DEBUG][extract_atom_features] Processing feature: {feature_name}, expected_dim: {feature_dim}")
+        if debug_logging:
+            print(f"[DEBUG][extract_atom_features] Processing feature: {feature_name}, expected_dim: {feature_dim}")
         processed_feature = _process_feature(
             input_feature_dict, feature_name, feature_dim
         )
         if processed_feature is not None:
-            print(f"[DEBUG][extract_atom_features] Processed {feature_name} shape: {processed_feature.shape}")
+            if debug_logging:
+                print(f"[DEBUG][extract_atom_features] Processed {feature_name} shape: {processed_feature.shape}")
             features.append(processed_feature)
 
     # Check if we have any valid features
     if not features:
-        print("[DEBUG][extract_atom_features] No valid features found, creating defaults.")
+        if debug_logging:
+            print("[DEBUG][extract_atom_features] No valid features found, creating defaults.")
         default_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         # Create default tensors for required features
@@ -213,7 +218,8 @@ def extract_atom_features(
 
         # Create default features with appropriate shapes
         for feature_name, feature_dim in encoder.input_feature.items():
-            print(f"[DEBUG][extract_atom_features] Creating default for {feature_name} with dim {feature_dim}")
+            if debug_logging:
+                print(f"[DEBUG][extract_atom_features] Creating default for {feature_name} with dim {feature_dim}")
             if feature_name == "ref_pos":
                 # Position tensor with shape [batch_size, n_atoms, 3]
                 default_tensor = torch.zeros((batch_size, n_atoms, 3), device=default_device)
