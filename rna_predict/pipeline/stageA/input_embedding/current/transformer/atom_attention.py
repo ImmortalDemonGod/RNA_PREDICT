@@ -45,6 +45,7 @@ class AtomAttentionConfig:
     n_queries: int = 32
     n_keys: int = 128
     blocks_per_ckpt: Optional[int] = None
+    debug_logging: bool = False
 
     def __post_init__(self) -> None:
         """Validate config parameters."""
@@ -104,6 +105,10 @@ class AtomAttentionEncoder(nn.Module):
         self.n_queries = config.n_queries
         self.n_keys = config.n_keys
         self.c_ref_element = config.c_ref_element
+        self.n_blocks = config.n_blocks
+        self.n_heads = config.n_heads
+        self.blocks_per_ckpt = config.blocks_per_ckpt
+        self.debug_logging = config.debug_logging
         print(f"[DEBUG][AtomAttentionEncoder] Propagating c_ref_element={self.c_ref_element}")
         self.local_attention_method = "local_cross_attention"
 
@@ -137,7 +142,8 @@ class AtomAttentionEncoder(nn.Module):
             "ref_element": self.c_ref_element,
             "ref_atom_name_chars": 4 * 64,
         }
-        print(f"[DEBUG][AtomAttentionEncoder] _setup_feature_dimensions: ref_element={self.c_ref_element}")
+        if self.debug_logging:
+            print(f"[DEBUG][AtomAttentionEncoder] _setup_feature_dimensions: ref_element={self.c_ref_element}")
 
     def _setup_atom_encoders(self) -> None:
         """Set up encoders for atom features."""
