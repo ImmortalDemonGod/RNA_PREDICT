@@ -22,7 +22,7 @@ from rna_predict.pipeline.stageA.input_embedding.current.utils import (
 class FeatureProcessor:
     """Handles processing of atom features and embeddings."""
 
-    def __init__(self, c_atom: int, c_atompair: int, c_s: int, c_z: int, c_ref_element: int = 128):
+    def __init__(self, c_atom: int, c_atompair: int, c_s: int, c_z: int, c_ref_element: int = 128, debug_logging: bool = False):
         """
         Initialize the feature processor.
 
@@ -32,12 +32,14 @@ class FeatureProcessor:
             c_s: Single embedding dimension
             c_z: Pair embedding dimension
             c_ref_element: ref_element embedding dimension (config-driven)
+            debug_logging: Whether to print debug logs (ignored in this implementation)
         """
         self.c_atom = c_atom
         self.c_atompair = c_atompair
         self.c_s = c_s
         self.c_z = c_z
         self.c_ref_element = c_ref_element
+        # debug_logging is accepted for interface compatibility, but ignored here
 
         # Define expected feature dimensions (config-driven)
         self.input_feature = {
