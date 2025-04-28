@@ -60,9 +60,10 @@ class AtomAttentionEncoder(nn.Module):
         self.c_z = config.c_z
         self.n_queries = config.n_queries
         self.n_keys = config.n_keys
-        self.local_attention_method = (
-            "local_cross_attention"  # Keep as attribute if needed elsewhere
-        )
+        self.n_blocks = config.n_blocks
+        self.n_heads = config.n_heads
+        self.blocks_per_ckpt = config.blocks_per_ckpt
+        self.debug_logging = getattr(config, 'debug_logging', False)  # Always source from config
 
         # Setup components using functions from initialization module
         setup_feature_dimensions(self)
@@ -131,7 +132,8 @@ class AtomAttentionEncoder(nn.Module):
             z = kwargs.get("z")
             chunk_size = kwargs.get("chunk_size")
 
-        print("[DEBUG][AtomAttentionEncoder.forward] input_feature_dict keys:", list(input_feature_dict.keys()))
+        if self.debug_logging:
+            print("[DEBUG][AtomAttentionEncoder.forward] input_feature_dict keys:", list(input_feature_dict.keys()))
 
         # Simple path for no coordinates case
         if not self.has_coords:
@@ -141,10 +143,12 @@ class AtomAttentionEncoder(nn.Module):
         ensure_space_uid(input_feature_dict)
 
         # Extract atom features from input dictionary
-        print("[DEBUG][AtomAttentionEncoder.forward] Extracting c_l...")
+        if self.debug_logging:
+            print("[DEBUG][AtomAttentionEncoder.forward] Extracting c_l...")
         c_l = self.extract_atom_features(input_feature_dict)
-        print("[DEBUG][AtomAttentionEncoder.forward] c_l type:", type(c_l), "shape:", getattr(c_l, 'shape', None), "value:", c_l)
-        if c_l is None:
+        if self.debug_logging:
+            print("[DEBUG][AtomAttentionEncoder.forward] c_l type:", type(c_l), "shape:", getattr(c_l, 'shape', None), "value:", c_l)
+        if c_l is None and self.debug_logging:
             print("[WARNING][AtomAttentionEncoder.forward] c_l is None!")
 
         # Create ProcessInputsParams object for coordinated case
@@ -200,21 +204,15 @@ class AtomAttentionEncoder(nn.Module):
     def forward_debug(
         self, r_l, t_hat_noise_level, input_feature_dict, s, z=None, inplace_safe=False, debug_logging=False, chunk_size=None
     ):
-        # SYSTEMATIC DEBUGGING: Log atom_to_token_idx at entry
-        print(f"[DEBUG][AtomAttentionEncoder.forward] Entry: input_feature_dict['atom_to_token_idx']: {input_feature_dict.get('atom_to_token_idx', 'MISSING')}")
-        if 'atom_to_token_idx' in input_feature_dict:
-            atom_idx_val = input_feature_dict['atom_to_token_idx']
-            print(f"[DEBUG][AtomAttentionEncoder.forward] type: {type(atom_idx_val)}, shape: {getattr(atom_idx_val, 'shape', None)}, value: {atom_idx_val if isinstance(atom_idx_val, (int, float)) else ''}")
-        else:
-            print("[DEBUG][AtomAttentionEncoder.forward] atom_to_token_idx MISSING!")
-
+        self.log_atom_to_token_idx(input_feature_dict)
         # Ensure ref_space_uid exists and has correct shape
         ensure_space_uid(input_feature_dict)
 
         # Extract atom features from input dictionary - CRITICAL FIX
         # This was missing in the original forward_debug method
         c_l = self.extract_atom_features(input_feature_dict)
-        print(f"[DEBUG][AtomAttentionEncoder.forward_debug] Extracted c_l shape: {getattr(c_l, 'shape', None)}")
+        if self.debug_logging or debug_logging:
+            print(f"[DEBUG][AtomAttentionEncoder.forward_debug] Extracted c_l shape: {getattr(c_l, 'shape', None)}")
 
         # Create process_params as in the original forward
         from rna_predict.pipeline.stageA.input_embedding.current.transformer.encoder_components.config import ProcessInputsParams
@@ -229,12 +227,35 @@ class AtomAttentionEncoder(nn.Module):
         return process_inputs_with_coords(self, process_params)
 
     def extract_atom_features(self, input_feature_dict):
-        print("[DEBUG][extract_atom_features] input_feature_dict keys:", list(input_feature_dict.keys()))
+        if self.debug_logging:
+            print("[DEBUG][extract_atom_features] input_feature_dict keys:", list(input_feature_dict.keys()))
         for k, v in input_feature_dict.items():
-            print(f"    key: {k}, type: {type(v)}, shape: {getattr(v, 'shape', None)}")
+            if self.debug_logging:
+                print(f"    key: {k}, type: {type(v)}, shape: {getattr(v, 'shape', None)}")
         # --- Begin actual extraction logic ---
         # Use the canonical extract_atom_features from encoder_components/feature_processing.py
-        c_l = canonical_extract_atom_features(self, input_feature_dict)
+        try:
+            # First try with debug_logging parameter
+            c_l = canonical_extract_atom_features(self, input_feature_dict)
+        except TypeError as e:
+            # If debug_logging parameter is not accepted, try without it
+            if "unexpected keyword argument 'debug_logging'" in str(e):
+                if self.debug_logging:
+                    print("[DEBUG][extract_atom_features] canonical_extract_atom_features doesn't accept debug_logging parameter, calling without it")
+                c_l = canonical_extract_atom_features(self, input_feature_dict)
+            else:
+                # Re-raise if it's a different TypeError
+                raise
         # --- End extraction logic ---
-        print("[DEBUG][extract_atom_features] returning c_l type:", type(c_l), "shape:", getattr(c_l, 'shape', None), "value:", c_l)
+        if self.debug_logging:
+            print("[DEBUG][extract_atom_features] returning c_l type:", type(c_l), "shape:", getattr(c_l, 'shape', None), "value:", c_l)
         return c_l
+
+    def log_atom_to_token_idx(self, input_feature_dict):
+        if self.debug_logging:
+            print(f"[DEBUG][AtomAttentionEncoder.forward] Entry: input_feature_dict['atom_to_token_idx']: {input_feature_dict.get('atom_to_token_idx', 'MISSING')}")
+            atom_idx_val = input_feature_dict.get('atom_to_token_idx', None)
+            if atom_idx_val is not None:
+                print(f"[DEBUG][AtomAttentionEncoder.forward] type: {type(atom_idx_val)}, shape: {getattr(atom_idx_val, 'shape', None)}, value: {atom_idx_val if isinstance(atom_idx_val, (int, float)) else ''}")
+            else:
+                print("[DEBUG][AtomAttentionEncoder.forward] atom_to_token_idx MISSING!")
