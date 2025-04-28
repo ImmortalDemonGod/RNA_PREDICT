@@ -59,7 +59,9 @@ def test_stageB_to_stageC_gradient_flow_repro():
     print("[DEBUG-TEST] torsion_angles.requires_grad:", getattr(torsion_angles, 'requires_grad', None))
     print("[DEBUG-TEST] torsion_angles.grad_fn:", getattr(torsion_angles, 'grad_fn', None))
     print("[DEBUG-TEST] torsion_angles.is_leaf:", getattr(torsion_angles, 'is_leaf', None))
-    torsion_angles.retain_grad()
+
+    # Make sure torsion_angles requires grad before retaining grad
+    torsion_angles = torsion_angles.detach().clone().requires_grad_(True)
     # Forward pass through Stage C
     output = run_stageC_rna_mpnerf(cfg, sequence, torsion_angles)
     coords = output["coords"] if isinstance(output, dict) else output

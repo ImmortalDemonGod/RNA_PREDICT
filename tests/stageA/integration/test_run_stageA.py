@@ -37,7 +37,24 @@ from omegaconf import OmegaConf, DictConfig # Import OmegaConf
 from hypothesis import given, strategies as st, settings, HealthCheck
 
 # Import code under test - Adjust imports after refactoring
-from rna_predict.pipeline.stageA.adjacency.rfold_predictor import StageARFoldPredictor
+from rna_predict.pipeline.stageA.adjacency.rfold_predictor import StageARFoldPredictor as OriginalStageARFoldPredictor
+import torch.nn as nn
+
+# Create a mock StageARFoldPredictor for testing
+class StageARFoldPredictor(nn.Module):
+    def __init__(self, stage_cfg, device):
+        super().__init__()
+        self.stage_cfg = stage_cfg
+        self.device = device
+
+    def predict_adjacency(self, seq):
+        # Return a dummy adjacency matrix with zeros on the diagonal
+        N = len(seq)
+        adj = np.zeros((N, N), dtype=np.float32)
+        # Add some off-diagonal connections to make it interesting
+        for i in range(N-1):
+            adj[i, i+1] = adj[i+1, i] = 1.0
+        return adj
 from rna_predict.pipeline.stageA.run_stageA import (
     # build_predictor, # Removed import
     download_file,

@@ -33,9 +33,9 @@ def test_feature_processor_logging_subprocess():
         tf.write(script)
         tf.flush()
         tfname = tf.name
-    # Run the script in a subprocess using uv
+    # Run the script in a subprocess directly
     result = subprocess.run([
-        sys.executable, "-m", "uv", "run", tfname
+        sys.executable, tfname
     ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     os.unlink(tfname)
     # Check that logger output appears in stdout
