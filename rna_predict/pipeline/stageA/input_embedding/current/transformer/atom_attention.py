@@ -95,7 +95,7 @@ class AtomAttentionEncoder(nn.Module):
         Args:
             config: Configuration parameters for the encoder
         """
-        super(AtomAttentionEncoder, self).__init__()
+        super().__init__()
         self.has_coords = config.has_coords
         self.c_atom = config.c_atom
         self.c_atompair = config.c_atompair
@@ -844,7 +844,7 @@ class AtomAttentionDecoder(nn.Module):
         Args:
             config: Configuration parameters for the decoder
         """
-        super(AtomAttentionDecoder, self).__init__()
+        super().__init__()
         self.n_blocks = config.n_blocks
         self.n_heads = config.n_heads
         self.c_token = config.c_token

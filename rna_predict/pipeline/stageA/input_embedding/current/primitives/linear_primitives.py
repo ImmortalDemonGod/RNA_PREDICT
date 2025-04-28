@@ -35,7 +35,7 @@ class BiasInitLinear(Linear):
             bias (bool, optional): whether add bias. Defaults to True.
             biasinit (float, optional): the initial bias value. Defaults to 0.0.
         """
-        super(BiasInitLinear, self).__init__(
+        super().__init__(
             in_features=in_features, out_features=out_features, bias=bias
         )
         nn.init.zeros_(tensor=self.weight)
@@ -54,7 +54,7 @@ class Transition(nn.Module):
             c_in (int): the input dimension.
             n (int): factor by which c_in is multiplied to obtain hidden dimension.
         """
-        super(Transition, self).__init__()
+        super().__init__()
         self.n = n
         self.c_in = c_in
         self.layernorm1 = LayerNorm(c_in)

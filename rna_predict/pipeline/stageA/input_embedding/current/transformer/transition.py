@@ -32,7 +32,7 @@ class ConditionedTransitionBlock(nn.Module):
             n: Channel scale factor for hidden layer
             biasinit: Bias initialization value
         """
-        super(ConditionedTransitionBlock, self).__init__()
+        super().__init__()
         self.c_a = c_a
         self.c_s = c_s
         self.n = n

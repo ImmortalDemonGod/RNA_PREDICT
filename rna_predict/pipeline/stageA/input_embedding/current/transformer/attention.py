@@ -50,7 +50,7 @@ class AttentionPairBias(nn.Module):
             c_z: Pair embedding dimension
             biasinit: Bias initialization value in multi-head attention
         """
-        super(AttentionPairBias, self).__init__()
+        super().__init__()
         self.has_s = has_s
         self.biasinit = biasinit
         self.n_heads = n_heads

@@ -76,7 +76,7 @@ class InputFeatureEmbedder(nn.Module):
             debug_logging (bool, optional): whether to enable debug logging. Defaults to False.
             config (Optional[AtomAttentionConfig]): Hydra config object for encoder, if available.
         """
-        super(InputFeatureEmbedder, self).__init__()
+        super().__init__()
         # If a config object is provided (Hydra best practice), use it for all settings
         if config is not None:
             self.c_atom = config.c_atom
@@ -317,7 +317,7 @@ class RelativePositionEncoding(nn.Module):
             s_max (int, optional): Relative chain indices clip value. Defaults to 2.
             c_z (int, optional): hidden dim [for pair embedding]. Defaults to 128.
         """
-        super(RelativePositionEncoding, self).__init__()
+        super().__init__()
         self.r_max = r_max
         self.s_max = s_max
         self.c_z = c_z
@@ -541,7 +541,7 @@ class FourierEmbedding(nn.Module):
         Args:
             c (int): embedding dim.
         """
-        super(FourierEmbedding, self).__init__()
+        super().__init__()
         self.c = c
         self.seed = seed
         generator = torch.Generator()

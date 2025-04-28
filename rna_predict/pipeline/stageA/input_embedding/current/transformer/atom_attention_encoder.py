@@ -50,7 +50,7 @@ class AtomAttentionEncoder(nn.Module):
         Args:
             config: Configuration parameters for the encoder
         """
-        super(AtomAttentionEncoder, self).__init__()
+        super().__init__()
         self.config = config  # Store config
         self.has_coords = config.has_coords
         self.c_atom = config.c_atom

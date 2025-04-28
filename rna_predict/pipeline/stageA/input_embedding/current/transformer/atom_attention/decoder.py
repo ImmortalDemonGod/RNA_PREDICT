@@ -30,7 +30,7 @@ class AtomAttentionDecoder(nn.Module):
             config: Configuration parameters for the decoder
             debug_logging: Whether to print debug logs
         """
-        super(AtomAttentionDecoder, self).__init__()
+        super().__init__()
         self.c_atom = config.c_atom
         self.c_atompair = config.c_atompair
         self.c_token = config.c_token
