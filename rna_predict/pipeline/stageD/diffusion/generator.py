@@ -33,6 +33,7 @@ class TrainingNoiseSampler:
         p_mean: float = -1.2,
         p_std: float = 1.5,
         sigma_data: float = 16.0,  # NOTE: in EDM, this is 1.0
+        debug_logging: bool = False,
     ) -> None:
         """Sampler for training noise-level
 
@@ -40,11 +41,13 @@ class TrainingNoiseSampler:
             p_mean (float, optional): gaussian mean. Defaults to -1.2.
             p_std (float, optional): gaussian std. Defaults to 1.5.
             sigma_data (float, optional): scale. Defaults to 16.0, but this is 1.0 in EDM.
+            debug_logging (bool, optional): Whether to print debug statements. Defaults to False.
         """
         self.sigma_data = sigma_data
         self.p_mean = p_mean
         self.p_std = p_std
-        print(f"train scheduler {self.sigma_data}")
+        if debug_logging:
+            print(f"train scheduler {self.sigma_data}")
 
     def __call__(
         self, size: torch.Size, device: torch.device = torch.device("cpu")
@@ -74,6 +77,7 @@ class InferenceNoiseScheduler:
         s_min: float = 4e-4,
         p: float = 7,
         sigma_data: float = 16.0,  # NOTE: in EDM, this is 1.0
+        debug_logging: bool = False,
     ) -> None:
         """Scheduler parameters
 
@@ -82,12 +86,14 @@ class InferenceNoiseScheduler:
             s_min (float, optional): minimal noise level. Defaults to 4e-4.
             p (float, optional): the exponent numerical part. Defaults to 7.
             sigma_data (float, optional): scale. Defaults to 16.0, but this is 1.0 in EDM.
+            debug_logging (bool, optional): Whether to print debug statements. Defaults to False.
         """
         self.sigma_data = sigma_data
         self.s_max = s_max
         self.s_min = s_min
         self.p = p
-        print(f"inference scheduler {self.sigma_data}")
+        if debug_logging:
+            print(f"inference scheduler {self.sigma_data}")
 
     def __call__(
         self,
@@ -353,10 +359,11 @@ def sample_diffusion_training(
         torch.Tensor: the denoised coordinates of x in inference stage
             [..., N_sample, N_atom, 3]
     """
-    logger = logging.getLogger(__name__)
+    logging.getLogger(__name__)
     batch_size_shape = label_dict["coordinate"].shape[:-2]
     dtype = label_dict["coordinate"].dtype
-    print(f"[DEVICE-DEBUG][StageD] sample_diffusion_training: device={device}")
+    if debug_logging:
+        print(f"[DEVICE-DEBUG][StageD] sample_diffusion_training: device={device}")
     # Areate N_sample versions of the input structure by randomly rotating and translating
     x_gt_augment = centre_random_augmentation(
         x_input_coords=label_dict["coordinate"],
@@ -369,10 +376,12 @@ def sample_diffusion_training(
     sigma_size_list = list(batch_size_shape) + [N_sample]
     sigma_size = torch.Size(sigma_size_list)
     sigma = noise_sampler(size=sigma_size, device=device).to(dtype)
-    print(f"[DEVICE-DEBUG][StageD] sample_diffusion_training: sigma.device={sigma.device}")
+    if debug_logging:
+        print(f"[DEVICE-DEBUG][StageD] sample_diffusion_training: sigma.device={sigma.device}")
     # noise: [..., N_sample, N_atom, 3]
     noise = torch.randn_like(x_gt_augment, dtype=dtype, device=device) * sigma[..., None, None]
-    print(f"[DEVICE-DEBUG][StageD] sample_diffusion_training: noise.device={noise.device}")
+    if debug_logging:
+        print(f"[DEVICE-DEBUG][StageD] sample_diffusion_training: noise.device={noise.device}")
 
     # Get denoising outputs [..., N_sample, N_atom, 3]
     if diffusion_chunk_size is None:
