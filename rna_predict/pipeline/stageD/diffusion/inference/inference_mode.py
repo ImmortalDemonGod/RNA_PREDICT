@@ -135,8 +135,11 @@ def run_inference_mode(
     if debug_logging:
         logger.debug(f"[DEBUG][PATCHED] Checking atom count: coords.shape[1]={coords.shape[1]}, atom_count={atom_count}, seq_len={seq_len}")
     assert coords.shape[1] == atom_count, f"Atom count mismatch: expected {atom_count}, got {coords.shape[1]} (seq_len={seq_len})"
-    if atom_count != seq_len:
-        print(f"[WARN][PATCHED] Atom count ({atom_count}) != residue-level seq_len ({seq_len}). This is expected for atom-level output.")
+    if coords.shape[1] != seq_len:
+        if debug_logging:
+            print(f"[WARN][PATCHED] Atom count ({atom_count}) != residue-level seq_len ({seq_len}). This is expected for atom-level output.")
     logger.debug(f"[StageD][run_inference_mode] coords output shape: {coords.shape}")
+    if debug_logging:
+        logger.debug(f"[StageD][run_inference_mode] coords output shape: {coords.shape}")
 
     return coords
