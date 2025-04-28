@@ -90,7 +90,7 @@ class StageARFoldPredictor(nn.Module):
 
     def __init__(self, stage_cfg: DictConfig, device: torch.device):
         # Call super().__init__() to properly initialize nn.Module
-        super().__init__()
+        super(StageARFoldPredictor, self).__init__()
         process = psutil.Process(os.getpid())
         self.debug_logging = False
         # Accept debug_logging from all plausible config locations for robust testability
