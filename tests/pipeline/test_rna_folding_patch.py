@@ -1,5 +1,4 @@
 import torch
-import pytest
 from rna_predict.pipeline.stageC.mp_nerf.rna import rna_folding
 
 def test_rna_fold_patch_seeds_initial_atoms():
