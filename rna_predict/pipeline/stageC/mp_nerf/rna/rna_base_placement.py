@@ -4,7 +4,6 @@ RNA base placement functions for MP-NeRF implementation.
 
 import torch
 import logging
-import snoop
 from .rna_constants import BACKBONE_ATOMS
 from .rna_atom_positioning import calculate_atom_position
 from ..final_kb_rna import (
@@ -139,9 +138,9 @@ def place_rna_bases(
                         ref_names.append(ref)
                 # Check for at least two distinct coordinates
                 found = False
-                for i in range(len(ref_coords)):
-                    for j in range(i+1, len(ref_coords)):
-                        if not torch.allclose(ref_coords[i], ref_coords[j], atol=1e-6):
+                for ref_i in range(len(ref_coords)):
+                    for ref_j in range(ref_i+1, len(ref_coords)):
+                        if not torch.allclose(ref_coords[ref_i], ref_coords[ref_j], atol=1e-6):
                             found = True
                             break
                     if found:
@@ -155,21 +154,21 @@ def place_rna_bases(
                     continue  # Skip placement
                 # Select the first two distinct coordinates for ref1 and ref2
                 ref1, ref2, ref3 = None, None, None
-                for i1 in range(len(ref_coords)):
-                    for i2 in range(i1+1, len(ref_coords)):
-                        if not torch.allclose(ref_coords[i1], ref_coords[i2], atol=1e-6):
-                            ref1 = ref_coords[i1]
-                            ref2 = ref_coords[i2]
-                            ref1_name = ref_names[i1]
-                            ref2_name = ref_names[i2]
+                for ref_i1 in range(len(ref_coords)):
+                    for ref_i2 in range(ref_i1+1, len(ref_coords)):
+                        if not torch.allclose(ref_coords[ref_i1], ref_coords[ref_i2], atol=1e-6):
+                            ref1 = ref_coords[ref_i1]
+                            ref2 = ref_coords[ref_i2]
+                            ref1_name = ref_names[ref_i1]
+                            ref2_name = ref_names[ref_i2]
                             break
                     if ref1 is not None:
                         break
                 # Choose a third reference distinct from the first two, or create an artificial one
                 ref3 = None
-                for k in range(len(ref_coords)):
-                    if not torch.allclose(ref_coords[k], ref1, atol=1e-6) and not torch.allclose(ref_coords[k], ref2, atol=1e-6):
-                        ref3 = ref_coords[k]
+                for ref_k in range(len(ref_coords)):
+                    if not torch.allclose(ref_coords[ref_k], ref1, atol=1e-6) and not torch.allclose(ref_coords[ref_k], ref2, atol=1e-6):
+                        ref3 = ref_coords[ref_k]
                         break
                 if ref3 is None:
                     # Create a third reference offset from ref1
