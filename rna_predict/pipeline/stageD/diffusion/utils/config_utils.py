@@ -158,24 +158,26 @@ def validate_stageD_config(cfg):
             )
 
 
-def parse_diffusion_module_args(stage_cfg):
+def parse_diffusion_module_args(stage_cfg, debug_logging=False):
     """
     Extract all required model dimensions and architectural parameters from the config,
     strictly using config values and never hardcoded fallbacks.
     """
-    print("[DEBUG][_parse_diffusion_module_args] stage_cfg:", stage_cfg)
+    if debug_logging:
+        print("[DEBUG][_parse_diffusion_module_args] stage_cfg:", stage_cfg)
     # Always descend into 'diffusion' if present
     if "diffusion" in stage_cfg:
-        print(
-            "[DEBUG][_parse_diffusion_module_args] Descending into 'diffusion' section of config.")
+        if debug_logging:
+            print("[DEBUG][_parse_diffusion_module_args] Descending into 'diffusion' section of config.")
         base_cfg = stage_cfg["diffusion"]
     else:
         base_cfg = stage_cfg
     # Require model_architecture to be present exactly as specified in the config
     model_architecture = base_cfg.get("model_architecture")
     feature_dimensions = base_cfg.get("feature_dimensions")
-    print("[DEBUG][parse_diffusion_module_args] model_architecture:", model_architecture)
-    print("[DEBUG][parse_diffusion_module_args] feature_dimensions:", feature_dimensions)
+    if debug_logging:
+        print("[DEBUG][parse_diffusion_module_args] model_architecture:", model_architecture)
+        print("[DEBUG][parse_diffusion_module_args] feature_dimensions:", feature_dimensions)
     if model_architecture is None:
         raise ValueError(
             "model_architecture section missing in config! (expected at model.stageD.diffusion.model_architecture, no fallback)"
@@ -213,5 +215,6 @@ def parse_diffusion_module_args(stage_cfg):
         val = base_cfg.get(key, None)
         if val is not None:
             diffusion_module_args[key] = val
-    print("[DEBUG][parse_diffusion_module_args] FINAL diffusion_module_args:", diffusion_module_args)
+    if debug_logging:
+        print("[DEBUG][parse_diffusion_module_args] FINAL diffusion_module_args:", diffusion_module_args)
     return diffusion_module_args
