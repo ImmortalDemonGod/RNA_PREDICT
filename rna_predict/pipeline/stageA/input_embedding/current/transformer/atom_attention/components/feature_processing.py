@@ -51,14 +51,14 @@ class FeatureProcessor:
             logger.addHandler(handler)
         logger.setLevel(logging.DEBUG)
         logger.propagate = True
-        logger.debug("TEST: FeatureProcessor constructed (forced handler)")
-        logger.warning("TEST: FeatureProcessor WARNING (forced handler)")
-        logger.error("TEST: FeatureProcessor ERROR (forced handler)")
-
-        logger.debug("TEST: FeatureProcessor constructed")
-        logger.debug(f"[FeatureProcessor] __init__ debug_logging={self.debug_logging}")
-        logger.warning("TEST: FeatureProcessor WARNING")
-        logger.error("TEST: FeatureProcessor ERROR")
+        if self.debug_logging:
+            logger.debug("TEST: FeatureProcessor constructed (forced handler)")
+            logger.warning("TEST: FeatureProcessor WARNING (forced handler)")
+            logger.error("TEST: FeatureProcessor ERROR (forced handler)")
+            logger.debug("TEST: FeatureProcessor constructed")
+            logger.debug(f"[FeatureProcessor] __init__ debug_logging={self.debug_logging}")
+            logger.warning("TEST: FeatureProcessor WARNING")
+            logger.error("TEST: FeatureProcessor ERROR")
 
         # Define expected feature dimensions (config-driven)
         self.input_feature = {
