@@ -26,7 +26,7 @@ def extract_pdb_backbone_coords(pdb_path, chain_select=None, residue_select=None
             if not line.startswith('ATOM'):
                 continue
             atom = normalize_atom_name(line[12:16])
-            resn = line[17:20].strip()
+            line[17:20].strip()
             chain = line[21].strip()
             resi = int(line[22:26])
             if chain_select and chain != chain_select:
