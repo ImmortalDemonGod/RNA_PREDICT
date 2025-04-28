@@ -144,7 +144,7 @@ def _process_feature(
 
 
 def extract_atom_features(
-    encoder: torch.nn.Module, input_feature_dict: InputFeatureDict
+    encoder: torch.nn.Module, input_feature_dict: InputFeatureDict, debug_logging: bool = False
 ) -> torch.Tensor:
     """
     Extract atom features from input dictionary.
@@ -152,11 +152,13 @@ def extract_atom_features(
     Args:
         encoder: The encoder module instance (to access input_feature and linear_no_bias_f)
         input_feature_dict: Dictionary containing atom features
+        debug_logging: Whether to print debug logs
 
     Returns:
         Tensor of atom features
     """
-    print(f"[DEBUG][extract_atom_features] encoder.input_feature config: {encoder.input_feature}")
+    if debug_logging:
+        print(f"[DEBUG][extract_atom_features] encoder.input_feature config: {encoder.input_feature}")
     features = []
 
     # Ensure encoder.input_feature is a dictionary before iterating
@@ -169,17 +171,20 @@ def extract_atom_features(
 
     # Process each feature individually
     for feature_name, feature_dim in encoder.input_feature.items(): # type: ignore[union-attr] # Ignore previous error after check
-        print(f"[DEBUG][extract_atom_features] Processing feature: {feature_name}, expected_dim: {feature_dim}")
+        if debug_logging:
+            print(f"[DEBUG][extract_atom_features] Processing feature: {feature_name}, expected_dim: {feature_dim}")
         processed_feature = _process_feature(
             input_feature_dict, feature_name, feature_dim
         )
         if processed_feature is not None:
-            print(f"[DEBUG][extract_atom_features] Processed {feature_name} shape: {processed_feature.shape}")
+            if debug_logging:
+                print(f"[DEBUG][extract_atom_features] Processed {feature_name} shape: {processed_feature.shape}")
             features.append(processed_feature)
 
     # Check if we have any valid features
     if not features:
-        print("[DEBUG][extract_atom_features] No valid features found, creating defaults.")
+        if debug_logging:
+            print("[DEBUG][extract_atom_features] No valid features found, creating defaults.")
         default_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         # Create default tensors for required features
@@ -195,7 +200,8 @@ def extract_atom_features(
 
         # Create default features with appropriate shapes
         for feature_name, feature_dim in encoder.input_feature.items():
-            print(f"[DEBUG][extract_atom_features] Creating default for {feature_name} with dim {feature_dim}")
+            if debug_logging:
+                print(f"[DEBUG][extract_atom_features] Creating default for {feature_name} with dim {feature_dim}")
             if feature_name == "ref_pos":
                 # Position tensor with shape [batch_size, n_atoms, 3]
                 default_tensor = torch.zeros((batch_size, n_atoms, 3), device=default_device)
@@ -238,13 +244,15 @@ def extract_atom_features(
 
     # If we have 2D features, add a batch dimension to all features
     if has_2d_features:
-        print("[DEBUG][extract_atom_features] Detected 2D features without batch dimension. Adding batch dimension.")
+        if debug_logging:
+            print("[DEBUG][extract_atom_features] Detected 2D features without batch dimension. Adding batch dimension.")
         features_with_batch = []
         for f in features:
             if f.ndim == 2:  # [N_atom, feature_dim]
                 # Add batch dimension -> [1, N_atom, feature_dim]
                 f = f.unsqueeze(0)
-                print(f"[DEBUG][extract_atom_features] Added batch dimension: {f.shape}")
+                if debug_logging:
+                    print(f"[DEBUG][extract_atom_features] Added batch dimension: {f.shape}")
             features_with_batch.append(f)
         features = features_with_batch
 
@@ -286,7 +294,8 @@ def extract_atom_features(
                  raise RuntimeError(f"Failed to expand sample dimension for feature from {f.shape} to match target sample dim {target_sample_dim}. Current shape: {temp_f.shape}. Error: {e}")
 
         aligned_features.append(temp_f)
-        print(f"[DEBUG][extract_atom_features] Aligned {f.shape} to {temp_f.shape}")
+        if debug_logging:
+            print(f"[DEBUG][extract_atom_features] Aligned {f.shape} to {temp_f.shape}")
     # --- End Dimension Alignment Fix ---
 
 
@@ -300,13 +309,16 @@ def extract_atom_features(
                                   f"Tensor 0 shape prefix: {first_shape_prefix}, "
                                   f"Tensor {i} shape prefix: {t.shape[:-1]}. "
                                   f"Original feature name likely: {list(encoder.input_feature.keys())[i] if hasattr(encoder, 'input_feature') else 'unknown'}") # type: ignore
-    print("[DEBUG][extract_atom_features] Feature names and shapes before cat:")
-    for i, f in enumerate(aligned_features):
-        print(f"  Feature {i}: shape {f.shape}")
+    if debug_logging:
+        print("[DEBUG][extract_atom_features] Feature names and shapes before cat:")
+        for i, f in enumerate(aligned_features):
+            print(f"  Feature {i}: shape {f.shape}")
     cat_features = torch.cat(aligned_features, dim=-1) # Use aligned_features
-    print(f"[DEBUG][extract_atom_features] Concatenated feature shape: {cat_features.shape}")
+    if debug_logging:
+        print(f"[DEBUG][extract_atom_features] Concatenated feature shape: {cat_features.shape}")
     expected_in_features = encoder.linear_no_bias_f.in_features if hasattr(encoder.linear_no_bias_f, 'in_features') else None
-    print(f"[DEBUG][extract_atom_features] Expected in_features for linear_no_bias_f: {expected_in_features}")
+    if debug_logging:
+        print(f"[DEBUG][extract_atom_features] Expected in_features for linear_no_bias_f: {expected_in_features}")
     assert cat_features.shape[-1] == expected_in_features, (
         f"UNIQUE ERROR: Concatenated feature dim {cat_features.shape[-1]} does not match expected in_features {expected_in_features}")
     # Ensure encoder.linear_no_bias_f is callable before calling
