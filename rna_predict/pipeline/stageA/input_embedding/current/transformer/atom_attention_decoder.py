@@ -53,7 +53,7 @@ class AtomAttentionDecoder(nn.Module):
         Args:
             config: Configuration parameters for the decoder
         """
-        super(AtomAttentionDecoder, self).__init__()
+        super().__init__()
         self.n_blocks = config.n_blocks
         self.n_heads = config.n_heads
         self.c_token = config.c_token
