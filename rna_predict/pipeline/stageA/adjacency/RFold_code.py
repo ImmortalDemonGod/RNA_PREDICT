@@ -225,7 +225,7 @@ def visual_get_bases(seq):
 
 class conv_block(nn.Module):
     def __init__(self, ch_in, ch_out, residual=False):
-        super(conv_block, self).__init__()
+        nn.Module.__init__(self)
         self.conv = nn.Sequential(
             nn.Conv2d(ch_in, ch_out, kernel_size=3, stride=1, padding=1, bias=True),
             nn.BatchNorm2d(ch_out),
@@ -244,7 +244,7 @@ class conv_block(nn.Module):
 
 class up_conv(nn.Module):
     def __init__(self, ch_in, ch_out):
-        super(up_conv, self).__init__()
+        nn.Module.__init__(self)
         self.up = nn.Sequential(
             nn.Upsample(scale_factor=2),
             nn.Conv2d(ch_in, ch_out, kernel_size=3, stride=1, padding=1, bias=True),
@@ -259,7 +259,7 @@ class up_conv(nn.Module):
 
 class OffsetScale(nn.Module):
     def __init__(self, dim, heads=1):
-        super().__init__()
+        nn.Module.__init__(self)
         self.gamma = nn.Parameter(torch.ones(heads, dim))
         self.beta = nn.Parameter(torch.zeros(heads, dim))
         nn.init.normal_(self.gamma, std=0.02)
@@ -271,7 +271,7 @@ class OffsetScale(nn.Module):
 
 class Attn(nn.Module):
     def __init__(self, *, dim, query_key_dim=128, expansion_factor=2.0, dropout=0.1):
-        super().__init__()
+        nn.Module.__init__(self)
         self.norm = nn.LayerNorm(dim)
         self.dropout = nn.Dropout(dropout)
         self.to_qk = nn.Sequential(nn.Linear(dim, query_key_dim), nn.SiLU())
@@ -293,7 +293,7 @@ class Attn(nn.Module):
 
 class Encoder(nn.Module):
     def __init__(self, C_lst=[17, 32, 64, 128, 256]):
-        super(Encoder, self).__init__()
+        nn.Module.__init__(self)
         # First layer input channel should match the input provided, so we use a different approach
         # for constructing the modules
         self.enc = nn.ModuleList([])
@@ -331,7 +331,7 @@ class Encoder(nn.Module):
 
 class Decoder(nn.Module):
     def __init__(self, C_lst=[512, 256, 128, 64, 32]):
-        super(Decoder, self).__init__()
+        nn.Module.__init__(self)
         self.dec = nn.ModuleList([])
 
         # Special case for tests with small dimensions
@@ -375,7 +375,7 @@ class Seq2Map(nn.Module):
     ):
         device = kwargs.pop("device", torch.device("cuda"))
         max_length = kwargs.pop("max_length", 3000)
-        super(Seq2Map, self).__init__()
+        nn.Module.__init__(self)
         self.device = device
         self.max_length = max_length
         self.dropout = nn.Dropout(dropout)
@@ -400,8 +400,8 @@ class Seq2Map(nn.Module):
 
 
 class RFoldModel(nn.Module):
-    def __init__(self, args):
-        super(RFoldModel, self).__init__()
+    def __init__(self, args=None):
+        nn.Module.__init__(self)
 
         c_in, c_out, c_hid = 1, 1, 32
         C_lst_enc = [c_in, 32, 64, 128, 256, 512]
@@ -410,18 +410,32 @@ class RFoldModel(nn.Module):
         self.encoder = Encoder(C_lst=C_lst_enc)
         self.decoder = Decoder(C_lst=C_lst_dec)
         self.readout = nn.Conv2d(c_hid, c_out, kernel_size=1, stride=1, padding=0)
-        # Determine device from args (and fallback if torch.cuda.is_available is False)
+
+        # Default values for args
+        num_hidden = 128
+        dropout = 0.1
+        use_gpu = False
+
+        # Override defaults if args is provided
+        if args is not None:
+            num_hidden = getattr(args, "num_hidden", num_hidden)
+            dropout = getattr(args, "dropout", dropout)
+            use_gpu = getattr(args, "use_gpu", use_gpu)
+
+        # Determine device
         device_val = torch.device(
             "cuda"
-            if getattr(args, "use_gpu", True) and torch.cuda.is_available()
+            if use_gpu and torch.cuda.is_available()
             else "cpu"
         )
+
         self.seq2map = Seq2Map(
             input_dim=4,
-            num_hidden=args.num_hidden,
-            dropout=args.dropout,
+            num_hidden=num_hidden,
+            dropout=dropout,
             device=device_val,
         )
+
         # PATCH: Move all model parameters and buffers to the correct device
         self.to(device_val)
 
