@@ -236,7 +236,8 @@ class TestRunStageCRnaMpnerf(unittest.TestCase):
         len(self.sequence)
         # Use a typical RNA max_atoms (21, but could be different if mask is available)
         import math
-        def mock_place_rna_bases(coords_bb, sequence, angles_mask, device=None):
+        def mock_place_rna_bases(coords_bb, sequence, angles_mask, device=None, debug_logging=False):
+            # Added debug_logging parameter with default value to match the real function
             L = len(sequence)
             mask_length = 89  # From observed error
             max_atoms = math.ceil(mask_length / L)  # 23
