@@ -1,6 +1,6 @@
 from typing import Dict, Optional, Any
 import hydra
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import DictConfig
 
 import torch
 import torch.nn.functional as F
