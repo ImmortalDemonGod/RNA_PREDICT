@@ -100,13 +100,12 @@ class DiffusionManagerConfig:
             )
 
         logger.debug(f"[StageD] from_hydra_cfg: stage_cfg.device={stage_cfg.device}")
-        logger.debug(f"[StageD] from_hydra_cfg: full stage_cfg={OmegaConf.to_container(stage_cfg, resolve=True)}")
         device = torch.device(stage_cfg.device)
         inference_cfg = stage_cfg.get("inference", OmegaConf.create({}))
         num_inference_steps = inference_cfg.get("num_steps", 2)
         temperature = inference_cfg.get("temperature", 1.0)
-        diffusion_module_args = parse_diffusion_module_args(stage_cfg)
         debug_logging = stage_cfg.get("debug_logging", False)
+        diffusion_module_args = parse_diffusion_module_args(stage_cfg, debug_logging=debug_logging)
         # Set logger level based on debug_logging flag
         set_stageD_logger_level(debug_logging)
         return cls(
