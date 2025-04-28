@@ -238,7 +238,7 @@ class PairformerWrapper(nn.Module):
             # Placeholder: Add your apply_lora function call here for Pairformer
             pass
 
-        logger.info(f"[MEMORY-LOG][StageB-Pairformer] After super().__init__")
+        logger.info("[MEMORY-LOG][StageB-Pairformer] After super().__init__")
         process = psutil.Process(os.getpid())
         logger.info(f"[MEMORY-LOG][StageB-Pairformer] Memory usage: {process.memory_info().rss / 1e6:.2f} MB")
 
