@@ -60,7 +60,7 @@ class AtomTransformer(torch.nn.Module):
             config: Configuration object for the transformer
             **kwargs: Keyword arguments to create a config if not provided
         """
-        super(AtomTransformer, self).__init__()
+        super().__init__()
 
         # Create config if not provided
         if config is None:

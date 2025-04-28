@@ -33,7 +33,7 @@ class AtomAttentionEncoder(nn.Module):
         Args:
             config: Configuration parameters for the encoder
         """
-        super(AtomAttentionEncoder, self).__init__()
+        super().__init__()
         self.has_coords = config.has_coords
         self.c_atom = config.c_atom
         self.c_atompair = config.c_atompair
@@ -240,6 +240,5 @@ class AtomAttentionEncoder(nn.Module):
             n_queries=n_queries,
             n_keys=n_keys,
             blocks_per_ckpt=blocks_per_ckpt,
-            debug_logging=debug_logging,
         )
-        return cls(config)
+        return cls(config)  # If you want to use debug_logging, pass it separately here

@@ -30,7 +30,7 @@ class AdaptiveLayerNorm(nn.Module):
             c_a (int, optional): the embedding dim of a(single feature aggregated atom info). Defaults to 768.
             c_s (int, optional): hidden dim [for single embedding]. Defaults to 384.
         """
-        super(AdaptiveLayerNorm, self).__init__()
+        super().__init__()
         self.c_a = c_a  # Store c_a for reference
         self.c_s = c_s  # Store c_s for reference
         self.layernorm_a = nn.LayerNorm(c_a, elementwise_affine=False, bias=False)
