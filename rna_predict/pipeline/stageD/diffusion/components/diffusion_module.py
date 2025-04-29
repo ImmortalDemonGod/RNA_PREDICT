@@ -37,6 +37,8 @@ class DiffusionModule(nn.Module):
     def __init__(
         self,
         cfg: DictConfig,
+        *args,
+        **kwargs
     ):
         """
         Initialize DiffusionModule from a Hydra config (DictConfig or structured config).
@@ -149,6 +151,12 @@ class DiffusionModule(nn.Module):
 
         # Log config
         self.logger.debug(f"DiffusionModule config: {OmegaConf.to_yaml(cfg)}")
+
+        # Accept and ignore extra kwargs for now (for config robustness)
+        # Optionally, log or warn about ignored keys
+        if kwargs:
+            import warnings
+            warnings.warn(f"DiffusionModule received unexpected config keys: {list(kwargs.keys())}")
 
     def init_parameters(self, initialization: dict):
         """
