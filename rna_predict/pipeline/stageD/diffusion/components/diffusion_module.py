@@ -1,7 +1,7 @@
 # rna_predict/pipeline/stageD/diffusion/components/diffusion_module.py
-import warnings
+import logging
+from omegaconf import DictConfig, OmegaConf
 from typing import Any, Dict, Optional, Tuple, Union, Callable
-
 import torch
 import torch.nn as nn
 
@@ -28,9 +28,6 @@ from rna_predict.pipeline.stageA.input_embedding.current.transformer.atom_attent
 # Imports from within the components directory
 from .diffusion_conditioning import DiffusionConditioning
 
-# Removed import from deleted diffusion_utils.py
-
-
 class DiffusionModule(nn.Module):
     """
     Implements Algorithm 20 in AF3 (Moved from diffusion.py).
@@ -39,102 +36,81 @@ class DiffusionModule(nn.Module):
 
     def __init__(
         self,
-        sigma_data: float,
-        c_atom: int,
-        c_atompair: int,
-        c_token: int,
-        c_s: int,
-        c_z: int,
-        c_s_inputs: int,
-        c_noise_embedding: int,
-        atom_encoder: dict,
-        transformer: dict,
-        atom_decoder: dict,
-        blocks_per_ckpt: Optional[int] = None,
-        use_fine_grained_checkpoint: bool = False,
-        initialization: Optional[dict] = None,
-    ) -> None:
+        cfg: DictConfig,
+    ):
         """
-        All model size/config arguments are REQUIRED and must come from Hydra config (no defaults).
+        Initialize DiffusionModule from a Hydra config (DictConfig or structured config).
+        Args:
+            cfg: Hydra config for Stage D Diffusion (should be DictConfig or structured)
         """
-        super(DiffusionModule, self).__init__()
-        # Debug logging for all model sizes
-        print("[DEBUG][DiffusionModule.__init__] sigma_data:", sigma_data)
-        print("[DEBUG][DiffusionModule.__init__] c_atom:", c_atom)
-        print("[DEBUG][DiffusionModule.__init__] c_atompair:", c_atompair)
-        print("[DEBUG][DiffusionModule.__init__] c_token:", c_token)
-        print("[DEBUG][DiffusionModule.__init__] c_s:", c_s)
-        print("[DEBUG][DiffusionModule.__init__] c_z:", c_z)
-        print("[DEBUG][DiffusionModule.__init__] c_s_inputs:", c_s_inputs)
-        print("[DEBUG][DiffusionModule.__init__] c_noise_embedding:", c_noise_embedding)
-        print("[DEBUG][DiffusionModule.__init__] atom_encoder:", atom_encoder)
-        print("[DEBUG][DiffusionModule.__init__] transformer:", transformer)
-        print("[DEBUG][DiffusionModule.__init__] atom_decoder:", atom_decoder)
-        # Assert all required args are not None
-        assert sigma_data is not None, "sigma_data must be set by config"
-        assert c_atom is not None, "c_atom must be set by config"
-        assert c_atompair is not None, "c_atompair must be set by config"
-        assert c_token is not None, "c_token must be set by config"
-        assert c_s is not None, "c_s must be set by config"
-        assert c_z is not None, "c_z must be set by config"
-        assert c_s_inputs is not None, "c_s_inputs must be set by config"
-        assert c_noise_embedding is not None, "c_noise_embedding must be set by config"
-        assert atom_encoder is not None, "atom_encoder must be set by config"
-        assert transformer is not None, "transformer must be set by config"
-        assert atom_decoder is not None, "atom_decoder must be set by config"
-        self.sigma_data = sigma_data
-        self.c_atom = c_atom
-        self.c_atompair = c_atompair
-        self.c_token = c_token
-        self.c_s = c_s
-        self.c_z = c_z
-        self.c_s_inputs = c_s_inputs
-        self.c_noise_embedding = c_noise_embedding
-        self.atom_encoder = atom_encoder
-        self.transformer = transformer
-        self.atom_decoder = atom_decoder
-        self.blocks_per_ckpt = blocks_per_ckpt
-        self.use_fine_grained_checkpoint = use_fine_grained_checkpoint
-        self.initialization = initialization
+        super().__init__()
+        # Validate config structure
+        required_fields = [
+            "model_architecture", "transformer", "atom_encoder", "atom_decoder", "debug_logging"
+        ]
+        for field in required_fields:
+            if field not in cfg:
+                raise ValueError(f"Missing required config field: {field}")
 
-        # Grad checkpoint setting
-        self.blocks_per_ckpt = blocks_per_ckpt
-        self.use_fine_grained_checkpoint = use_fine_grained_checkpoint
+        # Extract model architecture parameters
+        arch = cfg.model_architecture
+        sigma_data = arch.sigma_data
+        c_atom = arch.c_atom
+        c_atompair = arch.c_atompair
+        c_token = arch.c_token
+        c_s = arch.c_s
+        c_z = arch.c_z
+        c_s_inputs = arch.c_s_inputs
+        c_noise_embedding = arch.c_noise_embedding
 
-        # Use imported DiffusionConditioning
-        print("[DEBUG][DiffusionModule.__init__] Instantiating DiffusionConditioning with:",
-              f"sigma_data={self.sigma_data}, c_z={c_z}, c_s={c_s}, c_s_inputs={c_s_inputs}, c_noise_embedding={c_noise_embedding}")
+        # Extract transformer/encoder/decoder configs
+        atom_encoder = OmegaConf.to_container(cfg.atom_encoder, resolve=True)
+        transformer = OmegaConf.to_container(cfg.transformer, resolve=True)
+        atom_decoder = OmegaConf.to_container(cfg.atom_decoder, resolve=True)
+        blocks_per_ckpt = transformer.get("blocks_per_ckpt", None)
+        initialization = cfg.get("initialization", {})
+        debug_logging = cfg.debug_logging
+
+        # Set up logger
+        self.logger = logging.getLogger("rna_predict.pipeline.stageD.diffusion.components.diffusion_module")
+        self.debug_logging = debug_logging
+        if self.debug_logging:
+            self.logger.setLevel(logging.DEBUG)
+        else:
+            self.logger.setLevel(logging.INFO)
+
+        # --- DiffusionConditioning ---
+        self.logger.debug(f"Instantiating DiffusionConditioning with: sigma_data={sigma_data}, c_z={c_z}, c_s={c_s}, c_s_inputs={c_s_inputs}, c_noise_embedding={c_noise_embedding}, debug_logging={debug_logging}")
         self.diffusion_conditioning = DiffusionConditioning(
-            sigma_data=self.sigma_data,
+            sigma_data=sigma_data,
             c_z=c_z,
             c_s=c_s,
             c_s_inputs=c_s_inputs,
-            c_noise_embedding=c_noise_embedding,  # Pass necessary arg
+            c_noise_embedding=c_noise_embedding,
+            debug_logging=debug_logging,
         )
 
         # --- AtomAttentionEncoder ---
-        encoder_config_dict = atom_encoder
-        print(f"[DEBUG][DiffusionModule.__init__] encoder_config_dict: {encoder_config_dict}")
+        self.logger.debug(f"encoder_config_dict: {atom_encoder}")
         encoder_config = AtomAttentionConfig(
             c_atom=c_atom,
             c_atompair=c_atompair,
             c_token=c_token,
-            has_coords=True,  # Specific to this context in DiffusionModule
+            has_coords=True,
             c_s=c_s,
             c_z=c_z,
             blocks_per_ckpt=blocks_per_ckpt,
-            n_blocks=encoder_config_dict["n_blocks"],
-            n_heads=encoder_config_dict["n_heads"],
-            n_queries=encoder_config_dict["n_queries"],
-            n_keys=encoder_config_dict["n_keys"],
+            n_blocks=atom_encoder["n_blocks"],
+            n_heads=atom_encoder["n_heads"],
+            n_queries=atom_encoder["n_queries"],
+            n_keys=atom_encoder["n_keys"],
         )
-        self.atom_attention_encoder = AtomAttentionEncoder(config=encoder_config)
+        self.atom_attention_encoder = AtomAttentionEncoder(config=encoder_config, debug_logging=debug_logging)
 
-        # Alg20: line4
         self.layernorm_s = LayerNorm(c_s)
         self.linear_no_bias_s = LinearNoBias(in_features=c_s, out_features=c_token)
 
-        # --- DiffusionTransformer Instantiation ---
+        # --- DiffusionTransformer ---
         transformer_params = {
             "n_blocks": transformer["n_blocks"],
             "n_heads": transformer["n_heads"],
@@ -143,30 +119,36 @@ class DiffusionModule(nn.Module):
             "c_z": c_z,
             "blocks_per_ckpt": blocks_per_ckpt
         }
-        self.diffusion_transformer = DiffusionTransformer(**transformer_params)
+        self.diffusion_transformer = DiffusionTransformer(**transformer_params, debug_logging=debug_logging)
         self.layernorm_a = LayerNorm(c_token)
 
         # --- AtomAttentionDecoder ---
-        decoder_config_dict = atom_decoder
         decoder_config = AtomAttentionConfig(
             c_atom=c_atom,
             c_atompair=c_atompair,
             c_token=c_token,
-            has_coords=True,  # Specific to this context in DiffusionModule
+            has_coords=True,
             c_s=c_s,
             c_z=c_z,
             blocks_per_ckpt=blocks_per_ckpt,
-            n_blocks=decoder_config_dict["n_blocks"],
-            n_heads=decoder_config_dict["n_heads"],
-            n_queries=decoder_config_dict["n_queries"],
-            n_keys=decoder_config_dict["n_keys"],
+            n_blocks=atom_decoder["n_blocks"],
+            n_heads=atom_decoder["n_heads"],
+            n_queries=atom_decoder["n_queries"],
+            n_keys=atom_decoder["n_keys"],
         )
-        self.atom_attention_decoder = AtomAttentionDecoder(config=decoder_config)
+        self.atom_attention_decoder = AtomAttentionDecoder(config=decoder_config, debug_logging=debug_logging)
 
         # Handle initialization safely
         if initialization is None:
-            initialization = {}  # Ensure initialization is a dict
+            initialization = {}
         self.init_parameters(initialization)
+
+        # Validate initialization dict
+        if not isinstance(initialization, dict):
+            raise ValueError("initialization must be a dict")
+
+        # Log config
+        self.logger.debug(f"DiffusionModule config: {OmegaConf.to_yaml(cfg)}")
 
     def init_parameters(self, initialization: dict):
         """
@@ -201,11 +183,11 @@ class DiffusionModule(nn.Module):
                     ):
                         block.attention_pair_bias.glorot_init()
                     else:
-                        warnings.warn(
+                        self.logger.warning(
                             "Could not apply glorot_init_self_attention to atom_encoder block."
                         )
             else:
-                warnings.warn(
+                self.logger.warning(
                     "Atom encoder structure changed, cannot apply glorot_init_self_attention."
                 )
 
@@ -220,7 +202,7 @@ class DiffusionModule(nn.Module):
                 ):
                     block.conditioned_transition_block.adaln.zero_init()
                 else:
-                    warnings.warn(
+                    self.logger.warning(
                         "Could not apply zero_init_adaln to diffusion_transformer block."
                     )
 
@@ -232,7 +214,7 @@ class DiffusionModule(nn.Module):
                         block.conditioned_transition_block.linear_nobias_b.weight
                     )
                 else:
-                    warnings.warn(
+                    self.logger.warning(
                         "Could not apply zero_init_residual_condition_transition to diffusion_transformer block."
                     )
 
@@ -240,13 +222,13 @@ class DiffusionModule(nn.Module):
             if hasattr(self.atom_attention_decoder, "linear_no_bias_a"):
                 nn.init.zeros_(self.atom_attention_decoder.linear_no_bias_a.weight)
             else:
-                warnings.warn("Could not apply zero_init_atom_decoder_linear.")
+                self.logger.warning("Could not apply zero_init_atom_decoder_linear.")
 
         if initialization.get("zero_init_dit_output", False):
             if hasattr(self.atom_attention_decoder, "linear_no_bias_out"):
                 nn.init.zeros_(self.atom_attention_decoder.linear_no_bias_out.weight)
             else:
-                warnings.warn("Could not apply zero_init_dit_output.")
+                self.logger.warning("Could not apply zero_init_dit_output.")
 
     ###@snoop
     def _run_with_checkpointing(
@@ -287,7 +269,7 @@ class DiffusionModule(nn.Module):
         if isinstance(atom_mask_val, torch.Tensor):
             atom_mask = atom_mask_val
         elif atom_mask_val is not None:
-            warnings.warn(
+            self.logger.warning(
                 f"Expected 'ref_mask' to be Tensor or None, got {type(atom_mask_val)}. Setting mask to None."
             )
 
@@ -297,7 +279,7 @@ class DiffusionModule(nn.Module):
         if isinstance(atom_to_token_idx_val, torch.Tensor):
             atom_to_token_idx = atom_to_token_idx_val
         elif atom_to_token_idx_val is not None:
-            warnings.warn(
+            self.logger.warning(
                 f"Expected 'atom_to_token_idx' to be Tensor or None, got {type(atom_to_token_idx_val)}. Setting index to None."
             )
 
@@ -310,7 +292,8 @@ class DiffusionModule(nn.Module):
             # Check if q_skip has the wrong feature dimension
             if q_skip.shape[-1] != expected_feature_dim:
                 current_dim = q_skip.shape[-1]
-                print(f"[DEBUG AGG] Adapting q_skip feature dimension from {current_dim} to {expected_feature_dim}")
+                if self.debug_logging:
+                    self.logger.debug(f"[DEBUG AGG] Adapting q_skip feature dimension from {current_dim} to {expected_feature_dim}")
                 # Adapt the feature dimension
                 if current_dim < expected_feature_dim:
                     # Pad with zeros
@@ -350,16 +333,18 @@ class DiffusionModule(nn.Module):
             torch.Tensor
         ],  # Allow None, expected [B, N_sample, N_token, N_token, C]
         inplace_safe: bool = False,
-        debug_logging: bool = False,
         chunk_size: Optional[int] = None,
     ):
         # SYSTEMATIC DEBUGGING: Log atom_to_token_idx at entry
-        print(f"[DEBUG][DiffusionModule.f_forward] Entry: input_feature_dict['atom_to_token_idx']: {input_feature_dict.get('atom_to_token_idx', 'MISSING')}")
+        if self.debug_logging:
+            self.logger.debug(f"[DEBUG][DiffusionModule.f_forward] Entry: input_feature_dict['atom_to_token_idx']: {input_feature_dict.get('atom_to_token_idx', 'MISSING')}")
         if 'atom_to_token_idx' in input_feature_dict:
             atom_idx_val = input_feature_dict['atom_to_token_idx']
-            print(f"[DEBUG][DiffusionModule.f_forward] type: {type(atom_idx_val)}, shape: {getattr(atom_idx_val, 'shape', None)}, value: {atom_idx_val if isinstance(atom_idx_val, (int, float)) else ''}")
+            if self.debug_logging:
+                self.logger.debug(f"[DEBUG][DiffusionModule.f_forward] type: {type(atom_idx_val)}, shape: {getattr(atom_idx_val, 'shape', None)}, value: {atom_idx_val if isinstance(atom_idx_val, (int, float)) else ''}")
         else:
-            print("[DEBUG][DiffusionModule.f_forward] atom_to_token_idx MISSING!")
+            if self.debug_logging:
+                self.logger.debug("[DEBUG][DiffusionModule.f_forward] atom_to_token_idx MISSING!")
         # [DEBUG] Removed internal shape checks and manipulations for clarity
         # print("[DEBUG] Starting f_forward (Refactored)")
         # print(f"[DEBUG] Input shapes - r_noisy: {r_noisy.shape}, t_hat_noise_level: {t_hat_noise_level.shape}")
@@ -381,7 +366,8 @@ class DiffusionModule(nn.Module):
             z_trunk=z_trunk,  # Pass potentially [B, N_sample, ...]
             inplace_safe=inplace_safe,
         )
-        # print(f"[DEBUG] After conditioning - s_single shape: {s_single.shape}, z_pair shape: {z_pair.shape}")
+        if self.debug_logging:
+            self.logger.debug(f"[DEBUG] After conditioning - s_single shape: {s_single.shape}, z_pair shape: {z_pair.shape}")
 
         # 2. Apply Atom Attention Encoder
         # Assumes encoder handles broadcasting and returns shapes like [B, N_sample, ...]
@@ -390,12 +376,15 @@ class DiffusionModule(nn.Module):
         c_skip: Optional[torch.Tensor]  # Not used later
         p_skip: Optional[torch.Tensor]
         # SYSTEMATIC DEBUGGING: Log atom_to_token_idx before _run_with_checkpointing
-        print(f"[DEBUG][DiffusionModule.f_forward] Before _run_with_checkpointing: input_feature_dict['atom_to_token_idx']: {input_feature_dict.get('atom_to_token_idx', 'MISSING')}")
+        if self.debug_logging:
+            self.logger.debug(f"[DEBUG][DiffusionModule.f_forward] Before _run_with_checkpointing: input_feature_dict['atom_to_token_idx']: {input_feature_dict.get('atom_to_token_idx', 'MISSING')}")
         if 'atom_to_token_idx' in input_feature_dict:
             atom_idx_val = input_feature_dict['atom_to_token_idx']
-            print(f"[DEBUG][DiffusionModule.f_forward] type: {type(atom_idx_val)}, shape: {getattr(atom_idx_val, 'shape', None)}, value: {atom_idx_val if isinstance(atom_idx_val, (int, float)) else ''}")
+            if self.debug_logging:
+                self.logger.debug(f"[DEBUG][DiffusionModule.f_forward] type: {type(atom_idx_val)}, shape: {getattr(atom_idx_val, 'shape', None)}, value: {atom_idx_val if isinstance(atom_idx_val, (int, float)) else ''}")
         else:
-            print("[DEBUG][DiffusionModule.f_forward] atom_to_token_idx MISSING!")
+            if self.debug_logging:
+                self.logger.debug("[DEBUG][DiffusionModule.f_forward] atom_to_token_idx MISSING!")
         # SYSTEMATIC DEBUGGING: Use forward_debug for AtomAttentionEncoder
         # Replace self.atom_attention_encoder(...) with .forward_debug(...) for deeper logging
         a_token, q_skip, c_skip, p_skip = self._run_with_checkpointing(
@@ -406,26 +395,34 @@ class DiffusionModule(nn.Module):
             s_inputs,
             s_trunk,
             inplace_safe=inplace_safe,
-            debug_logging=debug_logging,
             chunk_size=chunk_size,
         )
-        # print(f"[DEBUG] After encoder - a_token shape: {a_token.shape}")
-        # if q_skip is not None: print(f"[DEBUG] q_skip shape: {q_skip.shape}")
-        # if p_skip is not None: print(f"[DEBUG] p_skip shape: {p_skip.shape}")
+        if self.debug_logging:
+            self.logger.debug(f"[DEBUG] After encoder - a_token shape: {a_token.shape}")
+        if q_skip is not None:
+            if self.debug_logging:
+                self.logger.debug(f"[DEBUG] q_skip shape: {q_skip.shape}")
+        if p_skip is not None:
+            if self.debug_logging:
+                self.logger.debug(f"[DEBUG] p_skip shape: {p_skip.shape}")
 
         # 3. Combine with Single Conditioning and Apply Transformer
         s_single_proj = self.linear_no_bias_s(self.layernorm_s(s_single))
         # Safely access shape attributes with getattr to avoid mypy errors
-        print(f"[DEBUG AGG] a_token shape: {getattr(a_token, 'shape', None)}")
+        if self.debug_logging:
+            self.logger.debug(f"[DEBUG AGG] a_token shape: {getattr(a_token, 'shape', None)}")
 
         # Safely access atom_to_token_idx and its shape
         atom_to_token_idx = input_feature_dict.get('atom_to_token_idx')
         if isinstance(atom_to_token_idx, torch.Tensor):
-            print(f"[DEBUG AGG] atom_to_token_idx shape: {atom_to_token_idx.shape}")
+            if self.debug_logging:
+                self.logger.debug(f"[DEBUG AGG] atom_to_token_idx shape: {atom_to_token_idx.shape}")
         else:
-            print(f"[DEBUG AGG] atom_to_token_idx is not a tensor: {type(atom_to_token_idx)}")
+            if self.debug_logging:
+                self.logger.debug(f"[DEBUG AGG] atom_to_token_idx is not a tensor: {type(atom_to_token_idx)}")
 
-        print(f"[DEBUG AGG] num_tokens: {a_token.shape[-2] if hasattr(a_token, 'shape') else None}")
+        if self.debug_logging:
+            self.logger.debug(f"[DEBUG AGG] num_tokens: {a_token.shape[-2] if hasattr(a_token, 'shape') else None}")
 
         # CRITICAL FIX: Handle token dimension mismatch between a_token and s_single_proj
         # This is the key issue in the RNA pipeline where a_token is token-level (8 residues)
@@ -473,7 +470,7 @@ class DiffusionModule(nn.Module):
                     s_single_proj = s_single_proj_aggregated_tensor.reshape(*s_single_proj.shape[:-2], a_token.shape[-2], s_single_proj.shape[-1])
                 else:
                     # Fallback: use the first a_token.shape[-2] tokens from s_single_proj
-                    warnings.warn(
+                    self.logger.warning(
                         f"atom_to_token_idx not found in input_feature_dict. Using first {a_token.shape[-2]} tokens from s_single_proj."
                     )
                     s_single_proj = s_single_proj[..., :a_token.shape[-2], :]
@@ -504,7 +501,7 @@ class DiffusionModule(nn.Module):
                                     idx = atom_to_token_idx
                             else:
                                 # Handle non-tensor case
-                                warnings.warn(f"atom_to_token_idx is not a tensor: {type(atom_to_token_idx)}")
+                                self.logger.warning(f"atom_to_token_idx is not a tensor: {type(atom_to_token_idx)}")
                                 continue
 
                             # For each atom, copy the embedding from its corresponding residue
@@ -522,7 +519,7 @@ class DiffusionModule(nn.Module):
                     s_single_proj = s_single_proj_expanded
                 else:
                     # Fallback: repeat s_single_proj to match a_token's shape
-                    warnings.warn(
+                    self.logger.warning(
                         "atom_to_token_idx not found in input_feature_dict. Repeating s_single_proj to match a_token's shape."
                     )
                     # Repeat each token's embedding to create the required number of tokens
@@ -549,7 +546,7 @@ class DiffusionModule(nn.Module):
                 else:
                     a_token = a_token + s_single_proj  # Relies on broadcasting
             except RuntimeError as e:
-                warnings.warn(
+                self.logger.warning(
                     f"Shape mismatch & broadcast failed between a_token ({a_token.shape}) and projected s_single ({s_single_proj.shape}). Skipping addition. Error: {e}"
                 )
 
@@ -560,7 +557,8 @@ class DiffusionModule(nn.Module):
             target_z_ndim = a_token.ndim + 1  # Expected relationship for attention bias
             while z_pair.ndim < target_z_ndim:
                 z_pair = z_pair.unsqueeze(0)
-            # print(f"[DEBUG] Expanded z_pair shape for transformer: {z_pair.shape}")
+            if self.debug_logging:
+                self.logger.debug(f"[DEBUG] Expanded z_pair shape for transformer: {z_pair.shape}")
 
         # Apply Transformer
         # Assumes transformer handles broadcasting of s_single/z_pair
@@ -573,9 +571,11 @@ class DiffusionModule(nn.Module):
             inplace_safe=inplace_safe,
             chunk_size=chunk_size,
         )
-        # print(f"[DEBUG] a_token_transformed shape: {a_token_transformed.shape}")
+        if self.debug_logging:
+            self.logger.debug(f"[DEBUG] a_token_transformed shape: {a_token_transformed.shape}")
         a_token = self.layernorm_a(a_token_transformed)
-        # print(f"[DEBUG] a_token shape after layernorm: {a_token.shape}")
+        if self.debug_logging:
+            self.logger.debug(f"[DEBUG] a_token shape after layernorm: {a_token.shape}")
 
         # 4. Prepare Decoder Inputs
         decoder_params = self._prepare_decoder_params(
@@ -594,7 +594,8 @@ class DiffusionModule(nn.Module):
             self.atom_attention_decoder,
             params=decoder_params,
         )
-        # print(f"[DEBUG] r_update shape: {r_update.shape}")
+        if self.debug_logging:
+            self.logger.debug(f"[DEBUG] r_update shape: {r_update.shape}")
 
         return r_update
 
@@ -609,37 +610,33 @@ class DiffusionModule(nn.Module):
         z_trunk: Optional[torch.Tensor] = None,
         chunk_size: Optional[int] = None,
         inplace_safe: bool = False,
-        debug_logging: bool = False,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Forward pass of the diffusion module.
         Handles N_sample detection and prepares inputs for f_forward.
         """
-        import logging
-        logger = logging.getLogger(__name__)
-
-        if debug_logging:
-            logger.debug("[UNIQUE-DEBUG-STAGED-TEST] Stage D diffusion module handling N_sample dimension.")
-            logger.debug(f"[DEBUG] Initial x_noisy shape: {x_noisy.shape}")
-            logger.debug(f"[DEBUG] Initial t_hat_noise_level shape: {t_hat_noise_level.shape}")
-
         # --- DEVICE DEBUG ---
         device = x_noisy.device
-        print(f"[DEVICE-DEBUG][StageD] DiffusionModule.forward: x_noisy device={device}")
-        print(f"[DEVICE-DEBUG][StageD] t_hat_noise_level device={t_hat_noise_level.device}")
+        if self.debug_logging:
+            self.logger.debug(f"[DEVICE-DEBUG][StageD] DiffusionModule.forward: x_noisy device={device}")
+            self.logger.debug(f"[DEVICE-DEBUG][StageD] t_hat_noise_level device={t_hat_noise_level.device}")
         if s_trunk is not None:
-            print(f"[DEVICE-DEBUG][StageD] s_trunk device={s_trunk.device}")
+            if self.debug_logging:
+                self.logger.debug(f"[DEVICE-DEBUG][StageD] s_trunk device={s_trunk.device}")
         if s_inputs is not None:
-            print(f"[DEVICE-DEBUG][StageD] s_inputs device={s_inputs.device}")
+            if self.debug_logging:
+                self.logger.debug(f"[DEVICE-DEBUG][StageD] s_inputs device={s_inputs.device}")
         if z_trunk is not None:
-            print(f"[DEVICE-DEBUG][StageD] z_trunk device={z_trunk.device}")
+            if self.debug_logging:
+                self.logger.debug(f"[DEVICE-DEBUG][StageD] z_trunk device={z_trunk.device}")
         # --- END DEVICE DEBUG ---
 
         # Ensure input_feature_dict tensors are on the correct device
         for k, v in input_feature_dict.items():
             if isinstance(v, torch.Tensor):
                 if v.device != device:
-                    print(f"[DEVICE-DEBUG][StageD] input_feature_dict[{k}] moved from {v.device} to {device}")
+                    if self.debug_logging:
+                        self.logger.debug(f"[DEVICE-DEBUG][StageD] input_feature_dict[{k}] moved from {v.device} to {device}")
                     input_feature_dict[k] = v.to(device)
 
         # Make sure all allocations in _ensure_input_feature_dict use the correct device
@@ -648,23 +645,30 @@ class DiffusionModule(nn.Module):
         )
         for k, v in processed_input_dict.items():
             if isinstance(v, torch.Tensor):
-                print(f"[DEVICE-DEBUG][StageD] processed_input_dict[{k}] device={v.device}")
+                if self.debug_logging:
+                    self.logger.debug(f"[DEVICE-DEBUG][StageD] processed_input_dict[{k}] device={v.device}")
 
         # SYSTEMATIC DEBUGGING: Instrument input_feature_dict for atom_to_token_idx presence/type/shape
         if "atom_to_token_idx" not in input_feature_dict:
-            print("[DEBUG][DiffusionModule.forward] atom_to_token_idx MISSING in input_feature_dict!")
+            if self.debug_logging:
+                self.logger.debug("[DEBUG][DiffusionModule.forward] atom_to_token_idx MISSING in input_feature_dict!")
         else:
             atom_idx_val = input_feature_dict["atom_to_token_idx"]
-            print(f"[DEBUG][DiffusionModule.forward] atom_to_token_idx type: {type(atom_idx_val)}, shape: {getattr(atom_idx_val, 'shape', None)}")
+            if self.debug_logging:
+                self.logger.debug(f"[DEBUG][DiffusionModule.forward] atom_to_token_idx type: {type(atom_idx_val)}, shape: {getattr(atom_idx_val, 'shape', None)}")
             if atom_idx_val is None:
-                print("[DEBUG][DiffusionModule.forward] atom_to_token_idx is None!")
+                if self.debug_logging:
+                    self.logger.debug("[DEBUG][DiffusionModule.forward] atom_to_token_idx is None!")
             elif isinstance(atom_idx_val, torch.Tensor):
-                print(f"[DEBUG][DiffusionModule.forward] atom_to_token_idx tensor shape: {atom_idx_val.shape}")
+                if self.debug_logging:
+                    self.logger.debug(f"[DEBUG][DiffusionModule.forward] atom_to_token_idx tensor shape: {atom_idx_val.shape}")
             else:
-                print(f"[DEBUG][DiffusionModule.forward] atom_to_token_idx value: {atom_idx_val}")
+                if self.debug_logging:
+                    self.logger.debug(f"[DEBUG][DiffusionModule.forward] atom_to_token_idx value: {atom_idx_val}")
 
         # Also instrument f_forward call
-        print(f"[DEBUG][DiffusionModule.forward] Calling f_forward with input_feature_dict['atom_to_token_idx']: {input_feature_dict.get('atom_to_token_idx', 'MISSING')}")
+        if self.debug_logging:
+            self.logger.debug(f"[DEBUG][DiffusionModule.forward] Calling f_forward with input_feature_dict['atom_to_token_idx']: {input_feature_dict.get('atom_to_token_idx', 'MISSING')}")
 
         # --- Input Shape Handling ---
         # Assume x_noisy arrives as [B, N_atom, 3] or [B, N_sample, N_atom, 3]
@@ -681,7 +685,7 @@ class DiffusionModule(nn.Module):
             ):
                 t_hat_noise_level = t_hat_noise_level.unsqueeze(1)  # [B, 1]
             elif t_hat_noise_level.shape != (x_noisy.shape[0], 1):
-                warnings.warn(
+                self.logger.warning(
                     f"Broadcasting t_hat ({t_hat_noise_level.shape}) to x_noisy ({x_noisy.shape}) might be ambiguous."
                 )
         elif x_noisy.ndim == 4:
@@ -694,7 +698,7 @@ class DiffusionModule(nn.Module):
                 # Assume t_hat was [B], needs expansion to [B, N_sample]
                 t_hat_noise_level = t_hat_noise_level.unsqueeze(1).expand(-1, N_sample)
             elif t_hat_noise_level.shape != (x_noisy.shape[0], N_sample):
-                warnings.warn(
+                self.logger.warning(
                     f"Broadcasting t_hat ({t_hat_noise_level.shape}) to x_noisy ({x_noisy.shape}) might be ambiguous."
                 )
         else:
@@ -740,11 +744,18 @@ class DiffusionModule(nn.Module):
         # If N_sample is 1, assume conditioning tensors might be [B, ...] or [B, 1, ...]
         # Submodules should handle broadcasting from [B, ...] or explicit [B, 1, ...]
 
-        # print(f"[DEBUG] Processed x_noisy shape: {x_noisy.shape}")
-        # print(f"[DEBUG] Processed t_hat_noise_level shape: {t_hat_noise_level.shape}")
-        # if s_trunk is not None: print(f"[DEBUG] Processed s_trunk shape: {s_trunk.shape}")
-        # if s_inputs is not None: print(f"[DEBUG] Processed s_inputs shape: {s_inputs.shape}")
-        # if z_trunk is not None: print(f"[DEBUG] Processed z_trunk shape: {z_trunk.shape}")
+        if self.debug_logging:
+            self.logger.debug(f"[DEBUG] Processed x_noisy shape: {x_noisy.shape}")
+            self.logger.debug(f"[DEBUG] Processed t_hat_noise_level shape: {t_hat_noise_level.shape}")
+        if s_trunk is not None:
+            if self.debug_logging:
+                self.logger.debug(f"[DEBUG] Processed s_trunk shape: {s_trunk.shape}")
+        if s_inputs is not None:
+            if self.debug_logging:
+                self.logger.debug(f"[DEBUG] Processed s_inputs shape: {s_inputs.shape}")
+        if z_trunk is not None:
+            if self.debug_logging:
+                self.logger.debug(f"[DEBUG] Processed z_trunk shape: {z_trunk.shape}")
 
         # --- Core Logic ---
         # Calculate EDM scaling factors, ensuring they broadcast correctly
@@ -756,13 +767,15 @@ class DiffusionModule(nn.Module):
         c_in = c_in.view(*c_in.shape, 1, 1)
         c_skip = c_skip.view(*c_skip.shape, 1, 1)
         c_out = c_out.view(*c_out.shape, 1, 1)
-        # print(f"[DEBUG] EDM factors shapes - c_in: {c_in.shape}, c_skip: {c_skip.shape}, c_out: {c_out.shape}")
+        if self.debug_logging:
+            self.logger.debug(f"[DEBUG] EDM factors shapes - c_in: {c_in.shape}, c_skip: {c_skip.shape}, c_out: {c_out.shape}")
 
         # Scale noisy input
         r_noisy = (
             x_noisy * c_in
         )  # Broadcasting: [B, N_sample, N_atom, 3] * [B, N_sample, 1, 1]
-        # print(f"[DEBUG] r_noisy shape after scaling: {r_noisy.shape}")
+        if self.debug_logging:
+            self.logger.debug(f"[DEBUG] r_noisy shape after scaling: {r_noisy.shape}")
 
         # Forward pass through f_theta
         # Cast processed_input_dict to Dict[str, Any] to satisfy type checker
@@ -777,12 +790,14 @@ class DiffusionModule(nn.Module):
             chunk_size=chunk_size,
             inplace_safe=inplace_safe,
         )
-        # print(f"[DEBUG] r_update shape: {r_update.shape}")
+        if self.debug_logging:
+            self.logger.debug(f"[DEBUG] r_update shape: {r_update.shape}")
 
         # Apply denoising formula
         # Broadcasting: [B, N_sample, N_atom, 3] * [B, N_sample, 1, 1] + [B, N_sample, N_atom, 3] * [B, N_sample, 1, 1]
         x_denoised = r_noisy * c_skip + r_update * c_out
-        # print(f"[DEBUG] x_denoised shape: {x_denoised.shape}")
+        if self.debug_logging:
+            self.logger.debug(f"[DEBUG] x_denoised shape: {x_denoised.shape}")
 
         # Compute loss if target is available
         loss = torch.tensor(0.0, device=x_denoised.device)
@@ -802,9 +817,10 @@ class DiffusionModule(nn.Module):
             loss = self._compute_loss(x_denoised, x_target, t_hat_noise_level, mask)
 
         # Return shape [B, N_sample, N_atom, 3]
-        print(
-            f"[DEBUG][DiffusionModule.forward] Returning x_denoised shape: {x_denoised.shape}"
-        )  # DEBUG PRINT
+        if self.debug_logging:
+            self.logger.debug(
+                f"[DEBUG][DiffusionModule.forward] Returning x_denoised shape: {x_denoised.shape}"
+            )  # DEBUG PRINT
         return x_denoised, loss.squeeze()
 
     def _compute_loss(
