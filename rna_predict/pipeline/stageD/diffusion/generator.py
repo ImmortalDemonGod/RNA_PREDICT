@@ -273,7 +273,6 @@ def sample_diffusion(
                 z_trunk=z_trunk,
                 chunk_size=attn_chunk_size,
                 inplace_safe=inplace_safe,
-                debug_logging=debug_logging,  # Enable debug logging for diffusion module
             )
 
             # Unpack the tuple
@@ -393,7 +392,6 @@ def sample_diffusion_training(
             s_inputs=s_inputs,
             s_trunk=s_trunk,
             z_trunk=z_trunk,
-            debug_logging=debug_logging, # Enable debug logging for diffusion module
         )
         # Unpack the tuple
         if not isinstance(denoise_result, tuple) or len(denoise_result) != 2:
@@ -419,7 +417,6 @@ def sample_diffusion_training(
                 s_inputs=s_inputs,
                 s_trunk=s_trunk,
                 z_trunk=z_trunk,
-                debug_logging=debug_logging, # Enable debug logging for diffusion module
             )
             # Unpack the tuple
             if not isinstance(denoise_result_i, tuple) or len(denoise_result_i) != 2:
