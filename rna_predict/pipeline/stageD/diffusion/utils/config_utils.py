@@ -172,49 +172,5 @@ def parse_diffusion_module_args(stage_cfg, debug_logging=False):
         base_cfg = stage_cfg["diffusion"]
     else:
         base_cfg = stage_cfg
-    # Require model_architecture to be present exactly as specified in the config
-    model_architecture = base_cfg.get("model_architecture")
-    feature_dimensions = base_cfg.get("feature_dimensions")
-    if debug_logging:
-        print("[DEBUG][parse_diffusion_module_args] model_architecture:", model_architecture)
-        print("[DEBUG][parse_diffusion_module_args] feature_dimensions:", feature_dimensions)
-    if model_architecture is None:
-        raise ValueError(
-            "model_architecture section missing in config! (expected at model.stageD.diffusion.model_architecture, no fallback)"
-        )
-    # Only include parameters that are explicitly accepted by DiffusionModule.__init__
-    valid_params = [
-        "c_token",
-        "c_s",
-        "c_z",
-        "c_s_inputs",
-        "c_atom",
-        "c_atompair",
-        "c_noise_embedding",
-        "sigma_data",
-    ]
-    diffusion_module_args = {
-        k: v for k, v in dict(model_architecture).items() if k in valid_params
-    }
-    # Defensive patch: ensure c_s_inputs is present, fallback to feature_dimensions if missing
-    if "c_s_inputs" not in diffusion_module_args or diffusion_module_args["c_s_inputs"] is None:
-        if feature_dimensions is not None and "c_s_inputs" in feature_dimensions:
-            diffusion_module_args["c_s_inputs"] = feature_dimensions["c_s_inputs"]
-        else:
-            raise ValueError("[CONFIG ERROR] c_s_inputs missing from both model_architecture and feature_dimensions!")
-    for subkey in ["atom_encoder", "atom_decoder", "transformer"]:
-        subcfg = base_cfg.get(subkey)
-        if subcfg is None:
-            raise ValueError(
-                f"Required config section '{subkey}' missing in config!"
-            )
-        diffusion_module_args[subkey] = (
-            dict(subcfg) if hasattr(subcfg, "items") else dict(subcfg)
-        )
-    for key in ["blocks_per_ckpt", "use_fine_grained_checkpoint", "initialization"]:
-        val = base_cfg.get(key, None)
-        if val is not None:
-            diffusion_module_args[key] = val
-    if debug_logging:
-        print("[DEBUG][parse_diffusion_module_args] FINAL diffusion_module_args:", diffusion_module_args)
-    return diffusion_module_args
+    # Instead of extracting/flattening, return the full nested config for DiffusionModule
+    return base_cfg
