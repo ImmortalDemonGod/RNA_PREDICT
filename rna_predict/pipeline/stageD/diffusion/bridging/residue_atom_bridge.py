@@ -20,9 +20,10 @@ from .sequence_utils import extract_sequence
 logger = logging.getLogger("rna_predict.pipeline.stageD.diffusion.bridging.residue_atom_bridge")
 
 
-def log_mem(stage):
-    process = psutil.Process(os.getpid())
-    print(f"[MEMORY-LOG][BRIDGE][{stage}] Memory usage: {process.memory_info().rss / (1024 * 1024):.2f} MB")
+def log_mem(stage, debug_logging=False):
+    if debug_logging:
+        process = psutil.Process(os.getpid())
+        print(f"[MEMORY-LOG][BRIDGE][{stage}] Memory usage: {process.memory_info().rss / (1024 * 1024):.2f} MB")
 
 
 @dataclass
@@ -684,7 +685,7 @@ def bridge_residue_to_atom(
     config: Any,  # Accepts either config object or DictConfig
     debug_logging: bool = False,
 ):
-    log_mem("ENTRY")
+    log_mem("ENTRY", debug_logging)
     # --- CONFIG VALIDATION PATCH: Ensure feature_dimensions can be found in the config ---
     if debug_logging:
         logger.debug(f"[DEBUG][BRIDGE][CONFIG STRUCTURE] config type: {type(config)}; keys: {list(config.keys()) if hasattr(config, 'keys') else dir(config)}")
@@ -871,7 +872,7 @@ def bridge_residue_to_atom(
         if n_atoms_coords != n_atoms_from_map:
             raise ValueError(f"[BRIDGE ERROR] partial_coords.shape[-2] ({n_atoms_coords}) does not match total atoms from residue_atom_map ({n_atoms_from_map})")
     # Continue with the rest of the function as before
-    log_mem("After residue-to-atom mapping")
+    log_mem("After residue-to-atom mapping", debug_logging)
     if debug_logging:
         logger.debug(f"[bridge_residue_to_atom] residue_atom_map length: {len(residue_atom_map)}")
         logger.debug(f"[bridge_residue_to_atom] residue_atom_map: {residue_atom_map}")
