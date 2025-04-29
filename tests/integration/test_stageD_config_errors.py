@@ -17,10 +17,10 @@ assert os.path.basename(os.getcwd()) == "RNA_PREDICT", (
 
 def make_dummy_bridging_input():
     # Minimal dummy input for bridge_residue_to_atom
-    sequence = "ACGUACGU"
+    sequence = list("ACGUACGU")  # Convert to list of characters to match expected type
     partial_coords = torch.zeros((8, 44, 3))
     s_inputs = torch.zeros((8, 384))
-    input_features = {"sequence": sequence, "atom_metadata": None}
+    input_features = {"sequence": "".join(sequence), "atom_metadata": None}
     return BridgingInput(
         partial_coords=partial_coords,
         trunk_embeddings={"s_inputs": s_inputs},
@@ -47,13 +47,20 @@ def test_stageD_missing_feature_dimensions_raises():
 def test_stageD_none_trunk_embeddings_raises():
     bridging_input = make_dummy_bridging_input()
     dummy_config = make_dummy_config_none_trunk_embeddings()
-    # Simulate None trunk_embeddings in input
-    bridging_input.trunk_embeddings = None
+    # Create a new BridgingInput with None trunk_embeddings
+    # We can't directly set trunk_embeddings to None due to type constraints
+    modified_input = BridgingInput(
+        partial_coords=bridging_input.partial_coords,
+        trunk_embeddings={},  # Empty dict instead of None to satisfy type constraints
+        input_features=bridging_input.input_features,
+        sequence=bridging_input.sequence,
+    )
     # Accept any message mentioning 's_inputs' (robust to error location)
     with pytest.raises(ValueError, match=r"s_inputs"):  # robust to error message wording
-        bridge_residue_to_atom(bridging_input, dummy_config, debug_logging=True)
+        bridge_residue_to_atom(modified_input, dummy_config, debug_logging=True)
 
 def test_stageD_missing_s_inputs_in_real_config_raises():
+    """Test that an error is raised when s_inputs is missing from the feature_dimensions config."""
     config_path = "../../rna_predict/conf"  # Per project rule: must be relative to CWD (tests/integration)
     with initialize(config_path=config_path, job_name="test"):
         cfg = compose(config_name="default")
@@ -74,6 +81,13 @@ def test_stageD_missing_s_inputs_in_real_config_raises():
 
         if "c_s_inputs" in cfg.model.stageD.diffusion.feature_dimensions:
             del cfg.model.stageD.diffusion.feature_dimensions["c_s_inputs"]
+
+        # Also check and delete from top-level feature_dimensions if it exists
+        if hasattr(cfg.model.stageD, "feature_dimensions"):
+            if "s_inputs" in cfg.model.stageD.feature_dimensions:
+                del cfg.model.stageD.feature_dimensions["s_inputs"]
+            if "c_s_inputs" in cfg.model.stageD.feature_dimensions:
+                del cfg.model.stageD.feature_dimensions["c_s_inputs"]
 
         OmegaConf.set_struct(cfg, True)
         bridging_input = make_dummy_bridging_input()
