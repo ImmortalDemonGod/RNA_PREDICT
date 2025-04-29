@@ -33,6 +33,7 @@ class DiffusionConditioning(nn.Module):
         c_s: int,
         c_s_inputs: int,
         c_noise_embedding: int,
+        debug_logging: bool = False,  # Add debug_logging parameter
     ) -> None:
         """
         Initialize the diffusion conditioning module.
@@ -43,6 +44,7 @@ class DiffusionConditioning(nn.Module):
             c_s: Hidden dimension for single embedding
             c_s_inputs: Input embedding dimension from InputEmbedder
             c_noise_embedding: Noise embedding dimension
+            debug_logging: Enable debug logging (default: False)
         """
         super(DiffusionConditioning, self).__init__()
         self.sigma_data = sigma_data
@@ -50,14 +52,17 @@ class DiffusionConditioning(nn.Module):
         self.c_s = c_s
         self.c_s_inputs = c_s_inputs
         self.c_noise_embedding = c_noise_embedding
-        print(f"[DEBUG][DiffusionConditioning.__init__] c_z={c_z}, c_s={c_s}, c_s_inputs={c_s_inputs}, c_noise_embedding={c_noise_embedding}")
+        self.debug_logging = debug_logging  # Store debug_logging in instance variable
+        if debug_logging:
+            print(f"[DEBUG][DiffusionConditioning.__init__] c_z={c_z}, c_s={c_s}, c_s_inputs={c_s_inputs}, c_noise_embedding={c_noise_embedding}")
 
         # Pair feature processing
         self.relpe = RelativePositionEncoding(c_z=c_z)
         # Use a more flexible approach for layernorm_z
         # We'll initialize it with the expected dimension but it can be updated dynamically
         self.expected_z_dim = 2 * self.c_z
-        print(f"[DEBUG][DiffusionConditioning] expected_z_dim: {self.expected_z_dim}")
+        if debug_logging:
+            print(f"[DEBUG][DiffusionConditioning] expected_z_dim: {self.expected_z_dim}")
         # Initialize with the expected dimension, but we'll update it if needed
         self.layernorm_z = LayerNorm(self.expected_z_dim)
         self.linear_no_bias_z = LinearNoBias(
@@ -67,7 +72,8 @@ class DiffusionConditioning(nn.Module):
         self.transition_z2 = Transition(c_in=self.c_z, n=2)
 
         # Single feature processing
-        print(f"[DEBUG][DiffusionConditioning] layernorm_s normalized_shape: {self.c_s + self.c_s_inputs}")
+        if debug_logging:
+            print(f"[DEBUG][DiffusionConditioning] layernorm_s normalized_shape: {self.c_s + self.c_s_inputs}")
         self.layernorm_s = LayerNorm(self.c_s + self.c_s_inputs)
         self.linear_no_bias_s = LinearNoBias(
             in_features=self.c_s + self.c_s_inputs, out_features=self.c_s
@@ -75,7 +81,8 @@ class DiffusionConditioning(nn.Module):
 
         # Noise embedding processing
         self.fourier_embedding = FourierEmbedding(c=self.c_noise_embedding)
-        print(f"[DEBUG][DiffusionConditioning] layernorm_n normalized_shape: {self.c_noise_embedding}")
+        if debug_logging:
+            print(f"[DEBUG][DiffusionConditioning] layernorm_n normalized_shape: {self.c_noise_embedding}")
         self.layernorm_n = LayerNorm(self.c_noise_embedding)
         self.linear_no_bias_n = LinearNoBias(
             in_features=self.c_noise_embedding, out_features=self.c_s
@@ -146,9 +153,11 @@ class DiffusionConditioning(nn.Module):
             z_trunk = z_trunk.reshape(z_trunk_shape[0], z_trunk_shape[1]*z_trunk_shape[2],
                                      z_trunk_shape[3], z_trunk_shape[4], z_trunk_shape[5])
 
-        print(f"[DEBUG][_process_pair_features] z_trunk.shape={z_trunk.shape}, relpe_output.shape={relpe_output.shape}")
+        if self.debug_logging:
+            print(f"[DEBUG][_process_pair_features] z_trunk.shape={z_trunk.shape}, relpe_output.shape={relpe_output.shape}")
         pair_z = torch.cat([z_trunk, relpe_output], dim=-1)
-        print(f"[DEBUG][_process_pair_features] pair_z.shape before layernorm_z={pair_z.shape}")
+        if self.debug_logging:
+            print(f"[DEBUG][_process_pair_features] pair_z.shape before layernorm_z={pair_z.shape}")
 
         # Create or update layernorm_z based on the actual input dimensions
         actual_z_dim = pair_z.shape[-1]
@@ -156,7 +165,8 @@ class DiffusionConditioning(nn.Module):
         # Check if layernorm_z is None or has the wrong shape
         layernorm_z_shape_info = "None" if self.layernorm_z is None else self.layernorm_z.normalized_shape[0]
         if self.layernorm_z is None or (hasattr(self.layernorm_z, 'normalized_shape') and self.layernorm_z.normalized_shape[0] != actual_z_dim):
-            print(f"[DEBUG][_process_pair_features] Creating new layernorm_z with normalized_shape={actual_z_dim} (current shape: {layernorm_z_shape_info})")
+            if self.debug_logging:
+                print(f"[DEBUG][_process_pair_features] Creating new layernorm_z with normalized_shape={actual_z_dim} (current shape: {layernorm_z_shape_info})")
             self.layernorm_z = LayerNorm(actual_z_dim).to(pair_z.device)
 
         # Apply layernorm and linear transformation
@@ -164,7 +174,8 @@ class DiffusionConditioning(nn.Module):
 
         # If the linear layer's input dimension doesn't match, create a new one
         if self.linear_no_bias_z.in_features != actual_z_dim:
-            print(f"[DEBUG][_process_pair_features] Creating new linear_no_bias_z with in_features={actual_z_dim}")
+            if self.debug_logging:
+                print(f"[DEBUG][_process_pair_features] Creating new linear_no_bias_z with in_features={actual_z_dim}")
             self.linear_no_bias_z = LinearNoBias(
                 in_features=actual_z_dim,
                 out_features=self.c_z
@@ -188,7 +199,8 @@ class DiffusionConditioning(nn.Module):
         inplace_safe: bool = False,
     ) -> torch.Tensor:
         """Process single features through the conditioning pipeline."""
-        print(f"[STAGED DEBUG] _process_single_features: s_trunk.shape={s_trunk.shape}, s_inputs.shape={s_inputs.shape}, c_s={self.c_s}, c_s_inputs={self.c_s_inputs}, expected_in_features={self.c_s + self.c_s_inputs}")
+        if self.debug_logging:
+            print(f"[STAGED DEBUG] _process_single_features: s_trunk.shape={s_trunk.shape}, s_inputs.shape={s_inputs.shape}, c_s={self.c_s}, c_s_inputs={self.c_s_inputs}, expected_in_features={self.c_s + self.c_s_inputs}")
 
         # CRITICAL FIX: Handle token dimension mismatch between s_trunk and s_inputs
         # This is a fallback in case the bridging_utils.py fix didn't catch it
@@ -286,10 +298,12 @@ class DiffusionConditioning(nn.Module):
             }
         )
         single_s = torch.cat([adapted_s_trunk, adapted_s_inputs], dim=-1)
-        print(f"[STAGED DEBUG] After concat: single_s.shape={single_s.shape}")
+        if self.debug_logging:
+            print(f"[STAGED DEBUG] After concat: single_s.shape={single_s.shape}")
 
         single_s = self.linear_no_bias_s(single_s)
-        print(f"[STAGED DEBUG] After linear_no_bias_s: single_s.shape={single_s.shape}")
+        if self.debug_logging:
+            print(f"[STAGED DEBUG] After linear_no_bias_s: single_s.shape={single_s.shape}")
 
         if inplace_safe:
             single_s += self.transition_s1(single_s)
@@ -298,7 +312,8 @@ class DiffusionConditioning(nn.Module):
             single_s = single_s + self.transition_s1(single_s)
             single_s = single_s + self.transition_s2(single_s)
 
-        print(f"[STAGED DEBUG] After transitions: single_s.shape={single_s.shape}")
+        if self.debug_logging:
+            print(f"[STAGED DEBUG] After transitions: single_s.shape={single_s.shape}")
         return single_s
 
     ###@snoop
@@ -307,11 +322,13 @@ class DiffusionConditioning(nn.Module):
         input_feature_dict: Dict[str, Union[torch.Tensor, int, float, Dict[str, Any]]],
         t_hat_noise_level: torch.Tensor,
         device: Optional[torch.device] = None,
+        debug_logging: bool = False,  # Add debug_logging argument
     ) -> Dict[str, Any]:
         """Ensure the input feature dictionary has required keys and correct types."""
         # Always use the provided device or fall back to t_hat_noise_level.device
         target_device = device if device is not None else t_hat_noise_level.device
-        print(f"[DEVICE-DEBUG][StageD] _ensure_input_feature_dict: using device {target_device}")
+        if debug_logging:
+            print(f"[DEVICE-DEBUG][StageD] _ensure_input_feature_dict: using device {target_device}")
         result: Dict[str, Any] = {}
 
         # List of keys to always pass through if present
@@ -368,12 +385,13 @@ class DiffusionConditioning(nn.Module):
         Returns:
             Tuple of processed single and pair embeddings
         """
-        print(f"[STAGED DEBUG] DiffusionConditioning.forward: c_s={self.c_s}, c_s_inputs={self.c_s_inputs}, expected_in_features={self.c_s + self.c_s_inputs}")
-        print(f"[STAGED DEBUG] s_trunk.shape={s_trunk.shape}, s_inputs.shape={s_inputs.shape}")
+        if self.debug_logging:
+            print(f"[STAGED DEBUG] DiffusionConditioning.forward: c_s={self.c_s}, c_s_inputs={self.c_s_inputs}, expected_in_features={self.c_s + self.c_s_inputs}")
+            print(f"[STAGED DEBUG] s_trunk.shape={s_trunk.shape}, s_inputs.shape={s_inputs.shape}")
 
         # Ensure required keys are present with correct types
         processed_input_dict = self._ensure_input_feature_dict(
-            input_feature_dict, t_hat_noise_level, device=device
+            input_feature_dict, t_hat_noise_level, device=device, debug_logging=self.debug_logging
         )
 
         # Process pair features
