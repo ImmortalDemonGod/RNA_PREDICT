@@ -181,12 +181,12 @@ class ProtenixDiffusionManager(torch.nn.Module):
                 "[StageD] Initializing DiffusionModule from scratch (no checkpoint loaded)"
             )
             self.diffusion_module = DiffusionModule(
-                **self.config.diffusion_module_args
+                cfg=self.config.diffusion_module_args
             ).to(self.device)
         else:
             try:
                 self.diffusion_module = DiffusionModule(
-                    **self.config.diffusion_module_args
+                    cfg=self.config.diffusion_module_args
                 ).to(self.device)
             except TypeError as e:
                 logger.error(f"Error initializing DiffusionModule: {e}")
