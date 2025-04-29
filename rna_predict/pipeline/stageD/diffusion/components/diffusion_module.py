@@ -45,6 +45,7 @@ class DiffusionModule(nn.Module):
         Args:
             cfg: Hydra config for Stage D Diffusion (should be DictConfig or structured)
         """
+        
         super().__init__()
         # Validate config structure
         required_fields = [
@@ -65,11 +66,15 @@ class DiffusionModule(nn.Module):
         c_s_inputs = arch.c_s_inputs
         c_noise_embedding = arch.c_noise_embedding
 
+        # Store c_s as an attribute for later use (needed by _prepare_decoder_params)
+        self.c_s = c_s
+
         # Extract transformer/encoder/decoder configs
         atom_encoder = OmegaConf.to_container(cfg.atom_encoder, resolve=True)
         transformer = OmegaConf.to_container(cfg.transformer, resolve=True)
         atom_decoder = OmegaConf.to_container(cfg.atom_decoder, resolve=True)
         blocks_per_ckpt = transformer.get("blocks_per_ckpt", None)
+        self.blocks_per_ckpt = blocks_per_ckpt
         initialization = cfg.get("initialization", {})
         debug_logging = cfg.debug_logging
 
@@ -106,8 +111,9 @@ class DiffusionModule(nn.Module):
             n_heads=atom_encoder["n_heads"],
             n_queries=atom_encoder["n_queries"],
             n_keys=atom_encoder["n_keys"],
+            debug_logging=debug_logging,
         )
-        self.atom_attention_encoder = AtomAttentionEncoder(config=encoder_config, debug_logging=debug_logging)
+        self.atom_attention_encoder = AtomAttentionEncoder(config=encoder_config)
 
         self.layernorm_s = LayerNorm(c_s)
         self.linear_no_bias_s = LinearNoBias(in_features=c_s, out_features=c_token)
@@ -121,7 +127,7 @@ class DiffusionModule(nn.Module):
             "c_z": c_z,
             "blocks_per_ckpt": blocks_per_ckpt
         }
-        self.diffusion_transformer = DiffusionTransformer(**transformer_params, debug_logging=debug_logging)
+        self.diffusion_transformer = DiffusionTransformer(**transformer_params)
         self.layernorm_a = LayerNorm(c_token)
 
         # --- AtomAttentionDecoder ---
@@ -137,8 +143,9 @@ class DiffusionModule(nn.Module):
             n_heads=atom_decoder["n_heads"],
             n_queries=atom_decoder["n_queries"],
             n_keys=atom_decoder["n_keys"],
+            debug_logging=debug_logging,
         )
-        self.atom_attention_decoder = AtomAttentionDecoder(config=decoder_config, debug_logging=debug_logging)
+        self.atom_attention_decoder = AtomAttentionDecoder(config=decoder_config)
 
         # Handle initialization safely
         if initialization is None:
