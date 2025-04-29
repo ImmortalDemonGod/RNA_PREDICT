@@ -7,6 +7,7 @@ from rna_predict.conf.config_schema import register_configs
 from rna_predict.training.rna_lightning_module import RNALightningModule
 from rna_predict.dataset.loader import RNADataset
 from rna_predict.dataset.collate import rna_collate_fn
+from lightning.pytorch.callbacks import ModelCheckpoint
 
 # Get the project root directory
 PROJECT_ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -75,7 +76,6 @@ def main(cfg: DictConfig):
         print("[DEBUG][main] First batch keys:", list(first_batch.keys()))
         for k, v in first_batch.items():
             if hasattr(v, 'shape'):
-                # Handle potential bytes objects by using repr for display
                 shape_val = getattr(v, 'shape', None)
                 dtype_val = getattr(v, 'dtype', None)
                 requires_grad_val = getattr(v, 'requires_grad', 'N/A')
@@ -83,8 +83,20 @@ def main(cfg: DictConfig):
             else:
                 print(f"[DEBUG][main] Key: {k!r}, Type: {type(v)!r}")
         print("[DEBUG] First batch device: {!r}".format(first_batch['coords_true'].device))
-        trainer = L.Trainer(fast_dev_run=True)
+        # Add ModelCheckpoint callback
+        checkpoint_callback = ModelCheckpoint(
+            dirpath="outputs/checkpoints",
+            save_top_k=1,
+            monitor=None,  # No validation metric for now
+            save_last=True
+        )
+        trainer = L.Trainer(
+            callbacks=[checkpoint_callback],
+            max_epochs=1,  # Run at least one epoch
+            # Remove fast_dev_run
+        )
         trainer.fit(model, dl)
+        print(f"[DEBUG] Checkpoints saved to: {checkpoint_callback.dirpath}")
     except Exception as e:
         print("[ERROR] Exception during dataset/dataloader setup: {!r}".format(e))
 
