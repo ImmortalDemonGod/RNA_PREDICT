@@ -39,6 +39,45 @@ rna_predict
 
 ---
 
+### 🚀 RNA_PREDICT Inference Pipeline: Running Predictions
+
+#### 🔥 Recommended Command (with Explanation)
+
+```bash
+uv run rna_predict/predict.py \
+  input_csv=rna_predict/dataset/examples/kaggle_minimal_index.csv \
+  checkpoint_path=outputs/2025-04-28/16-07-58/outputs/checkpoints/last.ckpt \
+  output_dir=outputs/predict_M2_test/ \
+  fast_dev_run=true \
+  > dev_run_output.txt 2>&1
+```
+
+- **uv run rna_predict/predict.py**: Runs the main prediction pipeline using the project's preferred Python runner (never use `python` directly).
+- **input_csv=...**: Path to the CSV file listing RNA sequences for prediction.
+- **checkpoint_path=...**: Path to the model checkpoint to use for inference.
+- **output_dir=...**: Where to save all prediction outputs (CSV, PDB, and .pt files).
+- **fast_dev_run=true**: (Optional) Runs a single sequence for quick debugging.
+- **> dev_run_output.txt 2>&1**: Redirects all output (including errors) to a log file for later inspection.
+
+#### 🗂️ Output Files
+- **prediction_{i}.csv**: Atom-level coordinates (atom name, residue index, x, y, z) for each prediction.
+- **prediction_{i}.pdb**: Standard PDB file for molecular visualization.
+- **prediction_{i}.pt**: (Optional) PyTorch dictionary for internal use.
+- **summary.csv**: Atom counts and summary for all predictions.
+
+#### 💡 Why these formats?
+- **CSV**: Easy to inspect, analyze, or import into data tools.
+- **PDB**: Standard for 3D structure visualization (PyMOL, Chimera, VMD, etc).
+- **.pt**: For advanced PyTorch workflows/debugging.
+
+#### 📝 Notes
+- Always use `uv run` for all project scripts for correct environment handling.
+- You can customize `input_csv`, `checkpoint_path`, and `output_dir` as needed.
+- For full pipeline or batch prediction, set `fast_dev_run=false` (or omit).
+- All outputs are saved in the specified `output_dir`.
+
+---
+
 ### 🛠️ Development
 
 Refer to the [CONTRIBUTING.md](CONTRIBUTING.md) file.
