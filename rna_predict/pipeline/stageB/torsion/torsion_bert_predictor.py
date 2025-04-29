@@ -18,6 +18,15 @@ DEFAULT_MAX_LENGTH = 512
 DEFAULT_MODEL_PATH = "sayby/rna_torsionbert"
 DEFAULT_NUM_ANGLES = 7
 
+# --- LoRA/PEFT import ---
+try:
+    from peft import get_peft_model, LoraConfig
+    _HAS_PEFT = True
+except ImportError:
+    _HAS_PEFT = False
+    LoraConfig = None
+    get_peft_model = None
+
 class StageBTorsionBertPredictor(nn.Module):
     """Predicts RNA torsion angles using the TorsionBERT model."""
 
@@ -147,12 +156,14 @@ class StageBTorsionBertPredictor(nn.Module):
         self.checkpoint_path = getattr(torsion_cfg, 'checkpoint_path', None)
         # debug_logging is already set earlier
         self.lora_cfg = getattr(torsion_cfg, 'lora', None)
+        self.lora_applied = False
 
         if self.debug_logging:
             logger.info(f"Initializing TorsionBERT predictor with device: {self.device}")
             logger.info(f"Model path: {self.model_name_or_path}")
             logger.info(f"Angle mode: {self.angle_mode}")
             logger.info(f"Max length: {self.max_length}")
+            logger.info(f"LoRA config: {self.lora_cfg}")
 
         # --- Load Model and Tokenizer ---
         if getattr(cfg, 'init_from_scratch', False):
@@ -176,6 +187,38 @@ class StageBTorsionBertPredictor(nn.Module):
             if not is_test_mode and (isinstance(self.model, MagicMock) or isinstance(self.tokenizer, MagicMock)):
                 raise AssertionError("[UNIQUE-ERR-HYDRA-MOCK-MODEL] TorsionBertModel initialized with MagicMock model or tokenizer. Check Hydra config and test patching.")
 
+        # --- LoRA/PEFT integration ---
+        if _HAS_PEFT and self.lora_cfg and getattr(self.lora_cfg, 'enabled', True):
+            lora_params = dict()
+            # Map config fields if present
+            for k in ['r', 'lora_alpha', 'lora_dropout', 'target_modules', 'bias', 'modules_to_save']:
+                if hasattr(self.lora_cfg, k):
+                    lora_params[k] = getattr(self.lora_cfg, k)
+            lora_config = LoraConfig(**lora_params)
+            # Check if any target_modules exist in model
+            target_modules = lora_params.get('target_modules', [])
+            found_any = False
+            for name, _ in self.model.named_modules():
+                if any(tm in name for tm in target_modules):
+                    found_any = True
+                    break
+            if found_any:
+                self.model = get_peft_model(self.model, lora_config)
+                self.lora_applied = True
+                logger.info("[LoRA] TorsionBERT model wrapped with LoRA.")
+                # Freeze all parameters except LoRA
+                for n, p in self.model.named_parameters():
+                    if not any(["lora" in n, "adapter" in n]):
+                        p.requires_grad = False
+                for n, p in self.model.named_parameters():
+                    logger.debug(f"[LoRA] Param {n} requires_grad={p.requires_grad}")
+            else:
+                self.lora_applied = False
+                logger.warning(f"[LoRA] No target_modules found in model for LoRA adaptation: {target_modules}. Skipping LoRA wrapping.")
+        else:
+            self.lora_applied = False
+            logger.info("[LoRA] LoRA not applied (missing PEFT, config, or disabled). All params trainable.")
+
         self.model.eval()
         logger.info("TorsionBERT model and tokenizer loaded successfully.")
 
@@ -191,6 +234,19 @@ class StageBTorsionBertPredictor(nn.Module):
             self.output_dim = self.num_angles
         if self.debug_logging:
             logger.info(f"Expected model output dimension: {self.output_dim}")
+
+    def get_trainable_parameters(self):
+        """Return only trainable (LoRA) parameters for optimizer."""
+        if getattr(self, 'lora_applied', False):
+            params = [p for n, p in self.model.named_parameters() if p.requires_grad]
+            if self.debug_logging:
+                logger.info(f"[LoRA] Returning {len(params)} trainable parameters (should be LoRA-only)")
+            return params
+        else:
+            params = [p for p in self.model.parameters() if p.requires_grad]
+            if self.debug_logging:
+                logger.info(f"[LoRA] Returning {len(params)} trainable parameters (all trainable)")
+            return params
 
     def _preprocess_sequence(self, sequence: str) -> Dict[str, torch.Tensor]:
         """Preprocesses the RNA sequence for the TorsionBERT model."""
