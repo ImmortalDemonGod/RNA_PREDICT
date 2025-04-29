@@ -158,7 +158,9 @@ class AtomAttentionEncoder(nn.Module):
             s=s,
             z=z,  # z is passed but not explicitly used in process_inputs_with_coords currently
             c_l=c_l,
+            q_l=c_l,
             chunk_size=chunk_size,
+            restype=input_feature_dict.get("restype", None),
         )
 
         # Full processing path for coordinated case using refactored logic
@@ -222,7 +224,9 @@ class AtomAttentionEncoder(nn.Module):
             s=s,
             z=z,
             c_l=c_l,  # Now properly initialized
+            q_l=c_l,
             chunk_size=chunk_size,
+            restype=input_feature_dict.get("restype", None),
         )
         return process_inputs_with_coords(self, process_params)
 
