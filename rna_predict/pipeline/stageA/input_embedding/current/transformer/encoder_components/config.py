@@ -61,3 +61,5 @@ class ProcessInputsParams:
     z: Optional[torch.Tensor]
     c_l: torch.Tensor
     chunk_size: Optional[int] = None
+    q_l: Optional[torch.Tensor] = None
+    restype: Optional[torch.Tensor] = None
