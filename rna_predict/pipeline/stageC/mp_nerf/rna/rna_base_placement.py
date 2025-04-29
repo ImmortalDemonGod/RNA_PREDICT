@@ -73,6 +73,8 @@ def place_rna_bases(
             if torch.isnan(full_coords[i, idx, :]).any():
                 logger.error(f"[UNIQUE-ERR-RNA-NAN-BACKBONE-COPY] NaN after backbone copy at residue {i}, atom {BACKBONE_ATOMS[idx]}, seq={seq}")
 
+    printed_grad_debug = False  # Add this flag at the start of the function
+
     # Place base atoms for each residue
     for i, base in enumerate(seq):
         atom_list = STANDARD_RNA_ATOMS[base]
@@ -308,8 +310,9 @@ def place_rna_bases(
             # --- DEBUG: Check requires_grad and grad_fn after base placement ---
             if isinstance(full_coords, torch.Tensor):
                 logger.debug(f"[GRAD-TRACE-BASE-PLACEMENT] full_coords.requires_grad: {full_coords.requires_grad}, grad_fn: {full_coords.grad_fn}")
-                if debug_logging:
+                if debug_logging and not printed_grad_debug:
                     print(f"[DEBUG-GRAD-PRINT-BASE-PLACEMENT] full_coords.requires_grad: {full_coords.requires_grad}, grad_fn: {full_coords.grad_fn}")
+                    printed_grad_debug = True
     # After all placements, fill any remaining NaNs with zero and log unique error
     if isinstance(full_coords, torch.Tensor) and torch.isnan(full_coords).any():
         logger.error("[UNIQUE-ERR-RNA-NAN-ZERO-FILL] NaNs detected in output after placement; filling with zeros.")
