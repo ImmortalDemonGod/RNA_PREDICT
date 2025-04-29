@@ -11,7 +11,6 @@ from omegaconf import DictConfig
 from torch import device as torch_device
 
 # Local imports
-from rna_predict.pipeline.stageA.adjacency.rfold_predictor import StageARFoldPredictor
 from rna_predict.pipeline.stageB.main import run_stageB_combined
 from rna_predict.pipeline.stageB.pairwise.pairformer_wrapper import PairformerWrapper
 from rna_predict.pipeline.stageB.torsion.torsion_bert_predictor import (
@@ -26,6 +25,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 # Stage A
+
 
 # Stage B
 
@@ -131,12 +131,23 @@ def run_stage_a(cfg: DictConfig) -> tuple[torch.Tensor, str]:
 
     # Stage A: Get adjacency matrix
     logger.info("Stage A: Predicting RNA adjacency matrix...")
+
     # Use objects for model handles if provided (test/mocking)
+    if hasattr(cfg, "_objects") and "stageA_predictor" in cfg._objects:
+        stageA_predictor = cfg._objects["stageA_predictor"]
+        logger.info("Using stageA_predictor from _objects")
+    else:
+        # Import here to allow for patching in tests
+        from rna_predict.pipeline.stageA.adjacency.rfold_predictor import StageARFoldPredictor
 
-    # Check if stageA_predictor is provided in _objects (for testing)
-
-    stageA_predictor = cfg._objects["stageA_predictor"]
-    logger.info("Using stageA_predictor from _objects")
+        # Enforce config presence and fail fast if missing
+        if not hasattr(cfg, "model") or not hasattr(cfg.model, "stageA"):
+            raise ValueError(
+                "Missing required configuration: cfg.model.stageA. "
+                "Please update your Hydra config files to include model.stageA. "
+                "See conf/default.yaml and related config groups."
+            )
+        stageA_predictor = StageARFoldPredictor(stage_cfg=cfg.model.stageA, device=device)
 
     adjacency_np: NDArray = stageA_predictor.predict_adjacency(sequence)
     adjacency_np = check_for_nans(adjacency_np, "adjacency_np (Stage A output)", cfg)
