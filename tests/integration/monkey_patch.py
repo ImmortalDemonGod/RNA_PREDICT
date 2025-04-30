@@ -57,5 +57,10 @@ def new_init(self, cfg=None):
     # Dummy layer for integration test to ensure trainability
     self._integration_test_dummy = torch.nn.Linear(16, 21 * 3)
 
-# Apply the monkey patch
+def apply_monkey_patches():
+    """Apply all monkey patches defined in this module."""
+    # Apply the monkey patch to RNALightningModule.__init__
+    RNALightningModule.__init__ = new_init
+
+# Apply the monkey patch when the module is imported
 RNALightningModule.__init__ = new_init
