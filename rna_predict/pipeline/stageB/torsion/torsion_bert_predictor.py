@@ -2,7 +2,7 @@ import logging
 import torch
 import os
 import psutil
-from typing import Dict, Any
+from typing import Dict, Any, Optional, Callable
 from omegaconf import DictConfig
 from transformers import AutoTokenizer, AutoModel
 from .torsionbert_inference import DummyTorsionBertAutoModel
@@ -188,13 +188,15 @@ class StageBTorsionBertPredictor(nn.Module):
                 raise AssertionError("[UNIQUE-ERR-HYDRA-MOCK-MODEL] TorsionBertModel initialized with MagicMock model or tokenizer. Check Hydra config and test patching.")
 
         # --- LoRA/PEFT integration ---
+        LoraConfigType: Optional[type[LoraConfig]] = LoraConfig if _HAS_PEFT else None
+        peft_model_fn: Optional[Callable[[Any, LoraConfigType, str, bool, bool, Optional[str], bool], Any]] = get_peft_model if _HAS_PEFT else None
         if _HAS_PEFT and self.lora_cfg and getattr(self.lora_cfg, 'enabled', True):
             lora_params = dict()
             # Map config fields if present
             for k in ['r', 'lora_alpha', 'lora_dropout', 'target_modules', 'bias', 'modules_to_save']:
                 if hasattr(self.lora_cfg, k):
                     lora_params[k] = getattr(self.lora_cfg, k)
-            lora_config = LoraConfig(**lora_params)
+            lora_config = LoraConfigType(**lora_params) if LoraConfigType else None
             # Check if any target_modules exist in model
             target_modules = lora_params.get('target_modules', [])
             found_any = False
@@ -203,7 +205,7 @@ class StageBTorsionBertPredictor(nn.Module):
                     found_any = True
                     break
             if found_any:
-                self.model = get_peft_model(self.model, lora_config)
+                self.model = peft_model_fn(self.model, lora_config, self.model_name_or_path, self.lora_cfg.r, self.lora_cfg.lora_alpha, self.lora_cfg.target_modules, self.lora_cfg.bias) if peft_model_fn else self.model
                 self.lora_applied = True
                 logger.info("[LoRA] TorsionBERT model wrapped with LoRA.")
                 # Freeze all parameters except LoRA
