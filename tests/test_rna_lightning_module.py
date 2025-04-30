@@ -88,7 +88,6 @@ config = OmegaConf.create({
     },
 })
 
-import pytest
 
 def test_rna_lightning_module_initialization():
     """Test that the RNALightningModule can be initialized with the config."""

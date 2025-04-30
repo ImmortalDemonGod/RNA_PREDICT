@@ -596,7 +596,7 @@ def test_stageA_debug_logging_hypothesis(rna_seq: str, debug_val: bool, caplog):
 
     # Store original state
     original_level = rfold_logger.level
-    original_handlers = list(rfold_logger.handlers)
+    list(rfold_logger.handlers)
     original_propagate = rfold_logger.propagate
 
     # Configure logger for test
@@ -714,7 +714,7 @@ def test_stageC_debug_logging_hypothesis(
 
     # Create a simplified test that directly tests the logging behavior without running the full pipeline
     import logging
-    from unittest.mock import patch, MagicMock
+    from unittest.mock import patch
     import torch
 
     # Set caplog level to DEBUG to capture all logs
