@@ -11,7 +11,6 @@ from rna_predict.pipeline.stageC.stage_c_reconstruction import StageCReconstruct
 from rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager import ProtenixDiffusionManager
 from rna_predict.pipeline.merger.simple_latent_merger import SimpleLatentMerger
 import logging
-import sys
 import os
 import shutil
 import urllib.request
@@ -213,8 +212,7 @@ class RNALightningModule(L.LightningModule):
 
     ##@snoop
     def forward(self, batch, **kwargs):
-        print("[DEBUG-ENTRY] Entered forward")
-        sys.stdout.flush()
+        logger.debug("[DEBUG-ENTRY] Entered forward")
         logger.debug("[DEBUG-LM] Entered forward")
 
         # Handle integration test mode with tensor input
@@ -249,19 +247,9 @@ class RNALightningModule(L.LightningModule):
         logger.debug("[DEBUG-LM][STAGEB] torsion_angles.requires_grad: %s", getattr(torsion_angles, 'requires_grad', None))
         logger.debug("[DEBUG-LM][STAGEB] torsion_angles.grad_fn: %s", getattr(torsion_angles, 'grad_fn', None))
         logger.debug("[DEBUG-LM][STAGEB] torsion_angles.device: %s", getattr(torsion_angles, 'device', None))
-        print("[EXPERIMENT-STAGEB] torsion_angles.requires_grad:", getattr(torsion_angles, 'requires_grad', None))
-        print("[EXPERIMENT-STAGEB] torsion_angles.grad_fn:", getattr(torsion_angles, 'grad_fn', None))
-        print("[EXPERIMENT-STAGEB] torsion_angles.device:", getattr(torsion_angles, 'device', None))
-        sys.stdout.flush()
-        print("REACHED STAGEB PRE-STAGEC PRINTS")
-        sys.stdout.flush()
         logger.debug("[DEBUG-LM] [PRE-STAGEC] torsion_angles requires_grad: %s", getattr(torsion_angles, 'requires_grad', None))
         logger.debug("[DEBUG-LM] [PRE-STAGEC] torsion_angles grad_fn: %s", getattr(torsion_angles, 'grad_fn', None))
         logger.debug("[DEBUG-LM] [PRE-STAGEC] torsion_angles device: %s", getattr(torsion_angles, 'device', None))
-        print("[EXPERIMENT-PRE-STAGEC] torsion_angles.requires_grad:", getattr(torsion_angles, 'requires_grad', None))
-        print("[EXPERIMENT-PRE-STAGEC] torsion_angles.grad_fn:", getattr(torsion_angles, 'grad_fn', None))
-        print("[EXPERIMENT-PRE-STAGEC] torsion_angles.device:", getattr(torsion_angles, 'device', None))
-        sys.stdout.flush()
         outB_pairformer = self.stageB_pairformer.predict(sequence, adjacency=adj)
         logger.debug("[DEBUG-LM] StageB_pairformer output type: %s", type(outB_pairformer))
         # Additional: Check for .detach(), .cpu(), .numpy(), .clone(), .to(), or torch.no_grad() in this section
@@ -337,8 +325,7 @@ class RNALightningModule(L.LightningModule):
 
     ##@snoop
     def training_step(self, batch, batch_idx):
-        print("[DEBUG-ENTRY] Entered training_step")
-        sys.stdout.flush()
+        logger.debug("[DEBUG-ENTRY] Entered training_step")
         logger.debug("[DEBUG-LM] Entered training_step")
         # Print requires_grad for all model parameters
         logger.debug("[DEBUG][training_step] Model parameters requires_grad status:")
@@ -363,10 +350,13 @@ class RNALightningModule(L.LightningModule):
         predicted_coords = output["coords"] if isinstance(output, dict) and "coords" in output else output
         logger.debug("[DEBUG-LM][GRAD-CHECK] Stage C predicted_coords.requires_grad: %s", getattr(predicted_coords, 'requires_grad', None))
         logger.debug("[DEBUG-LM][GRAD-CHECK] Stage C predicted_coords.grad_fn: %s", getattr(predicted_coords, 'grad_fn', None))
-        print("[DEBUG-PRE-ERROR] About to check differentiability")
-        sys.stdout.flush()
-        assert getattr(predicted_coords, 'requires_grad', False), "Stage C output coords must be differentiable!"
-        assert getattr(predicted_coords, 'grad_fn', None) is not None, "Stage C output coords must have a grad_fn!"
+        logger.debug("[DEBUG-LM] About to check differentiability")
+        if not getattr(predicted_coords, 'requires_grad', False):
+            logger.error("Stage C output is not differentiable  cannot back-prop")
+            raise RuntimeError("Stage C produced non-differentiable coords")
+        if getattr(predicted_coords, 'grad_fn', None) is None:
+            logger.error("Stage C output coords must have a grad_fn!")
+            raise RuntimeError("Stage C output coords must have a grad_fn!")
         pred_atom_metadata = output.get("atom_metadata", None)
         # Force systematic masking if atom_metadata is present
         if pred_atom_metadata is not None:
