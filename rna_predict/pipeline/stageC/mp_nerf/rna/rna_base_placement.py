@@ -139,13 +139,10 @@ def place_rna_bases(
                 found = False
                 for ref_i in range(len(ref_coords)):
                     for ref_j in range(ref_i+1, len(ref_coords)):
-                        if (
-                            isinstance(ref_coords[ref_i], torch.Tensor)
-                            and isinstance(ref_coords[ref_j], torch.Tensor)
-                            and not torch.allclose(ref_coords[ref_i], ref_coords[ref_j], atol=1e-6)
-                        ):
-                            found = True
-                            break
+                        if isinstance(ref_coords[ref_i], torch.Tensor) and isinstance(ref_coords[ref_j], torch.Tensor):
+                            if not torch.allclose(ref_coords[ref_i], ref_coords[ref_j]):
+                                found = True
+                                break
                     if found:
                         break
                 if not found:
@@ -159,20 +156,22 @@ def place_rna_bases(
                 ref1, ref2, ref3 = None, None, None
                 for ref_i1 in range(len(ref_coords)):
                     for ref_i2 in range(ref_i1+1, len(ref_coords)):
-                        if not torch.allclose(ref_coords[ref_i1], ref_coords[ref_i2], atol=1e-6):
-                            ref1 = ref_coords[ref_i1]
-                            ref2 = ref_coords[ref_i2]
-                            ref1_name = ref_names[ref_i1]
-                            ref2_name = ref_names[ref_i2]
-                            break
+                        if isinstance(ref_coords[ref_i1], torch.Tensor) and isinstance(ref_coords[ref_i2], torch.Tensor):
+                            if not torch.allclose(ref_coords[ref_i1], ref_coords[ref_i2]):
+                                ref1 = ref_coords[ref_i1]
+                                ref2 = ref_coords[ref_i2]
+                                ref1_name = ref_names[ref_i1]
+                                ref2_name = ref_names[ref_i2]
+                                break
                     if ref1 is not None:
                         break
                 # Choose a third reference distinct from the first two, or create an artificial one
                 ref3 = None
                 for ref_k in range(len(ref_coords)):
-                    if not torch.allclose(ref_coords[ref_k], ref1, atol=1e-6) and not torch.allclose(ref_coords[ref_k], ref2, atol=1e-6):
-                        ref3 = ref_coords[ref_k]
-                        break
+                    if isinstance(ref_coords[ref_k], torch.Tensor):
+                        if not torch.allclose(ref_coords[ref_k], ref1) and not torch.allclose(ref_coords[ref_k], ref2):
+                            ref3 = ref_coords[ref_k]
+                            break
                 if ref3 is None:
                     # Create a third reference offset from ref1
                     ref3 = ref1 + torch.tensor([0.0, 1.0, 0.0], device=device)
@@ -257,11 +256,11 @@ def place_rna_bases(
                 torsion_angle = 0.0
                 # Convert to tensors if needed
                 if not torch.is_tensor(bond_length):
-                    bond_length = torch.tensor(bond_length, dtype=ref2.dtype if isinstance(ref2, torch.Tensor) else torch.float32, device=device)
+                    bond_length = torch.tensor(bond_length, dtype=torch.float32, device=device)
                 if not torch.is_tensor(bond_angle):
-                    bond_angle = torch.tensor(bond_angle, dtype=ref2.dtype if isinstance(ref2, torch.Tensor) else torch.float32, device=device)
+                    bond_angle = torch.tensor(bond_angle, dtype=torch.float32, device=device)
                 if not torch.is_tensor(torsion_angle):
-                    torsion_angle = torch.tensor(torsion_angle, dtype=ref2.dtype if isinstance(ref2, torch.Tensor) else torch.float32, device=device)
+                    torsion_angle = torch.tensor(torsion_angle, dtype=torch.float32, device=device)
                 logger.debug(f"[DEBUG-PLACEMENT] Calling calculate_atom_position(OP1/OP2) with types: bond_length={type(bond_length)}, bond_angle={type(bond_angle)}, torsion_angle={type(torsion_angle)}")
                 try:
                     pos = calculate_atom_position(ref3, ref2, bond_length, bond_angle, torsion_angle, device)
@@ -307,12 +306,12 @@ def place_rna_bases(
                 bond_angle = float(bond_angle)
             # --- Ensure tensor types for bond_length, bond_angle, torsion_angle (default logic) ---
             if not torch.is_tensor(bond_length):
-                bond_length = torch.tensor(bond_length, dtype=ref_atom.dtype if isinstance(ref_atom, torch.Tensor) else torch.float32, device=device)
+                bond_length = torch.tensor(bond_length, dtype=torch.float32, device=device)
             if not torch.is_tensor(bond_angle):
-                bond_angle = torch.tensor(bond_angle, dtype=ref_atom.dtype if isinstance(ref_atom, torch.Tensor) else torch.float32, device=device)
+                bond_angle = torch.tensor(bond_angle, dtype=torch.float32, device=device)
             torsion_angle = 0.0
             if not torch.is_tensor(torsion_angle):
-                torsion_angle = torch.tensor(torsion_angle, dtype=ref_atom.dtype if isinstance(ref_atom, torch.Tensor) else torch.float32, device=device)
+                torsion_angle = torch.tensor(torsion_angle, dtype=torch.float32, device=device)
             logger.debug(f"[DEBUG-PLACEMENT] Calling calculate_atom_position(default) with types: bond_length={type(bond_length)}, bond_angle={type(bond_angle)}, torsion_angle={type(torsion_angle)}")
             # Place the atom
             prev_atoms = [name for name in atom_list[:idx] if name in placed_atoms and isinstance(placed_atoms[name], torch.Tensor)]
