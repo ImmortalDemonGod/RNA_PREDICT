@@ -1,10 +1,8 @@
-import sys
-import os
 import torch
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import OmegaConf
 
-# Add the project root to the Python path
-sys.path.insert(0, os.path.abspath('.'))
+# No need to modify sys.path if the project is properly installed
+# or when using pytest with proper configuration
 
 from rna_predict.pipeline.stageA.adjacency.rfold_predictor import StageARFoldPredictor
 
