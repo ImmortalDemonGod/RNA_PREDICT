@@ -233,7 +233,9 @@ def place_rna_bases(
                     logger.error(f"[UNIQUE-ERR-RNA-NAN-REFS-SEP] NaN or degenerate/ill-separated references for {atom_name} at residue {i} ({unique_refs}) in seq {seq}. sep12={sep12}, sep13={sep13}, sep23={sep23}. Skipping placement.")
                     logger.error(f"[DEBUG-NAN-REFS] {atom_name} residue {i}: ref1={ref1}, ref2={ref2}, ref3={ref3}, unique_refs={unique_refs}")
                     # If these are indices into a coordinate array, log those as well if available
-                    if 'ref_indices' in locals():
+                    # Note: ref_indices is not defined in this context, so we check if it exists in locals()
+                    ref_indices = locals().get('ref_indices', None)
+                    if ref_indices is not None:
                         logger.error(f"[DEBUG-NAN-REFS] Atom indices: {ref_indices}")
                     continue  # Skip placement if references are invalid
                 if logger.isEnabledFor(logging.DEBUG):
