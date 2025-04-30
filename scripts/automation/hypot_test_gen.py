@@ -10,7 +10,9 @@ def fix_leading_zeros(s):
         digits = match.group(2)
         return (sign if sign else '') + str(int(digits))
     # Match optional negative sign, then one or more zeros, then digits
-    return re.sub(r'(-?)0+(\d+)', repl, s)
+    # Use a regex with negative lookbehind and lookahead to match numbers that start with one or more zeros.
+    # The pattern ensures that only isolated numbers are matched.
+    return re.sub(r'(?<!\d)(-?)0+(\d+)(?!\d)', repl, s)
 
 def remove_logger_lines(text):
     import re
