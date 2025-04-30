@@ -280,7 +280,10 @@ def run_pipeline(sequence: str, cfg: Optional[DictConfig] = None):
     # Stage A: Predict adjacency matrix
     # Use the Hydra config for Stage A
     device_str = cfg.model.stageA.device
-    stageA = StageARFoldPredictor(stage_cfg=cfg.model.stageA, device=torch.device(device_str))
+    if isinstance(cfg, DictConfig):
+        stageA = StageARFoldPredictor(stage_cfg=cfg.model.stageA, device=torch.device(device_str))
+    else:
+        raise TypeError("cfg must be a DictConfig")
 
     # Get adjacency matrix
     adjacency_np = stageA.predict_adjacency(sequence)
@@ -293,7 +296,7 @@ def run_pipeline(sequence: str, cfg: Optional[DictConfig] = None):
 
     # Stage B: Predict torsion angles
     if isinstance(cfg, DictConfig):
-        stageB = StageBTorsionBertPredictor(cfg.model if cfg is not None and hasattr(cfg, 'model') else None)
+        stageB = StageBTorsionBertPredictor(cfg.model)
     else:
         raise TypeError("cfg must be a DictConfig")
     outB = stageB(sequence, adjacency=adjacency)
@@ -331,7 +334,7 @@ def demo_gradient_flow_test(cfg: Optional[DictConfig] = None):
     # Initialize models
     try:
         if isinstance(cfg, DictConfig):
-            torsion_predictor = StageBTorsionBertPredictor(cfg.model if cfg is not None and hasattr(cfg, 'model') else None)
+            torsion_predictor = StageBTorsionBertPredictor(cfg.model)
         else:
             raise TypeError("cfg must be a DictConfig")
     except Exception as e:
@@ -340,7 +343,7 @@ def demo_gradient_flow_test(cfg: Optional[DictConfig] = None):
 
     # Initialize Pairformer with config
     if isinstance(cfg, DictConfig):
-        pairformer = PairformerWrapper(cfg.model if cfg is not None and hasattr(cfg, 'model') else None).to(device)
+        pairformer = PairformerWrapper(cfg.model).to(device)
     else:
         raise TypeError("cfg must be a DictConfig")
 
