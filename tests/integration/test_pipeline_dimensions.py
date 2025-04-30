@@ -1,6 +1,5 @@
 import unittest
 import torch
-from rna_predict.pipeline.stageA.adjacency.rfold_predictor import StageARFoldPredictor
 from rna_predict.pipeline.stageB.torsion.torsion_bert_predictor import StageBTorsionBertPredictor
 from rna_predict.pipeline.stageC.stage_c_reconstruction import run_stageC
 from rna_predict.pipeline.stageB.pairwise.pairformer_wrapper import PairformerWrapper
