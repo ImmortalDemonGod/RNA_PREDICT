@@ -61,7 +61,7 @@ def get_atom_to_token_idx(input_feature_dict, num_tokens=None, encoder=None):
         return None
     atom_to_token_idx = safe_tensor_access(input_feature_dict, "atom_to_token_idx")
     if atom_to_token_idx is not None:
-        if num_tokens is not None and atom_to_token_idx.numel() > 0 and torch.is_tensor(atom_to_token_idx) and atom_to_token_idx.max() is not None and num_tokens is not None and atom_to_token_idx.max() >= num_tokens:
+        if num_tokens is not None and atom_to_token_idx.numel() > 0 and torch.is_tensor(atom_to_token_idx) and atom_to_token_idx.max() is not None and num_tokens is not None and atom_to_token_idx.max() is not None and num_tokens is not None and atom_to_token_idx.max() is not None and num_tokens is not None and atom_to_token_idx.max() >= num_tokens:
             if atom_to_token_idx.max() is not None and num_tokens is not None:
                 if atom_to_token_idx.max() >= num_tokens:
                     warnings.warn(
@@ -70,7 +70,8 @@ def get_atom_to_token_idx(input_feature_dict, num_tokens=None, encoder=None):
                     )
                     if debug:
                         logger.warning(f"[get_atom_to_token_idx] atom_to_token_idx max value {atom_to_token_idx.max()} >= num_tokens {num_tokens}. Clipping indices.")
-                    atom_to_token_idx = torch.clamp(atom_to_token_idx, max=num_tokens - 1)
+                    if atom_to_token_idx is not None and num_tokens is not None:
+                        atom_to_token_idx = torch.clamp(atom_to_token_idx, max=num_tokens - 1)
     else:
         warnings.warn("[get_atom_to_token_idx] atom_to_token_idx is None. Cannot perform aggregation.")
         if debug:
@@ -88,7 +89,8 @@ def _process_simple_embedding(
     if q_l is not None and q_l.ndim == 2:
         if debug:
             logger.debug(f"[DEBUG][_process_simple_embedding] Adding batch dimension to q_l with shape {getattr(q_l, 'shape', None)}")
-        q_l = q_l.unsqueeze(0)
+        if q_l is not None:
+            q_l = q_l.unsqueeze(0)
         if debug:
             logger.debug(f"[DEBUG][_process_simple_embedding] New q_l shape: {getattr(q_l, 'shape', None)}")
     expected_in_features = encoder.linear_no_bias_q.in_features
@@ -103,7 +105,10 @@ def _process_simple_embedding(
         q_l = compatible_q_l
         if debug:
             logger.debug(f"[DEBUG][_process_simple_embedding] Created compatible tensor with shape {getattr(q_l, 'shape', None)}")
-    a_atom = F.relu(encoder.linear_no_bias_q(q_l))
+    if encoder.linear_no_bias_q is not None and q_l is not None:
+        a_atom = F.relu(encoder.linear_no_bias_q(q_l))
+    else:
+        a_atom = None
     restype = safe_tensor_access(input_feature_dict, "restype")
     num_tokens = None
     if restype is not None and hasattr(restype, "dim"):
@@ -146,7 +151,10 @@ def _process_simple_embedding(
         )
         if num_tokens == 0 or num_tokens is None:
             num_tokens = 1
-    a = _aggregate_to_token_level(encoder, a_atom, atom_to_token_idx, num_tokens)
+    if atom_to_token_idx is not None and torch.is_tensor(atom_to_token_idx) and a_atom is not None:
+        a = _aggregate_to_token_level(encoder, a_atom, atom_to_token_idx, num_tokens)
+    else:
+        raise ValueError("atom_to_token_idx must be a Tensor and not None")
     # Ensure all return values are Tensor, never None
     if q_l is None:
         q_l = torch.zeros_like(a)
@@ -170,11 +178,17 @@ def _process_coordinate_encoding(
     if ref_pos is None:
         if debug:
             logger.debug("[DEBUG] Branch: ref_pos is None, returning q_l + encoder.linear_no_bias_r(r_l)")
-        return q_l + encoder.linear_no_bias_r(r_l)
+        if encoder.linear_no_bias_r is not None and r_l is not None:
+            return q_l + encoder.linear_no_bias_r(r_l)
+        else:
+            return q_l
     if r_l is not None and ref_pos is not None and r_l.ndim >= 2 and r_l.size(-1) == 3 and ref_pos is not None and hasattr(ref_pos, 'size') and r_l.size(-2) == ref_pos.size(-2):
         if debug:
             logger.debug("[DEBUG] Branch: r_l shape matches ref_pos, returning q_l + encoder.linear_no_bias_r(r_l)")
-        return q_l + encoder.linear_no_bias_r(r_l)
+        if encoder.linear_no_bias_r is not None and r_l is not None:
+            return q_l + encoder.linear_no_bias_r(r_l)
+        else:
+            return q_l
     if debug:
         logger.debug("[DEBUG] Branch: r_l shape mismatch, returning q_l. r_l shape: %s ref_pos shape: %s", getattr(r_l, 'shape', None), getattr(ref_pos, 'shape', None))
     warnings.warn(
@@ -202,7 +216,8 @@ def _process_style_embedding(
             logger.debug(f"[DEBUG][_process_style_embedding] Adapting broadcasted_s from shape {getattr(broadcasted_s, 'shape', None)} to match c_s={encoder.c_s}")
         broadcasted_s = adapt_tensor_dimensions(broadcasted_s, encoder.c_s)
     try:
-        x = encoder.linear_no_bias_s(encoder.layernorm_s(broadcasted_s))
+        if encoder.linear_no_bias_s is not None and encoder.layernorm_s is not None and broadcasted_s is not None:
+            x = encoder.linear_no_bias_s(encoder.layernorm_s(broadcasted_s))
     except RuntimeError as e:
         if "expected input with shape" in str(e) and "but got input of size" in str(e):
             if debug:
@@ -240,7 +255,8 @@ def _process_style_embedding(
         # PATCH: All debug_logging checks in this function now use the config-driven debug flag.
     # ... (rest of the function unchanged)
     try:
-        return c_l + x
+        if c_l is not None and x is not None:
+            return c_l + x
     except Exception as e:
         if debug:
             logger.debug(f"[DEBUG][EXCEPTION-ADD] {e}")
@@ -257,7 +273,8 @@ def _process_style_embedding(
             if debug:
                 logger.debug(f"[DEBUG][EXCEPTION-ADD-SHAPE-AFTER] c_l.shape={getattr(c_l, 'shape', None)}, x.shape={getattr(x, 'shape', None)}")
         try:
-            return c_l + x
+            if c_l is not None and x is not None:
+                return c_l + x
         except Exception as e2:
             if debug:
                 logger.debug(f"[DEBUG][EXCEPTION-ADD-AFTER] {e2}")
@@ -270,15 +287,12 @@ def _process_style_embedding(
 def _aggregate_to_token_level(
     encoder: Any, a_atom: torch.Tensor, atom_to_token_idx: torch.Tensor, num_tokens: int
 ) -> torch.Tensor:
-    if atom_to_token_idx is not None and torch.is_tensor(atom_to_token_idx):
-        if callable(aggregate_atom_to_token):
-            return aggregate_atom_to_token(
-                x_atom=a_atom,
-                atom_to_token_idx=atom_to_token_idx,
-                n_token=num_tokens,
-            )
-        else:
-            raise ValueError("aggregate_atom_to_token must be a callable")
+    if atom_to_token_idx is not None and torch.is_tensor(atom_to_token_idx) and callable(aggregate_atom_to_token):
+        return aggregate_atom_to_token(
+            x_atom=a_atom,
+            atom_to_token_idx=atom_to_token_idx,
+            n_token=num_tokens,
+        )
     else:
         raise ValueError("atom_to_token_idx must be a Tensor and not None")
 
@@ -316,24 +330,27 @@ def _process_inputs_with_coords_impl(
     c_l = _process_style_embedding(encoder, params.c_l, params.s, atom_to_token_idx)
     if debug:
         logger.debug(f"[DEBUG][PRE-TRANSFORMER] q_l.shape={getattr(q_l, 'shape', None)} c_l.shape={getattr(c_l, 'shape', None)}")
-    q_l = encoder.atom_transformer(
-        q=q_l,
-        s=params.s,
-        p=p_lm,
-        chunk_size=params.chunk_size,  # Use aligned p
-    )
+    if encoder.atom_transformer is not None and q_l is not None and params.s is not None and p_lm is not None:
+        q_l = encoder.atom_transformer(
+            q=q_l,
+            s=params.s,
+            p=p_lm,
+            chunk_size=params.chunk_size,  # Use aligned p
+        )
     if debug:
         logger.debug(f"[DEBUG][POST-TRANSFORMER] q_l.shape={getattr(q_l, 'shape', None)}")
-    a_atom = F.relu(encoder.linear_no_bias_q(q_l))
+    if encoder.linear_no_bias_q is not None and q_l is not None:
+        a_atom = F.relu(encoder.linear_no_bias_q(q_l))
+    else:
+        a_atom = None
     if restype is not None:
         num_tokens = getattr(restype, 'shape', [None])[1]  # [B, N_tokens, ...]
     else:
-        num_tokens = (
-            int(getattr(atom_to_token_idx, 'max', None)().item()) + 1
-            if atom_to_token_idx is not None and torch.is_tensor(atom_to_token_idx) and getattr(atom_to_token_idx, 'numel', None)() > 0
-            else getattr(q_l, 'shape', [None])[-2]
-        )
-    if atom_to_token_idx is not None and torch.is_tensor(atom_to_token_idx):
+        if atom_to_token_idx is not None and torch.is_tensor(atom_to_token_idx) and atom_to_token_idx.numel() > 0:
+            num_tokens = int(atom_to_token_idx.max().item()) + 1
+        else:
+            num_tokens = getattr(q_l, 'shape', [None])[-2]
+    if atom_to_token_idx is not None and torch.is_tensor(atom_to_token_idx) and a_atom is not None:
         a = _aggregate_to_token_level(encoder, a_atom, atom_to_token_idx, num_tokens)
     else:
         raise ValueError("atom_to_token_idx must be a Tensor and not None")
@@ -361,7 +378,8 @@ def process_inputs_with_coords(
         if p_lm.dim() == 4:
             if debug:
                 logger.debug(f"[process_inputs_with_coords] p_lm is 4D, unsqueezing to 5D. Shape before: {getattr(p_lm, 'shape', None)}")
-            p_for_transformer = p_lm.unsqueeze(1)
+            if p_lm is not None:
+                p_for_transformer = p_lm.unsqueeze(1)
         elif p_lm.dim() in [3, 5]:
             p_for_transformer = p_lm
         else:
@@ -395,15 +413,19 @@ def process_inputs_with_coords(
     c_l = _process_style_embedding(encoder, params.c_l, s_for_transformer, atom_to_token_idx)
     if debug:
         logger.debug(f"[process_inputs_with_coords] q_l.shape={getattr(q_l, 'shape', None)} c_l.shape={getattr(c_l, 'shape', None)}")
-    q_l = encoder.atom_transformer(
-        q=q_l,
-        s=s_for_transformer,
-        p=p_for_transformer,
-        chunk_size=params.chunk_size,
-    )
+    if encoder.atom_transformer is not None and q_l is not None and s_for_transformer is not None and p_for_transformer is not None:
+        q_l = encoder.atom_transformer(
+            q=q_l,
+            s=s_for_transformer,
+            p=p_for_transformer,
+            chunk_size=params.chunk_size,
+        )
     if debug:
         logger.debug(f"[process_inputs_with_coords] POST-TRANSFORMER q_l.shape={getattr(q_l, 'shape', None)}")
-    a_atom = F.relu(encoder.linear_no_bias_q(q_l))
+    if encoder.linear_no_bias_q is not None and q_l is not None:
+        a_atom = F.relu(encoder.linear_no_bias_q(q_l))
+    else:
+        a_atom = None
 
     # --- Aggregation & atom_to_token_idx fallback ---
     if restype is not None:
@@ -413,7 +435,7 @@ def process_inputs_with_coords(
             num_tokens = int(atom_to_token_idx.max().item()) + 1
         else:
             num_tokens = q_l.shape[-2] if q_l is not None else 1
-    if atom_to_token_idx is not None and torch.is_tensor(atom_to_token_idx):
+    if atom_to_token_idx is not None and torch.is_tensor(atom_to_token_idx) and a_atom is not None:
         a = _aggregate_to_token_level(encoder, a_atom, atom_to_token_idx, num_tokens)
     else:
         raise ValueError("atom_to_token_idx must be a Tensor and not None")
