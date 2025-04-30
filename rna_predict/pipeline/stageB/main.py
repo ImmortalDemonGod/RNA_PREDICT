@@ -24,7 +24,7 @@ def run_stageB_combined(
 ) -> Dict[str, Any]:
     # Debug logging
     debug_logging = False
-    if hasattr(cfg, 'model') and hasattr(cfg.model, 'stageB') and hasattr(cfg.model.stageB, 'debug_logging'):
+    if cfg is not None and hasattr(cfg, 'model') and hasattr(cfg.model, 'stageB') and hasattr(cfg.model.stageB, 'debug_logging'):
         debug_logging = cfg.model.stageB.debug_logging
     logger.setLevel(logging.DEBUG if debug_logging else logging.INFO)
     if debug_logging:
@@ -59,11 +59,11 @@ def run_stageB_combined(
     torch_device = torch.device(device if device is not None else "cpu")
 
     # Initialize models if not provided (for actual usage)
-    if torsion_bert_model is None and cfg is not None:
-        torsion_bert_model = StageBTorsionBertPredictor(cfg)
+    if torsion_bert_model is None and cfg is not None and hasattr(cfg, 'model'):
+        torsion_bert_model = StageBTorsionBertPredictor(cfg.model)
 
-    if pairformer_model is None and cfg is not None:
-        pairformer_model = PairformerWrapper(cfg)
+    if pairformer_model is None and cfg is not None and hasattr(cfg, 'model'):
+        pairformer_model = PairformerWrapper(cfg.model)
 
     # Ensure models are on the correct device
     if hasattr(pairformer_model, 'to'):
@@ -286,7 +286,7 @@ def run_pipeline(sequence: str, cfg: Optional[DictConfig] = None):
         adjacency = adjacency_np
 
     # Stage B: Predict torsion angles
-    stageB = StageBTorsionBertPredictor(cfg)
+    stageB = StageBTorsionBertPredictor(cfg.model if cfg is not None and hasattr(cfg, 'model') else None)
     outB = stageB(sequence, adjacency=adjacency)
     torsion_angles = outB["torsion_angles"]
 
@@ -314,20 +314,20 @@ def demo_gradient_flow_test(cfg: Optional[DictConfig] = None):
     device_str = cfg.model.stageB.torsion_bert.device
     device = torch.device(device_str)
     debug_logging = False
-    if hasattr(cfg, 'model') and hasattr(cfg.model, 'stageB') and hasattr(cfg.model.stageB, 'debug_logging'):
+    if cfg is not None and hasattr(cfg, 'model') and hasattr(cfg.model, 'stageB') and hasattr(cfg.model.stageB, 'debug_logging'):
         debug_logging = cfg.model.stageB.debug_logging
     if debug_logging:
         logger.info(f"[Gradient Flow Test] Using device: {device}")
 
     # Initialize models
     try:
-        torsion_predictor = StageBTorsionBertPredictor(cfg)
+        torsion_predictor = StageBTorsionBertPredictor(cfg.model if cfg is not None and hasattr(cfg, 'model') else None)
     except Exception as e:
         logger.error(f"Error loading TorsionBERT model: {e}")
         return
 
     # Initialize Pairformer with config
-    pairformer = PairformerWrapper(cfg).to(device)
+    pairformer = PairformerWrapper(cfg.model if cfg is not None and hasattr(cfg, 'model') else None).to(device)
 
     # Get test data from config
     test_sequence = cfg.test_data.sequence
@@ -360,7 +360,7 @@ def demo_gradient_flow_test(cfg: Optional[DictConfig] = None):
         torsion_bert_model=torsion_predictor,
         pairformer_model=pairformer,
         device=device_str,  # Use device from config
-        init_z_from_adjacency=cfg.model.stageB.pairformer.init_z_from_adjacency
+        init_z_from_adjacency=cfg.model.stageB.pairformer.init_z_from_adjacency if cfg is not None and hasattr(cfg, 'model') and hasattr(cfg.model, 'stageB') and hasattr(cfg.model.stageB, 'pairformer') else False
     )
 
     # Create linear layers for each output
@@ -417,7 +417,7 @@ def main(cfg: DictConfig) -> None:
     Main entry point for Stage B execution.
     """
     debug_logging = False
-    if hasattr(cfg, 'model') and hasattr(cfg.model, 'stageB') and hasattr(cfg.model.stageB, 'debug_logging'):
+    if cfg is not None and hasattr(cfg, 'model') and hasattr(cfg.model, 'stageB') and hasattr(cfg.model.stageB, 'debug_logging'):
         debug_logging = cfg.model.stageB.debug_logging
     logger.setLevel(logging.DEBUG if debug_logging else logging.INFO)
     if debug_logging:
