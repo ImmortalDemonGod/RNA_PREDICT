@@ -61,7 +61,7 @@ def get_atom_to_token_idx(input_feature_dict, num_tokens=None, encoder=None):
         return None
     atom_to_token_idx = safe_tensor_access(input_feature_dict, "atom_to_token_idx")
     if atom_to_token_idx is not None:
-        if num_tokens is not None and atom_to_token_idx.numel() > 0 and atom_to_token_idx.max() >= num_tokens:
+        if num_tokens is not None and atom_to_token_idx.numel() > 0 and torch.is_tensor(atom_to_token_idx) and atom_to_token_idx.max() >= num_tokens:
             warnings.warn(
                 f"[get_atom_to_token_idx] atom_to_token_idx max value {atom_to_token_idx.max()} >= num_tokens {num_tokens}. "
                 f"Clipping indices to prevent out-of-bounds error."
@@ -323,7 +323,7 @@ def _process_inputs_with_coords_impl(
     else:
         num_tokens = (
             int(atom_to_token_idx.max().item()) + 1
-            if atom_to_token_idx is not None
+            if atom_to_token_idx is not None and atom_to_token_idx.numel() > 0 and torch.is_tensor(atom_to_token_idx)
             else q_l.shape[-2]
         )
     a = _aggregate_to_token_level(encoder, a_atom, atom_to_token_idx, num_tokens)
@@ -379,7 +379,7 @@ def process_inputs_with_coords(
         else:
             num_tokens = (
                 int(atom_to_token_idx.max().item()) + 1
-                if atom_to_token_idx is not None
+                if atom_to_token_idx is not None and atom_to_token_idx.numel() > 0 and torch.is_tensor(atom_to_token_idx)
                 else q_l.shape[-2]
             )
         s_for_transformer = torch.zeros(
@@ -405,10 +405,10 @@ def process_inputs_with_coords(
     else:
         num_tokens = (
             int(atom_to_token_idx.max().item()) + 1
-            if atom_to_token_idx is not None
+            if atom_to_token_idx is not None and atom_to_token_idx.numel() > 0 and torch.is_tensor(atom_to_token_idx)
             else q_l.shape[-2]
         )
-    if atom_to_token_idx is None:
+    if atom_to_token_idx is None or not torch.is_tensor(atom_to_token_idx) or atom_to_token_idx.numel() == 0:
         warnings.warn(
             "Creating default atom_to_token_idx mapping all atoms to token 0."
         )

@@ -343,15 +343,15 @@ def run_stageC_rna_mpnerf(
     # SYSTEMATIC DEBUGGING: Always emit a summary log and print, regardless of debug_logging
     logger.info(
         f"StageC completed: sequence={sequence}, residues={len(sequence)}, "
-        f"atoms={output['atom_count']}, coords_shape={output['coords'].shape}, device={output['coords'].device}, elapsed_time={elapsed:.2f}s"
+        f"atoms={output['atom_count']}, coords_shape={getattr(output['coords'], 'shape', 'unknown')}, device={getattr(output['coords'], 'device', 'unknown')}, elapsed_time={elapsed:.2f}s"
     )
     import logging as _logging
-    _logging.getLogger().info(f"ROOT: StageC completed: sequence={sequence}, residues={len(sequence)}, atoms={output['atom_count']}, coords_shape={output['coords'].shape}, device={output['coords'].device}, elapsed_time={elapsed:.2f}s")
+    _logging.getLogger().info(f"ROOT: StageC completed: sequence={sequence}, residues={len(sequence)}, atoms={output['atom_count']}, coords_shape={getattr(output['coords'], 'shape', 'unknown')}, device={getattr(output['coords'], 'device', 'unknown')}, elapsed_time={elapsed:.2f}s")
 
     if stage_cfg.debug_logging:
         # Use getattr to safely access shape attribute
-        coords_shape = getattr(output['coords'], 'shape', 'unknown')
-        coords_3d_shape = getattr(output['coords_3d'], 'shape', 'unknown')
+        coords_shape = getattr(output.get('coords', None), 'shape', 'unknown')
+        coords_3d_shape = getattr(output.get('coords_3d', None), 'shape', 'unknown')
         logger.debug(f"output['coords'] shape: {coords_shape}")
         logger.debug(f"output['coords_3d'] shape: {coords_3d_shape}")
         logger.debug(f"output['atom_count']: {output['atom_count']}")
