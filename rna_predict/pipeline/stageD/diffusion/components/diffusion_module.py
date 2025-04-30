@@ -99,6 +99,14 @@ class DiffusionModule(nn.Module):
 
         # --- AtomAttentionEncoder ---
         self.logger.debug(f"encoder_config_dict: {atom_encoder}")
+        if isinstance(atom_encoder, dict):
+            n_heads = int(atom_encoder.get("n_heads", 8))
+            n_queries = int(atom_encoder.get("n_queries", 64))
+            n_keys = int(atom_encoder.get("n_keys", 64))
+        else:
+            n_heads = 8
+            n_queries = 64
+            n_keys = 64
         encoder_config = AtomAttentionConfig(
             c_atom=c_atom,
             c_atompair=c_atompair,
@@ -107,10 +115,10 @@ class DiffusionModule(nn.Module):
             c_s=c_s,
             c_z=c_z,
             blocks_per_ckpt=blocks_per_ckpt,
-            n_blocks=atom_encoder["n_blocks"],
-            n_heads=atom_encoder["n_heads"],
-            n_queries=atom_encoder["n_queries"],
-            n_keys=atom_encoder["n_keys"],
+            n_blocks=int(atom_encoder.get("n_blocks", 1)),
+            n_heads=n_heads,
+            n_queries=n_queries,
+            n_keys=n_keys,
             debug_logging=debug_logging,
         )
         self.atom_attention_encoder = AtomAttentionEncoder(config=encoder_config)
@@ -120,8 +128,8 @@ class DiffusionModule(nn.Module):
 
         # --- DiffusionTransformer ---
         transformer_params = {
-            "n_blocks": transformer["n_blocks"],
-            "n_heads": transformer["n_heads"],
+            "n_blocks": int(transformer.get("n_blocks", 1)),
+            "n_heads": int(transformer.get("n_heads", 8)),
             "c_a": c_token,
             "c_s": c_s,
             "c_z": c_z,
@@ -131,6 +139,14 @@ class DiffusionModule(nn.Module):
         self.layernorm_a = LayerNorm(c_token)
 
         # --- AtomAttentionDecoder ---
+        if isinstance(atom_decoder, dict):
+            n_heads = int(atom_decoder.get("n_heads", 8))
+            n_queries = int(atom_decoder.get("n_queries", 64))
+            n_keys = int(atom_decoder.get("n_keys", 64))
+        else:
+            n_heads = 8
+            n_queries = 64
+            n_keys = 64
         decoder_config = AtomAttentionConfig(
             c_atom=c_atom,
             c_atompair=c_atompair,
@@ -139,10 +155,10 @@ class DiffusionModule(nn.Module):
             c_s=c_s,
             c_z=c_z,
             blocks_per_ckpt=blocks_per_ckpt,
-            n_blocks=atom_decoder["n_blocks"],
-            n_heads=atom_decoder["n_heads"],
-            n_queries=atom_decoder["n_queries"],
-            n_keys=atom_decoder["n_keys"],
+            n_blocks=int(atom_decoder.get("n_blocks", 1)),
+            n_heads=n_heads,
+            n_queries=n_queries,
+            n_keys=n_keys,
             debug_logging=debug_logging,
         )
         self.atom_attention_decoder = AtomAttentionDecoder(config=decoder_config)
@@ -273,7 +289,7 @@ class DiffusionModule(nn.Module):
         q_skip: Optional[torch.Tensor],
         p_skip: Optional[torch.Tensor],
         input_feature_dict: dict,
-        chunk_size: Optional[int],
+        chunk_size: Optional[int] = None,
     ) -> DecoderForwardParams:
         """Prepares the parameters object for the AtomAttentionDecoder."""
         atom_mask_val = input_feature_dict.get("ref_mask")
@@ -775,7 +791,7 @@ class DiffusionModule(nn.Module):
 
         # --- Core Logic ---
         # Calculate EDM scaling factors, ensuring they broadcast correctly
-        # t_hat_noise_level should be [B, N_sample] or [B, 1] at this point
+        # t_hat_noise_level should be [B, N_sample] or [B, 1] or [B] or scalar
         c_in, c_skip, c_out = self._calculate_edm_scaling_factors(
             t_hat_noise_level
         )  # sigma is t_hat
