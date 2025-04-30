@@ -3,12 +3,13 @@
 import hydra
 from omegaconf import DictConfig, OmegaConf
 from rna_predict.conf.config_schema import register_configs
+from rna_predict.predict import RNAPredictor
 
 # Register all configurations with Hydra
 register_configs()
 
-# Import and re-export RNAPredictor for backward compatibility
-from rna_predict.predict import RNAPredictor
+# Define exports for backward compatibility
+__all__ = ['RNAPredictor']
 
 @hydra.main(version_base=None, config_path="conf", config_name="default")
 def main(cfg: DictConfig) -> None:
@@ -37,10 +38,9 @@ def main(cfg: DictConfig) -> None:
 
     # Instantiate the predictor with the loaded configuration
     try:
-        from rna_predict.predict import RNAPredictor
         predictor = RNAPredictor(cfg)
     except Exception as e:
-        print(f"Error initializing RNAPredictor: {e}")
+        raise ValueError(f"Error initializing RNAPredictor: {e}") from e
         # Print relevant config sections for debugging
         if hasattr(cfg, "stageB_torsion"):
              print("Relevant config (stageB_torsion):")
@@ -62,8 +62,7 @@ def main(cfg: DictConfig) -> None:
         submission_df.to_csv(output_path, index=False)
         print(f"\nSubmission saved to {output_path}")
     except Exception as e:
-        print(f"Error during prediction: {e}")
-        raise
+        raise ValueError(f"Error during prediction: {e}") from e
 
 
 if __name__ == "__main__":
