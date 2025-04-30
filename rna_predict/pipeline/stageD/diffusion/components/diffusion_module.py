@@ -402,8 +402,9 @@ class DiffusionModule(nn.Module):
                 self.logger.debug("[DEBUG][DiffusionModule.f_forward] atom_to_token_idx MISSING!")
         # SYSTEMATIC DEBUGGING: Use forward_debug for AtomAttentionEncoder
         # Replace self.atom_attention_encoder(...) with .forward_debug(...) for deeper logging
+        encoder_fn = getattr(self.atom_attention_encoder, "forward_debug", self.atom_attention_encoder)
         a_token, q_skip, c_skip, p_skip = self._run_with_checkpointing(
-            self.atom_attention_encoder.forward_debug,
+            encoder_fn,
             r_noisy,
             t_hat_noise_level,
             input_feature_dict,
