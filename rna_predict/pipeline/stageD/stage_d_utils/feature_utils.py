@@ -256,7 +256,7 @@ def initialize_features_from_config(
             try:
                 # This is a safer way to check if stage_cfg exists in the outer scope
                 stage_cfg_from_outer = locals().get('stage_cfg')
-            except:
+            except Exception:
                 pass
 
             if stage_cfg_from_outer is not None:
