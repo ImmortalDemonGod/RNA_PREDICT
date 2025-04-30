@@ -139,7 +139,11 @@ def place_rna_bases(
                 found = False
                 for ref_i in range(len(ref_coords)):
                     for ref_j in range(ref_i+1, len(ref_coords)):
-                        if not torch.allclose(ref_coords[ref_i], ref_coords[ref_j], atol=1e-6):
+                        if (
+                            isinstance(ref_coords[ref_i], torch.Tensor)
+                            and isinstance(ref_coords[ref_j], torch.Tensor)
+                            and not torch.allclose(ref_coords[ref_i], ref_coords[ref_j], atol=1e-6)
+                        ):
                             found = True
                             break
                     if found:
@@ -241,10 +245,14 @@ def place_rna_bases(
                 # --- END NAN DEBUG ---
                 # --- Ensure tensor types for bond_length, bond_angle, torsion_angle (OP1/OP2 special logic) ---
                 bond_length = bond_lengths.get(f"P-{atom_name}", 1.5)
-                if not isinstance(bond_length, float):
+                if isinstance(bond_length, torch.Tensor):
+                    bond_length = bond_length.item()
+                else:
                     bond_length = float(bond_length)
                 bond_angle = bond_angles.get(f"P-{atom_name}", 120.0)
-                if not isinstance(bond_angle, float):
+                if isinstance(bond_angle, torch.Tensor):
+                    bond_angle = bond_angle.item()
+                else:
                     bond_angle = float(bond_angle)
                 torsion_angle = 0.0
                 # Convert to tensors if needed
@@ -262,8 +270,13 @@ def place_rna_bases(
                         continue  # Skip placement if output is NaN
                     if logger.isEnabledFor(logging.DEBUG):
                         logger.debug(f"[DEBUG] Output position for {atom_name} at residue {i}: pos={pos}")
-                    full_coords[i, idx, :] = pos
-                    placed_atoms[atom_name] = pos
+                    if isinstance(full_coords, torch.Tensor) and isinstance(pos, torch.Tensor):
+                        full_coords[i, idx, :] = pos
+                    # Only assign .item() to variables annotated as float, otherwise keep as Tensor
+                    if isinstance(pos, torch.Tensor) and pos.numel() == 1:
+                        placed_atoms[atom_name] = pos.item()
+                    else:
+                        placed_atoms[atom_name] = pos
                 except Exception as e:
                     logger.error(f"[DEBUG] Residue {i} base {base}: Atom '{atom_name}' placement failed with error: {e}")
                 continue  # Done with OP1/OP2, skip to next atom
@@ -282,11 +295,15 @@ def place_rna_bases(
             # Get bond length
             bond_key = f"{ref_partner}-{atom_name}" if f"{ref_partner}-{atom_name}" in bond_lengths else f"{atom_name}-{ref_partner}"
             bond_length = bond_lengths.get(bond_key, 1.5)
-            if not isinstance(bond_length, float):
+            if isinstance(bond_length, torch.Tensor):
+                bond_length = bond_length.item()
+            else:
                 bond_length = float(bond_length)
             bond_angle_key = f"{ref_partner}-{atom_name}" if f"{ref_partner}-{atom_name}" in bond_angles else f"{atom_name}-{ref_partner}"
             bond_angle = bond_angles.get(bond_angle_key, 120.0)
-            if not isinstance(bond_angle, float):
+            if isinstance(bond_angle, torch.Tensor):
+                bond_angle = bond_angle.item()
+            else:
                 bond_angle = float(bond_angle)
             # --- Ensure tensor types for bond_length, bond_angle, torsion_angle (default logic) ---
             if not torch.is_tensor(bond_length):
@@ -310,10 +327,15 @@ def place_rna_bases(
                 logger.error(f"[DEBUG] Residue {i} base {base}: Atom '{atom_name}' placement failed with error: {e}")
                 continue
             # Universal NaN check after any atom placement
-            if isinstance(full_coords, torch.Tensor) and torch.isnan(full_coords[i, idx, :]).any():
+            if isinstance(full_coords, torch.Tensor) and isinstance(pos, torch.Tensor) and torch.isnan(full_coords[i, idx, :]).any():
                 logger.error(f"[UNIQUE-ERR-RNA-NAN-GENERAL] NaN after placing atom {atom_name} at residue {i} (base {base}), seq={seq}")
-            full_coords[i, idx, :] = pos
-            placed_atoms[atom_name] = pos
+            if isinstance(full_coords, torch.Tensor) and isinstance(pos, torch.Tensor):
+                full_coords[i, idx, :] = pos
+            # Only assign .item() to variables annotated as float, otherwise keep as Tensor
+            if isinstance(pos, torch.Tensor) and pos.numel() == 1:
+                placed_atoms[atom_name] = pos.item()
+            else:
+                placed_atoms[atom_name] = pos
             # --- DEBUG: Check requires_grad and grad_fn after base placement ---
             if isinstance(full_coords, torch.Tensor):
                 logger.debug(f"[GRAD-TRACE-BASE-PLACEMENT] full_coords.requires_grad: {full_coords.requires_grad}, grad_fn: {full_coords.grad_fn}")
