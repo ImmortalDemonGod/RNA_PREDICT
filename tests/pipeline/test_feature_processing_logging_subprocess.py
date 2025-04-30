@@ -3,7 +3,6 @@ import sys
 import os
 import tempfile
 import textwrap
-import pytest
 
 def test_feature_processor_logging_subprocess():
     # Create a temp python script that instantiates FeatureProcessor and logs

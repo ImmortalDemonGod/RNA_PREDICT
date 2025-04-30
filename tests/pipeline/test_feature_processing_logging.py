@@ -1,10 +1,9 @@
 import logging
-import pytest
 from rna_predict.pipeline.stageA.input_embedding.current.transformer.atom_attention.components.feature_processing import FeatureProcessor
 
 def test_feature_processor_logging_capture(caplog):
     caplog.set_level(logging.DEBUG)
-    fp = FeatureProcessor(
+    FeatureProcessor(
         c_atom=8,
         c_atompair=8,
         c_s=4,

@@ -33,12 +33,17 @@ from unittest.mock import MagicMock, patch # Import ANY for loose matching
 import pytest
 import torch
 import numpy as np # Added for adjacency check
+import torch.nn as nn
 from omegaconf import OmegaConf, DictConfig # Import OmegaConf
 from hypothesis import given, strategies as st, settings, HealthCheck
-
-# Import code under test - Adjust imports after refactoring
-from rna_predict.pipeline.stageA.adjacency.rfold_predictor import StageARFoldPredictor as OriginalStageARFoldPredictor
-import torch.nn as nn
+from rna_predict.pipeline.stageA.run_stageA import (
+    # build_predictor, # Removed import
+    download_file,
+    main,
+    run_stageA as run_stageA_func, # Rename to avoid conflict
+    unzip_file,
+    visualize_with_varna,
+)
 
 # Create a mock StageARFoldPredictor for testing
 class StageARFoldPredictor(nn.Module):
@@ -55,7 +60,7 @@ class StageARFoldPredictor(nn.Module):
 
         # Add sparse connections to keep density low
         # For RNA structures, typical density is 1-15%
-        max_connections = int(0.07 * N * N)  # Aim for ~7% density
+        int(0.07 * N * N)  # Aim for ~7% density
 
         # Always add nearest neighbor connections
         for i in range(N-3):
@@ -63,14 +68,6 @@ class StageARFoldPredictor(nn.Module):
                 adj[i, i+3] = adj[i+3, i] = 1.0
 
         return adj
-from rna_predict.pipeline.stageA.run_stageA import (
-    # build_predictor, # Removed import
-    download_file,
-    main,
-    run_stageA as run_stageA_func, # Rename to avoid conflict
-    unzip_file,
-    visualize_with_varna,
-)
 
 # --- Fixtures ---
 
