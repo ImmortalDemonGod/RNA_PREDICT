@@ -62,13 +62,15 @@ def get_atom_to_token_idx(input_feature_dict, num_tokens=None, encoder=None):
     atom_to_token_idx = safe_tensor_access(input_feature_dict, "atom_to_token_idx")
     if atom_to_token_idx is not None:
         if num_tokens is not None and atom_to_token_idx.numel() > 0 and torch.is_tensor(atom_to_token_idx) and atom_to_token_idx.max() is not None and num_tokens is not None and atom_to_token_idx.max() >= num_tokens:
-            warnings.warn(
-                f"[get_atom_to_token_idx] atom_to_token_idx max value {atom_to_token_idx.max()} >= num_tokens {num_tokens}. "
-                f"Clipping indices to prevent out-of-bounds error."
-            )
-            if debug:
-                logger.warning(f"[get_atom_to_token_idx] atom_to_token_idx max value {atom_to_token_idx.max()} >= num_tokens {num_tokens}. Clipping indices.")
-            atom_to_token_idx = torch.clamp(atom_to_token_idx, max=num_tokens - 1)
+            if atom_to_token_idx.max() is not None and num_tokens is not None:
+                if atom_to_token_idx.max() >= num_tokens:
+                    warnings.warn(
+                        f"[get_atom_to_token_idx] atom_to_token_idx max value {atom_to_token_idx.max()} >= num_tokens {num_tokens}. "
+                        f"Clipping indices to prevent out-of-bounds error."
+                    )
+                    if debug:
+                        logger.warning(f"[get_atom_to_token_idx] atom_to_token_idx max value {atom_to_token_idx.max()} >= num_tokens {num_tokens}. Clipping indices.")
+                    atom_to_token_idx = torch.clamp(atom_to_token_idx, max=num_tokens - 1)
     else:
         warnings.warn("[get_atom_to_token_idx] atom_to_token_idx is None. Cannot perform aggregation.")
         if debug:
@@ -268,16 +270,17 @@ def _process_style_embedding(
 def _aggregate_to_token_level(
     encoder: Any, a_atom: torch.Tensor, atom_to_token_idx: torch.Tensor, num_tokens: int
 ) -> torch.Tensor:
-    if atom_to_token_idx is None or not torch.is_tensor(atom_to_token_idx):
-        raise ValueError("atom_to_token_idx must not be None and must be a Tensor in _aggregate_to_token_level")
-    if callable(aggregate_atom_to_token):
-        return aggregate_atom_to_token(
-            x_atom=a_atom,
-            atom_to_token_idx=atom_to_token_idx,
-            n_token=num_tokens,
-        )
+    if atom_to_token_idx is not None and torch.is_tensor(atom_to_token_idx):
+        if callable(aggregate_atom_to_token):
+            return aggregate_atom_to_token(
+                x_atom=a_atom,
+                atom_to_token_idx=atom_to_token_idx,
+                n_token=num_tokens,
+            )
+        else:
+            raise ValueError("aggregate_atom_to_token must be a callable")
     else:
-        raise ValueError("aggregate_atom_to_token must be a callable")
+        raise ValueError("atom_to_token_idx must be a Tensor and not None")
 
 # PATCH: All internal calls to extract_atom_features should pass debug_logging from config
 def extract_atom_features_with_config(encoder, input_feature_dict):
@@ -330,7 +333,10 @@ def _process_inputs_with_coords_impl(
             if atom_to_token_idx is not None and torch.is_tensor(atom_to_token_idx) and getattr(atom_to_token_idx, 'numel', None)() > 0
             else getattr(q_l, 'shape', [None])[-2]
         )
-    a = _aggregate_to_token_level(encoder, a_atom, atom_to_token_idx, num_tokens)
+    if atom_to_token_idx is not None and torch.is_tensor(atom_to_token_idx):
+        a = _aggregate_to_token_level(encoder, a_atom, atom_to_token_idx, num_tokens)
+    else:
+        raise ValueError("atom_to_token_idx must be a Tensor and not None")
     return a, q_l, c_l, torch.zeros_like(a)
 
 # --- PATCHED process_inputs_with_coords ---
@@ -407,23 +413,10 @@ def process_inputs_with_coords(
             num_tokens = int(atom_to_token_idx.max().item()) + 1
         else:
             num_tokens = q_l.shape[-2] if q_l is not None else 1
-    if atom_to_token_idx is None or not torch.is_tensor(atom_to_token_idx) or atom_to_token_idx.numel() == 0:
-        warnings.warn(
-            "Creating default atom_to_token_idx mapping all atoms to token 0."
-        )
-        if debug:
-            logger.warning("Creating default atom_to_token_idx mapping all atoms to token 0.")
-        atom_to_token_idx = torch.zeros(
-            a_atom.shape[:-1], dtype=torch.long, device=a_atom.device
-        )
-        if num_tokens == 0:
-            num_tokens = 1
-    if debug:
-        logger.debug(f"[process_inputs_with_coords] a_atom shape: {getattr(a_atom, 'shape', None)}")
-        logger.debug(f"[process_inputs_with_coords] atom_to_token_idx shape: {getattr(atom_to_token_idx, 'shape', None)}")
-        logger.debug(f"[process_inputs_with_coords] num_tokens: {num_tokens}")
-
-    a = _aggregate_to_token_level(encoder, a_atom, atom_to_token_idx, num_tokens)
+    if atom_to_token_idx is not None and torch.is_tensor(atom_to_token_idx):
+        a = _aggregate_to_token_level(encoder, a_atom, atom_to_token_idx, num_tokens)
+    else:
+        raise ValueError("atom_to_token_idx must be a Tensor and not None")
     # Ensure all return values are Tensor, never None
     if q_l is None:
         q_l = torch.zeros_like(a)
