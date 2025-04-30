@@ -28,6 +28,6 @@ embedding_dims:
   s_inputs: 449  # Input representation dimension - must match c_s_inputs
 
 # Kaggle minimal loader test config
-sequence_path: "/Volumes/Totallynotaharddrive/RNA_structure_PREDICT/kaggle/stanford-rna-3d-folding/train_sequences.csv"
-data_index: "/Users/tomriddle1/RNA_PREDICT/rna_predict/dataset/examples/kaggle_minimal_index.csv"
+sequence_path: "${env:DATA_DIR:./data}/kaggle/stanford-rna-3d-folding/train_sequences.csv"
+data_index: "./rna_predict/dataset/examples/kaggle_minimal_index.csv"
 target_id: "1SCL_A"
