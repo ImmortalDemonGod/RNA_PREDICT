@@ -59,11 +59,17 @@ def run_stageB_combined(
     torch_device = torch.device(device if device is not None else "cpu")
 
     # Initialize models if not provided (for actual usage)
-    if torsion_bert_model is None and cfg is not None and hasattr(cfg, 'model'):
-        torsion_bert_model = StageBTorsionBertPredictor(cfg.model)
+    if torsion_bert_model is None and cfg is not None:
+        if isinstance(cfg, DictConfig):
+            torsion_bert_model = StageBTorsionBertPredictor(cfg.model)
+        else:
+            raise TypeError("cfg must be a DictConfig")
 
-    if pairformer_model is None and cfg is not None and hasattr(cfg, 'model'):
-        pairformer_model = PairformerWrapper(cfg.model)
+    if pairformer_model is None and cfg is not None:
+        if isinstance(cfg, DictConfig):
+            pairformer_model = PairformerWrapper(cfg.model)
+        else:
+            raise TypeError("cfg must be a DictConfig")
 
     # Ensure models are on the correct device
     if hasattr(pairformer_model, 'to'):
@@ -286,7 +292,10 @@ def run_pipeline(sequence: str, cfg: Optional[DictConfig] = None):
         adjacency = adjacency_np
 
     # Stage B: Predict torsion angles
-    stageB = StageBTorsionBertPredictor(cfg.model if cfg is not None and hasattr(cfg, 'model') else None)
+    if isinstance(cfg, DictConfig):
+        stageB = StageBTorsionBertPredictor(cfg.model if cfg is not None and hasattr(cfg, 'model') else None)
+    else:
+        raise TypeError("cfg must be a DictConfig")
     outB = stageB(sequence, adjacency=adjacency)
     torsion_angles = outB["torsion_angles"]
 
@@ -321,13 +330,19 @@ def demo_gradient_flow_test(cfg: Optional[DictConfig] = None):
 
     # Initialize models
     try:
-        torsion_predictor = StageBTorsionBertPredictor(cfg.model if cfg is not None and hasattr(cfg, 'model') else None)
+        if isinstance(cfg, DictConfig):
+            torsion_predictor = StageBTorsionBertPredictor(cfg.model if cfg is not None and hasattr(cfg, 'model') else None)
+        else:
+            raise TypeError("cfg must be a DictConfig")
     except Exception as e:
         logger.error(f"Error loading TorsionBERT model: {e}")
         return
 
     # Initialize Pairformer with config
-    pairformer = PairformerWrapper(cfg.model if cfg is not None and hasattr(cfg, 'model') else None).to(device)
+    if isinstance(cfg, DictConfig):
+        pairformer = PairformerWrapper(cfg.model if cfg is not None and hasattr(cfg, 'model') else None).to(device)
+    else:
+        raise TypeError("cfg must be a DictConfig")
 
     # Get test data from config
     test_sequence = cfg.test_data.sequence
