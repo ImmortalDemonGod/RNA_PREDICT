@@ -245,20 +245,20 @@ def place_rna_bases(
                 # --- Ensure tensor types for bond_length, bond_angle, torsion_angle (OP1/OP2 special logic) ---
                 bond_length = bond_lengths.get(f"P-{atom_name}", 1.5)
                 if isinstance(bond_length, torch.Tensor):
-                    bond_length = bond_length.item()
+                    bond_length_val = bond_length.item()
                 else:
-                    bond_length = float(bond_length)
+                    bond_length_val = float(bond_length)
                 bond_angle = bond_angles.get(f"P-{atom_name}", 120.0)
                 if isinstance(bond_angle, torch.Tensor):
-                    bond_angle = bond_angle.item()
+                    bond_angle_val = bond_angle.item()
                 else:
-                    bond_angle = float(bond_angle)
+                    bond_angle_val = float(bond_angle)
                 torsion_angle = 0.0
                 # Convert to tensors if needed
-                if not torch.is_tensor(bond_length):
-                    bond_length = torch.tensor(bond_length, dtype=torch.float32, device=device)
-                if not torch.is_tensor(bond_angle):
-                    bond_angle = torch.tensor(bond_angle, dtype=torch.float32, device=device)
+                if not torch.is_tensor(bond_length_val):
+                    bond_length = torch.tensor(bond_length_val, dtype=torch.float32, device=device)
+                if not torch.is_tensor(bond_angle_val):
+                    bond_angle = torch.tensor(bond_angle_val, dtype=torch.float32, device=device)
                 if not torch.is_tensor(torsion_angle):
                     torsion_angle = torch.tensor(torsion_angle, dtype=torch.float32, device=device)
                 logger.debug(f"[DEBUG-PLACEMENT] Calling calculate_atom_position(OP1/OP2) with types: bond_length={type(bond_length)}, bond_angle={type(bond_angle)}, torsion_angle={type(torsion_angle)}")
@@ -295,20 +295,20 @@ def place_rna_bases(
             bond_key = f"{ref_partner}-{atom_name}" if f"{ref_partner}-{atom_name}" in bond_lengths else f"{atom_name}-{ref_partner}"
             bond_length = bond_lengths.get(bond_key, 1.5)
             if isinstance(bond_length, torch.Tensor):
-                bond_length = bond_length.item()
+                bond_length_val = bond_length.item()
             else:
-                bond_length = float(bond_length)
+                bond_length_val = float(bond_length)
             bond_angle_key = f"{ref_partner}-{atom_name}" if f"{ref_partner}-{atom_name}" in bond_angles else f"{atom_name}-{ref_partner}"
             bond_angle = bond_angles.get(bond_angle_key, 120.0)
             if isinstance(bond_angle, torch.Tensor):
-                bond_angle = bond_angle.item()
+                bond_angle_val = bond_angle.item()
             else:
-                bond_angle = float(bond_angle)
+                bond_angle_val = float(bond_angle)
             # --- Ensure tensor types for bond_length, bond_angle, torsion_angle (default logic) ---
-            if not torch.is_tensor(bond_length):
-                bond_length = torch.tensor(bond_length, dtype=torch.float32, device=device)
-            if not torch.is_tensor(bond_angle):
-                bond_angle = torch.tensor(bond_angle, dtype=torch.float32, device=device)
+            if not torch.is_tensor(bond_length_val):
+                bond_length = torch.tensor(bond_length_val, dtype=torch.float32, device=device)
+            if not torch.is_tensor(bond_angle_val):
+                bond_angle = torch.tensor(bond_angle_val, dtype=torch.float32, device=device)
             torsion_angle = 0.0
             if not torch.is_tensor(torsion_angle):
                 torsion_angle = torch.tensor(torsion_angle, dtype=torch.float32, device=device)
