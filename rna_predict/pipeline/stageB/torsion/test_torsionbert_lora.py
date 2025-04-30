@@ -72,8 +72,10 @@ def test_lora_real_model():
     Skips if PEFT/transformers not installed or model can't be loaded.
     """
     try:
-        from peft import get_peft_model
-        from transformers import AutoModel, AutoTokenizer
+        import importlib.util
+        # Check if peft and transformers are available without importing unused symbols
+        if importlib.util.find_spec("peft") is None or importlib.util.find_spec("transformers") is None:
+            pytest.skip("PEFT or transformers not installed")
     except ImportError:
         pytest.skip("PEFT or transformers not installed")
     # Use a real model name; must be accessible
