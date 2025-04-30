@@ -187,8 +187,8 @@ def main(cfg: DictConfig):
                     lines = f.readlines()
                 if fast_dev_run or limit_n is not None:
                     print(f"[DIAG] First 10 lines of {seq_path}:")
-                    for l in lines[:10]:
-                        print(f"[DIAG] {l.rstrip()}")
+                    for line in lines[:10]:
+                        print(f"[DIAG] {line.rstrip()}")
                     print(f"[DIAG] Total lines in {seq_path}: {len(lines)}")
                 # Find all valid RNA sequences (continuous A/C/G/U runs)
                 import re
