@@ -289,10 +289,12 @@ class AtomAttentionDecoder(nn.Module):
         # Debug prints to understand tensor shapes
         if debug_logging:
             print(f"DEBUG: a.shape={a.shape}, r_l.shape={params.r_l.shape}")
+            # Create pair embedding first to have p_l available for debug print
+            p_l = self._create_pair_embedding(a, params)
             print(f"DEBUG: p_l.shape={p_l.shape}, c_atompair={self.c_atompair}")
-
-        # Create pair embedding
-        p_l = self._create_pair_embedding(a, params)
+        else:
+            # Create pair embedding
+            p_l = self._create_pair_embedding(a, params)
 
         # Create attention mask if not provided
         mask = torch.ones_like(a[..., 0], dtype=torch.bool)
