@@ -28,7 +28,7 @@ Configuration Requirements:
 import os
 import sys
 import logging
-from typing import Union, Tuple
+from typing import Union, Tuple, cast
 import hydra
 from omegaconf import DictConfig
 import psutil
@@ -58,7 +58,7 @@ for name in [
 ]:
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
-    handler = logging.StreamHandler()
+    handler = cast(logging.StreamHandler, logging.StreamHandler())
     handler.setLevel(logging.DEBUG)
     formatter = logging.Formatter('[%(levelname)s][%(name)s] %(message)s')
     handler.setFormatter(formatter)
@@ -93,7 +93,7 @@ def set_stageD_logger_level(debug_logging: bool):
 
     # Ensure the root logger has at least one handler
     if not root_logger.handlers:
-        handler = logging.StreamHandler(sys.stdout)
+        handler = cast(logging.StreamHandler, logging.StreamHandler(sys.stdout))
         formatter = logging.Formatter('[%(asctime)s][%(name)s][%(levelname)s] - %(message)s')
         handler.setFormatter(formatter)
         root_logger.addHandler(handler)
