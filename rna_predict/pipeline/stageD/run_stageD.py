@@ -25,38 +25,8 @@ Configuration Requirements:
             - num_steps: Number of diffusion steps
 
 """
-
-# --- PATCH: Configure all relevant loggers at import time ---
-import logging
-for name in [
-    "rna_predict.pipeline.stageA.input_embedding.current.transformer.atom_attention.components.feature_processing",
-    "rna_predict.pipeline.stageA.input_embedding.current.transformer.atom_attention.encoder",
-    "rna_predict.pipeline.stageA.input_embedding.current.transformer.atom_attention",
-    "rna_predict.pipeline.stageA.input_embedding.current.transformer",
-    "rna_predict.pipeline.stageA.input_embedding.current",
-]:
-    logger = logging.getLogger(name)
-    logger.setLevel(logging.DEBUG)
-    handler = logging.StreamHandler()
-    handler.setLevel(logging.DEBUG)
-    formatter = logging.Formatter('[%(levelname)s][%(name)s] %(message)s')
-    handler.setFormatter(formatter)
-    if not logger.hasHandlers():
-        logger.addHandler(handler)
-    logger.propagate = True
-# --- END PATCH ---
-
 import os
 import sys
-
-# Add the project root to the path to enable absolute imports
-sys.path.insert(
-    0,
-    os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "../../../")
-    ),
-)
-
 import logging
 from typing import Union, Tuple
 import hydra
@@ -76,6 +46,33 @@ from rna_predict.pipeline.stageD.stage_d_utils.output_utils import run_diffusion
 from rna_predict.pipeline.stageD.context import StageDContext
 from rna_predict.pipeline.stageD.stage_d_utils.feature_utils import (
     _validate_feature_config, _validate_atom_metadata, _init_feature_tensors, initialize_features_from_config
+)
+
+# --- PATCH: Configure all relevant loggers at import time ---
+for name in [
+    "rna_predict.pipeline.stageA.input_embedding.current.transformer.atom_attention.components.feature_processing",
+    "rna_predict.pipeline.stageA.input_embedding.current.transformer.atom_attention.encoder",
+    "rna_predict.pipeline.stageA.input_embedding.current.transformer.atom_attention",
+    "rna_predict.pipeline.stageA.input_embedding.current.transformer",
+    "rna_predict.pipeline.stageA.input_embedding.current",
+]:
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.DEBUG)
+    handler = logging.StreamHandler()
+    handler.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('[%(levelname)s][%(name)s] %(message)s')
+    handler.setFormatter(formatter)
+    if not logger.hasHandlers():
+        logger.addHandler(handler)
+    logger.propagate = True
+# --- END PATCH ---
+
+# Add the project root to the path to enable absolute imports
+sys.path.insert(
+    0,
+    os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "../../../")
+    ),
 )
 
 
