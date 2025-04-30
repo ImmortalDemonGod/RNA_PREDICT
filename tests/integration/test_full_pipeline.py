@@ -6,11 +6,8 @@ import numpy as np
 import torch
 from omegaconf import OmegaConf
 from hypothesis import given, settings, strategies as st
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
+# Import hydra components
+from hydra import compose, initialize
 # Import removed as we're using a mock instead
 # from rna_predict.pipeline.stageB.pairwise.pairformer_wrapper import PairformerWrapper
 from rna_predict.pipeline.stageB.torsion.torsion_bert_predictor import (
@@ -18,7 +15,10 @@ from rna_predict.pipeline.stageB.torsion.torsion_bert_predictor import (
 )
 from rna_predict.run_full_pipeline import run_full_pipeline
 from rna_predict.pipeline.merger.simple_latent_merger import SimpleLatentMerger
-from hydra import compose, initialize
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class DummyStageAPredictor:
     """Dummy predictor that returns a simple adjacency matrix for testing"""

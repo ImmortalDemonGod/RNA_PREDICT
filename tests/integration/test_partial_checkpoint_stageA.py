@@ -10,7 +10,6 @@ import os
 import torch
 import pytest
 import hydra
-from rna_predict.pipeline.stageA.adjacency.rfold_predictor import StageARFoldPredictor
 import pathlib
 import sys
 from pathlib import Path
