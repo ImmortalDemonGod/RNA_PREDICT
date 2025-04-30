@@ -50,13 +50,16 @@ class AtomAttentionEncoder(nn.Module):
         c_ref_element = getattr(config, 'c_ref_element', 128)
         logger.debug(f"[DEBUG][AtomAttentionEncoder] Using c_ref_element={c_ref_element}")
         logger.debug(f"[DEBUG][AtomAttentionEncoder] debug_logging in config: {getattr(config, 'debug_logging', None)}")
+        debug_logging = getattr(config, 'debug_logging', None)
+        if debug_logging is None:
+            debug_logging = False
         self.feature_processor = FeatureProcessor(
             c_atom=self.c_atom,
             c_atompair=self.c_atompair,
             c_s=self.c_s,
             c_z=self.c_z,
             c_ref_element=c_ref_element,
-            debug_logging=getattr(config, 'debug_logging', None),
+            debug_logging=bool(debug_logging),
         )
 
         if self.has_coords:
