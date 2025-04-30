@@ -1,7 +1,6 @@
 import os
 import tempfile
 import shutil
-import torch
 import pandas as pd
 import pytest
 from omegaconf import OmegaConf
