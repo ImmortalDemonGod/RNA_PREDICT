@@ -40,7 +40,7 @@ def set_stageD_logger_level(debug_logging: bool):
         logger.setLevel(logging.INFO)
     logger.propagate = True
     if not logger.handlers:
-        handler = cast(logging.StreamHandler, logging.StreamHandler())
+        handler: logging.StreamHandler = cast(logging.StreamHandler, logging.StreamHandler())
         formatter = logging.Formatter('[%(asctime)s][%(name)s][%(levelname)s] - %(message)s')
         handler.setFormatter(formatter)
         logger.addHandler(handler)
