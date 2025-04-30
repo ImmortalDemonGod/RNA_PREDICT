@@ -6,7 +6,7 @@ residue-to-atom bridging for tensor shape compatibility.
 """
 
 import logging
-from typing import Tuple, Union
+from typing import Tuple, Union, cast
 
 import torch
 
@@ -40,7 +40,7 @@ def set_stageD_logger_level(debug_logging: bool):
         logger.setLevel(logging.INFO)
     logger.propagate = True
     if not logger.handlers:
-        handler = logging.StreamHandler()
+        handler = cast(logging.StreamHandler, logging.StreamHandler())
         formatter = logging.Formatter('[%(asctime)s][%(name)s][%(levelname)s] - %(message)s')
         handler.setFormatter(formatter)
         logger.addHandler(handler)
