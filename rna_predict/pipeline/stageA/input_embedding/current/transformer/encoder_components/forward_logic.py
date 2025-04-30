@@ -264,7 +264,7 @@ def _process_style_embedding(
 def _aggregate_to_token_level(
     encoder: Any, a_atom: torch.Tensor, atom_to_token_idx: torch.Tensor, num_tokens: int
 ) -> torch.Tensor:
-    debug = _is_debug_logging(encoder)
+    _is_debug_logging(encoder)
     # (all logger.debug calls in this function now use debug)
     # ... (rest of function unchanged, just patch debug_logging checks)
     # ...
