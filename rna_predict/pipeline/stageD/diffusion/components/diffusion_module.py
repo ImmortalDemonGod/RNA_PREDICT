@@ -103,10 +103,12 @@ class DiffusionModule(nn.Module):
             n_heads = int(atom_encoder.get("n_heads", 8))
             n_queries = int(atom_encoder.get("n_queries", 64))
             n_keys = int(atom_encoder.get("n_keys", 64))
+            n_blocks = int(atom_encoder.get("n_blocks", 1))
         else:
             n_heads = 8
             n_queries = 64
             n_keys = 64
+            n_blocks = 1
         encoder_config = AtomAttentionConfig(
             c_atom=c_atom,
             c_atompair=c_atompair,
@@ -115,7 +117,7 @@ class DiffusionModule(nn.Module):
             c_s=c_s,
             c_z=c_z,
             blocks_per_ckpt=blocks_per_ckpt,
-            n_blocks=int(atom_encoder.get("n_blocks", 1)),
+            n_blocks=n_blocks,
             n_heads=n_heads,
             n_queries=n_queries,
             n_keys=n_keys,
@@ -127,9 +129,15 @@ class DiffusionModule(nn.Module):
         self.linear_no_bias_s = LinearNoBias(in_features=c_s, out_features=c_token)
 
         # --- DiffusionTransformer ---
+        if isinstance(transformer, dict):
+            n_blocks = int(transformer.get("n_blocks", 1))
+            n_heads = int(transformer.get("n_heads", 8))
+        else:
+            n_blocks = 1
+            n_heads = 8
         transformer_params = {
-            "n_blocks": int(transformer.get("n_blocks", 1)),
-            "n_heads": int(transformer.get("n_heads", 8)),
+            "n_blocks": n_blocks,
+            "n_heads": n_heads,
             "c_a": c_token,
             "c_s": c_s,
             "c_z": c_z,
@@ -143,10 +151,12 @@ class DiffusionModule(nn.Module):
             n_heads = int(atom_decoder.get("n_heads", 8))
             n_queries = int(atom_decoder.get("n_queries", 64))
             n_keys = int(atom_decoder.get("n_keys", 64))
+            n_blocks = int(atom_decoder.get("n_blocks", 1))
         else:
             n_heads = 8
             n_queries = 64
             n_keys = 64
+            n_blocks = 1
         decoder_config = AtomAttentionConfig(
             c_atom=c_atom,
             c_atompair=c_atompair,
@@ -155,7 +165,7 @@ class DiffusionModule(nn.Module):
             c_s=c_s,
             c_z=c_z,
             blocks_per_ckpt=blocks_per_ckpt,
-            n_blocks=int(atom_decoder.get("n_blocks", 1)),
+            n_blocks=n_blocks,
             n_heads=n_heads,
             n_queries=n_queries,
             n_keys=n_keys,
