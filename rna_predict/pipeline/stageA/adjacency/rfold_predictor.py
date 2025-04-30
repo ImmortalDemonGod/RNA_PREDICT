@@ -25,12 +25,10 @@ import torch.nn as nn
 import psutil
 
 # Import necessary for type hint checks if needed and OmegaConf utilities
-from omegaconf import DictConfig, ListConfig
+from omegaconf import DictConfig
 
 from rna_predict.pipeline.stageA.adjacency.RFold_code import (
     RFoldModel,
-    constraint_matrix,
-    row_col_argmax,
 )
 
 # Global official_seq_dict for optional usage
