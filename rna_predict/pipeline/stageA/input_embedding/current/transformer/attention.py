@@ -535,6 +535,10 @@ class AttentionPairBias(nn.Module):
                     )
                     return a
 
+            # Log s tensor shape and expected dimension before adaptation
+            if torch.is_grad_enabled():
+                print(f"[INSTRUMENT][Attention] s.shape={s.shape}, expected_s_dim={self.c_s}, s.dtype={s.dtype}")
+
             # Apply the linear projection to get the gate values
             try:
                 gate = torch.sigmoid(self.linear_a_last(s))  # Expects [..., C_s], outputs [..., C_a]

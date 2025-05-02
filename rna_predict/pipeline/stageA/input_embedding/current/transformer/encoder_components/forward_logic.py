@@ -61,17 +61,14 @@ def get_atom_to_token_idx(input_feature_dict, num_tokens=None, encoder=None):
         return None
     atom_to_token_idx = safe_tensor_access(input_feature_dict, "atom_to_token_idx")
     if atom_to_token_idx is not None:
-        if num_tokens is not None and atom_to_token_idx is not None and atom_to_token_idx.numel() > 0 and torch.is_tensor(atom_to_token_idx) and atom_to_token_idx.max() is not None and num_tokens is not None and atom_to_token_idx.max() is not None and num_tokens is not None and atom_to_token_idx.max() is not None and num_tokens is not None and atom_to_token_idx.max() is not None and num_tokens is not None and atom_to_token_idx.max() is not None and num_tokens is not None and atom_to_token_idx.max() is not None and num_tokens is not None and atom_to_token_idx.max() is not None and num_tokens is not None and atom_to_token_idx.max() >= num_tokens:
-            if atom_to_token_idx.max() is not None and num_tokens is not None:
-                if atom_to_token_idx.max() >= num_tokens:
-                    warnings.warn(
-                        f"[get_atom_to_token_idx] atom_to_token_idx max value {atom_to_token_idx.max()} >= num_tokens {num_tokens}. "
-                        f"Clipping indices to prevent out-of-bounds error."
-                    )
-                    if debug:
-                        logger.warning(f"[get_atom_to_token_idx] atom_to_token_idx max value {atom_to_token_idx.max()} >= num_tokens {num_tokens}. Clipping indices.")
-                    if atom_to_token_idx is not None and num_tokens is not None:
-                        atom_to_token_idx = torch.clamp(atom_to_token_idx, max=num_tokens - 1)
+        if atom_to_token_idx.numel() > 0 and torch.is_tensor(atom_to_token_idx) and atom_to_token_idx.max() is not None and num_tokens is not None and atom_to_token_idx.max() >= num_tokens:
+            warnings.warn(
+                f"[get_atom_to_token_idx] atom_to_token_idx max value {atom_to_token_idx.max()} >= num_tokens {num_tokens}. "
+                f"Clipping indices to prevent out-of-bounds error."
+            )
+            if debug:
+                logger.warning(f"[get_atom_to_token_idx] atom_to_token_idx max value {atom_to_token_idx.max()} >= num_tokens {num_tokens}. Clipping indices.")
+            atom_to_token_idx = torch.clamp(atom_to_token_idx, max=num_tokens - 1)
     else:
         warnings.warn("[get_atom_to_token_idx] atom_to_token_idx is None. Cannot perform aggregation.")
         if debug:
@@ -374,6 +371,22 @@ def process_inputs_with_coords(
     print("[DEBUG][process_inputs_with_coords] params.input_feature_dict['atom_to_token_idx']:", type(params.input_feature_dict.get('atom_to_token_idx', None)), getattr(params.input_feature_dict.get('atom_to_token_idx', None), 'shape', None))
     print("[DEBUG][process_inputs_with_coords] atom_to_token_idx argument:", type(atom_to_token_idx), getattr(atom_to_token_idx, 'shape', None))
     debug = _is_debug_logging(encoder)
+    # SYSTEMATIC DEBUGGING: Print atom_to_token_idx state at entry
+    if atom_to_token_idx is None:
+        atom_to_token_idx = params.input_feature_dict.get("atom_to_token_idx", None)
+        logger.debug(f"[DEBUG][process_inputs_with_coords] atom_to_token_idx extracted from params.input_feature_dict: {type(atom_to_token_idx)}, shape: {getattr(atom_to_token_idx, 'shape', None)}")
+    if atom_to_token_idx is not None:
+        logger.debug(f"[DEBUG][process_inputs_with_coords] atom_to_token_idx type: {type(atom_to_token_idx)}, is_tensor: {torch.is_tensor(atom_to_token_idx)}, shape: {getattr(atom_to_token_idx, 'shape', None)}, dtype: {getattr(atom_to_token_idx, 'dtype', None)}")
+        logger.debug(f"[DEBUG][process_inputs_with_coords] atom_to_token_idx contents: {atom_to_token_idx}")
+    else:
+        logger.debug("[DEBUG][process_inputs_with_coords] atom_to_token_idx is None at entry!")
+    # SYSTEMATIC DEBUGGING: Print all major tensor shapes
+    logger.debug(f"[DEBUG][process_inputs_with_coords] q_l shape: {getattr(params.q_l, 'shape', None)}")
+    logger.debug(f"[DEBUG][process_inputs_with_coords] c_l shape: {getattr(params.c_l, 'shape', None)}")
+    logger.debug(f"[DEBUG][process_inputs_with_coords] r_l shape: {getattr(params.r_l, 'shape', None)}")
+    logger.debug(f"[DEBUG][process_inputs_with_coords] s shape: {getattr(params.s, 'shape', None)}")
+    logger.debug(f"[DEBUG][process_inputs_with_coords] z shape: {getattr(params.z, 'shape', None)}")
+    logger.debug(f"[DEBUG][process_inputs_with_coords] restype shape: {getattr(params.restype, 'shape', None)}")
     q_l = params.q_l
     p_lm = create_pair_embedding(encoder, params.input_feature_dict)
     restype = params.restype
