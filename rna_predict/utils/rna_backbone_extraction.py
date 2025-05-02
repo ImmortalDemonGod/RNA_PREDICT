@@ -20,6 +20,34 @@ def normalize_atom_name(atom):
     return atom.replace('*', "'").strip()
 
 def extract_pdb_backbone_coords(pdb_path, chain_select=None, residue_select=None):
+    """
+    Extract canonical RNA backbone atom coordinates from a PDB file.
+
+    Parameters
+    ----------
+    pdb_path : str
+        Path to the PDB file to parse.
+    chain_select : str, optional
+        If provided, only atoms from the specified chain ID are included.
+    residue_select : int, optional
+        If provided, only atoms from the specified residue number are included.
+
+    Returns
+    -------
+    coords_sorted : list of dict
+        List of dictionaries, each with keys:
+            'atom': str, the atom name (e.g., "P", "C4'", etc.)
+            'coords': list of float, the [x, y, z] coordinates.
+        The list is sorted according to `CANONICAL_BACKBONE_ORDER`.
+        If any backbone atom is missing, a warning is logged.
+
+    Notes
+    -----
+    - Only ATOM records are parsed; HETATM and other records are ignored.
+    - Atom names are normalized before comparison.
+    - Missing backbone atoms are reported via logger.warning, but not filled with NaN.
+    - The function does not raise on missing atoms; it returns the available ones.
+    """
     coords = []
     with open(pdb_path, 'r') as f:
         for line in f:

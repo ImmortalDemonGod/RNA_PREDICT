@@ -1,4 +1,5 @@
 import pytest
+import os
 from pathlib import Path
 from hydra import initialize, compose
 import sys
@@ -17,8 +18,11 @@ def get_hydra_conf_path():
         Path("../../rna_predict/conf"),     # From tests/subdirectory/
         Path(cwd, "rna_predict/conf"),      # Absolute path from CWD
         Path(cwd.parent, "rna_predict/conf"), # Parent of CWD
-        Path("/Users/tomriddle1/RNA_PREDICT/rna_predict/conf")  # Absolute path to project root
     ]
+
+    # Add environment variable path if set
+    if "RNA_PREDICT_CONF" in os.environ:
+        possible_paths.append(Path(os.environ["RNA_PREDICT_CONF"]))
 
     for path in possible_paths:
         if path.is_dir():
@@ -31,7 +35,6 @@ def get_hydra_conf_path():
             except ValueError:
                 # If we can't make a relative path, create a symlink in the current directory
                 print(f"[DEBUG][test_config.py] Found config at: {path} (creating symlink)", file=sys.stderr)
-                import os
                 import tempfile
                 # Create a temporary directory for the symlink
                 temp_dir = tempfile.mkdtemp(prefix="hydra_conf_")
@@ -45,8 +48,8 @@ def get_hydra_conf_path():
     # If we get here, we couldn't find the config directory
     print("[ERROR][test_config.py] Could not find rna_predict/conf relative to current working directory!", file=sys.stderr)
     print(f"[ERROR][test_config.py] Searched paths: {[str(p) for p in possible_paths]}", file=sys.stderr)
-    print("[ERROR][test_config.py] Please run tests from the project root: /Users/tomriddle1/RNA_PREDICT", file=sys.stderr)
-    raise RuntimeError(f"Could not find rna_predict/conf relative to CWD: {cwd}. Please run tests from the project root: /Users/tomriddle1/RNA_PREDICT")
+    print("[ERROR][test_config.py] Please run tests from the project root or set RNA_PREDICT_CONF environment variable", file=sys.stderr)
+    raise RuntimeError(f"Could not find rna_predict/conf relative to CWD: {cwd}. Please run tests from the project root or set RNA_PREDICT_CONF environment variable")
 
 @pytest.fixture
 def hydra_config():
@@ -65,7 +68,6 @@ def hydra_config():
                 print(f"[ERROR][test_config.py] Error loading config: {e}", file=sys.stderr)
                 # Try to list the contents of the config directory to debug
                 try:
-                    import os
                     config_dir = Path(conf_path)
                     if config_dir.is_dir():
                         print(f"[DEBUG][test_config.py] Contents of {config_dir}:", file=sys.stderr)
@@ -79,7 +81,6 @@ def hydra_config():
     except Exception as e:
         print(f"[ERROR][test_config.py] Error initializing Hydra: {e}", file=sys.stderr)
         # Try to create a minimal config for testing
-        import os
         import tempfile
         import shutil
 

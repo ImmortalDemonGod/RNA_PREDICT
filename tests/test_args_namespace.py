@@ -30,14 +30,23 @@ config_dict = {
     "decoder_skip_connections": True,
 }
 
-# Create args namespace
-print("Creating args namespace...")
-args = args_namespace(config_dict)
-print(f"Args type: {type(args)}")
-print(f"Args attributes: {dir(args)}")
+import unittest
 
-# Create RFoldModel
-print("Creating RFoldModel...")
-model = RFoldModel(args)
-print(f"Model type: {type(model)}")
-print("Success!")
+class TestArgsNamespace(unittest.TestCase):
+    def test_args_namespace_creation(self):
+        """Test creation of args namespace and model instantiation."""
+        # Create args namespace
+        args = args_namespace(config_dict)
+        
+        # Verify args has expected attributes
+        self.assertIsNotNone(args)
+        for key in config_dict:
+            self.assertTrue(hasattr(args, key))
+            self.assertEqual(getattr(args, key), config_dict[key])
+        
+        # Create and verify RFoldModel
+        model = RFoldModel(args)
+        self.assertIsInstance(model, RFoldModel)
+
+if __name__ == "__main__":
+    unittest.main()

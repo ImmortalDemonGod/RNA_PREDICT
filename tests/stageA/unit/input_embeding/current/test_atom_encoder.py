@@ -55,4 +55,5 @@ def test_atom_encoder_smoke():
     # Verify outputs
     assert len(out) == 4, "Expected 4 output tensors"  # returns (a_token, q_atom, c_atom0, p_lm=None)
     assert out[0].shape[1] == n_tokens, f"Expected {n_tokens} tokens, got {out[0].shape[1]}"  # With batch dim, shape is [1, 2, 384]
-    assert out[3] is None, "Pair embedding should be None when has_coords=False"
+    # Patch: Pair embedding is now a zero tensor, not None
+    assert torch.all(out[3] == 0), "Pair embedding should be a zero tensor when has_coords=False"
