@@ -7,6 +7,7 @@ including handling different query-key-value configurations and small tensor pro
 
 import math
 import warnings
+import os
 from typing import NamedTuple, Optional
 
 import torch

@@ -20,6 +20,9 @@ from rna_predict.pipeline.stageA.input_embedding.current.transformer.atom_attent
 class AtomAttentionDecoder(nn.Module):
     """
     Decoder that processes token-level features and produces atom-level embeddings.
+
+    All input/output feature dimensions (e.g., c_atom, c_atompair, c_token, etc.)
+    are configured via Hydra config for full flexibility and pipeline consistency.
     """
 
     def __init__(self, config: AtomAttentionConfig, debug_logging: bool = False) -> None:
@@ -27,7 +30,7 @@ class AtomAttentionDecoder(nn.Module):
         Initialize the AtomAttentionDecoder with a configuration object.
 
         Args:
-            config: Configuration parameters for the decoder
+            config: Hydra config object specifying all required dimensions (c_atom, c_atompair, c_token, ...)
             debug_logging: Whether to print debug logs
         """
         super().__init__()
