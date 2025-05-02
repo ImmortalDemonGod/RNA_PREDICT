@@ -152,8 +152,8 @@ class TestDownloadFile(TestBase):
     """Tests for download_file function."""
     def setUp(self) -> None:
         self.download_path = os.path.join(self.test_dir, "test_download_file.bin")
-        self.url_valid_zip = "[http://example.com/fakefile.zip](http://example.com/fakefile.zip)"
-        self.url_regular_file = "[http://example.com/fakefile.txt](http://example.com/fakefile.txt)"
+        self.url_valid_zip = "http://example.com/fakefile.zip"
+        self.url_regular_file = "http://example.com/fakefile.txt"
     def test_existing_non_zip_skips_download(self):
         with open(self.download_path, "wb") as f:
             f.write(b"Existing data")
@@ -180,16 +180,76 @@ class TestDownloadFile(TestBase):
     @patch("urllib.request.urlopen")
     @patch("shutil.copyfileobj")
     def test_download_new_file(self, mock_copyfileobj, mock_urlopen):
+        """Test that download_file downloads a new file correctly."""
+        # Create a mock response
         mock_response = MagicMock()
         mock_response.__enter__.return_value = mock_response
         mock_urlopen.return_value = mock_response
-        download_file("[http://example.com/newdata](http://example.com/newdata)", self.download_path)
-        mock_urlopen.assert_called_once_with("[http://example.com/newdata](http://example.com/newdata)")
+
+        # Ensure the file doesn't exist
+        if os.path.exists(self.download_path):
+            os.remove(self.download_path)
+
+        # Call the function
+        download_file("http://example.com/newdata", self.download_path)
+
+        # Verify urlopen was called once with the correct URL and timeout
+        mock_urlopen.assert_called_once_with("http://example.com/newdata", timeout=30)
+
+        # Verify copyfileobj was called once
+        mock_copyfileobj.assert_called_once()
+
+    @patch("urllib.request.urlopen")
+    @patch("time.sleep")
+    @patch("shutil.copyfileobj")
+    def test_download_succeeds_after_retries(self, mock_copyfileobj, mock_sleep, mock_urlopen):
+        """Test that download_file retries on failure and eventually succeeds."""
+        # Create a mock response for the successful attempt
+        mock_response = MagicMock()
+        mock_response.__enter__.return_value = mock_response
+
+        # Set up the side effect sequence
+        mock_urlopen.side_effect = [
+            urllib.error.URLError("Connection refused"),
+            urllib.error.URLError("Timeout"),
+            mock_response
+        ]
+
+        # Ensure the file doesn't exist
+        if os.path.exists(self.download_path):
+            os.remove(self.download_path)
+
+        # Call the function
+        download_file("http://example.com/retry-test", self.download_path, debug_logging=True)
+
+        # Verify urlopen was called 3 times
+        self.assertEqual(mock_urlopen.call_count, 3)
+
+        # Verify sleep was called 2 times
+        self.assertEqual(mock_sleep.call_count, 2)
+
+        # Verify copyfileobj was called once (on the successful attempt)
         mock_copyfileobj.assert_called_once()
     @patch("urllib.request.urlopen", side_effect=urllib.error.URLError("No route"))
-    def test_download_fails(self, mock_urlopen):
-        with self.assertRaises(urllib.error.URLError):
-            download_file("[http://bad-url.com](http://bad-url.com)", self.download_path)
+    @patch("time.sleep")
+    def test_download_fails(self, mock_sleep, mock_urlopen):
+        """Test that download_file raises RuntimeError after all retries fail."""
+        # Ensure the file doesn't exist
+        if os.path.exists(self.download_path):
+            os.remove(self.download_path)
+
+        # Call the function and expect it to raise RuntimeError
+        with self.assertRaises(RuntimeError) as cm:
+            download_file("http://bad-url.com", self.download_path)
+
+        # Verify the error message includes the retry count
+        self.assertIn("after 3 attempts", str(cm.exception))
+
+        # Verify urlopen was called 3 times (default max_retries)
+        self.assertEqual(mock_urlopen.call_count, 3)
+
+        # Verify sleep was called 2 times (max_retries - 1)
+        self.assertEqual(mock_sleep.call_count, 2)
 
 class TestUnzipFile(TestBase):
     """Tests for unzip_file function."""

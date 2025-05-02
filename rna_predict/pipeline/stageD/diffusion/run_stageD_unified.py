@@ -6,7 +6,7 @@ residue-to-atom bridging for tensor shape compatibility.
 """
 
 import logging
-from typing import Tuple, Union, cast
+from typing import Tuple, Union
 
 import torch
 
@@ -40,15 +40,17 @@ def set_stageD_logger_level(debug_logging: bool):
         logger.setLevel(logging.INFO)
     logger.propagate = True
     if not logger.handlers:
-        handler: logging.StreamHandler = cast(logging.StreamHandler, logging.StreamHandler())
+        handler = logging.StreamHandler()
         formatter = logging.Formatter('[%(asctime)s][%(name)s][%(levelname)s] - %(message)s')
         handler.setFormatter(formatter)
         logger.addHandler(handler)
     for handler in logger.handlers:
-        if debug_logging:
-            handler.setLevel(logging.DEBUG)
-        else:
-            handler.setLevel(logging.INFO)
+        # mypy: allow generic Handler, only set level if possible
+        if hasattr(handler, 'setLevel'):
+            if debug_logging:
+                handler.setLevel(logging.DEBUG)
+            else:
+                handler.setLevel(logging.INFO)
 
 def ensure_logger_config(config):
     debug_logging = False
@@ -107,7 +109,8 @@ def _run_stageD_diffusion_impl(
     if not hasattr(config, 'diffusion'):
         raise ValueError("Config missing required 'diffusion' section. Please define it in your YAML config group.")
     _validate_feature_config(config)
-    residue_indices, num_residues = _validate_atom_metadata(getattr(config, 'atom_metadata', None))
+    # Validate atom metadata and store residue_indices for potential use
+    residue_indices, _ = _validate_atom_metadata(getattr(config, 'atom_metadata', None))
     debug_logging = getattr(config, 'debug_logging', False)
     if debug_logging:
         logger.debug(f"[StageD] Running diffusion refinement with config: {config}")
@@ -217,9 +220,34 @@ def _run_stageD_diffusion_impl(
 
     # Ensure consistent sample dimensions for all tensors
     # This is particularly important for single-sample cases
-    # Access diffusion_config instead of diffusion attribute
-    diffusion_cfg = getattr(config, 'diffusion_config', {})
-    num_samples = diffusion_cfg.get('num_samples', 1)
+    # Validate diffusion_config exists and raise explicit error if missing
+    if not hasattr(config, 'diffusion_config'):
+        raise ValueError("[STAGED-UNIFIED ERROR][UNIQUE_CODE_005] 'diffusion_config' attribute is missing from config. This is required for proper operation.")
+
+    diffusion_cfg = config.diffusion_config
+
+    # Navigate to the correct nested location for num_samples
+    # First try the proper Hydra path: diffusion.inference.sampling.num_samples
+    num_samples = 1  # Default as last resort
+
+    # Try to find num_samples in the proper nested structure
+    if isinstance(diffusion_cfg, dict):
+        # Check if inference.sampling.num_samples exists
+        if 'inference' in diffusion_cfg and isinstance(diffusion_cfg['inference'], dict):
+            inference_cfg = diffusion_cfg['inference']
+            if 'sampling' in inference_cfg and isinstance(inference_cfg['sampling'], dict):
+                sampling_cfg = inference_cfg['sampling']
+                if 'num_samples' in sampling_cfg:
+                    num_samples = sampling_cfg['num_samples']
+                    logger.debug(f"[StageD] Using num_samples from config.diffusion_config.inference.sampling.num_samples: {num_samples}")
+        # Direct access as fallback
+        elif 'num_samples' in diffusion_cfg:
+            num_samples = diffusion_cfg['num_samples']
+            logger.debug(f"[StageD] Using num_samples from config.diffusion_config.num_samples: {num_samples}")
+
+    # Log the value being used
+    logger.debug(f"[StageD] Using num_samples: {num_samples}")
+
     trunk_embeddings_internal, input_features = ensure_consistent_sample_dimensions(
         trunk_embeddings=trunk_embeddings_internal,
         input_features=input_features,

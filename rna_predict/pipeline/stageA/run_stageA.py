@@ -2,6 +2,7 @@
 import os
 import shutil
 import subprocess
+import time
 import urllib.request
 import zipfile
 import logging
@@ -16,11 +17,21 @@ from rna_predict.pipeline.stageA.adjacency.rfold_predictor import StageARFoldPre
 logger = logging.getLogger("rna_predict.pipeline.stageA.run_stageA")
 
 
-def download_file(url: str, dest_path: str, debug_logging: bool = False):
+def download_file(url: str, dest_path: str, debug_logging: bool = False,
+                max_retries: int = 3, initial_backoff: float = 1.0, backoff_factor: float = 2.0):
     """
-    Download file from URL to a local destination path.
-    If the file already exists, check if it's a valid zip (when extension is .zip).
-    If invalid, remove and re-download; otherwise skip download.
+    Download file from URL to a local destination path with exponential backoff retry.
+
+    Args:
+        url: URL to download from
+        dest_path: Local path to save the file
+        debug_logging: Whether to log debug information
+        max_retries: Maximum number of retry attempts
+        initial_backoff: Initial backoff time in seconds
+        backoff_factor: Factor to multiply backoff time by after each attempt
+
+    Raises:
+        RuntimeError: If download fails after all retries
     """
     if os.path.isfile(dest_path):
         # If it's a .zip file, let's verify it's valid
@@ -49,10 +60,37 @@ def download_file(url: str, dest_path: str, debug_logging: bool = False):
     # If we get here, we need to download the file (either it doesn't exist or was corrupt)
     if debug_logging:
         logger.info(f"[Download] Fetching {url}")
-    with urllib.request.urlopen(url) as r, open(dest_path, "wb") as f:
-        shutil.copyfileobj(r, f)
+
+    # Implement exponential backoff retry
+    backoff_time = initial_backoff
+    last_exception = None
+
+    for attempt in range(max_retries):
+        try:
+            with urllib.request.urlopen(url, timeout=30) as r, open(dest_path, "wb") as f:
+                shutil.copyfileobj(r, f)
+
+            if debug_logging:
+                logger.info(f"[Download] Saved to {dest_path}")
+            return  # Success, exit the function
+
+        except Exception as exc:
+            last_exception = exc
+            if debug_logging:
+                logger.warning(f"[DL] Download attempt {attempt+1}/{max_retries} failed: {exc}")
+
+            # Don't sleep after the last attempt
+            if attempt < max_retries - 1:
+                if debug_logging:
+                    logger.info(f"[DL] Retrying in {backoff_time:.1f} seconds...")
+                time.sleep(backoff_time)
+                backoff_time *= backoff_factor  # Increase backoff time for next attempt
+
+    # If we get here, all retries failed
     if debug_logging:
-        logger.info(f"[Download] Saved to {dest_path}")
+        logger.error(f"[DL] All {max_retries} download attempts failed for {url}")
+
+    raise RuntimeError(f"Failed to download {url} after {max_retries} attempts") from last_exception
 
 
 def unzip_file(zip_path: str, extract_dir: str, debug_logging: bool = False):

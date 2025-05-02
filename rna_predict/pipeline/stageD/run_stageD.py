@@ -26,11 +26,10 @@ Configuration Requirements:
 
 """
 import os
-import sys
 import logging
-from typing import Union, Tuple, cast
+from typing import Union, Tuple
 import hydra
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 import psutil
 import torch
 from rna_predict.pipeline.stageD.stage_d_utils.validation_utils import validate_run_stageD_inputs
@@ -67,14 +66,7 @@ for name in [
     logger.propagate = True
 # --- END PATCH ---
 
-# Add the project root to the path to enable absolute imports
-sys.path.insert(
-    0,
-    os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "../../../")
-    ),
-)
-
+# project_root = resources.files("rna_predict").joinpath("..")  # Not used directly, but preferred for future file resolution
 
 # Configure the logger to ensure debug messages are output
 def set_stageD_logger_level(debug_logging: bool):
@@ -100,14 +92,18 @@ def set_stageD_logger_level(debug_logging: bool):
 
     # Set all handlers on root logger to correct level
     for handler in root_logger.handlers:
-        handler.setLevel(level)
+        # mypy: allow generic Handler, only set level if possible
+        if hasattr(handler, 'setLevel'):
+            handler.setLevel(level)
 
     # Optionally, set the main Stage D package logger as well
     stageD_package_logger = logging.getLogger("rna_predict.pipeline.stageD")
     stageD_package_logger.setLevel(level)
     stageD_package_logger.propagate = True
     for handler in stageD_package_logger.handlers:
-        handler.setLevel(level)
+        # mypy: allow generic Handler, only set level if possible
+        if hasattr(handler, 'setLevel'):
+            handler.setLevel(level)
 
 
 # Ensure logger level is set at the very start using Hydra config
@@ -222,11 +218,11 @@ def _run_stageD_impl(
     # DEBUG: Print out all relevant config values before any bridging or model instantiation
     log.debug("[HYDRA-CONF-DEBUG][StageD] Dumping config values before diffusion:")
     if hasattr(stage_cfg, 'diffusion'):
-        log.debug("  stage_cfg.diffusion: %s", dict(stage_cfg.diffusion))
+        log.debug("  stage_cfg.diffusion: %s", OmegaConf.to_container(stage_cfg.diffusion, resolve=True))
     if hasattr(stage_cfg, 'model_architecture'):
-        log.debug("  stage_cfg.model_architecture: %s", dict(stage_cfg.model_architecture))
+        log.debug("  stage_cfg.model_architecture: %s", OmegaConf.to_container(stage_cfg.model_architecture, resolve=True))
     if hasattr(stage_cfg, 'feature_dimensions'):
-        log.debug("  stage_cfg.feature_dimensions: %s", dict(stage_cfg.feature_dimensions))
+        log.debug("  stage_cfg.feature_dimensions: %s", OmegaConf.to_container(stage_cfg.feature_dimensions, resolve=True))
     log.debug("  n_atoms: %d, n_residues: %d", n_atoms, n_residues)
     log.debug("  s_trunk.shape: %s", getattr(s_trunk, 'shape', None))
     log.debug("  s_inputs.shape: %s", getattr(s_inputs, 'shape', None))
@@ -340,6 +336,7 @@ def run_stageD(context_or_cfg, coords=None, s_trunk=None, z_trunk=None, s_inputs
 def hydra_main(cfg: DictConfig) -> None:
     debug_logging = ensure_logger_config(cfg)
     if debug_logging:
+        import sys
         print("[HYDRA DEBUG] CWD:", os.getcwd())
         print("[HYDRA DEBUG] SCRIPT DIR:", os.path.dirname(__file__))
         print("[HYDRA DEBUG] sys.path:", sys.path)

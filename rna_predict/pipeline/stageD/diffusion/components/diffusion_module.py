@@ -73,7 +73,10 @@ class DiffusionModule(nn.Module):
         atom_encoder = OmegaConf.to_container(cfg.atom_encoder, resolve=True)
         transformer = OmegaConf.to_container(cfg.transformer, resolve=True)
         atom_decoder = OmegaConf.to_container(cfg.atom_decoder, resolve=True)
-        blocks_per_ckpt = transformer.get("blocks_per_ckpt", None)
+        if isinstance(transformer, dict):
+            blocks_per_ckpt = transformer.get("blocks_per_ckpt", None)
+        else:
+            blocks_per_ckpt = None
         self.blocks_per_ckpt = blocks_per_ckpt
         initialization = cfg.get("initialization", {})
         debug_logging = cfg.debug_logging

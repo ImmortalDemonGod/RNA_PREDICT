@@ -61,7 +61,7 @@ def get_atom_to_token_idx(input_feature_dict, num_tokens=None, encoder=None):
         return None
     atom_to_token_idx = safe_tensor_access(input_feature_dict, "atom_to_token_idx")
     if atom_to_token_idx is not None:
-        if num_tokens is not None and atom_to_token_idx is not None and atom_to_token_idx.numel() > 0 and torch.is_tensor(atom_to_token_idx) and atom_to_token_idx.max() is not None and num_tokens is not None and atom_to_token_idx.max() is not None and num_tokens is not None and atom_to_token_idx.max() is not None and num_tokens is not None and atom_to_token_idx.max() is not None and num_tokens is not None and atom_to_token_idx.max() is not None and num_tokens is not None and atom_to_token_idx.max() >= num_tokens:
+        if num_tokens is not None and atom_to_token_idx is not None and atom_to_token_idx.numel() > 0 and torch.is_tensor(atom_to_token_idx) and atom_to_token_idx.max() is not None and num_tokens is not None and atom_to_token_idx.max() is not None and num_tokens is not None and atom_to_token_idx.max() is not None and num_tokens is not None and atom_to_token_idx.max() is not None and num_tokens is not None and atom_to_token_idx.max() is not None and num_tokens is not None and atom_to_token_idx.max() is not None and num_tokens is not None and atom_to_token_idx.max() is not None and num_tokens is not None and atom_to_token_idx.max() >= num_tokens:
             if atom_to_token_idx.max() is not None and num_tokens is not None:
                 if atom_to_token_idx.max() >= num_tokens:
                     warnings.warn(
@@ -261,17 +261,20 @@ def _process_style_embedding(
         if debug:
             logger.debug(f"[DEBUG][EXCEPTION-ADD] {e}")
             logger.debug(f"[DEBUG][EXCEPTION-ADD-SHAPE] c_l.shape={getattr(c_l, 'shape', None)}, x.shape={getattr(x, 'shape', None)}")
-        if getattr(c_l, 'dim', None) != getattr(x, 'dim', None):
-            if debug:
-                logger.debug(f"[DEBUG][EXCEPTION-ADD-DIM] c_l.dim()={getattr(c_l, 'dim', None)}, x.dim()={getattr(x, 'dim', None)}")
-            if getattr(c_l, 'dim', None) < getattr(x, 'dim', None):
-                for _ in range(getattr(x, 'dim', None) - getattr(c_l, 'dim', None)):
-                    c_l = c_l.unsqueeze(1)
-            elif getattr(c_l, 'dim', None) > getattr(x, 'dim', None):
-                for _ in range(getattr(c_l, 'dim', None) - getattr(x, 'dim', None)):
-                    x = x.unsqueeze(1)
-            if debug:
-                logger.debug(f"[DEBUG][EXCEPTION-ADD-SHAPE-AFTER] c_l.shape={getattr(c_l, 'shape', None)}, x.shape={getattr(x, 'shape', None)}")
+    # Patch: Only operate if both dims are not None
+    c_l_dim = getattr(c_l, 'dim', None)
+    x_dim = getattr(x, 'dim', None)
+    if c_l_dim is not None and x_dim is not None and c_l_dim != x_dim:
+        if debug:
+            logger.debug(f"[DEBUG][EXCEPTION-ADD-DIM] c_l.dim()={c_l_dim}, x.dim()={x_dim}")
+        if c_l_dim < x_dim:
+            for _ in range(x_dim - c_l_dim):
+                c_l = c_l.unsqueeze(1)
+        elif c_l_dim > x_dim:
+            for _ in range(c_l_dim - x_dim):
+                x = x.unsqueeze(1)
+        if debug:
+            logger.debug(f"[DEBUG][EXCEPTION-ADD-SHAPE-AFTER] c_l.shape={getattr(c_l, 'shape', None)}, x.shape={getattr(x, 'shape', None)}")
         try:
             if c_l is not None and x is not None:
                 return c_l + x
@@ -368,6 +371,8 @@ def process_inputs_with_coords(
     - Provides a fallback zero tensor if style embedding s is missing.
     - Logs all warnings and debug messages via config-driven logger.
     """
+    print("[DEBUG][process_inputs_with_coords] params.input_feature_dict['atom_to_token_idx']:", type(params.input_feature_dict.get('atom_to_token_idx', None)), getattr(params.input_feature_dict.get('atom_to_token_idx', None), 'shape', None))
+    print("[DEBUG][process_inputs_with_coords] atom_to_token_idx argument:", type(atom_to_token_idx), getattr(atom_to_token_idx, 'shape', None))
     debug = _is_debug_logging(encoder)
     q_l = params.q_l
     p_lm = create_pair_embedding(encoder, params.input_feature_dict)

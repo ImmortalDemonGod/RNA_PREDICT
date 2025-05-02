@@ -75,6 +75,11 @@ def place_rna_bases(
 
     printed_grad_debug = False  # Add this flag at the start of the function
 
+    def safe_allclose(ref, cand):
+        if ref is not None and cand is not None:
+            return torch.allclose(ref, cand)
+        raise ValueError("ref and cand must not be None")
+
     # Place base atoms for each residue
     for i, base in enumerate(seq):
         atom_list = STANDARD_RNA_ATOMS[base]
@@ -140,7 +145,7 @@ def place_rna_bases(
                 for ref_i in range(len(ref_coords)):
                     for ref_j in range(ref_i+1, len(ref_coords)):
                         if isinstance(ref_coords[ref_i], torch.Tensor) and isinstance(ref_coords[ref_j], torch.Tensor):
-                            if not torch.allclose(ref_coords[ref_i], ref_coords[ref_j]):
+                            if not safe_allclose(ref_coords[ref_i], ref_coords[ref_j]):
                                 found = True
                                 break
                     if found:
@@ -157,7 +162,7 @@ def place_rna_bases(
                 for ref_i1 in range(len(ref_coords)):
                     for ref_i2 in range(ref_i1+1, len(ref_coords)):
                         if isinstance(ref_coords[ref_i1], torch.Tensor) and isinstance(ref_coords[ref_i2], torch.Tensor):
-                            if not torch.allclose(ref_coords[ref_i1], ref_coords[ref_i2]):
+                            if not safe_allclose(ref_coords[ref_i1], ref_coords[ref_i2]):
                                 ref1 = ref_coords[ref_i1]
                                 ref2 = ref_coords[ref_i2]
                                 ref1_name = ref_names[ref_i1]
@@ -169,7 +174,7 @@ def place_rna_bases(
                 ref3 = None
                 for ref_k in range(len(ref_coords)):
                     if isinstance(ref_coords[ref_k], torch.Tensor):
-                        if not torch.allclose(ref_coords[ref_k], ref1) and not torch.allclose(ref_coords[ref_k], ref2):
+                        if not safe_allclose(ref_coords[ref_k], ref1) and not safe_allclose(ref_coords[ref_k], ref2):
                             ref3 = ref_coords[ref_k]
                             break
                 if ref3 is None:
@@ -245,25 +250,22 @@ def place_rna_bases(
                 # --- Ensure tensor types for bond_length, bond_angle, torsion_angle (OP1/OP2 special logic) ---
                 bond_length = bond_lengths.get(f"P-{atom_name}", 1.5)
                 if isinstance(bond_length, torch.Tensor):
-                    bond_length_val = bond_length.item()
+                    bond_length_val = bond_length
                 else:
-                    bond_length_val = float(bond_length)
+                    bond_length_val = torch.tensor(float(bond_length), dtype=torch.float32, device=device)
                 bond_angle = bond_angles.get(f"P-{atom_name}", 120.0)
                 if isinstance(bond_angle, torch.Tensor):
-                    bond_angle_val = bond_angle.item()
+                    bond_angle_val = bond_angle
                 else:
-                    bond_angle_val = float(bond_angle)
+                    bond_angle_val = torch.tensor(float(bond_angle), dtype=torch.float32, device=device)
                 torsion_angle = 0.0
-                # Convert to tensors if needed
-                if not torch.is_tensor(bond_length_val):
-                    bond_length = torch.tensor(bond_length_val, dtype=torch.float32, device=device)
-                if not torch.is_tensor(bond_angle_val):
-                    bond_angle = torch.tensor(bond_angle_val, dtype=torch.float32, device=device)
-                if not torch.is_tensor(torsion_angle):
-                    torsion_angle = torch.tensor(torsion_angle, dtype=torch.float32, device=device)
-                logger.debug(f"[DEBUG-PLACEMENT] Calling calculate_atom_position(OP1/OP2) with types: bond_length={type(bond_length)}, bond_angle={type(bond_angle)}, torsion_angle={type(torsion_angle)}")
+                if isinstance(torsion_angle, torch.Tensor):
+                    torsion_angle_val = torsion_angle
+                else:
+                    torsion_angle_val = torch.tensor(torsion_angle, dtype=torch.float32, device=device)
+                logger.debug(f"[DEBUG-PLACEMENT] Calling calculate_atom_position(OP1/OP2) with types: bond_length={type(bond_length_val)}, bond_angle={type(bond_angle_val)}, torsion_angle={type(torsion_angle_val)}")
                 try:
-                    pos = calculate_atom_position(ref3, ref2, bond_length, bond_angle, torsion_angle, device)
+                    pos = calculate_atom_position(ref3, ref2, bond_length_val, bond_angle_val, torsion_angle_val, device)
                     if isinstance(pos, torch.Tensor) and torch.isnan(pos).any():
                         logger.error(f"[UNIQUE-ERR-RNA-NAN-POS] Atom placement produced NaN for {atom_name} at residue {i} (refs={unique_refs}, sep12={sep12}, sep13={sep13}, sep23={sep23}) in seq {seq}. Skipping placement.")
                         continue  # Skip placement if output is NaN
@@ -271,11 +273,8 @@ def place_rna_bases(
                         logger.debug(f"[DEBUG] Output position for {atom_name} at residue {i}: pos={pos}")
                     if isinstance(full_coords, torch.Tensor) and isinstance(pos, torch.Tensor):
                         full_coords[i, idx, :] = pos
-                    # Only assign .item() to variables annotated as float, otherwise keep as Tensor
-                    if isinstance(pos, torch.Tensor) and pos.numel() == 1:
-                        placed_atoms[atom_name] = pos.item()
-                    else:
-                        placed_atoms[atom_name] = pos
+                    # Only assign Tensor to variables annotated as Tensor
+                    placed_atoms[atom_name] = pos
                 except Exception as e:
                     logger.error(f"[DEBUG] Residue {i} base {base}: Atom '{atom_name}' placement failed with error: {e}")
                 continue  # Done with OP1/OP2, skip to next atom
@@ -295,24 +294,26 @@ def place_rna_bases(
             bond_key = f"{ref_partner}-{atom_name}" if f"{ref_partner}-{atom_name}" in bond_lengths else f"{atom_name}-{ref_partner}"
             bond_length = bond_lengths.get(bond_key, 1.5)
             if isinstance(bond_length, torch.Tensor):
-                bond_length_val = bond_length.item()
+                bond_length_val = bond_length
             else:
-                bond_length_val = float(bond_length)
+                bond_length_val = torch.tensor(float(bond_length), dtype=torch.float32, device=device)
             bond_angle_key = f"{ref_partner}-{atom_name}" if f"{ref_partner}-{atom_name}" in bond_angles else f"{atom_name}-{ref_partner}"
             bond_angle = bond_angles.get(bond_angle_key, 120.0)
             if isinstance(bond_angle, torch.Tensor):
-                bond_angle_val = bond_angle.item()
+                bond_angle_tensor = bond_angle
+            elif isinstance(bond_angle, (int, float)):
+                bond_angle_tensor = torch.tensor(float(bond_angle), dtype=torch.float32, device=device)
             else:
-                bond_angle_val = float(bond_angle)
+                bond_angle_tensor = None
             # --- Ensure tensor types for bond_length, bond_angle, torsion_angle (default logic) ---
-            if not torch.is_tensor(bond_length_val):
-                bond_length = torch.tensor(bond_length_val, dtype=torch.float32, device=device)
-            if not torch.is_tensor(bond_angle_val):
-                bond_angle = torch.tensor(bond_angle_val, dtype=torch.float32, device=device)
             torsion_angle = 0.0
-            if not torch.is_tensor(torsion_angle):
-                torsion_angle = torch.tensor(torsion_angle, dtype=torch.float32, device=device)
-            logger.debug(f"[DEBUG-PLACEMENT] Calling calculate_atom_position(default) with types: bond_length={type(bond_length)}, bond_angle={type(bond_angle)}, torsion_angle={type(torsion_angle)}")
+            if isinstance(torsion_angle, torch.Tensor):
+                torsion_angle_tensor = torsion_angle
+            elif isinstance(torsion_angle, (int, float)):
+                torsion_angle_tensor = torch.tensor(torsion_angle, dtype=torch.float32, device=device)
+            else:
+                torsion_angle_tensor = None
+            logger.debug(f"[DEBUG-PLACEMENT] Calling calculate_atom_position(default) with types: bond_length={type(bond_length_val)}, bond_angle={type(bond_angle_tensor)}, torsion_angle={type(torsion_angle_tensor)}")
             # Place the atom
             prev_atoms = [name for name in atom_list[:idx] if name in placed_atoms and isinstance(placed_atoms[name], torch.Tensor)]
             if len(prev_atoms) < 2:
@@ -321,7 +322,7 @@ def place_rna_bases(
             prev1 = placed_atoms[prev_atoms[-1]]
             prev2 = placed_atoms[prev_atoms[-2]]
             try:
-                pos = calculate_atom_position(prev2, prev1, bond_length, bond_angle, torsion_angle, device)
+                pos = calculate_atom_position(prev2, prev1, bond_length_val, bond_angle_tensor, torsion_angle_tensor, device)
             except Exception as e:
                 logger.error(f"[DEBUG] Residue {i} base {base}: Atom '{atom_name}' placement failed with error: {e}")
                 continue
@@ -330,11 +331,8 @@ def place_rna_bases(
                 logger.error(f"[UNIQUE-ERR-RNA-NAN-GENERAL] NaN after placing atom {atom_name} at residue {i} (base {base}), seq={seq}")
             if isinstance(full_coords, torch.Tensor) and isinstance(pos, torch.Tensor):
                 full_coords[i, idx, :] = pos
-            # Only assign .item() to variables annotated as float, otherwise keep as Tensor
-            if isinstance(pos, torch.Tensor) and pos.numel() == 1:
-                placed_atoms[atom_name] = pos.item()
-            else:
-                placed_atoms[atom_name] = pos
+            # Only assign Tensor to variables annotated as Tensor
+            placed_atoms[atom_name] = pos
             # --- DEBUG: Check requires_grad and grad_fn after base placement ---
             if isinstance(full_coords, torch.Tensor):
                 logger.debug(f"[GRAD-TRACE-BASE-PLACEMENT] full_coords.requires_grad: {full_coords.requires_grad}, grad_fn: {full_coords.grad_fn}")
