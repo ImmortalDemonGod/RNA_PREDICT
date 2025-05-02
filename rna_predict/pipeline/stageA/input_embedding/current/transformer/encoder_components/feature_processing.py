@@ -348,7 +348,7 @@ def ensure_space_uid(input_feature_dict: InputFeatureDict) -> None:
     """
     # Create a default tensor if ref_space_uid is not found
     default_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    default_shape = (1, 3)  # Default shape for ref_space_uid
+    default_shape = (1, 1, 1, 3)  # Default shape for ref_space_uid [B, S, N, 3]
     default_tensor = torch.zeros(default_shape, device=default_device)
 
     # Check if ref_space_uid exists in the input_feature_dict
@@ -365,10 +365,50 @@ def ensure_space_uid(input_feature_dict: InputFeatureDict) -> None:
         input_feature_dict["ref_space_uid"] = default_tensor
         return
 
-    # Check shape
-    if ref_space_uid.shape[-1] != 3:
+    # PATCH: Handle 2D case [B, N] - automatically unsqueeze to [B, 1, N, 1]
+    if ref_space_uid.dim() == 2:
+        # This is the case in test_ref_space_uid_patch
         warnings.warn(
-            f"ref_space_uid has wrong shape {ref_space_uid.shape}, expected [..., 3]. "
+            f"ref_space_uid has shape {ref_space_uid.shape} (2D), expected 4D [B, S, N, 3]. "
+            f"Unsqueezing to [B, 1, N, 1] and adding 3 feature dimension."
+        )
+        # First unsqueeze to [B, 1, N, 1]
+        ref_space_uid = ref_space_uid.unsqueeze(1).unsqueeze(-1)
+        # Then expand the last dimension to 3
+        ref_space_uid = torch.cat([ref_space_uid, torch.zeros_like(ref_space_uid), torch.zeros_like(ref_space_uid)], dim=-1)
+        input_feature_dict["ref_space_uid"] = ref_space_uid
+        return
+
+    # Handle 3D case [B, N, D] where D != 3
+    if ref_space_uid.dim() == 3 and ref_space_uid.shape[-1] != 3:
+        warnings.warn(
+            f"ref_space_uid has shape {ref_space_uid.shape}, expected [..., 3]. "
+            f"Adapting last dimension to 3."
+        )
+        if ref_space_uid.shape[-1] < 3:
+            # Pad with zeros
+            padding = torch.zeros(*ref_space_uid.shape[:-1], 3 - ref_space_uid.shape[-1], device=ref_space_uid.device)
+            ref_space_uid = torch.cat([ref_space_uid, padding], dim=-1)
+        else:
+            # Truncate
+            ref_space_uid = ref_space_uid[..., :3]
+        input_feature_dict["ref_space_uid"] = ref_space_uid
+        return
+
+    # Handle 3D case [B, N, 3] - unsqueeze to [B, 1, N, 3]
+    if ref_space_uid.dim() == 3 and ref_space_uid.shape[-1] == 3:
+        warnings.warn(
+            f"ref_space_uid has shape {ref_space_uid.shape} (3D), expected 4D [B, S, N, 3]. "
+            f"Unsqueezing to [B, 1, N, 3]."
+        )
+        ref_space_uid = ref_space_uid.unsqueeze(1)
+        input_feature_dict["ref_space_uid"] = ref_space_uid
+        return
+
+    # Check shape for 4D case [B, S, N, D]
+    if ref_space_uid.dim() == 4 and ref_space_uid.shape[-1] != 3:
+        warnings.warn(
+            f"ref_space_uid has shape {ref_space_uid.shape}, expected [..., 3]. "
             f"Setting to zeros."
         )
         input_feature_dict["ref_space_uid"] = torch.zeros(

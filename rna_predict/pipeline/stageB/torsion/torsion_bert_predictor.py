@@ -7,7 +7,7 @@ from omegaconf import DictConfig
 from transformers import AutoTokenizer, AutoModel
 from .torsionbert_inference import DummyTorsionBertAutoModel
 import torch.nn as nn
-from rna_predict.utils.device_management import get_device_for_component, move_to_device, handle_device_error
+from rna_predict.utils.device_management import get_device_for_component
 
 logger = logging.getLogger("rna_predict.pipeline.stageB.torsion.torsion_bert_predictor")
 # Logger level will be set conditionally in __init__
