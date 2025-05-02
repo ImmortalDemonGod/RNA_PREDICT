@@ -22,6 +22,14 @@ from rna_predict.pipeline.stageB.pairwise.pairformer import (
     MSAConfig
 )
 
+# Import mock components for testing
+from tests.stageB.pairwise.mock_msa_components import (
+    MockMSABlock,
+    MockMSAStack,
+    MockPairformerBlock,
+    MockOuterProductMean
+)
+
 
 @pytest.mark.skip(reason="All tests in this class are hanging or taking too long to run. Needs further investigation. [ERR-MSA-TIMEOUT-002]")
 class TestMSAPairWeightedAveraging(unittest.TestCase):
@@ -283,15 +291,22 @@ class TestMSABlock(unittest.TestCase):
         • otherwise => returns (m, z)
     """
 
-    def test_instantiate_basic(self):
+    @patch('rna_predict.pipeline.stageB.pairwise.pairformer.PairformerBlock', MockPairformerBlock)
+    @patch('rna_predict.pipeline.stageB.pairwise.pairformer.OuterProductMean', MockOuterProductMean)
+    @patch('rna_predict.pipeline.stageB.pairwise.pairformer.MSAStack', MockMSAStack)
+
+    def test_instantiate_basic(self, *_):
         from rna_predict.pipeline.stageB.pairwise.pairformer import MSAConfig
+        # Create a minimal MSAConfig with only required parameters for MSABlock
+        # The implementation now provides defaults for missing parameters
         cfg = MSAConfig(
             c_m=8,
             c=8,
             c_z=8,
-            dropout=0.1,
-            pair_dropout=0.25  # Add missing pair_dropout parameter
+            dropout=0.1
         )
+        # The mocks are already set up via the patch decorators
+
         mb = MSABlock(cfg=cfg)
         self.assertIsInstance(mb, MSABlock)
 
@@ -347,7 +362,20 @@ class TestMSABlock(unittest.TestCase):
             c=8,  # Or another valid value for c
             c_z=c_z,
             dropout=0.1,
-            pair_dropout=0.25,  # Add missing pair_dropout parameter
+            pair_dropout=0.25,
+            # Additional parameters needed for PairformerBlock inside MSABlock
+            n_heads=2,
+            # Other required parameters
+            n_blocks=1,
+            enable=False,
+            strategy="random",
+            train_cutoff=512,
+            test_cutoff=16384,
+            train_lowerb=1,
+            test_lowerb=1,
+            c_s_inputs=8,
+            blocks_per_ckpt=1,
+            input_feature_dims={"msa": 32, "has_deletion": 1, "deletion_value": 1}
         )
         block = MSABlock(cfg=cfg, is_last_block=last_block)
 
@@ -373,65 +401,70 @@ class TestMSAModule(unittest.TestCase):
         • presence of 'msa' => shape updated, or at least tested for coverage
     """
 
-    def test_instantiate_basic(self):
+    @patch('rna_predict.pipeline.stageB.pairwise.pairformer.MSABlock', MockMSABlock)
+    @patch('rna_predict.pipeline.stageB.pairwise.pairformer.PairformerBlock', MockPairformerBlock)
+    @patch('rna_predict.pipeline.stageB.pairwise.pairformer.OuterProductMean', MockOuterProductMean)
+
+    def test_instantiate_basic(self, *_):
         from rna_predict.conf.config_schema import MSAConfig
-        # Use minimal required config values
+        # Create a minimal MSAConfig with only required parameters for MSAModule
+        # The implementation now provides defaults for missing parameters
         minimal_cfg = MSAConfig(
             n_blocks=1,
             c_m=8,
             c=8,
             c_z=16,
-            dropout=0.0,
-            c_s_inputs=8,
-            enable=False
+            dropout=0.0
         )
+        # The mocks are already set up via the patch decorators
+
         mm = MSAModule(minimal_cfg)
         self.assertIsInstance(mm, MSAModule)
 
-    def test_forward_nblocks_zero(self):
+    @patch('rna_predict.pipeline.stageB.pairwise.pairformer.MSABlock', MockMSABlock)
+    @patch('rna_predict.pipeline.stageB.pairwise.pairformer.PairformerBlock', MockPairformerBlock)
+    @patch('rna_predict.pipeline.stageB.pairwise.pairformer.OuterProductMean', MockOuterProductMean)
+    def test_forward_nblocks_zero(self, *_):
         """If n_blocks=0, forward always returns the original z."""
         # Provide a minimal config object for MSAModule
-        class DummyCfg:
-            n_blocks = 0
-            c_m = 8
-            c = 8  # Provide a default value for c
-            c_z = 16
-            dropout = 0.0
-            c_s_inputs = 8
-            blocks_per_ckpt = 1
-            input_feature_dims = {"msa": 32, "has_deletion": 1, "deletion_value": 1}
-            enable = False
-            strategy = "random"
-            train_cutoff = 1
-            test_cutoff = 1
-            train_lowerb = 1
-            test_lowerb = 1
-        module = MSAModule(DummyCfg())
+        from rna_predict.conf.config_schema import MSAConfig
+        # Create a minimal MSAConfig with n_blocks=0 for MSAModule
+        # The implementation now provides defaults for missing parameters
+        dummy_cfg = MSAConfig(
+            n_blocks=0,
+            c_m=8,
+            c=8,
+            c_z=16,
+            dropout=0.0
+        )
+        # The mocks are already set up via the patch decorators
+
+        module = MSAModule(dummy_cfg)
         z_in = torch.randn((1, 3, 3, 16), dtype=torch.float32)
         s_inputs = torch.randn((1, 3, 8), dtype=torch.float32)
         mask = torch.ones((1, 3, 3), dtype=torch.bool)
         out_z = module.forward({"msa": torch.zeros((2, 3))}, z_in, s_inputs, mask)
         self.assertTrue(torch.equal(out_z, z_in))
 
-    def test_forward_no_msa_key(self):
+    @patch('rna_predict.pipeline.stageB.pairwise.pairformer.MSABlock', MockMSABlock)
+    @patch('rna_predict.pipeline.stageB.pairwise.pairformer.PairformerBlock', MockPairformerBlock)
+    @patch('rna_predict.pipeline.stageB.pairwise.pairformer.OuterProductMean', MockOuterProductMean)
+    def test_forward_no_msa_key(self, *_):
         """If no 'msa' in feature dict, returns z unchanged."""
         # Provide a minimal config object for MSAModule
-        class DummyCfg:
-            n_blocks = 1
-            c_m = 8
-            c = 8  # Provide a default value for c
-            c_z = 16
-            dropout = 0.0
-            c_s_inputs = 8
-            blocks_per_ckpt = 1
-            input_feature_dims = {"msa": 32, "has_deletion": 1, "deletion_value": 1}
-            enable = False
-            strategy = "random"
-            train_cutoff = 1
-            test_cutoff = 1
-            train_lowerb = 1
-            test_lowerb = 1
-        module = MSAModule(DummyCfg())
+        from rna_predict.conf.config_schema import MSAConfig
+        # Create a minimal MSAConfig with n_blocks=1 for MSAModule
+        # The implementation now provides defaults for missing parameters
+        dummy_cfg = MSAConfig(
+            n_blocks=1,
+            c_m=8,
+            c=8,
+            c_z=16,
+            dropout=0.0
+        )
+        # The mocks are already set up via the patch decorators
+
+        module = MSAModule(dummy_cfg)
         z_in = torch.randn((1, 3, 3, 16), dtype=torch.float32)
         s_inputs = torch.randn((1, 3, 8), dtype=torch.float32)
         mask = torch.ones((1, 3, 3), dtype=torch.bool)
