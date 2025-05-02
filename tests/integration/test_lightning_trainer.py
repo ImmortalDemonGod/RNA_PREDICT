@@ -176,8 +176,11 @@ def test_trainer_fast_dev_run():
 
         # No need to override parameters() or to() methods as they're inherited from nn.Module
 
-    # Use patching to replace the real implementations with mocks
-    with patch.object(StageBTorsionBertPredictor, '__call__', return_value={"torsion_angles": torch.ones((4, 7))}), \
+    # Use context-managed patching to replace the real implementations with mocks
+    # This ensures patches are properly stopped when the test completes
+    with patch('transformers.AutoTokenizer.from_pretrained', return_value=MagicMock()), \
+         patch('transformers.AutoModel.from_pretrained', return_value=MagicMock()), \
+         patch.object(StageBTorsionBertPredictor, '__call__', return_value={"torsion_angles": torch.ones((4, 7))}), \
          patch.object(PairformerWrapper, '__call__', return_value=(torch.ones((4, 64)), torch.ones((4, 4, 32)))), \
          patch.object(PairformerWrapper, 'predict', return_value=(torch.ones((4, 64)), torch.ones((4, 4, 32)))), \
          patch.object(StageARFoldPredictor, '__new__', return_value=MockRFoldPredictor()), \
