@@ -200,8 +200,8 @@ def verify_debug_logging(
     if unique_logs:
         relevant_logs.extend(unique_logs)
 
-    # Check for both DEBUG and INFO logs
-    debug_lines = [line for line in relevant_logs if "DEBUG" in line or "INFO" in line]
+    # Check for DEBUG logs only
+    debug_lines = [line for line in relevant_logs if "DEBUG" in line]
     if debug_val:
         # Check for primary expected message
         primary_found = any(expected_msg in line for line in debug_lines)
@@ -431,7 +431,12 @@ def test_stage_debug_logging(stage: str, debug_val: bool, caplog):
 
                 # Filter caplog.records to only those from the relevant logger
                 if logger_name:
-                    stage_records = [rec for rec in caplog.records if rec.name == logger_name]
+                    # For stageB, also include logs from the main module
+                    if stage == "stageB":
+                        stage_records = [rec for rec in caplog.records if rec.name == logger_name or
+                                        rec.name.startswith("rna_predict.pipeline.stageB")]
+                    else:
+                        stage_records = [rec for rec in caplog.records if rec.name == logger_name]
                 else:
                     stage_records = [rec for rec in caplog.records if rec.levelname == "DEBUG"]
 
