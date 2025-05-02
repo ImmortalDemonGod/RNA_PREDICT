@@ -816,6 +816,16 @@ def bridge_residue_to_atom(
             print(f"[BRIDGE DEBUG] s_trunk present, shape: {getattr(trunk_embeddings['s_trunk'], 'shape', 'N/A')}")
         else:
             print("[BRIDGE DEBUG] s_trunk MISSING in input trunk_embeddings!")
+    # Print trunk_embeddings keys and shapes BEFORE bridging
+    if debug_logging and hasattr(bridging_input, 'trunk_embeddings'):
+        print("[DEBUG][BRIDGE][ENTRY] trunk_embeddings keys and shapes before bridging:")
+        for k, v in bridging_input.trunk_embeddings.items():
+            print(f"[DEBUG][BRIDGE][ENTRY]   {k}: shape={getattr(v, 'shape', 'N/A')} type={type(v)}")
+    # Print input_features keys and shapes BEFORE bridging
+    if debug_logging and hasattr(bridging_input, 'input_features') and bridging_input.input_features is not None:
+        print("[DEBUG][BRIDGE][ENTRY] input_features keys and shapes before bridging:")
+        for k, v in bridging_input.input_features.items():
+            print(f"[DEBUG][BRIDGE][ENTRY]   {k}: shape={getattr(v, 'shape', 'N/A')} type={type(v)}")
     # --- original code continues ---
     sequence_list = extract_sequence(sequence, input_features, trunk_embeddings)
     # PATCH: SYSTEMATIC DEBUGGING FOR ATOM COUNT CONSISTENCY
@@ -904,8 +914,18 @@ def bridge_residue_to_atom(
     bridged_trunk_embeddings = process_trunk_embeddings(
         trunk_embeddings, residue_atom_map, batch_size, debug_logging, config
     )
+    # After bridging trunk_embeddings, print shapes
+    if debug_logging and 'bridged_trunk_embeddings' in locals():
+        print("[DEBUG][BRIDGE][EXIT] trunk_embeddings keys and shapes after bridging:")
+        for k, v in bridged_trunk_embeddings.items():
+            print(f"[DEBUG][BRIDGE][EXIT]   {k}: shape={getattr(v, 'shape', 'N/A')} type={type(v)}")
     # Process input features
     fixed_input_features = process_input_features(input_features, partial_coords, residue_atom_map, batch_size, debug_logging)
+    # After bridging input_features, print shapes
+    if debug_logging and 'fixed_input_features' in locals():
+        print("[DEBUG][BRIDGE][EXIT] input_features keys and shapes after bridging:")
+        for k, v in fixed_input_features.items():
+            print(f"[DEBUG][BRIDGE][EXIT]   {k}: shape={getattr(v, 'shape', 'N/A')} type={type(v)}")
     # SYSTEMATIC DEBUGGING: Print all keys and check for atom_to_token_idx
     if debug_logging:
         print("[DEBUG][BRIDGE][bridge_residue_to_atom] fixed_input_features keys:", list(fixed_input_features.keys()))
