@@ -2,6 +2,7 @@ import unittest
 import torch
 from hypothesis import given, strategies as st, settings, assume
 from rna_predict.pipeline.stageD.diffusion.components.diffusion_module import DiffusionModule
+from omegaconf import OmegaConf
 
 class TestDiffusionModule(unittest.TestCase):
     def setUp(self):
@@ -35,20 +36,22 @@ class TestDiffusionModule(unittest.TestCase):
             "n_keys": 8
         }
 
-        self.module = DiffusionModule(
-            sigma_data=self.sigma_data,  # Added missing parameter
-            c_s=self.c_s,
-            c_s_inputs=self.c_s_inputs,
-            c_z=self.c_z,
-            c_token=self.c_token,
-            c_atom=self.c_atom,
-            c_atompair=self.c_atompair,
-            c_noise_embedding=self.c_noise_embedding,
-            atom_encoder=self.atom_encoder,  # Added missing parameter
-            transformer=self.transformer,  # Added missing parameter
-            atom_decoder=self.atom_decoder,  # Added missing parameter
-            blocks_per_ckpt=self.blocks_per_ckpt
-        )
+        cfg_dict = {
+            "sigma_data": self.sigma_data,
+            "c_s": self.c_s,
+            "c_s_inputs": self.c_s_inputs,
+            "c_z": self.c_z,
+            "c_token": self.c_token,
+            "c_atom": self.c_atom,
+            "c_atompair": self.c_atompair,
+            "c_noise_embedding": self.c_noise_embedding,
+            "atom_encoder": self.atom_encoder,
+            "transformer": self.transformer,
+            "atom_decoder": self.atom_decoder,
+            "blocks_per_ckpt": self.blocks_per_ckpt,
+        }
+        cfg = OmegaConf.create(cfg_dict)
+        self.module = DiffusionModule(cfg=cfg)
 
     def test_tensor_broadcasting(self):
         """Test that tensor broadcasting is handled correctly"""

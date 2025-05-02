@@ -30,28 +30,26 @@ from tests.stageB.pairwise.test_pairformer_blocks import TestPairformerBlock, Te
 from tests.stageB.pairwise.test_msa_components import (
     TestMSAPairWeightedAveraging,
     TestMSAStack,
-    TestMSABlock,
-    TestMSAModule,
 )
+from tests.stageB.pairwise.test_msa_components_direct_mock import TestMSAComponentsDirectMock
 from tests.stageB.pairwise.test_template_and_sampling import TestTemplateEmbedder
 
 # Create test suite
 def suite():
     suite = unittest.TestSuite()
-    
+
     # Add PairformerBlock and Stack tests
     suite.addTests(unittest.TestLoader().loadTestsFromTestCase(TestPairformerBlock))
     suite.addTests(unittest.TestLoader().loadTestsFromTestCase(TestPairformerStack))
-    
+
     # Add MSA component tests
     suite.addTests(unittest.TestLoader().loadTestsFromTestCase(TestMSAPairWeightedAveraging))
     suite.addTests(unittest.TestLoader().loadTestsFromTestCase(TestMSAStack))
-    suite.addTests(unittest.TestLoader().loadTestsFromTestCase(TestMSABlock))
-    suite.addTests(unittest.TestLoader().loadTestsFromTestCase(TestMSAModule))
-    
+    suite.addTests(unittest.TestLoader().loadTestsFromTestCase(TestMSAComponentsDirectMock))
+
     # Add TemplateEmbedder tests
     suite.addTests(unittest.TestLoader().loadTestsFromTestCase(TestTemplateEmbedder))
-    
+
     return suite
 
 if __name__ == "__main__":
