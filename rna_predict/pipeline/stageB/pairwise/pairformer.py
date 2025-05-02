@@ -833,6 +833,7 @@ class MSAModule(nn.Module):
         msa_sample = torch.cat(
             feat_list, dim=-1
         )  # [n_msa, n_token, 32+1+1] = [n_msa, n_token, 34]
+        print(f"[DEBUG][MSAModule] msa_sample.shape before linear: {msa_sample.shape}")
         # Line2
         msa_sample = self.linear_no_bias_m(msa_sample)
 

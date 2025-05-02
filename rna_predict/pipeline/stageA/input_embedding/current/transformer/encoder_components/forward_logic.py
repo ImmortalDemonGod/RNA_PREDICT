@@ -287,11 +287,17 @@ def _process_style_embedding(
 def _aggregate_to_token_level(
     encoder: Any, a_atom: torch.Tensor, atom_to_token_idx: torch.Tensor, num_tokens: int
 ) -> torch.Tensor:
+    debug = _is_debug_logging(encoder)
+    if debug:
+        print(f"[DEBUG][_aggregate_to_token_level] a_atom.shape={a_atom.shape}, atom_to_token_idx.shape={atom_to_token_idx.shape}, num_tokens={num_tokens}")
+
     if atom_to_token_idx is not None and torch.is_tensor(atom_to_token_idx) and callable(aggregate_atom_to_token):
+        # CRITICAL FIX: Pass debug_logging parameter to aggregate_atom_to_token
         return aggregate_atom_to_token(
             x_atom=a_atom,
             atom_to_token_idx=atom_to_token_idx,
             n_token=num_tokens,
+            debug_logging=debug,
         )
     else:
         raise ValueError("atom_to_token_idx must be a Tensor and not None")
