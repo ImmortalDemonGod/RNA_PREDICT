@@ -2,14 +2,21 @@ import pytest
 import torch
 from hydra import initialize, compose
 import os
-
+from rna_predict.pipeline.stageD.diffusion.utils import DiffusionConfig
+from rna_predict.pipeline.stageD.diffusion.run_stageD_unified import run_stageD_diffusion
 from rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager import (
     ProtenixDiffusionManager,
 )
-from rna_predict.pipeline.stageD.diffusion.run_stageD_unified import run_stageD_diffusion
-from rna_predict.pipeline.stageD.diffusion.utils import DiffusionConfig  # Import needed class
+from omegaconf import OmegaConf
 
+print(f"[IMPORT DEBUG] CWD at import: {os.getcwd()}")
+print(f"[IMPORT DEBUG] Contents of CWD: {os.listdir(os.getcwd())}")
+if os.path.isdir("rna_predict/conf"):
+    print(f"[IMPORT DEBUG] rna_predict/conf exists: {os.listdir('rna_predict/conf')}")
+else:
+    print("[IMPORT DEBUG] rna_predict/conf does NOT exist!")
 
+# Ensure all tests run from project root so Hydra config_path is resolved correctly
 def ensure_project_root():
     """Ensure test is running from the project root for Hydra config resolution."""
     project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -123,84 +130,61 @@ def minimal_input_features():
 
 
 @pytest.mark.integration
-def test_run_stageD_diffusion_inference():
+def test_run_stageD_diffusion_inference(minimal_diffusion_config):
     """Test Stage D diffusion using Hydra-composed config group, not ad-hoc dict."""
-    ensure_project_root()
-    with initialize(config_path="../../../rna_predict/conf"):
-        # Compose the config using the default chain (which must include model/stageD)
-        cfg = compose(config_name="default")
-        # Optionally override device or mode for test speed
-        cfg.model.stageD.device = "cpu"
-        cfg.model.stageD.mode = "inference"
-        # Compose or generate minimal valid input features for the test
+    print(f"[DEBUG] __file__: {__file__}")
+    print(f"[DEBUG] CWD: {os.getcwd()}")
+    with initialize(config_path="../../../rna_predict/conf", version_base=None):
+        hydra_cfg = compose(config_name="default.yaml")
+        hydra_cfg.model.stageD.diffusion.feature_dimensions = minimal_diffusion_config["feature_dimensions"]
+        hydra_cfg.model.stageD.diffusion.model_architecture = minimal_diffusion_config["model_architecture"]
+        hydra_cfg.model.stageD.diffusion.device = "cpu"
+        hydra_cfg.model.stageD.diffusion.mode = "inference"
+        hydra_cfg.model.stageD.diffusion.debug_logging = True
+        hydra_cfg.model.stageD.diffusion.ref_element_size = 128
+        hydra_cfg.model.stageD.diffusion.ref_atom_name_chars_size = 256
+        hydra_cfg.model.stageD.diffusion.profile_size = 32
+        print("[DEBUG] Loaded Hydra config for test_stageD_diffusion_inference:\n", hydra_cfg.model.stageD)
+        # Pass the full stageD config (with .diffusion section) as required
+        # Ensure input_features includes atom_metadata with residue_indices
         input_features = {
             "atom_to_token_idx": torch.zeros((1, 5), dtype=torch.long),
-            "ref_pos": torch.randn(1, 5, 3),
-            "ref_space_uid": torch.arange(5).unsqueeze(0),
-            "ref_charge": torch.zeros(1, 5, 1),
             "ref_mask": torch.ones(1, 5, 1),
             "profile": torch.randn(1, 5, 32),
-            "atom_metadata": {
-                "residue_indices": list(range(5)),  # 5 atoms, 1 per residue
-                "atom_names": ["P", "C4'", "N1", "P", "C4'"]
-            }
+            "atom_metadata": {"residue_indices": list(range(5)), "atom_names": ["P", "C4'", "N1", "P", "C4'"]}
         }
-        # Minimal trunk_embeddings for test
         trunk_embeddings = {
             "s_inputs": torch.randn(1, 5, 384),
             "s_trunk": torch.randn(1, 5, 384),
             "pair": torch.randn(1, 5, 5, 32)
         }
-        # Minimal partial_coords for test
         partial_coords = torch.randn(1, 5, 3)
-        # Build DiffusionConfig
-        test_config = DiffusionConfig(
+        # --- NEW: Build DiffusionConfig and call unified API ---
+        config = DiffusionConfig(
             partial_coords=partial_coords,
             trunk_embeddings=trunk_embeddings,
-            diffusion_config=dict(cfg.model.stageD.diffusion),
-            mode=cfg.model.stageD.mode,
-            device=cfg.model.stageD.device,
+            diffusion_config=hydra_cfg.model.stageD,
+            mode="inference",
+            device="cpu",
             input_features=input_features,
-            debug_logging=cfg.model.stageD.get("debug_logging", False),
-            sequence=None,
-            ref_element_size=cfg.model.stageD.get("ref_element_size", 128),
-            ref_atom_name_chars_size=cfg.model.stageD.get("ref_atom_name_chars_size", 256),
-            profile_size=cfg.model.stageD.get("profile_size", 32),
-            cfg=cfg.model.stageD,
+            debug_logging=True,
+            atom_metadata=input_features.get("atom_metadata"),
+            ref_element_size=128,
+            ref_atom_name_chars_size=256,
+            profile_size=32,
+            cfg=hydra_cfg.model.stageD
         )
-        # Patch in required config sections for validation
-        test_config.model_architecture = dict(cfg.model.stageD["model_architecture"])
-        test_config.diffusion = dict(cfg.model.stageD["diffusion"])
-
-        # Check if feature_dimensions exists in the config
-        # Use hasattr instead of 'in' operator for safer attribute checking
-        if hasattr(cfg.model.stageD, 'feature_dimensions'):
-            test_config.feature_dimensions = dict(cfg.model.stageD.feature_dimensions)
-        else:
-            # Use the feature_dimensions from the diffusion section
-            # Make sure diffusion section exists and has feature_dimensions
-            if hasattr(cfg.model.stageD, 'diffusion') and hasattr(cfg.model.stageD.diffusion, 'feature_dimensions'):
-                test_config.feature_dimensions = dict(cfg.model.stageD.diffusion.feature_dimensions)
-            else:
-                # If neither location has feature_dimensions, create a default one
-                test_config.feature_dimensions = {
-                    "c_s": 8,
-                    "c_s_inputs": 8,
-                    "c_sing": 8,
-                    "s_trunk": 8,
-                    "s_inputs": 8
-                }
-        # Run the pipeline with the config group
-        out_coords = run_stageD_diffusion(config=test_config)
+        # Patch: set required attributes for Stage D validation
+        config.model_architecture = hydra_cfg.model.stageD.model_architecture
+        config.diffusion = hydra_cfg.model.stageD.diffusion
+        out_coords = run_stageD_diffusion(config)
         assert isinstance(out_coords, torch.Tensor)
         assert out_coords.ndim == 3  # [batch, n_atoms, 3]
         assert out_coords.shape[2] == 3  # Check coordinate dimension
 
 
 @pytest.mark.parametrize("missing_s_inputs", [True, False])
-def test_run_stageD_diffusion_inference_original(
-    missing_s_inputs, minimal_diffusion_config, minimal_input_features
-):
+def test_run_stageD_diffusion_inference_original(missing_s_inputs, minimal_diffusion_config):
     """
     Calls run_stageD_diffusion in 'inference' mode with partial trunk_embeddings.
     If missing_s_inputs=True, we omit 's_inputs' to see if it is auto-computed.
@@ -222,98 +206,70 @@ def test_run_stageD_diffusion_inference_original(
     sequence = "ACGUA"
 
     # Add atom_metadata to minimal_input_features
+    minimal_input_features = {
+        "atom_to_token_idx": torch.zeros((1, 5), dtype=torch.long),
+        "ref_pos": torch.randn(1, 5, 3),
+        "ref_space_uid": torch.arange(5).unsqueeze(0),
+        "ref_charge": torch.zeros(1, 5, 1),
+        "ref_mask": torch.ones(1, 5, 1),
+        "ref_element": torch.zeros(1, 5, 128),
+        "ref_atom_name_chars": torch.zeros(1, 5, 256),
+        "restype": torch.zeros(1, 5, 32),
+        "profile": torch.zeros(1, 5, 32),
+        "deletion_mean": torch.zeros(1, 5, 1),
+        "sing": torch.randn(1, 5, 384),  # Required for s_inputs fallback, match c_s_inputs
+    }
     minimal_input_features["atom_metadata"] = {
         "residue_indices": [0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4],  # 11 atoms across 5 residues
         "atom_names": ["P", "C4'", "N1", "P", "C4'", "P", "C4'", "P", "C4'", "P", "C4'"]
     }
 
     try:
-        # Create the config object using the variables available in the test scope
-        from omegaconf import OmegaConf
-
-        # Create a properly structured Hydra config with model.stageD section
-        hydra_cfg = OmegaConf.create({
-            "model": {
-                "stageD": {
-                    # Top-level parameters
-                    "enabled": True,
-                    "mode": "inference",
-                    "device": "cpu",
-                    "debug_logging": True,
-                    "ref_element_size": 128,
-                    "ref_atom_name_chars_size": 256,
-                    "profile_size": 32,
-
-                    # Feature dimensions
-                    "feature_dimensions": minimal_diffusion_config["feature_dimensions"],
-
-                    # Model architecture
-                    "model_architecture": minimal_diffusion_config["model_architecture"],
-
-                    # Diffusion section
-                    "diffusion": minimal_diffusion_config
-                }
-            }
-        })
-
-        # Create the DiffusionConfig with all required parameters
-        test_config = DiffusionConfig(
-            partial_coords=partial_coords,
-            trunk_embeddings=trunk_embeddings,
-            diffusion_config=minimal_diffusion_config,
-            mode="inference",
-            device="cpu",
-            input_features=minimal_input_features,
-            sequence=sequence,  # Provide sequence to avoid bridging error
-            cfg=hydra_cfg,  # Pass the properly structured Hydra config
-            # Add required feature parameters directly to the config object
-            ref_element_size=128,
-            ref_atom_name_chars_size=256,
-            profile_size=32
-        )
-
-        # Add feature_dimensions directly to the config object
-        test_config.feature_dimensions = minimal_diffusion_config["feature_dimensions"]
-
-        # Add model_architecture section required by run_stageD_diffusion
-        test_config.model_architecture = {
-            "c_atom": 128,
-            "c_s": 384,
-            "c_z": 32,
-            "c_token": 384,
-            "c_s_inputs": 449,
-            "c_atompair": 8,
-            "c_noise_embedding": 32,
-            "sigma_data": 1.0,
-        }
-
-        # Add diffusion section required by run_stageD_diffusion
-        test_config.diffusion = {
-            "transformer": minimal_diffusion_config["transformer"],
-            "atom_encoder": minimal_diffusion_config["atom_encoder"],
-            "atom_decoder": minimal_diffusion_config["atom_decoder"],
-            "inference": minimal_diffusion_config["inference"],
-            "feature_dimensions": minimal_diffusion_config["feature_dimensions"],
-        }
-
-        # Call the refactored function with the config object
-        out_coords = run_stageD_diffusion(config=test_config)
-
-        assert isinstance(out_coords, torch.Tensor)
-        assert out_coords.ndim == 3  # [batch, n_atoms, 3]
-        assert (
-            out_coords.shape[1] == partial_coords.shape[1]
-        )  # Check number of atoms matches
-        assert out_coords.shape[2] == 3  # Check coordinate dimension
+        print(f"[DEBUG] __file__: {__file__}")
+        print(f"[DEBUG] CWD: {os.getcwd()}")
+        with initialize(config_path="../../../rna_predict/conf", version_base=None):
+            hydra_cfg = compose(config_name="default.yaml")
+            hydra_cfg.model.stageD.diffusion.feature_dimensions = minimal_diffusion_config["feature_dimensions"]
+            hydra_cfg.model.stageD.diffusion.model_architecture = minimal_diffusion_config["model_architecture"]
+            hydra_cfg.model.stageD.diffusion.device = "cpu"
+            hydra_cfg.model.stageD.diffusion.mode = "inference"
+            hydra_cfg.model.stageD.diffusion.debug_logging = True
+            hydra_cfg.model.stageD.diffusion.ref_element_size = 128
+            hydra_cfg.model.stageD.diffusion.ref_atom_name_chars_size = 256
+            hydra_cfg.model.stageD.diffusion.profile_size = 32
+            print("[DEBUG] Loaded Hydra config for test_stageD_diffusion.py:\n", hydra_cfg.model.stageD)
+            # --- NEW: Build DiffusionConfig and call unified API ---
+            config = DiffusionConfig(
+                partial_coords=partial_coords,
+                trunk_embeddings=trunk_embeddings,
+                diffusion_config=hydra_cfg.model.stageD,
+                mode="inference",
+                device="cpu",
+                input_features=minimal_input_features,
+                debug_logging=True,
+                atom_metadata=minimal_input_features.get("atom_metadata"),
+                ref_element_size=128,
+                ref_atom_name_chars_size=256,
+                profile_size=32,
+                cfg=hydra_cfg.model.stageD
+            )
+            # Patch: set required attributes for Stage D validation
+            config.model_architecture = hydra_cfg.model.stageD.model_architecture
+            config.diffusion = hydra_cfg.model.stageD.diffusion
+            out_coords = run_stageD_diffusion(config)
+            assert isinstance(out_coords, torch.Tensor)
+            assert out_coords.ndim == 3  # [batch, n_atoms, 3]
+            assert (
+                out_coords.shape[1] == partial_coords.shape[1]
+            )  # Check number of atoms matches
+            assert out_coords.shape[2] == 3  # Check coordinate dimension
     finally:
         # Cleanup
         torch.cuda.empty_cache() if torch.cuda.is_available() else None
 
 
 @pytest.mark.xfail(reason="Shape mismatch in diffusion module - not related to API change")
-def test_multi_step_inference_fallback(
-    minimal_diffusion_config, minimal_input_features
-):
+def test_multi_step_inference_fallback(minimal_diffusion_config, minimal_input_features):
     """
     Skips run_stageD_diffusion and calls manager.multi_step_inference directly,
     providing partial trunk_embeddings plus override_input_features to
@@ -333,7 +289,6 @@ def test_multi_step_inference_fallback(
                            if k not in ['inference', 'conditioning', 'embedder']}
 
     # Create an OmegaConf DictConfig object instead of a regular dictionary
-    from omegaconf import OmegaConf
     hydra_compatible_config = OmegaConf.create({
         "stageD_diffusion": {
             "device": "cpu",
@@ -359,6 +314,7 @@ def test_multi_step_inference_fallback(
     })
 
     try:
+        print(f"[DEBUG] CWD: {os.getcwd()}")
         manager = ProtenixDiffusionManager(hydra_compatible_config)
         # Update manager's config with inference parameters
         from omegaconf import OmegaConf

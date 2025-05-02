@@ -29,9 +29,13 @@ def make_atom_embeddings(batch_size, seq_len, feature_dim):
     atom_to_token_idx = torch.tensor([[i // atoms_per_residue for i in range(num_atoms)]]).long()
 
     # Create residue-level embeddings with consistent dimensions
-    c_s = feature_dim * 6  # Match the dimensions in make_stageD_config
-    c_s_inputs = feature_dim * 2
-    c_z = feature_dim * 2
+    # Match the dimensions in make_stageD_config
+    c_s = feature_dim * 6  # Single feature dimension
+    c_s_inputs = feature_dim * 2  # Input feature dimension
+    c_z = feature_dim * 2  # Pair feature dimension
+    c_atom = feature_dim  # Atom feature dimension
+    c_element = 128  # Element feature dimension
+    c_atom_name_chars = 256  # Atom name chars dimension
 
     emb = {
         "s_trunk": torch.randn(batch_size, num_residues, c_s),
@@ -56,10 +60,22 @@ def make_atom_embeddings(batch_size, seq_len, feature_dim):
         "ref_pos": torch.randn(batch_size, num_atoms, 3),
         # Add reference mask
         "ref_mask": torch.ones(batch_size, num_atoms, 1, dtype=torch.bool),
-        # Add reference element types
-        "ref_element": torch.ones(batch_size, num_atoms, dtype=torch.long),
+        # Add reference element types - ensure correct dimension
+        "ref_element": torch.randn(batch_size, num_atoms, c_element),
         # Add reference charges
-        "ref_charge": torch.zeros(batch_size, num_atoms),
+        "ref_charge": torch.zeros(batch_size, num_atoms, 1),
+        # Add reference atom name chars
+        "ref_atom_name_chars": torch.randn(batch_size, num_atoms, c_atom_name_chars),
+        # Add reference space uid
+        "ref_space_uid": torch.randn(batch_size, 1, num_atoms, 3),
+        # Add restype
+        "restype": torch.zeros(batch_size, num_residues, dtype=torch.long),
+        # Add profile
+        "profile": torch.zeros(batch_size, num_residues, 32),
+        # Add deletion_mean
+        "deletion_mean": torch.zeros(batch_size, num_residues, 1),
+        # Add sing for s_inputs fallback
+        "sing": torch.randn(batch_size, num_residues, c_s_inputs),
     }
 
     print(f"[DEBUG][make_atom_embeddings] s_trunk.shape = {emb['s_trunk'].shape}")
@@ -67,6 +83,8 @@ def make_atom_embeddings(batch_size, seq_len, feature_dim):
     print(f"[DEBUG][make_atom_embeddings] pair.shape = {emb['pair'].shape}")
     print(f"[DEBUG][make_atom_embeddings] atom_to_token_idx.shape = {emb['atom_to_token_idx'].shape}")
     print(f"[DEBUG][make_atom_embeddings] ref_pos.shape = {emb['ref_pos'].shape}")
+    print(f"[DEBUG][make_atom_embeddings] ref_element.shape = {emb['ref_element'].shape}")
+    print(f"[DEBUG][make_atom_embeddings] ref_atom_name_chars.shape = {emb['ref_atom_name_chars'].shape}")
     print(f"[DEBUG][make_atom_embeddings] residue_indices = {residue_indices[:10]}...")
     return emb
 
@@ -81,6 +99,12 @@ def make_stageD_config(batch_size, seq_len, feature_dim, debug_logging=False, ap
     c_atom = feature_dim
     c_atompair = feature_dim // 2
     c_noise_embedding = feature_dim
+    c_element = 128  # Element feature dimension
+    c_atom_name_chars = 256  # Atom name chars dimension
+    ref_element_size = 32
+    ref_atom_name_chars_size = 16
+    profile_size = 32
+    sigma_data = 0.5
 
     return OmegaConf.create({
         "model": {
@@ -90,10 +114,10 @@ def make_stageD_config(batch_size, seq_len, feature_dim, debug_logging=False, ap
                 "mode": "inference",
                 "device": "cpu",
                 "debug_logging": debug_logging,
-                "ref_element_size": 32,
-                "ref_atom_name_chars_size": 16,
-                "profile_size": 32,
-                "sigma_data": 0.5,  # Add sigma_data at top level for compatibility
+                "ref_element_size": ref_element_size,
+                "ref_atom_name_chars_size": ref_atom_name_chars_size,
+                "profile_size": profile_size,
+                "sigma_data": sigma_data,  # Add sigma_data at top level for compatibility
                 "c_atom": c_atom,  # Add c_atom at top level for compatibility
                 "c_s": c_s,  # Add c_s at top level for compatibility
                 "c_z": c_z,  # Add c_z at top level for compatibility
@@ -109,7 +133,7 @@ def make_stageD_config(batch_size, seq_len, feature_dim, debug_logging=False, ap
                     "c_atom": c_atom,
                     "c_atompair": c_atompair,
                     "c_noise_embedding": c_noise_embedding,
-                    "sigma_data": 0.5,  # sigma_data should be in model_architecture
+                    "sigma_data": sigma_data,  # sigma_data should be in model_architecture
                     "num_layers": 1,
                     "num_heads": 1,
                     "dropout": 0.0,
@@ -159,12 +183,12 @@ def make_stageD_config(batch_size, seq_len, feature_dim, debug_logging=False, ap
                     "use_deepspeed_evo_attention": False,
                     "inplace_safe": False,
                     "chunk_size": 1024,
-                    "ref_element_size": 32,
-                    "ref_atom_name_chars_size": 16,
-                    "profile_size": 32,
+                    "ref_element_size": ref_element_size,
+                    "ref_atom_name_chars_size": ref_atom_name_chars_size,
+                    "profile_size": profile_size,
 
                     # Add required parameters at diffusion level
-                    "sigma_data": 0.5,
+                    "sigma_data": sigma_data,
                     "c_atom": c_atom,
                     "c_s": c_s,
                     "c_z": c_z,
@@ -189,7 +213,7 @@ def make_stageD_config(batch_size, seq_len, feature_dim, debug_logging=False, ap
                         "c_atom": c_atom,
                         "c_atompair": c_atompair,
                         "c_noise_embedding": c_noise_embedding,
-                        "sigma_data": 0.5
+                        "sigma_data": sigma_data
                     }
                 }
             }

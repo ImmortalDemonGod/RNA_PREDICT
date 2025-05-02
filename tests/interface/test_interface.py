@@ -751,6 +751,11 @@ def test_rnapredictor_requires_stageC(cfg):
     """Property-based: RNAPredictor should raise ValueError if model.stageC is missing."""
     from omegaconf import OmegaConf
     import pytest
+
+    # Ensure the config always has a 'device' key to avoid ConfigAttributeError
+    if 'device' not in cfg:
+        cfg['device'] = 'cpu'
+
     with pytest.raises(ValueError, match="stageC"):
         RNAPredictor(OmegaConf.create(cfg))
 
