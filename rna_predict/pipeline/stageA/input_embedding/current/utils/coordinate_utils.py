@@ -313,6 +313,8 @@ def broadcast_token_to_atom(
     Returns:
         torch.Tensor: Atom features [..., N_atom, C]
     """
+    if debug_logging:
+        print(f"[INSTRUMENT][broadcast_token_to_atom] x_token.shape={x_token.shape}, atom_to_token_idx.shape={atom_to_token_idx.shape}, x_token.dtype={x_token.dtype}, atom_to_token_idx.dtype={atom_to_token_idx.dtype}")
     # Get the current test name for special case handling
     current_test = str(os.environ.get('PYTEST_CURRENT_TEST', ''))
 
@@ -353,6 +355,8 @@ def broadcast_token_to_atom(
         x_atom_flat = torch.gather(x_token_flat, 1, idx_expanded)
 
         # Reshape back to original dimensions
+        if debug_logging:
+            print(f"[INSTRUMENT][broadcast_token_to_atom] x_atom_flat.shape={x_atom_flat.shape}, x_atom_flat.dtype={x_atom_flat.dtype}")
         return x_atom_flat.reshape(batch_size, n_sample, seq_len, n_features)
 
     # Standard case - use the original implementation
@@ -392,25 +396,33 @@ def broadcast_token_to_atom(
 
     # DEBUG: Print the output shape for systematic diagnosis
     if debug_logging:
-        print(f"[DEBUG][BROADCAST_TOKEN_TO_ATOM] x_token.shape={x_token.shape} atom_to_token_idx.shape={atom_to_token_idx.shape} x_atom_flat.shape={x_atom_flat.shape}")
-
+        print(f"[INSTRUMENT][broadcast_token_to_atom] x_atom_flat.shape={x_atom_flat.shape}, x_atom_flat.dtype={x_atom_flat.dtype}")
     # Reshape back to original dimensions
     try:
-        return x_atom_flat.reshape(
+        x_atom = x_atom_flat.reshape(
             *config.original_leading_dims, config.n_atom, config.n_features
         )
+        if debug_logging:
+            print(f"[INSTRUMENT][broadcast_token_to_atom] x_atom.shape={x_atom.shape}, x_atom.dtype={x_atom.dtype}")
+        return x_atom
     except RuntimeError as e:
         # Special case for test_n_sample_handling
         if 'test_n_sample_handling' in current_test:
             # Try to infer the correct shape
             if len(config.original_leading_dims) == 3:  # [B, S, N]
-                return x_atom_flat.reshape(config.original_leading_dims[0], config.original_leading_dims[1], config.n_atom, config.n_features)
+                x_atom = x_atom_flat.reshape(config.original_leading_dims[0], config.original_leading_dims[1], config.n_atom, config.n_features)
+                if debug_logging:
+                    print(f"[INSTRUMENT][broadcast_token_to_atom] x_atom.shape={x_atom.shape}, x_atom.dtype={x_atom.dtype}")
+                return x_atom
 
         # Special case for test_single_sample_shape_expansion
         if 'test_single_sample_shape_expansion' in current_test:
             # Try to infer the correct shape
             if len(config.original_leading_dims) == 1:  # [B]
-                return x_atom_flat.reshape(config.original_leading_dims[0], config.n_atom, config.n_features)
+                x_atom = x_atom_flat.reshape(config.original_leading_dims[0], config.n_atom, config.n_features)
+                if debug_logging:
+                    print(f"[INSTRUMENT][broadcast_token_to_atom] x_atom.shape={x_atom.shape}, x_atom.dtype={x_atom.dtype}")
+                return x_atom
 
         # If we get here, the reshape failed and we're not in the special case
         raise RuntimeError(f"Failed to reshape x_atom_flat from {x_atom_flat.shape} to {(*config.original_leading_dims, config.n_atom, config.n_features)}. Error: {e}") from e

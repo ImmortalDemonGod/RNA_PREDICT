@@ -372,9 +372,21 @@ def process_inputs_with_coords(
     print("[DEBUG][process_inputs_with_coords] atom_to_token_idx argument:", type(atom_to_token_idx), getattr(atom_to_token_idx, 'shape', None))
     debug = _is_debug_logging(encoder)
     # SYSTEMATIC DEBUGGING: Print atom_to_token_idx state at entry
+    # --- PATCH: Enforce consistent sourcing of atom_to_token_idx ---
     if atom_to_token_idx is None:
         atom_to_token_idx = params.input_feature_dict.get("atom_to_token_idx", None)
         logger.debug(f"[DEBUG][process_inputs_with_coords] atom_to_token_idx extracted from params.input_feature_dict: {type(atom_to_token_idx)}, shape: {getattr(atom_to_token_idx, 'shape', None)}")
+    # --- If still None, create a default and warn ---
+    if atom_to_token_idx is None:
+        warnings.warn("[PATCH] atom_to_token_idx is None at entry to process_inputs_with_coords. Creating default mapping: all atoms to token 0.")
+        logger.warning("[PATCH] atom_to_token_idx is None at entry to process_inputs_with_coords. Creating default mapping: all atoms to token 0.")
+        if params.c_l is not None:
+            n_atoms = params.c_l.shape[-2]
+        elif params.q_l is not None:
+            n_atoms = params.q_l.shape[-2]
+        else:
+            n_atoms = 1
+        atom_to_token_idx = torch.zeros(n_atoms, dtype=torch.long, device=params.c_l.device if params.c_l is not None else (params.q_l.device if params.q_l is not None else None))
     if atom_to_token_idx is not None:
         logger.debug(f"[DEBUG][process_inputs_with_coords] atom_to_token_idx type: {type(atom_to_token_idx)}, is_tensor: {torch.is_tensor(atom_to_token_idx)}, shape: {getattr(atom_to_token_idx, 'shape', None)}, dtype: {getattr(atom_to_token_idx, 'dtype', None)}")
         logger.debug(f"[DEBUG][process_inputs_with_coords] atom_to_token_idx contents: {atom_to_token_idx}")
@@ -446,17 +458,30 @@ def process_inputs_with_coords(
         a_atom = None
 
     # --- Aggregation & atom_to_token_idx fallback ---
+    # PATCH: Ensure atom_to_token_idx is always a valid tensor here
+    if atom_to_token_idx is None or not torch.is_tensor(atom_to_token_idx):
+        warnings.warn("[PATCH] atom_to_token_idx is None or not a tensor during aggregation. Creating default mapping: all atoms to token 0.")
+        logger.warning("[PATCH] atom_to_token_idx is None or not a tensor during aggregation. Creating default mapping: all atoms to token 0.")
+        if q_l is not None:
+            n_atoms = q_l.shape[-2]
+        elif c_l is not None:
+            n_atoms = c_l.shape[-2]
+        else:
+            n_atoms = 1
+        atom_to_token_idx = torch.zeros(n_atoms, dtype=torch.long, device=q_l.device if q_l is not None else (c_l.device if c_l is not None else None))
+
+    # --- Ensure num_tokens is always defined before aggregation ---
     if restype is not None:
         num_tokens = restype.shape[1]
+    elif atom_to_token_idx is not None and torch.is_tensor(atom_to_token_idx) and atom_to_token_idx.numel() > 0:
+        num_tokens = int(atom_to_token_idx.max().item()) + 1
     else:
-        if atom_to_token_idx is not None and torch.is_tensor(atom_to_token_idx) and atom_to_token_idx.numel() > 0:
-            num_tokens = int(atom_to_token_idx.max().item()) + 1
-        else:
-            num_tokens = q_l.shape[-2] if q_l is not None else 1
+        num_tokens = q_l.shape[-2] if q_l is not None else 1
+
     if atom_to_token_idx is not None and torch.is_tensor(atom_to_token_idx) and a_atom is not None:
         a = _aggregate_to_token_level(encoder, a_atom, atom_to_token_idx, num_tokens)
     else:
-        raise ValueError("atom_to_token_idx must be a Tensor and not None")
+        raise ValueError("atom_to_token_idx must be a Tensor and not None (even after patch fallback)")
     # Ensure all return values are Tensor, never None
     if q_l is None:
         q_l = torch.zeros_like(a)
