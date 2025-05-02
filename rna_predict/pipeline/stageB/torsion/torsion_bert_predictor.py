@@ -318,6 +318,11 @@ class StageBTorsionBertPredictor(nn.Module):
                     logger.debug(f"[DEVICE-DEBUG] Input tensor '{k}' device: {v.device}")
             # --- END DEVICE DEBUGGING ---
 
+            # Explicit device placement is crucial for transformer models due to their
+            # high computational and memory demands. Keeping inputs on the correct device
+            # (e.g., GPU) avoids costly CPU⇄GPU transfers, prevents out-of-memory errors,
+            # and maximizes inference throughput. The fallback to CPU ensures robustness
+            # on devices (like MPS) that may not support all tensor operations.
             # --- ENSURE TENSORS ARE ON THE CORRECT DEVICE ---
             try:
                 # Move all tensors to the configured device
