@@ -127,42 +127,10 @@ def _run_stageD_diffusion_impl(
     # Use config directly; do not mutate or construct dicts
     # Pass structured config to downstream components
     # Create and initialize the diffusion manager
-    # Convert DiffusionConfig to DictConfig for compatibility
-    from omegaconf import OmegaConf
-
-    # Create a clean dictionary without PyTorch tensors, preserving nested OmegaConf structure
-    if hasattr(config, "cfg") and config.cfg is not None:
-        clean_config_dict = OmegaConf.to_container(config.cfg, resolve=True, throw_on_missing=False)
-    else:
-        clean_config_dict = {}
-    # Optionally, recursively remove any torch.Tensor values from the dict
-    def remove_tensors(d):
-        if isinstance(d, dict):
-            return {k: remove_tensors(v) for k, v in d.items() if not isinstance(v, torch.Tensor)}
-        elif isinstance(d, list):
-            return [remove_tensors(v) for v in d]
-        else:
-            return d
-    clean_config_dict = remove_tensors(clean_config_dict)
-
-    # Create OmegaConf config with the required model.stageD structure
-    config_dict = OmegaConf.create({
-        "model": {
-            "stageD": {
-                "diffusion": {
-                    "device": getattr(config, "device", "cpu"),
-                    "feature_dimensions": clean_config_dict.get("feature_dimensions", {}),
-                    "model_architecture": clean_config_dict.get("model_architecture", {}),
-                    "transformer": clean_config_dict.get("diffusion", {}).get("transformer", {}),
-                    "atom_encoder": clean_config_dict.get("diffusion", {}).get("atom_encoder", {}),
-                    "atom_decoder": clean_config_dict.get("diffusion", {}).get("atom_decoder", {}),
-                    "inference": clean_config_dict.get("diffusion", {}).get("inference", {"num_steps": 2}),
-                    "debug_logging": getattr(config, "debug_logging", False),
-                }
-            }
-        }
-    })
-    diffusion_manager = ProtenixDiffusionManager(cfg=config_dict)
+    # PATCH: Hydra best practice - pass DictConfig directly, don't flatten or re-wrap
+    # Remove OmegaConf.to_container and OmegaConf.create for pipeline configs
+    # Pass config.cfg (DictConfig) directly to ProtenixDiffusionManager
+    diffusion_manager = ProtenixDiffusionManager(cfg=config.cfg)
 
     # Prepare input features if not provided (basic fallback)
     input_features = config.input_features

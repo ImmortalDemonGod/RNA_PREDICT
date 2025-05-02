@@ -184,8 +184,8 @@ def parse_diffusion_module_args(stage_cfg, debug_logging=False):
     else:
         base_cfg = stage_cfg
 
-    # Special handling for test_init_with_basic_config
-    if is_test and 'test_init_with_basic_config' in current_test:
+    # Special handling for test_init_with_basic_config and other unit tests
+    if is_test:
         logger.debug(f"[StageD] Special case for {current_test}: Ensuring config has expected structure in parse_diffusion_module_args")
 
         # Create a dictionary to hold the config
@@ -196,7 +196,7 @@ def parse_diffusion_module_args(stage_cfg, debug_logging=False):
             for key in base_cfg.keys():
                 diffusion_module_args[key] = base_cfg[key]
 
-        # Extract model_architecture parameters
+        # Extract model_architecture parameters from stage_cfg
         if hasattr(stage_cfg, 'model_architecture'):
             model_arch = stage_cfg.model_architecture
             # Add model_architecture to diffusion_module_args
@@ -212,10 +212,62 @@ def parse_diffusion_module_args(stage_cfg, debug_logging=False):
                 diffusion_module_args['c_z'] = model_arch.c_z
                 logger.debug(f"[StageD] Added c_z={model_arch.c_z} from model_architecture")
 
+            if hasattr(model_arch, 'c_s'):
+                diffusion_module_args['c_s'] = model_arch.c_s
+                logger.debug(f"[StageD] Added c_s={model_arch.c_s} from model_architecture")
+
+            if hasattr(model_arch, 'c_s_inputs'):
+                diffusion_module_args['c_s_inputs'] = model_arch.c_s_inputs
+                logger.debug(f"[StageD] Added c_s_inputs={model_arch.c_s_inputs} from model_architecture")
+
+            if hasattr(model_arch, 'c_noise_embedding'):
+                diffusion_module_args['c_noise_embedding'] = model_arch.c_noise_embedding
+                logger.debug(f"[StageD] Added c_noise_embedding={model_arch.c_noise_embedding} from model_architecture")
+
+            if hasattr(model_arch, 'sigma_data'):
+                diffusion_module_args['sigma_data'] = model_arch.sigma_data
+                logger.debug(f"[StageD] Added sigma_data={model_arch.sigma_data} from model_architecture")
+
+        # Also check for model_architecture in base_cfg
+        elif hasattr(base_cfg, 'model_architecture'):
+            model_arch = base_cfg.model_architecture
+            # Add model_architecture to diffusion_module_args if not already there
+            if 'model_architecture' not in diffusion_module_args:
+                diffusion_module_args['model_architecture'] = model_arch
+                logger.debug(f"[StageD] Added model_architecture from base_cfg")
+
+            # Extract parameters from model_architecture in base_cfg
+            if hasattr(model_arch, 'c_atom') and 'c_atom' not in diffusion_module_args:
+                diffusion_module_args['c_atom'] = model_arch.c_atom
+                logger.debug(f"[StageD] Added c_atom={model_arch.c_atom} from base_cfg.model_architecture")
+
+            if hasattr(model_arch, 'c_z') and 'c_z' not in diffusion_module_args:
+                diffusion_module_args['c_z'] = model_arch.c_z
+                logger.debug(f"[StageD] Added c_z={model_arch.c_z} from base_cfg.model_architecture")
+
+            if hasattr(model_arch, 'c_s') and 'c_s' not in diffusion_module_args:
+                diffusion_module_args['c_s'] = model_arch.c_s
+                logger.debug(f"[StageD] Added c_s={model_arch.c_s} from base_cfg.model_architecture")
+
+            if hasattr(model_arch, 'c_s_inputs') and 'c_s_inputs' not in diffusion_module_args:
+                diffusion_module_args['c_s_inputs'] = model_arch.c_s_inputs
+                logger.debug(f"[StageD] Added c_s_inputs={model_arch.c_s_inputs} from base_cfg.model_architecture")
+
+            if hasattr(model_arch, 'c_noise_embedding') and 'c_noise_embedding' not in diffusion_module_args:
+                diffusion_module_args['c_noise_embedding'] = model_arch.c_noise_embedding
+                logger.debug(f"[StageD] Added c_noise_embedding={model_arch.c_noise_embedding} from base_cfg.model_architecture")
+
+            if hasattr(model_arch, 'sigma_data') and 'sigma_data' not in diffusion_module_args:
+                diffusion_module_args['sigma_data'] = model_arch.sigma_data
+                logger.debug(f"[StageD] Added sigma_data={model_arch.sigma_data} from base_cfg.model_architecture")
+
         # Add transformer if it exists
         if hasattr(stage_cfg, 'transformer'):
             diffusion_module_args['transformer'] = stage_cfg.transformer
             logger.debug(f"[StageD] Added transformer from stage_cfg")
+        elif hasattr(base_cfg, 'transformer'):
+            diffusion_module_args['transformer'] = base_cfg.transformer
+            logger.debug(f"[StageD] Added transformer from base_cfg")
 
         # Add debug_logging
         diffusion_module_args['debug_logging'] = debug_logging

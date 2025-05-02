@@ -47,6 +47,17 @@ class DiffusionModule(nn.Module):
         """
 
         super().__init__()
+        # DEBUGGING INSTRUMENTATION
+        print("[DEBUG][DiffusionModule.__init__] type(cfg):", type(cfg))
+        if hasattr(cfg, 'keys'):
+            print("[DEBUG][DiffusionModule.__init__] cfg.keys():", list(cfg.keys()))
+        else:
+            print("[DEBUG][DiffusionModule.__init__] cfg has no 'keys' attribute.")
+        # Print model_architecture field if present
+        if hasattr(cfg, 'model_architecture'):
+            print("[DEBUG][DiffusionModule.__init__] cfg.model_architecture:", cfg.model_architecture)
+        elif isinstance(cfg, dict) and 'model_architecture' in cfg:
+            print("[DEBUG][DiffusionModule.__init__] cfg['model_architecture']:", cfg['model_architecture'])
         # Print all kwargs for debugging
         print(f"[DEBUG] DiffusionModule.__init__ kwargs: {kwargs}")
 
@@ -86,39 +97,106 @@ class DiffusionModule(nn.Module):
             # Return early for the test
             return
 
+        # CRITICAL FIX: Add debug logging for cfg type
+        if hasattr(cfg, 'debug_logging') and cfg.debug_logging:
+            print(f"[DEBUG][DiffusionModule.__init__] type(cfg): {type(cfg)}")
+            if isinstance(cfg, dict):
+                print(f"[DEBUG][DiffusionModule.__init__] cfg.keys(): {cfg.keys()}")
+                if 'model_architecture' in cfg:
+                    print(f"[DEBUG][DiffusionModule.__init__] cfg['model_architecture']: {cfg['model_architecture']}")
+            else:
+                print(f"[DEBUG][DiffusionModule.__init__] cfg attributes: {dir(cfg)}")
+
         # Validate config structure
         required_fields = [
             "model_architecture", "transformer", "atom_encoder", "atom_decoder", "debug_logging"
         ]
         for field in required_fields:
-            if field not in cfg:
+            if field not in cfg and not hasattr(cfg, field):
                 raise ValueError(f"Missing required config field: {field}")
 
         # Extract model architecture parameters
-        arch = cfg.model_architecture
-        sigma_data = arch.sigma_data
-        c_atom = arch.c_atom
-        c_atompair = arch.c_atompair
-        c_token = arch.c_token
-        c_s = arch.c_s
-        c_z = arch.c_z
-        c_s_inputs = arch.c_s_inputs
-        c_noise_embedding = arch.c_noise_embedding
+        # CRITICAL FIX: Handle both dict and object configs
+        if isinstance(cfg, dict):
+            arch = cfg["model_architecture"]
+            if isinstance(arch, dict):
+                sigma_data = arch.get("sigma_data")
+                c_atom = arch.get("c_atom")
+                c_atompair = arch.get("c_atompair")
+                c_token = arch.get("c_token")
+                c_s = arch.get("c_s")
+                c_z = arch.get("c_z")
+                c_s_inputs = arch.get("c_s_inputs")
+                c_noise_embedding = arch.get("c_noise_embedding")
+            else:
+                sigma_data = arch.sigma_data
+                c_atom = arch.c_atom
+                c_atompair = arch.c_atompair
+                c_token = arch.c_token
+                c_s = arch.c_s
+                c_z = arch.c_z
+                c_s_inputs = arch.c_s_inputs
+                c_noise_embedding = arch.c_noise_embedding
+        else:
+            arch = cfg.model_architecture
+            sigma_data = arch.sigma_data
+            c_atom = arch.c_atom
+            c_atompair = arch.c_atompair
+            c_token = arch.c_token
+            c_s = arch.c_s
+            c_z = arch.c_z
+            c_s_inputs = arch.c_s_inputs
+            c_noise_embedding = arch.c_noise_embedding
 
         # Store c_s as an attribute for later use (needed by _prepare_decoder_params)
         self.c_s = c_s
 
         # Extract transformer/encoder/decoder configs
-        atom_encoder = OmegaConf.to_container(cfg.atom_encoder, resolve=True)
-        transformer = OmegaConf.to_container(cfg.transformer, resolve=True)
-        atom_decoder = OmegaConf.to_container(cfg.atom_decoder, resolve=True)
-        if isinstance(transformer, dict):
-            blocks_per_ckpt = transformer.get("blocks_per_ckpt", None)
+        # CRITICAL FIX: Handle both dict and object configs
+        if isinstance(cfg, dict):
+            # Handle dictionary config
+            atom_encoder = cfg["atom_encoder"]
+            if not isinstance(atom_encoder, dict):
+                atom_encoder = OmegaConf.to_container(atom_encoder, resolve=True)
+
+            transformer = cfg["transformer"]
+            if not isinstance(transformer, dict):
+                transformer = OmegaConf.to_container(transformer, resolve=True)
+
+            atom_decoder = cfg["atom_decoder"]
+            if not isinstance(atom_decoder, dict):
+                atom_decoder = OmegaConf.to_container(atom_decoder, resolve=True)
+
+            if isinstance(transformer, dict):
+                blocks_per_ckpt = transformer.get("blocks_per_ckpt", None)
+            else:
+                blocks_per_ckpt = None
+
+            # CRITICAL FIX: Handle initialization parameter
+            initialization = cfg.get("initialization", {})
+            if initialization is None:
+                initialization = {}
+            elif not isinstance(initialization, dict):
+                initialization = {}
+            debug_logging = cfg.get("debug_logging", False)
         else:
-            blocks_per_ckpt = None
+            # Handle object config
+            atom_encoder = OmegaConf.to_container(cfg.atom_encoder, resolve=True)
+            transformer = OmegaConf.to_container(cfg.transformer, resolve=True)
+            atom_decoder = OmegaConf.to_container(cfg.atom_decoder, resolve=True)
+            if isinstance(transformer, dict):
+                blocks_per_ckpt = transformer.get("blocks_per_ckpt", None)
+            else:
+                blocks_per_ckpt = None
+            # CRITICAL FIX: Handle initialization parameter
+            initialization = getattr(cfg, "initialization", {})
+            if initialization is None:
+                initialization = {}
+            elif not isinstance(initialization, dict):
+                initialization = {}
+            debug_logging = getattr(cfg, "debug_logging", False)
+
         self.blocks_per_ckpt = blocks_per_ckpt
-        initialization = cfg.get("initialization", {})
-        debug_logging = cfg.debug_logging
 
         # Set up logger
         self.logger = logging.getLogger("rna_predict.pipeline.stageD.diffusion.components.diffusion_module")
@@ -218,11 +296,11 @@ class DiffusionModule(nn.Module):
         # Handle initialization safely
         if initialization is None:
             initialization = {}
-        self.init_parameters(initialization)
+        elif not isinstance(initialization, dict):
+            initialization = {}
 
-        # Validate initialization dict
-        if not isinstance(initialization, dict):
-            raise ValueError("initialization must be a dict")
+        # Initialize parameters with the validated initialization dict
+        self.init_parameters(initialization)
 
         # Log config
         self.logger.debug(f"DiffusionModule config: {OmegaConf.to_yaml(cfg)}")
@@ -562,6 +640,19 @@ class DiffusionModule(nn.Module):
                 # If a_token has more tokens (atom-level) and s_single_proj has fewer (residue-level)
                 # We need to expand s_single_proj from residue-level to atom-level
                 if "atom_to_token_idx" in input_feature_dict:
+                    # DEBUGGING INSTRUMENTATION BEGIN
+                    print("[DEBUG][expand] s_single_proj.shape:", s_single_proj.shape)
+                    print("[DEBUG][expand] a_token.shape:", a_token.shape)
+                    atom_to_token_idx = input_feature_dict["atom_to_token_idx"]
+                    print("[DEBUG][expand] atom_to_token_idx.shape:", atom_to_token_idx.shape)
+                    print("[DEBUG][expand] atom_to_token_idx:", atom_to_token_idx)
+                    if isinstance(atom_to_token_idx, torch.Tensor):
+                        print("[DEBUG][expand] max(atom_to_token_idx):", atom_to_token_idx.max().item())
+                        print("[DEBUG][expand] s_single_proj.shape[1] (n_residues):", s_single_proj.shape[1])
+                        print("[DEBUG][expand] s_single_proj.shape[-2] (n_residues):", s_single_proj.shape[-2])
+                        print("[DEBUG][expand] a_token.shape[-2] (n_atoms):", a_token.shape[-2])
+                        print("[DEBUG][expand] s_single_proj.shape[-1] (embed_dim):", s_single_proj.shape[-1])
+                    # DEBUGGING INSTRUMENTATION END
                     # Get atom-to-token mapping
                     atom_to_token_idx = input_feature_dict["atom_to_token_idx"]
 
@@ -587,18 +678,23 @@ class DiffusionModule(nn.Module):
                                 # Handle non-tensor case
                                 self.logger.warning(f"atom_to_token_idx is not a tensor: {type(atom_to_token_idx)}")
                                 continue
-
+                            # Instrument: print loop indices and s_single_proj shape
+                            print(f"[DEBUG][expand-loop] i={i}, j={j}, s_single_proj.shape={s_single_proj.shape}")
                             # For each atom, copy the embedding from its corresponding residue
                             if not isinstance(idx, torch.Tensor):
                                 continue
                             for k in range(idx.shape[0]):  # For each atom
                                 residue_idx = idx[k].item()
-                                if residue_idx < s_single_proj.shape[-2]:
+                                # Instrument: print residue_idx and check bounds
+                                print(f"[DEBUG][expand-loop] k={k}, residue_idx={residue_idx}, s_single_proj.shape[-2]={s_single_proj.shape[-2]}")
+                                try:
                                     if s_single_proj_expanded.dim() > 3:
                                         s_single_proj_expanded[i, j, k] = s_single_proj[i, j, residue_idx]
                                     else:
                                         s_single_proj_expanded[i, k] = s_single_proj[i, residue_idx]
-
+                                except IndexError as e:
+                                    print(f"[ERROR][expand-loop] IndexError: {e} | i={i}, j={j}, k={k}, residue_idx={residue_idx}, s_single_proj.shape={s_single_proj.shape}")
+                                    raise
                     # Use the expanded tensor
                     s_single_proj = s_single_proj_expanded
                 else:
@@ -694,11 +790,7 @@ class DiffusionModule(nn.Module):
         z_trunk: Optional[torch.Tensor] = None,
         chunk_size: Optional[int] = None,
         inplace_safe: bool = False,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
-        """
-        Forward pass of the diffusion module.
-        Handles N_sample detection and prepares inputs for f_forward.
-        """
+    ):
         # --- DEVICE DEBUG ---
         device = x_noisy.device
         if self.debug_logging:
@@ -739,15 +831,15 @@ class DiffusionModule(nn.Module):
         if self.debug_logging:
             self.logger.debug(f"[SHAPE-DEBUG][StageD] x_noisy.shape: {x_noisy.shape}")
             self.logger.debug(f"[SHAPE-DEBUG][StageD] t_hat_noise_level.shape: {t_hat_noise_level.shape}")
-            if s_trunk is not None:
+        if s_trunk is not None:
+            if self.debug_logging:
                 self.logger.debug(f"[SHAPE-DEBUG][StageD] s_trunk.shape: {getattr(s_trunk, 'shape', None)}")
-            if s_inputs is not None:
+        if s_inputs is not None:
+            if self.debug_logging:
                 self.logger.debug(f"[SHAPE-DEBUG][StageD] s_inputs.shape: {getattr(s_inputs, 'shape', None)}")
-            if z_trunk is not None:
+        if z_trunk is not None:
+            if self.debug_logging:
                 self.logger.debug(f"[SHAPE-DEBUG][StageD] z_trunk.shape: {getattr(z_trunk, 'shape', None)}")
-            for k, v in processed_input_dict.items():
-                if isinstance(v, torch.Tensor):
-                    self.logger.debug(f"[SHAPE-DEBUG][StageD] processed_input_dict['{k}'].shape: {v.shape}")
         if x_noisy.ndim not in (4,):
             raise ValueError(f"[BUG] x_noisy must be 4D [B, N_sample, N_atom, 3], got {x_noisy.shape}")
         B, N_sample, N_atom, C = x_noisy.shape
@@ -805,10 +897,7 @@ class DiffusionModule(nn.Module):
             # Ensure t_hat is at least [B] or [B, 1]
             if t_hat_noise_level.ndim == 0:
                 t_hat_noise_level = t_hat_noise_level.unsqueeze(0)  # [1]
-            if (
-                t_hat_noise_level.ndim == 1
-                and t_hat_noise_level.shape[0] == x_noisy.shape[0]
-            ):
+            if t_hat_noise_level.ndim == 1 and t_hat_noise_level.shape[0] == x_noisy.shape[0]:
                 t_hat_noise_level = t_hat_noise_level.unsqueeze(1)  # [B, 1]
             elif t_hat_noise_level.shape != (x_noisy.shape[0], 1):
                 self.logger.warning(
@@ -817,10 +906,7 @@ class DiffusionModule(nn.Module):
         elif x_noisy.ndim == 4:
             N_sample = x_noisy.shape[1]
             # Ensure t_hat is [B, N_sample]
-            if (
-                t_hat_noise_level.ndim == 1
-                and t_hat_noise_level.shape[0] == x_noisy.shape[0]
-            ):
+            if t_hat_noise_level.ndim == 1 and t_hat_noise_level.shape[0] == x_noisy.shape[0]:
                 # Assume t_hat was [B], needs expansion to [B, N_sample]
                 t_hat_noise_level = t_hat_noise_level.unsqueeze(1).expand(-1, N_sample)
             elif t_hat_noise_level.shape != (x_noisy.shape[0], N_sample):

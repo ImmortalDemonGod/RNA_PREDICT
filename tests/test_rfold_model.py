@@ -39,6 +39,5 @@ class TestRFoldModel:
         assert output.shape[0] == 1, f"Expected batch size 1, got {output.shape[0]}"
         assert output.shape[1] == 16, f"Expected sequence length 16, got {output.shape[1]}"
         assert output.shape[2] == 16, f"Expected output width 16, got {output.shape[2]}"
-
-        # Check dtype in a way that works with both numpy and torch dtypes
-        assert str(output.dtype).startswith('float'), f"Expected float dtype, got {output.dtype}"
+        # Use correct float dtype assertion
+        assert output.dtype.is_floating_point, f"Expected float dtype, got {output.dtype}"
