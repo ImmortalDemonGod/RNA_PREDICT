@@ -405,6 +405,9 @@ class TestLoadRnaDataAndFeatures(unittest.TestCase):
             self.assertEqual(atom_dict["ref_pos"].shape[1], override_num_atoms)
 
 
+import hydra
+from hydra import compose, initialize
+
 class TestRNADatasetMinimal(unittest.TestCase):
     def test_loader_reads_target_id(self):
         # Use the minimal Kaggle index CSV
@@ -417,16 +420,16 @@ class TestRNADatasetMinimal(unittest.TestCase):
             print('[TEST] Raw CSV contents:')
             for line in f:
                 print('[TEST] ' + line.rstrip())
-        # Minimal config stub
-        cfg = OmegaConf.create({
-            'data': {
-                'max_residues': 10,
-                'max_atoms': 21,
-                'batch_size': 1,
-                'index_csv': index_csv
-            }
-        })
-        loader = RNADataset(index_csv, cfg)
+        # Minimal config stub (now via Hydra)
+        with initialize(config_path="../../rna_predict/conf", version_base=None):
+            cfg = compose(config_name="default.yaml")
+            # Override for test
+            cfg.data.max_residues = 10
+            cfg.data.max_atoms = 21
+            cfg.data.batch_size = 1
+            cfg.data.index_csv = index_csv
+            print("[DEBUG] Loaded Hydra config for test_dataset_loader.py:\n", cfg)
+            loader = RNADataset(index_csv, cfg)
         # Access first sample and assert 'target_id' exists
         row = loader.meta[0]
         self.assertIn('target_id', row.dtype.names)

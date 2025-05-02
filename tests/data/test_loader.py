@@ -5,6 +5,8 @@ import pandas as pd
 import pytest
 from omegaconf import OmegaConf
 from torch.utils.data import DataLoader
+import hydra
+from hydra import compose, initialize
 
 from rna_predict.dataset.loader import RNADataset
 from rna_predict.dataset.collate import rna_collate_fn
@@ -35,17 +37,18 @@ def temp_index_csv():
 
 @pytest.fixture(scope="module")
 def dummy_cfg():
-    # Minimal config with required fields
-    return OmegaConf.create({
-        "data": {
-            "max_residues": 16,
-            "max_atoms": 8,
-            "batch_size": 2,
-            "index_csv": "",
-            "coord_dtype": "float32",
-            "coord_fill_value": "nan",
-        }
-    })
+    # Hydra config_path must be RELATIVE TO THIS TEST FILE LOCATION
+    print(f"[DEBUG] CWD for Hydra: {os.getcwd()}")
+    with initialize(config_path="../../rna_predict/conf", version_base=None):
+        cfg = compose(config_name="default.yaml")
+        print("[DEBUG] Loaded Hydra config for test_loader.py:\n", OmegaConf.to_yaml(cfg))
+        # Optionally override values for test (if needed)
+        cfg.data.max_residues = 16
+        cfg.data.max_atoms = 8
+        cfg.data.batch_size = 2
+        cfg.data.coord_dtype = "float32"
+        cfg.data.coord_fill_value = "nan"
+        return cfg
 
 # --- Tests ---
 def test_rnadataset_getitem(temp_index_csv, dummy_cfg):
