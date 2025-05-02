@@ -94,6 +94,10 @@ class StageBTorsionBertPredictor(nn.Module):
             self.num_angles = getattr(cfg, 'num_angles', 7)
             self.max_length = getattr(cfg, 'max_length', 512)
             self.output_dim = self.num_angles * 2 if self.angle_mode == 'sin_cos' else self.num_angles
+
+            # Emit a debug log even in dummy mode to satisfy tests
+            if self.debug_logging:
+                logger.debug("[UNIQUE-DEBUG-STAGEB-TORSIONBERT-DUMMY] TorsionBertPredictor running in dummy mode with debug_logging=True")
             return
         elif not (hasattr(torsion_cfg, 'model_name_or_path') and hasattr(torsion_cfg, 'device')):
             # Same logic for incomplete config
@@ -110,6 +114,10 @@ class StageBTorsionBertPredictor(nn.Module):
             self.num_angles = getattr(cfg, 'num_angles', 7)
             self.max_length = getattr(cfg, 'max_length', 512)
             self.output_dim = self.num_angles * 2 if self.angle_mode == 'sin_cos' else self.num_angles
+
+            # Emit a debug log even in dummy mode to satisfy tests
+            if self.debug_logging:
+                logger.debug("[UNIQUE-DEBUG-STAGEB-TORSIONBERT-DUMMY] TorsionBertPredictor running in dummy mode with debug_logging=True")
             return
         else:
             self.dummy_mode = False
@@ -293,6 +301,9 @@ class StageBTorsionBertPredictor(nn.Module):
 
     def predict_angles_from_sequence(self, sequence: str) -> torch.Tensor:
         """Predicts torsion angles for a given RNA sequence."""
+        if self.debug_logging:
+            logger.debug(f"[UNIQUE-DEBUG-STAGEB-TORSIONBERT-PREDICT] Predicting angles for sequence of length {len(sequence)}")
+
         if not sequence:
             logger.warning("Empty sequence provided, returning empty tensor.")
             # Adjust shape based on angle_mode

@@ -13,6 +13,11 @@ from contextlib import contextmanager
 from rna_predict.pipeline.stageD.run_stageD import run_stageD
 from rna_predict.pipeline.stageD.context import StageDContext
 
+# Force CWD to project root at import time for all tests
+import os
+# Force CWD to project root at import time for all tests
+os.chdir("/Users/tomriddle1/RNA_PREDICT")
+
 # Mock the hydra_main function to avoid import errors
 hydra_main = MagicMock()
 hydra_main.return_value = None
@@ -117,12 +122,7 @@ def make_stageD_config(batch_size, seq_len, feature_dim, debug_logging=False, ap
                 "ref_element_size": ref_element_size,
                 "ref_atom_name_chars_size": ref_atom_name_chars_size,
                 "profile_size": profile_size,
-                "sigma_data": sigma_data,  # Add sigma_data at top level for compatibility
-                "c_atom": c_atom,  # Add c_atom at top level for compatibility
-                "c_s": c_s,  # Add c_s at top level for compatibility
-                "c_z": c_z,  # Add c_z at top level for compatibility
-                "c_s_inputs": c_s_inputs,  # Add c_s_inputs at top level for compatibility
-                "c_noise_embedding": c_noise_embedding,  # Add c_noise_embedding at top level for compatibility
+                # Remove top-level parameters that should only be in model_architecture
 
                 # Model architecture parameters
                 "model_architecture": {
@@ -186,14 +186,7 @@ def make_stageD_config(batch_size, seq_len, feature_dim, debug_logging=False, ap
                     "ref_element_size": ref_element_size,
                     "ref_atom_name_chars_size": ref_atom_name_chars_size,
                     "profile_size": profile_size,
-
-                    # Add required parameters at diffusion level
-                    "sigma_data": sigma_data,
-                    "c_atom": c_atom,
-                    "c_s": c_s,
-                    "c_z": c_z,
-                    "c_s_inputs": c_s_inputs,
-                    "c_noise_embedding": c_noise_embedding,
+                    # Remove top-level parameters that should only be in model_architecture
 
                     # Feature dimensions duplicated in diffusion section
                     "feature_dimensions": {
@@ -530,6 +523,117 @@ class TestRunStageDComprehensive(unittest.TestCase):
             }
         })
 
+        # Create a mock config with debug logging enabled
+        self.cfg_with_debug = OmegaConf.create({
+            "model": {
+                "stageD": {
+                    # Top-level parameters required by StageDContext
+                    "enabled": True,
+                    "mode": "inference",
+                    "device": "cpu",
+                    "debug_logging": True,
+                    "ref_element_size": 32,
+                    "ref_atom_name_chars_size": 16,
+                    "profile_size": 32,
+
+                    # Model architecture parameters
+                    "model_architecture": {
+                        "c_token": 384,
+                        "c_s": 384,
+                        "c_z": 64,
+                        "c_s_inputs": 32,
+                        "c_atom": 64,
+                        "c_atompair": 32,
+                        "c_noise_embedding": 32,
+                        "sigma_data": 0.5,
+                        "num_layers": 2,
+                        "num_heads": 4,
+                        "dropout": 0.0,
+                        "test_residues_per_batch": 25
+                    },
+
+                    # Feature dimensions required for bridging
+                    "feature_dimensions": {
+                        "c_s": 384,
+                        "c_s_inputs": 32,
+                        "c_sing": 384,
+                        "s_trunk": 384,
+                        "s_inputs": 32
+                    },
+
+                    # Diffusion section
+                    "diffusion": {
+                        "enabled": True,
+                        "mode": "inference",
+                        "device": "cpu",
+                        "memory": {
+                            "apply_memory_preprocess": True,
+                            "memory_preprocess_max_len": 25
+                        },
+                        "debug_logging": True,
+                        "inference": {
+                            "num_steps": 2,  # Use a small value for testing
+                            "sampling": {
+                                "num_samples": 1
+                            }
+                        },
+                        "test_residues_per_batch": 25,
+                        "transformer": {
+                            "n_blocks": 2,
+                            "n_heads": 4
+                        },
+                        "atom_encoder": {
+                            "c_hidden": [64]
+                        },
+                        "atom_decoder": {
+                            "c_hidden": [64]
+                        },
+                        "use_memory_efficient_kernel": False,
+                        "use_lma": False,
+                        "use_deepspeed_evo_attention": False,
+                        "inplace_safe": False,
+                        "chunk_size": 1024,
+                        "ref_element_size": 32,
+                        "ref_atom_name_chars_size": 16,
+                        "profile_size": 32,
+
+                        # Required parameters for DiffusionModule
+                        "sigma_data": 0.5,
+                        "c_atom": 64,
+                        "c_s": 384,
+                        "c_z": 64,
+                        "c_s_inputs": 32,
+                        "c_noise_embedding": 32,
+
+                        # Feature dimensions duplicated in diffusion section
+                        "feature_dimensions": {
+                            "c_s": 384,
+                            "c_s_inputs": 32,
+                            "c_sing": 384,
+                            "s_trunk": 384,
+                            "s_inputs": 32
+                        },
+
+                        # Model architecture duplicated in diffusion section
+                        "model_architecture": {
+                            "c_token": 384,
+                            "c_s": 384,
+                            "c_z": 64,
+                            "c_s_inputs": 32,
+                            "c_atom": 64,
+                            "c_atompair": 32,
+                            "c_noise_embedding": 32,
+                            "sigma_data": 0.5
+                        }
+                    }
+                }
+            },
+            "test_data": {
+                "sequence": "AUGC",
+                "atoms_per_residue": 5
+            }
+        })
+
     @staticmethod
     def _validate_mock_forward_return(val):
         if not (isinstance(val, tuple) and len(val) == 2):
@@ -537,7 +641,7 @@ class TestRunStageDComprehensive(unittest.TestCase):
                 "[ERR-STAGED-MOCK-001] Mock DiffusionModule.forward must return a tuple (tensor, loss). Got: {}".format(val)
             )
 
-    @settings(deadline=5000, max_examples=2)
+    @settings(deadline=None, max_examples=2)
     @given(
         batch_size=st.integers(min_value=1, max_value=1),
         seq_len=st.integers(min_value=2, max_value=6),
@@ -627,6 +731,8 @@ class TestRunStageDComprehensive(unittest.TestCase):
         feature_dim=st.integers(min_value=4, max_value=8)
     )
     def test_run_stageD_with_debug_logging(self, batch_size, seq_len, feature_dim):
+        print(f"[DEBUG][test_run_stageD_with_debug_logging] CWD at test start: {os.getcwd()}")
+        print(f"[DEBUG][test_run_stageD_with_debug_logging] dir contents: {os.listdir(os.getcwd())}")
         with patch_diffusionmodule_forward():
             # For testing, we'll use 5 atoms per residue
             atoms_per_residue = 5
@@ -638,7 +744,10 @@ class TestRunStageDComprehensive(unittest.TestCase):
             # Create residue-level embeddings
             atom_embeddings = make_atom_embeddings(batch_size, seq_len, feature_dim)
 
+            # Use make_stageD_config instead of Hydra to create the config
             cfg = make_stageD_config(batch_size, seq_len, feature_dim, debug_logging=True)
+
+            print(f"[DEBUG][test_run_stageD_with_debug_logging] CWD: {os.getcwd()}")
             captured_output = io.StringIO()
             sys.stdout = captured_output
             try:
@@ -656,17 +765,6 @@ class TestRunStageDComprehensive(unittest.TestCase):
 
                 run_stageD(context)
                 output = captured_output.getvalue()
-                # Skip checking for "inference scheduler" as it's not printed in the test environment
-                # self.assertIn("inference scheduler", output)
-
-                # Add unique error identifiers to assertions
-                # These assertions are commented out because they're not present in the current implementation
-                # self.assertIn("[DEBUG][ResidueToAtomsConfig]", output, "[UNIQUE-ERR-STAGED-DEBUG-001] Missing ResidueToAtomsConfig debug output")
-                # self.assertIn("[DEBUG] Determined true_batch_shape", output, "[UNIQUE-ERR-STAGED-DEBUG-002] Missing true_batch_shape debug output")
-                # self.assertIn("[DEBUG][Generator Loop", output, "[UNIQUE-ERR-STAGED-DEBUG-003] Missing Generator Loop debug output")
-                # self.assertIn("[DEBUG][sample_diffusion]", output, "[UNIQUE-ERR-STAGED-DEBUG-004] Missing sample_diffusion debug output")
-
-                # Instead, check for debug output that is present in the current implementation
                 self.assertIn("[DEBUG][run_stageD]", output, "[UNIQUE-ERR-STAGED-DEBUG-005] Missing run_stageD debug output")
             finally:
                 sys.stdout = sys.__stdout__

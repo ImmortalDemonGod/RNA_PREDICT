@@ -170,39 +170,46 @@ def _reshape_attention_bias(
             f"_reshape_attention_bias input: shape={attn_bias.shape}, "
             f"num_heads={num_heads}, dtype={attn_bias.dtype}"
         )
+        print(f"DEBUG: input shape={attn_bias.shape}, num_heads={num_heads}")
         bias = attn_bias
-        # If bias has batch and head dims, try to match them to num_heads
-        # Accepts [B, 1, Nq, Nk], [B, H, Nq, Nk], [1, 1, H, Nq, Nk], [1, 1, 2, 170, 170], etc.
         shape = list(bias.shape)
-        # Case: [B, 1, Nq, Nk] -> [B, H, Nq, Nk]
         if len(shape) == 4 and shape[1] != num_heads:
+            print(f"DEBUG: Expanding bias from shape={shape} to num_heads={num_heads}")
             bias = bias.expand(shape[0], num_heads, shape[2], shape[3])
             logger.debug(f"Expanded bias to shape={bias.shape}")
-        # Case: [1, 1, H, Nq, Nk] or [B, 1, H, Nq, Nk] -> [B, H, Nq, Nk]
         elif len(shape) == 5 and shape[2] == num_heads:
+            print(f"DEBUG: Squeezing bias from shape={shape}")
             bias = bias.squeeze(1)  # Remove singleton dim if present
             logger.debug(f"Squeezed bias to shape={bias.shape}")
-        # If still not matching, try to broadcast or fallback
         if bias.shape[1] != num_heads:
-            # Try to repeat or expand as last resort
+            print(f"DEBUG: bias.shape[1]={bias.shape[1]}, num_heads={num_heads}")
             if bias.shape[1] == 1:
+                print(f"DEBUG: Forced expand bias to num_heads={num_heads}")
                 bias = bias.expand(bias.shape[0], num_heads, *bias.shape[2:])
                 logger.debug(f"Forced expand to shape={bias.shape}")
             else:
-                logger.warning(
+                print(f"DEBUG: Could not match num_heads: bias.shape={bias.shape}, num_heads={num_heads}")
+                import warnings
+                warnings.warn(
                     f"Could not match num_heads: bias.shape={bias.shape}, num_heads={num_heads}",
+                    UserWarning,
                     stacklevel=2
                 )
                 return None
-        # Now flatten batch and head dims for attention
-        logger.debug(f"Before final reshape: bias.shape={bias.shape}")
+        print(f"DEBUG: Before final reshape: bias.shape={bias.shape}")
         result = bias.reshape(-1, *bias.shape[-2:])  # [B*H, N_q, N_kv]
-        logger.debug(f"After final reshape: result.shape={result.shape}")
+        print(f"DEBUG: After final reshape: result.shape={result.shape}")
         return result
     except Exception as e:
         logger.error(
             f"Could not robustly reshape attn_bias from {attn_bias.shape} to match attention weights. Error: {str(e)}",
             exc_info=True,
+            stacklevel=2
+        )
+        import warnings
+        warnings.warn(
+            f"Could not reshape attn_bias: {attn_bias.shape} to match num_heads={num_heads}. Error: {str(e)}",
+            UserWarning,
             stacklevel=2
         )
         return None  # Skip bias if reshape fails
