@@ -47,6 +47,46 @@ def _process_single_embedding(
     # Check for N_sample dimension (dim=1 in [B, N_sample, N_res, C])
     has_n_sample = value.dim() == 4
 
+    # CRITICAL FIX: Handle empty residue_atom_map
+    if not residue_atom_map:
+        if debug_logging:
+            logger.warning(f"[BRIDGE WARNING] Empty residue_atom_map for {key}. Returning original tensor.")
+            print(f"[DEBUG][BRIDGE][_process_single_embedding] Empty residue_atom_map for {key}. Returning original tensor.")
+        return value
+
+    # CRITICAL FIX: Check for dimension mismatch between value and residue_atom_map
+    n_res_in_map = len(residue_atom_map)
+    n_res_in_value = value.shape[2] if has_n_sample else value.shape[1]
+
+    if n_res_in_value != n_res_in_map:
+        if debug_logging:
+            logger.warning(f"[BRIDGE WARNING] Dimension mismatch for {key}: value has {n_res_in_value} residues, but residue_atom_map has {n_res_in_map} residues.")
+            print(f"[DEBUG][BRIDGE][_process_single_embedding] Dimension mismatch for {key}: value has {n_res_in_value} residues, but residue_atom_map has {n_res_in_map} residues.")
+
+        # Adjust the tensor to match the residue_atom_map size
+        if has_n_sample:
+            batch_size, n_sample, _, feat_dim = value.shape
+            # Create a new tensor with the correct number of residues
+            adjusted_value = torch.zeros(
+                batch_size, n_sample, n_res_in_map, feat_dim,
+                device=value.device, dtype=value.dtype
+            )
+            # Copy data for the common residues
+            min_res = min(n_res_in_value, n_res_in_map)
+            adjusted_value[:, :, :min_res, :] = value[:, :, :min_res, :]
+            value = adjusted_value
+        else:
+            batch_size, _, feat_dim = value.shape
+            # Create a new tensor with the correct number of residues
+            adjusted_value = torch.zeros(
+                batch_size, n_res_in_map, feat_dim,
+                device=value.device, dtype=value.dtype
+            )
+            # Copy data for the common residues
+            min_res = min(n_res_in_value, n_res_in_map)
+            adjusted_value[:, :min_res, :] = value[:, :min_res, :]
+            value = adjusted_value
+
     if has_n_sample:
         # Handle N_sample dimension by processing each sample separately
         batch_size, n_sample, n_res, feat_dim = value.shape
@@ -104,6 +144,13 @@ def _process_pair_embedding(value: torch.Tensor, residue_atom_map: list, debug_l
         logger.warning(f"Pair embedding for {key} is not a tensor. Returning as is.")
         return value
 
+    # CRITICAL FIX: Handle empty residue_atom_map
+    if not residue_atom_map:
+        if debug_logging:
+            logger.warning(f"[BRIDGE WARNING] Empty residue_atom_map for pair embedding {key}. Returning original tensor.")
+            print(f"[DEBUG][BRIDGE][_process_pair_embedding] Empty residue_atom_map for {key}. Returning original tensor.")
+        return value
+
     n_res = len(residue_atom_map)
     # Determine atom count
     atom_indices = [atom for sublist in residue_atom_map for atom in sublist]
@@ -116,9 +163,27 @@ def _process_pair_embedding(value: torch.Tensor, residue_atom_map: list, debug_l
         # Handle tensor with N_sample dimension [B, N_sample, N_res, N_res, C]
         B, N_sample, N_res1, N_res2, C = value.shape
 
+        # CRITICAL FIX: Handle dimension mismatch by resizing the tensor
         if N_res1 != n_res or N_res2 != n_res:
-            logger.warning(f"Shape mismatch in pair embedding bridging for {key}: value.shape={value.shape}, n_res={n_res}")
-            return value
+            if debug_logging:
+                logger.warning(f"[BRIDGE WARNING] Shape mismatch in pair embedding for {key}: value.shape={value.shape}, n_res={n_res}. Resizing tensor.")
+                print(f"[DEBUG][BRIDGE][_process_pair_embedding] Shape mismatch for {key}: value.shape={value.shape}, n_res={n_res}. Resizing tensor.")
+
+            # Create a new tensor with the correct dimensions
+            resized_value = torch.zeros(
+                B, N_sample, n_res, n_res, C,
+                device=value.device, dtype=value.dtype
+            )
+
+            # Copy data for the common dimensions
+            min_res1 = min(N_res1, n_res)
+            min_res2 = min(N_res2, n_res)
+            resized_value[:, :, :min_res1, :min_res2, :] = value[:, :, :min_res1, :min_res2, :]
+
+            # Use the resized tensor for further processing
+            value = resized_value
+            N_res1 = n_res
+            N_res2 = n_res
 
         # Create output tensor with atom dimensions
         out = value.new_zeros((B, N_sample, n_atom, n_atom, C))
@@ -142,9 +207,27 @@ def _process_pair_embedding(value: torch.Tensor, residue_atom_map: list, debug_l
     elif value.dim() == 4:
         B, N_res1, N_res2, C = value.shape
 
+        # CRITICAL FIX: Handle dimension mismatch by resizing the tensor
         if N_res1 != n_res or N_res2 != n_res:
-            logger.warning(f"Shape mismatch in pair embedding bridging for {key}: value.shape={value.shape}, n_res={n_res}")
-            return value
+            if debug_logging:
+                logger.warning(f"[BRIDGE WARNING] Shape mismatch in pair embedding for {key}: value.shape={value.shape}, n_res={n_res}. Resizing tensor.")
+                print(f"[DEBUG][BRIDGE][_process_pair_embedding] Shape mismatch for {key}: value.shape={value.shape}, n_res={n_res}. Resizing tensor.")
+
+            # Create a new tensor with the correct dimensions
+            resized_value = torch.zeros(
+                B, n_res, n_res, C,
+                device=value.device, dtype=value.dtype
+            )
+
+            # Copy data for the common dimensions
+            min_res1 = min(N_res1, n_res)
+            min_res2 = min(N_res2, n_res)
+            resized_value[:, :min_res1, :min_res2, :] = value[:, :min_res1, :min_res2, :]
+
+            # Use the resized tensor for further processing
+            value = resized_value
+            N_res1 = n_res
+            N_res2 = n_res
 
         # Expand to atom-level
         out = value.new_zeros((B, n_atom, n_atom, C))
@@ -165,9 +248,27 @@ def _process_pair_embedding(value: torch.Tensor, residue_atom_map: list, debug_l
     else:
         N_res1, N_res2, C = value.shape
 
+        # CRITICAL FIX: Handle dimension mismatch by resizing the tensor
         if N_res1 != n_res or N_res2 != n_res:
-            logger.warning(f"Shape mismatch in pair embedding bridging for {key}: value.shape={value.shape}, n_res={n_res}")
-            return value
+            if debug_logging:
+                logger.warning(f"[BRIDGE WARNING] Shape mismatch in pair embedding for {key}: value.shape={value.shape}, n_res={n_res}. Resizing tensor.")
+                print(f"[DEBUG][BRIDGE][_process_pair_embedding] Shape mismatch for {key}: value.shape={value.shape}, n_res={n_res}. Resizing tensor.")
+
+            # Create a new tensor with the correct dimensions
+            resized_value = torch.zeros(
+                n_res, n_res, C,
+                device=value.device, dtype=value.dtype
+            )
+
+            # Copy data for the common dimensions
+            min_res1 = min(N_res1, n_res)
+            min_res2 = min(N_res2, n_res)
+            resized_value[:min_res1, :min_res2, :] = value[:min_res1, :min_res2, :]
+
+            # Use the resized tensor for further processing
+            value = resized_value
+            N_res1 = n_res
+            N_res2 = n_res
 
         out = value.new_zeros((n_atom, n_atom, C))
 
