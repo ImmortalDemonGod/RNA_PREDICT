@@ -61,7 +61,7 @@ def get_atom_to_token_idx(input_feature_dict, num_tokens=None, encoder=None):
         return None
     atom_to_token_idx = safe_tensor_access(input_feature_dict, "atom_to_token_idx")
     if atom_to_token_idx is not None:
-        if num_tokens is not None and atom_to_token_idx.numel() > 0 and torch.is_tensor(atom_to_token_idx) and atom_to_token_idx.max() is not None and num_tokens is not None and atom_to_token_idx.max() is not None and num_tokens is not None and atom_to_token_idx.max() is not None and num_tokens is not None and atom_to_token_idx.max() >= num_tokens:
+        if num_tokens is not None and atom_to_token_idx is not None and atom_to_token_idx.numel() > 0 and torch.is_tensor(atom_to_token_idx) and atom_to_token_idx.max() is not None and num_tokens is not None and atom_to_token_idx.max() is not None and num_tokens is not None and atom_to_token_idx.max() is not None and num_tokens is not None and atom_to_token_idx.max() is not None and num_tokens is not None and atom_to_token_idx.max() is not None and num_tokens is not None and atom_to_token_idx.max() >= num_tokens:
             if atom_to_token_idx.max() is not None and num_tokens is not None:
                 if atom_to_token_idx.max() >= num_tokens:
                     warnings.warn(
