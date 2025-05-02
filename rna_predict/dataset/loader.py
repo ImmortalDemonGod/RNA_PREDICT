@@ -174,23 +174,26 @@ class RNADataset(Dataset):
         return "A" * 10
 
     def _load_atom_features(self, pdb_file, L):
+        # Get dtype and fill value from config
+        coord_dtype = getattr(torch, self.cfg.data.coord_dtype)
+        fill_value = float('nan') if str(self.cfg.data.coord_fill_value).lower() == 'nan' else float(self.cfg.data.coord_fill_value)
         # If pdb_file is missing or empty, return dummy tensors
         if not pdb_file:
             print("[RNADataset] Empty pdb_file path, returning dummy atom features.")
-            coords = torch.zeros((L, self.max_atoms, 3), dtype=torch.float32)
+            coords = torch.zeros((L, self.max_atoms, 3), dtype=coord_dtype)
             atom_mask = torch.zeros((L, self.max_atoms), dtype=torch.float32)
             atom_to_tok = torch.zeros((L, self.max_atoms), dtype=torch.int32)
-            elem_emb = torch.zeros((L, self.max_atoms, 5), dtype=torch.float32)
-            name_emb = torch.zeros((L, self.max_atoms, 10), dtype=torch.float32)
+            elem_emb = torch.zeros((L, self.max_atoms, self.cfg.data.ref_element_size), dtype=torch.float32)
+            name_emb = torch.zeros((L, self.max_atoms, self.cfg.data.ref_atom_name_chars_size), dtype=torch.float32)
             tgt_names = []
             tgt_indices = []
             return coords, atom_mask, atom_to_tok, elem_emb, name_emb, tgt_names, tgt_indices
         coords_dict = parse_pdb_atoms(pdb_file)
-        coords = torch.full((self.max_atoms, 3), float("nan"))
+        coords = torch.full((self.max_atoms, 3), fill_value, dtype=coord_dtype)
         atom_mask = torch.zeros(self.max_atoms, dtype=torch.bool)
         atom_to_tok = torch.zeros(self.max_atoms, dtype=torch.long)
-        elem_emb = torch.zeros(self.max_atoms, 5)  # Placeholder shape
-        name_emb = torch.zeros(self.max_atoms, 10)  # Placeholder shape
+        elem_emb = torch.zeros(self.max_atoms, self.cfg.data.ref_element_size)  # Configurable shape
+        name_emb = torch.zeros(self.max_atoms, self.cfg.data.ref_atom_name_chars_size)  # Configurable shape
         tgt_names = []  # NEW: List of atom names for present atoms
         tgt_indices = []  # NEW: List of residue indices for present atoms
         a_idx = 0
