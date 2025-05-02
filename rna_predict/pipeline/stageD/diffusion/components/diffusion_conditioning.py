@@ -280,13 +280,23 @@ class DiffusionConditioning(nn.Module):
                     residues_per_atom = n_atoms // s_trunk.shape[-2]
 
                     if s_trunk.dim() == 4:  # [B, N_sample, N_res, C]
-                        s_trunk_residue[..., start_idx:end_idx, :] = s_trunk[..., i:i+1, :].expand(
-                            *[-1 for _ in range(s_trunk.dim() - 2)], residues_per_atom, -1
-                        )
+                        for i in range(s_trunk.shape[-2]):
+                            start_idx = i * residues_per_atom
+                            end_idx = (i + 1) * residues_per_atom
+                            s_trunk_residue[..., start_idx:end_idx, :] = (
+                                s_trunk[..., i : i + 1, :].expand(
+                                    *[-1 for _ in range(s_trunk.dim() - 2)],
+                                    residues_per_atom,
+                                    -1
+                                )
+                            )
                     else:  # [B, N_res, C] or other
-                        s_trunk_residue[..., start_idx:end_idx, :] = s_trunk[..., i:i+1, :].expand(
-                            *[-1 for _ in range(s_trunk.dim() - 2)], residues_per_atom, -1
-                        )
+                        for i in range(s_trunk.shape[-2]):
+                            start_idx = i * residues_per_atom
+                            end_idx = (i + 1) * residues_per_atom
+                            s_trunk_residue[..., start_idx:end_idx, :] = s_trunk[..., i:i+1, :].expand(
+                                *[-1 for _ in range(s_trunk.dim() - 2)], residues_per_atom, -1
+                            )
                     s_trunk = s_trunk_residue
 
         # Validate and adapt tensor shapes if needed (now config-driven)
@@ -405,7 +415,9 @@ class DiffusionConditioning(nn.Module):
         # Fallbacks for ref_charge and ref_pos if not present
         if "ref_charge" not in result:
             if "ref_pos" in result and isinstance(result["ref_pos"], torch.Tensor):
-                result["ref_charge"] = torch.zeros(result["ref_pos"].shape[:-1], device=target_device)
+                result["ref_charge"] = torch.zeros(
+                    *result["ref_pos"].shape[:-1], 1, device=target_device
+                )
             else:
                 result["ref_charge"] = torch.tensor(0.0, device=target_device)
         if "ref_pos" not in result:

@@ -85,18 +85,22 @@ def main(cfg: DictConfig):
                         num_workers=cfg.data.num_workers,
                         collate_fn=rna_collate_fn,
                         shuffle=True)
-        # DEBUG: Inspect first batch in detail
-        first_batch = next(iter(dl))
-        print("[DEBUG][main] First batch keys:", list(first_batch.keys()))
-        for k, v in first_batch.items():
-            if hasattr(v, 'shape'):
-                shape_val = getattr(v, 'shape', None)
-                dtype_val = getattr(v, 'dtype', None)
-                requires_grad_val = getattr(v, 'requires_grad', 'N/A')
-                print(f"[DEBUG][main] Key: {k!r}, Shape: {shape_val!r}, Dtype: {dtype_val!r}, requires_grad: {requires_grad_val!r}")
-            else:
-                print(f"[DEBUG][main] Key: {k!r}, Type: {type(v)!r}")
-        print("[DEBUG] First batch device: {!r}".format(first_batch['coords_true'].device))
+        # DEBUG: Inspect first batch in detail only if debug_inspect_batch is enabled
+        debug_inspect_batch = getattr(cfg.data, 'debug_inspect_batch', False)
+        if debug_inspect_batch:
+            # Only create workers and fetch a batch when explicitly requested
+            print("[DEBUG] Inspecting first batch (debug_inspect_batch=True)")
+            first_batch = next(iter(dl))
+            print("[DEBUG][main] First batch keys:", list(first_batch.keys()))
+            for k, v in first_batch.items():
+                if hasattr(v, 'shape'):
+                    shape_val = getattr(v, 'shape', None)
+                    dtype_val = getattr(v, 'dtype', None)
+                    requires_grad_val = getattr(v, 'requires_grad', 'N/A')
+                    print(f"[DEBUG][main] Key: {k!r}, Shape: {shape_val!r}, Dtype: {dtype_val!r}, requires_grad: {requires_grad_val!r}")
+                else:
+                    print(f"[DEBUG][main] Key: {k!r}, Type: {type(v)!r}")
+            print("[DEBUG] First batch device: {!r}".format(first_batch['coords_true'].device))
         # Add ModelCheckpoint callback
         checkpoint_callback = ModelCheckpoint(
             dirpath=cfg.training.checkpoint_dir,
