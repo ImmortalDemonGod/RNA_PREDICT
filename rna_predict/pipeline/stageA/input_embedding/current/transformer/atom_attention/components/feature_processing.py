@@ -164,33 +164,22 @@ class FeatureProcessor:
         # Extract distance features
         ref_pos = safe_tensor_access(input_feature_dict, "ref_pos")  # [N, 3]
 
+        # Ensure ref_pos is available before using it
+        if ref_pos is None:
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            ref_pos = torch.zeros((1, 1, 3), device=device)
+
         # Try to get ref_charge, but use a default if not available
         try:
             ref_charge = safe_tensor_access(input_feature_dict, "ref_charge")  # [N, 1]
         except ValueError:
             # Create a default ref_charge tensor with zeros
-            # First ensure ref_pos is not None
-            if ref_pos is None:
-                # Create a default ref_pos if it's None
-                device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-                ref_pos = torch.zeros((1, 1, 3), device=device)
-            ref_charge = torch.zeros((ref_pos.shape[0], 1), device=ref_pos.device)
-
-        # Get number of atoms if ref_pos is not None
-        if ref_pos is not None:
-            ref_pos.shape[0]
-        else:
-            pass  # Default value if ref_pos is None
+            ref_charge = torch.zeros((ref_pos.shape[0], ref_pos.shape[1], 1), device=ref_pos.device)
 
         # Process distance features
         d = self.linear_no_bias_d(ref_pos)  # [N, c_atompair]
 
         # Calculate inverse distance features
-        # First calculate inverse distances
-        # Ensure ref_pos is not None before using it
-        if ref_pos is None:
-            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-            ref_pos = torch.zeros((1, 3), device=device)
         inv_pos = 1.0 / (ref_pos + 1e-6)  # [N, 3]
         invd = self.linear_no_bias_invd(inv_pos)  # [N, c_atompair]
 

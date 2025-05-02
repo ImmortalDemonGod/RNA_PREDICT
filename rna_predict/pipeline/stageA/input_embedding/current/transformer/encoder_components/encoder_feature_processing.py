@@ -28,7 +28,7 @@ def _process_feature(
         Processed feature tensor or None if feature is invalid
     """
     if feature_name not in input_feature_dict:
-        warnings.warn(f"Feature {feature_name} missing from input dictionary.")
+        warnings.warn(f"Feature {feature_name} missing from input dictionary.", stacklevel=2)
         # Create a default tensor for the missing feature
         default_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         batch_size = 1
@@ -91,12 +91,12 @@ def _process_feature(
     # Access the feature from the dictionary
     feature = input_feature_dict.get(feature_name)
     if feature is None:
-        warnings.warn(f"Feature {feature_name} not found in input_feature_dict.")
+        warnings.warn(f"Feature {feature_name} not found in input_feature_dict.", stacklevel=2)
         return None
 
     # Ensure feature is a tensor
     if not isinstance(feature, torch.Tensor):
-        warnings.warn(f"Feature {feature_name} is not a tensor.")
+        warnings.warn(f"Feature {feature_name} is not a tensor.", stacklevel=2)
         return None
 
     # Check if shape is already correct
@@ -114,19 +114,22 @@ def _process_feature(
                 reshaped_feature = feature.unsqueeze(-1)
                 warnings.warn(
                     f"Feature {feature_name} has shape {feature.shape}, "
-                    f"but expected last dim 1. Unsqueezing to {reshaped_feature.shape}."
+                    f"but expected last dim 1. Unsqueezing to {reshaped_feature.shape}.",
+                    stacklevel=2
                 )
                 return reshaped_feature
             else:
                 warnings.warn(
                     f"Feature {feature_name} has shape {feature.shape} (rank {feature.dim()}) "
-                    f"expected last dim 1, but cannot unsqueeze. Skipping this feature."
+                    f"expected last dim 1, but cannot unsqueeze. Skipping this feature.",
+                    stacklevel=2
                 )
                 return None
         except Exception as e:
             warnings.warn(
                 f"Could not unsqueeze feature {feature_name} (shape {feature.shape}) "
-                f"to match expected dim {expected_dim}. Error: {e}. Skipping."
+                f"to match expected dim {expected_dim}. Error: {e}. Skipping.",
+                stacklevel=2
             )
             return None
 
@@ -137,13 +140,15 @@ def _process_feature(
         reshaped_feature = feature.view(*feature.shape[:-1], expected_dim)
         warnings.warn(
             f"Attempting general reshape for feature {feature_name} from {feature.shape} "
-            f"to {reshaped_feature.shape} (expected dim {expected_dim})."
+            f"to {reshaped_feature.shape} (expected dim {expected_dim}).",
+            stacklevel=2
         )
         return reshaped_feature
     except RuntimeError:
         warnings.warn(
             f"Feature {feature_name} has wrong shape {feature.shape}, "
-            f"expected last dim to be {expected_dim}. Could not reshape. Skipping."
+            f"expected last dim to be {expected_dim}. Could not reshape. Skipping.",
+            stacklevel=2
         )
         return None
 
