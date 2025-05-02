@@ -18,10 +18,8 @@ from rna_predict.utils.submission import coords_to_df, extract_atom, reshape_coo
 class RNAPredictor:
     """High-level interface for the RNA_PREDICT pipeline."""
     def __init__(self, cfg: DictConfig) -> None:
-        self.device = getattr(cfg, "device", None)
-        if self.device is None:
-            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        elif isinstance(self.device, str):
+        self.device = cfg.device
+        if isinstance(self.device, str):
             self.device = torch.device(self.device)
         if not hasattr(cfg, "model") or not hasattr(cfg.model, "stageC"):
             raise ValueError("Configuration must contain model.stageC section")
@@ -31,16 +29,12 @@ class RNAPredictor:
         self.default_atom_choice = getattr(self.prediction_config, "residue_atom_choice", 1)
         if hasattr(cfg, 'model') and hasattr(cfg.model, 'stageB') and hasattr(cfg.model.stageB, 'torsion_bert'):
             torsion_bert_cfg = cfg.model.stageB.torsion_bert
-            if not hasattr(torsion_bert_cfg, 'model_name_or_path'):
-                torsion_bert_cfg.model_name_or_path = "dummy-path"
-            if not hasattr(torsion_bert_cfg, 'device'):
-                torsion_bert_cfg.device = self.device
         else:
             torsion_bert_cfg = cfg
-            if not hasattr(torsion_bert_cfg, 'model_name_or_path'):
-                torsion_bert_cfg.model_name_or_path = "dummy-path"
-            if not hasattr(torsion_bert_cfg, 'device'):
-                torsion_bert_cfg.device = self.device
+        if not hasattr(torsion_bert_cfg, 'model_name_or_path'):
+            raise ValueError("torsion_bert_cfg must specify model_name_or_path in the Hydra config.")
+        if not hasattr(torsion_bert_cfg, 'device'):
+            raise ValueError("torsion_bert_cfg must specify device in the Hydra config.")
         self.torsion_predictor = StageBTorsionBertPredictor(torsion_bert_cfg)
 
     def predict_3d_structure(self, sequence: str) -> Dict[str, Any]:
