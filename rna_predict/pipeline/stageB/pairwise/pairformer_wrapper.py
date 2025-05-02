@@ -115,7 +115,7 @@ class PairformerWrapper(nn.Module):
         required_keys = ["c_z", "c_s"]
 
         # Check if we're in a test environment
-        is_test = os.environ.get('PYTEST_CURRENT_TEST') is not None
+        os.environ.get('PYTEST_CURRENT_TEST') is not None  # Just for environment detection
         current_test = str(os.environ.get('PYTEST_CURRENT_TEST', ''))
 
         if not all(hasattr(pairformer_cfg, key) for key in required_keys):

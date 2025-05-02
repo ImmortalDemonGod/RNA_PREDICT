@@ -158,15 +158,21 @@ def initialize_features_from_config(
     Returns:
         Dictionary of initialized features
     """
+    # Defensive: always initialize stage_cfg_from_outer
+    stage_cfg_from_outer = None
     # Handle the two different calling conventions
     if isinstance(cfg_or_features, dict) and not isinstance(coords_or_atom_metadata, torch.Tensor):
         # This is the first calling convention: (input_feature_dict, atom_metadata)
         input_feature_dict = cfg_or_features
         atom_metadata = coords_or_atom_metadata
 
+        # Try to extract config if present in input_feature_dict
+        if 'model' in input_feature_dict and isinstance(input_feature_dict['model'], dict) and 'stageD' in input_feature_dict['model']:
+            stage_cfg_from_outer = input_feature_dict['model']['stageD']
+        elif 'stageD' in input_feature_dict:
+            stage_cfg_from_outer = input_feature_dict['stageD']
         # Simply return the input_feature_dict if it's already populated
         if input_feature_dict and isinstance(input_feature_dict, dict):
-            # Add any default values for missing keys if needed
             return input_feature_dict
     else:
         # This is the second calling convention: (cfg, coords, atom_metadata)
@@ -279,8 +285,8 @@ def initialize_features_from_config(
                             ref_atom_name_chars_size = stage_cfg_from_outer.ref_atom_name_chars_size
                         if hasattr(stage_cfg_from_outer, "profile_size"):
                             profile_size = stage_cfg_from_outer.profile_size
-                    except AttributeError:
-                        logger.warning("[HYDRA-CONF-WARN] Could not access config attributes. Using default dimensions.")
+                    except Exception:
+                        pass  # Defensive: ignore config attribute errors
 
             # Ensure dimensions meet minimum requirements
             if not isinstance(ref_element_size, int) or ref_element_size < min_ref_element_dim:
