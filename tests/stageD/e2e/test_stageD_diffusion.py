@@ -137,7 +137,8 @@ def test_run_stageD_diffusion_inference(minimal_diffusion_config):
     with initialize(config_path="../../../rna_predict/conf", version_base=None):
         hydra_cfg = compose(config_name="default.yaml")
         hydra_cfg.model.stageD.diffusion.feature_dimensions = minimal_diffusion_config["feature_dimensions"]
-        hydra_cfg.model.stageD.diffusion.model_architecture = minimal_diffusion_config["model_architecture"]
+        from omegaconf import OmegaConf
+        hydra_cfg.model.stageD.diffusion.model_architecture = OmegaConf.create(minimal_diffusion_config["model_architecture"])
         hydra_cfg.model.stageD.diffusion.device = "cpu"
         hydra_cfg.model.stageD.diffusion.mode = "inference"
         hydra_cfg.model.stageD.diffusion.debug_logging = True
@@ -160,6 +161,20 @@ def test_run_stageD_diffusion_inference(minimal_diffusion_config):
         }
         partial_coords = torch.randn(1, 5, 3)
         # --- NEW: Build DiffusionConfig and call unified API ---
+        # Ensure all config dicts are OmegaConf objects for Hydra best practices
+        from omegaconf import OmegaConf
+        if not isinstance(hydra_cfg.model.stageD, dict):
+            # If already an OmegaConf object, convert to dict then back to OmegaConf to ensure deep conversion
+            stageD_dict = OmegaConf.to_container(hydra_cfg.model.stageD, resolve=True)
+        else:
+            stageD_dict = hydra_cfg.model.stageD
+        hydra_cfg.model.stageD = OmegaConf.create(stageD_dict)
+        # Also ensure diffusion and model_architecture are OmegaConf objects
+        if isinstance(hydra_cfg.model.stageD.diffusion, dict):
+            hydra_cfg.model.stageD.diffusion = OmegaConf.create(hydra_cfg.model.stageD.diffusion)
+        if isinstance(hydra_cfg.model.stageD.model_architecture, dict):
+            hydra_cfg.model.stageD.model_architecture = OmegaConf.create(hydra_cfg.model.stageD.model_architecture)
+
         config = DiffusionConfig(
             partial_coords=partial_coords,
             trunk_embeddings=trunk_embeddings,
@@ -172,7 +187,7 @@ def test_run_stageD_diffusion_inference(minimal_diffusion_config):
             ref_element_size=128,
             ref_atom_name_chars_size=256,
             profile_size=32,
-            cfg=hydra_cfg.model.stageD
+            cfg=hydra_cfg
         )
         # Patch: set required attributes for Stage D validation
         config.model_architecture = hydra_cfg.model.stageD.model_architecture
@@ -230,7 +245,8 @@ def test_run_stageD_diffusion_inference_original(missing_s_inputs, minimal_diffu
         with initialize(config_path="../../../rna_predict/conf", version_base=None):
             hydra_cfg = compose(config_name="default.yaml")
             hydra_cfg.model.stageD.diffusion.feature_dimensions = minimal_diffusion_config["feature_dimensions"]
-            hydra_cfg.model.stageD.diffusion.model_architecture = minimal_diffusion_config["model_architecture"]
+            from omegaconf import OmegaConf
+            hydra_cfg.model.stageD.diffusion.model_architecture = OmegaConf.create(minimal_diffusion_config["model_architecture"])
             hydra_cfg.model.stageD.diffusion.device = "cpu"
             hydra_cfg.model.stageD.diffusion.mode = "inference"
             hydra_cfg.model.stageD.diffusion.debug_logging = True
@@ -239,6 +255,20 @@ def test_run_stageD_diffusion_inference_original(missing_s_inputs, minimal_diffu
             hydra_cfg.model.stageD.diffusion.profile_size = 32
             print("[DEBUG] Loaded Hydra config for test_stageD_diffusion.py:\n", hydra_cfg.model.stageD)
             # --- NEW: Build DiffusionConfig and call unified API ---
+            # Ensure all config dicts are OmegaConf objects for Hydra best practices
+            from omegaconf import OmegaConf
+            if not isinstance(hydra_cfg.model.stageD, dict):
+                # If already an OmegaConf object, convert to dict then back to OmegaConf to ensure deep conversion
+                stageD_dict = OmegaConf.to_container(hydra_cfg.model.stageD, resolve=True)
+            else:
+                stageD_dict = hydra_cfg.model.stageD
+            hydra_cfg.model.stageD = OmegaConf.create(stageD_dict)
+            # Also ensure diffusion and model_architecture are OmegaConf objects
+            if isinstance(hydra_cfg.model.stageD.diffusion, dict):
+                hydra_cfg.model.stageD.diffusion = OmegaConf.create(hydra_cfg.model.stageD.diffusion)
+            if isinstance(hydra_cfg.model.stageD.model_architecture, dict):
+                hydra_cfg.model.stageD.model_architecture = OmegaConf.create(hydra_cfg.model.stageD.model_architecture)
+
             config = DiffusionConfig(
                 partial_coords=partial_coords,
                 trunk_embeddings=trunk_embeddings,
@@ -251,7 +281,7 @@ def test_run_stageD_diffusion_inference_original(missing_s_inputs, minimal_diffu
                 ref_element_size=128,
                 ref_atom_name_chars_size=256,
                 profile_size=32,
-                cfg=hydra_cfg.model.stageD
+                cfg=hydra_cfg
             )
             # Patch: set required attributes for Stage D validation
             config.model_architecture = hydra_cfg.model.stageD.model_architecture
