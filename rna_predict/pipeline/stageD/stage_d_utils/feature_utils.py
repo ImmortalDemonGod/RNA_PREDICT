@@ -348,7 +348,6 @@ def initialize_features_from_config(
 
     return features
 
-##@snoop
 def extract_atom_features(input_feature_dict, encoder_input_feature_config, debug_logging=False):
     features = []
     feature_names = []
@@ -356,7 +355,8 @@ def extract_atom_features(input_feature_dict, encoder_input_feature_config, debu
     num_atoms = None
     # Defensive: Ensure all expected features are present and have correct shape
     for key, expected_dim in encoder_input_feature_config.items():
-        assert key in input_feature_dict, f"[ERR-STAGED-FEATURES-001] Missing feature '{key}' in input_feature_dict. Check Hydra config and bridging logic."
+        if key not in input_feature_dict:
+            raise ValueError(f"[ERR-STAGED-FEATURES-001] Missing feature '{key}' in input_feature_dict. Check Hydra config and bridging logic.")
         value = input_feature_dict[key]
         if not isinstance(value, torch.Tensor):
             raise TypeError(f"[ERR-STAGED-FEATURES-002] Feature '{key}' is not a tensor (got {type(value)}). Check bridging and config.")
@@ -368,8 +368,10 @@ def extract_atom_features(input_feature_dict, encoder_input_feature_config, debu
             batch_size = value.shape[0]
             num_atoms = value.shape[1]
         else:
-            assert value.shape[0] == batch_size, f"[ERR-STAGED-FEATURES-005] Feature '{key}' batch size {value.shape[0]} != expected {batch_size}."
-            assert value.shape[1] == num_atoms, f"[ERR-STAGED-FEATURES-006] Feature '{key}' num_atoms {value.shape[1]} != expected {num_atoms}."
+            if value.shape[0] != batch_size:
+                raise ValueError(f"[ERR-STAGED-FEATURES-005] Feature '{key}' batch size {value.shape[0]} != expected {batch_size}.")
+            if value.shape[1] != num_atoms:
+                raise ValueError(f"[ERR-STAGED-FEATURES-006] Feature '{key}' num_atoms {value.shape[1]} != expected {num_atoms}.")
         features.append(value)
         feature_names.append(key)
     # Concatenate features

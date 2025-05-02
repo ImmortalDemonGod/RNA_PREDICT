@@ -71,8 +71,7 @@ def has_nan_value(tensor):
 
 
 def replace_nans_torch(tensor, nan_replacement_value):
-    tensor.data = torch.nan_to_num(tensor.data, nan=nan_replacement_value)
-    return tensor
+    return torch.nan_to_num(tensor, nan=nan_replacement_value)
 
 
 def replace_nans_numpy(tensor, nan_replacement_value):
@@ -269,6 +268,7 @@ def run_stage_d(
     s_embeddings: torch.Tensor,
     z_embeddings: torch.Tensor,
     atom_metadata: Dict[str, Any],
+    unified_latent: Optional[torch.Tensor] = None,
 ) -> Any:
     """
     Modular Stage D entry point for the RNA pipeline, matching pipeline conventions.
@@ -278,15 +278,19 @@ def run_stage_d(
         s_embeddings: Residue-level embeddings [B, N_res, C] or [N_res, C]
         z_embeddings: Pairwise residue embeddings [B, N_res, N_res, C] or [N_res, N_res, C]
         atom_metadata: Must contain 'residue_indices'
+        unified_latent: Optional merged latent representation from the latent merger
     Returns:
         Output from Stage D diffusion
     """
     from rna_predict.pipeline.stageD.context import StageDContext
     # Bridge residue-level embeddings to atom-level for s_inputs (conditioning)
-    residue_indices = atom_metadata.get('residue_indices', None)
+    residue_indices = atom_metadata.get("residue_indices")
     if residue_indices is None:
         raise ValueError("atom_metadata must contain 'residue_indices' for Stage D bridging.")
-    n_residues = max(residue_indices) + 1
+    if isinstance(residue_indices, torch.Tensor):
+        n_residues = int(residue_indices.max().item()) + 1
+    else:
+        n_residues = max(residue_indices) + 1
     residue_atom_map: list[list[int]] = [[] for _ in range(n_residues)]
     for atom_idx, res_idx in enumerate(residue_indices):
         residue_atom_map[res_idx].append(atom_idx)
@@ -307,6 +311,7 @@ def run_stage_d(
         s_inputs=atom_s_inputs,         # ATOM-LEVEL (conditioning)
         input_feature_dict={},
         atom_metadata=atom_metadata,
+        unified_latent=unified_latent,  # Merged latent representation
     )
     return run_stageD(stage_d_context)
 
@@ -358,6 +363,8 @@ def run_full_pipeline(cfg: DictConfig) -> dict:
         z_embeddings = check_for_nans(z_embeddings, "z_embeddings (Stage B output)", cfg)
 
         # Stage C: Reconstruct atom coordinates
+        logger.info(f"[DEBUG][Cascade] cfg.device: {cfg.device}")
+        logger.info(f"[DEBUG][Cascade] cfg.model.stageC.device: {getattr(cfg.model.stageC, 'device', None)}")
         stage_c_output = run_stage_c(cfg, sequence, torsion_angles)
         coords = stage_c_output["coords"]
         atom_count = stage_c_output["atom_count"]
@@ -379,13 +386,8 @@ def run_full_pipeline(cfg: DictConfig) -> dict:
                     "atom_names": ["C", "CA", "N"] * N
                 }
 
-            stage_d_output = run_stage_d(
-                cfg=cfg,
-                coords=coords,
-                s_embeddings=s_embeddings,
-                z_embeddings=z_embeddings,
-                atom_metadata=atom_metadata,
-            )
+            # Stage D call is moved after the unified_latent is created
+            pass
         else:
             logger.info("Stage D: Skipping diffusion refinement (run_stageD is False or not set)")
 
@@ -449,6 +451,28 @@ def run_full_pipeline(cfg: DictConfig) -> dict:
             except Exception as e:
                 logger.error(f"[UniqueErrorID-MergerError] Exception in merger: {e}")
                 unified_latent = None
+
+        # Now that unified_latent is created, we can call Stage D
+        if hasattr(cfg, "run_stageD") and cfg.run_stageD:
+            logger.info("Stage D: Running diffusion refinement with unified_latent...")
+            # Ensure atom_metadata is a dictionary
+            if atom_metadata is None:
+                logger.warning("atom_metadata is None, creating a default dictionary")
+                # Create a default atom_metadata with residue_indices
+                N = len(sequence)
+                atom_metadata = {
+                    "residue_indices": torch.arange(N).repeat_interleave(3),
+                    "atom_names": ["C", "CA", "N"] * N
+                }
+
+            stage_d_output = run_stage_d(
+                cfg=cfg,
+                coords=coords,
+                s_embeddings=s_embeddings,
+                z_embeddings=z_embeddings,
+                atom_metadata=atom_metadata,
+                unified_latent=unified_latent,
+            )
 
         # Determine if Stage D is enabled - BOTH conditions must be true
         stageD_enabled = True

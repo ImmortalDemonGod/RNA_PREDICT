@@ -45,25 +45,39 @@ def main(cfg: DictConfig):
     project_root = pathlib.Path(original_cwd)
     print("[DEBUG] Original working directory: {}".format(original_cwd))
 
-    # Check if index_csv exists and resolve it relative to the project root
-    if hasattr(cfg.data, 'index_csv'):
-        print("[DEBUG] Original index_csv: {}".format(cfg.data.index_csv))
+    # Check if we have a test_data.data_index to use
+    index_csv_path = None
+    if hasattr(cfg, 'test_data') and hasattr(cfg.test_data, 'data_index') and cfg.test_data.data_index:
+        print("[DEBUG] Using test_data.data_index: {}".format(cfg.test_data.data_index))
+        index_path = pathlib.Path(cfg.test_data.data_index)
+        if not index_path.is_absolute():
+            # Resolve relative to the project root
+            abs_index_path = project_root / index_path
+            print("[DEBUG] Resolved test_data.data_index path: {}".format(abs_index_path))
+            print("[DEBUG] File exists: {}".format(abs_index_path.exists()))
+            if abs_index_path.exists():
+                index_csv_path = str(abs_index_path)
+
+    # Fall back to data.index_csv if test_data.data_index doesn't exist
+    if not index_csv_path and hasattr(cfg.data, 'index_csv'):
+        print("[DEBUG] Falling back to data.index_csv: {}".format(cfg.data.index_csv))
         index_path = pathlib.Path(cfg.data.index_csv)
         if not index_path.is_absolute():
             # Resolve relative to the project root
             abs_index_path = project_root / index_path
-            print("[DEBUG] Resolved index_csv path: {}".format(abs_index_path))
+            print("[DEBUG] Resolved data.index_csv path: {}".format(abs_index_path))
             print("[DEBUG] File exists: {}".format(abs_index_path.exists()))
-            # Update the path in the config
-            cfg.data.index_csv = str(abs_index_path)
-    else:
-        print("[ERROR] 'index_csv' key not found in data configuration!")
+            if abs_index_path.exists():
+                index_csv_path = str(abs_index_path)
+
+    if not index_csv_path:
+        print("[ERROR] No valid index CSV file found in either test_data.data_index or data.index_csv!")
         return
 
     model = RNALightningModule(cfg)
     # DataLoader setup
     try:
-        ds = RNADataset(cfg.data.index_csv, cfg,
+        ds = RNADataset(index_csv_path, cfg,
                         load_adj=cfg.data.load_adj,
                         load_ang=cfg.data.load_ang)
         dl = DataLoader(ds,
@@ -85,7 +99,7 @@ def main(cfg: DictConfig):
         print("[DEBUG] First batch device: {!r}".format(first_batch['coords_true'].device))
         # Add ModelCheckpoint callback
         checkpoint_callback = ModelCheckpoint(
-            dirpath="outputs/checkpoints",
+            dirpath=cfg.training.checkpoint_dir,
             save_top_k=1,
             monitor=None,  # No validation metric for now
             save_last=True
