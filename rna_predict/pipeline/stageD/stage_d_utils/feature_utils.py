@@ -73,6 +73,8 @@ def _init_feature_tensors(batch_size, num_atoms, device, stage_cfg, debug_loggin
     features["ref_mask"] = torch.ones(batch_size, num_atoms, 1, device=device)
     # Robust config extraction for feature dimensions
     def extract_dim(cfg, key, default=None):
+        import logging
+        logger = logging.getLogger(__name__)
         locations = [
             cfg,
             getattr(cfg, "model", None),
@@ -80,13 +82,19 @@ def _init_feature_tensors(batch_size, num_atoms, device, stage_cfg, debug_loggin
             getattr(getattr(getattr(cfg, "model", None), "stageD", None), "diffusion", None),
         ]
         for loc in locations:
-            if loc is not None and hasattr(loc, key):
+            if loc is None:
+                continue
+            if isinstance(loc, dict) and key in loc:
+                value = loc[key]
+            elif hasattr(loc, key):
                 value = getattr(loc, key)
-                if value is not None and debug_logging:
-                    print(f"[HYDRA-CONF-DEBUG][feature_utils] Found {key} in {type(loc)}: {value}")
-                return value
+            else:
+                continue
+            if value is not None and debug_logging:
+                logger.debug(f"[feature_utils] {key}={value} found in {type(loc)}")
+            return value
         if debug_logging:
-            print(f"[HYDRA-CONF-DEBUG][feature_utils] {key} not found, using default: {default}")
+            logger.debug(f"[feature_utils] {key} not found, using default: {default}")
         return default
 
     # Get dimensions from config, but enforce minimum sizes required by the model
@@ -250,14 +258,7 @@ def initialize_features_from_config(
             import logging
             logger = logging.getLogger(__name__)
 
-            # Try to get dimensions from config if available
-            # Get the stage_cfg from the outer scope if it exists
-            stage_cfg_from_outer = None
-            try:
-                # This is a safer way to check if stage_cfg exists in the outer scope
-                stage_cfg_from_outer = locals().get('stage_cfg')
-            except Exception:
-                pass
+            # stage_cfg_from_outer has already been resolved above – reuse it here
 
             if stage_cfg_from_outer is not None:
                 # Handle both dict and object access patterns
@@ -273,11 +274,11 @@ def initialize_features_from_config(
                     # Object attribute access
                     try:
                         if hasattr(stage_cfg_from_outer, "ref_element_size"):
-                            ref_element_size = getattr(stage_cfg_from_outer, "ref_element_size")
+                            ref_element_size = stage_cfg_from_outer.ref_element_size
                         if hasattr(stage_cfg_from_outer, "ref_atom_name_chars_size"):
-                            ref_atom_name_chars_size = getattr(stage_cfg_from_outer, "ref_atom_name_chars_size")
+                            ref_atom_name_chars_size = stage_cfg_from_outer.ref_atom_name_chars_size
                         if hasattr(stage_cfg_from_outer, "profile_size"):
-                            profile_size = getattr(stage_cfg_from_outer, "profile_size")
+                            profile_size = stage_cfg_from_outer.profile_size
                     except AttributeError:
                         logger.warning("[HYDRA-CONF-WARN] Could not access config attributes. Using default dimensions.")
 
@@ -377,5 +378,7 @@ def extract_atom_features(input_feature_dict, encoder_input_feature_config, debu
     # Concatenate features
     concat = torch.cat(features, dim=2)
     if debug_logging:
-        print(f"[DEBUG][extract_atom_features] Defensive check: concatenated feature shape: {concat.shape}")
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.debug(f"[extract_atom_features] Defensive check: concatenated feature shape: {concat.shape}")
     return concat
