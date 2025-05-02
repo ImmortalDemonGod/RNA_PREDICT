@@ -198,7 +198,7 @@ def test_trainer_fast_dev_run():
             model = RNALightningModule(cfg)
         except Exception as e:
             # Unique error for pipeline construction failure
-            raise RuntimeError(f"[UNIQUE-ERR-PIPELINE-CONSTRUCT] Pipeline failed to construct: {e}")
+            raise RuntimeError("[UNIQUE-ERR-PIPELINE-CONSTRUCT] Pipeline failed to construct") from e
 
         # Create a dummy train_dataloader method that returns a simple dataloader
         def dummy_train_dataloader(self):
@@ -277,4 +277,4 @@ def test_trainer_fast_dev_run():
         try:
             trainer.fit(model)
         except Exception as e:
-            raise RuntimeError(f"[UNIQUE-ERR-TRAINER] Trainer failed: {e}")
+            raise RuntimeError("[UNIQUE-ERR-TRAINER] Trainer failed") from e

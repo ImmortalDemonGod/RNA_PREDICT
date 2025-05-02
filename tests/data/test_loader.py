@@ -42,6 +42,8 @@ def dummy_cfg():
             "max_atoms": 8,
             "batch_size": 2,
             "index_csv": "",
+            "coord_dtype": "float32",
+            "coord_fill_value": "nan",
         }
     })
 
