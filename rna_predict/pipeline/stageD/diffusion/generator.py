@@ -179,50 +179,39 @@ def sample_diffusion(
     # Ensure noise_schedule is a 1D tensor
     noise_schedule = noise_schedule.flatten()
 
-    # Get number of atoms from input_feature_dict
-    N_atom = input_feature_dict["atom_to_token_idx"].size(-1)
-
-    # Determine device/dtype from inputs
-    ref_tensor = s_inputs if s_inputs is not None else s_trunk
-    device = ref_tensor.device
-    dtype = ref_tensor.dtype
-
-    # Determine TRUE batch shape (leading dimensions before N_sample, N_atom, 3)
-    # Use the shape of a reliable input tensor like s_trunk or s_inputs.
-    ref_shape = ref_tensor.shape
-
-    # FIXED: Simplified batch shape determination to avoid 5D tensors
-    # We only want a single batch dimension to avoid creating 5D tensors
-    # that would cause errors in the diffusion module's forward method
-    true_batch_shape = ref_shape[:1]  # Just take the first dimension as batch
-
-    # Log the decision for debugging
-    if debug_logging:
-        logger.debug(f"[DEBUG][FIXED] Using simplified true_batch_shape={true_batch_shape} from ref_shape={ref_shape}")
-
-    if debug_logging:
-        logger.debug(f"[DEBUG] Determined true_batch_shape: {true_batch_shape} from ref_shape {ref_shape} and N_sample {N_sample}")
-
-    # Ensure true_batch_shape is a tuple
-    if not isinstance(true_batch_shape, tuple):
-        true_batch_shape = (true_batch_shape,)
-
-
     def _chunk_sample_diffusion(
         chunk_n_sample: int, inplace_safe: bool
     ) -> torch.Tensor:
         """Process a chunk of samples."""
-        # Initialize noise using the true_batch_shape and chunk_n_sample
-        # FIXED: Ensure we don't create a 5D tensor by flattening any extra batch dimensions
-        x_l_shape = (true_batch_shape[0], chunk_n_sample, N_atom, 3)
+        # --- BEGIN: Ensure all required variables are in local scope ---
+        # Get number of atoms from input_feature_dict
+        N_atom = input_feature_dict["atom_to_token_idx"].size(-1)
+        # Determine device/dtype from inputs
+        ref_tensor = s_inputs if s_inputs is not None else s_trunk
+        device = ref_tensor.device
+        dtype = ref_tensor.dtype
+        # Determine TRUE batch shape (leading dimensions before N_sample, N_atom, 3)
+        ref_shape = ref_tensor.shape
+        true_batch_shape = ref_shape[:-1]  # Keep every leading dim up to the feature dimension
+        sample_dim = len(true_batch_shape)  # Track the sample dimension for consistent handling
         if debug_logging:
-            logger.debug(f"[DEBUG][FIXED] Initializing noise x_l with shape: {x_l_shape}")
-
-        x_l = noise_schedule[0] * torch.randn(
-            size=x_l_shape,
-            device=device,
-            dtype=dtype,
-        )
+            logger.debug(f"[DEBUG] Using full true_batch_shape={true_batch_shape} from ref_shape={ref_shape}")
+            logger.debug(f"[DEBUG] Sample dimension index: {sample_dim}")
+            logger.debug(f"[DEBUG] Determined true_batch_shape: {true_batch_shape} from ref_shape {ref_shape} and N_sample {N_sample}")
+        # --- END: Ensure all required variables are in local scope ---
+        # Print relevant shapes for diagnosis before constructing x_l
+        if debug_logging:
+            logger.debug(f"[DEBUG][Generator] true_batch_shape: {true_batch_shape}")
+            logger.debug(f"[DEBUG][Generator] chunk_n_sample: {chunk_n_sample}")
+            logger.debug(f"[DEBUG][Generator] N_atom: {N_atom}")
+        # PATCH: Always construct x_l_shape as [B, chunk_n_sample, N_atom, 3]
+        B = 1 if len(true_batch_shape) == 1 else true_batch_shape[0]
+        # If true_batch_shape is (B, N_atom), set B = true_batch_shape[0], N_atom = true_batch_shape[1]
+        # But N_atom is already determined above
+        x_l_shape = (B, chunk_n_sample, N_atom, 3)
+        if debug_logging:
+            logger.debug(f"[PATCHED][Generator] For diffusion, forcing x_l_shape = [B, N_sample, N_atom, 3] = {x_l_shape}")
+        x_l = torch.randn(size=x_l_shape, device=device, dtype=dtype) * noise_schedule[0]
 
         # Process each step in the noise schedule
         for step, (c_tau_last, c_tau) in enumerate(
@@ -240,12 +229,28 @@ def sample_diffusion(
                 size=x_l.shape, device=device, dtype=dtype
             )
 
-            # Reshape t_hat for broadcasting: needs shape [B, chunk_n_sample] or similar
-            # FIXED: Ensure t_hat has the right shape to match our simplified x_l_shape
-            t_hat_target_shape = (true_batch_shape[0], chunk_n_sample)
-            t_hat = t_hat.reshape(1).expand(true_batch_shape[0]).unsqueeze(-1).expand(*t_hat_target_shape).to(dtype)
+            # Print relevant shapes for diagnosis
             if debug_logging:
-                logger.debug(f"[DEBUG][Generator Loop {step}] Reshaped t_hat shape: {t_hat.shape} to broadcast with x_noisy {x_noisy.shape}")
+                logger.debug(f"[DEBUG][Generator Loop {step}] x_noisy.shape: {x_noisy.shape}")
+                logger.debug(f"[DEBUG][Generator Loop {step}] t_hat before reshape: {t_hat.shape}")
+            # Reshape t_hat to match only [B, N_sample] (not atom dimension!)
+            t_hat = t_hat.reshape(B, chunk_n_sample).to(dtype)
+            if debug_logging:
+                logger.debug(f"[PATCHED][Generator Loop {step}] t_hat shape for diffusion: {t_hat.shape} (should be [B, N_sample])")
+            # Defensive assertion: t_hat should have shape [B, N_sample]
+            assert t_hat.shape == (B, chunk_n_sample), (
+                f"[GENERATOR PATCH] t_hat shape {t_hat.shape} does not match expected [B, N_sample]={[B, chunk_n_sample]} for diffusion module"
+            )
+
+            # --- SYSTEMATIC DEBUGGING: Print input_feature_dict keys and types before denoise_net call ---
+            if debug_logging:
+                logger.debug(f"[DEBUG][Generator] input_feature_dict keys: {list(input_feature_dict.keys())}")
+                for k, v in input_feature_dict.items():
+                    logger.debug(f"[DEBUG][Generator] input_feature_dict[{k}]: type={type(v)}, is_tensor={isinstance(v, torch.Tensor)}")
+                logger.debug(f"[DEBUG][Generator] atom_to_token_idx: {input_feature_dict.get('atom_to_token_idx', None)}")
+            # Defensive: Ensure atom_to_token_idx is present and a Tensor
+            if not ("atom_to_token_idx" in input_feature_dict and isinstance(input_feature_dict["atom_to_token_idx"], torch.Tensor)):
+                raise ValueError("[GENERATOR PATCH] input_feature_dict missing 'atom_to_token_idx' or it is not a Tensor before denoise_net call")
 
             # Denoise step
             if debug_logging:
@@ -311,9 +316,8 @@ def sample_diffusion(
             chunk_result = _chunk_sample_diffusion(chunk_size, inplace_safe)
             results.append(chunk_result)
 
-        # Concatenate results along the sample dimension (which follows the true batch dimensions)
-        sample_dim_index = len(true_batch_shape)
-        final_result = torch.cat(results, dim=sample_dim_index)
+        # Concatenate results along the sample dimension (dim=1)
+        final_result = torch.cat(results, dim=1)
         if debug_logging:
             logger.debug(
                 f"[DEBUG][sample_diffusion] Returning chunked output shape: {final_result.shape}"

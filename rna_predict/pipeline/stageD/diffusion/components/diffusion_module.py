@@ -693,6 +693,48 @@ class DiffusionModule(nn.Module):
                 if self.debug_logging:
                     self.logger.debug(f"[DEVICE-DEBUG][StageD] processed_input_dict[{k}] device={v.device}")
 
+        # PATCH: Prevent cubic blowup by enforcing strict shape checks
+        # x_noisy should be [B, N_sample, N_atom, 3] or [B, 1, N_atom, 3]
+        # t_hat_noise_level should be [B, N_sample] or [B, 1]
+        # Never allow expansion along atom dimensions
+        if self.debug_logging:
+            self.logger.debug(f"[SHAPE-DEBUG][StageD] x_noisy.shape: {x_noisy.shape}")
+            self.logger.debug(f"[SHAPE-DEBUG][StageD] t_hat_noise_level.shape: {t_hat_noise_level.shape}")
+            if s_trunk is not None:
+                self.logger.debug(f"[SHAPE-DEBUG][StageD] s_trunk.shape: {getattr(s_trunk, 'shape', None)}")
+            if s_inputs is not None:
+                self.logger.debug(f"[SHAPE-DEBUG][StageD] s_inputs.shape: {getattr(s_inputs, 'shape', None)}")
+            if z_trunk is not None:
+                self.logger.debug(f"[SHAPE-DEBUG][StageD] z_trunk.shape: {getattr(z_trunk, 'shape', None)}")
+            for k, v in processed_input_dict.items():
+                if isinstance(v, torch.Tensor):
+                    self.logger.debug(f"[SHAPE-DEBUG][StageD] processed_input_dict['{k}'].shape: {v.shape}")
+        if x_noisy.ndim not in (4,):
+            raise ValueError(f"[BUG] x_noisy must be 4D [B, N_sample, N_atom, 3], got {x_noisy.shape}")
+        B, N_sample, N_atom, C = x_noisy.shape
+        if C != 3:
+            raise ValueError(f"[BUG] Last dim of x_noisy must be 3 (xyz), got {C}")
+        if t_hat_noise_level.shape not in [(B, N_sample), (B, 1)]:
+            raise ValueError(
+                f"[BUG] t_hat_noise_level shape {t_hat_noise_level.shape} is not broadcastable to [B, N_sample]. "
+                f"This would cause cubic blowup. Aborting."
+            )
+        # Only expand t_hat_noise_level from [B, 1] to [B, N_sample] if needed
+        if t_hat_noise_level.shape == (B, 1):
+            t_hat_noise_level = t_hat_noise_level.expand(B, N_sample)
+        # If already correct shape, do nothing
+        # Remove all ambiguous expansion logic below
+
+        # SYSTEMATIC DEBUGGING: Print input_feature_dict keys and atom_to_token_idx state
+        if self.debug_logging:
+            self.logger.debug(f"[DEBUG][DiffusionModule.forward] input_feature_dict keys: {list(input_feature_dict.keys())}")
+            for k, v in input_feature_dict.items():
+                self.logger.debug(f"[DEBUG][DiffusionModule.forward] input_feature_dict[{k}]: type={type(v)}, is_tensor={isinstance(v, torch.Tensor)}, shape={getattr(v, 'shape', None)}")
+            self.logger.debug(f"[DEBUG][DiffusionModule.forward] atom_to_token_idx: {input_feature_dict.get('atom_to_token_idx', None)}")
+        # Defensive: Ensure atom_to_token_idx is present and a Tensor
+        if not ("atom_to_token_idx" in input_feature_dict and isinstance(input_feature_dict["atom_to_token_idx"], torch.Tensor)):
+            raise ValueError("[DIFFUSION MODULE PATCH] input_feature_dict missing 'atom_to_token_idx' or it is not a Tensor in forward")
+
         # SYSTEMATIC DEBUGGING: Instrument input_feature_dict for atom_to_token_idx presence/type/shape
         if "atom_to_token_idx" not in input_feature_dict:
             if self.debug_logging:
