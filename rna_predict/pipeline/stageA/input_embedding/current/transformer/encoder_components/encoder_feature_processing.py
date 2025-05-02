@@ -37,12 +37,16 @@ def _process_feature(
         # Try to get batch_size and n_atoms from input_feature_dict
         if "ref_pos" in input_feature_dict and isinstance(input_feature_dict["ref_pos"], torch.Tensor):
             ref_pos = input_feature_dict["ref_pos"]
-            if ref_pos.dim() >= 2:
+            if ref_pos.dim() == 2:               # [N,3]
+                batch_size, n_atoms = 1, ref_pos.shape[0]
+            elif ref_pos.dim() >= 3:             # [B,N,3]
                 batch_size = ref_pos.shape[0]
                 n_atoms = ref_pos.shape[1]
         elif "atom_to_token_idx" in input_feature_dict and isinstance(input_feature_dict["atom_to_token_idx"], torch.Tensor):
             atom_to_token_idx = input_feature_dict["atom_to_token_idx"]
-            if atom_to_token_idx.dim() >= 2:
+            if atom_to_token_idx.dim() == 2:     # [N,1]
+                batch_size, n_atoms = 1, atom_to_token_idx.shape[0]
+            elif atom_to_token_idx.dim() >= 3:   # [B,N,1]
                 batch_size = atom_to_token_idx.shape[0]
                 n_atoms = atom_to_token_idx.shape[1]
 
@@ -115,8 +119,8 @@ def _process_feature(
                 return reshaped_feature
             else:
                 warnings.warn(
-                    f"Feature {feature_name} has shape {feature.shape}, expected last dim 1, "
-                    f"but cannot unsqueeze rank {feature.dim()} tensor. Skipping."
+                    f"Feature {feature_name} has shape {feature.shape} (rank {feature.dim()}) "
+                    f"expected last dim 1, but cannot unsqueeze. Skipping this feature."
                 )
                 return None
         except Exception as e:
@@ -212,7 +216,9 @@ def extract_atom_features(
         # Try to get batch_size and n_atoms from input_feature_dict
         if "atom_to_token_idx" in input_feature_dict and isinstance(input_feature_dict["atom_to_token_idx"], torch.Tensor):
             atom_to_token_idx = input_feature_dict["atom_to_token_idx"]
-            if atom_to_token_idx.dim() >= 2:
+            if atom_to_token_idx.dim() == 2:     # [N,1]
+                batch_size, n_atoms = 1, atom_to_token_idx.shape[0]
+            elif atom_to_token_idx.dim() >= 3:   # [B,N,1]
                 batch_size = atom_to_token_idx.shape[0]
                 n_atoms = atom_to_token_idx.shape[1]
 

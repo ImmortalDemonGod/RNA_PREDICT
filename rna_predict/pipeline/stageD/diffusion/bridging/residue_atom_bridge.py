@@ -6,11 +6,11 @@ representations in the Stage D diffusion process.
 """
 
 import logging
+import os
 from dataclasses import dataclass
 from typing import Any, Dict, List
 import torch
 import psutil
-import os
 from rna_predict.utils.tensor_utils import residue_to_atoms
 from rna_predict.utils.shape_utils import adjust_tensor_feature_dim
 from ..utils.tensor_utils import normalize_tensor_dimensions

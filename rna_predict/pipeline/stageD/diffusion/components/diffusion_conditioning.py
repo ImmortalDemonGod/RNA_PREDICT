@@ -196,6 +196,7 @@ class DiffusionConditioning(nn.Module):
         self,
         s_trunk: torch.Tensor,
         s_inputs: torch.Tensor,
+        unified_latent: Optional[torch.Tensor] = None,
         inplace_safe: bool = False,
     ) -> torch.Tensor:
         """Process single features through the conditioning pipeline."""
@@ -297,7 +298,64 @@ class DiffusionConditioning(nn.Module):
                 'c_s_inputs': self.c_s_inputs
             }
         )
-        single_s = torch.cat([adapted_s_trunk, adapted_s_inputs], dim=-1)
+
+        # If unified_latent is provided, use it as additional conditioning
+        if unified_latent is not None:
+            if self.debug_logging:
+                print(f"[STAGED DEBUG] Using unified_latent with shape: {unified_latent.shape}")
+
+            # Ensure unified_latent has the same batch and sequence dimensions as s_trunk
+            if unified_latent.shape[:-1] != adapted_s_trunk.shape[:-1]:
+                # Handle different batch dimensions
+                if unified_latent.dim() == 3 and adapted_s_trunk.dim() == 4:  # [B, N, C] vs [B, N_sample, N, C]
+                    unified_latent = unified_latent.unsqueeze(1).expand(-1, adapted_s_trunk.shape[1], -1, -1)
+                elif unified_latent.dim() == 4 and unified_latent.shape[1] == 1 and adapted_s_trunk.shape[1] > 1:
+                    # Expand N_sample dimension
+                    unified_latent = unified_latent.expand(-1, adapted_s_trunk.shape[1], -1, -1)
+
+                # If sequence dimensions still don't match, we need to adapt
+                if unified_latent.shape[-2] != adapted_s_trunk.shape[-2]:
+                    if self.debug_logging:
+                        print(f"[STAGED DEBUG] Adapting unified_latent sequence dimension from {unified_latent.shape[-2]} to {adapted_s_trunk.shape[-2]}")
+
+                    # Simple approach: repeat the latent for each token
+                    if unified_latent.shape[-2] == 1:
+                        unified_latent = unified_latent.expand(*unified_latent.shape[:-2], adapted_s_trunk.shape[-2], -1)
+                    else:
+                        # More complex case: we need to map from residue to atom level
+                        # This is a simplified approach - in production, use a proper mapping
+                        n_residues = unified_latent.shape[-2]
+                        n_atoms = adapted_s_trunk.shape[-2]
+                        atoms_per_residue = n_atoms // n_residues
+
+                        if atoms_per_residue * n_residues == n_atoms:  # Perfect division
+                            expanded_latent = torch.zeros(
+                                *unified_latent.shape[:-2], n_atoms, unified_latent.shape[-1],
+                                device=unified_latent.device, dtype=unified_latent.dtype
+                            )
+
+                            for i in range(n_residues):
+                                start_idx = i * atoms_per_residue
+                                end_idx = (i + 1) * atoms_per_residue
+                                expanded_latent[..., start_idx:end_idx, :] = unified_latent[..., i:i+1, :].expand(
+                                    *[-1 for _ in range(unified_latent.dim() - 2)], atoms_per_residue, -1
+                                )
+                            unified_latent = expanded_latent
+
+            # Concatenate the unified_latent with the other features
+            single_s = torch.cat([adapted_s_trunk, adapted_s_inputs, unified_latent], dim=-1)
+
+            # Update the linear layer to handle the additional features from unified_latent
+            if self.linear_no_bias_s.in_features != single_s.shape[-1]:
+                if self.debug_logging:
+                    print(f"[STAGED DEBUG] Creating new linear_no_bias_s with in_features={single_s.shape[-1]}")
+                self.linear_no_bias_s = LinearNoBias(
+                    in_features=single_s.shape[-1],
+                    out_features=self.c_s
+                ).to(single_s.device)
+        else:
+            # Original behavior when unified_latent is not provided
+            single_s = torch.cat([adapted_s_trunk, adapted_s_inputs], dim=-1)
         if self.debug_logging:
             print(f"[STAGED DEBUG] After concat: single_s.shape={single_s.shape}")
 
@@ -453,7 +511,15 @@ class DiffusionConditioning(nn.Module):
 
         # --- End Shape Alignment Fix ---
 
-        # Call _process_single_features with aligned tensors
-        single_s = self._process_single_features(processed_s_trunk, processed_s_inputs, inplace_safe)
+        # Get unified_latent from input_feature_dict if available
+        unified_latent = input_feature_dict.get('unified_latent', None)
+
+        # Call _process_single_features with aligned tensors and unified_latent
+        single_s = self._process_single_features(
+            processed_s_trunk,
+            processed_s_inputs,
+            unified_latent=unified_latent,
+            inplace_safe=inplace_safe
+        )
 
         return single_s, pair_z
