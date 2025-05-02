@@ -70,7 +70,8 @@ class TestMSAComponentsMock(unittest.TestCase):
             c_m=8,
             c=8,
             c_z=16,
-            dropout=0.0
+            dropout=0.0,
+            input_feature_dims={"msa": 32, "has_deletion": 1, "deletion_value": 1}
         )
 
         # Create MSAModule
@@ -87,15 +88,16 @@ class TestMSAComponentsMock(unittest.TestCase):
         )
         mm_zero_blocks = MSAModule(cfg_zero_blocks)
 
-        z_in = torch.randn((1, 3, 3, 16))
-        s_inputs = torch.randn((1, 3, 8))
-        pair_mask = torch.ones((1, 3, 3), dtype=torch.bool)
+        n_msa, n_token, c_z, c_s = 2, 3, 16, 8
+        z_in = torch.randn((n_msa, n_token, n_token, c_z))
+        s_inputs = torch.randn((n_msa, n_token, c_s))
+        pair_mask = torch.ones((n_msa, n_token, n_token), dtype=torch.bool)
 
         # Create a complete input feature dictionary
         input_dict = {
-            "msa": torch.zeros((2, 3), dtype=torch.long),
-            "has_deletion": torch.zeros((2, 3), dtype=torch.bool),
-            "deletion_value": torch.zeros((2, 3), dtype=torch.float32)
+            "msa": torch.randint(0, 32, (2, 3), dtype=torch.long),
+            "has_deletion": torch.zeros((2, 3, 1), dtype=torch.float32),
+            "deletion_value": torch.zeros((2, 3, 1), dtype=torch.float32)
         }
 
         # Test forward pass with n_blocks=0

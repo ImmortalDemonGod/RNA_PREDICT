@@ -31,7 +31,7 @@ from tests.stageB.pairwise.mock_msa_components import (
 )
 
 
-@pytest.mark.skip(reason="All tests in this class are hanging or taking too long to run. Needs further investigation. [ERR-MSA-TIMEOUT-002]")
+# @pytest.mark.skip(reason="All tests in this class are hanging or taking too long to run. Needs further investigation. [ERR-MSA-TIMEOUT-002]")
 class TestMSAPairWeightedAveraging(unittest.TestCase):
     """
     Tests for MSAPairWeightedAveraging:
@@ -112,7 +112,7 @@ class TestMSAPairWeightedAveraging(unittest.TestCase):
             traceback.print_exc()
             raise
 
-    @pytest.mark.skip(reason="Test is hanging or taking too long to run. Needs further investigation. [ERR-MSA-TIMEOUT-001]")
+    # @pytest.mark.skip(reason="Test is hanging or taking too long to run. Needs further investigation. [ERR-MSA-TIMEOUT-001]")
     @given(
         # m shape: [n_msa, n_token, c_m]
         # z shape: [n_token, n_token, c_z]
@@ -176,7 +176,7 @@ class TestMSAPairWeightedAveraging(unittest.TestCase):
             raise
 
 
-@pytest.mark.skip(reason="All tests in this class are hanging or taking too long to run. Needs further investigation. [ERR-MSASTACK-TIMEOUT-002]")
+# @pytest.mark.skip(reason="All tests in this class are hanging or taking too long to run. Needs further investigation. [ERR-MSASTACK-TIMEOUT-002]")
 class TestMSAStack(unittest.TestCase):
     """
     Tests for MSAStack: verifying constructor & forward pass shape correctness.
@@ -218,7 +218,7 @@ class TestMSAStack(unittest.TestCase):
         ms = MSAStack(cfg=cfg)
         self.assertIsInstance(ms, MSAStack)
 
-    @pytest.mark.skip(reason="Test is hanging or taking too long to run. Needs further investigation. [ERR-MSASTACK-TIMEOUT-001]")
+    # @pytest.mark.skip(reason="Test is hanging or taking too long to run. Needs further investigation. [ERR-MSASTACK-TIMEOUT-001]")
     @given(
         n_msa=st.integers(1, 4),
         n_token=st.integers(2, 6),
