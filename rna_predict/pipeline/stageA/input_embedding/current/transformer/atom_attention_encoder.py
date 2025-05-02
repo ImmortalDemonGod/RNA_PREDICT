@@ -231,6 +231,13 @@ class AtomAttentionEncoder(nn.Module):
         # --- DEBUG: Print atom_to_token_idx before calling process_inputs_with_coords ---
         atom_to_token_idx = input_feature_dict.get("atom_to_token_idx", None)
         print(f"[DEBUG][forward_debug] atom_to_token_idx before process_inputs_with_coords: type={type(atom_to_token_idx)}, shape={getattr(atom_to_token_idx, 'shape', None)}, is_tensor={hasattr(atom_to_token_idx, 'dtype')}")
+        # SYSTEMATIC DEBUGGING: Print all major tensor shapes before process_inputs_with_coords
+        print(f"[DEBUG][forward_debug] c_l shape: {getattr(c_l, 'shape', None)}")
+        print(f"[DEBUG][forward_debug] s shape: {getattr(s, 'shape', None)}")
+        print(f"[DEBUG][forward_debug] z shape: {getattr(z, 'shape', None)}")
+        print(f"[DEBUG][forward_debug] r_l shape: {getattr(r_l, 'shape', None)}")
+        print(f"[DEBUG][forward_debug] t_hat_noise_level shape: {getattr(t_hat_noise_level, 'shape', None)}")
+        print(f"[DEBUG][forward_debug] restype shape: {getattr(input_feature_dict.get('restype', None), 'shape', None)}")
         return process_inputs_with_coords(self, process_params)
 
     def log_atom_to_token_idx(self, input_feature_dict):
