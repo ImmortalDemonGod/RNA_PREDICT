@@ -159,13 +159,17 @@ def _reshape_attention_bias(
     Returns:
         Optional[torch.Tensor]: Reshaped bias or None if reshaping fails
     """
-    import warnings
-    import torch
+    import logging
+    logger = logging.getLogger(__name__)
+
     if attn_bias is None:
         return None
 
     try:
-        print(f"[INSTRUMENT][_reshape_attention_bias] attn_bias.shape={attn_bias.shape}, num_heads={num_heads}, attn_bias.dtype={attn_bias.dtype}")
+        logger.debug(
+            f"_reshape_attention_bias input: shape={attn_bias.shape}, "
+            f"num_heads={num_heads}, dtype={attn_bias.dtype}"
+        )
         bias = attn_bias
         # If bias has batch and head dims, try to match them to num_heads
         # Accepts [B, 1, Nq, Nk], [B, H, Nq, Nk], [1, 1, H, Nq, Nk], [1, 1, 2, 170, 170], etc.
@@ -173,30 +177,33 @@ def _reshape_attention_bias(
         # Case: [B, 1, Nq, Nk] -> [B, H, Nq, Nk]
         if len(shape) == 4 and shape[1] != num_heads:
             bias = bias.expand(shape[0], num_heads, shape[2], shape[3])
-            print(f"[INSTRUMENT][_reshape_attention_bias] expanded bias to shape={bias.shape}")
+            logger.debug(f"Expanded bias to shape={bias.shape}")
         # Case: [1, 1, H, Nq, Nk] or [B, 1, H, Nq, Nk] -> [B, H, Nq, Nk]
         elif len(shape) == 5 and shape[2] == num_heads:
             bias = bias.squeeze(1)  # Remove singleton dim if present
-            print(f"[INSTRUMENT][_reshape_attention_bias] squeezed bias to shape={bias.shape}")
+            logger.debug(f"Squeezed bias to shape={bias.shape}")
         # If still not matching, try to broadcast or fallback
         if bias.shape[1] != num_heads:
             # Try to repeat or expand as last resort
             if bias.shape[1] == 1:
                 bias = bias.expand(bias.shape[0], num_heads, *bias.shape[2:])
-                print(f"[INSTRUMENT][_reshape_attention_bias] forced expand to shape={bias.shape}")
+                logger.debug(f"Forced expand to shape={bias.shape}")
             else:
-                print(f"[INSTRUMENT][_reshape_attention_bias][ERROR] Could not match num_heads: bias.shape={bias.shape}, num_heads={num_heads}")
-                warnings.warn(f"Could not match num_heads: bias.shape={bias.shape}, num_heads={num_heads}")
+                logger.warning(
+                    f"Could not match num_heads: bias.shape={bias.shape}, num_heads={num_heads}",
+                    stacklevel=2
+                )
                 return None
         # Now flatten batch and head dims for attention
-        print(f"[INSTRUMENT][_reshape_attention_bias] before final reshape: bias.shape={bias.shape}")
+        logger.debug(f"Before final reshape: bias.shape={bias.shape}")
         result = bias.reshape(-1, *bias.shape[-2:])  # [B*H, N_q, N_kv]
-        print(f"[INSTRUMENT][_reshape_attention_bias] after final reshape: result.shape={result.shape}")
+        logger.debug(f"After final reshape: result.shape={result.shape}")
         return result
     except Exception as e:
-        print(f"[INSTRUMENT][_reshape_attention_bias][ERROR] Could not robustly reshape attn_bias from {attn_bias.shape} to match attention weights. Error: {str(e)}")
-        warnings.warn(
-            f"Could not robustly reshape attn_bias from {attn_bias.shape} to match attention weights. Error: {str(e)}"
+        logger.error(
+            f"Could not robustly reshape attn_bias from {attn_bias.shape} to match attention weights. Error: {str(e)}",
+            exc_info=True,
+            stacklevel=2
         )
         return None  # Skip bias if reshape fails
 

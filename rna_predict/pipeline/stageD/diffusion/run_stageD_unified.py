@@ -131,7 +131,10 @@ def _run_stageD_diffusion_impl(
     from omegaconf import OmegaConf
 
     # Create a clean dictionary without PyTorch tensors, preserving nested OmegaConf structure
-    clean_config_dict = OmegaConf.to_container(config, resolve=True, throw_on_missing=False)
+    if hasattr(config, "cfg") and config.cfg is not None:
+        clean_config_dict = OmegaConf.to_container(config.cfg, resolve=True, throw_on_missing=False)
+    else:
+        clean_config_dict = {}
     # Optionally, recursively remove any torch.Tensor values from the dict
     def remove_tensors(d):
         if isinstance(d, dict):
@@ -154,6 +157,7 @@ def _run_stageD_diffusion_impl(
                     "atom_encoder": clean_config_dict.get("diffusion", {}).get("atom_encoder", {}),
                     "atom_decoder": clean_config_dict.get("diffusion", {}).get("atom_decoder", {}),
                     "inference": clean_config_dict.get("diffusion", {}).get("inference", {"num_steps": 2}),
+                    "debug_logging": getattr(config, "debug_logging", False),
                 }
             }
         }
