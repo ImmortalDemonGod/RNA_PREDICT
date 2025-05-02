@@ -11,6 +11,9 @@ profile_dim: 32  # Dimension for profile embeddings
 c_atom: 128  # Atom dimension for embeddings
 c_pair: 32  # Pair dimension for embeddings
 
+# Atom/token mapping
+atoms_per_token: 4  # Number of atoms per token; used for mapping tokens to atoms (was hardcoded in Stage B, now configurable)
+
 # Attention parameters
 num_heads: 4  # Number of attention heads
 num_layers: 3  # Number of attention layers
