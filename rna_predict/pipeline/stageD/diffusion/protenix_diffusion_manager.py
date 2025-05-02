@@ -142,6 +142,7 @@ class ProtenixDiffusionManager(torch.nn.Module):
     def __init__(self, cfg: DictConfig):
         super().__init__()
         logger.info("[StageD] Initializing ProtenixDiffusionManager")
+        import os
         process = psutil.Process(os.getpid())
         logger.info(
             f"[StageD] Memory usage: {process.memory_info().rss / 1e6:.2f} MB"

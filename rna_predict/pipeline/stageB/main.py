@@ -175,7 +175,10 @@ def run_stageB_combined(
                 else:
                     protenix_cfg = pairformer_cfg.protenix_integration
                     N_token = N
-                    N_atom = N_token * 4  # Consistent with demo
+                    N_atom = N_token * protenix_cfg.atoms_per_token  # Configurable via Hydra
+                    # SYSTEMATIC DEBUGGING: Log atom/token counts and input sequence
+                    logger.info(f"[DEBUG-STAGEB] N_token={N_token}, atoms_per_token={protenix_cfg.atoms_per_token}, N_atom={N_atom}, sequence_len={len(sequence)}")
+                    logger.info(f"[DEBUG-STAGEB] sequence[:10]={sequence[:10]}")
 
                     # Get dimensions from config
                     c_atom = protenix_cfg.c_atom if hasattr(protenix_cfg, 'c_atom') else 128
@@ -198,7 +201,7 @@ def run_stageB_combined(
                         "ref_charge": torch.ones((N_atom,), device=torch_device).float(),
                         "ref_element": torch.ones((N_atom, test_c_atom), device=torch_device) * 0.1,
                         "ref_atom_name_chars": torch.ones((N_atom, 16), device=torch_device) * 0.1,
-                        "atom_to_token": torch.repeat_interleave(torch.arange(N_token, device=torch_device), 4),
+                        "atom_to_token": torch.repeat_interleave(torch.arange(N_token, device=torch_device), protenix_cfg.atoms_per_token),
                         "restype": torch.ones((N_token, test_restype_dim), device=torch_device) * 0.1,
                         "profile": torch.ones((N_token, test_profile_dim), device=torch_device) * 0.1,
                         "deletion_mean": torch.ones((N_token,), device=torch_device) * 0.1,
