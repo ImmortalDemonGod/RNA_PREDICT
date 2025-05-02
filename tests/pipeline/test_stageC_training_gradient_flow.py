@@ -75,3 +75,107 @@ def test_stageB_to_stageC_gradient_flow_repro():
     assert torsion_angles.grad is not None, "No gradient flowed to input torsion_angles!"
     assert torch.any(torsion_angles.grad != 0), "Gradient is zero everywhere!"
     print("[TEST] Stage B to C training gradient flow reproduction: PASSED")
+
+
+@pytest.mark.parametrize("device_str", ["cpu", "cuda", "mps"])
+def test_stageC_training_gradient_flow_multi_device(device_str):
+    """Test Stage C gradient flow on multiple device types, skipping unavailable devices."""
+    # Skip if device is not available
+    if device_str == "cuda" and not torch.cuda.is_available():
+        pytest.skip("CUDA device not available")
+    if device_str == "mps" and not torch.backends.mps.is_available():
+        pytest.skip("MPS device not available")
+
+    # Register configs as in train.py
+    register_configs()
+    # Compose config with appropriate device
+    with initialize(version_base=None, config_path="../../rna_predict/conf"):
+        cfg = compose(config_name="default.yaml",
+                     overrides=[f"device={device_str}",
+                               "data.index_csv=rna_predict/dataset/examples/kaggle_minimal_index.csv",
+                               f"model.stageC.device={device_str}"])
+
+    # Load a real batch from the dataset
+    dataset = RNADataset(index_csv=cfg.data.index_csv, cfg=cfg, load_adj=False, load_ang=False, verbose=False)
+    dl = torch.utils.data.DataLoader(dataset, batch_size=1, collate_fn=rna_collate_fn, shuffle=False)
+    batch = next(iter(dl))
+
+    # Use the sequence and dummy torsions (simulate Stage B output)
+    sequence = batch["sequence"][0]
+    n_res = len(sequence)
+    n_torsions = 7
+    torsions = torch.randn(n_res, n_torsions, requires_grad=True, device=device_str)
+
+    # Run Stage C as in training
+    output = run_stageC_rna_mpnerf(cfg, sequence, torsions)
+    coords = output["coords"] if isinstance(output, dict) else output
+
+    print(f"[DEBUG-MULTI-DEVICE-{device_str}] torsions.requires_grad:", torsions.requires_grad)
+    print(f"[DEBUG-MULTI-DEVICE-{device_str}] coords.requires_grad:", getattr(coords, 'requires_grad', None))
+
+    # Compute a simple loss and check gradient flow
+    loss = coords.sum()
+    loss.backward()
+
+    # Assertions
+    assert coords.requires_grad, f"Stage C output coords must be differentiable on {device_str}!"
+    assert coords.grad_fn is not None, f"Stage C output coords must have a grad_fn on {device_str}!"
+    assert torsions.grad is not None, f"No gradient flowed to input torsions on {device_str}!"
+    assert torch.any(torsions.grad != 0), f"Gradient is zero everywhere on {device_str}!"
+
+    print(f"[TEST] Stage C training gradient flow on {device_str}: PASSED")
+
+
+@pytest.mark.parametrize("device_str", ["cpu", "cuda", "mps"])
+def test_stageB_to_stageC_gradient_flow_multi_device(device_str):
+    """Test Stage B to Stage C gradient flow on multiple device types, skipping unavailable devices."""
+    # Skip if device is not available
+    if device_str == "cuda" and not torch.cuda.is_available():
+        pytest.skip("CUDA device not available")
+    if device_str == "mps" and not torch.backends.mps.is_available():
+        pytest.skip("MPS device not available")
+
+    # Register configs as in train.py
+    register_configs()
+    # Compose config with appropriate device
+    with initialize(version_base=None, config_path="../../rna_predict/conf"):
+        cfg = compose(config_name="default.yaml",
+                     overrides=[f"device={device_str}",
+                               "data.index_csv=rna_predict/dataset/examples/kaggle_minimal_index.csv",
+                               f"model.stageC.device={device_str}"])
+
+    # Load a real batch from the dataset
+    dataset = RNADataset(index_csv=cfg.data.index_csv, cfg=cfg, load_adj=False, load_ang=False, verbose=False)
+    dl = torch.utils.data.DataLoader(dataset, batch_size=1, collate_fn=rna_collate_fn, shuffle=False)
+    batch = next(iter(dl))
+    sequence = batch["sequence"][0]
+
+    # Instantiate Stage B as in the pipeline
+    stageB = StageBTorsionBertPredictor(cfg.model.stageB.torsion_bert)
+    stageB.to(device_str)  # Move model to the correct device
+
+    # Forward pass through Stage B
+    outB = stageB(sequence)
+    torsion_angles = outB["torsion_angles"].to(device_str)  # Ensure on correct device
+
+    # Make sure torsion_angles requires grad before retaining grad
+    torsion_angles = torsion_angles.detach().clone().requires_grad_(True)
+
+    # Forward pass through Stage C
+    output = run_stageC_rna_mpnerf(cfg, sequence, torsion_angles)
+    coords = output["coords"] if isinstance(output, dict) else output
+
+    print(f"[DEBUG-MULTI-DEVICE-{device_str}] torsion_angles.requires_grad:", torsion_angles.requires_grad)
+    print(f"[DEBUG-MULTI-DEVICE-{device_str}] coords.requires_grad:", getattr(coords, 'requires_grad', None))
+
+    # Compute a simple loss and check gradient flow
+    loss = coords.sum()
+    loss.backward()
+
+    # Assertions
+    assert coords.requires_grad, f"Stage C output coords must be differentiable on {device_str}!"
+    assert coords.grad_fn is not None, f"Stage C output coords must have a grad_fn on {device_str}!"
+    assert torsion_angles.grad is not None, f"No gradient flowed to input torsion_angles on {device_str}!"
+    assert torch.any(torsion_angles.grad != 0), f"Gradient is zero everywhere on {device_str}!"
+
+    print(f"[TEST] Stage B to C training gradient flow on {device_str}: PASSED")
