@@ -204,91 +204,90 @@ class DiffusionConditioning(nn.Module):
             print(f"[STAGED DEBUG] _process_single_features: s_trunk.shape={s_trunk.shape}, s_inputs.shape={s_inputs.shape}, c_s={self.c_s}, c_s_inputs={self.c_s_inputs}, expected_in_features={self.c_s + self.c_s_inputs}")
 
         # CRITICAL FIX: Handle token dimension mismatch between s_trunk and s_inputs
-        # This is a fallback in case the bridging_utils.py fix didn't catch it
+        # Use atom_to_token_idx for correct bridging if available
         if s_trunk.shape[-2] != s_inputs.shape[-2]:
             print(f"[DIFFUSION-FIX] Detected token dimension mismatch in _process_single_features: s_trunk.shape={s_trunk.shape}, s_inputs.shape={s_inputs.shape}")
+            input_feature_dict = None
+            # Try to get input_feature_dict from self if available
+            if hasattr(self, 'last_input_feature_dict'):
+                input_feature_dict = getattr(self, 'last_input_feature_dict')
+            # Or try to get from closure/context if passed in
+            if input_feature_dict is None and 'input_feature_dict' in globals():
+                input_feature_dict = globals()['input_feature_dict']
+            # Try to get from unified_latent if it's a dict
+            if input_feature_dict is None and isinstance(unified_latent, dict):
+                input_feature_dict = unified_latent
+            atom_to_token_idx = None
+            if input_feature_dict is not None:
+                atom_to_token_idx = input_feature_dict.get('atom_to_token_idx', None)
+            if s_trunk.shape[-2] > s_inputs.shape[-2] and atom_to_token_idx is not None:
+                print(f"[DIFFUSION-FIX] Using broadcast_token_to_atom for bridging: s_inputs {s_inputs.shape}, atom_to_token_idx {atom_to_token_idx.shape}")
+                from rna_predict.pipeline.stageA.input_embedding.current.utils import broadcast_token_to_atom
+                s_inputs = broadcast_token_to_atom(s_inputs, atom_to_token_idx)
+                print(f"[DIFFUSION-FIX] After bridging, s_inputs.shape={s_inputs.shape}")
+            else:
+                # --- Original fallback logic ---
+                # Determine if we're dealing with atom-level or residue-level tensors
+                # Assume the larger dimension is atom-level and the smaller is residue-level
+                if s_trunk.shape[-2] > s_inputs.shape[-2]:  # s_trunk is atom-level, s_inputs is residue-level
+                    # Create a new tensor to hold atom-level s_inputs
+                    s_inputs_atom = torch.zeros(
+                        *s_inputs.shape[:-2], s_trunk.shape[-2], s_inputs.shape[-1],
+                        device=s_inputs.device, dtype=s_inputs.dtype
+                    )
 
-            # Determine if we're dealing with atom-level or residue-level tensors
-            # Assume the larger dimension is atom-level and the smaller is residue-level
-            if s_trunk.shape[-2] > s_inputs.shape[-2]:  # s_trunk is atom-level, s_inputs is residue-level
-                # Create a new tensor to hold atom-level s_inputs
-                s_inputs_atom = torch.zeros(
-                    *s_inputs.shape[:-2], s_trunk.shape[-2], s_inputs.shape[-1],
-                    device=s_inputs.device, dtype=s_inputs.dtype
-                )
+                    # Use a simple replication strategy: repeat each residue's features for all its atoms
+                    n_residues = s_inputs.shape[-2]
+                    atoms_per_residue = s_trunk.shape[-2] // n_residues
 
-                # Use a simple replication strategy: repeat each residue's features for all its atoms
-                # This is a fallback when we don't have atom_to_token_idx mapping
-                n_residues = s_inputs.shape[-2]
-                atoms_per_residue = s_trunk.shape[-2] // n_residues
-
-                if atoms_per_residue * n_residues == s_trunk.shape[-2]:  # Perfect division
-                    for i in range(n_residues):
-                        start_idx = i * atoms_per_residue
-                        end_idx = (i + 1) * atoms_per_residue
+                    if atoms_per_residue * n_residues == s_trunk.shape[-2]:  # Perfect division
+                        for i in range(n_residues):
+                            start_idx = i * atoms_per_residue
+                            end_idx = (i + 1) * atoms_per_residue
+                            # Handle different dimensionality of s_inputs
+                            if s_inputs.dim() == 4:  # [B, N_sample, N_res, C]
+                                s_inputs_atom[..., start_idx:end_idx, :] = s_inputs[..., i:i+1, :].expand(
+                                    *[-1 for _ in range(s_inputs.dim() - 2)], atoms_per_residue, -1
+                                )
+                            else:  # [B, N_res, C] or other
+                                s_inputs_atom[..., start_idx:end_idx, :] = s_inputs[..., i:i+1, :].expand(
+                                    *[-1 for _ in range(s_inputs.dim() - 2)], atoms_per_residue, -1
+                                )
+                        s_inputs = s_inputs_atom
+                        print(f"[DIFFUSION-FIX] Expanded s_inputs from residue-level to atom-level: {s_inputs.shape}")
+                    else:
+                        # If we can't determine a clean mapping, use a more general approach
+                        print("[DIFFUSION-FIX] Warning: Cannot determine clean residue-to-atom mapping. Using fallback approach.")
                         # Handle different dimensionality of s_inputs
                         if s_inputs.dim() == 4:  # [B, N_sample, N_res, C]
-                            s_inputs_atom[..., start_idx:end_idx, :] = s_inputs[..., i:i+1, :].expand(
-                                *[-1 for _ in range(s_inputs.dim() - 2)], atoms_per_residue, -1
+                            s_inputs = s_inputs[..., :1, :].expand(
+                                *[-1 for _ in range(s_inputs.dim() - 2)], s_trunk.shape[-2], -1
                             )
                         else:  # [B, N_res, C] or other
-                            s_inputs_atom[..., start_idx:end_idx, :] = s_inputs[..., i:i+1, :].expand(
-                                *[-1 for _ in range(s_inputs.dim() - 2)], atoms_per_residue, -1
+                            s_inputs = s_inputs[..., :1, :].expand(
+                                *[-1 for _ in range(s_inputs.dim() - 2)], s_trunk.shape[-2], -1
                             )
-                    s_inputs = s_inputs_atom
-                    print(f"[DIFFUSION-FIX] Expanded s_inputs from residue-level to atom-level: {s_inputs.shape}")
-                else:
-                    # If we can't determine a clean mapping, use a more general approach
-                    # Just repeat the first residue's features for all atoms as a last resort
-                    print("[DIFFUSION-FIX] Warning: Cannot determine clean residue-to-atom mapping. Using fallback approach.")
-                    # Handle different dimensionality of s_inputs
-                    if s_inputs.dim() == 4:  # [B, N_sample, N_res, C]
-                        s_inputs = s_inputs[..., :1, :].expand(
-                            *[-1 for _ in range(s_inputs.dim() - 2)], s_trunk.shape[-2], -1
-                        )
-                    else:  # [B, N_res, C] or other
-                        s_inputs = s_inputs[..., :1, :].expand(
-                            *[-1 for _ in range(s_inputs.dim() - 2)], s_trunk.shape[-2], -1
-                        )
-            else:  # s_inputs is atom-level, s_trunk is residue-level
-                # This is less common, but handle it for completeness
-                # Create a new tensor to hold residue-level s_trunk
-                s_trunk_residue = torch.zeros(
-                    *s_trunk.shape[:-2], s_inputs.shape[-2], s_trunk.shape[-1],
-                    device=s_trunk.device, dtype=s_trunk.dtype
-                )
+                else:  # s_inputs is atom-level, s_trunk is residue-level
+                    # This is less common, but handle it for completeness
+                    # Create a new tensor to hold residue-level s_trunk
+                    s_trunk_residue = torch.zeros(
+                        *s_trunk.shape[:-2], s_inputs.shape[-2], s_trunk.shape[-1],
+                        device=s_trunk.device, dtype=s_trunk.dtype
+                    )
 
-                # Use a simple replication strategy
-                n_atoms = s_inputs.shape[-2]
-                residues_per_atom = n_atoms // s_trunk.shape[-2]
+                    # Use a simple replication strategy
+                    n_atoms = s_inputs.shape[-2]
+                    residues_per_atom = n_atoms // s_trunk.shape[-2]
 
-                if residues_per_atom * s_trunk.shape[-2] == n_atoms:  # Perfect division
-                    for i in range(s_trunk.shape[-2]):
-                        start_idx = i * residues_per_atom
-                        end_idx = (i + 1) * residues_per_atom
-                        # Handle different dimensionality of s_trunk
-                        if s_trunk.dim() == 4:  # [B, N_sample, N_res, C]
-                            s_trunk_residue[..., start_idx:end_idx, :] = s_trunk[..., i:i+1, :].expand(
-                                *[-1 for _ in range(s_trunk.dim() - 2)], residues_per_atom, -1
-                            )
-                        else:  # [B, N_res, C] or other
-                            s_trunk_residue[..., start_idx:end_idx, :] = s_trunk[..., i:i+1, :].expand(
-                                *[-1 for _ in range(s_trunk.dim() - 2)], residues_per_atom, -1
-                            )
-                    s_trunk = s_trunk_residue
-                    print(f"[DIFFUSION-FIX] Expanded s_trunk from residue-level to atom-level: {s_trunk.shape}")
-                else:
-                    # If we can't determine a clean mapping, use a more general approach
-                    print("[DIFFUSION-FIX] Warning: Cannot determine clean atom-to-residue mapping. Using fallback approach.")
-                    # Handle different dimensionality of s_trunk
                     if s_trunk.dim() == 4:  # [B, N_sample, N_res, C]
-                        s_trunk = s_trunk[..., :1, :].expand(
-                            *[-1 for _ in range(s_trunk.dim() - 2)], s_inputs.shape[-2], -1
+                        s_trunk_residue[..., start_idx:end_idx, :] = s_trunk[..., i:i+1, :].expand(
+                            *[-1 for _ in range(s_trunk.dim() - 2)], residues_per_atom, -1
                         )
                     else:  # [B, N_res, C] or other
-                        s_trunk = s_trunk[..., :1, :].expand(
-                            *[-1 for _ in range(s_trunk.dim() - 2)], s_inputs.shape[-2], -1
+                        s_trunk_residue[..., start_idx:end_idx, :] = s_trunk[..., i:i+1, :].expand(
+                            *[-1 for _ in range(s_trunk.dim() - 2)], residues_per_atom, -1
                         )
+                    s_trunk = s_trunk_residue
 
         # Validate and adapt tensor shapes if needed (now config-driven)
         from rna_predict.pipeline.stageD.diffusion.components.diffusion_utils import validate_tensor_shapes

@@ -56,7 +56,7 @@ class StageCReconstruction(nn.Module):
 
     This stage intentionally produces a sparse atom representation (21 atoms total)
     as input for the diffusion model in Stage D. This is a design decision, not a bug.
-    
+
     Architectural note: Stage D expects a dense atom representation (44 atoms per residue),
     resulting in an architectural mismatch. The bridging logic in the pipeline handles this
     by mapping or replicating the sparse atoms to the expected format for Stage D.
@@ -221,9 +221,9 @@ def run_stageC_rna_mpnerf(
     logger.info(f"[DEBUG][StageC] stage_cfg.device: {device} (type: {type(device)})")
     logger.info(f"[DEBUG][StageC] Full stage_cfg: {stage_cfg}")
     logger.info(f"[DEBUG][StageC] OmegaConf resolved device: {getattr(OmegaConf, 'to_container', lambda x: x)(stage_cfg).get('device', None)}")
-    if device != 'cpu':
-        logger.error(f"[ERROR][StageC] Device is not 'cpu'! Device from config: {device}")
-        raise RuntimeError(f"[StageC] Device bug: config device is '{device}' but should be 'cpu'. Check config merging and overrides.")
+    # Support all device types (cpu, cuda, mps)
+    if device not in ['cpu', 'cuda', 'mps']:
+        logger.warning(f"[WARNING][StageC] Unsupported device: {device}. Supported devices are 'cpu', 'cuda', 'mps'. Proceeding anyway.")
 
     if stage_cfg.debug_logging:
         logger.debug(f"This should always appear if logger is working. sequence={sequence}, torsion_shape={predicted_torsions.shape}")

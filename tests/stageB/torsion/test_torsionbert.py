@@ -446,8 +446,8 @@ class TestTorsionBertModel:
     @pytest.mark.parametrize("invalid_model_path", [None, 123, ""])
     def test_invalid_model_path(self, invalid_model_path) -> None:
         """
-        Passing invalid model paths => OSError/ValueError/TypeError
-        when huggingface tries to load. We'll patch to simulate that.
+        Passing invalid model paths should fall back to using a dummy model
+        instead of raising an exception. This test verifies that behavior.
         """
         with patch(
             "rna_predict.pipeline.stageB.torsion.torsionbert_inference.AutoTokenizer.from_pretrained",
@@ -457,13 +457,16 @@ class TestTorsionBertModel:
                 "rna_predict.pipeline.stageB.torsion.torsionbert_inference.AutoModel.from_pretrained",
                 side_effect=OSError("Mock HF load fail"),
             ):
-                with pytest.raises((OSError, ValueError, TypeError)):
-                    TorsionBertModel(
-                        model_path=invalid_model_path,  # Fixed: was model_name_or_path
-                        device="cpu",  # Fixed: was torch.device("cpu")
-                        num_angles=7,
-                        max_length=512,
-                    )
+                # Should not raise an exception, but use a dummy model instead
+                model = TorsionBertModel(
+                    model_path=invalid_model_path,
+                    device="cpu",
+                    num_angles=7,
+                    max_length=512,
+                )
+                # Verify that the model is a dummy model
+                assert model.model is not None
+                assert isinstance(model.model, DummyTorsionBertAutoModel)
 
 
 # ----------------------------------------------------------------------

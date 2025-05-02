@@ -90,36 +90,23 @@ class FeatureProcessor:
         )
 
         # Ensure all tensors are not None before proceeding
-        if ref_pos is None or ref_charge is None or ref_mask is None or ref_element is None or ref_atom_name_chars is None:
-            # Create default tensors if any are missing
-            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-            batch_size = 1
-            n_atoms = 1
-
-            # Try to get dimensions from any available tensor
-            for tensor in [ref_pos, ref_charge, ref_mask, ref_element, ref_atom_name_chars]:
-                if tensor is not None and tensor.dim() >= 2:
-                    batch_size = tensor.shape[0]
-                    n_atoms = tensor.shape[1]
-                    device = tensor.device
-                    break
-
-            # Create default tensors for any missing ones
-            if ref_pos is None:
-                ref_pos = torch.zeros((batch_size, n_atoms, 3), device=device)
-            if ref_charge is None:
-                ref_charge = torch.zeros((batch_size, n_atoms, 1), device=device)
-            if ref_mask is None:
-                ref_mask = torch.ones((batch_size, n_atoms, 1), device=device)
-            if ref_element is None:
-                ref_element = torch.zeros((batch_size, n_atoms, self.c_ref_element), device=device)
-            if ref_atom_name_chars is None:
-                ref_atom_name_chars = torch.zeros((batch_size, n_atoms, 4 * 64), device=device)
+        missing = [
+            name for name, val in [
+                ("ref_pos", ref_pos),
+                ("ref_charge", ref_charge),
+                ("ref_mask", ref_mask),
+                ("ref_element", ref_element),
+                ("ref_atom_name_chars", ref_atom_name_chars),
+            ] if val is None
+        ]
+        if missing:
+            raise ValueError(f"Missing required atom features: {', '.join(missing)}")
 
         # Now we can safely check shapes
-        print(f"[DEBUG][FeatureProcessor] extract_atom_features: ref_element.shape={ref_element.shape}, expected={self.c_ref_element}")
+        print(f"[DEBUG][FeatureProcessor] extract_atom_features: ref_element.shape={ref_element.shape}, expected last dim={self.c_ref_element}")
         assert ref_element.shape[-1] == self.c_ref_element, (
-            f"UNIQUE ERROR: ref_element last dim {ref_element.shape[-1]} does not match expected {self.c_ref_element}")
+            f"FeatureProcessor.extract_atom_features: ref_element.shape={ref_element.shape}, "
+            f"expected last dim={self.c_ref_element} (from config)." )
         # Concatenate features
         features = torch.cat(
             [ref_pos, ref_charge, ref_mask, ref_element, ref_atom_name_chars], dim=-1
