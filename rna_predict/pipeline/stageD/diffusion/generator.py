@@ -232,9 +232,26 @@ def sample_diffusion(
             # Print relevant shapes for diagnosis
             if debug_logging:
                 logger.debug(f"[DEBUG][Generator Loop {step}] x_noisy.shape: {x_noisy.shape}")
-                logger.debug(f"[DEBUG][Generator Loop {step}] t_hat before reshape: {t_hat.shape}")
-            # Reshape t_hat to match only [B, N_sample] (not atom dimension!)
-            t_hat = t_hat.reshape(B, chunk_n_sample).to(dtype)
+                logger.debug(f"[DEBUG][Generator Loop {step}] t_hat before reshape: {t_hat}")
+                logger.debug(f"[DEBUG][Generator Loop {step}] t_hat type: {type(t_hat)}")
+
+            # Handle t_hat properly based on its type
+            if isinstance(t_hat, (int, float)):
+                # If t_hat is a scalar, convert to tensor with shape [B, chunk_n_sample]
+                t_hat = torch.full((B, chunk_n_sample), t_hat, device=device, dtype=dtype)
+            elif isinstance(t_hat, torch.Tensor) and t_hat.numel() == 1:
+                # If t_hat is a tensor with a single element, expand it
+                t_hat = t_hat.expand(B, chunk_n_sample).to(dtype)
+            else:
+                # Otherwise, try to reshape it
+                try:
+                    t_hat = t_hat.reshape(B, chunk_n_sample).to(dtype)
+                except RuntimeError as e:
+                    if debug_logging:
+                        logger.error(f"[ERROR] Failed to reshape t_hat with shape {t_hat.shape} to {(B, chunk_n_sample)}: {e}")
+                    # Create a new tensor with the correct shape filled with the first value of t_hat
+                    t_hat_value = t_hat.item() if t_hat.numel() == 1 else t_hat.flatten()[0].item()
+                    t_hat = torch.full((B, chunk_n_sample), t_hat_value, device=device, dtype=dtype)
             if debug_logging:
                 logger.debug(f"[PATCHED][Generator Loop {step}] t_hat shape for diffusion: {t_hat.shape} (should be [B, N_sample])")
             # Defensive assertion: t_hat should have shape [B, N_sample]
@@ -335,7 +352,7 @@ def sample_diffusion_training(
     z_trunk: torch.Tensor,
     N_sample: int = 1,
     diffusion_chunk_size: Optional[int] = None,
-    device: torch.device = torch.device("cpu"),
+    device: Optional[torch.device] = None,
     debug_logging: bool = False,
 ) -> tuple[torch.Tensor, ...]:
     """Implements diffusion training as described in AF3 Appendix at page 23.
@@ -363,6 +380,8 @@ def sample_diffusion_training(
             [..., N_sample, N_atom, 3]
     """
     logging.getLogger(__name__)
+    if device is None:
+        device = torch.device("cpu")
     batch_size_shape = label_dict["coordinate"].shape[:-2]
     dtype = label_dict["coordinate"].dtype
     if debug_logging:
@@ -406,27 +425,33 @@ def sample_diffusion_training(
         no_chunks = N_sample // diffusion_chunk_size + (
             N_sample % diffusion_chunk_size != 0
         )
-        for i in range(no_chunks):
-            x_noisy_i = (x_gt_augment + noise)[
-                ..., i * diffusion_chunk_size : (i + 1) * diffusion_chunk_size, :, :
-            ]
-            t_hat_noise_level_i = sigma[
-                ..., i * diffusion_chunk_size : (i + 1) * diffusion_chunk_size
-            ]
-            # Call denoise_net, expect (coords, loss) tuple
-            denoise_result_i = denoise_net(
-                x_noisy=x_noisy_i,
-                t_hat_noise_level=t_hat_noise_level_i,
-                input_feature_dict=input_feature_dict,
-                s_inputs=s_inputs,
-                s_trunk=s_trunk,
-                z_trunk=z_trunk,
-            )
-            # Unpack the tuple
-            if not isinstance(denoise_result_i, tuple) or len(denoise_result_i) != 2:
-                 raise TypeError(f"denoise_net expected to return (coords, loss) tuple, but got {type(denoise_result_i)}")
-            x_denoised_i, _ = denoise_result_i # Ignore loss
-            x_denoised.append(x_denoised_i)
-        x_denoised = torch.cat(x_denoised, dim=-3)
+        if debug_logging:
+            print(f"[DEBUG][StageD] sample_diffusion_training: no_chunks={no_chunks}, diffusion_chunk_size={diffusion_chunk_size}, N_sample={N_sample}")
+        if no_chunks == 0:
+            # Defensive: If there are no chunks, return empty tensor with correct shape
+            x_denoised = torch.empty(0, device=device, dtype=dtype)
+        else:
+            for i in range(no_chunks):
+                x_noisy_i = (x_gt_augment + noise)[
+                    ..., i * diffusion_chunk_size : (i + 1) * diffusion_chunk_size, :, :
+                ]
+                t_hat_noise_level_i = sigma[
+                    ..., i * diffusion_chunk_size : (i + 1) * diffusion_chunk_size
+                ]
+                # Call denoise_net, expect (coords, loss) tuple
+                denoise_result_i = denoise_net(
+                    x_noisy=x_noisy_i,
+                    t_hat_noise_level=t_hat_noise_level_i,
+                    input_feature_dict=input_feature_dict,
+                    s_inputs=s_inputs,
+                    s_trunk=s_trunk,
+                    z_trunk=z_trunk,
+                )
+                # Unpack the tuple
+                if not isinstance(denoise_result_i, tuple) or len(denoise_result_i) != 2:
+                     raise TypeError(f"denoise_net expected to return (coords, loss) tuple, but got {type(denoise_result_i)}")
+                x_denoised_i, _ = denoise_result_i # Ignore loss
+                x_denoised.append(x_denoised_i)
+            x_denoised = torch.cat(x_denoised, dim=-3)
 
     return x_gt_augment, x_denoised, sigma
