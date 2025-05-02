@@ -62,10 +62,12 @@ def ensure_logger_config(config):
     return debug_logging
 
 def get_unified_cfg():
-    # Use Hydra's config system; do not hardcode config path
+    # Use importlib.resources to resolve the config path robustly
     from hydra import compose, initialize
-    with initialize(version_base=None, config_path="rna_predict/conf"):
-        cfg = compose(config_name="default")
+    from importlib import resources
+    with resources.path("rna_predict.conf", "") as cfg_path:
+        with initialize(version_base=None, config_path=str(cfg_path)):
+            cfg = compose(config_name="default")
     return cfg
 
 def run_stageD_diffusion(
@@ -128,21 +130,17 @@ def _run_stageD_diffusion_impl(
     # Convert DiffusionConfig to DictConfig for compatibility
     from omegaconf import OmegaConf
 
-    # Create a clean dictionary without PyTorch tensors
-    clean_config_dict = {}
-    for key, value in vars(config).items():
-        # Skip PyTorch tensors and other non-serializable objects
-        if isinstance(value, torch.Tensor):
-            continue
-        elif isinstance(value, dict):
-            # Handle nested dictionaries
-            clean_dict = {}
-            for k, v in value.items():
-                if not isinstance(v, torch.Tensor):
-                    clean_dict[k] = v
-            clean_config_dict[key] = clean_dict
+    # Create a clean dictionary without PyTorch tensors, preserving nested OmegaConf structure
+    clean_config_dict = OmegaConf.to_container(config, resolve=True, throw_on_missing=False)
+    # Optionally, recursively remove any torch.Tensor values from the dict
+    def remove_tensors(d):
+        if isinstance(d, dict):
+            return {k: remove_tensors(v) for k, v in d.items() if not isinstance(v, torch.Tensor)}
+        elif isinstance(d, list):
+            return [remove_tensors(v) for v in d]
         else:
-            clean_config_dict[key] = value
+            return d
+    clean_config_dict = remove_tensors(clean_config_dict)
 
     # Create OmegaConf config with the required model.stageD structure
     config_dict = OmegaConf.create({
