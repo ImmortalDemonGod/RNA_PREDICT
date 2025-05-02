@@ -6,7 +6,6 @@ defaults:
   - data: default
   - model/stageA@model.stageA
   - model/stageC@model.stageC
-  - model/stageC@model.stageC
   - model/stageB_torsion@model.stageB.torsion_bert
   - model/stageB_pairformer@model.stageB.pairformer
   - model/stageD_diffusion@stageD_diffusion  # Load stageD_diffusion first
