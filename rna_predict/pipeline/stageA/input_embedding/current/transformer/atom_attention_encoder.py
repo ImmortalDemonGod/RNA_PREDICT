@@ -228,7 +228,19 @@ class AtomAttentionEncoder(nn.Module):
             chunk_size=chunk_size,
             restype=input_feature_dict.get("restype", None),
         )
+        # --- DEBUG: Print atom_to_token_idx before calling process_inputs_with_coords ---
+        atom_to_token_idx = input_feature_dict.get("atom_to_token_idx", None)
+        print(f"[DEBUG][forward_debug] atom_to_token_idx before process_inputs_with_coords: type={type(atom_to_token_idx)}, shape={getattr(atom_to_token_idx, 'shape', None)}, is_tensor={hasattr(atom_to_token_idx, 'dtype')}")
         return process_inputs_with_coords(self, process_params)
+
+    def log_atom_to_token_idx(self, input_feature_dict):
+        if self.debug_logging:
+            print(f"[DEBUG][AtomAttentionEncoder.forward] Entry: input_feature_dict['atom_to_token_idx']: {input_feature_dict.get('atom_to_token_idx', 'MISSING')}")
+            atom_idx_val = input_feature_dict.get('atom_to_token_idx', None)
+            if atom_idx_val is not None:
+                print(f"[DEBUG][AtomAttentionEncoder.forward] type: {type(atom_idx_val)}, shape: {getattr(atom_idx_val, 'shape', None)}, value: {atom_idx_val if isinstance(atom_idx_val, (int, float)) else ''}")
+            else:
+                print("[DEBUG][AtomAttentionEncoder.forward] atom_to_token_idx MISSING!")
 
     def extract_atom_features(self, input_feature_dict):
         if self.debug_logging:
@@ -254,12 +266,3 @@ class AtomAttentionEncoder(nn.Module):
         if self.debug_logging:
             print("[DEBUG][extract_atom_features] returning c_l type:", type(c_l), "shape:", getattr(c_l, 'shape', None), "value:", c_l)
         return c_l
-
-    def log_atom_to_token_idx(self, input_feature_dict):
-        if self.debug_logging:
-            print(f"[DEBUG][AtomAttentionEncoder.forward] Entry: input_feature_dict['atom_to_token_idx']: {input_feature_dict.get('atom_to_token_idx', 'MISSING')}")
-            atom_idx_val = input_feature_dict.get('atom_to_token_idx', None)
-            if atom_idx_val is not None:
-                print(f"[DEBUG][AtomAttentionEncoder.forward] type: {type(atom_idx_val)}, shape: {getattr(atom_idx_val, 'shape', None)}, value: {atom_idx_val if isinstance(atom_idx_val, (int, float)) else ''}")
-            else:
-                print("[DEBUG][AtomAttentionEncoder.forward] atom_to_token_idx MISSING!")

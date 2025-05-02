@@ -305,7 +305,8 @@ def run_stageC_rna_mpnerf(
         valid_atom_mask.extend([True] * len(atom_list))
         if len(atom_list) < coords_full.shape[1]:
             valid_atom_mask.extend([False] * (coords_full.shape[1] - len(atom_list)))
-    coords_full_flat = coords_full.reshape(L * max_atoms, D)[valid_atom_mask]
+    mask = torch.tensor(valid_atom_mask, dtype=torch.bool, device=coords_full.device)
+    coords_full_flat = coords_full.reshape(L * max_atoms, D)[mask]
     if stage_cfg.debug_logging:
         logger.debug(f"coords_full_flat requires_grad: {getattr(coords_full_flat, 'requires_grad', None)}")
         logger.debug(f"coords_full_flat grad_fn: {getattr(coords_full_flat, 'grad_fn', None)}")
