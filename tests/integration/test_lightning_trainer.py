@@ -10,9 +10,7 @@ from rna_predict.pipeline.stageB.torsion.torsion_bert_predictor import StageBTor
 from rna_predict.pipeline.stageB.pairwise.pairformer_wrapper import PairformerWrapper
 from rna_predict.pipeline.merger.simple_latent_merger import SimpleLatentMerger
 
-# Patch the transformers classes before they are imported
-patch('transformers.AutoTokenizer.from_pretrained', return_value=MagicMock()).start()
-patch('transformers.AutoModel.from_pretrained', return_value=MagicMock()).start()
+# The test function will use context-managed patches to avoid global side-effects
 
 # Use a minimal but real config for the full pipeline
 cfg = OmegaConf.create({
