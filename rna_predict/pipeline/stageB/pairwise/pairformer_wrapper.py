@@ -75,11 +75,11 @@ class PairformerWrapper(nn.Module):
 
         # Debug: Print entry type for systematic debugging
         if self.debug_logging:
-            logger.debug("[DEBUG-PAIRFORMER-ENTRY] type(cfg):", type(cfg))
+            logger.debug("[DEBUG-PAIRFORMER-ENTRY] type(cfg): %s", type(cfg))
 
         # Debug: Print config structure for systematic debugging
         if self.debug_logging:
-            logger.debug("[DEBUG-PAIRFORMER] cfg keys:", list(cfg.keys()) if hasattr(cfg, 'keys') else str(cfg))
+            logger.debug("[DEBUG-PAIRFORMER] cfg keys: %s", list(cfg.keys()) if hasattr(cfg, 'keys') else str(cfg))
 
         # Extract the pairformer config section from the provided config
         pairformer_cfg = None

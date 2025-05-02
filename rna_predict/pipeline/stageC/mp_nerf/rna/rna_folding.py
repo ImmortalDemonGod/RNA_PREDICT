@@ -122,7 +122,17 @@ def rna_fold(
                         logger.debug(f"[DEBUG-GRAD] i={i},j={j} input prev_atom.requires_grad: {prev_atom.requires_grad}, prev_prev_atom.requires_grad: {prev_prev_atom.requires_grad}")
                     bond_length_val = get_bond_length(f"{BACKBONE_ATOMS[j-1]}-{BACKBONE_ATOMS[j]}")
                     bond_length = torch.full((), bond_length_val if bond_length_val is not None else 1.5, dtype=scaffolds["torsions"].dtype, device=device)
-                    bond_angle_val = get_bond_angle(f"{BACKBONE_ATOMS[j-2]}-{BACKBONE_ATOMS[j-1]}-{BACKBONE_ATOMS[j]}")
+
+                    if j >= 2:
+                        angle_triplet = (
+                            f"{BACKBONE_ATOMS[j-2]}-"
+                            f"{BACKBONE_ATOMS[j-1]}-"
+                            f"{BACKBONE_ATOMS[j]}"
+                        )
+                    else:
+                        angle_triplet = f"{BACKBONE_ATOMS[0]}-{BACKBONE_ATOMS[j-1]}-{BACKBONE_ATOMS[j]}"
+
+                    bond_angle_val = get_bond_angle(angle_triplet)
                     bond_angle = torch.full((), (bond_angle_val if bond_angle_val is not None else 109.5) * (math.pi / 180.0), dtype=scaffolds["torsions"].dtype, device=device)
                     if j >= 3:
                         torsion_angle = scaffolds["torsions"][i, j-3] * (math.pi / 180.0)

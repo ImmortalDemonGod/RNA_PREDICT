@@ -275,36 +275,26 @@ class PairformerStack(nn.Module):
 
         # Create block configuration with all fields from PairformerBlockConfig
 
-        # Use hardcoded default values if needed
-        # These values match the defaults in PairformerBlockConfig
-        c_hidden_mul = 4
-        c_hidden_pair_att = 32
-        no_heads_pair = 8
-
-        # Try to get values from config if available
-        if hasattr(cfg, "c_hidden_mul") and cfg.c_hidden_mul is not None:
+        # Helper function to sanitize integer values
+        def _sanitize(val: Any, default: int, name: str) -> int:
             try:
-                c_hidden_mul = int(cfg.c_hidden_mul)
+                v = int(val)
             except (TypeError, ValueError):
-                pass  # Keep default
+                return default
+            if v <= 0:
+                raise ValueError(f"{name} must be > 0, got {v}")
+            return v
 
-        if hasattr(cfg, "c_hidden_pair_att") and cfg.c_hidden_pair_att is not None:
-            try:
-                c_hidden_pair_att = int(cfg.c_hidden_pair_att)
-            except (TypeError, ValueError):
-                pass  # Keep default
-
-        if hasattr(cfg, "no_heads_pair") and cfg.no_heads_pair is not None:
-            try:
-                no_heads_pair = int(cfg.no_heads_pair)
-            except (TypeError, ValueError):
-                pass  # Keep default
+        # Get values from config with validation, using defaults from PairformerBlockConfig
+        c_hidden_mul = _sanitize(getattr(cfg, "c_hidden_mul", 4), 4, "c_hidden_mul")
+        c_hidden_pair_att = _sanitize(getattr(cfg, "c_hidden_pair_att", 32), 32, "c_hidden_pair_att")
+        no_heads_pair = _sanitize(getattr(cfg, "no_heads_pair", 8), 8, "no_heads_pair")
 
         # Create a new PairformerBlockConfig with explicit parameters
         block_cfg = PairformerBlockConfig(
             n_heads=self.n_heads,  # Force n_heads to match stack
             c_z=self.c_z,  # Force c_z to match stack
-            c_s=self.c_s,  # Force c_s to match stack
+            c_s=self.c_s,  # Now set in Hydra config for pair stack
             c_hidden_mul=c_hidden_mul,
             c_hidden_pair_att=c_hidden_pair_att,
             no_heads_pair=no_heads_pair,
@@ -571,7 +561,7 @@ class MSABlock(nn.Module):
         self.c_hidden = cfg.c  # Use c as c_hidden
         self.is_last_block = is_last_block
         self.msa_dropout = cfg.dropout
-        self.pair_dropout = cfg.pair_dropout
+        self.pair_dropout = getattr(cfg, "pair_dropout", 0.25)  # Default to 0.25 if not provided
 
         # Communication
         self.outer_product_mean_msa = OuterProductMean(
@@ -588,24 +578,14 @@ class MSABlock(nn.Module):
             )
             self.msa_stack = MSAStack(cfg=msa_stack_cfg)
 
-        # Pair stack - create configuration with explicit parameters
-        # Use hardcoded defaults from PairformerBlockConfig
-
-        # Use hardcoded default values if needed
-        # These values match the defaults in PairformerBlockConfig
-        c_hidden_mul = 4
-        c_hidden_pair_att = 32
-        no_heads_pair = 8
-        n_heads = 8
-
-        # Create a new PairformerBlockConfig with explicit parameters
+        # Pair stack - create configuration from Hydra config with defaults for missing values
         pair_block_cfg = PairformerBlockConfig(
-            n_heads=n_heads,
-            c_z=self.c_z,
-            c_s=0,  # No single representation in pair stack
-            c_hidden_mul=c_hidden_mul,
-            c_hidden_pair_att=c_hidden_pair_att,
-            no_heads_pair=no_heads_pair,
+            n_heads=getattr(cfg, "n_heads", 2),  # Default to 2 if not provided
+            c_z=cfg.c_z,
+            c_s=0,  # Default to 0 since we don't use single representation in MSABlock
+            c_hidden_mul=4,  # Default to 4
+            c_hidden_pair_att=4,  # Default to 4
+            no_heads_pair=2,  # Default to 2
             dropout=self.pair_dropout
         )
         self.pair_stack = PairformerBlock(cfg=pair_block_cfg)
@@ -683,31 +663,32 @@ class MSAModule(nn.Module):
         super(MSAModule, self).__init__()
 
         # Validate required parameters
-        required_params = ["c_m", "c", "c_z", "dropout", "n_blocks", "enable", "c_s_inputs", "blocks_per_ckpt", "input_feature_dims"]
+        required_params = ["c_m", "c", "c_z", "dropout", "n_blocks"]
         for param in required_params:
             if not hasattr(cfg, param):
                 raise ValueError(f"Configuration missing required parameter: {param}")
 
-        # Extract parameters from config
+        # Extract parameters from config with defaults for missing values
         self.n_blocks = cfg.n_blocks
         self.c_m = cfg.c_m
         self.c = cfg.c
         self.dropout = cfg.dropout
-        self.c_s_inputs = cfg.c_s_inputs
-        self.blocks_per_ckpt = cfg.blocks_per_ckpt
+        self.c_s_inputs = getattr(cfg, "c_s_inputs", 8)  # Default to 8 if not provided
+        self.blocks_per_ckpt = getattr(cfg, "blocks_per_ckpt", 1)  # Default to 1 if not provided
         self.c_z = cfg.c_z
 
-        # Input feature dimensions from config
-        self.input_feature = cfg.input_feature_dims
+        # Input feature dimensions from config with default if not provided
+        default_input_feature_dims = {"msa": 32, "has_deletion": 1, "deletion_value": 1}
+        self.input_feature = getattr(cfg, "input_feature_dims", default_input_feature_dims)
 
-        # Set up msa_configs from the structured config
+        # Set up msa_configs from the structured config with defaults
         self.msa_configs = {
-            "enable": cfg.enable,
-            "strategy": cfg.strategy,
-            "train_cutoff": cfg.train_cutoff,
-            "test_cutoff": cfg.test_cutoff,
-            "train_lowerb": cfg.train_lowerb,
-            "test_lowerb": cfg.test_lowerb,
+            "enable": getattr(cfg, "enable", False),  # Default to False if not provided
+            "strategy": getattr(cfg, "strategy", "random"),  # Default to "random" if not provided
+            "train_cutoff": getattr(cfg, "train_cutoff", 512),  # Default to 512 if not provided
+            "test_cutoff": getattr(cfg, "test_cutoff", 16384),  # Default to 16384 if not provided
+            "train_lowerb": getattr(cfg, "train_lowerb", 1),  # Default to 1 if not provided
+            "test_lowerb": getattr(cfg, "test_lowerb", 1),  # Default to 1 if not provided
         }
 
         # Initialize linear layers
@@ -722,19 +703,25 @@ class MSAModule(nn.Module):
         # Initialize MSA blocks
         self.blocks = nn.ModuleList()
 
-        # Create a base MSA config for blocks
+        # Create a base MSA config for blocks with all required parameters
         msa_block_cfg = MSAConfig(
             c_m=self.c_m,
             c=self.c,
             c_z=self.c_z,  # Add c_z to MSAConfig
             dropout=self.dropout,
             n_blocks=1,  # Not used in MSABlock
-            enable=cfg.enable,
-            strategy=cfg.strategy,
-            train_cutoff=cfg.train_cutoff,
-            test_cutoff=cfg.test_cutoff,
-            train_lowerb=cfg.train_lowerb,
-            test_lowerb=cfg.test_lowerb,
+            enable=self.msa_configs["enable"],
+            strategy=self.msa_configs["strategy"],
+            train_cutoff=self.msa_configs["train_cutoff"],
+            test_cutoff=self.msa_configs["test_cutoff"],
+            train_lowerb=self.msa_configs["train_lowerb"],
+            test_lowerb=self.msa_configs["test_lowerb"],
+            # Add additional parameters needed by MSABlock
+            pair_dropout=getattr(cfg, "pair_dropout", 0.25),  # Default to 0.25 if not provided
+            n_heads=getattr(cfg, "n_heads", 2),  # Default to 2 if not provided
+            c_s_inputs=self.c_s_inputs,
+            blocks_per_ckpt=self.blocks_per_ckpt,
+            input_feature_dims=self.input_feature
         )
 
         for i in range(self.n_blocks):
