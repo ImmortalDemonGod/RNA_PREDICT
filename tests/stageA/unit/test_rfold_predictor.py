@@ -79,7 +79,6 @@ class TestStageARFoldPredictor(unittest.TestCase):
                 "No checkpoint file found. Tests will run without loading weights."
             )
 
-    @pytest.mark.skip(reason="This test is flaky")
     def test_instantiation(self):
         """Test successful instantiation of StageARFoldPredictor."""
         # Import StageARFoldPredictor inside the test method to allow for patching
@@ -97,10 +96,8 @@ class TestStageARFoldPredictor(unittest.TestCase):
             )
         except Exception as e:
             logger.warning(f"StageARFoldPredictor instantiation failed: {e}")
-            # Don't fail the test, just mark it as skipped
             pytest.skip(f"Test failed with: {e}")
 
-    @pytest.mark.xfail(reason="This test is flaky when run as part of the full test suite")
     def test_instantiation_with_checkpoint(self):
         """Test instantiation with checkpoint if available."""
         # Import StageARFoldPredictor inside the test method to allow for patching
@@ -124,10 +121,8 @@ class TestStageARFoldPredictor(unittest.TestCase):
             )
         except Exception as e:
             logger.warning(f"StageARFoldPredictor instantiation with checkpoint failed: {e}")
-            # Don't fail the test, just mark it as xfailed
             pytest.xfail(f"Test failed with: {e}")
 
-    @pytest.mark.xfail(reason="This test is flaky when run as part of the full test suite")
     def test_config_loading(self):
         """Test correct loading of configuration parameters."""
         # Import StageARFoldPredictor inside the test method to allow for patching
@@ -145,10 +140,8 @@ class TestStageARFoldPredictor(unittest.TestCase):
             logger.info("Model and device loaded successfully.")
         except Exception as e:
             logger.warning(f"StageARFoldPredictor config loading failed: {e}")
-            # Don't fail the test, just mark it as xfailed
             pytest.xfail(f"Test failed with: {e}")
 
-    @pytest.mark.xfail(reason="This test is flaky when run as part of the full test suite")
     def test_model_weights_loading(self):
         """Test successful loading of pre-trained RFold model weights."""
         # Import StageARFoldPredictor inside the test method to allow for patching
@@ -170,10 +163,8 @@ class TestStageARFoldPredictor(unittest.TestCase):
                 break
         except Exception as e:
             logger.warning(f"StageARFoldPredictor model weights loading failed: {e}")
-            # Don't fail the test, just mark it as xfailed
             pytest.xfail(f"Test failed with: {e}")
 
-    @pytest.mark.xfail(reason="This test is flaky when run as part of the full test suite")
     def test_device_configuration(self):
         """Test correct configuration of the computational device (CPU or GPU)."""
         # Import StageARFoldPredictor inside the test method to allow for patching
@@ -192,10 +183,8 @@ class TestStageARFoldPredictor(unittest.TestCase):
             logger.info(f"Device configured to: {predictor.device}")
         except Exception as e:
             logger.warning(f"StageARFoldPredictor device configuration failed: {e}")
-            # Don't fail the test, just mark it as xfailed
             pytest.xfail(f"Test failed with: {e}")
 
-    @pytest.mark.xfail(reason="This test is flaky when run as part of the full test suite")
     def test_predict_adjacency_method_exists(self):
         """Test the existence and accessibility of the predict_adjacency method."""
         # Import StageARFoldPredictor inside the test method to allow for patching
@@ -218,10 +207,8 @@ class TestStageARFoldPredictor(unittest.TestCase):
             logger.info("predict_adjacency method exists and is callable.")
         except Exception as e:
             logger.warning(f"StageARFoldPredictor predict_adjacency method check failed: {e}")
-            # Don't fail the test, just mark it as xfailed
             pytest.xfail(f"Test failed with: {e}")
 
-    @pytest.mark.xfail(reason="This test is flaky when run as part of the full test suite")
     def test_predict_adjacency_accepts_sequence(self):
         """Test that the method accepts a standard RNA sequence string as input."""
         # Import StageARFoldPredictor inside the test method to allow for patching
@@ -239,10 +226,8 @@ class TestStageARFoldPredictor(unittest.TestCase):
             logger.info("predict_adjacency method accepted RNA sequence.")
         except Exception as e:
             logger.warning(f"predict_adjacency method failed to accept RNA sequence: {e}")
-            # Don't fail the test, just mark it as xfailed
             pytest.xfail(f"Test failed with: {e}")
 
-    @pytest.mark.xfail(reason="This test is flaky when run as part of the full test suite")
     def test_output_validation(self):
         """Test output validation."""
         # Import StageARFoldPredictor inside the test method to allow for patching
@@ -301,10 +286,8 @@ class TestStageARFoldPredictor(unittest.TestCase):
             logger.info("Output values are valid.")
         except Exception as e:
             logger.warning(f"Output validation failed: {e}")
-            # Don't fail the test, just mark it as xfailed
             pytest.xfail(f"Test failed with: {e}")
 
-    @pytest.mark.xfail(reason="This test is flaky when run as part of the full test suite")
     def test_basic_operational_functionality(self):
         """Test basic operational functionality."""
         # Import StageARFoldPredictor inside the test method to allow for patching
@@ -326,7 +309,6 @@ class TestStageARFoldPredictor(unittest.TestCase):
             )
         except Exception as e:
             logger.warning(f"StageARFoldPredictor failed to execute: {e}")
-            # Don't fail the test, just mark it as xfailed
             pytest.xfail(f"Test failed with: {e}")
 
 
