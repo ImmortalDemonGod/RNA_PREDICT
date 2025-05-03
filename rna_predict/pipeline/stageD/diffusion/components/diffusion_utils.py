@@ -69,7 +69,13 @@ def validate_tensor_shapes(
                 *s_trunk.shape[:-1], c_s - s_trunk.shape[-1],
                 device=s_trunk.device, dtype=s_trunk.dtype
             )
-            adapted_s_trunk = torch.cat([s_trunk, padding], dim=-1)
+            print(f"[DEBUG][validate_tensor_shapes] s_trunk.shape={s_trunk.shape}, padding.shape={padding.shape}")
+            try:
+                adapted_s_trunk = torch.cat([s_trunk, padding], dim=-1)
+            except Exception as e:
+                print(f"[DEBUG][validate_tensor_shapes] torch.cat error: {e}")
+                print(f"[DEBUG][validate_tensor_shapes] s_trunk.shape={s_trunk.shape}, padding.shape={padding.shape}")
+                raise
         else:
             adapted_s_trunk = s_trunk[..., :c_s]
     # Adapt s_inputs to match expected dimension if needed
@@ -80,7 +86,13 @@ def validate_tensor_shapes(
                 *s_inputs.shape[:-1], c_s_inputs - s_inputs.shape[-1],
                 device=s_inputs.device, dtype=s_inputs.dtype
             )
-            adapted_s_inputs = torch.cat([s_inputs, padding], dim=-1)
+            print(f"[DEBUG][validate_tensor_shapes] s_inputs.shape={s_inputs.shape}, padding.shape={padding.shape}")
+            try:
+                adapted_s_inputs = torch.cat([s_inputs, padding], dim=-1)
+            except Exception as e:
+                print(f"[DEBUG][validate_tensor_shapes] torch.cat error: {e}")
+                print(f"[DEBUG][validate_tensor_shapes] s_inputs.shape={s_inputs.shape}, padding.shape={padding.shape}")
+                raise
         else:
             adapted_s_inputs = s_inputs[..., :c_s_inputs]
     # Check token dimension match
