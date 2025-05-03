@@ -525,7 +525,6 @@ class TestRunPipelineHypothesis:
     correctly processes valid RNA sequences using property-based testing.
     """
 
-    @pytest.mark.skip(reason="This test is flaky")
     def test_run_pipeline_valid_sequences(self):
         """Test run_pipeline with valid sequences using Hypothesis.
 
@@ -871,17 +870,17 @@ class TestMain:
 def make_config(structure):
     return OmegaConf.create(structure)
 
-@pytest.mark.skip(reason="Test is hanging or taking too long to run. Needs further investigation. [ERR-TORSIONBERT-PROPERTY-TIMEOUT-001]")
+@settings(deadline=None, max_examples=5)  # Limit to 5 examples to avoid timeouts
 @given(
     st.dictionaries(
-        keys=st.text(min_size=1, max_size=16),
+        keys=st.text(min_size=1, max_size=8),  # Reduced from 16 to 8
         values=st.recursive(
             st.integers() | st.text() | st.booleans() | st.none(),
-            lambda children: st.lists(children) | st.dictionaries(st.text(min_size=1, max_size=16), children),
-            max_leaves=5,
+            lambda children: st.lists(children) | st.dictionaries(st.text(min_size=1, max_size=8), children),  # Reduced from 16 to 8
+            max_leaves=3,  # Reduced from 5 to 3
         ),
         min_size=1,
-        max_size=3,
+        max_size=2,  # Reduced from 3 to 2
     )
 )
 def test_stageb_torsionbert_config_structure_property(config_dict):

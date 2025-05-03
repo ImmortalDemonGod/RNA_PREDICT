@@ -1,5 +1,6 @@
 import unittest
 from unittest.mock import patch
+import pytest
 
 import torch
 import torch.nn as nn
@@ -153,16 +154,17 @@ class TestCreateEmbedder(unittest.TestCase):
         self.assertIsInstance(embedder, nn.Module)
         self.assertEqual(dev, "cpu")
 
-    @unittest.skip("Skipping test_create_embedder_cuda_available due to patching issues with InputFeatureEmbedder")
+    @pytest.mark.skipif(not torch.cuda.is_available() or not getattr(torch.version, 'cuda', None), reason="CUDA not available in this environment")
     @patch("torch.cuda.is_available", return_value=True)
     def test_create_embedder_cuda_available(self, _):
         """
         If CUDA is available, creating with device='cuda' should keep device='cuda'.
         """
-        # This test is skipped because we can't properly patch the InputFeatureEmbedder class
-        # The issue is that when we patch the class, it becomes a MagicMock, which causes
-        # issues with the super() call in the __init__ method
-        pass
+        args = dict(self.default_args)
+        args["device"] = "cuda"
+        embedder, dev = benchmark.create_embedder(**args)
+        self.assertIsInstance(embedder, nn.Module)
+        self.assertEqual(dev, "cuda")
 
 
 class TestGenerateSyntheticFeatures(unittest.TestCase):

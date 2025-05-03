@@ -14,7 +14,7 @@ def get_memory_usage():  # Helper function
 # @pytest.mark.performance
 # @pytest.mark.skip(reason="Causes excessive memory usage")
 @settings(deadline=None, max_examples=1)
-@unittest.skip("Skipping test_diffusion_single_embed_caching due to OmegaConf issues with PyTorch tensors")
+# @unittest.skip("Skipping test_diffusion_single_embed_caching due to OmegaConf issues with PyTorch tensors")
 @given(st.just(True))  # Add a dummy given parameter
 def test_diffusion_single_embed_caching(_dummy):
     """
@@ -116,15 +116,14 @@ def test_diffusion_single_embed_caching(_dummy):
         cfg = OmegaConf.create({
             "model": {
                 "stageD": {
-                    "ref_element_size": 128,
-                    "ref_atom_name_chars_size": 256,
-                    "profile_size": 32,
-                    "test_residues_per_batch": 2,
-                    "diffusion": {
-                        "feature_dimensions": diffusion_config["feature_dimensions"],
-                        "model_architecture": diffusion_config["model_architecture"]
-                    }
+                    "diffusion": diffusion_config
                 }
+            },
+            "profile_size": 32,
+            "test_residues_per_batch": 2,
+            "diffusion": {
+                "feature_dimensions": diffusion_config["feature_dimensions"],
+                "model_architecture": diffusion_config["model_architecture"]
             }
         })
 
