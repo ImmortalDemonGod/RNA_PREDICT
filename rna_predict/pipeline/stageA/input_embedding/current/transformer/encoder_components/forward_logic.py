@@ -158,7 +158,11 @@ def _process_simple_embedding(
     if c_l is None:
         c_l = torch.zeros_like(a)
     if atom_to_token_idx is None:
-        atom_to_token_idx = torch.zeros_like(a)
+        atom_to_token_idx = torch.zeros(
+            *a.shape[:-1],           # preserve atom dimension(s)
+            dtype=torch.long,
+            device=a.device,
+        )
     return a, q_l, c_l, torch.zeros_like(a)
 
 # --- PATCHED _process_coordinate_encoding ---
@@ -494,5 +498,9 @@ def process_inputs_with_coords(
     if c_l is None:
         c_l = torch.zeros_like(a)
     if atom_to_token_idx is None:
-        atom_to_token_idx = torch.zeros_like(a)
+        atom_to_token_idx = torch.zeros(
+            *a.shape[:-1],           # preserve atom dimension(s)
+            dtype=torch.long,
+            device=a.device,
+        )
     return a, q_l, c_l, p_for_transformer

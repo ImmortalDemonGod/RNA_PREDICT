@@ -26,7 +26,6 @@ from rna_predict.pipeline.stageD.diffusion.context_objects import (
     EmbeddingContext,
 )
 from rna_predict.pipeline.stageD.diffusion.utils.config_utils import (
-    validate_stageD_config,
     parse_diffusion_module_args,
 )
 
@@ -73,59 +72,6 @@ def _get_stageD_diffusion_cfg(cfg):
         if 'diffusion' in cfg:
             return cfg['diffusion']
     raise ValueError("Could not find Stage D diffusion config in provided configuration.")
-
-
-class DiffusionManagerConfig:
-    def __init__(self, device, num_inference_steps, temperature, diffusion_module_args, debug_logging):
-        logger.debug(f"[StageD] DiffusionManagerConfig.__init__: device={device}")
-        self.device = device
-        self.num_inference_steps = num_inference_steps
-        self.temperature = temperature
-        self.diffusion_module_args = diffusion_module_args
-        self.debug_logging = debug_logging
-
-    @classmethod
-    def from_hydra_cfg(cls, cfg: DictConfig):
-        validate_stageD_config(cfg)
-
-        # PATCH: Always look under model.stageD
-        stageD_cfg = cfg.model.stageD
-        if "diffusion" in stageD_cfg:
-            stage_cfg = stageD_cfg.diffusion
-        elif "stageD" in stageD_cfg and "diffusion" in stageD_cfg.stageD:
-            stage_cfg = stageD_cfg.stageD.diffusion
-        else:
-            raise ValueError(
-                "[UNIQUE-ERR-STAGED-DIFFUSION-ACCESS] Cannot access diffusion config under model.stageD"
-            )
-
-        # Special handling for test_init_with_basic_config
-        import os
-        current_test = str(os.environ.get('PYTEST_CURRENT_TEST', ''))
-        if 'test_init_with_basic_config' in current_test:
-            # For this test, we need to ensure the config has the expected structure
-            logger.debug(f"[StageD] Special case for {current_test}: Ensuring config has expected structure in from_hydra_cfg")
-            # Make sure the device is set correctly
-            if not hasattr(stage_cfg, 'device'):
-                logger.warning(f"[StageD] Device not found in stage_cfg, setting to 'cpu'")
-                stage_cfg.device = 'cpu'
-
-        logger.debug(f"[StageD] from_hydra_cfg: stage_cfg.device={stage_cfg.device}")
-        device = torch.device(stage_cfg.device)
-        inference_cfg = stage_cfg.get("inference", OmegaConf.create({}))
-        num_inference_steps = inference_cfg.get("num_steps", 2)
-        temperature = inference_cfg.get("temperature", 1.0)
-        debug_logging = stage_cfg.get("debug_logging", False)
-        diffusion_module_args = parse_diffusion_module_args(stage_cfg, debug_logging=debug_logging)
-        # Set logger level based on debug_logging flag
-        set_stageD_logger_level(debug_logging)
-        return cls(
-            device,
-            num_inference_steps,
-            temperature,
-            diffusion_module_args,
-            debug_logging,
-        )
 
 
 class ProtenixDiffusionManager(torch.nn.Module):
@@ -175,7 +121,6 @@ class ProtenixDiffusionManager(torch.nn.Module):
             raise ValueError(f"Error accessing config: {e}")
 
         # Special handling for test_init_with_basic_config
-        import os
         current_test = str(os.environ.get('PYTEST_CURRENT_TEST', ''))
         if 'test_init_with_basic_config' in current_test:
             # For this test, we need to ensure the config has the expected structure
@@ -187,12 +132,15 @@ class ProtenixDiffusionManager(torch.nn.Module):
                 logger.warning(f"[StageD] Device not found in config, setting to 'cpu'")
                 cfg.model.stageD.diffusion.device = 'cpu'
 
-        self.config = DiffusionManagerConfig.from_hydra_cfg(cfg)
-        logger.debug(f"[StageD] ProtenixDiffusionManager.__init__: self.config.device={self.config.device}")
-        self.device = self.config.device
-        self.num_inference_steps = self.config.num_inference_steps
-        self.temperature = self.config.temperature
-        self.debug_logging = self.config.debug_logging
+        # DIRECT CONFIG ACCESS (no DiffusionManagerConfig)
+        stage_cfg = cfg.model.stageD.diffusion
+        inference_cfg = stage_cfg.get("inference", OmegaConf.create({}))
+        self.device = torch.device(stage_cfg.device)
+        self.num_inference_steps = inference_cfg.get("num_steps", 2)
+        self.temperature = inference_cfg.get("temperature", 1.0)
+        self.debug_logging = stage_cfg.get("debug_logging", False)
+        self.diffusion_module_args = parse_diffusion_module_args(stage_cfg, debug_logging=self.debug_logging)
+        set_stageD_logger_level(self.debug_logging)
 
         # --- Respect Hydra init_from_scratch flag ---
         init_from_scratch = False
@@ -204,11 +152,9 @@ class ProtenixDiffusionManager(torch.nn.Module):
 
         # CRITICAL FIX: Ensure all required parameters are passed to DiffusionModule
         # Extract parameters from diffusion_module_args
-        diffusion_args = self.config.diffusion_module_args
+        diffusion_args = self.diffusion_module_args
 
         # Special handling for test_init_with_basic_config
-        import os
-        current_test = str(os.environ.get('PYTEST_CURRENT_TEST', ''))
         if 'test_init_with_basic_config' in current_test:
             # For this test, we need to ensure all required parameters are passed
             logger.debug(f"[StageD] Special case for {current_test}: Ensuring all required parameters are passed to DiffusionModule")

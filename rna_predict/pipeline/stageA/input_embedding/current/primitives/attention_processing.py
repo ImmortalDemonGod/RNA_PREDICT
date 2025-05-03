@@ -193,7 +193,6 @@ def _reshape_attention_bias(
                 warnings.warn(
                     f"Could not match num_heads: bias.shape={bias.shape}, num_heads={num_heads}",
                     UserWarning,
-                    stacklevel=2
                 )
                 return None
         print(f"DEBUG: Before final reshape: bias.shape={bias.shape}")
@@ -204,13 +203,11 @@ def _reshape_attention_bias(
         logger.error(
             f"Could not robustly reshape attn_bias from {attn_bias.shape} to match attention weights. Error: {str(e)}",
             exc_info=True,
-            stacklevel=2
         )
         import warnings
         warnings.warn(
             f"Could not reshape attn_bias: {attn_bias.shape} to match num_heads={num_heads}. Error: {str(e)}",
             UserWarning,
-            stacklevel=2
         )
         return None  # Skip bias if reshape fails
 
