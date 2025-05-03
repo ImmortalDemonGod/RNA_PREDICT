@@ -45,6 +45,49 @@ def sample_indices(
         raise ValueError(f"Invalid sampling strategy: {strategy}")
     return indices
 
+def _should_return_original_dict(feat_dict: Dict[str, torch.Tensor], sample_size: int) -> bool:
+    """
+    Check if we should return the original dictionary without sampling.
+
+    Args:
+        feat_dict: Dictionary of features to sample from
+        sample_size: Number of samples to take
+
+    Returns:
+        True if we should return the original dictionary, False otherwise
+    """
+    # Handle empty dictionary case
+    if not feat_dict:
+        return True
+
+    # Handle case where 'msa' key is not present
+    if "msa" not in feat_dict:
+        return True
+
+    # Get number of sequences from the 'msa' key
+    n_seq = feat_dict["msa"].shape[0]
+
+    # If sample_size >= n_seq, return the original dictionary
+    if sample_size >= n_seq:
+        return True
+
+    return False
+
+
+def _is_sequence_dimension_key(key: str) -> bool:
+    """
+    Check if a key has the sequence dimension as its first dimension.
+
+    Args:
+        key: Key to check
+
+    Returns:
+        True if the key has the sequence dimension, False otherwise
+    """
+    sequence_keys = {"msa", "has_deletion", "deletion_value", "xyz"}
+    return key in sequence_keys
+
+
 def sample_msa_feature_dict_random_without_replacement(
     feat_dict: Dict[str, torch.Tensor],
     sample_size: int,
@@ -52,11 +95,40 @@ def sample_msa_feature_dict_random_without_replacement(
 ) -> Dict[str, torch.Tensor]:
     """
     Sample MSA features randomly without replacement.
+
+    Args:
+        feat_dict: Dictionary of features to sample from
+        sample_size: Number of samples to take
+        device: Device to use for sampling
+
+    Returns:
+        Dictionary with sampled features
     """
-    n_seq = next(iter(feat_dict.values())).shape[0]
+    # Check if we should return the original dictionary
+    if _should_return_original_dict(feat_dict, sample_size):
+        return feat_dict
+
+    # Get number of sequences from the 'msa' key
+    n_seq = feat_dict["msa"].shape[0]
+
+    # Sample indices
     indices = sample_indices(n_seq, sample_size, strategy="random", device=device)
 
-    return {k: v[indices] for k, v in feat_dict.items()}
+    # Create new dictionary with sampled features
+    result = {}
+    for k, v in feat_dict.items():
+        # Skip None values for sequence dimension keys
+        if v is None:
+            continue
+
+        if _is_sequence_dimension_key(k):
+            # These keys have the same first dimension as the number of sequences
+            result[k] = v[indices]
+        else:
+            # Other keys are passed through unchanged
+            result[k] = v
+
+    return result
 
 
 def _convert_value_to_numpy(value) -> np.ndarray:

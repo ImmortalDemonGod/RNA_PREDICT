@@ -1,7 +1,5 @@
 ################################################################################
 
-import os
-import sys
 import time
 from dataclasses import dataclass, field
 from typing import Dict, List, Tuple
@@ -12,8 +10,6 @@ import torch.nn as nn
 from rna_predict.pipeline.stageA.input_embedding.current.embedders import (
     InputFeatureEmbedder,
 )
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 
 def resolve_device(device: str) -> str:

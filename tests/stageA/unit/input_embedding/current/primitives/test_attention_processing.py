@@ -191,7 +191,7 @@ def test_process_with_batch_matmul(device):
     [
         (None, 4, None, False),  # No bias
         ((2, 4, 8, 10), 4, (8, 8, 10), False),  # Standard 4D bias, correct heads
-        ((2, 1, 8, 10), 4, None, True),  # Bias with 1 head, but raises warning due to implementation
+        ((2, 1, 8, 10), 4, (8, 8, 10), False),  # Bias with 1 head, should expand, no warning
         ((2, 4, 8, 10), 8, None, True),  # Wrong number of heads, should raise warning
     ],
 )

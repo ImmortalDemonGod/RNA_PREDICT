@@ -1,0 +1,142 @@
+# rna_predict/conf/model/stageD.yaml
+# Main configuration file for Stage D that includes both diffusion and input features
+
+defaults:
+  - _self_
+  - stageD_diffusion
+
+# This file is a placeholder to satisfy the Hydra config structure.
+# The actual configuration is in stageD_diffusion.yaml.
+# All overrides should be done via CLI or dedicated override files, not here.
+
+# Copy all fields from stageD_diffusion.diffusion directly
+enabled: ${stageD_diffusion.diffusion.enabled}
+mode: ${stageD_diffusion.diffusion.mode}
+device: cpu
+debug_logging: ${stageD_diffusion.debug_logging}
+ref_element_size: ${stageD_diffusion.ref_element_size}
+ref_atom_name_chars_size: ${stageD_diffusion.ref_atom_name_chars_size}
+profile_size: ${stageD_diffusion.profile_size}
+
+# feature_dimensions is defined in stageD_diffusion.yaml under diffusion
+# to avoid Hydra interpolation/type errors.
+
+# Copy nested configurations
+model_architecture:
+  c_token: ${stageD_diffusion.diffusion.model_architecture.c_token}
+  c_s: ${stageD_diffusion.diffusion.model_architecture.c_s}
+  c_z: ${stageD_diffusion.diffusion.model_architecture.c_z}
+  c_s_inputs: ${stageD_diffusion.diffusion.model_architecture.c_s_inputs}
+  c_atom: ${stageD_diffusion.diffusion.model_architecture.c_atom}
+  c_atompair: ${stageD_diffusion.diffusion.model_architecture.c_atompair}
+  c_noise_embedding: ${stageD_diffusion.diffusion.model_architecture.c_noise_embedding}
+  # sigma_data: ${stageD_diffusion.diffusion.model_architecture.sigma_data}
+  num_layers: 6
+  num_heads: 8
+  dropout: 0.1
+  coord_eps: 1e-6
+  coord_min: -1e4
+  coord_max: 1e4
+  coord_similarity_rtol: 1e-3
+  test_residues_per_batch: 25
+
+transformer:
+  n_blocks: ${stageD_diffusion.diffusion.transformer.n_blocks}
+  n_heads: ${stageD_diffusion.diffusion.transformer.n_heads}
+  blocks_per_ckpt: ${stageD_diffusion.diffusion.transformer.blocks_per_ckpt}
+
+atom_encoder:
+  c_in: ${stageD_diffusion.diffusion.atom_encoder.c_in}
+  c_hidden: ${stageD_diffusion.diffusion.atom_encoder.c_hidden}
+  c_out: ${stageD_diffusion.diffusion.atom_encoder.c_out}
+  dropout: ${stageD_diffusion.diffusion.atom_encoder.dropout}
+  n_blocks: ${stageD_diffusion.diffusion.atom_encoder.n_blocks}
+  n_heads: ${stageD_diffusion.diffusion.atom_encoder.n_heads}
+  n_queries: ${stageD_diffusion.diffusion.atom_encoder.n_queries}
+  n_keys: ${stageD_diffusion.diffusion.atom_encoder.n_keys}
+
+atom_decoder:
+  c_in: ${stageD_diffusion.diffusion.atom_decoder.c_in}
+  c_hidden: ${stageD_diffusion.diffusion.atom_decoder.c_hidden}
+  c_out: ${stageD_diffusion.diffusion.atom_decoder.c_out}
+  dropout: ${stageD_diffusion.diffusion.atom_decoder.dropout}
+  n_blocks: ${stageD_diffusion.diffusion.atom_decoder.n_blocks}
+  n_heads: ${stageD_diffusion.diffusion.atom_decoder.n_heads}
+  n_queries: ${stageD_diffusion.diffusion.atom_decoder.n_queries}
+  n_keys: ${stageD_diffusion.diffusion.atom_decoder.n_keys}
+
+# Create a proper diffusion object with all required fields
+diffusion:
+  enabled: ${stageD_diffusion.diffusion.enabled}
+  mode: ${stageD_diffusion.diffusion.mode}
+  device: cpu
+  debug_logging: ${stageD_diffusion.debug_logging}
+  ref_element_size: ${stageD_diffusion.ref_element_size}
+  ref_atom_name_chars_size: ${stageD_diffusion.ref_atom_name_chars_size}
+  profile_size: ${stageD_diffusion.profile_size}
+  test_residues_per_batch: ${stageD_diffusion.diffusion.test_residues_per_batch}
+  model_architecture:
+    c_token: ${stageD_diffusion.diffusion.model_architecture.c_token}
+    c_s: ${stageD_diffusion.diffusion.model_architecture.c_s}
+    c_z: ${stageD_diffusion.diffusion.model_architecture.c_z}
+    c_s_inputs: ${stageD_diffusion.diffusion.model_architecture.c_s_inputs}
+    c_atom: ${stageD_diffusion.diffusion.model_architecture.c_atom}
+    c_atompair: ${stageD_diffusion.diffusion.model_architecture.c_atompair}
+    c_noise_embedding: ${stageD_diffusion.diffusion.model_architecture.c_noise_embedding}
+    sigma_data: ${stageD_diffusion.diffusion.model_architecture.sigma_data}
+    num_layers: 6
+    num_heads: 8
+    dropout: 0.1
+    coord_eps: 1e-6
+    coord_min: -1e4
+    coord_max: 1e4
+    coord_similarity_rtol: 1e-3
+    test_residues_per_batch: 25
+  transformer:
+    n_blocks: ${stageD_diffusion.diffusion.transformer.n_blocks}
+    n_heads: ${stageD_diffusion.diffusion.transformer.n_heads}
+    blocks_per_ckpt: ${stageD_diffusion.diffusion.transformer.blocks_per_ckpt}
+  atom_encoder:
+    c_in: ${stageD_diffusion.diffusion.atom_encoder.c_in}
+    c_hidden: ${stageD_diffusion.diffusion.atom_encoder.c_hidden}
+    c_out: ${stageD_diffusion.diffusion.atom_encoder.c_out}
+    dropout: ${stageD_diffusion.diffusion.atom_encoder.dropout}
+    n_blocks: ${stageD_diffusion.diffusion.atom_encoder.n_blocks}
+    n_heads: ${stageD_diffusion.diffusion.atom_encoder.n_heads}
+    n_queries: ${stageD_diffusion.diffusion.atom_encoder.n_queries}
+    n_keys: ${stageD_diffusion.diffusion.atom_encoder.n_keys}
+  atom_decoder:
+    c_in: ${stageD_diffusion.diffusion.atom_decoder.c_in}
+    c_hidden: ${stageD_diffusion.diffusion.atom_decoder.c_hidden}
+    c_out: ${stageD_diffusion.diffusion.atom_decoder.c_out}
+    dropout: ${stageD_diffusion.diffusion.atom_decoder.dropout}
+    n_blocks: ${stageD_diffusion.diffusion.atom_decoder.n_blocks}
+    n_heads: ${stageD_diffusion.diffusion.atom_decoder.n_heads}
+    n_queries: ${stageD_diffusion.diffusion.atom_decoder.n_queries}
+    n_keys: ${stageD_diffusion.diffusion.atom_decoder.n_keys}
+  noise_schedule:
+    schedule_type: ${stageD_diffusion.diffusion.noise_schedule.schedule_type}
+    s_max: ${stageD_diffusion.diffusion.noise_schedule.s_max}
+    s_min: ${stageD_diffusion.diffusion.noise_schedule.s_min}
+    p: ${stageD_diffusion.diffusion.noise_schedule.p}
+    p_mean: ${stageD_diffusion.diffusion.noise_schedule.p_mean}
+    p_std: ${stageD_diffusion.diffusion.noise_schedule.p_std}
+  inference:
+    num_steps: ${stageD_diffusion.diffusion.inference.num_steps}
+    temperature: ${stageD_diffusion.diffusion.inference.temperature}
+    use_ddim: ${stageD_diffusion.diffusion.inference.use_ddim}
+    sampling:
+      num_samples: ${stageD_diffusion.diffusion.inference.sampling.num_samples}
+      gamma0: ${stageD_diffusion.diffusion.inference.sampling.gamma0}
+      gamma_min: ${stageD_diffusion.diffusion.inference.sampling.gamma_min}
+      noise_scale_lambda: ${stageD_diffusion.diffusion.inference.sampling.noise_scale_lambda}
+      step_scale_eta: ${stageD_diffusion.diffusion.inference.sampling.step_scale_eta}
+  use_memory_efficient_kernel: ${stageD_diffusion.diffusion.use_memory_efficient_kernel}
+  use_deepspeed_evo_attention: ${stageD_diffusion.diffusion.use_deepspeed_evo_attention}
+  use_lma: ${stageD_diffusion.diffusion.use_lma}
+  inplace_safe: ${stageD_diffusion.diffusion.inplace_safe}
+  chunk_size: ${stageD_diffusion.diffusion.chunk_size}
+  init_from_scratch: ${stageD_diffusion.diffusion.init_from_scratch}
+
+# Input features are optional and can be null
+input_features: null

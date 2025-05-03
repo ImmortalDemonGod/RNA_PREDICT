@@ -54,7 +54,7 @@ class Attention(nn.Module):
         Args:
             config (AttentionConfig): Configuration parameters for the attention module
         """
-        super(Attention, self).__init__()
+        super().__init__()
         self.c_q = config.c_q
         self.c_k = config.c_k
         self.c_v = config.c_v

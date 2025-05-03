@@ -52,7 +52,9 @@ def cpu_device():
         (-np.pi, np.pi),  # Negative angles wrap to positive
         (3 * np.pi, np.pi),  # Wraps around
         (-2 * np.pi, 0.0),  # Wraps around to 0
+        (9.42477796076938, 3.141592653589793),  # 3π wraps to π
     ],
+    ids=["zero", "pi", "two_pi", "neg_pi", "three_pi", "neg_two_pi", "large_angle"]
 )
 def test_to_zero_two_pi(angle, expected):
     """Test to_zero_two_pi function."""

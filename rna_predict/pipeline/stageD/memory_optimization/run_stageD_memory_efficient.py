@@ -15,6 +15,7 @@ def main():
     parser.add_argument("--device", type=str, default="cpu", help="Device to run on (cpu or cuda)")
     parser.add_argument("--mode", type=str, default="inference", choices=["inference", "train"], 
                         help="Mode to run in (inference or train)")
+    parser.add_argument("--debug_logging", action="store_true", help="Enable debug logging")
     args = parser.parse_args()
     
     # Create example data (in a real scenario, this would be loaded from files)
@@ -62,12 +63,14 @@ def main():
     
     # Print result shape
     if args.mode == "inference":
-        print(f"Refined coordinates shape: {result.shape}")
+        if hasattr(args, 'debug_logging') and args.debug_logging:
+            print(f"Refined coordinates shape: {result.shape}")
     else:
         x_denoised, loss, sigma = result
-        print(f"x_denoised shape: {x_denoised.shape}")
-        print(f"loss: {loss.item()}")
-        print(f"sigma: {sigma.item()}")
+        if hasattr(args, 'debug_logging') and args.debug_logging:
+            print(f"x_denoised shape: {x_denoised.shape}")
+            print(f"loss: {loss.item()}")
+            print(f"sigma: {sigma.item()}")
 
 if __name__ == "__main__":
     main() 

@@ -46,7 +46,7 @@ class DiffusionTransformerBlock(nn.Module):
             n_heads: Number of attention heads
             biasinit: Bias initialization value
         """
-        super(DiffusionTransformerBlock, self).__init__()
+        super().__init__()
         self.n_heads = n_heads
         self.c_a = c_a
         self.c_s = c_s
@@ -146,7 +146,7 @@ class DiffusionTransformer(nn.Module):
         Raises:
             ValueError: If any dimension is invalid
         """
-        super(DiffusionTransformer, self).__init__()
+        super().__init__()
 
         # Validate input dimensions
         if c_a <= 0 or c_s <= 0 or c_z <= 0:

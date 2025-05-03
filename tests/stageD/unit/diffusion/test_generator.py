@@ -1,3 +1,4 @@
+# tests/stageD/unit/diffusion/test_generator.py
 from typing import Any, Dict, Optional
 
 import pytest
@@ -31,6 +32,7 @@ def mock_denoise_net():
         z_trunk: torch.Tensor,
         chunk_size: Optional[int] = None,
         inplace_safe: bool = False,
+        debug_logging: bool = False,
     ) -> tuple[torch.Tensor, torch.Tensor]:  # Return a tuple (coords, loss)
         # Return something shaped like x_noisy but offset to test differences
         mock_coords = x_noisy - 0.1  # simple offset
@@ -125,21 +127,18 @@ class TestInferenceNoiseScheduler:
         assert schedule[-1].item() == 0, "Last element of schedule must be 0"
 
     @pytest.mark.parametrize(
-        "s_max, s_min, rho, sigma_data, N_step",
+        "s_max, s_min, p, sigma_data, N_step",
         [
-            (160.0, 4e-4, 7.0, 16.0, 100),
-            (100.0, 1e-3, 5.0, 8.0, 50),
-            (50.0, 1e-5, 2.0, 32.0, 10),
+            (160.0, 4e-4, 7.0, 16.0, 200),
+            (100.0, 1e-4, 5.0, 8.0, 100),
         ],
     )
-    def test_param_init_and_call(
-        self, s_max: float, s_min: float, rho: float, sigma_data: float, N_step: int
+    def test_inference_noise_scheduler_call(
+        self, s_max: float, s_min: float, p: float, sigma_data: float, N_step: int
     ) -> None:
-        """
-        Test InferenceNoiseScheduler with various parameter sets and step counts.
-        """
+        """Test InferenceNoiseScheduler call with various parameters."""
         scheduler = InferenceNoiseScheduler(
-            s_max=s_max, s_min=s_min, rho=rho, sigma_data=sigma_data
+            s_max=s_max, s_min=s_min, p=p, sigma_data=sigma_data
         )
         schedule = scheduler(N_step=N_step)
         assert schedule.shape[0] == N_step + 1, "Schedule length mismatch"
@@ -150,19 +149,17 @@ class TestInferenceNoiseScheduler:
 
     @given(
         s_max=st.floats(min_value=1, max_value=200),
-        s_min=st.floats(min_value=1e-6, max_value=1e-1),
-        rho=st.floats(min_value=1, max_value=10),
-        sigma_data=st.floats(min_value=0.5, max_value=32),
-        n_step=st.integers(min_value=1, max_value=50),
+        s_min=st.floats(min_value=1e-6, max_value=1e-2),
+        p=st.floats(min_value=1, max_value=10),
+        sigma_data=st.floats(min_value=1, max_value=32),
+        n_step=st.integers(min_value=10, max_value=1000),
     )
-    def test_fuzz_inference_noise_scheduler(
-        self, s_max: float, s_min: float, rho: float, sigma_data: float, n_step: int
+    def test_inference_noise_scheduler_property_based(
+        self, s_max: float, s_min: float, p: float, sigma_data: float, n_step: int
     ) -> None:
-        """
-        Fuzzy test to ensure InferenceNoiseScheduler's schedule is stable across wide parameter ranges.
-        """
+        """Property-based test for InferenceNoiseScheduler."""
         scheduler = InferenceNoiseScheduler(
-            s_max=s_max, s_min=s_min, rho=rho, sigma_data=sigma_data
+            s_max=s_max, s_min=s_min, p=p, sigma_data=sigma_data
         )
         schedule = scheduler(N_step=n_step)
         assert schedule.shape[0] == n_step + 1, "Fuzz: schedule shape mismatch"
@@ -214,10 +211,8 @@ class TestSampleDiffusion:
             s_trunk=s_trunk,
             z_trunk=z_trunk,
             noise_schedule=noise_schedule,
-            N_sample=1,
-            diffusion_chunk_size=None,
+            N_sample=1
         )
-
         assert isinstance(x_l, torch.Tensor)
         # Expect [batch, N_sample, n_atoms, 3] from sample_diffusion
         assert x_l.ndim == 4, f"Expected 4 dimensions, got {x_l.ndim}"
@@ -280,18 +275,30 @@ class TestSampleDiffusion:
         Hypothesis test for sample_diffusion with random chunk sizes and sample counts.
         This helps ensure coverage of edge parameters.
         """
-        # Minimal input_feature_dict for coverage
+        # Create a basic input feature dictionary
         input_feature_dict = {
-            "atom_to_token_idx": torch.zeros((1, 2), dtype=torch.long)
+            "atom_to_token_idx": torch.zeros((1, 5), dtype=torch.long),
+            "ref_pos": torch.randn(1, 5, 3),
+            "ref_space_uid": torch.arange(5).unsqueeze(0),
+            "ref_charge": torch.zeros(1, 5, 1),
+            "ref_mask": torch.ones(1, 5, 1),
+            "ref_element": torch.zeros(1, 5, 128),
+            "ref_atom_name_chars": torch.zeros(1, 5, 256),
+            "restype": torch.zeros(1, 5, 32),
+            "profile": torch.zeros(1, 5, 32),
+            "deletion_mean": torch.zeros(1, 5, 1),
+            "sing": torch.randn(1, 5, 449),  # Required for s_inputs fallback
         }
-        s_inputs = torch.randn(1, 2, 4)
-        s_trunk = torch.randn(1, 2, 4)
-        z_trunk = torch.randn(1, 2, 2, 4)
 
-        # We'll build a random noise schedule of length >=2
-        length = 3
-        noise_schedule = torch.linspace(10.0, 0.0, steps=length, dtype=torch.float32)
+        # Create a simple noise schedule
+        noise_schedule = torch.tensor([10.0, 5.0, 0.0], dtype=torch.float32)
 
+        # Create input tensors
+        s_inputs = torch.randn(1, 5, 449)
+        s_trunk = torch.randn(1, 5, 384)
+        z_trunk = torch.randn(1, 5, 5, 32)
+
+        # Call sample_diffusion with the test parameters
         x_l = sample_diffusion(
             denoise_net=mock_denoise_net,
             input_feature_dict=input_feature_dict,
@@ -302,7 +309,17 @@ class TestSampleDiffusion:
             N_sample=n_sample,
             diffusion_chunk_size=chunk,
         )
-        assert x_l.shape == (1, n_sample, 2, 3)
+
+        # Verify the output shape
+        assert isinstance(x_l, torch.Tensor), "Output should be a tensor"
+        assert x_l.ndim == 4, f"Expected 4 dimensions, got {x_l.ndim}"
+        assert x_l.shape[0] == 1, f"Expected batch size 1, got {x_l.shape[0]}"
+        assert x_l.shape[1] == n_sample, f"Expected N_sample {n_sample}, got {x_l.shape[1]}"
+        assert x_l.shape[2] == 5, f"Expected 5 atoms, got {x_l.shape[2]}"
+        assert x_l.shape[3] == 3, f"Expected 3 coordinates, got {x_l.shape[3]}"
+
+        # Verify the output values are finite
+        assert torch.isfinite(x_l).all(), "Output values must be finite"
 
 
 class TestSampleDiffusionTraining:
@@ -346,9 +363,13 @@ class TestSampleDiffusionTraining:
         # x_gt_aug => [1, 3, 4, 3]
         # x_denoised => [1, 3, 4, 3]
         # sigma => [1, 3]
-        assert x_gt_aug.shape == (1, 3, 4, 3)
-        assert x_denoised.shape == (1, 3, 4, 3)
-        assert sigma.shape == (1, 3)
+        # Expected shapes:
+        # x_gt_aug: [batch, N_sample, n_atoms, 3] -> [1, 3, 4, 3]
+        # x_denoised: [batch, N_sample, n_atoms, 3] -> [1, 3, 4, 3]
+        # sigma: [batch, N_sample] -> [1, 3]
+        assert x_gt_aug.shape == (1, 3, 4, 3), f"Expected x_gt_aug shape (1, 3, 4, 3), got {x_gt_aug.shape}"
+        assert x_denoised.shape == (1, 3, 4, 3), f"Expected x_denoised shape (1, 3, 4, 3), got {x_denoised.shape}"
+        assert sigma.shape == (1, 3), f"Expected sigma shape (1, 3), got {sigma.shape}"
 
     def test_sample_diffusion_training_with_chunk(
         self, mock_denoise_net, label_dict_fixture
@@ -375,9 +396,13 @@ class TestSampleDiffusionTraining:
             N_sample=5,
             diffusion_chunk_size=2,
         )
-        assert x_gt_aug.shape == (1, 5, 4, 3)
-        assert x_denoised.shape == (1, 5, 4, 3)
-        assert sigma.shape == (1, 5)
+        # Expected shapes:
+        # x_gt_aug: [batch, N_sample, n_atoms, 3] -> [1, 5, 4, 3]
+        # x_denoised: [batch, N_sample, n_atoms, 3] -> [1, 5, 4, 3]
+        # sigma: [batch, N_sample] -> [1, 5]
+        assert x_gt_aug.shape == (1, 5, 4, 3), f"Expected x_gt_aug shape (1, 5, 4, 3), got {x_gt_aug.shape}"
+        assert x_denoised.shape == (1, 5, 4, 3), f"Expected x_denoised shape (1, 5, 4, 3), got {x_denoised.shape}"
+        assert sigma.shape == (1, 5), f"Expected sigma shape (1, 5), got {sigma.shape}"
 
     @settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
     @given(

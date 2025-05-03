@@ -32,7 +32,19 @@ jobs:
           python -m pip install --upgrade pip setuptools wheel
           pip install nvidia-cublas-cu12
           make install
-          pip install ruff
+          pip install ruff pip-audit
+
+      - name: Check for dependency vulnerabilities
+        run: |
+          pip freeze > requirements.txt
+          pip-audit -r requirements.txt --severity high --exit-code 1 --format json -o pip_audit_results.json
+          echo "pip-audit JSON results saved to pip_audit_results.json."
+
+      - name: Upload pip-audit results
+        uses: actions/upload-artifact@v3
+        with:
+          name: pip-audit-results
+          path: pip_audit_results.json
 
       # Demonstrate multi-step ruff usage
       - name: Run ruff check (auto-fix)

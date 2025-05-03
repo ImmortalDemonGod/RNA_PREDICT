@@ -12,7 +12,6 @@ This suite:
 7. Is intended to be run with: python -m unittest test_refactored_RFold_code.py
 """
 
-import logging
 import os
 import random
 import unittest
@@ -64,11 +63,17 @@ class TestRFoldUtilities(unittest.TestCase):
     def test_print_log(self):
         """
         Check that print_log prints and logs the given message.
-        We'll patch logging.info to confirm it's called.
+        We'll patch the module's logger to confirm it's called.
         """
-        with patch.object(logging, "info") as mock_info:
-            RC.print_log("Hello World")
+        import rna_predict.pipeline.stageA.adjacency.RFold_code as RC_mod
+        with patch.object(RC_mod.logger, "info") as mock_info:
+            RC.print_log("Hello World", debug_logging=True)
             mock_info.assert_called_once_with("Hello World")
+
+        # Also check that logger.info is NOT called if debug_logging is False
+        with patch.object(RC_mod.logger, "info") as mock_info:
+            RC.print_log("Hello World", debug_logging=False)
+            mock_info.assert_not_called()
 
     def test_output_namespace(self):
         """

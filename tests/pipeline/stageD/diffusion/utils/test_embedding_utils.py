@@ -27,7 +27,12 @@ class TestEnsureSInputs:
         }
         original_trunk_embeddings_ref = {}
         input_features = {}
-        diffusion_config = {"c_s_inputs": 449}
+        from rna_predict.pipeline.stageD.diffusion.utils.config_types import DiffusionConfig
+        diffusion_config = DiffusionConfig(
+            partial_coords=torch.zeros((1, 5, 3)),
+            trunk_embeddings={},
+            diffusion_config={"c_s_inputs": 449}
+        )
         device = "cpu"
 
         # Create embedding context
@@ -55,7 +60,12 @@ class TestEnsureSInputs:
         trunk_embeddings_internal = {"s_trunk": torch.zeros((1, 5, 384))}
         original_trunk_embeddings_ref = {}
         input_features = {"sing": torch.ones((1, 5, 449))}
-        diffusion_config = {"c_s_inputs": 449}
+        from rna_predict.pipeline.stageD.diffusion.utils.config_types import DiffusionConfig
+        diffusion_config = DiffusionConfig(
+            partial_coords=torch.zeros((1, 5, 3)),
+            trunk_embeddings={},
+            diffusion_config={"c_s_inputs": 449}
+        )
         device = "cpu"
 
         # Create embedding context
@@ -84,7 +94,12 @@ class TestEnsureSInputs:
         trunk_embeddings_internal = {"s_trunk": torch.zeros((1, 5, 384))}
         original_trunk_embeddings_ref = {}
         input_features = {}
-        diffusion_config = {"c_s_inputs": 449}
+        from rna_predict.pipeline.stageD.diffusion.utils.config_types import DiffusionConfig
+        diffusion_config = DiffusionConfig(
+            partial_coords=torch.zeros((1, 5, 3)),
+            trunk_embeddings={},
+            diffusion_config={"c_s_inputs": 449}
+        )
         device = "cpu"
 
         # Create embedding context
@@ -115,7 +130,12 @@ class TestEnsureSInputs:
         trunk_embeddings_internal = {"s_trunk": torch.zeros((1, 5, 384))}
         original_trunk_embeddings_ref = {}
         input_features = {}
-        diffusion_config = {}  # Empty config to test default value
+        from rna_predict.pipeline.stageD.diffusion.utils.config_types import DiffusionConfig
+        diffusion_config = DiffusionConfig(
+            partial_coords=torch.zeros((1, 5, 3)),
+            trunk_embeddings={},
+            diffusion_config={}
+        )
         device = "cpu"
 
         # Create embedding context
@@ -145,7 +165,12 @@ class TestEnsureSInputs:
         trunk_embeddings_internal = {"s_trunk": torch.zeros((1, 5, 384))}
         original_trunk_embeddings_ref = {}
         input_features = {}
-        diffusion_config = {"c_s_inputs": 449}
+        from rna_predict.pipeline.stageD.diffusion.utils.config_types import DiffusionConfig
+        diffusion_config = DiffusionConfig(
+            partial_coords=torch.zeros((1, 5, 3)),
+            trunk_embeddings={},
+            diffusion_config={"c_s_inputs": 449}
+        )
         device = "cpu"
 
         # Create embedding context
@@ -176,7 +201,12 @@ class TestEnsureSInputs:
         trunk_embeddings_internal = {"s_trunk": torch.zeros((1, 5, 384))}
         original_trunk_embeddings_ref = {"s_inputs": torch.ones((1, 5, 449))}
         input_features = {}
-        diffusion_config = {"c_s_inputs": 449}
+        from rna_predict.pipeline.stageD.diffusion.utils.config_types import DiffusionConfig
+        diffusion_config = DiffusionConfig(
+            partial_coords=torch.zeros((1, 5, 3)),
+            trunk_embeddings={},
+            diffusion_config={"c_s_inputs": 449}
+        )
         device = "cpu"
 
         # Create embedding context
@@ -208,8 +238,12 @@ class TestEnsureSInputs:
         # Arrange
         trunk_embeddings_internal = {"s_trunk": torch.zeros((1, 5, 384), device="cuda")}
         original_trunk_embeddings_ref = {}
-        input_features = {}
-        diffusion_config = {"c_s_inputs": 449}
+        from rna_predict.pipeline.stageD.diffusion.utils.config_types import DiffusionConfig
+        diffusion_config = DiffusionConfig(
+            partial_coords=torch.zeros((1, 5, 3)),
+            trunk_embeddings={},
+            diffusion_config={"c_s_inputs": 449}
+        )
         device = "cuda"
 
         # Create embedding context
@@ -222,7 +256,7 @@ class TestEnsureSInputs:
         ensure_s_inputs(
             trunk_embeddings_internal,
             original_trunk_embeddings_ref,
-            input_features,
+            {},
             context,
         )
 
@@ -242,7 +276,12 @@ class TestEnsureZTrunk:
             "pair": torch.ones((1, 5, 5, 32)),
         }
         original_trunk_embeddings_ref = {}
-        diffusion_config = {"c_z": 32}
+        from rna_predict.pipeline.stageD.diffusion.utils.config_types import DiffusionConfig
+        diffusion_config = DiffusionConfig(
+            partial_coords=torch.zeros((1, 5, 3)),
+            trunk_embeddings={},
+            diffusion_config={"c_z": 32}
+        )
         device = "cpu"
 
         # Create embedding context
@@ -269,7 +308,12 @@ class TestEnsureZTrunk:
         # Arrange
         trunk_embeddings_internal = {"s_trunk": torch.zeros((1, 5, 384))}
         original_trunk_embeddings_ref = {}
-        diffusion_config = {"c_z": 32}
+        from rna_predict.pipeline.stageD.diffusion.utils.config_types import DiffusionConfig
+        diffusion_config = DiffusionConfig(
+            partial_coords=torch.zeros((1, 5, 3)),
+            trunk_embeddings={},
+            diffusion_config={"c_z": 32}
+        )
         device = "cpu"
 
         # Create embedding context
@@ -286,9 +330,9 @@ class TestEnsureZTrunk:
         )
 
         # Assert
-        assert "pair" in trunk_embeddings_internal
-        assert trunk_embeddings_internal["pair"].shape == (1, 5, 5, 32)
-        assert torch.all(trunk_embeddings_internal["pair"] == 0.0)
+        assert "pair" in trunk_embeddings_internal, "Fallback: 'pair' key should be created in trunk_embeddings_internal"
+        assert trunk_embeddings_internal["pair"].shape == (1, 5, 5, 32), "Fallback: 'pair' tensor shape mismatch"
+        assert torch.all(trunk_embeddings_internal["pair"] == 0.0), "Fallback: 'pair' tensor should be all zeros"
         mock_logger.warning.assert_called_once()
         assert "Fallback: Creating dummy 'z_trunk'" in mock_logger.warning.call_args[0][0]
 
@@ -298,7 +342,12 @@ class TestEnsureZTrunk:
         # Arrange
         trunk_embeddings_internal = {"s_trunk": torch.zeros((1, 5, 384))}
         original_trunk_embeddings_ref = {}
-        diffusion_config = {}  # Empty config to test default value
+        from rna_predict.pipeline.stageD.diffusion.utils.config_types import DiffusionConfig
+        diffusion_config = DiffusionConfig(
+            partial_coords=torch.zeros((1, 5, 3)),
+            trunk_embeddings={},
+            diffusion_config={}
+        )
         device = "cpu"
 
         # Create embedding context
@@ -326,7 +375,12 @@ class TestEnsureZTrunk:
         # Arrange
         trunk_embeddings_internal = {"s_trunk": torch.zeros((1, 5, 384))}
         original_trunk_embeddings_ref = {}
-        diffusion_config = {"c_z": 32}
+        from rna_predict.pipeline.stageD.diffusion.utils.config_types import DiffusionConfig
+        diffusion_config = DiffusionConfig(
+            partial_coords=torch.zeros((1, 5, 3)),
+            trunk_embeddings={},
+            diffusion_config={"c_z": 32}
+        )
         device = "cpu"
 
         # Create embedding context
@@ -355,7 +409,12 @@ class TestEnsureZTrunk:
         # Arrange
         trunk_embeddings_internal = {"s_trunk": torch.zeros((1, 5, 384))}
         original_trunk_embeddings_ref = {"pair": torch.ones((1, 5, 5, 32))}
-        diffusion_config = {"c_z": 32}
+        from rna_predict.pipeline.stageD.diffusion.utils.config_types import DiffusionConfig
+        diffusion_config = DiffusionConfig(
+            partial_coords=torch.zeros((1, 5, 3)),
+            trunk_embeddings={},
+            diffusion_config={"c_z": 32}
+        )
         device = "cpu"
 
         # Create embedding context
@@ -386,7 +445,12 @@ class TestEnsureZTrunk:
         # Arrange
         trunk_embeddings_internal = {"s_trunk": torch.zeros((1, 5, 384), device="cuda")}
         original_trunk_embeddings_ref = {}
-        diffusion_config = {"c_z": 32}
+        from rna_predict.pipeline.stageD.diffusion.utils.config_types import DiffusionConfig
+        diffusion_config = DiffusionConfig(
+            partial_coords=torch.zeros((1, 5, 3)),
+            trunk_embeddings={},
+            diffusion_config={"c_z": 32}
+        )
         device = "cuda"
 
         # Create embedding context
@@ -423,8 +487,12 @@ class TestPropertyBasedTests:
         # Arrange
         trunk_embeddings_internal = {"s_trunk": torch.zeros((batch_size, seq_len, c_s))}
         original_trunk_embeddings_ref = {}
-        input_features = {}
-        diffusion_config = {"c_s_inputs": c_s_inputs}
+        from rna_predict.pipeline.stageD.diffusion.utils.config_types import DiffusionConfig
+        diffusion_config = DiffusionConfig(
+            partial_coords=torch.zeros((batch_size, seq_len, 3)),
+            trunk_embeddings={},
+            diffusion_config={"c_s_inputs": c_s_inputs}
+        )
         device = "cpu"
 
         # Create embedding context
@@ -437,15 +505,15 @@ class TestPropertyBasedTests:
         ensure_s_inputs(
             trunk_embeddings_internal,
             original_trunk_embeddings_ref,
-            input_features,
+            {},
             context,
         )
 
         # Assert
-        assert "s_inputs" in trunk_embeddings_internal
+        assert "s_inputs" in trunk_embeddings_internal, f"s_inputs missing for shape ({batch_size}, {seq_len}, {c_s}, {c_s_inputs})"
         # The function always creates a tensor with batch size 1, regardless of input batch size
         # This is the actual behavior of the function, not a bug in our test
-        assert trunk_embeddings_internal["s_inputs"].shape == (1, seq_len, c_s_inputs)
+        assert trunk_embeddings_internal["s_inputs"].shape == (1, seq_len, c_s_inputs), f"Shape mismatch for ({batch_size}, {seq_len}, {c_s}, {c_s_inputs})"
 
     @pytest.mark.parametrize(
         "batch_size,seq_len,c_s,c_z",
@@ -460,7 +528,12 @@ class TestPropertyBasedTests:
         # Arrange
         trunk_embeddings_internal = {"s_trunk": torch.zeros((batch_size, seq_len, c_s))}
         original_trunk_embeddings_ref = {}
-        diffusion_config = {"c_z": c_z}
+        from rna_predict.pipeline.stageD.diffusion.utils.config_types import DiffusionConfig
+        diffusion_config = DiffusionConfig(
+            partial_coords=torch.zeros((batch_size, seq_len, 3)),
+            trunk_embeddings={},
+            diffusion_config={"c_z": c_z}
+        )
         device = "cpu"
 
         # Create embedding context
@@ -477,10 +550,10 @@ class TestPropertyBasedTests:
         )
 
         # Assert
-        assert "pair" in trunk_embeddings_internal
+        assert "pair" in trunk_embeddings_internal, f"pair missing for shape ({batch_size}, {seq_len}, {c_s}, {c_z})"
         # The function always creates a tensor with batch size 1, regardless of input batch size
         # This is the actual behavior of the function, not a bug in our test
-        assert trunk_embeddings_internal["pair"].shape == (1, seq_len, seq_len, c_z)
+        assert trunk_embeddings_internal["pair"].shape == (1, seq_len, seq_len, c_z), f"Shape mismatch for ({batch_size}, {seq_len}, {c_s}, {c_z})"
 
 
 class TestEdgeCases:
@@ -491,8 +564,12 @@ class TestEdgeCases:
         # Arrange
         trunk_embeddings_internal = {}
         original_trunk_embeddings_ref = {}
-        input_features = {}
-        diffusion_config = {"c_s_inputs": 449}
+        from rna_predict.pipeline.stageD.diffusion.utils.config_types import DiffusionConfig
+        diffusion_config = DiffusionConfig(
+            partial_coords=torch.zeros((1, 5, 3)),
+            trunk_embeddings={},
+            diffusion_config={"c_s_inputs": 449}
+        )
         device = "cpu"
 
         # Create embedding context
@@ -506,7 +583,7 @@ class TestEdgeCases:
             ensure_s_inputs(
                 trunk_embeddings_internal,
                 original_trunk_embeddings_ref,
-                input_features,
+                {},
                 context,
             )
 
@@ -516,7 +593,12 @@ class TestEdgeCases:
         trunk_embeddings_internal = {"s_trunk": torch.zeros((1, 5, 384))}
         original_trunk_embeddings_ref = {}
         input_features = None
-        diffusion_config = {"c_s_inputs": 449}
+        from rna_predict.pipeline.stageD.diffusion.utils.config_types import DiffusionConfig
+        diffusion_config = DiffusionConfig(
+            partial_coords=torch.zeros((1, 5, 3)),
+            trunk_embeddings={},
+            diffusion_config={"c_s_inputs": 449}
+        )
         device = "cpu"
 
         # Create embedding context
@@ -566,21 +648,23 @@ class TestEdgeCases:
         # Arrange
         trunk_embeddings_internal = {"s_trunk": torch.zeros((1, 5, 384))}
         original_trunk_embeddings_ref = {}
-        input_features = {}
-        diffusion_config = {"c_s_inputs": 449}
+        from rna_predict.pipeline.stageD.diffusion.utils.config_types import DiffusionConfig
+        diffusion_config = DiffusionConfig(
+            partial_coords=torch.zeros((1, 5, 3)),
+            trunk_embeddings={},
+            diffusion_config={"c_s_inputs": 449}
+        )
         device = "invalid_device"
 
         # Act & Assert
-        with pytest.raises(RuntimeError):
-            # Create embedding context with invalid device
+        with pytest.raises(RuntimeError, match="invalid_device.*|device.*invalid_device.*not available"):
             context = EmbeddingContext(
                 diffusion_config=diffusion_config,
                 device=device
             )
-
             ensure_s_inputs(
                 trunk_embeddings_internal,
                 original_trunk_embeddings_ref,
-                input_features,
+                {},
                 context,
             )

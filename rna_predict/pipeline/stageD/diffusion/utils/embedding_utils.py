@@ -6,10 +6,10 @@ This module provides functions for handling embeddings in the Stage D diffusion 
 
 import logging
 import torch
-from typing import Any, Dict
+from typing import Any, Dict, Union
 from dataclasses import dataclass
-
 from .config_utils import get_embedding_dimension
+from .config_types import DiffusionConfig
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class EmbeddingContext:
     """Context for embedding operations."""
-    diffusion_config: Dict[str, Any]
+    diffusion_config: Union[DiffusionConfig, Dict[str, Any]]
     device: str
 
 
@@ -47,9 +47,18 @@ def ensure_s_inputs(
             )
             # Create a fallback s_inputs with the right shape
             n_tokens = trunk_embeddings_internal["s_trunk"].shape[1]
-            c_s_inputs_dim = get_embedding_dimension(
-                context.diffusion_config, "c_s_inputs", 449
-            )
+            # Handle both DiffusionConfig and dict types
+            if hasattr(context.diffusion_config, 'diffusion_config'):
+                # It's a DiffusionConfig object
+                c_s_inputs_dim = get_embedding_dimension(
+                    context.diffusion_config, "c_s_inputs", 449
+                )
+            else:
+                # It's a dict
+                conditioning_config = context.diffusion_config.get("conditioning", {})
+                c_s_inputs_dim = context.diffusion_config.get(
+                    "c_s_inputs", conditioning_config.get("c_s_inputs", 449)
+                )
             s_inputs = torch.zeros((1, n_tokens, c_s_inputs_dim), device=context.device)
 
         # Update the internal copy
@@ -79,7 +88,16 @@ def ensure_z_trunk(
     if z_trunk is None:
         logger.warning("Fallback: Creating dummy 'z_trunk' for training.")
         n_tokens = trunk_embeddings_internal["s_trunk"].shape[1]
-        c_z_dim = get_embedding_dimension(context.diffusion_config, "c_z", 128)
+        # Handle both DiffusionConfig and dict types
+        if hasattr(context.diffusion_config, 'diffusion_config'):
+            # It's a DiffusionConfig object
+            c_z_dim = get_embedding_dimension(context.diffusion_config, "c_z", 128)
+        else:
+            # It's a dict
+            conditioning_config = context.diffusion_config.get("conditioning", {})
+            c_z_dim = context.diffusion_config.get(
+                "c_z", conditioning_config.get("c_z", 128)
+            )
         z_trunk = torch.zeros((1, n_tokens, n_tokens, c_z_dim), device=context.device)
 
         # Update the internal copy

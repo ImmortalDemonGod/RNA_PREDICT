@@ -1,0 +1,6 @@
+# Device management configuration
+primary: ${device:cpu}  # Use the global device setting by default
+fallback: cpu  # Always fall back to CPU for compatibility
+auto_fallback: true  # Automatically fall back to CPU when compatibility issues occur
+force_components_to_cpu:
+  - model.stageB.torsion_bert  # TorsionBERT has known MPS compatibility issues

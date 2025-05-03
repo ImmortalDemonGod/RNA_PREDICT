@@ -1,6 +1,30 @@
+"""ProtenixIntegration Module for RNA_PREDICT Pipeline Stage B.
+
+This module provides integration with Protenix input embedding components for Stage B/C synergy,
+building single-token and pair embeddings from raw features using Hydra configuration.
+
+Configuration Requirements:
+    The module expects a Hydra configuration with the following structure:
+    - model.stageB.pairformer.protenix_integration:
+        - device: Device to run on (cpu, cuda, mps)
+        - c_token: Token dimension for embeddings
+        - restype_dim: Dimension for residue type embeddings
+        - profile_dim: Dimension for profile embeddings
+        - c_atom: Atom dimension for embeddings
+        - c_pair: Pair dimension for embeddings
+        - r_max: Maximum relative position
+        - s_max: Maximum sequence separation
+        - use_optimized: Whether to use optimized implementation
+"""
+
 import torch
 import torch.nn.functional as F
+from omegaconf import DictConfig
+import logging
+# Import structured configs
+from rna_predict.conf.config_schema import ProtenixIntegrationConfig
 
+# Import Protenix components
 from rna_predict.pipeline.stageA.input_embedding.current.embedders import (
     InputFeatureEmbedder as ProtenixInputEmbedder,
 )
@@ -8,8 +32,9 @@ from rna_predict.pipeline.stageA.input_embedding.current.embedders import (
     RelativePositionEncoding,
 )
 
-# This file defines the ProtenixIntegration class, which integrates Protenix input embedding components
-# for Stage B/C synergy by building single-token and pair embeddings from raw features.
+
+# Initialize logger for Stage B ProtenixIntegration
+logger = logging.getLogger("rna_predict.pipeline.stageB.pairwise.protenix_integration")
 
 
 class ProtenixIntegration:
@@ -18,45 +43,73 @@ class ProtenixIntegration:
     Builds single-token (s_inputs) and pair (z_init) embeddings from raw features.
     """
 
-    def __init__(
-        self,
-        c_token=449,
-        restype_dim=32,
-        profile_dim=32,
-        c_atom=128,
-        c_pair=32,
-        num_heads=4,
-        num_layers=3,
-        use_optimized=False,
-        device=torch.device("cpu"),
-    ):
+    def __init__(self, cfg: DictConfig):
         """
-        Initialize the ProtenixIntegration class with embedding and attention configuration.
+        Initialize the ProtenixIntegration class with Hydra configuration.
 
         Args:
-          c_token: dimension for single-token embedding
-          restype_dim, profile_dim: dimensions for per-token features (not directly used here)
-          c_atom, c_pair: channels for atom and pair embeddings
-          num_heads, num_layers: configuration for attention mechanism (not directly used here)
-          use_optimized: flag to determine whether to use optimized logic (not directly used here)
-          device: torch device to perform computations
+            cfg: Hydra configuration object containing model.stageB.pairformer.protenix_integration section
+
+        Raises:
+            ValueError: If required configuration sections are missing
         """
-        # Store the computation device
-        self.device = device
+        # Validate that the required configuration sections exist
+        if not (hasattr(cfg, "model") and
+                hasattr(cfg.model, "stageB") and
+                hasattr(cfg.model.stageB, "pairformer") and
+                hasattr(cfg.model.stageB.pairformer, "protenix_integration")):
+            raise ValueError("Configuration must contain model.stageB.pairformer.protenix_integration section")
+
+        # Extract the protenix_integration config for cleaner access
+        protenix_cfg: ProtenixIntegrationConfig = cfg.model.stageB.pairformer.protenix_integration
+
+        # Validate required parameters
+        required_params = ["device", "c_token", "c_atom", "c_pair", "r_max", "s_max"]
+        for param in required_params:
+            if not hasattr(protenix_cfg, param):
+                raise ValueError(f"Configuration missing required parameter: {param}")
+
+        # Get device from config
+        device_str = protenix_cfg.device
+        self.device = torch.device(device_str)
+        # Set debug_logging as an instance attribute
+        self.debug_logging = False
+        if hasattr(cfg, 'model') and hasattr(cfg.model, 'stageB') and hasattr(cfg.model.stageB, 'debug_logging'):
+            self.debug_logging = cfg.model.stageB.debug_logging
+        if self.debug_logging:
+            logger.info(f"[ProtenixIntegration] Using device: {self.device}")
+
+        # Get embedding dimensions from config
+        c_token = protenix_cfg.c_token
+        c_atom = protenix_cfg.c_atom
+        c_pair = protenix_cfg.c_pair
+        r_max = protenix_cfg.r_max
+        s_max = protenix_cfg.s_max
+        if self.debug_logging:
+            logger.info(f"[ProtenixIntegration] Using c_token: {c_token}, c_atom: {c_atom}, c_pair: {c_pair}")
+
+        # Store as instance attributes for later use
+        self.c_token = c_token
+        self.c_atom = c_atom
+        self.c_pair = c_pair
+        self.r_max = r_max
+        self.s_max = s_max
 
         # Initialize the input embedder using Protenix's InputFeatureEmbedder
         self.input_embedder = ProtenixInputEmbedder(
-            c_atom=c_atom, c_atompair=c_pair, c_token=c_token
-        ).to(device)
+            c_atom=c_atom,
+            c_atompair=c_pair,
+            c_token=c_token
+        ).to(self.device)
 
         # Initialize the relative position encoding module to create pair embeddings.
         self.rel_pos_encoding = RelativePositionEncoding(
-            r_max=32,
-            s_max=2,
+            r_max=r_max,
+            s_max=s_max,
             c_z=c_token,  # using c_token as the dimension for pair embeddings
-        ).to(device)
+        ).to(self.device)
 
-    # @snoop
+    ###@snoop
     def build_embeddings(self, input_features: dict) -> dict:
         """
         Given a dictionary of raw features, produce the following embeddings:
@@ -93,6 +146,25 @@ class ProtenixIntegration:
                 shape_uid, dtype=torch.long, device=input_features["ref_pos"].device
             )
 
+        # Instrumentation: Log feature shapes and sample values for debugging shape mismatches
+        if self.debug_logging:
+            logger.info("[DEBUG][ProtenixIntegration] Input features summary before embedding:")
+            for k, v in input_features.items():
+                if isinstance(v, torch.Tensor):
+                    logger.info(f"  Feature '{k}': shape={v.shape}, dtype={v.dtype}, sample={v.flatten()[:5]}")
+                else:
+                    logger.info(f"  Feature '{k}': type={type(v)}")
+            # Log configured embedding dimensions
+            logger.info(f"[DEBUG][ProtenixIntegration] Configured c_token: {self.c_token}, c_atom: {self.c_atom}, c_pair: {self.c_pair}")
+
+        # Compute total concatenated feature dimension for input to embedder
+        concat_dim = 0
+        for k, v in input_features.items():
+            if isinstance(v, torch.Tensor) and v.dim() == 2 and k != "atom_to_token_idx":
+                concat_dim += v.shape[1]
+        if self.debug_logging:
+            logger.info(f"[DEBUG][ProtenixIntegration] Total concatenated input feature dimension: {concat_dim}")
+
         # Iterate through each key in input_features to ensure proper dimensions for each feature.
         keys_to_process = list(input_features.keys()) # Create a list to iterate over as dict size might change
         for key in keys_to_process:
@@ -120,6 +192,21 @@ class ProtenixIntegration:
                     )
                 input_features[key] = val
 
+            # Special handling for 'ref_element': ensure it has a fixed length of 128.
+            # This is critical to match the expected input dimension in the atom attention encoder.
+            if key == "ref_element":
+                if val.size(1) < 128:
+                    pad_len = 128 - val.size(1)
+                    val = F.pad(val, (0, pad_len), "constant", 0)
+                    if self.debug_logging:
+                        logger.info(f"[DEBUG][ProtenixIntegration] Padded ref_element from {val.size(1)-pad_len} to 128 dimensions")
+                elif val.size(1) > 128:
+                    # Truncate to 128 dimensions
+                    val = val[:, :128]
+                    if self.debug_logging:
+                        logger.info("[DEBUG][ProtenixIntegration] Truncated ref_element to 128 dimensions")
+                input_features[key] = val
+
             # Verify that each feature has exactly 2 dimensions,
             # UNLESS it's atom_to_token_idx which should remain 1D.
             if key != "atom_to_token_idx" and val.dim() != 2:
@@ -128,11 +215,28 @@ class ProtenixIntegration:
                     f"but got {val.shape}."
                 )
 
+        # Add additional debug logging for feature dimensions before embedding
+        if self.debug_logging:
+            logger.info("[DEBUG][ProtenixIntegration] Feature dimensions before embedding:")
+            for key in ["ref_pos", "ref_charge", "ref_mask", "ref_element", "ref_atom_name_chars"]:
+                if key in input_features:
+                    logger.info(f"  {key}: {input_features[key].shape}")
+
+            # Calculate expected total dimension
+            expected_dim = 3 + 1 + 1 + 128 + 256  # ref_pos + ref_charge + ref_mask + ref_element + ref_atom_name_chars
+            logger.info(f"[DEBUG][ProtenixIntegration] Expected total feature dimension: {expected_dim}")
+
         # Generate the single-token embedding (s_inputs) from the processed input features.
         s_inputs = self.input_embedder(input_feature_dict=input_features)
-        # If s_inputs has a batch dimension of 1, remove it to get shape [N_token, c_token].
+        # --- FIX: Ensure s_inputs is residue-level [N_token, c_token] ---
+        # If s_inputs is [batch, N_token, c_token], squeeze batch if batch==1
         if s_inputs.dim() == 3 and s_inputs.size(0) == 1:
             s_inputs = s_inputs.squeeze(0)
+        # If s_inputs is [N_token, N_token, c_token], take diagonal (per-residue embedding)
+        if s_inputs.dim() == 3 and s_inputs.size(0) == s_inputs.size(1):
+            # Take diagonal along first two dims, shape [N_token, c_token]
+            s_inputs = s_inputs.diagonal(dim1=0, dim2=1).transpose(0, 1)
+        assert s_inputs.dim() == 2, f"Expected s_inputs to be [N_token, c_token], got {s_inputs.shape}"
 
         # Extract the number of tokens from restype or profile
         if "restype" in input_features:

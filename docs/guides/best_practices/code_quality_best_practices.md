@@ -107,11 +107,7 @@ Example problem:
 - Better: Shared utility function with clear documentation
 
 
-	5.	✅ Create a Dependency Map:
 
-pydeps path/to/file.py --max-bacon=2 --cluster --output deps.svg
-
-Why: Understanding dependencies before refactoring prevents subtle cross-module errors.
 
 Step 4: Implementation (With Verification)
 

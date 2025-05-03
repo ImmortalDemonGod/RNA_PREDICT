@@ -142,11 +142,19 @@ class ResidueToAtomsConfig:
         self,
         s_emb: torch.Tensor,
         residue_atom_map: ResidueAtomMap,
+        debug_logging: bool = False,
     ) -> None:
         self.s_emb = s_emb
         self.residue_atom_map = residue_atom_map
-
-        # Derived properties
+        # DEBUG PRINTS for mismatch analysis
+        if debug_logging:
+            print("[DEBUG][ResidueToAtomsConfig] s_emb.shape =", s_emb.shape)
+            print("[DEBUG][ResidueToAtomsConfig] len(residue_atom_map) =", len(residue_atom_map))
+            if len(residue_atom_map) > 0:
+                print("[DEBUG][ResidueToAtomsConfig] residue_atom_map (first 2) =", residue_atom_map[:2])
+            else:
+                print("[DEBUG][ResidueToAtomsConfig] residue_atom_map is EMPTY!")
+        # This line triggers the error if there's a mismatch:
         _, self.n_atom, self.c_s, self.is_batched = get_dimensions(s_emb, residue_atom_map)
         self.batch_size = s_emb.shape[0] if self.is_batched else None
         self.dtype = s_emb.dtype
@@ -251,6 +259,7 @@ def create_atom_embeddings(
 def residue_to_atoms(
     s_emb: torch.Tensor,
     residue_atom_map: ResidueAtomMap,
+    debug_logging: bool = False,
 ) -> torch.Tensor:
     """
     Expands residue-level embeddings to atom-level embeddings using a precomputed map.
@@ -265,6 +274,7 @@ def residue_to_atoms(
                                            The length of this list must equal N_residue.
                                            The union of all inner lists must cover all atoms
                                            from 0 to N_atom-1 exactly once and without overlaps.
+        debug_logging (bool): Whether to print debug information. Defaults to False.
 
     Returns:
         torch.Tensor: Atom-level embeddings. Shape [N_atom, C_s] or [B, N_atom, C_s].
@@ -273,13 +283,16 @@ def residue_to_atoms(
         ValueError: If input shapes are inconsistent (e.g., `len(residue_atom_map)` != `s_emb.shape[-2]`)
                     or `residue_atom_map` is invalid (e.g., gaps or overlaps in atom indices).
     """
+    if debug_logging:
+        print("[DEBUG] residue_to_atoms: s_emb.shape=", getattr(s_emb, 'shape', None), "type=", type(s_emb))
+        print("[DEBUG] residue_to_atoms: residue_atom_map length=", len(residue_atom_map), "type=", type(residue_atom_map))
     # Handle empty inputs
     empty_result = handle_empty_inputs(residue_atom_map, s_emb)
     if empty_result is not None:
         return empty_result
 
     # Create configuration
-    config = ResidueToAtomsConfig(s_emb, residue_atom_map)
+    config = ResidueToAtomsConfig(s_emb, residue_atom_map, debug_logging)
 
     # Handle case with no atom indices
     if config.n_atom == 0:

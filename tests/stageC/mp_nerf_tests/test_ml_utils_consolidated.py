@@ -36,6 +36,7 @@ from rna_predict.pipeline.stageC.mp_nerf.ml_utils import (
     fape_torch,
 )
 
+# Update test_utils import to test_utils_stageC
 
 class TestSCNAtomEmbedd(unittest.TestCase):
     """

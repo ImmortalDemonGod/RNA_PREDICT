@@ -53,7 +53,7 @@ class AtomAttentionDecoder(nn.Module):
         Args:
             config: Configuration parameters for the decoder
         """
-        super(AtomAttentionDecoder, self).__init__()
+        super().__init__()
         self.n_blocks = config.n_blocks
         self.n_heads = config.n_heads
         self.c_token = config.c_token
@@ -144,7 +144,48 @@ class AtomAttentionDecoder(nn.Module):
             params.atom_mask = params.atom_mask.unsqueeze(-1)
         if params.atom_mask is not None:
             # The mask should have shape [B, N_atom, 1] to broadcast correctly
-            q = q * params.atom_mask # Removed .unsqueeze(-1)
+            # Handle diffusion module with N_sample dimension
+            try:
+                # Try standard multiplication
+                q = q * params.atom_mask
+            except RuntimeError as e:
+                # If standard multiplication fails, try broadcasting the mask
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"[AtomAttentionDecoder] Mask multiplication failed: {e}. Trying to adapt mask.")
+
+                # Check if this is the diffusion case with N_sample dimension
+                if len(q.shape) >= 4 and len(params.atom_mask.shape) >= 3:
+                    # Expand mask to match q's shape
+                    try:
+                        # If q is [B, N_sample, N_atom, C] and mask is [B, N_atom, 1],
+                        # we need to add the N_sample dimension to mask
+                        if len(q.shape) == 4 and len(params.atom_mask.shape) == 3:
+                            # Add N_sample dimension
+                            expanded_mask = params.atom_mask.unsqueeze(1)
+                            # Expand to match q's N_sample dimension
+                            expanded_mask = expanded_mask.expand(q.shape[0], q.shape[1], q.shape[2], expanded_mask.shape[-1])
+                            q = q * expanded_mask
+                            logger.debug(f"[AtomAttentionDecoder] Adapted mask from {params.atom_mask.shape} to {expanded_mask.shape}")
+                        else:
+                            # For other cases, try to broadcast manually
+                            logger.warning(f"[AtomAttentionDecoder] Complex shape mismatch: q.shape={q.shape}, mask.shape={params.atom_mask.shape}")
+                            # Create a new mask with the right shape
+                            new_mask = torch.ones_like(q)
+                            # Apply the original mask values where possible
+                            for i in range(min(q.shape[0], params.atom_mask.shape[0])):
+                                if len(q.shape) == 4 and len(params.atom_mask.shape) == 3:
+                                    for j in range(q.shape[1]):  # For each sample
+                                        new_mask[i, j, :params.atom_mask.shape[1]] = params.atom_mask[i]
+                                else:
+                                    # Try a best-effort approach
+                                    new_mask[i] = params.atom_mask[i]
+                            q = q * new_mask
+                            logger.debug(f"[AtomAttentionDecoder] Created new mask with shape {new_mask.shape}")
+                    except RuntimeError as e2:
+                        logger.error(f"[AtomAttentionDecoder] Mask adaptation failed: {e2}. Skipping mask application.")
+                else:
+                    logger.error(f"[AtomAttentionDecoder] Cannot adapt mask: q.shape={q.shape}, mask.shape={params.atom_mask.shape}. Skipping mask application.")
 
         # Process through atom transformer
         # Pass q (projected token features + extra_feats),
@@ -193,7 +234,48 @@ class AtomAttentionDecoder(nn.Module):
         # Apply token mask if provided (Note: q is now atom-level, mask should be atom_mask)
         if params.atom_mask is not None:  # Changed from params.mask
             # Mask shape [B, N_atom, 1] should broadcast correctly with q [B, N_atom, C]
-            q = q * params.atom_mask # Removed .unsqueeze(-1)
+            # Handle diffusion module with N_sample dimension
+            try:
+                # Try standard multiplication
+                q = q * params.atom_mask
+            except RuntimeError as e:
+                # If standard multiplication fails, try broadcasting the mask
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"[AtomAttentionDecoder] Post-transformer mask multiplication failed: {e}. Trying to adapt mask.")
+
+                # Check if this is the diffusion case with N_sample dimension
+                if len(q.shape) >= 4 and len(params.atom_mask.shape) >= 3:
+                    # Expand mask to match q's shape
+                    try:
+                        # If q is [B, N_sample, N_atom, C] and mask is [B, N_atom, 1],
+                        # we need to add the N_sample dimension to mask
+                        if len(q.shape) == 4 and len(params.atom_mask.shape) == 3:
+                            # Add N_sample dimension
+                            expanded_mask = params.atom_mask.unsqueeze(1)
+                            # Expand to match q's N_sample dimension
+                            expanded_mask = expanded_mask.expand(q.shape[0], q.shape[1], q.shape[2], expanded_mask.shape[-1])
+                            q = q * expanded_mask
+                            logger.debug(f"[AtomAttentionDecoder] Post-transformer: Adapted mask from {params.atom_mask.shape} to {expanded_mask.shape}")
+                        else:
+                            # For other cases, try to broadcast manually
+                            logger.warning(f"[AtomAttentionDecoder] Post-transformer: Complex shape mismatch: q.shape={q.shape}, mask.shape={params.atom_mask.shape}")
+                            # Create a new mask with the right shape
+                            new_mask = torch.ones_like(q)
+                            # Apply the original mask values where possible
+                            for i in range(min(q.shape[0], params.atom_mask.shape[0])):
+                                if len(q.shape) == 4 and len(params.atom_mask.shape) == 3:
+                                    for j in range(q.shape[1]):  # For each sample
+                                        new_mask[i, j, :params.atom_mask.shape[1]] = params.atom_mask[i]
+                                else:
+                                    # Try a best-effort approach
+                                    new_mask[i] = params.atom_mask[i]
+                            q = q * new_mask
+                            logger.debug(f"[AtomAttentionDecoder] Post-transformer: Created new mask with shape {new_mask.shape}")
+                    except RuntimeError as e2:
+                        logger.error(f"[AtomAttentionDecoder] Post-transformer: Mask adaptation failed: {e2}. Skipping mask application.")
+                else:
+                    logger.error(f"[AtomAttentionDecoder] Post-transformer: Cannot adapt mask: q.shape={q.shape}, mask.shape={params.atom_mask.shape}. Skipping mask application.")
 
         # Project to 3D coordinates
         r = self.linear_no_bias_out(self.layernorm_q(q))

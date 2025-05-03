@@ -27,6 +27,7 @@ class AtomAttentionConfig:
     n_queries: int = 32
     n_keys: int = 128
     blocks_per_ckpt: Optional[int] = None
+    debug_logging: bool = False  # Added for Hydra config-driven debug control
 
     def __post_init__(self) -> None:
         """Validate config parameters."""
@@ -60,3 +61,5 @@ class ProcessInputsParams:
     z: Optional[torch.Tensor]
     c_l: torch.Tensor
     chunk_size: Optional[int] = None
+    q_l: Optional[torch.Tensor] = None
+    restype: Optional[torch.Tensor] = None

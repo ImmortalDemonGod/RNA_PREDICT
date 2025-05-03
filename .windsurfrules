@@ -1,0 +1,41 @@
+# Debugging
+- Follow a systematic debugging workflow (capture error details, reproduce, generate hypotheses, isolate cause, fix and verify) as detailed in docs/comprehensive_debugging_guide.md.
+- Be systematic and methodical in approaching debugging problems, focusing on root cause solutions over workarounds.
+- When debugging tensor shape mismatches in deep learning models, ensure tensors have correct dimensions, use debug prints to visualize shapes, and ensure proper tensor broadcasting and reshaping.
+- When fixing type errors in Python, start with foundational modules, use proper type annotations (especially for numpy arrays), add type ignores for third-party libraries and tensor indexing, and maintain consistent style.
+- RNA_PREDICT project debugging notes: configuration path issues, unexpected parameters, missing attributes, and unraised ValueErrors.
+- The RNA_PREDICT project has inconsistent atom counts between stages, with Stage C producing 21 atoms total while Stage D expects 44 atoms per residue.
+
+# Code Quality & Refactoring
+- When improving code quality, follow the decision tree from the code quality document, refactor complex methods into smaller helper methods, and create configuration classes to centralize parameters.
+- Use CodeScene analysis to identify code quality issues (low cohesion, complex methods, nested complexity) and verify improvements with 'cs delta', 'cs review', or 'cs check' commands.
+- Aim for perfect code quality scores (10/10) by following the code_quality_best_practices.md guidelines, focusing on one file at a time.
+- All new code and modified files must achieve a code quality score of 10, verified using the analyze script or CodeScene CLI.
+- Verify functionality is preserved after refactoring by running tests, including tests expecting specific exceptions.
+- Clean up unused imports in refactored modules.
+- Avoid using mock implementations in the code and instead use proper implementations.
+
+# Testing
+- When writing tests for ML components, organize tests by function, use parameterized test cases with dummy data, verify normal operation and edge cases, and aim for high test coverage.
+- When writing tests to improve code coverage, verify that they actually increase the coverage metrics.
+- When writing tests for dense_trunk.py, consider memory usage from Memray reports and aim for at least 90% test coverage.
+- Provide actual measurements when making claims about test coverage improvements.
+- Test files should be placed in the test directory rather than in the root directory.
+- Aim for near 100% test coverage.
+- Use pytest to run parallel tests using only 75% of available CPU cores or using 'pytest -n auto' to automatically determine the optimal number of parallel test processes.
+- Consider Kaggle competition goals when designing the test coverage increase scheme.
+- CI jobs in the RNA_PREDICT project require running 'make test' to pass.
+- Work on test coverage tasks one at a time, completing each before moving to the next, and aim to achieve 90% test coverage for individual modules before marking tasks as complete.
+- Be patient when running tests and do not prematurely terminate them.
+- Test each pipeline stage individually to verify proper Hydra integration following best practices.
+- Test device handling with CPU vs MPS (Metal Performance Shaders) rather than just CPU vs CUDA.
+- When testing Hydra configuration, verify that device overrides work correctly.
+- Standardize test data sequences across all pipeline stages using the same configuration approach.
+
+# Version Control
+- When processing Git files individually, stage one file, run pre-commit hooks, fix issues, commit with a descriptive message, then move to the next file.
+- Commit files in logical chunks rather than all at once and do not commit changes until they are fully ready.
+- Do not commit changes to version control.
+- Skip the test git commit hook when committing changes.
+- Exclude 'outputs' directory from version control by adding it to .gitignore.
+
