@@ -1,0 +1,16 @@
+defaults:
+  - default
+fast_dev_run: false
+limit_n: null
+
+# Hydra config for RNA_PREDICT inference pipeline
+# Inherits shared defaults and sets prediction-specific options
+
+input_csv: rna_predict/dataset/examples/kaggle_minimal_index.csv
+output_dir: outputs/predict_M2_test/
+checkpoint_path: null  # To be set on CLI or in script
+
+# Device and other overrides
+# device: cpu  # or mps/cuda as needed
+
+# Add any other prediction-specific overrides here

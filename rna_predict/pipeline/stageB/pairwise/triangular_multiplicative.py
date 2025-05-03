@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from functools import partialmethod
+# Removed partialmethod import as we're using explicit __init__ methods
 from typing import Optional
 from abc import ABC, abstractmethod
 
@@ -477,7 +477,8 @@ class TriangleMultiplicationOutgoing(TriangleMultiplicativeUpdate):
     Implements Algorithm 11.
     """
 
-    __init__ = partialmethod(TriangleMultiplicativeUpdate.__init__, _outgoing=True)
+    def __init__(self, c_z, c_hidden):
+        super().__init__(c_z=c_z, c_hidden=c_hidden, _outgoing=True)
 
 
 class TriangleMultiplicationIncoming(TriangleMultiplicativeUpdate):
@@ -485,7 +486,8 @@ class TriangleMultiplicationIncoming(TriangleMultiplicativeUpdate):
     Implements Algorithm 12.
     """
 
-    __init__ = partialmethod(TriangleMultiplicativeUpdate.__init__, _outgoing=False)
+    def __init__(self, c_z, c_hidden):
+        super().__init__(c_z=c_z, c_hidden=c_hidden, _outgoing=False)
 
 
 class FusedTriangleMultiplicativeUpdate(BaseTriangleMultiplicativeUpdate):
@@ -634,7 +636,8 @@ class FusedTriangleMultiplicationOutgoing(FusedTriangleMultiplicativeUpdate):
     Implements Algorithm 11.
     """
 
-    __init__ = partialmethod(FusedTriangleMultiplicativeUpdate.__init__, _outgoing=True)
+    def __init__(self, c_z, c_hidden):
+        super().__init__(c_z=c_z, c_hidden=c_hidden, _outgoing=True)
 
 
 class FusedTriangleMultiplicationIncoming(FusedTriangleMultiplicativeUpdate):
@@ -642,6 +645,5 @@ class FusedTriangleMultiplicationIncoming(FusedTriangleMultiplicativeUpdate):
     Implements Algorithm 12.
     """
 
-    __init__ = partialmethod(
-        FusedTriangleMultiplicativeUpdate.__init__, _outgoing=False
-    )
+    def __init__(self, c_z, c_hidden):
+        super().__init__(c_z=c_z, c_hidden=c_hidden, _outgoing=False)

@@ -211,6 +211,8 @@ class TestPredict3DStructure(unittest.TestCase):
     def minimal_stageC_config(**overrides):
         """Helper to create a minimal valid StageCConfig using structured config."""
         base = StageCConfig()
+        # Always set device to 'cpu' for tests to avoid CUDA errors
+        setattr(base, "device", "cpu")
         for k, v in overrides.items():
             setattr(base, k, v)
         return OmegaConf.structured(base)
@@ -380,6 +382,8 @@ class TestPredictSubmission(unittest.TestCase):
     def minimal_stageC_config(**overrides):
         """Helper to create a minimal valid StageCConfig using structured config."""
         base = StageCConfig()
+        # Always set device to 'cpu' for tests to avoid CUDA errors
+        setattr(base, "device", "cpu")
         for k, v in overrides.items():
             setattr(base, k, v)
         return OmegaConf.structured(base)
@@ -671,6 +675,8 @@ class TestPredictSubmissionParametricShapes(unittest.TestCase):
     def minimal_stageC_config(**overrides):
         """Helper to create a minimal valid StageCConfig using structured config."""
         base = StageCConfig()
+        # Always set device to 'cpu' for tests to avoid CUDA errors
+        setattr(base, "device", "cpu")
         for k, v in overrides.items():
             setattr(base, k, v)
         return OmegaConf.structured(base)
@@ -745,6 +751,11 @@ def test_rnapredictor_requires_stageC(cfg):
     """Property-based: RNAPredictor should raise ValueError if model.stageC is missing."""
     from omegaconf import OmegaConf
     import pytest
+
+    # Ensure the config always has a 'device' key to avoid ConfigAttributeError
+    if 'device' not in cfg:
+        cfg['device'] = 'cpu'
+
     with pytest.raises(ValueError, match="stageC"):
         RNAPredictor(OmegaConf.create(cfg))
 
@@ -762,7 +773,7 @@ def test_stageC_requires_do_ring_closure(present, expected_error):
     from omegaconf.errors import ValidationError
 
     # Create a minimal stageC config
-    stageC_config = TestRNAPredictorInitialization.minimal_stageC_config(method="mp_nerf", enabled=True)
+    stageC_config = TestRNAPredictorInitialization.minimal_stageC_config(method="mp_nerf", enabled=True, device="cpu")
 
     # Set or remove do_ring_closure based on the test case
     if present:

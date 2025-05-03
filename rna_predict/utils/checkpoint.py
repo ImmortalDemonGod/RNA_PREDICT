@@ -5,7 +5,7 @@ and supports strict/non-strict modes for robust checkpoint management.
 """
 import logging
 from collections import OrderedDict
-from typing import Tuple, List
+from typing import Tuple, List, Dict, Any, Union
 import torch
 
 logger = logging.getLogger(__name__)
@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 def partial_load_state_dict(
     model: torch.nn.Module,
-    state_dict: dict,
+    state_dict: Union[Dict[str, Any], OrderedDict[str, Any]],
     strict: bool = False
 ) -> Tuple[List[str], List[str]]:
     """
@@ -36,10 +36,14 @@ def partial_load_state_dict(
     if not isinstance(state_dict, OrderedDict):
         state_dict = OrderedDict(state_dict)
 
+    # Handle _metadata attribute which is expected by PyTorch but not part of the type
     metadata = getattr(state_dict, '_metadata', None)
     if metadata is not None:
+        # PyTorch's state_dict has a _metadata attribute that's not part of the type
+        # but is expected to be present for proper loading
         state_dict = state_dict.copy()
-        state_dict._metadata = metadata
+        # Use setattr to avoid mypy error with _metadata attribute
+        setattr(state_dict, '_metadata', metadata)
 
     own_state = model.state_dict()
 

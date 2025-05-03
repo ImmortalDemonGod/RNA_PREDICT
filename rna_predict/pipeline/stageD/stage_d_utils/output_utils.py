@@ -4,7 +4,7 @@ Extracted from run_stageD.py for modularity and testability.
 """
 from typing import Union, Tuple
 import torch
-from .context import StageDContext
+from rna_predict.pipeline.stageD.context import StageDContext
 import logging
 
 logger = logging.getLogger(__name__)
@@ -30,13 +30,16 @@ def run_diffusion_and_handle_output(
     coords = context.coords
     trunk_embeddings = context.trunk_embeddings
     input_feature_dict = context.input_feature_dict
+    unified_latent = context.unified_latent
     # Call the diffusion manager (inference or train mode)
     # FIXME: permanent use of the ProtenixDiffusionManager inference API
     try:
+        # Convert trunk_embeddings to Dict[str, Any] for compatibility
         result = diffusion_manager.multi_step_inference(
             coords_init=coords,
-            trunk_embeddings=trunk_embeddings,
+            trunk_embeddings=trunk_embeddings if trunk_embeddings is not None else {},
             override_input_features=input_feature_dict,
+            unified_latent=unified_latent,
         )
     except Exception as err:
         logger.exception("Diffusion inference failed for Stage D context (sequence: %s)", getattr(context, 'sequence', None))

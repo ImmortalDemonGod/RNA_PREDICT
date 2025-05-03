@@ -8,14 +8,13 @@ defaults:
 n_blocks: 1                 # Minimal number of Pairformer blocks
 n_heads: 1                  # Minimal number of attention heads
 c_z: 2                      # Minimal pair representation dimension
-c_s: 2                      # Minimal single representation dimension
 c_token: 384                # Token representation dimension
 c_atom: 128                 # Atom representation dimension
 c_pair: 32                  # Pair representation dimension
 dropout: 0.0                # Top-level dropout for Pairformer
 freeze_params: false
 
-device: ${device}  # Inherit from global device setting
+device: cpu  # Inherit from global device setting
 
 protenix_integration:
   c_token: 2
@@ -28,6 +27,9 @@ protenix_integration:
   r_max: 2
   s_max: 2
   use_optimized: false
+
+# Pair stack config
+c_s: 0  # No single representation in pair stack; set here for clarity and Hydra best practice
 
 # MSA parameters (minimal values, disabled)
 msa:

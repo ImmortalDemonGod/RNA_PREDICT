@@ -82,7 +82,7 @@ class TestCombinedTorsionPairformer(unittest.TestCase):
 
         # Create a default test config using the helper
         # Use smaller parameters matching the old setup for speed
-        self.test_cfg = create_stage_b_test_config(
+        self.test_cfg = OmegaConf.create({"model": create_stage_b_test_config(
             torsion_overrides={
                  "device": "cpu",
                  "angle_mode": "degrees", # Match old test default
@@ -95,9 +95,9 @@ class TestCombinedTorsionPairformer(unittest.TestCase):
                 "dropout": 0.1,
                 "use_checkpoint": False
             }
-        )
+        )})
         # Ensure device is consistent in the test config
-        self.device = self.test_cfg.stageB_torsion.device
+        self.device = self.test_cfg.model.stageB_torsion.device
 
     def test_run_stageB_combined_basic(self):
         """Test that run_stageB_combined runs without errors and returns expected output structure"""
@@ -122,8 +122,8 @@ class TestCombinedTorsionPairformer(unittest.TestCase):
 
         self.assertEqual(result["torsion_angles"].shape[0], N)
         # Get expected dims from config
-        expected_c_s = self.test_cfg.stageB_pairformer.c_s
-        expected_c_z = self.test_cfg.stageB_pairformer.c_z
+        expected_c_s = self.test_cfg.model.stageB_pairformer.c_s
+        expected_c_z = self.test_cfg.model.stageB_pairformer.c_z
         self.assertEqual(result["s_embeddings"].shape, (N, expected_c_s))
         self.assertEqual(result["z_embeddings"].shape, (N, N, expected_c_z))
 
@@ -135,7 +135,7 @@ class TestCombinedTorsionPairformer(unittest.TestCase):
     def test_run_stageB_combined_with_adjacency_init(self):
         """Test run_stageB_combined with adjacency-based initialization controlled by config"""
         # Create a specific config for this test
-        cfg_adj_init = create_stage_b_test_config(
+        cfg_adj_init = OmegaConf.create({"model": create_stage_b_test_config(
              torsion_overrides={ # Keep torsion settings consistent
                  "device": self.device,
                  "angle_mode": "degrees",
@@ -145,7 +145,7 @@ class TestCombinedTorsionPairformer(unittest.TestCase):
                 "n_blocks": 2, "c_z": 32, "c_s": 64, "dropout": 0.1, "use_checkpoint": False,
                 "init_z_from_adjacency": True # Enable flag via config
             }
-        )
+        )})
 
         result = run_stageB_combined(
             cfg=cfg_adj_init, # Pass the specific config
@@ -204,8 +204,8 @@ class TestCombinedTorsionPairformer(unittest.TestCase):
         # Create a config with the specified debug_logging value
         cfg = self.test_cfg
         cfg.debug_logging = debug_logging
-        cfg.stageB_torsion.debug_logging = debug_logging
-        cfg.stageB_pairformer.debug_logging = debug_logging
+        cfg.model.stageB_torsion.debug_logging = debug_logging
+        cfg.model.stageB_pairformer.debug_logging = debug_logging
 
         # Create adjacency matrix for the sequence
         N = len(sequence)

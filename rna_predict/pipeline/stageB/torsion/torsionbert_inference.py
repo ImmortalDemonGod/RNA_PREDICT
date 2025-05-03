@@ -4,6 +4,7 @@ from unittest.mock import MagicMock
 import torch
 import torch.nn as nn
 from transformers import AutoModel, AutoTokenizer
+from rna_predict.utils.device_management import get_device_for_component, move_to_device, handle_device_error
 
 
 class DummyTorsionBertAutoModel(nn.Module):
@@ -112,16 +113,62 @@ class TorsionBertModel(nn.Module):
         max_length: int = 512,
         device: str = "cpu",
         return_dict: bool = True,
+        cfg: Any = None,  # Optional config object for device management
     ) -> None:
         super().__init__()
         self.num_angles = num_angles
         self.max_length = max_length
-        self.device = torch.device(device)
         self.return_dict = return_dict
 
-        # Initialize tokenizer and model
-        self.tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
-        self.model = AutoModel.from_pretrained(model_path, trust_remote_code=True).to(self.device)
+        # Determine device using device management if config is provided
+        if cfg is not None:
+            try:
+                self.device = get_device_for_component(cfg, "model.stageB.torsion_bert.model", default_device=device)
+            except Exception as e:
+                print(f"[DEVICE-MANAGEMENT] Error getting device from config: {str(e)}. Using provided device: {device}")
+                self.device = torch.device(device)
+        else:
+            self.device = torch.device(device)
+
+        # Validate device availability with graceful fallback
+        try:
+            if self.device.type == "cuda" and not torch.cuda.is_available():
+                print(f"[DEVICE-WARNING] CUDA requested but not available. Falling back to CPU.")
+                self.device = torch.device("cpu")
+            if self.device.type == "mps" and not torch.backends.mps.is_available():
+                print(f"[DEVICE-WARNING] MPS requested but not available. Falling back to CPU.")
+                self.device = torch.device("cpu")
+        except Exception as e:
+            print(f"[DEVICE-ERROR] Error checking device availability: {str(e)}. Falling back to CPU.")
+            self.device = torch.device("cpu")
+
+        # Initialize tokenizer and model with error handling
+        try:
+            self.tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
+            self.model = AutoModel.from_pretrained(model_path, trust_remote_code=True)
+
+            # Move model to device with error handling
+            try:
+                self.model = self.model.to(self.device)
+
+                # Verify device placement
+                for name, param in self.model.named_parameters():
+                    if param.device != self.device:
+                        print(f"[DEVICE-WARNING] Parameter '{name}' is on {param.device}, expected {self.device}. Attempting to fix.")
+                        param.data = param.data.to(self.device)
+
+                for name, buf in self.model.named_buffers():
+                    if buf.device != self.device:
+                        print(f"[DEVICE-WARNING] Buffer '{name}' is on {buf.device}, expected {self.device}. Attempting to fix.")
+                        buf.data = buf.data.to(self.device)
+            except Exception as e:
+                print(f"[DEVICE-ERROR] Error moving model to {self.device}: {str(e)}. Falling back to CPU.")
+                self.device = torch.device("cpu")
+                self.model = self.model.to(self.device)
+        except Exception as e:
+            print(f"[MODEL-ERROR] Error loading model/tokenizer: {str(e)}. Using dummy model.")
+            self.tokenizer = None
+            self.model = DummyTorsionBertAutoModel(num_angles=num_angles)
 
         # If model is mocked (for testing), replace with dummy model
         if isinstance(self.model, MagicMock):
@@ -152,8 +199,45 @@ class TorsionBertModel(nn.Module):
         print(f"[DEBUG-TORSIONBERT-FORWARD] Input type: {type(inputs)}, keys: {list(inputs.keys()) if isinstance(inputs, dict) else 'N/A'}")
         if isinstance(inputs, dict):
             for k, v in inputs.items():
-                print(f"[DEBUG-TORSIONBERT-FORWARD] Input key: {k}, shape: {getattr(v, 'shape', None)}")
-        outputs = self.model(inputs)
+                print(f"[DEBUG-TORSIONBERT-FORWARD] Input key: {k}, shape: {getattr(v, 'shape', None)}, device: {getattr(v, 'device', None)}")
+
+        # Ensure inputs are on the correct device
+        try:
+            # Move inputs to the model's device
+            device_inputs = move_to_device(inputs, self.device)
+
+            # Try to run the model on the configured device
+            try:
+                outputs = self.model(device_inputs)
+            except Exception as e:
+                # Try dictionary unpacking as an alternative calling method
+                print(f"[MODEL-CALL] Error with direct call: {str(e)}. Trying dictionary unpacking.")
+                outputs = self.model(**device_inputs)
+
+        except Exception as e:
+            # If there's a device-related error, try falling back to CPU
+            print(f"[DEVICE-ERROR] Error running model on {self.device}: {str(e)}. Attempting CPU fallback.")
+
+            # Move model and inputs to CPU
+            cpu_device = torch.device("cpu")
+            if hasattr(self.model, 'to'):
+                self.model = self.model.to(cpu_device)
+                print(f"[DEVICE-FALLBACK] Moved model to CPU due to error on {self.device}")
+
+            # Move inputs to CPU
+            cpu_inputs = move_to_device(inputs, cpu_device)
+
+            # Try both calling methods on CPU
+            try:
+                outputs = self.model(cpu_inputs)
+            except Exception as inner_e:
+                try:
+                    print(f"[CPU-FALLBACK] Error with direct call: {str(inner_e)}. Trying dictionary unpacking.")
+                    outputs = self.model(**cpu_inputs)
+                except Exception as final_e:
+                    print(f"[FATAL-ERROR] All model calling methods failed. Original error: {str(e)}, CPU error: {str(final_e)}")
+                    raise RuntimeError(f"Failed to run model on any device: {str(final_e)}") from final_e
+
         print(f"[DEBUG-TORSIONBERT-FORWARD] Raw outputs type: {type(outputs)}")
         if hasattr(outputs, 'logits'):
             print(f"[DEBUG-TORSIONBERT-FORWARD] outputs.logits shape: {getattr(outputs.logits, 'shape', None)}")
@@ -231,8 +315,16 @@ class TorsionBertModel(nn.Module):
             max_length=self.max_length,
             truncation=True,
         )
-        for k_, v_ in inputs.items():
-            inputs[k_] = v_.to(self.device)
+
+        # Use device management utility to move tensors to the correct device
+        try:
+            # Try to move to the configured device
+            inputs = move_to_device(inputs, self.device)
+        except Exception as e:
+            # If there's an error, fall back to CPU
+            print(f"[DEVICE-ERROR] Error moving inputs to {self.device}: {str(e)}. Falling back to CPU.")
+            inputs = move_to_device(inputs, torch.device("cpu"))
+
         return inputs
 
     def _extract_raw_sincos(self, outputs) -> torch.Tensor:
@@ -271,7 +363,18 @@ class TorsionBertModel(nn.Module):
         sincos_dim = raw_sincos.shape[-1]
         n_3mers = raw_sincos.shape[1]
         print(f"[DEBUG-FILL-RESULT] seq_len={seq_len}, n_3mers={n_3mers}, raw_sincos.shape={raw_sincos.shape}")
-        result = torch.zeros((seq_len, sincos_dim), device=self.device)
+
+        # Create result tensor with device management
+        try:
+            # Try to create tensor on the configured device
+            result = torch.zeros((seq_len, sincos_dim), device=self.device)
+        except Exception as e:
+            # If there's an error, fall back to CPU
+            print(f"[DEVICE-ERROR] Error creating tensor on {self.device}: {str(e)}. Falling back to CPU.")
+            result = torch.zeros((seq_len, sincos_dim), device="cpu")
+            # Also move raw_sincos to CPU if needed
+            if raw_sincos.device.type != "cpu":
+                raw_sincos = raw_sincos.to("cpu")
 
         if seq_len == 0:
             print("[DEBUG-FILL-RESULT] Empty sequence, returning empty result tensor.")
@@ -295,8 +398,12 @@ class TorsionBertModel(nn.Module):
     def predict_angles_from_sequence(self, sequence: str) -> torch.Tensor:
         """Predict torsion angles from an RNA sequence."""
         if not sequence:
-            # Return empty tensor for empty sequence
-            return torch.zeros((0, 2 * self.num_angles), device=self.device)
+            # Return empty tensor for empty sequence - use device management
+            try:
+                return torch.zeros((0, 2 * self.num_angles), device=self.device)
+            except Exception as e:
+                print(f"[DEVICE-ERROR] Error creating empty tensor on {self.device}: {str(e)}. Falling back to CPU.")
+                return torch.zeros((0, 2 * self.num_angles), device="cpu")
 
         # Preprocess sequence
         seq, seq_len = self._preprocess_sequence(sequence)
@@ -315,4 +422,14 @@ class TorsionBertModel(nn.Module):
 
         # Fill result tensor
         result = self._fill_result(raw_sincos, seq_len)
-        return result.to(self.device)
+
+        # Ensure result is on the correct device
+        try:
+            # Try to move result to the configured device
+            if result.device != self.device:
+                result = result.to(self.device)
+        except Exception as e:
+            # If there's an error, leave it on its current device (likely CPU)
+            print(f"[DEVICE-ERROR] Error moving result to {self.device}: {str(e)}. Keeping on {result.device}.")
+
+        return result

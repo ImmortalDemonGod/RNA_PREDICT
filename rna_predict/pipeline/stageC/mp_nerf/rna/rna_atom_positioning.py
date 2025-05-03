@@ -3,7 +3,11 @@ RNA atom positioning functions for MP-NeRF implementation.
 """
 
 import torch
+import logging
 
+logger = logging.getLogger("rna_predict.pipeline.stageC.mp_nerf.rna_atom_positioning")
+
+###@snoop  
 def calculate_atom_position(
     prev_prev_atom, prev_atom, bond_length, bond_angle, torsion_angle, device
 ):
@@ -21,54 +25,61 @@ def calculate_atom_position(
     Returns:
         Position of the new atom
     """
-    # Convert inputs to tensors if they aren't already
-    prev_prev_atom = torch.as_tensor(prev_prev_atom, device=device)
-    prev_atom = torch.as_tensor(prev_atom, device=device)
-    bond_length = torch.as_tensor(bond_length, device=device)
-    bond_angle = torch.as_tensor(bond_angle, device=device)
-    torsion_angle = torch.as_tensor(torsion_angle, device=device)
+    # DEBUG: Log requires_grad and grad_fn for all inputs
+    logger.debug(f"[DEBUG-CALCATOM] prev_prev_atom requires_grad: {getattr(prev_prev_atom, 'requires_grad', None)}, grad_fn: {getattr(prev_prev_atom, 'grad_fn', None)}")
+    logger.debug(f"[DEBUG-CALCATOM] prev_atom requires_grad: {getattr(prev_atom, 'requires_grad', None)}, grad_fn: {getattr(prev_atom, 'grad_fn', None)}")
+    logger.debug(f"[DEBUG-CALCATOM] bond_length requires_grad: {getattr(bond_length, 'requires_grad', None)}, grad_fn: {getattr(bond_length, 'grad_fn', None)}")
+    logger.debug(f"[DEBUG-CALCATOM] bond_angle requires_grad: {getattr(bond_angle, 'requires_grad', None)}, grad_fn: {getattr(bond_angle, 'grad_fn', None)}")
+    logger.debug(f"[DEBUG-CALCATOM] torsion_angle requires_grad: {getattr(torsion_angle, 'requires_grad', None)}, grad_fn: {getattr(torsion_angle, 'grad_fn', None)}")
 
     # Calculate bond vector
     bond_vector = prev_atom - prev_prev_atom
-    bond_vector = bond_vector / (
-        torch.norm(bond_vector) + 1e-8
-    )  # Normalize with epsilon to avoid division by zero
+    if bond_vector.device != torch.device(device):
+        bond_vector = bond_vector.to(device)
+    bond_vector = bond_vector / (torch.norm(bond_vector) + 1e-8)
+
+    # --- Debug logging for angle types and values ---
+    logger.debug(f"[DEBUG-CALCATOM] bond_angle type: {type(bond_angle)}, value: {bond_angle}")
+    logger.debug(f"[DEBUG-CALCATOM] torsion_angle type: {type(torsion_angle)}, value: {torsion_angle}")
+    # --- Ensure angles are tensors ---
+    if not torch.is_tensor(bond_angle):
+        logger.error(f"[ERR-RNAPREDICT-TYPE-ANGLE-001] bond_angle is not a Tensor, got {type(bond_angle)}. Auto-converting.")
+        bond_angle = torch.tensor(bond_angle, dtype=prev_atom.dtype, device=device)
+    if not torch.is_tensor(torsion_angle):
+        logger.error(f"[ERR-RNAPREDICT-TYPE-ANGLE-002] torsion_angle is not a Tensor, got {type(torsion_angle)}. Auto-converting.")
+        torsion_angle = torch.tensor(torsion_angle, dtype=prev_atom.dtype, device=device)
 
     # Calculate perpendicular vector
-    perpendicular = torch.linalg.cross(
-        input=torch.linalg.cross(input=bond_vector, other=torch.tensor([0.0, 0.0, 1.0], device=device), dim=-1),
-        other=bond_vector,
-        dim=-1
-    )
-    if torch.norm(perpendicular) < 1e-8:  # If parallel to z-axis
-        perpendicular = torch.tensor([1.0, 0.0, 0.0], device=device)
-    perpendicular = perpendicular / (torch.norm(perpendicular) + 1e-8)
+    z_axis = torch.tensor([0.0, 0.0, 1.0], dtype=prev_atom.dtype, device=prev_atom.device)
+    perp = torch.cross(torch.cross(bond_vector, z_axis, dim=-1), bond_vector, dim=-1)
+    if torch.norm(perp) < 1e-8:
+        perp = torch.tensor([1.0, 0.0, 0.0], dtype=prev_atom.dtype, device=prev_atom.device)
+    perp = perp / (torch.norm(perp) + 1e-8)
 
-    # Calculate rotation matrix for bond angle
+    # Rotation matrices using tensor ops
     cos_theta = torch.cos(bond_angle)
     sin_theta = torch.sin(bond_angle)
-    rotation_bond = torch.tensor(
-        [[cos_theta, -sin_theta, 0.0], [sin_theta, cos_theta, 0.0], [0.0, 0.0, 1.0]],
-        device=device,
-    )
+    rotation_bond = torch.stack([
+        torch.stack([cos_theta, -sin_theta, torch.zeros_like(cos_theta, device=device)]),
+        torch.stack([sin_theta, cos_theta, torch.zeros_like(sin_theta, device=device)]),
+        torch.stack([torch.zeros_like(cos_theta, device=device), torch.zeros_like(cos_theta, device=device), torch.ones_like(cos_theta, device=device)])
+    ])
 
-    # Calculate rotation matrix for torsion angle
     cos_phi = torch.cos(torsion_angle)
     sin_phi = torch.sin(torsion_angle)
-    rotation_torsion = torch.tensor(
-        [[cos_phi, -sin_phi, 0.0], [sin_phi, cos_phi, 0.0], [0.0, 0.0, 1.0]],
-        device=device,
-    )
+    rotation_torsion = torch.stack([
+        torch.stack([cos_phi, -sin_phi, torch.zeros_like(cos_phi, device=device)]),
+        torch.stack([sin_phi, cos_phi, torch.zeros_like(sin_phi, device=device)]),
+        torch.stack([torch.zeros_like(cos_phi, device=device), torch.zeros_like(cos_phi, device=device), torch.ones_like(cos_phi, device=device)])
+    ])
 
-    # Combine rotations
     rotation = torch.matmul(rotation_torsion, rotation_bond)
-
-    # Calculate new position
     new_vector = torch.matmul(rotation, bond_vector.unsqueeze(-1)).squeeze(-1)
     new_position = prev_atom + bond_length * new_vector
-
-    # --- DEBUG: Check for NaN in output ---
+    logger.debug(f"[DEBUG-CALCATOM] new_position requires_grad: {getattr(new_position, 'requires_grad', None)}, grad_fn: {getattr(new_position, 'grad_fn', None)}")
     if torch.isnan(new_position).any():
-        print(f"[ERR-RNAPREDICT-NAN-PLACEMENT-001] NaN detected in calculate_atom_position.\n  prev_prev_atom: {prev_prev_atom}\n  prev_atom: {prev_atom}\n  bond_length: {bond_length}\n  bond_angle: {bond_angle}\n  torsion_angle: {torsion_angle}\n  device: {device}")
-
+        logger.error(f"[ERR-RNAPREDICT-NAN-PLACEMENT-001] NaN detected in calculate_atom_position.\n  prev_prev_atom: {prev_prev_atom}\n  prev_atom: {prev_atom}\n  bond_length: {bond_length}\n  bond_angle: {bond_angle}\n  torsion_angle: {torsion_angle}\n  device: {prev_atom.device}")
+    # --- DEBUG: Check requires_grad and grad_fn after atom positioning ---
+    if isinstance(new_position, torch.Tensor):
+        logger.debug(f"[GRAD-TRACE-ATOM-POSITIONING] new_position.requires_grad: {new_position.requires_grad}, grad_fn: {new_position.grad_fn}")
     return new_position

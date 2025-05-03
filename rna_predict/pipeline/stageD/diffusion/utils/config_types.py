@@ -6,6 +6,7 @@ This module provides type definitions for configuration objects used in the Stag
 
 from dataclasses import dataclass, field
 from typing import Any, Dict, Optional
+from omegaconf import DictConfig
 
 import torch
 
@@ -17,7 +18,7 @@ class DiffusionConfig:
     # Required parameters
     partial_coords: torch.Tensor
     trunk_embeddings: Dict[str, torch.Tensor]
-    diffusion_config: Dict[str, Any]
+    diffusion_config: DictConfig
 
     # Optional parameters with defaults
     mode: str = "inference"
@@ -26,7 +27,7 @@ class DiffusionConfig:
     debug_logging: bool = False
     sequence: Optional[str] = None
     test_residues_per_batch: int = 25  # Added parameter for inference mode
-    cfg: Optional[Any] = None  # Added parameter for Hydra config
+    cfg: Optional[DictConfig] = None
     atom_metadata: Optional[Dict[str, Any]] = None  # Added parameter for atom metadata
 
     # Feature parameters required by _validate_feature_config

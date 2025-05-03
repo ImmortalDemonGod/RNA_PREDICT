@@ -5,6 +5,7 @@ Main module for running ml_utils functionality directly.
 from typing import List, Optional, Tuple
 import einops
 import torch
+import logging
 
 from .coordinate_transforms import (
     CombineNoiseConfig,
@@ -13,6 +14,7 @@ from .coordinate_transforms import (
 )
 from rna_predict.pipeline.stageC.mp_nerf.ml_utils import combine_noise_legacy
 
+logger = logging.getLogger(__name__)
 
 def _load_protein_data(data_path: str) -> Optional[List]:
     """
@@ -30,11 +32,11 @@ def _load_protein_data(data_path: str) -> Optional[List]:
         prots = joblib.load(data_path)
         return prots
     except FileNotFoundError:
-        print(f"Error: Could not find the data file '{data_path}'.")
-        print("This script requires a specific data file to run its main logic.")
+        logger.error(f"Error: Could not find the data file '{data_path}'.")
+        logger.error("This script requires a specific data file to run its main logic.")
         return None
     except Exception as e:
-        print(f"Error loading data file: {e}")
+        logger.error(f"Error loading data file: {e}")
         return None
 
 
@@ -56,7 +58,7 @@ def _validate_protein_data(prots: List) -> Optional[Tuple]:
     )
     
     if not is_valid:
-        print("Error: Loaded data does not have the expected format.")
+        logger.error("Error: Loaded data does not have the expected format.")
         return None
         
     # Unpack the last protein
@@ -65,7 +67,7 @@ def _validate_protein_data(prots: List) -> Optional[Tuple]:
     
     # Basic type/shape validation
     if not isinstance(seq, str) or not isinstance(true_coords, torch.Tensor):
-        print("Error: Unexpected data types after unpacking.")
+        logger.error("Error: Unexpected data types after unpacking.")
         return None
         
     return protein_data
@@ -131,9 +133,9 @@ def _test_noise_internals(
             coords=coords_scn[0],
             config=noise_config
         )
-        print("cloud.shape", cloud.shape)
+        logger.info(f"cloud.shape {cloud.shape}")
     except Exception as e:
-        print(f"Error during noise_internals check: {e}")
+        logger.error(f"Error during noise_internals check: {e}")
 
 
 def _test_combine_noise(
@@ -171,9 +173,9 @@ def _test_combine_noise(
             noise_internals=config.noise_internals_scale,
             sidechain_reconstruct=config.sidechain_reconstruct,
         )
-        print(f"integral.shape (with {input_type})", integral.shape)
+        logger.info(f"integral.shape (with {input_type}) {integral.shape}")
     except Exception as e:
-        print(f"Error during combine_noise check (with {input_type}): {e}")
+        logger.error(f"Error during combine_noise check (with {input_type}): {e}")
 
 
 def _run_main_logic():

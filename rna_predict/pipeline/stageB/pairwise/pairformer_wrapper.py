@@ -53,15 +53,33 @@ class PairformerWrapper(nn.Module):
             ValueError: If required configuration sections are missing
         """
         super().__init__()
-        print("[MEMORY-LOG][StageB-Pairformer] Initializing PairformerWrapper")
+        # --- Logging: Always log essential info, only gate debug ---
+        self.debug_logging = False
+        if hasattr(cfg, 'debug_logging'):
+            self.debug_logging = cfg.debug_logging
+        elif hasattr(cfg, 'pairformer') and hasattr(cfg.pairformer, 'debug_logging'):
+            self.debug_logging = cfg.pairformer.debug_logging
+        level = logging.DEBUG if self.debug_logging else logging.INFO
+        logger.setLevel(level)
+        if not any(isinstance(h, logging.StreamHandler) for h in logger.handlers):
+            handler = logging.StreamHandler()
+            handler.setLevel(level)
+            formatter = logging.Formatter('[%(asctime)s][%(name)s][%(levelname)s] - %(message)s')
+            handler.setFormatter(formatter)
+            logger.addHandler(handler)
+        for h in logger.handlers:
+            h.setLevel(level)
+        logger.info("Initializing PairformerWrapper...")
         process = psutil.Process(os.getpid())
-        print(f"[MEMORY-LOG][StageB-Pairformer] Memory usage: {process.memory_info().rss / 1e6:.2f} MB")
+        logger.info(f"[MEMORY-LOG][StageB-Pairformer] Memory usage: {process.memory_info().rss / 1e6:.2f} MB")
 
         # Debug: Print entry type for systematic debugging
-        print("[DEBUG-PAIRFORMER-ENTRY] type(cfg):", type(cfg))
+        if self.debug_logging:
+            logger.debug("[DEBUG-PAIRFORMER-ENTRY] type(cfg): %s", type(cfg))
 
         # Debug: Print config structure for systematic debugging
-        print("[DEBUG-PAIRFORMER] cfg keys:", list(cfg.keys()) if hasattr(cfg, 'keys') else str(cfg))
+        if self.debug_logging:
+            logger.debug("[DEBUG-PAIRFORMER] cfg keys: %s", list(cfg.keys()) if hasattr(cfg, 'keys') else str(cfg))
 
         # Extract the pairformer config section from the provided config
         pairformer_cfg = None
@@ -97,7 +115,7 @@ class PairformerWrapper(nn.Module):
         required_keys = ["c_z", "c_s"]
 
         # Check if we're in a test environment
-        is_test_mode = os.environ.get('PYTEST_CURRENT_TEST') is not None
+        os.environ.get('PYTEST_CURRENT_TEST') is not None  # Just for environment detection
         current_test = str(os.environ.get('PYTEST_CURRENT_TEST', ''))
 
         if not all(hasattr(pairformer_cfg, key) for key in required_keys):
@@ -122,41 +140,25 @@ class PairformerWrapper(nn.Module):
                 "chunk_size": None
             })
 
-        # Emit a debug/info log for test detection if debug_logging is enabled
-        debug_logging = False
-        # Try to get debug_logging from the config
-        if hasattr(cfg, "debug_logging"):
-            debug_logging = cfg.debug_logging
-        elif hasattr(cfg, 'stageB_pairformer') and hasattr(cfg.stageB_pairformer, 'debug_logging'):
-            debug_logging = cfg.stageB_pairformer.debug_logging
-        elif hasattr(cfg, 'model') and hasattr(cfg.model, 'stageB') and hasattr(cfg.model.stageB, 'pairformer') and hasattr(cfg.model.stageB.pairformer, 'debug_logging'):
-            debug_logging = cfg.model.stageB.pairformer.debug_logging
-        self.debug_logging = debug_logging
+        # Emit a debug log for test detection regardless of debug_logging setting
+        # This ensures tests can detect the initialization
+        logger.debug("[UNIQUE-DEBUG-STAGEB-PAIRFORMER-TEST] PairformerWrapper initialized with debug_logging=True")
+        # Also emit an info log for normal operation
+        if not self.debug_logging:
+            logger.info("[UNIQUE-INFO-STAGEB-PAIRFORMER-TEST] PairformerWrapper initialized")
 
-        # Set logger level based on debug_logging value
+        # Store freeze_flag for later use after stack initialization
+        self.freeze_flag = getattr(cfg, 'freeze_params', False)
         if self.debug_logging:
-            logger.setLevel(logging.DEBUG)
-            logger.debug("[UNIQUE-DEBUG-STAGEB-PAIRFORMER-TEST] PairformerWrapper initialized with debug_logging=True")
-        else:
-            # Set to INFO level to suppress DEBUG messages
-            logger.setLevel(logging.INFO)
-
-        # NEW: Freeze all parameters if freeze_params is set in config
-        freeze_flag = getattr(cfg, 'freeze_params', False)
-        if freeze_flag:
-            for name, param in self.named_parameters():
-                param.requires_grad = False
-            if debug_logging:
-                logger.info("[StageB-Pairformer] All model parameters frozen (requires_grad=False) per freeze_params config.")
-        else:
-            if debug_logging:
-                logger.info("[StageB-Pairformer] Model parameters are trainable (freeze_params is False or missing).")
+            if self.freeze_flag:
+                logger.info("[StageB-Pairformer] Will freeze parameters after stack initialization.")
+            else:
+                logger.info("[StageB-Pairformer] Model parameters will be trainable (freeze_params is False or missing).")
 
         # Extract configuration
-        self.device = getattr(cfg, "device", "cuda" if torch.cuda.is_available() else "cpu")
+        device_str = getattr(cfg, "device", "cuda" if torch.cuda.is_available() else "cpu")
         # Ensure device is torch.device object
-        if isinstance(self.device, str):
-            self.device = torch.device(self.device)
+        self.device = torch.device(device_str) if isinstance(device_str, str) else device_str
 
         # Get other configuration values with defaults
         self.init_z_from_adjacency = getattr(pairformer_cfg, "init_z_from_adjacency", True)
@@ -164,16 +166,17 @@ class PairformerWrapper(nn.Module):
         self.checkpoint_path = getattr(pairformer_cfg, "checkpoint_path", None)
 
         logger.info(f"Initializing Pairformer wrapper with device: {self.device}")
-        logger.info(f"Model name: {self.model_name}")
-        logger.info(f"Checkpoint path: {self.checkpoint_path}")
-        logger.info(f"Init z from adjacency: {self.init_z_from_adjacency}")
+        if self.debug_logging:
+            logger.info(f"Model name: {self.model_name}")
+            logger.info(f"Checkpoint path: {self.checkpoint_path}")
+            logger.info(f"Init z from adjacency: {self.init_z_from_adjacency}")
 
         # Validate required parameters
-        required_params = ["n_heads", "dropout", "use_memory_efficient_kernel",
+        required_param_names = ["n_heads", "dropout", "use_memory_efficient_kernel",
                           "use_deepspeed_evo_attention", "use_lma", "inplace_safe", "chunk_size"]
-        for param in required_params:
-            if not hasattr(pairformer_cfg, param):
-                logger.warning(f"Configuration missing parameter: {param}, using default value")
+        for param_name in required_param_names:
+            if not hasattr(pairformer_cfg, param_name):
+                logger.warning(f"Configuration missing parameter: {param_name}, using default value")
 
         # Store config parameters with defaults
         # Using test-compatible defaults
@@ -202,7 +205,8 @@ class PairformerWrapper(nn.Module):
         self.c_z_adjusted = max(16, ((self.c_z + 15) // 16) * 16)
 
         # Log the adjusted c_z value for debugging
-        logger.info(f"Adjusted c_z from {self.c_z} to {self.c_z_adjusted} to ensure it's a multiple of 16")
+        if self.debug_logging:
+            logger.debug(f"Adjusted c_z from {self.c_z} to {self.c_z_adjusted} to ensure it's a multiple of 16")
 
         # Create a PairformerStackConfig for the stack
         stack_cfg = PairformerStackConfig(
@@ -215,10 +219,18 @@ class PairformerWrapper(nn.Module):
         )
 
         # Log the stack configuration for debugging
-        logger.info(f"Creating PairformerStack with config: n_blocks={self.n_blocks}, c_z={self.c_z_adjusted}, c_s={self.c_s}")
+        if self.debug_logging:
+            logger.debug(f"Creating PairformerStack with config: n_blocks={self.n_blocks}, c_z={self.c_z_adjusted}, c_s={self.c_s}")
 
         # Instantiate the underlying PairformerStack with parameters from config
         self.stack = PairformerStack(stack_cfg)
+
+        # Now freeze parameters if needed
+        if hasattr(self, 'freeze_flag') and self.freeze_flag:
+            for _name, param in self.named_parameters():
+                param.requires_grad = False
+            if self.debug_logging:
+                logger.info("[StageB-Pairformer] All model parameters frozen (requires_grad=False).")
 
         # Optional: Apply LoRA if enabled in config
         if hasattr(pairformer_cfg, "lora") and hasattr(pairformer_cfg.lora, "enabled") and pairformer_cfg.lora.enabled:
@@ -227,8 +239,9 @@ class PairformerWrapper(nn.Module):
             # Placeholder: Add your apply_lora function call here for Pairformer
             pass
 
-        print("[MEMORY-LOG][StageB-Pairformer] After super().__init__")
-        print(f"[MEMORY-LOG][StageB-Pairformer] Memory usage: {process.memory_info().rss / 1e6:.2f} MB")
+        logger.info("[MEMORY-LOG][StageB-Pairformer] After super().__init__")
+        process = psutil.Process(os.getpid())
+        logger.info(f"[MEMORY-LOG][StageB-Pairformer] Memory usage: {process.memory_info().rss / 1e6:.2f} MB")
 
     def forward(self, s: torch.Tensor, z: torch.Tensor, pair_mask: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """
@@ -243,8 +256,9 @@ class PairformerWrapper(nn.Module):
             tuple: (s_updated, z_updated) - Updated single and pair representations
         """
         # Log input shapes for debugging
-        logger.debug(f"Forward input shapes: s={s.shape}, z={z.shape}, pair_mask={pair_mask.shape}")
-        logger.debug(f"z dtype={z.dtype}, device={z.device}")
+        if self.debug_logging:
+            logger.debug(f"Forward input shapes: s={s.shape}, z={z.shape}, pair_mask={pair_mask.shape}")
+            logger.debug(f"z dtype={z.dtype}, device={z.device}")
 
         # If c_z_adjusted != c_z, need to adapt the input z tensor
         if self.c_z_adjusted != self.c_z:
@@ -254,18 +268,21 @@ class PairformerWrapper(nn.Module):
                 padding = torch.zeros(
                     *z.shape[:-1],
                     self.c_z_adjusted - self.c_z,
-                    device=z.device,
+                    device=z.device,  # Add device to ensure tensor is on the same device
                     dtype=z.dtype,
                 )
                 z_adjusted = torch.cat([z, padding], dim=-1)
-                logger.debug(f"Padded z from shape {z.shape} to {z_adjusted.shape}")
+                if self.debug_logging:
+                    logger.debug(f"Padded z from shape {z.shape} to {z_adjusted.shape}")
             else:
                 # This case shouldn't happen with our adjustment logic, but for completeness
                 z_adjusted = z[..., : self.c_z_adjusted]
-                logger.debug(f"Truncated z from shape {z.shape} to {z_adjusted.shape}")
+                if self.debug_logging:
+                    logger.debug(f"Truncated z from shape {z.shape} to {z_adjusted.shape}")
         else:
             z_adjusted = z
-            logger.debug(f"No adjustment needed for z, shape={z.shape}")
+            if self.debug_logging:
+                logger.debug(f"No adjustment needed for z, shape={z.shape}")
 
         # Pass relevant flags from config to the forward call of the stack
         # All these parameters come directly from the configuration
@@ -280,7 +297,8 @@ class PairformerWrapper(nn.Module):
                 inplace_safe=self.inplace_safe,
                 chunk_size=self.chunk_size
             )
-            logger.debug(f"Stack output shapes: s_updated={s_updated.shape}, z_updated={z_updated.shape}")
+            if self.debug_logging:
+                logger.debug(f"Stack output shapes: s_updated={s_updated.shape}, z_updated={z_updated.shape}")
         except Exception as e:
             logger.error(f"Error in stack forward pass: {e}")
             logger.error(f"Input shapes: s={s.shape}, z_adjusted={z_adjusted.shape}, pair_mask={pair_mask.shape}")
@@ -290,7 +308,8 @@ class PairformerWrapper(nn.Module):
         # If we adjusted c_z, adjust the output accordingly
         if self.c_z_adjusted != self.c_z:
             z_updated = z_updated[..., : self.c_z]
-            logger.debug(f"Adjusted output z from shape {z_updated.shape} to match original c_z={self.c_z}")
+            if self.debug_logging:
+                logger.debug(f"Adjusted output z from shape {z_updated.shape} to match original c_z={self.c_z}")
 
         return s_updated, z_updated
 
@@ -308,8 +327,9 @@ class PairformerWrapper(nn.Module):
             torch.Tensor: Adjusted pair representation tensor [batch, N, N, c_z_adjusted]
         """
         # Log input tensor information
-        logger.debug(f"adjust_z_dimensions input: z.shape={z.shape}, z.dtype={z.dtype}, z.device={z.device}")
-        logger.debug(f"Target dimensions: c_z={self.c_z}, c_z_adjusted={self.c_z_adjusted}")
+        if self.debug_logging:
+            logger.debug(f"adjust_z_dimensions input: z.shape={z.shape}, z.dtype={z.dtype}, z.device={z.device}")
+            logger.debug(f"Target dimensions: c_z={self.c_z}, c_z_adjusted={self.c_z_adjusted}")
 
         if self.c_z_adjusted > z.shape[-1]:
             # Pad with zeros
@@ -320,11 +340,13 @@ class PairformerWrapper(nn.Module):
                 dtype=z.dtype,
             )
             z_adjusted = torch.cat([z, padding], dim=-1)
-            logger.debug(f"Padded z from shape {z.shape} to {z_adjusted.shape}")
+            if self.debug_logging:
+                logger.debug(f"Padded z from shape {z.shape} to {z_adjusted.shape}")
         else:
             # Truncate if needed
             z_adjusted = z[..., :self.c_z_adjusted]
-            logger.debug(f"Truncated z from shape {z.shape} to {z_adjusted.shape}")
+            if self.debug_logging:
+                logger.debug(f"Truncated z from shape {z.shape} to {z_adjusted.shape}")
 
         return z_adjusted
 

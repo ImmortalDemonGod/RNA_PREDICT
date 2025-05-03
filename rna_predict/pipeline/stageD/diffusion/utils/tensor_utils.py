@@ -5,12 +5,13 @@ This module provides functions for manipulating tensors in the Stage D diffusion
 """
 
 import logging
+from typing import Optional
 import torch
 
 logger = logging.getLogger(__name__)
 
 
-def normalize_tensor_dimensions(tensor: torch.Tensor, batch_size: int, key: str = None, preserve_n_sample: bool = False) -> torch.Tensor:
+def normalize_tensor_dimensions(tensor: torch.Tensor, batch_size: int, key: Optional[str] = None, preserve_n_sample: bool = False) -> torch.Tensor:
     """
     Normalize tensor dimensions by squeezing extra dimensions and ensuring batch size matches.
     For pair embeddings (key == 'pair' or 'z_trunk'), preserves [B, N_res, N_res, C] shape even if N_res=1.

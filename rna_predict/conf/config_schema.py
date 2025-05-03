@@ -7,6 +7,34 @@ from hydra.core.config_store import ConfigStore
 from rna_predict.pipeline.stageD.config import NoiseScheduleConfig, SamplingConfig
 
 @dataclass
+class DeviceConfig:
+    """Configuration for device management and fallback behavior."""
+    primary: str = field(
+        default="cpu",
+        metadata={"help": "Primary device to use: 'cuda', 'cpu', or 'mps' (Apple Silicon)"}
+    )
+    fallback: str = field(
+        default="cpu",
+        metadata={"help": "Fallback device if primary device has compatibility issues"}
+    )
+    auto_fallback: bool = field(
+        default=True,
+        metadata={"help": "Automatically fall back to fallback device when compatibility issues occur"}
+    )
+    force_components_to_cpu: List[str] = field(
+        default_factory=lambda: [],
+        metadata={"help": "List of component names that should always use CPU regardless of primary device"}
+    )
+
+    def __post_init__(self):
+        """Validate device configuration."""
+        valid_devices = ["cuda", "cpu", "mps"]
+        if self.primary not in valid_devices:
+            raise ValueError(f"primary device must be one of {valid_devices}, got {self.primary}")
+        if self.fallback not in valid_devices:
+            raise ValueError(f"fallback device must be one of {valid_devices}, got {self.fallback}")
+
+@dataclass
 class DimensionsConfig:
     """Centralized configuration for model dimensions across all stages."""
     # Single representation dimensions
@@ -75,6 +103,7 @@ cs = ConfigStore.instance()
 def register_configs() -> None:
     """Register all configurations with Hydra's config store for validation."""
     cs.store(name="rna_config_schema", node=RNAConfig)
+    cs.store(group="device_management", name="default", node=DeviceConfig)
     cs.store(group="model", name="dimensions", node=DimensionsConfig)
     cs.store(group="model", name="stageA", node=StageAConfig)
     cs.store(group="model", name="stageB_torsion", node=TorsionBertConfig)
@@ -92,6 +121,7 @@ def register_configs() -> None:
     cs.store(group="test", name="data", node=TestDataConfig)
     cs.store(group="model", name="protenix_integration", node=ProtenixIntegrationConfig)
     cs.store(group="feature_dimensions", name="default", node=FeatureDimensionsConfig)
+    cs.store(group="data", name="default", node=DataConfig)
 
 def validate_config(cfg: Union[dict, "RNAConfig"]) -> None:
     """Validate configuration using OmegaConf structured validation.
@@ -172,6 +202,7 @@ class ModelArchConfig:
 @dataclass
 class StageAConfig:
     """Configuration specific to Stage A (RFold Adjacency Prediction)."""
+    enabled: bool = True
     # Top-level architecture and processing params
     num_hidden: int = field(
         default=8,  # CHANGED: was 128 (to reduce memory usage)
@@ -570,6 +601,7 @@ class ProtenixIntegrationConfig:
                         metadata={"help": "Atom dimension for embeddings"})
     c_pair: int = field(default=4,    # CHANGED: was 32
                         metadata={"help": "Pair dimension for embeddings"})
+    atoms_per_token: int = field(default=4, metadata={"help": "Number of atoms per token; used for mapping tokens to atoms (was hardcoded in Stage B, now configurable)"})
 
     # Attention parameters
     num_heads: int = field(default=2,  # CHANGED: was 4
@@ -719,7 +751,7 @@ class StageCConfig:
         metadata={"help": "Sugar pucker conformation: C3'-endo or C2'-endo"}
     )
     device: str = field(
-        default="cuda",
+        default="cpu",
         metadata={"help": "Device to run the model on"}
     )
     angle_representation: str = field(
@@ -1246,8 +1278,46 @@ class TestDataConfig:
         },
         metadata={"help": "Dimensions for various embeddings"}
     )
+
+    # Kaggle minimal loader test config
+    sequence_path: Optional[str] = field(
+        default=None,
+        metadata={"help": "Path to sequence CSV file for testing"}
+    )
+    data_index: Optional[str] = field(
+        default=None,
+        metadata={"help": "Path to data index CSV file for testing"}
+    )
+    target_id: Optional[str] = field(
+        default=None,
+        metadata={"help": "Target ID for testing"}
+    )
+
     # Allow arbitrary model group for test config composition
     model: Optional[Any] = None
+
+@dataclass
+class DataConfig:
+    """Structured config for all dataset/data loading parameters."""
+    index_csv: str = field(default="./data/index.csv", metadata={"help": "Path to dataset index CSV"})
+    root_dir: str = field(default="./data/", metadata={"help": "Root directory for data files"})
+    max_residues: int = field(default=512, metadata={"help": "Pad/truncate all sequences to this residue length"})
+    max_atoms: int = field(default=4096, metadata={"help": "Pad/truncate all atom arrays to this length"})
+    C_element: int = field(default=128, metadata={"help": "Element embedding size"})
+    C_char: int = field(default=256, metadata={"help": "Atom name character embedding size"})
+    ref_element_size: int = field(default=4, metadata={"help": "Size of reference element embeddings"})
+    ref_atom_name_chars_size: int = field(default=8, metadata={"help": "Size of atom name character embeddings"})
+    batch_size: int = field(default=4, metadata={"help": "DataLoader batch size"})
+    num_workers: int = field(default=8, metadata={"help": "Number of DataLoader workers"})
+    load_adj: bool = field(default=False, metadata={"help": "Whether to load adjacency ground truth"})
+    load_ang: bool = field(default=False, metadata={"help": "Whether to load angle ground truth"})
+    coord_fill_value: Union[float, str] = field(default="nan", metadata={"help": "Default for missing coordinates, can be 'nan' or a float"})
+    coord_dtype: str = field(default="float32", metadata={"help": "Torch dtype as string, e.g., 'float32', 'float64'"})
+
+@dataclass
+class TrainingConfig:
+    """Configuration for training-related parameters."""
+    checkpoint_dir: str = field(default="outputs/checkpoints", metadata={"help": "Directory to save checkpoints"})
 
 @dataclass
 class RNAConfig:
@@ -1268,6 +1338,26 @@ class RNAConfig:
         default=44,
         metadata={"help": "Standard RNA residue has ~44 atoms"}
     )
+    # Device management configuration
+    device_management: DeviceConfig = field(default_factory=DeviceConfig)
+    # Pipeline stage control flags
+    run_stageD: bool = field(
+        default=True,
+        metadata={"help": "Enable Stage D diffusion refinement"}
+    )
+    enable_stageC: bool = field(
+        default=True,
+        metadata={"help": "Enable partial coordinates from Stage C"}
+    )
+    merge_latent: bool = field(
+        default=True,
+        metadata={"help": "Enable latent merging"}
+    )
+    # Optional flag for initializing z embeddings from adjacency
+    init_z_from_adjacency: bool = field(
+        default=False,
+        metadata={"help": "Whether to initialize Z from adjacency matrix"}
+    )
     dimensions: DimensionsConfig = field(default_factory=DimensionsConfig)
     model: Dict[str, Any] = field(default_factory=lambda: {
         "stageA": StageAConfig(),
@@ -1287,3 +1377,5 @@ class RNAConfig:
     memory_optimization: MemoryOptimizationConfig = field(default_factory=MemoryOptimizationConfig)
     energy_minimization: EnergyMinimizationConfig = field(default_factory=EnergyMinimizationConfig)
     test_data: TestDataConfig = field(default_factory=TestDataConfig)
+    data: DataConfig = field(default_factory=DataConfig)
+    training: TrainingConfig = field(default_factory=TrainingConfig)

@@ -229,29 +229,29 @@ class TestPairformerWrapperComprehensive(unittest.TestCase):
 
     def test_device_consistency(self):
         """Test that the wrapper handles device placement correctly."""
-        if not torch.cuda.is_available():
-            self.skipTest("CUDA not available, skipping device test")
+        # Use CPU device if CUDA is not available
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        # Create tensors on GPU
-        s_gpu = self.s.cuda()
-        z_gpu = self.z_non_multiple.cuda()
-        pair_mask_gpu = self.pair_mask.cuda()
+        # Create tensors on the selected device
+        s_device = self.s.to(device)
+        z_device = self.z_non_multiple.to(device)
+        pair_mask_device = self.pair_mask.to(device)
 
         # Create wrapper
         test_cfg = create_test_pairformer_config(n_blocks=2, c_z=30, c_s=64)
-        # Instantiate first, then move to CUDA
-        wrapper = PairformerWrapper(cfg=test_cfg).cuda()
+        # Instantiate first, then move to the selected device
+        wrapper = PairformerWrapper(cfg=test_cfg).to(device)
 
         # Run forward pass
-        s_updated, z_updated = wrapper(s_gpu, z_gpu, pair_mask_gpu)
+        s_updated, z_updated = wrapper(s_device, z_device, pair_mask_device)
 
         # Check that outputs are on the same device
-        self.assertEqual(s_updated.device, s_gpu.device)
-        self.assertEqual(z_updated.device, z_gpu.device)
+        self.assertEqual(s_updated.device, s_device.device)
+        self.assertEqual(z_updated.device, z_device.device)
 
         # Check output shapes
-        self.assertEqual(s_updated.shape, s_gpu.shape)
-        self.assertEqual(z_updated.shape, z_gpu.shape)
+        self.assertEqual(s_updated.shape, s_device.shape)
+        self.assertEqual(z_updated.shape, z_device.shape)
 
     def test_dtype_consistency_in_adjust_dimensions(self):
         """Test that adjust_z_dimensions handles different dtypes correctly."""
@@ -273,21 +273,21 @@ class TestPairformerWrapperComprehensive(unittest.TestCase):
 
     def test_adjust_z_dimensions_with_device(self):
         """Test adjust_z_dimensions with tensors on different devices."""
-        if not torch.cuda.is_available():
-            self.skipTest("CUDA not available, skipping device test")
+        # Use CPU device if CUDA is not available
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         # Create wrapper
         test_cfg = create_test_pairformer_config(n_blocks=2, c_z=30, c_s=64)
         wrapper = PairformerWrapper(cfg=test_cfg)
 
-        # Create tensor on GPU
-        z_gpu = self.z_non_multiple.cuda()
+        # Create tensor on the selected device
+        z_device = self.z_non_multiple.to(device)
 
         # Call adjust_z_dimensions
-        z_adjusted = wrapper.adjust_z_dimensions(z_gpu)
+        z_adjusted = wrapper.adjust_z_dimensions(z_device)
 
         # Check that output is on the same device
-        self.assertEqual(z_adjusted.device, z_gpu.device)
+        self.assertEqual(z_adjusted.device, z_device.device)
 
         # Check output shape
         self.assertEqual(z_adjusted.shape[-1], 32)
