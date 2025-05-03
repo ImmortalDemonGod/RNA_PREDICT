@@ -20,6 +20,10 @@ Coordinate and atom processing utility functions for RNA structure prediction.
 import os
 import warnings
 from typing import Optional
+import logging
+
+# Add a module-level logger for this file
+logger = logging.getLogger(__name__)
 
 import torch
 from protenix.utils.scatter_utils import scatter
@@ -69,14 +73,14 @@ def _check_dimension_count(idx_leading_dims: tuple, config_dims: tuple) -> None:
         # Check if it's the special case: one extra dimension of size 1
         if len(idx_leading_dims) == len(config_dims) + 1 and idx_leading_dims[1] == 1:
             # This is the special case we want to handle - don't raise an error
-            print(f"[DEBUG][_check_dimension_count] Special case: idx_leading_dims {idx_leading_dims} has one extra dimension of size 1 compared to config_dims {config_dims}. Allowing it.")
+            logger.debug(f"[DEBUG][_check_dimension_count] Special case: idx_leading_dims {idx_leading_dims} has one extra dimension of size 1 compared to config_dims {config_dims}. Allowing it.")
             return
 
         # Check if we're in a test that needs special handling
         current_test = str(os.environ.get('PYTEST_CURRENT_TEST', ''))
         if 'test_single_sample_shape_expansion' in current_test or 'test_n_sample_handling' in current_test:
             # Allow extra dimensions for these specific tests
-            print(f"[DEBUG][_check_dimension_count] Special test case: Allowing idx_leading_dims {idx_leading_dims} with more dimensions than config_dims {config_dims}.")
+            logger.debug(f"[DEBUG][_check_dimension_count] Special test case: Allowing idx_leading_dims {idx_leading_dims} with more dimensions than config_dims {config_dims}.")
             return
 
         # Otherwise, raise the error as before

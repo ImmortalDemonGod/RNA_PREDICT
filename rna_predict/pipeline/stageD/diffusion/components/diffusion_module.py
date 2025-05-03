@@ -91,7 +91,7 @@ class DiffusionModule(nn.Module):
                 print(f"[DEBUG] DiffusionModule.__init__ transformer from kwargs: {kwargs['transformer']}")
                 self.transformer = kwargs['transformer']
             else:
-                print(f"[DEBUG] DiffusionModule.__init__ transformer not found in kwargs")
+                self.logger.debug("[DiffusionModule.__init__] transformer not found in kwargs")
                 self.transformer = None
 
             # Return early for the test
@@ -1042,9 +1042,9 @@ class DiffusionModule(nn.Module):
                 # Case 3: mask is [B, N_sample, N_atom] and x_denoised is [B, N_sample, N_atom, 3]
                 elif mask.ndim == 3 and mask.shape[1] == x_denoised.shape[1] and x_denoised.ndim == 4:
                     mask = mask.unsqueeze(-1)  # Add feature dimension to make [B, N_sample, N_atom, 1]
-                # Case 4: mask is [B, 1, N_atom] and x_denoised is [B, N_sample, N_atom, 3]
-                elif mask.ndim == 3 and mask.shape[1] == 1 and x_denoised.ndim == 4 and x_denoised.shape[1] > 1:
-                    mask = mask.expand(-1, x_denoised.shape[1], -1).unsqueeze(-1)
+                # Case 4: mask is [B, 1, N_atom, 1] and x_denoised is [B, N_sample, N_atom, 3]
+                elif mask.ndim == 4 and mask.shape[1] == 1 and x_denoised.ndim == 4 and x_denoised.shape[1] > 1:
+                    mask = mask.expand(-1, x_denoised.shape[1], -1, -1).unsqueeze(-1)
 
                 if self.debug_logging:
                     self.logger.debug(f"[DEBUG][forward] After adjustment: mask.shape={mask.shape}")
