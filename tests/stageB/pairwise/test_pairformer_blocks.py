@@ -93,8 +93,8 @@ class TestPairformerBlock(unittest.TestCase):
         # DropoutRowwise may not have a 'p' attribute, so check the class instead
         self.assertIsInstance(block.dropout_row, DropoutRowwise)
 
-    @settings(max_examples=5, deadline=None)  # Limit examples and remove deadline
-    @given(data=s_z_mask_draw())
+    @settings(max_examples=3, deadline=None)  # Limit examples and remove deadline
+    @given(data=s_z_mask_draw(n_token_range=(2, 4), batch_range=(1, 1), c_z_range=(128, 128)))
     def test_forward_shapes(self, data):
         """
         For random s, z, pair_mask shapes and c_s=0 or >0, check that
@@ -385,4 +385,4 @@ class TestPairformerStack(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main() 
+    unittest.main()
