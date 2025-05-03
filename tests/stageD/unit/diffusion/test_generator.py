@@ -275,18 +275,30 @@ class TestSampleDiffusion:
         Hypothesis test for sample_diffusion with random chunk sizes and sample counts.
         This helps ensure coverage of edge parameters.
         """
-        # Minimal input_feature_dict for coverage
+        # Create a basic input feature dictionary
         input_feature_dict = {
-            "atom_to_token_idx": torch.zeros((1, 2), dtype=torch.long)
+            "atom_to_token_idx": torch.zeros((1, 5), dtype=torch.long),
+            "ref_pos": torch.randn(1, 5, 3),
+            "ref_space_uid": torch.arange(5).unsqueeze(0),
+            "ref_charge": torch.zeros(1, 5, 1),
+            "ref_mask": torch.ones(1, 5, 1),
+            "ref_element": torch.zeros(1, 5, 128),
+            "ref_atom_name_chars": torch.zeros(1, 5, 256),
+            "restype": torch.zeros(1, 5, 32),
+            "profile": torch.zeros(1, 5, 32),
+            "deletion_mean": torch.zeros(1, 5, 1),
+            "sing": torch.randn(1, 5, 449),  # Required for s_inputs fallback
         }
-        s_inputs = torch.randn(1, 2, 4)
-        s_trunk = torch.randn(1, 2, 4)
-        z_trunk = torch.randn(1, 2, 2, 4)
 
-        # We'll build a random noise schedule of length >=2
-        length = 3
-        noise_schedule = torch.linspace(10.0, 0.0, steps=length, dtype=torch.float32)
+        # Create a simple noise schedule
+        noise_schedule = torch.tensor([10.0, 5.0, 0.0], dtype=torch.float32)
 
+        # Create input tensors
+        s_inputs = torch.randn(1, 5, 449)
+        s_trunk = torch.randn(1, 5, 384)
+        z_trunk = torch.randn(1, 5, 5, 32)
+
+        # Call sample_diffusion with the test parameters
         x_l = sample_diffusion(
             denoise_net=mock_denoise_net,
             input_feature_dict=input_feature_dict,
@@ -297,9 +309,17 @@ class TestSampleDiffusion:
             N_sample=n_sample,
             diffusion_chunk_size=chunk,
         )
-        # Expected shape: [batch_size, N_sample, n_atoms, 3]
-        # Our batch_size is 1, n_atoms is 2
-        assert x_l.shape == (1, n_sample, 2, 3), f"Expected shape (1, {n_sample}, 2, 3), got {x_l.shape}"
+
+        # Verify the output shape
+        assert isinstance(x_l, torch.Tensor), "Output should be a tensor"
+        assert x_l.ndim == 4, f"Expected 4 dimensions, got {x_l.ndim}"
+        assert x_l.shape[0] == 1, f"Expected batch size 1, got {x_l.shape[0]}"
+        assert x_l.shape[1] == n_sample, f"Expected N_sample {n_sample}, got {x_l.shape[1]}"
+        assert x_l.shape[2] == 5, f"Expected 5 atoms, got {x_l.shape[2]}"
+        assert x_l.shape[3] == 3, f"Expected 3 coordinates, got {x_l.shape[3]}"
+
+        # Verify the output values are finite
+        assert torch.isfinite(x_l).all(), "Output values must be finite"
 
 
 class TestSampleDiffusionTraining:

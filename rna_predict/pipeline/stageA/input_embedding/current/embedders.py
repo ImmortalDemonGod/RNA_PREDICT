@@ -47,7 +47,7 @@ class InputFeatureEmbedder(nn.Module):
     and returns a final tensor of shape [..., N_token, c_token].
     """
 
-    # #@snoop
+    # #####@snoop
     def __init__(
         self,
         c_atom: int = 128,
@@ -60,6 +60,7 @@ class InputFeatureEmbedder(nn.Module):
         num_layers: int = 3,
         use_optimized: bool = False,
         debug_logging: bool = False,
+        config: Optional[AtomAttentionConfig] = None,  # <-- Accept config for Hydra-driven instantiation
     ) -> None:
         """
         Args:
@@ -73,28 +74,44 @@ class InputFeatureEmbedder(nn.Module):
             num_layers (int, optional): # layers for potential stack. Defaults to 3.
             use_optimized (bool, optional): whether to use an optimized path. Defaults to False.
             debug_logging (bool, optional): whether to enable debug logging. Defaults to False.
+            config (Optional[AtomAttentionConfig]): Hydra config object for encoder, if available.
         """
-        super(InputFeatureEmbedder, self).__init__()
-        self.c_atom = c_atom
-        self.c_atompair = c_atompair
-        self.c_token = c_token
-
-        self.restype_dim = restype_dim
-        self.profile_dim = profile_dim
-        self.c_pair = c_pair
-        self.num_heads = num_heads
-        self.num_layers = num_layers
-        self.use_optimized = use_optimized
-        self.debug_logging = debug_logging
-
-        # Create the config object explicitly
-        encoder_config = AtomAttentionConfig(
-            has_coords=False,  # Based on original failing call
-            c_token=self.c_token,
-            c_atom=self.c_atom,
-            c_atompair=self.c_atompair,
-            # Rely on defaults in AtomAttentionConfig for other params (c_s, c_z, n_blocks, etc.)
-        )
+        super().__init__()
+        # If a config object is provided (Hydra best practice), use it for all settings
+        if config is not None:
+            self.c_atom = config.c_atom
+            self.c_atompair = config.c_atompair
+            self.c_token = config.c_token
+            self.restype_dim = getattr(config, 'restype_dim', restype_dim)
+            self.profile_dim = getattr(config, 'profile_dim', profile_dim)
+            self.c_pair = getattr(config, 'c_pair', c_pair)
+            self.num_heads = getattr(config, 'num_heads', num_heads)
+            self.num_layers = getattr(config, 'num_layers', num_layers)
+            self.use_optimized = getattr(config, 'use_optimized', use_optimized)
+            self.debug_logging = getattr(config, 'debug_logging', False)
+            encoder_config = config
+        else:
+            self.c_atom = c_atom
+            self.c_atompair = c_atompair
+            self.c_token = c_token
+            self.restype_dim = restype_dim
+            self.profile_dim = profile_dim
+            self.c_pair = c_pair
+            self.num_heads = num_heads
+            self.num_layers = num_layers
+            self.use_optimized = use_optimized
+            self.debug_logging = debug_logging
+            encoder_config = AtomAttentionConfig(
+                has_coords=False,  # Based on original failing call
+                c_token=self.c_token,
+                c_atom=self.c_atom,
+                c_atompair=self.c_atompair,
+                c_s=self.c_token,  # Use token dim for single emb
+                c_z=self.c_atompair,  # Use atompair dim for pair emb
+                n_blocks=self.num_layers,
+                n_heads=self.num_heads,
+                debug_logging=self.debug_logging,
+            )
         self.atom_attention_encoder = AtomAttentionEncoder(config=encoder_config)
         # Existing line2 comment
         #
@@ -112,7 +129,7 @@ class InputFeatureEmbedder(nn.Module):
         # Optionally, place a final layer norm after summing
         self.final_ln = nn.LayerNorm(self.c_token)
 
-    # #@snoop
+    # #####@snoop
     def forward(
         self,
         input_feature_dict: InputFeatureDict,
@@ -300,7 +317,7 @@ class RelativePositionEncoding(nn.Module):
             s_max (int, optional): Relative chain indices clip value. Defaults to 2.
             c_z (int, optional): hidden dim [for pair embedding]. Defaults to 128.
         """
-        super(RelativePositionEncoding, self).__init__()
+        super().__init__()
         self.r_max = r_max
         self.s_max = s_max
         self.c_z = c_z
@@ -524,7 +541,7 @@ class FourierEmbedding(nn.Module):
         Args:
             c (int): embedding dim.
         """
-        super(FourierEmbedding, self).__init__()
+        super().__init__()
         self.c = c
         self.seed = seed
         generator = torch.Generator()

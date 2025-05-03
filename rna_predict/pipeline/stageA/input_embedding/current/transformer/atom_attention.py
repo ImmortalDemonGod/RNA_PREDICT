@@ -21,6 +21,7 @@ from rna_predict.pipeline.stageA.input_embedding.current.transformer.common impo
     InputFeatureDict,
     safe_tensor_access,
 )
+from rna_predict.pipeline.stageA.input_embedding.current.transformer.encoder_components.forward_logic import get_atom_to_token_idx
 from rna_predict.pipeline.stageA.input_embedding.current.utils import (
     aggregate_atom_to_token,
     broadcast_token_to_atom,
@@ -44,6 +45,7 @@ class AtomAttentionConfig:
     n_queries: int = 32
     n_keys: int = 128
     blocks_per_ckpt: Optional[int] = None
+    debug_logging: bool = False
 
     def __post_init__(self) -> None:
         """Validate config parameters."""
@@ -93,7 +95,7 @@ class AtomAttentionEncoder(nn.Module):
         Args:
             config: Configuration parameters for the encoder
         """
-        super(AtomAttentionEncoder, self).__init__()
+        super().__init__()
         self.has_coords = config.has_coords
         self.c_atom = config.c_atom
         self.c_atompair = config.c_atompair
@@ -103,6 +105,10 @@ class AtomAttentionEncoder(nn.Module):
         self.n_queries = config.n_queries
         self.n_keys = config.n_keys
         self.c_ref_element = config.c_ref_element
+        self.n_blocks = config.n_blocks
+        self.n_heads = config.n_heads
+        self.blocks_per_ckpt = config.blocks_per_ckpt
+        self.debug_logging = config.debug_logging
         print(f"[DEBUG][AtomAttentionEncoder] Propagating c_ref_element={self.c_ref_element}")
         self.local_attention_method = "local_cross_attention"
 
@@ -136,7 +142,8 @@ class AtomAttentionEncoder(nn.Module):
             "ref_element": self.c_ref_element,
             "ref_atom_name_chars": 4 * 64,
         }
-        print(f"[DEBUG][AtomAttentionEncoder] _setup_feature_dimensions: ref_element={self.c_ref_element}")
+        if self.debug_logging:
+            print(f"[DEBUG][AtomAttentionEncoder] _setup_feature_dimensions: ref_element={self.c_ref_element}")
 
     def _setup_atom_encoders(self) -> None:
         """Set up encoders for atom features."""
@@ -324,7 +331,14 @@ class AtomAttentionEncoder(nn.Module):
                 - Atom-level embedding (c_l)
                 - None (no pair embedding in simple case)
         """
-        atom_to_token_idx = safe_tensor_access(input_feature_dict, "atom_to_token_idx")
+        # Determine number of tokens from restype if available
+        n_token = None
+        if "restype" in input_feature_dict:
+            restype = safe_tensor_access(input_feature_dict, "restype")
+            if restype is not None:
+                n_token = restype.shape[-2]
+
+        atom_to_token_idx = get_atom_to_token_idx(input_feature_dict, num_tokens=n_token)
         c_l = self.extract_atom_features(input_feature_dict)
         q_l = c_l  # No position embedding in simple case
 
@@ -643,7 +657,14 @@ class AtomAttentionEncoder(nn.Module):
         p_lm = self.create_pair_embedding(input_feature_dict)
 
         # Get required tensors
-        atom_to_token_idx = safe_tensor_access(input_feature_dict, "atom_to_token_idx")
+        # Determine number of tokens from restype if available
+        n_token = None
+        if "restype" in input_feature_dict:
+            restype = safe_tensor_access(input_feature_dict, "restype")
+            if restype is not None:
+                n_token = restype.shape[-2]
+
+        atom_to_token_idx = get_atom_to_token_idx(input_feature_dict, num_tokens=n_token)
         ref_pos = safe_tensor_access(input_feature_dict, "ref_pos")
 
         # Process coordinates and style embedding
@@ -712,7 +733,7 @@ class AtomAttentionEncoder(nn.Module):
         # Aggregate to token level
         a_token = self._aggregate_to_token_level(
             a_atom,
-            input_feature_dict["atom_to_token_idx"],
+            get_atom_to_token_idx(input_feature_dict, num_tokens=n_tokens),
             int(n_tokens),  # Explicitly cast to int
         )
 
@@ -823,7 +844,7 @@ class AtomAttentionDecoder(nn.Module):
         Args:
             config: Configuration parameters for the decoder
         """
-        super(AtomAttentionDecoder, self).__init__()
+        super().__init__()
         self.n_blocks = config.n_blocks
         self.n_heads = config.n_heads
         self.c_token = config.c_token

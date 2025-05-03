@@ -1,24 +1,23 @@
 import torch
 import hydra
-from omegaconf import DictConfig
-from rna_predict.run_full_pipeline import run_full_pipeline
+from rna_predict.conf.config_schema import RNAConfig
+from hydra.core.config_store import ConfigStore
+from rna_predict.runners.full_pipeline import run_full_pipeline
+from omegaconf import OmegaConf
+
+# Register the structured config schema with Hydra
+cs = ConfigStore.instance()
+cs.store(name="default", node=RNAConfig)
 
 @hydra.main(config_path="conf", config_name="default", version_base=None)
-def main(cfg: DictConfig) -> None:
+def main(cfg: RNAConfig) -> None:
     """Main entry point for running the RNA prediction pipeline."""
     # Run pipeline with a test sequence
-    seq_input = "AUGCAUGG"
-    print(f"\nProcessing sequence: {seq_input}")
+    print(f"\nProcessing sequence: {cfg.sequence}")
 
-    # Set the sequence in the config
-    cfg.sequence = seq_input
-
-    # Add debug output
-    print("\n--- Debug: Config ---")
-    print(f"Config type: {type(cfg)}")
-    print(f"Config keys: {list(cfg.keys()) if hasattr(cfg, 'keys') else 'No keys method'}")
-    print(f"Config has 'device': {'device' in cfg}")
-    print(f"Config has 'sequence': {'sequence' in cfg}")
+    # Canonical Hydra/OmegaConf config dump for debug
+    print("\n--- Debug: Full Hydra Config ---")
+    print(OmegaConf.to_yaml(cfg))
 
     # Run the pipeline with the updated config
     print("\n--- Running pipeline ---")

@@ -27,3 +27,5 @@ class StageDContext:
     debug_logging: Optional[bool] = None
     residue_indices: Optional[Any] = None
     num_residues: Optional[int] = None
+    result: Optional[torch.Tensor] = None
+    unified_latent: Optional[torch.Tensor] = None

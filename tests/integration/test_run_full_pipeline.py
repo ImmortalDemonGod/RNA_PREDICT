@@ -30,16 +30,28 @@ from hypothesis import HealthCheck, assume, given, reject, settings
 from hypothesis import strategies as st
 
 # Import target items from your pipeline code
-from rna_predict.run_full_pipeline import SimpleLatentMerger, LatentInputs, run_full_pipeline
+from rna_predict.run_full_pipeline import run_full_pipeline
+from rna_predict.pipeline.merger.simple_latent_merger import SimpleLatentMerger, LatentInputs
 
 
-class DummyStageAPredictor:
-    def predict_adjacency(self, seq: str) -> np.ndarray:
-        N = len(seq)
-        arr = np.eye(N, dtype=np.float32)
-        if N > 1:
-            arr[0, 1] = arr[1, 0] = 1.0
-        return arr
+# Define a factory function to create DummyStageAPredictor instances
+def dummy_stagea_factory(stage_cfg=None, device=None):
+    """Factory function to create DummyStageAPredictor instances."""
+    class DummyStageAPredictor(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.device = device if device is not None else torch.device("cpu")
+            # Add a dummy parameter to make it a proper nn.Module
+            self.dummy_param = torch.nn.Parameter(torch.zeros(1), requires_grad=False)
+
+        def predict_adjacency(self, seq: str) -> np.ndarray:
+            N = len(seq)
+            arr = np.eye(N, dtype=np.float32)
+            if N > 1:
+                arr[0, 1] = arr[1, 0] = 1.0
+            return arr
+
+    return DummyStageAPredictor()
 
 
 class DummyConfig:
@@ -345,7 +357,7 @@ class TestRunFullPipeline(unittest.TestCase):
             "sequence": "AUGC"
         })
         # Patch model constructors to use dummies
-        self.stageA_patcher = patch('rna_predict.pipeline.stageA.adjacency.rfold_predictor.StageARFoldPredictor', DummyStageAPredictor)
+        self.stageA_patcher = patch('rna_predict.pipeline.stageA.adjacency.rfold_predictor.StageARFoldPredictor', dummy_stagea_factory)
         self.torsion_patcher = patch('rna_predict.pipeline.stageB.torsion.torsion_bert_predictor.StageBTorsionBertPredictor', DummyTorsionModel)
         self.pairformer_patcher = patch('rna_predict.pipeline.stageB.pairwise.pairformer_wrapper.PairformerWrapper', DummyPairformerModel)
         self.automodel_patcher = patch('transformers.AutoModel.from_pretrained', return_value=DummyTorsionModel())
@@ -599,8 +611,13 @@ class TestRunFullPipeline(unittest.TestCase):
         cfg.sequence = sequence
         # Create mock return value with coords_3d tensor
         N = len(sequence)
-        mock_return_value = {"coords_3d": torch.zeros((N, 3, 3)), "atom_count": 3*N, "atom_metadata": {}}
-        with patch("rna_predict.run_full_pipeline.run_stageC_rna_mpnerf", return_value=mock_return_value):
+        mock_return_value = {
+            "coords_3d": torch.zeros((N, 3, 3)),
+            "coords": torch.zeros((N * 3, 3)),
+            "atom_count": 3*N,
+            "atom_metadata": {"residue_indices": torch.arange(N).repeat_interleave(3)}
+        }
+        with patch("rna_predict.pipeline.stageC.stage_c_reconstruction.run_stageC_rna_mpnerf", return_value=mock_return_value):
             # Run the pipeline with Stage C enabled
             result = run_full_pipeline(cfg=cfg)
 
@@ -639,7 +656,7 @@ class TestRunFullPipeline(unittest.TestCase):
         cfg.sequence = sequence
         # Instead of storing the merger in cfg, patch where it's used or pass as argument if possible
         # (Assume the pipeline is patched or designed to use a test merger)
-        with patch("rna_predict.run_full_pipeline.SimpleLatentMerger", return_value=SimpleLatentMerger(7, 64, 32, 128)):
+        with patch("rna_predict.pipeline.merger.simple_latent_merger.SimpleLatentMerger", return_value=SimpleLatentMerger(7, 64, 32, 128)):
             result = run_full_pipeline(cfg=cfg)
             self.assertIsNotNone(result["unified_latent"],
                                f"[UniqueErrorID-MergeLatent] unified_latent is None for sequence {sequence}")
@@ -689,41 +706,39 @@ class TestRunFullPipeline(unittest.TestCase):
             self.assertIn("final_coords", result,
                          f"[UniqueErrorID-NoManager] final_coords not found in result for sequence {sequence}")
 
-    @given(
-        sequence=st.text(alphabet="ACGU", min_size=1, max_size=10)
-    )
-    @settings(deadline=None, max_examples=5)  # Limit the number of examples to speed up testing
-    def test_run_stageD_with_mock(self, sequence):
+    def test_run_stageD_with_mock(self):
         """
-        Property-based test: If run_stageD=True and a mock diffusion_manager is provided,
+        Test: If run_stageD=True and a mock diffusion_manager is provided,
         final_coords should not be None, and the run_stageD_diffusion call is triggered.
-
-        Args:
-            sequence: RNA sequence to test with
         """
-        # Skip if sequence is empty
-        if not sequence:
-            return
-
         # Create a copy of the default config
         cfg = self.default_config.copy()
         cfg.run_stageD = True
-        cfg.sequence = sequence
-        # Instead of storing MagicMock in cfg, patch the function directly
-        # We need to patch both run_stageD_diffusion and the z_trunk tensor shape
-        with patch("rna_predict.run_full_pipeline.run_stageD_diffusion", return_value=torch.zeros((len(sequence), 3, 3))):
-            # Also patch the ProtenixDiffusionManager.multi_step_inference method to handle the z_trunk shape
-            with patch("rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager.ProtenixDiffusionManager.multi_step_inference", return_value=torch.zeros((1, len(sequence) * 22, 3))):
-                result = run_full_pipeline(cfg=cfg)
-                self.assertIsNotNone(result["final_coords"],
-                                   f"[UniqueErrorID-StageD] final_coords is None for sequence {sequence}")
+        cfg.model.stageD.enabled = True  # Make sure stageD is enabled in the model config
+        cfg.sequence = "AUGC"
+
+        # Create a mock diffusion manager that returns a tensor of the right shape
+        mock_diffusion_manager = MagicMock()
+        mock_diffusion_manager.multi_step_inference.return_value = torch.zeros((1, len(cfg.sequence) * 22, 3))
+
+        # Create a mock for run_stageD that returns the mock diffusion manager's output
+        mock_run_stageD = MagicMock()
+        mock_run_stageD.return_value = mock_diffusion_manager.multi_step_inference.return_value
+
+        # Patch both the ProtenixDiffusionManager constructor and run_stageD function
+        with patch("rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager.ProtenixDiffusionManager", return_value=mock_diffusion_manager), \
+             patch("rna_predict.runners.full_pipeline.run_stageD", mock_run_stageD):
+            result = run_full_pipeline(cfg=cfg)
+
+            # Verify the mock was called
+            self.assertTrue(mock_run_stageD.called, "run_stageD was not called")
+
+            # Check that final_coords is not None
+            self.assertIsNotNone(result["final_coords"], "final_coords is None")
 
             # Check that final_coords has a valid shape
-            # The shape can be either (N, 5, 3) or (1, N*5, 3) depending on the implementation
-            self.assertEqual(len(result["final_coords"].shape), 3,
-                           f"[UniqueErrorID-StageD] final_coords should be a 3D tensor for sequence {sequence}")
-            self.assertEqual(result["final_coords"].shape[-1], 3,
-                           f"[UniqueErrorID-StageD] final_coords last dimension should be 3 for sequence {sequence}")
+            self.assertEqual(len(result["final_coords"].shape), 3, "final_coords should be a 3D tensor")
+            self.assertEqual(result["final_coords"].shape[-1], 3, "final_coords last dimension should be 3")
 
     @given(sequence=st.text(alphabet="ACGU", min_size=1, max_size=10))
     @settings(

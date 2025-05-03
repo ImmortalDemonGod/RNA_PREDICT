@@ -199,7 +199,7 @@ def _copy_matching_dimensions(
                 for i in range(target.shape[2]):
                     for j in range(target.shape[3]):
                         result[:, :, i, j, :tensor.shape[-1]] = tensor
-                logger.debug(f"[_copy_matching_dimensions] Used manual broadcasting for 5D target and 3D tensor")
+                logger.debug("[_copy_matching_dimensions] Used manual broadcasting for 5D target and 3D tensor")
                 return result
         except RuntimeError as e2:
             logger.warning(f"[_copy_matching_dimensions] Manual copy also failed: {e2}. Returning zero tensor.")
@@ -459,3 +459,36 @@ def restore_original_shape(
     if should_squeeze_tensor(tensor, original_shape, was_unsqueezed):
         return tensor.squeeze(1)
     return tensor
+
+
+def adaptive_layer_norm(
+    a: torch.Tensor, scale: torch.Tensor, shift: torch.Tensor, debug_logging: bool = False
+) -> torch.Tensor:
+    """
+    Apply adaptive layer normalization to input tensor 'a'.
+
+    Args:
+        a: Input tensor to be normalized
+        scale: Scale tensor for normalization
+        shift: Shift tensor for normalization
+        debug_logging: Whether to log debug information
+
+    Returns:
+        Normalized tensor
+    """
+    if debug_logging:
+        print(f"[INSTRUMENT][AdaptiveLayerNorm] scale.shape={scale.shape}, a.shape={a.shape}, scale.dtype={scale.dtype}, a.dtype={a.dtype}")
+
+    # Check and adjust dimensions of input tensors
+    a, a_was_unsqueezed = check_and_adjust_dimensions(a, scale)
+
+    # Adjust tensor shapes if necessary
+    scale, shift = adjust_tensor_shapes(scale, shift, a)
+
+    # Apply adaptive layer normalization
+    normalized_a = a * scale + shift
+
+    # Restore original shape if necessary
+    normalized_a = restore_original_shape(normalized_a, a.shape, a_was_unsqueezed)
+
+    return normalized_a

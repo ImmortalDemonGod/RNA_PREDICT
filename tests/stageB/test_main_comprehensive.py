@@ -1,6 +1,3 @@
-import os
-os.chdir("/Users/tomriddle1/RNA_PREDICT")
-import sys
 import pytest
 import torch
 from unittest.mock import patch, MagicMock
@@ -19,12 +16,13 @@ from rna_predict.pipeline.stageA.adjacency.rfold_predictor import (
 from rna_predict.pipeline.stageC.stage_c_reconstruction import (
     StageCReconstruction,
 )
+from pathlib import Path
 
-sys.path.insert(0, "/Users/tomriddle1/RNA_PREDICT")
-# ENFORCE: Tests must be run from the project root for Hydra config to resolve correctly.
-EXPECTED_CWD = "/Users/tomriddle1/RNA_PREDICT"
-if os.getcwd() != EXPECTED_CWD:
-    raise RuntimeError(f"Tests must be run from {EXPECTED_CWD} for Hydra config_path to resolve. Current CWD: {os.getcwd()}")
+# Derive project_root from __file__
+project_root = Path(__file__).resolve().parents[2]
+config_dir = project_root / "rna_predict" / "conf"
+if not config_dir.is_dir():
+    pytest.fail(f"[HYDRA-CONF-NOT-FOUND] Expected config dir at {config_dir}")
 
 # NOTE: Hydra's initialize(config_path=...) requires a RELATIVE path. However, under pytest, Hydra resolves config_path relative to the test file's directory, not the process CWD. Therefore, we must use '../../rna_predict/conf' for tests in tests/stageB.
 """
@@ -604,7 +602,7 @@ class TestRunPipelineHypothesis:
                 "use_deepspeed_evo_attention": False,
                 "use_lma": False,
                 "inplace_safe": False,
-                "chunk_size": null
+                "chunk_size": None
             }
         })
 
@@ -872,17 +870,17 @@ class TestMain:
 def make_config(structure):
     return OmegaConf.create(structure)
 
-@pytest.mark.skip(reason="Test is hanging or taking too long to run. Needs further investigation. [ERR-TORSIONBERT-PROPERTY-TIMEOUT-001]")
+@settings(deadline=None, max_examples=5)  # Limit to 5 examples to avoid timeouts
 @given(
     st.dictionaries(
-        keys=st.text(min_size=1, max_size=16),
+        keys=st.text(min_size=1, max_size=8),  # Reduced from 16 to 8
         values=st.recursive(
             st.integers() | st.text() | st.booleans() | st.none(),
-            lambda children: st.lists(children) | st.dictionaries(st.text(min_size=1, max_size=16), children),
-            max_leaves=5,
+            lambda children: st.lists(children) | st.dictionaries(st.text(min_size=1, max_size=8), children),  # Reduced from 16 to 8
+            max_leaves=3,  # Reduced from 5 to 3
         ),
         min_size=1,
-        max_size=3,
+        max_size=2,  # Reduced from 3 to 2
     )
 )
 def test_stageb_torsionbert_config_structure_property(config_dict):

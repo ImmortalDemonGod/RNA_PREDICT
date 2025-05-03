@@ -2,6 +2,7 @@
 Config validation and flattening utilities for Stage D pipeline.
 Extracted from run_stageD.py for cohesion and Hydra best practices.
 """
+from typing import Any, Dict, Union
 from omegaconf import DictConfig
 
 def validate_and_extract_stageD_config(cfg: DictConfig):
@@ -11,7 +12,7 @@ def validate_and_extract_stageD_config(cfg: DictConfig):
     return cfg.model.stageD
 
 
-def flatten_stageD_config_to_dict(stage_cfg: DictConfig) -> dict:
+def flatten_stageD_config_to_dict(stage_cfg: DictConfig) -> Union[Dict[str, Any], list[Any], str, Any]:
     """Flattens the Stage D config (OmegaConf) to a plain dict for the diffusion model, omitting tensor fields."""
     import omegaconf
     # Use OmegaConf.to_container to convert to dict

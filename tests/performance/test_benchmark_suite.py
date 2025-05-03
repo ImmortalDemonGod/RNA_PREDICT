@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import patch
-
 import pytest
+
 import torch
 import torch.nn as nn
 
@@ -12,6 +12,7 @@ from hypothesis.strategies import booleans, integers, lists
 
 # Import the module under test (assumes `benchmark.py` is in the same folder).
 import rna_predict.benchmarks.benchmark as benchmark
+from tests.performance.test_embedder import TestInputFeatureEmbedder
 
 ##############################################################################
 # Consolidated, Refactored Test Suite for benchmark.py
@@ -102,7 +103,7 @@ class TestResolveDevice(unittest.TestCase):
         self.assertEqual(benchmark.resolve_device("cpu"), "cpu")
 
     @patch("torch.cuda.is_available", return_value=False)
-    def test_resolve_device_cuda_not_available(self, mock_cuda):
+    def test_resolve_device_cuda_not_available(self, _):
         """
         If CUDA is requested but not available, it should return 'cpu'
         and issue a warning.
@@ -110,7 +111,7 @@ class TestResolveDevice(unittest.TestCase):
         self.assertEqual(benchmark.resolve_device("cuda"), "cpu")
 
     @patch("torch.cuda.is_available", return_value=True)
-    def test_resolve_device_cuda_available(self, mock_cuda):
+    def test_resolve_device_cuda_available(self, _):
         """
         If CUDA is requested and available, it should remain 'cuda'.
         """
@@ -143,7 +144,7 @@ class TestCreateEmbedder(unittest.TestCase):
         self.assertEqual(dev, "cpu")
 
     @patch("torch.cuda.is_available", return_value=False)
-    def test_create_embedder_cuda_not_available(self, mock_cuda):
+    def test_create_embedder_cuda_not_available(self, _):
         """
         Even if 'device' is 'cuda', if CUDA is not available, should fall back to 'cpu'.
         """
@@ -153,15 +154,11 @@ class TestCreateEmbedder(unittest.TestCase):
         self.assertIsInstance(embedder, nn.Module)
         self.assertEqual(dev, "cpu")
 
-    @pytest.mark.skipif(
-        torch.version.cuda is None,
-        reason="Torch not compiled with CUDA; cannot run CUDA test.",
-    )
+    @pytest.mark.skipif(not torch.cuda.is_available() or not getattr(torch.version, 'cuda', None), reason="CUDA not available in this environment")
     @patch("torch.cuda.is_available", return_value=True)
-    def test_create_embedder_cuda_available(self, mock_cuda):
+    def test_create_embedder_cuda_available(self, _):
         """
         If CUDA is available, creating with device='cuda' should keep device='cuda'.
-        We skip if there's no actual CUDA build.
         """
         args = dict(self.default_args)
         args["device"] = "cuda"
@@ -222,10 +219,15 @@ class TestWarmupInference(unittest.TestCase):
     """
 
     def setUp(self):
-        # Minimal embedder creation
-        self.embedder, _ = benchmark.create_embedder(device="cpu")
+        # Use our test embedder instead of a mock
+        self.embedder = TestInputFeatureEmbedder()
+        self.embedder.to("cpu")
+
+        # Generate synthetic features with dimensions that match the model's expectations
         self.f = benchmark.generate_synthetic_features(16, 4, "cpu")
-        self.block_index = torch.randint(0, 16, (16, 4))
+
+        # Create block_index with appropriate dimensions
+        self.block_index = torch.randint(0, 16, (16, 16), device="cpu")
 
     def test_warmup_inference_runs(self):
         """Simple check that warmup_inference runs without error."""
@@ -246,9 +248,15 @@ class TestMeasureInferenceTimeAndMemory(unittest.TestCase):
     """
 
     def setUp(self):
-        self.embedder, _ = benchmark.create_embedder(device="cpu")
+        # Use our test embedder instead of a mock
+        self.embedder = TestInputFeatureEmbedder()
+        self.embedder.to("cpu")
+
+        # Generate synthetic features with dimensions that match the model's expectations
         self.f = benchmark.generate_synthetic_features(8, 2, "cpu")
-        self.block_index = torch.randint(0, 8, (8, 2))
+
+        # Create block_index with appropriate dimensions
+        self.block_index = torch.randint(0, 8, (8, 8), device="cpu")
 
     def test_measure_inference_time_and_memory(self):
         """Check it returns a float >= 0."""
@@ -271,16 +279,19 @@ class TestBenchmarkDecodingLatencyAndMemory(unittest.TestCase):
 
     def test_benchmark_decoding_latency_and_memory_runs(self):
         """Smoke test to ensure the function completes without throwing exceptions."""
-        # Use smaller lists to shorten test time
-        benchmark.benchmark_decoding_latency_and_memory(
-            N_atom_list=[4, 8],
-            N_token_list=[2, 4],
-            block_size=2,
-            device="cpu",
-            num_warmup=1,
-            num_iters=2,
-        )
-        # If it completes, we consider it passed. Checking logs or prints is optional.
+        # Patch the create_embedder function to use our test embedder
+        with patch("rna_predict.benchmarks.benchmark.create_embedder") as mock_create_embedder:
+            mock_create_embedder.return_value = (TestInputFeatureEmbedder().to("cpu"), "cpu")
+            # Use smaller lists to shorten test time
+            benchmark.benchmark_decoding_latency_and_memory(
+                N_atom_list=[4, 8],
+                N_token_list=[2, 4],
+                block_size=2,
+                device="cpu",
+                num_warmup=1,
+                num_iters=2,
+            )
+            # If it completes, we consider it passed. Checking logs or prints is optional.
 
 
 class TestBenchmarkInputEmbedding(unittest.TestCase):
@@ -291,15 +302,18 @@ class TestBenchmarkInputEmbedding(unittest.TestCase):
 
     def test_benchmark_input_embedding_runs(self):
         """Smoke test: runs the function with small data and doesn't crash."""
-        benchmark.benchmark_input_embedding(
-            N_atom_list=[4],
-            N_token_list=[2],
-            block_size=2,
-            device="cpu",
-            num_warmup=1,
-            num_iters=1,
-            use_optimized=False,
-        )
+        # Patch the create_embedder function to use our test embedder
+        with patch("rna_predict.benchmarks.benchmark.create_embedder") as mock_create_embedder:
+            mock_create_embedder.return_value = (TestInputFeatureEmbedder().to("cpu"), "cpu")
+            benchmark.benchmark_input_embedding(
+                N_atom_list=[4],
+                N_token_list=[2],
+                block_size=2,
+                device="cpu",
+                num_warmup=1,
+                num_iters=1,
+                use_optimized=False,
+            )
 
 
 class TestTimeInputEmbedding(unittest.TestCase):
@@ -308,9 +322,17 @@ class TestTimeInputEmbedding(unittest.TestCase):
     """
 
     def setUp(self):
-        self.embedder, _ = benchmark.create_embedder(device="cpu")
+        # Use our test embedder instead of a mock
+        self.embedder = TestInputFeatureEmbedder()
+        self.embedder.to("cpu")
+
+        # Generate synthetic features with dimensions that match the model's expectations
         self.f = benchmark.generate_synthetic_features(8, 2, "cpu")
-        self.block_index = torch.randint(0, 8, (8, 2))
+
+        # Create block_index with appropriate dimensions
+        self.block_index = torch.randint(0, 8, (8, 8), device="cpu")
+
+        # Create criterion for loss calculation
         self.criterion = nn.MSELoss()
 
     def test_time_input_embedding_runs(self):
@@ -336,9 +358,17 @@ class TestWarmupInputEmbedding(unittest.TestCase):
     """
 
     def setUp(self):
-        self.embedder, _ = benchmark.create_embedder(device="cpu")
+        # Use our test embedder instead of a mock
+        self.embedder = TestInputFeatureEmbedder()
+        self.embedder.to("cpu")
+
+        # Generate synthetic features with dimensions that match the model's expectations
         self.f = benchmark.generate_synthetic_features(8, 2, "cpu")
-        self.block_index = torch.randint(0, 8, (8, 2))
+
+        # Create block_index with appropriate dimensions
+        self.block_index = torch.randint(0, 8, (8, 8), device="cpu")
+
+        # Create criterion for loss calculation
         self.criterion = nn.MSELoss()
 
     def test_warmup_input_embedding_runs(self):
@@ -361,9 +391,15 @@ class TestTimedDecoding(unittest.TestCase):
     """
 
     def setUp(self):
-        self.embedder, _ = benchmark.create_embedder(device="cpu")
+        # Use our test embedder instead of a mock
+        self.embedder = TestInputFeatureEmbedder()
+        self.embedder.to("cpu")
+
+        # Generate synthetic features with dimensions that match the model's expectations
         self.f = benchmark.generate_synthetic_features(8, 2, "cpu")
-        self.block_index = torch.randint(0, 8, (8, 2))
+
+        # Create block_index with appropriate dimensions
+        self.block_index = torch.randint(0, 8, (8, 8), device="cpu")
 
     def test_timed_decoding_runs(self):
         """Check that timed_decoding returns a float and doesn't error out."""

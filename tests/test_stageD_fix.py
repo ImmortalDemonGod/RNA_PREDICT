@@ -8,6 +8,7 @@ import sys
 from omegaconf import OmegaConf
 from hypothesis import given, strategies as st
 import numpy as np
+from rna_predict.pipeline.stageD.run_stageD import initialize_features_from_config
 
 # Define error identifiers for better debugging
 ERR_MISSING_CONFIG = "ERR-STAGED-CONFIG-001"  # Missing configuration parameters
@@ -18,9 +19,6 @@ ERR_RESIDUE_COUNT = "ERR-STAGED-RESIDUE-001"  # Incorrect residue count
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='[%(asctime)s][%(name)s][%(levelname)s] - %(message)s')
 log = logging.getLogger(__name__)
-
-# Import the function we want to test
-from rna_predict.pipeline.stageD.run_stageD import initialize_features_from_config
 
 def create_test_config():
     """Create a test configuration with the necessary settings."""

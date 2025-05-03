@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from functools import partialmethod, partial
+from functools import partial  # Removed partialmethod import as we're using explicit __init__ methods
 from typing import Optional, List
 
 import torch
@@ -160,4 +160,5 @@ class TriangleAttentionEndingNode(TriangleAttention):
     Implements Algorithm 14.
     """
 
-    __init__ = partialmethod(TriangleAttention.__init__, starting=False)
+    def __init__(self, c_in, c_hidden, no_heads, inf=1e9):
+        super().__init__(c_in=c_in, c_hidden=c_hidden, no_heads=no_heads, starting=False, inf=inf)

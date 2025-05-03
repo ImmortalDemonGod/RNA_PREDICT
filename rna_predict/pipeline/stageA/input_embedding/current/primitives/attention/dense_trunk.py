@@ -8,12 +8,10 @@ chunking, padding, masking, and core processing.
 """
 
 import math # Added for ceiling division if needed here, or ensure it's available
+import logging
 from typing import List, Optional, Tuple, Union, Dict, Any # Added Dict, Any
 
 import torch
-import logging
-
-logger = logging.getLogger(__name__)
 
 # Imports from local modules within the same package level
 # Assuming PaddingInfo is no longer the direct return type
@@ -43,6 +41,8 @@ from .padding_reshape_utils import (
 )
 # Updated import for the rewritten function
 from .trunk_processing import _process_tensor_to_trunks
+
+logger = logging.getLogger(__name__)
 
 
 def _create_empty_output_tensor(

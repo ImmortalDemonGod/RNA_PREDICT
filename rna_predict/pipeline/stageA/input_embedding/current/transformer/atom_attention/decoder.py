@@ -20,25 +20,31 @@ from rna_predict.pipeline.stageA.input_embedding.current.transformer.atom_attent
 class AtomAttentionDecoder(nn.Module):
     """
     Decoder that processes token-level features and produces atom-level embeddings.
+
+    All input/output feature dimensions (e.g., c_atom, c_atompair, c_token, etc.)
+    are configured via Hydra config for full flexibility and pipeline consistency.
     """
 
-    def __init__(self, config: AtomAttentionConfig) -> None:
+    def __init__(self, config: AtomAttentionConfig, debug_logging: bool = False) -> None:
         """
         Initialize the AtomAttentionDecoder with a configuration object.
 
         Args:
-            config: Configuration parameters for the decoder
+            config: Hydra config object specifying all required dimensions (c_atom, c_atompair, c_token, ...)
+            debug_logging: Whether to print debug logs
         """
-        super(AtomAttentionDecoder, self).__init__()
+        super().__init__()
         self.c_atom = config.c_atom
         self.c_atompair = config.c_atompair
         self.c_token = config.c_token
         self.n_queries = config.n_queries
         self.n_keys = config.n_keys
+        self.debug_logging = debug_logging
 
         # Initialize components
         c_ref_element = getattr(config, 'c_ref_element', 128)
-        print(f"[DEBUG][AtomAttentionDecoder] Using c_ref_element={c_ref_element}")
+        if self.debug_logging:
+            print(f"[DEBUG][AtomAttentionDecoder] Using c_ref_element={c_ref_element}")
         self.feature_processor = FeatureProcessor(
             c_atom=self.c_atom,
             c_atompair=self.c_atompair,
@@ -265,12 +271,14 @@ class AtomAttentionDecoder(nn.Module):
     def forward(
         self,
         params: DecoderForwardParams,
+        debug_logging: bool = False,
     ) -> torch.Tensor:
         """
         Forward pass of the decoder.
 
         Args:
             params: Forward pass parameters
+            debug_logging: Whether to print debug logs
 
         Returns:
             Atom-level embeddings
@@ -282,12 +290,14 @@ class AtomAttentionDecoder(nn.Module):
         a = self._process_coordinate_encoding(a, params)
 
         # Debug prints to understand tensor shapes
-        print(f"DEBUG: a.shape={a.shape}, r_l.shape={params.r_l.shape}")
-
-        # Create pair embedding
-        p_l = self._create_pair_embedding(a, params)
-
-        print(f"DEBUG: p_l.shape={p_l.shape}, c_atompair={self.c_atompair}")
+        if debug_logging:
+            print(f"DEBUG: a.shape={a.shape}, r_l.shape={params.r_l.shape}")
+            # Create pair embedding first to have p_l available for debug print
+            p_l = self._create_pair_embedding(a, params)
+            print(f"DEBUG: p_l.shape={p_l.shape}, c_atompair={self.c_atompair}")
+        else:
+            # Create pair embedding
+            p_l = self._create_pair_embedding(a, params)
 
         # Create attention mask if not provided
         mask = torch.ones_like(a[..., 0], dtype=torch.bool)
@@ -335,6 +345,7 @@ class AtomAttentionDecoder(nn.Module):
         n_queries: int = 32,
         n_keys: int = 128,
         blocks_per_ckpt: int | None = None,
+        debug_logging: bool = False,
     ) -> "AtomAttentionDecoder":
         """
         Create an AtomAttentionDecoder instance from arguments.
@@ -348,13 +359,14 @@ class AtomAttentionDecoder(nn.Module):
             n_queries: Number of queries
             n_keys: Number of keys
             blocks_per_ckpt: Number of blocks per checkpoint
+            debug_logging: Whether to print debug logs
 
         Returns:
             Configured AtomAttentionDecoder instance
         """
         return cls(cls._create_config_from_args(
             n_blocks, n_heads, c_token, c_atom, c_atompair, n_queries, n_keys, blocks_per_ckpt
-        ))
+        ), debug_logging)
 
     @classmethod
     def _create_config_from_args(

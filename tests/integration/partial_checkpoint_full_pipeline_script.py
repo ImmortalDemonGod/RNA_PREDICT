@@ -1,7 +1,6 @@
 """
 Integration script for partial checkpointing and full pipeline construction in RNA_PREDICT.
 
-- Run this script from the project root: /Users/tomriddle1/RNA_PREDICT
 - This script will:
     1. Assert correct CWD and config presence.
     2. Dynamically select the config path for Hydra.
@@ -9,8 +8,6 @@ Integration script for partial checkpointing and full pipeline construction in R
     4. (Optionally) Run a dummy forward pass or checkpoint logic.
 - All errors are unique and actionable. See docs/guides/best_practices/debugging/comprehensive_debugging_guide.md for systematic debugging.
 """
-import os
-print(f"[SCRIPT DEBUG] os.getcwd() at script start: {os.getcwd()}")
 import pathlib
 import sys
 try:
@@ -19,34 +16,27 @@ except ImportError:
     print("[UNIQUE-ERR-HYDRA-NOT-INSTALLED] hydra-core is required but not installed. Please check your network/certificate settings and ensure pip can fetch packages. See docs/guides/best_practices/debugging/comprehensive_debugging_guide.md for troubleshooting.")
     sys.exit(1)
 
-EXPECTED_CWD = "/Users/tomriddle1/RNA_PREDICT"
-CONFIG_ABS_PATH = "/Users/tomriddle1/RNA_PREDICT/rna_predict/conf/default.yaml"
+# 1. Define project root using file location (portable)
+PROJECT_ROOT = pathlib.Path(__file__).resolve().parents[2]
+print(f"[SCRIPT DEBUG] Using PROJECT_ROOT: {PROJECT_ROOT}")
 
-# 1. Assert CWD is project root for robust, actionable error reporting
-actual_cwd = os.getcwd()
-if actual_cwd != EXPECTED_CWD:
-    print(
-        f"[UNIQUE-ERR-HYDRA-CWD] Script must be run from the project root directory.\n"
-        f"Expected CWD: {EXPECTED_CWD}\n"
-        f"Actual CWD:   {actual_cwd}\n"
-        f"To fix: cd {EXPECTED_CWD} && uv run tests/integration/partial_checkpoint_full_pipeline_script.py\n"
-        f"See docs/guides/best_practices/debugging/comprehensive_debugging_guide.md for more info."
-    )
+# 2. Assert CWD is project root for robust, actionable error reporting
+if pathlib.Path.cwd() != PROJECT_ROOT:
+    sys.exit("[UNIQUE-ERR-CWD] Run from project root")
+
+# 3. Pre-test: Fail early if config is not accessible (using project root)
+config_path = PROJECT_ROOT / "rna_predict" / "conf" / "default.yaml"
+if not config_path.exists():
+    print(f"[UNIQUE-ERR-HYDRA-CONF-NOT-FOUND] {config_path} not found. Run this script from the project root and ensure config is present. See docs/guides/best_practices/debugging/comprehensive_debugging_guide.md")
     sys.exit(1)
 
-# 2. Pre-test: Fail early if config is not accessible (strict absolute path)
-if not os.path.exists(CONFIG_ABS_PATH):
-    print(f"[UNIQUE-ERR-HYDRA-CONF-NOT-FOUND] {CONFIG_ABS_PATH} not found. Run this script from the project root and ensure config is present at absolute path. See docs/guides/best_practices/debugging/comprehensive_debugging_guide.md")
-    sys.exit(1)
-
-# 3. Instrument with debug output and dynamic config_path selection
-cwd = pathlib.Path(os.getcwd())
-config_candidates = [cwd / "rna_predict" / "conf", cwd / "conf"]
+# 4. Instrument with debug output and dynamic config_path selection
+config_candidates = [PROJECT_ROOT / "rna_predict" / "conf", PROJECT_ROOT / "conf"]
 config_path_selected = None
 for candidate in config_candidates:
     print(f"[SCRIPT DEBUG] Checking for config directory: {candidate}")
     if candidate.exists() and (candidate / "default.yaml").exists():
-        config_path_selected = str(candidate.relative_to(cwd))
+        config_path_selected = str(candidate.relative_to(PROJECT_ROOT))
         print(f"[SCRIPT DEBUG] Found config at: {candidate}, using config_path: {config_path_selected}")
         # Print directory contents and permissions for further debugging
         print(f"[SCRIPT DEBUG] Contents of {candidate}:")
@@ -60,25 +50,13 @@ for candidate in config_candidates:
         print(f"[SCRIPT DEBUG] Absolute path to config directory: {candidate.resolve()}")
         break
 if not config_path_selected:
-    print("[UNIQUE-ERR-HYDRA-CONF-PATH-NOT-FOUND] Neither 'rna_predict/conf' nor 'conf' found relative to current working directory.\nCWD: {}\nChecked: {}\nSee docs/guides/best_practices/debugging/comprehensive_debugging_guide.md".format(os.getcwd(), [str(c) for c in config_candidates]))
+    print("[UNIQUE-ERR-HYDRA-CONF-PATH-NOT-FOUND] Neither 'rna_predict/conf' nor 'conf' found relative to project root.\nProject root: {}\nChecked: {}\nSee docs/guides/best_practices/debugging/comprehensive_debugging_guide.md".format(PROJECT_ROOT, [str(c) for c in config_candidates]))
     sys.exit(1)
 
-# 4. Load config and build pipeline
+# 5. Load config and build pipeline
 try:
-    # Hydra requires config_path to be relative to CWD
-    ABS_CONFIG_PATH = "/Users/tomriddle1/RNA_PREDICT/rna_predict/conf"
-    if not os.path.isdir(ABS_CONFIG_PATH):
-        print(f"[UNIQUE-ERR-HYDRA-ABS-CONF-NOT-FOUND] Absolute config directory '{ABS_CONFIG_PATH}' not found or not a directory.\nSee docs/guides/best_practices/debugging/comprehensive_debugging_guide.md for troubleshooting.")
-        sys.exit(1)
-    if os.getcwd() != EXPECTED_CWD:
-        print(f"[UNIQUE-ERR-HYDRA-CWD] Script must be run from the project root directory.\n"
-              f"Expected CWD: {EXPECTED_CWD}\n"
-              f"Actual CWD:   {os.getcwd()}\n"
-              f"To fix: cd {EXPECTED_CWD} && uv run tests/integration/partial_checkpoint_full_pipeline_script.py\n"
-              f"See docs/guides/best_practices/debugging/comprehensive_debugging_guide.md for more info.")
-        sys.exit(1)
-    # [HYDRA-PROJECT-RULE] Always use absolute config path for Hydra initialization in RNA_PREDICT
-    with hydra.initialize(config_path="/Users/tomriddle1/RNA_PREDICT/rna_predict/conf", job_name="partial_checkpoint_full_pipeline_script", version_base=None):
+    # Use the config_path_selected we found earlier
+    with hydra.initialize(config_path=config_path_selected, job_name="partial_checkpoint_full_pipeline_script", version_base=None):
         cfg = hydra.compose(config_name="default")
     print("[SCRIPT DEBUG] Hydra loaded config successfully:")
     print(cfg)

@@ -18,3 +18,4 @@ mss
 PySimpleGUI
 py-cpuinfo # Added build dependency for deepspeed
 protenix # Added missing dependency
+psutil>=5.9.0
