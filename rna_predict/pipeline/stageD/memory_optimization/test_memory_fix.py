@@ -15,6 +15,8 @@ from rna_predict.pipeline.stageD.memory_optimization.memory_fix import (
     preprocess_inputs
 )
 
+import os
+
 def get_torch_memory():
     """Get PyTorch memory usage in GB"""
     if torch.cuda.is_available():
@@ -51,7 +53,8 @@ class MemoryTracker:
         self.initial_memory = get_total_memory()
         self.peak_memory = self.initial_memory
         self.memory_log = [(0, self.initial_memory)]
-        print(f"Initial memory usage: {self.initial_memory:.2f} GB")
+        if hasattr(self, 'debug_logging') and self.debug_logging:
+            print(f"Initial memory usage: {self.initial_memory:.2f} GB")
 
     def update(self, step=None):
         """Update memory tracking"""

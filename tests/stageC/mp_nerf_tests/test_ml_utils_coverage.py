@@ -14,6 +14,8 @@ from rna_predict.pipeline.stageC.mp_nerf.ml_utils import (
 )
 from rna_predict.pipeline.stageC.mp_nerf.ml_utils.main import _run_main_logic
 
+# Update test_utils import to test_utils_stageC
+
 
 class TestAtomSelectorCoverage(unittest.TestCase):
     """Test cases for atom_selector function to improve coverage."""

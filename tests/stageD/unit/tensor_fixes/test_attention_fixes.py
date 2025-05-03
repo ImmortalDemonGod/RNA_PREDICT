@@ -220,7 +220,6 @@ def test_patched_attention_handles_bias_mismatch(
 ):
     """
     Test bias fix attempt when query or key dimension mismatches.
-    NOTE: This test reflects the *buggy* behavior in attention_fixes.py where slicing uses shape[1] (NUM_HEADS) instead of shape[2]/[3] (sequence lengths).
     """
     mock_original_sdpa = patch_environment["mock_original_sdpa"]
     patched_sdpa = patch_environment["patched_sdpa"]
@@ -237,16 +236,14 @@ def test_patched_attention_handles_bias_mismatch(
     bias_shape[slice_dim] = wrong_len  # Make dim 2 or 3 incorrect
     attn_bias_wrong = torch.randn(*bias_shape)
 
-    # Calculate the expected bias after the *buggy* slicing logic is applied
-    # Bug: Slices based on q.shape[1] and k.shape[1] (NUM_HEADS) instead of sequence lengths
-    attn_bias_sliced_by_bug = (
-        attn_bias_wrong.clone()
-    )  # Clone to avoid modifying the original wrong bias
-    if attn_bias_sliced_by_bug.shape[2] != q.shape[1]:
-        attn_bias_sliced_by_bug = attn_bias_sliced_by_bug[:, :, : q.shape[1], :]
-    if attn_bias_sliced_by_bug.shape[3] != k.shape[1]:
-        attn_bias_sliced_by_bug = attn_bias_sliced_by_bug[:, :, :, : k.shape[1]]
-    # Expected shape after buggy slicing: (BATCH_SIZE, NUM_HEADS, q.shape[1], k.shape[1]) -> (2, 4, 4, 4)
+    # Calculate the expected bias after the *correct* slicing logic is applied
+    # Fix: Slices should use q.shape[2] (QUERY_LEN) and k.shape[2] (KEY_LEN), not q.shape[1] (NUM_HEADS)
+    attn_bias_sliced_correct = attn_bias_wrong.clone()
+    if attn_bias_sliced_correct.shape[2] != q.shape[2]:
+        attn_bias_sliced_correct = attn_bias_sliced_correct[:, :, : q.shape[2], :]
+    if attn_bias_sliced_correct.shape[3] != k.shape[2]:
+        attn_bias_sliced_correct = attn_bias_sliced_correct[:, :, :, : k.shape[2]]
+    # Expected shape after correct slicing: (BATCH_SIZE, NUM_HEADS, QUERY_LEN, KEY_LEN)
 
     error_msg = "The size of tensor a (X) must match the size of tensor b (Y) at non-singleton dimension Z"
     mock_original_sdpa.side_effect = [
@@ -265,20 +262,19 @@ def test_patched_attention_handles_bias_mismatch(
     ), "First call should use original wrong bias"
 
     call2_args, _ = mock_original_sdpa.call_args_list[1]
-    # Assert that the second call uses the bias incorrectly sliced by the buggy logic
+    # Assert that the second call uses the bias correctly sliced by the fixed logic
     assert (
-        call2_args[3].shape == attn_bias_sliced_by_bug.shape
-    ), f"Shape mismatch after buggy slice. Expected {attn_bias_sliced_by_bug.shape}, Got {call2_args[3].shape}"
+        call2_args[3].shape == attn_bias_sliced_correct.shape
+    ), f"Shape mismatch after correct slice. Expected {attn_bias_sliced_correct.shape}, Got {call2_args[3].shape}"
     assert torch.equal(
-        call2_args[3], attn_bias_sliced_by_bug
-    ), f"Second call should use bias incorrectly sliced by bug (tested dim {slice_dim})"  # Changed assertion target
+        call2_args[3], attn_bias_sliced_correct
+    ), f"Second call should use bias correctly sliced (tested dim {slice_dim})"
     assert result is not None, "Should return success value on second call"
 
 
 def test_patched_attention_handles_bias_both_mismatch(patch_environment):
     """
     Test bias fix attempt when both query and key dimensions mismatch.
-    NOTE: This test reflects the *buggy* behavior in attention_fixes.py where slicing uses shape[1] (NUM_HEADS) instead of shape[2]/[3] (sequence lengths).
     """
     mock_original_sdpa = patch_environment["mock_original_sdpa"]
     patched_sdpa = patch_environment["patched_sdpa"]
@@ -297,21 +293,14 @@ def test_patched_attention_handles_bias_both_mismatch(patch_environment):
         BATCH_SIZE, NUM_HEADS, wrong_query_len, wrong_key_len
     )  # (2, 4, 15, 15)
 
-    # Calculate the expected bias after the *buggy* slicing logic is applied
-    # Bug: Slices based on q.shape[1] and k.shape[1] (NUM_HEADS)
-    attn_bias_sliced_by_bug = attn_bias_wrong.clone()
-    if attn_bias_sliced_by_bug.shape[2] != q.shape[1]:
-        attn_bias_sliced_by_bug = attn_bias_sliced_by_bug[
-            :, :, : q.shape[1], :
-        ]  # -> (2, 4, 4, 15)
-    if attn_bias_sliced_by_bug.shape[3] != k.shape[1]:
-        attn_bias_sliced_by_bug = attn_bias_sliced_by_bug[
-            :, :, :, : k.shape[1]
-        ]  # -> (2, 4, 4, 4)
-
-    # This is what the slicing *should* produce correctly
-    # attn_bias_sliced_q = attn_bias_wrong[:, :, :QUERY_LEN, :]
-    # attn_bias_correct = attn_bias_sliced_q[:, :, :, :KEY_LEN] # -> (2, 4, 10, 12)
+    # Calculate the expected bias after the *correct* slicing logic is applied
+    # Fix: Slices should use q.shape[2] (QUERY_LEN) and k.shape[2] (KEY_LEN), not q.shape[1] (NUM_HEADS)
+    attn_bias_sliced_correct = attn_bias_wrong.clone()
+    if attn_bias_sliced_correct.shape[2] != q.shape[2]:
+        attn_bias_sliced_correct = attn_bias_sliced_correct[:, :, : q.shape[2], :]
+    if attn_bias_sliced_correct.shape[3] != k.shape[2]:
+        attn_bias_sliced_correct = attn_bias_sliced_correct[:, :, :, : k.shape[2]]
+    # Expected shape after correct slicing: (BATCH_SIZE, NUM_HEADS, QUERY_LEN, KEY_LEN)
 
     error_msg = "The size of tensor a (X) must match the size of tensor b (Y) at non-singleton dimension Z"
     mock_original_sdpa.side_effect = [
@@ -326,13 +315,13 @@ def test_patched_attention_handles_bias_both_mismatch(patch_environment):
     assert torch.equal(call1_args[3], attn_bias_wrong)
 
     call2_args, _ = mock_original_sdpa.call_args_list[1]
-    # Assert that the second call uses the bias incorrectly sliced by the buggy logic
+    # Assert that the second call uses the bias correctly sliced by the fixed logic
     assert (
-        call2_args[3].shape == attn_bias_sliced_by_bug.shape
-    ), f"Shape mismatch after buggy slice. Expected {attn_bias_sliced_by_bug.shape}, Got {call2_args[3].shape}"
+        call2_args[3].shape == attn_bias_sliced_correct.shape
+    ), f"Shape mismatch after correct slice. Expected {attn_bias_sliced_correct.shape}, Got {call2_args[3].shape}"
     assert torch.equal(
-        call2_args[3], attn_bias_sliced_by_bug
-    ), "Bias should be incorrectly sliced by bug"  # Changed assertion target
+        call2_args[3], attn_bias_sliced_correct
+    ), "Bias should be correctly sliced by fix"
     assert result is not None
 
 
@@ -389,9 +378,6 @@ def test_patched_attention_no_fix_if_bias_wrong_dim(patch_environment):
     assert (
         mock_original_sdpa.call_count == 2
     ), f"Expected mock to be called twice based on observed behavior, but was called {mock_original_sdpa.call_count} times."
-    # We can still check the arguments of the *first* call if needed, but the primary failure was call count
-    # call_args, _ = mock_original_sdpa.call_args_list[0] # Get first call
-    # assert torch.equal(call_args[3], attn_bias_wrong_dim), "Bias should be unchanged in the first call"
 
 
 def test_patched_attention_reraises_other_runtime_errors(patch_environment):

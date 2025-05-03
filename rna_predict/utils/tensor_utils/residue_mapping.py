@@ -397,18 +397,25 @@ def derive_residue_atom_map(
     if atom_metadata is not None and 'residue_indices' in atom_metadata:
         logger.info("Deriving residue-atom map from explicit atom metadata.")
         residue_indices = atom_metadata['residue_indices']
-        if isinstance(residue_indices, (list, torch.Tensor)):
-            return _derive_map_from_metadata(_cast_residue_indices(residue_indices), sequence_list, n_residues)
-        raise ValueError("residue_indices in atom_metadata must be a list or tensor")
-
+        logger.info(f"[DEBUG][StageD] atom_metadata present: len(atom_metadata['residue_indices'])={len(residue_indices)}")
+        logger.info(f"[DEBUG][StageD] sequence_list: {sequence_list}")
+        logger.info(f"[DEBUG][StageD] counts_map: {counts_map}")
+        logger.info(f"[DEBUG][StageD] n_residues: {n_residues}")
+        return _derive_map_from_metadata(_cast_residue_indices(residue_indices), sequence_list, n_residues)
     # Method 2: Use partial_coords shape and assume contiguous block ordering
     if partial_coords is not None:
         logger.info("Deriving residue-atom map from partial coordinates shape and sequence.")
         n_atoms = _get_atom_count_from_coords(partial_coords)
+        logger.info(f"[DEBUG][StageD] sequence_list: {sequence_list}")
+        logger.info(f"[DEBUG][StageD] counts_map: {counts_map}")
+        logger.info(f"[DEBUG][StageD] n_atoms (from partial_coords): {n_atoms}")
         expected_atom_counts = _calculate_expected_atom_counts(sequence_list, counts_map, n_atoms)
+        logger.info(f"[DEBUG][StageD] expected_atom_counts: {expected_atom_counts}, sum={sum(expected_atom_counts)}")
         return _create_residue_atom_map_from_counts(expected_atom_counts)
-
     # Method 3: Use atom_counts_map and sequence if coordinates and metadata are both missing
     logger.info("Deriving residue-atom map from sequence and standard atom counts.")
+    logger.info(f"[DEBUG][StageD] sequence_list: {sequence_list}")
+    logger.info(f"[DEBUG][StageD] counts_map: {counts_map}")
     expected_atom_counts = _calculate_expected_atom_counts(sequence_list, counts_map)
+    logger.info(f"[DEBUG][StageD] expected_atom_counts: {expected_atom_counts}, sum={sum(expected_atom_counts)}")
     return _create_residue_atom_map_from_counts(expected_atom_counts)

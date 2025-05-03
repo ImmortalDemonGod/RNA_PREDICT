@@ -7,6 +7,7 @@ from enum import Enum
 from typing import Dict, Optional, Tuple, Union
 
 import einops
+import logging
 import numpy as np
 import torch
 
@@ -24,6 +25,7 @@ from rna_predict.pipeline.stageC.mp_nerf.proteins import (
 from .atom_utils import atom_selector
 from .tensor_ops import process_coordinates
 
+logger = logging.getLogger(__name__)
 
 @dataclass
 class NoiseInternalsConfig:
@@ -139,7 +141,7 @@ def _apply_noise_to_scaffolds(
         return scaffolds
 
     if verbose:
-        print("noising", noise_scale)
+        logger.info(f"noising {noise_scale}")
 
     # Make a copy to avoid modifying the input
     scaffolds = {k: v.clone() for k, v in scaffolds.items()}

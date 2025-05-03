@@ -1,0 +1,20 @@
+defaults:
+  - default
+  - model/stageD
+  - model/stageD_diffusion
+  - model/stageD_input_features
+  - test_data
+  - _self_
+
+# Test configuration for Stage D
+sequence: ACGUACGU
+device: cpu
+seed: 42
+atoms_per_residue: 44
+
+pipeline:
+  verbose: true
+  save_intermediates: true
+  output_dir: outputs
+  ignore_nan_values: true
+  nan_replacement_value: 0.0

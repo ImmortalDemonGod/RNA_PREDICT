@@ -1,3 +1,5 @@
+# DEPRECATED: This file is not used by train.py or the main data pipeline. Retained for reference only. Remove if confirmed obsolete.
+
 import torch
 from datasets import load_dataset
 from datasets.iterable_dataset import IterableDataset
@@ -106,7 +108,7 @@ def validate_input_features(input_feature_dict: dict):
     return True
 
 
-# @snoop
+# #####@snoop
 def load_rna_data_and_features(
     rna_filepath: str, device="cpu", override_num_atoms: int | None = None
 ):

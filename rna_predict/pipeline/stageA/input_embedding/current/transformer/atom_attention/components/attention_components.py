@@ -25,6 +25,7 @@ class AttentionComponents:
         n_queries: int,
         n_keys: int,
         blocks_per_ckpt: Optional[int] = None,
+        debug_logging: bool = False,
     ):
         """
         Initialize the attention components.
@@ -37,11 +38,13 @@ class AttentionComponents:
             n_queries: Number of queries
             n_keys: Number of keys
             blocks_per_ckpt: Number of blocks per checkpoint
+            debug_logging: Whether to print debug logs
         """
         self.c_atom = c_atom
         self.c_atompair = c_atompair
         self.n_queries = n_queries
         self.n_keys = n_keys
+        self.debug_logging = debug_logging
 
         # Set up pair projections
         self._setup_pair_projections()
@@ -142,6 +145,7 @@ class AttentionComponents:
         p: torch.Tensor,
         mask: Optional[torch.Tensor] = None,
         chunk_size: Optional[int] = None,
+        debug_logging: bool = False,
     ) -> torch.Tensor:
         """
         Apply atom transformer to features.
@@ -151,6 +155,7 @@ class AttentionComponents:
             p: Pair features
             mask: Attention mask
             chunk_size: Size of chunks for processing
+            debug_logging: Whether to print debug logs
 
         Returns:
             Transformed features
@@ -164,8 +169,9 @@ class AttentionComponents:
             mask = mask.unsqueeze(-1)
 
         # Debug prints for tensor shapes
-        print(f"DEBUG: In apply_transformer: a.shape={a.shape}, p.shape={p.shape}, mask.shape={mask.shape}")
-        print(f"DEBUG: c_atompair={self.c_atompair}, n_queries={self.n_queries}, n_keys={self.n_keys}")
+        if debug_logging:
+            print(f"DEBUG: In apply_transformer: a.shape={a.shape}, p.shape={p.shape}, mask.shape={mask.shape}")
+            print(f"DEBUG: c_atompair={self.c_atompair}, n_queries={self.n_queries}, n_keys={self.n_keys}")
 
         # Ensure pair features have correct dimensions
         if p.shape[-1] != self.c_atompair:
@@ -179,7 +185,8 @@ class AttentionComponents:
             else:
                 p = p.unsqueeze(-1).expand(*p.shape[:-1], self.c_atompair)
 
-        print(f"DEBUG: After fixing dimensions: p.shape={p.shape}")
+        if debug_logging:
+            print(f"DEBUG: After fixing dimensions: p.shape={p.shape}")
 
         # Convert mask to float32 if it's a boolean tensor
         if mask.dtype == torch.bool:

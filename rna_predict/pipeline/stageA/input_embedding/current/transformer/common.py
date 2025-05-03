@@ -43,22 +43,25 @@ class InputFeatureDict(TypedDict, total=False):
     deletion_mean: torch.Tensor
 
 
-def safe_tensor_access(feature_dict: InputFeatureDict, key: str) -> torch.Tensor:
+def safe_tensor_access(feature_dict: InputFeatureDict, key: str, default: Optional[torch.Tensor] = None) -> Optional[torch.Tensor]:
     """
     Safely access a tensor from the feature dictionary.
 
     Args:
         feature_dict: Dictionary containing features
         key: Key to access
+        default: Default value to return if key is not found or value is not a tensor
 
     Returns:
-        The tensor at the given key
+        The tensor at the given key or default value
 
     Raises:
-        ValueError: If the value is not a tensor
+        ValueError: If the value is not a tensor and no default is provided
     """
     value = feature_dict.get(key)
     if not isinstance(value, torch.Tensor):
+        if default is not None:
+            return default
         raise ValueError(f"Expected tensor for key '{key}', got {type(value)}")
     return value
 

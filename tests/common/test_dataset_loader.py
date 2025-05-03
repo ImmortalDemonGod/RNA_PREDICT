@@ -21,6 +21,9 @@ Key Improvements:
 
 import unittest
 from unittest.mock import MagicMock, patch
+import os
+from omegaconf import OmegaConf
+from rna_predict.dataset.loader import RNADataset
 
 import torch
 from hypothesis import HealthCheck, example, given, settings
@@ -400,6 +403,42 @@ class TestLoadRnaDataAndFeatures(unittest.TestCase):
             self.assertEqual(atom_dict["ref_pos"].shape[1], 40)
         else:
             self.assertEqual(atom_dict["ref_pos"].shape[1], override_num_atoms)
+
+
+import hydra
+from hydra import compose, initialize
+
+class TestRNADatasetMinimal(unittest.TestCase):
+    def test_loader_reads_target_id(self):
+        # Use the minimal Kaggle index CSV
+        index_csv = os.path.join(
+            os.path.dirname(__file__),
+            '../../rna_predict/dataset/examples/kaggle_minimal_index.csv'
+        )
+        # Print raw CSV contents for debugging
+        with open(index_csv, 'r') as f:
+            print('[TEST] Raw CSV contents:')
+            for line in f:
+                print('[TEST] ' + line.rstrip())
+        # Minimal config stub (now via Hydra)
+        with initialize(config_path="../../rna_predict/conf", version_base=None):
+            cfg = compose(config_name="default.yaml")
+            # Override for test
+            cfg.data.max_residues = 10
+            cfg.data.max_atoms = 21
+            cfg.data.batch_size = 1
+            cfg.data.index_csv = index_csv
+            print("[DEBUG] Loaded Hydra config for test_dataset_loader.py:\n", cfg)
+            loader = RNADataset(index_csv, cfg)
+        # Access first sample and assert 'target_id' exists
+        row = loader.meta[0]
+        self.assertIn('target_id', row.dtype.names)
+        self.assertTrue(row['target_id'] != '', "target_id should not be empty")
+        # Optionally, test __getitem__
+        sample = loader[0]
+        # If sample is a dict, check for keys; if tuple, skip
+        if isinstance(sample, dict):
+            self.assertIn('target_id', sample)
 
 
 if __name__ == "__main__":

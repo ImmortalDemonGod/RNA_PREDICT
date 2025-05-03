@@ -18,6 +18,7 @@ from typing import Any, Optional
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import logging
 
 from rna_predict.pipeline.stageA.input_embedding.current.primitives import LinearNoBias
 from rna_predict.pipeline.stageA.input_embedding.current.transformer import (
@@ -28,6 +29,8 @@ from rna_predict.pipeline.stageA.input_embedding.current.transformer import (
 
 # Removed the direct import from ...transformer.atom_attention
 
+# Initialize logger for Stage A embedders
+logger = logging.getLogger("rna_predict.pipeline.stageA.input_embedding.embedders")
 
 class InputFeatureEmbedder(nn.Module):
     """
@@ -44,7 +47,7 @@ class InputFeatureEmbedder(nn.Module):
     and returns a final tensor of shape [..., N_token, c_token].
     """
 
-    # @snoop
+    # #####@snoop
     def __init__(
         self,
         c_atom: int = 128,
@@ -56,6 +59,8 @@ class InputFeatureEmbedder(nn.Module):
         num_heads: int = 4,
         num_layers: int = 3,
         use_optimized: bool = False,
+        debug_logging: bool = False,
+        config: Optional[AtomAttentionConfig] = None,  # <-- Accept config for Hydra-driven instantiation
     ) -> None:
         """
         Args:
@@ -68,27 +73,45 @@ class InputFeatureEmbedder(nn.Module):
             num_heads (int, optional): # heads for any internal attention. Defaults to 4.
             num_layers (int, optional): # layers for potential stack. Defaults to 3.
             use_optimized (bool, optional): whether to use an optimized path. Defaults to False.
+            debug_logging (bool, optional): whether to enable debug logging. Defaults to False.
+            config (Optional[AtomAttentionConfig]): Hydra config object for encoder, if available.
         """
-        super(InputFeatureEmbedder, self).__init__()
-        self.c_atom = c_atom
-        self.c_atompair = c_atompair
-        self.c_token = c_token
-
-        self.restype_dim = restype_dim
-        self.profile_dim = profile_dim
-        self.c_pair = c_pair
-        self.num_heads = num_heads
-        self.num_layers = num_layers
-        self.use_optimized = use_optimized
-
-        # Create the config object explicitly
-        encoder_config = AtomAttentionConfig(
-            has_coords=False,  # Based on original failing call
-            c_token=self.c_token,
-            c_atom=self.c_atom,
-            c_atompair=self.c_atompair,
-            # Rely on defaults in AtomAttentionConfig for other params (c_s, c_z, n_blocks, etc.)
-        )
+        super().__init__()
+        # If a config object is provided (Hydra best practice), use it for all settings
+        if config is not None:
+            self.c_atom = config.c_atom
+            self.c_atompair = config.c_atompair
+            self.c_token = config.c_token
+            self.restype_dim = getattr(config, 'restype_dim', restype_dim)
+            self.profile_dim = getattr(config, 'profile_dim', profile_dim)
+            self.c_pair = getattr(config, 'c_pair', c_pair)
+            self.num_heads = getattr(config, 'num_heads', num_heads)
+            self.num_layers = getattr(config, 'num_layers', num_layers)
+            self.use_optimized = getattr(config, 'use_optimized', use_optimized)
+            self.debug_logging = getattr(config, 'debug_logging', False)
+            encoder_config = config
+        else:
+            self.c_atom = c_atom
+            self.c_atompair = c_atompair
+            self.c_token = c_token
+            self.restype_dim = restype_dim
+            self.profile_dim = profile_dim
+            self.c_pair = c_pair
+            self.num_heads = num_heads
+            self.num_layers = num_layers
+            self.use_optimized = use_optimized
+            self.debug_logging = debug_logging
+            encoder_config = AtomAttentionConfig(
+                has_coords=False,  # Based on original failing call
+                c_token=self.c_token,
+                c_atom=self.c_atom,
+                c_atompair=self.c_atompair,
+                c_s=self.c_token,  # Use token dim for single emb
+                c_z=self.c_atompair,  # Use atompair dim for pair emb
+                n_blocks=self.num_layers,
+                n_heads=self.num_heads,
+                debug_logging=self.debug_logging,
+            )
         self.atom_attention_encoder = AtomAttentionEncoder(config=encoder_config)
         # Existing line2 comment
         #
@@ -106,7 +129,7 @@ class InputFeatureEmbedder(nn.Module):
         # Optionally, place a final layer norm after summing
         self.final_ln = nn.LayerNorm(self.c_token)
 
-    # @snoop
+    # #####@snoop
     def forward(
         self,
         input_feature_dict: InputFeatureDict,
@@ -147,12 +170,14 @@ class InputFeatureEmbedder(nn.Module):
             inplace_safe=inplace_safe,
             chunk_size=chunk_size,
         )
-        print(f"DEBUG [Embedder]: Shape after encoder (a): {a.shape}")  # DEBUG
+        if self.debug_logging:
+            logger.debug(f"DEBUG [Embedder]: Shape after encoder (a): {a.shape}")
 
         # Ensure 'a' has at least 3 dimensions [batch, tokens, features]
         if a.dim() == 2:  # [tokens, features]
             a = a.unsqueeze(0)  # Add batch dimension
-        print(f"DEBUG [Embedder]: Shape after dimension adjustment (a): {a.shape}")
+        if self.debug_logging:
+            logger.debug(f"DEBUG [Embedder]: Shape after dimension adjustment (a): {a.shape}")
 
         # Extract the number of tokens from restype or profile
         if "restype" in input_feature_dict:
@@ -181,10 +206,11 @@ class InputFeatureEmbedder(nn.Module):
                 else:
                     # Handle the case where atom_to_token_idx is empty
                     N_token = 0 # Or raise an error, depending on expected behavior
-                    print("Warning: atom_to_token_idx is empty, setting N_token to 0.")
+                    if self.debug_logging:
+                        logger.warning("atom_to_token_idx is empty, setting N_token to 0.")
 
-
-        print(f"DEBUG [Embedder]: N_token determined as: {N_token}")
+        if self.debug_logging:
+            logger.debug(f"DEBUG [Embedder]: N_token determined as: {N_token}")
 
         # Ensure 'a' has the correct number of tokens
         if a.size(1) != N_token:
@@ -200,7 +226,8 @@ class InputFeatureEmbedder(nn.Module):
                 )
                 a = torch.cat([a, padding], dim=1)
 
-        print(f"DEBUG [Embedder]: Shape after token adjustment (a): {a.shape}")
+        if self.debug_logging:
+            logger.debug(f"DEBUG [Embedder]: Shape after token adjustment (a): {a.shape}")
 
         # Create extras tensor by concatenating restype, profile, and deletion_mean
         extras_list = []
@@ -240,14 +267,15 @@ class InputFeatureEmbedder(nn.Module):
                     )
                     feat = torch.cat([feat, padding], dim=1)
 
-            print(f"DEBUG [Embedder]: {key} shape after processing: {feat.shape}")
+            if self.debug_logging:
+                logger.debug(f"DEBUG [Embedder]: {key} shape after processing: {feat.shape}")
             extras_list.append(feat)
 
         # Now concatenate along the feature dimension
         # FIX 2: Assign result to a new variable `extras_cat`
         extras_cat = torch.cat(extras_list, dim=-1)
-        # FIX 3: Use `extras_cat` for shape access
-        print(f"DEBUG [Embedder]: extras_cat shape before linear: {extras_cat.shape}")
+        if self.debug_logging:
+            logger.debug(f"DEBUG [Embedder]: extras_cat shape before linear: {extras_cat.shape}")
 
         # Create extras_linear if not already created
         if self.extras_linear is None:
@@ -257,18 +285,21 @@ class InputFeatureEmbedder(nn.Module):
             self.extras_linear = LinearNoBias(extras_dim, self.c_token).to(
                 extras_cat.device
             )
-            print(
-                f"DEBUG [Embedder]: extras_linear weight shape: {self.extras_linear.weight.shape}"
-            )
+            if self.debug_logging:
+                logger.debug(
+                    f"DEBUG [Embedder]: extras_linear weight shape: {self.extras_linear.weight.shape}"
+                )
 
         # Project extras to c_token dimension and add to atom embeddings
         extras_proj = self.extras_linear(extras_cat) # Use extras_cat here
         s_inputs = a + extras_proj
-        print(f"DEBUG [Embedder]: Shape after addition (s_inputs): {s_inputs.shape}")
+        if self.debug_logging:
+            logger.debug(f"DEBUG [Embedder]: Shape after addition (s_inputs): {s_inputs.shape}")
 
         # Apply final layer norm
         out = self.final_ln(s_inputs)
-        print(f"DEBUG [Embedder]: Shape after final_ln (out): {out.shape}")
+        if self.debug_logging:
+            logger.debug(f"DEBUG [Embedder]: Shape after final_ln (out): {out.shape}")
 
         # Return the output with the batch dimension preserved
         return out
@@ -286,7 +317,7 @@ class RelativePositionEncoding(nn.Module):
             s_max (int, optional): Relative chain indices clip value. Defaults to 2.
             c_z (int, optional): hidden dim [for pair embedding]. Defaults to 128.
         """
-        super(RelativePositionEncoding, self).__init__()
+        super().__init__()
         self.r_max = r_max
         self.s_max = s_max
         self.c_z = c_z
@@ -510,7 +541,7 @@ class FourierEmbedding(nn.Module):
         Args:
             c (int): embedding dim.
         """
-        super(FourierEmbedding, self).__init__()
+        super().__init__()
         self.c = c
         self.seed = seed
         generator = torch.Generator()

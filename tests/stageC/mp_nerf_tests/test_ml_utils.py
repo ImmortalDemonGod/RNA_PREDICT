@@ -501,20 +501,20 @@ class TestNoiseInternals(unittest.TestCase):
         # Ensure at least one of angles or coords is provided
         if not has_angles and not has_coords:
             has_angles = True  # Default to using angles if neither is selected
-            
+
         angles = torch.randn(len(seq), 3) if has_angles else None
         coords = torch.randn(len(seq), 3, 3) if has_coords else None
-        
+
         # Create NoiseConfig object
         noise_config = NoiseConfig(noise_scale=noise_scale, theta_scale=theta_scale)
-        
+
         result = noise_internals_legacy(
             seq=seq,
             angles=angles,
             coords=coords,
             config=noise_config
         )
-        
+
         # Verify the result is a tuple
         self.assertIsInstance(result, tuple)
         # Verify it contains coords and mask
@@ -592,14 +592,14 @@ class TestCombineNoise(unittest.TestCase):
             internals_scn_scale=config.internals_scn_scale,
             sidechain_reconstruct=config.sidechain_reconstruct
         )
-        
+
         # Verify output shapes match input
         self.assertEqual(noised_coords.shape, test_coords.shape, "Noised coordinates shape mismatch")
         self.assertEqual(mask.shape, (test_coords.shape[0], test_coords.shape[1]), "Mask shape mismatch")
-        
+
         # Verify mask is boolean
         self.assertEqual(mask.dtype, torch.bool, "Mask should be boolean tensor")
-        
+
         # Verify coordinates are finite
         self.assertTrue(torch.isfinite(noised_coords).all(), "Noised coordinates contain non-finite values")
 
@@ -704,9 +704,10 @@ if __name__ == "__main__":
 
 
 # --- Test for refactored __main__ logic ---
-@patch("builtins.print")  # Mock print to suppress output during test
+@patch("logging.Logger.info")  # Mock logger.info to suppress output during test
+@patch("logging.Logger.error")  # Mock logger.error to suppress output during test
 @patch("joblib.load")  # Corrected patch target
-def test__run_main_logic(mock_joblib_load, mock_print):
+def test__run_main_logic(mock_joblib_load, mock_logger_error, mock_logger_info):
     """
     Tests the _run_main_logic function (code previously in if __name__ == '__main__').
     Mocks joblib.load to provide dummy data and ensures the function executes,
@@ -760,6 +761,12 @@ def test__run_main_logic(mock_joblib_load, mock_print):
         "some_route_to_local_serialized_file_with_prots"
     )
 
-    # Verify print was called (optional, depends on whether you want to check output)
-    # Check that print was called at least 3 times as in the original logic
-    assert mock_print.call_count >= 3
+    # Verify logger.info was called at least 2 times (for cloud.shape and integral.shape)
+    assert mock_logger_info.call_count >= 2, f"Expected at least 2 logger.info calls, got {mock_logger_info.call_count}"
+
+    # Verify that the total number of log calls (info + error) is at least 3
+    total_log_calls = mock_logger_info.call_count + mock_logger_error.call_count
+    assert total_log_calls >= 3, f"Expected at least 3 total log calls, got {total_log_calls}"
+
+
+# Update test_utils import to test_utils_stageC

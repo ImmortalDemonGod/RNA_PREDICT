@@ -61,11 +61,15 @@ def scatter_mean(
         counts.scatter_add_(
             dim, index, torch.ones_like(src[:, 0])
         )  # Count occurrences for each index
-    except ImportError:
+    except (ImportError, ModuleNotFoundError):
         # Fallback loop if torch_scatter is not installed
         for i in range(src.size(0)):
             # Ensure index is explicitly int for tensor indexing
             idx = int(index[i].item())
+            if idx >= dim_size:
+                import warnings
+                warnings.warn(f"[scatter_mean fallback] index {idx} >= dim_size ({dim_size}). Clipping to {dim_size-1}.")
+                idx = dim_size - 1
             out[idx] += src[i]
             counts[idx] += 1.0
 

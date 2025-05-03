@@ -62,10 +62,16 @@ def sample_msa_feature_dict_random_without_replacement(feature_dict, n_samples):
     sampled_dict = {}
     for key, value in feature_dict.items():
         if key == "msa":
-            sampled_dict[key] = value[sampled_indices]
+            sampled = np.take(value, sampled_indices, axis=0)
+            # Guarantee shape preservation even for singleton axes
+            sampled = np.reshape(sampled, (n_samples,) + value.shape[1:])
+            sampled_dict[key] = sampled
         elif key in ["has_deletion", "deletion_value"]:
             if value is not None:
-                sampled_dict[key] = value[sampled_indices]
+                sampled = np.take(value, sampled_indices, axis=0)
+                # Guarantee shape preservation even for singleton axes
+                sampled = np.reshape(sampled, (n_samples,) + value.shape[1:])
+                sampled_dict[key] = sampled
         else:
             sampled_dict[key] = value
 

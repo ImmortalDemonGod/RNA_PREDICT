@@ -5,7 +5,7 @@ Tests for the shape_utils module.
 import torch
 import pytest
 from rna_predict.utils.shape_utils import adjust_tensor_feature_dim, adjust_attention_bias
-
+from hypothesis import given, strategies as st, settings
 
 def test_adjust_tensor_feature_dim():
     """Test the adjust_tensor_feature_dim function."""
@@ -74,44 +74,81 @@ def test_adjust_attention_bias():
 
 
 def test_integration_with_adaptive_layernorm():
-    """Test integration with AdaptiveLayerNorm."""
+    """Test integration with AdaptiveLayerNorm.
+
+    This test verifies that AdaptiveLayerNorm can handle various tensor shape mismatches:
+    1. Different feature dimensions (should pad/truncate)
+    2. Different sequence lengths (should adjust tensors)
+    3. Different batch sizes with broadcasting compatibility
+    """
     from rna_predict.pipeline.stageA.input_embedding.current.primitives.attention_base import AdaptiveLayerNorm
 
     # Create an AdaptiveLayerNorm instance
-    adaln = AdaptiveLayerNorm(c_a=768, c_s=384)
+    c_a = 768  # Fixed feature dimension for a
+    c_s = 384  # Expected feature dimension for s
+    adaln = AdaptiveLayerNorm(c_a=c_a, c_s=c_s)
 
     # Test case 1: Mismatched feature dimensions
-    a = torch.randn(2, 10, 768)  # Correct shape
-    s = torch.randn(2, 10, 256)  # Wrong feature dimension (should be 384)
+    a1 = torch.randn(2, 10, c_a)  # Correct shape
+    s1 = torch.randn(2, 10, 256)  # Wrong feature dimension (should be 384)
+    result1 = adaln(a1, s1)
+    assert result1.shape == a1.shape
 
-    # This should not raise an error and should return a tensor with the same shape as a
-    result = adaln(a, s)
+    # Test case 2: s has fewer tokens than a (previously failing case)
+    a2 = torch.randn(2, 10, c_a)  # [batch, seq, features]
+    s2 = torch.randn(2, 5, c_s)   # Different sequence length
+    result2 = adaln(a2, s2)
+    assert result2.shape == a2.shape
+
+    # Test case 3: s has more tokens than a
+    a3 = torch.randn(2, 5, c_a)   # [batch, seq, features]
+    s3 = torch.randn(2, 10, c_s)  # Different sequence length
+    result3 = adaln(a3, s3)
+    assert result3.shape == a3.shape
+
+    # Test case 4: Mismatched batch dimensions with broadcasting compatibility
+    a4 = torch.randn(2, 10, c_a)  # Batch size 2
+    s4 = torch.randn(1, 10, c_s)  # Batch size 1 (can broadcast to 2)
+    result4 = adaln(a4, s4)
+    assert result4.shape == a4.shape
+
+
+@settings(deadline=None)  # Disable deadline for this test
+@given(
+    seq_len_a=st.integers(min_value=5, max_value=20),
+    seq_len_s=st.integers(min_value=5, max_value=20),
+    feature_dim=st.integers(min_value=32, max_value=128)
+)
+def test_adjust_tensor_shapes_hypothesis(seq_len_a, seq_len_s, feature_dim):
+    """Test the adjust_tensor_shapes function using hypothesis testing.
+
+    This test verifies that adjust_tensor_shapes correctly handles tensors with
+    different sequence lengths, particularly focusing on the case where scale has
+    fewer tokens than a (which was previously failing).
+
+    Args:
+        seq_len_a: Sequence length for tensor a
+        seq_len_s: Sequence length for tensor s
+        feature_dim: Feature dimension for all tensors
+    """
+    from rna_predict.pipeline.stageA.input_embedding.current.primitives.adaptive_layer_norm_utils import adjust_tensor_shapes
+
+    # Create tensors with potentially mismatched dimensions
+    batch_size = 2
+    a = torch.randn(batch_size, seq_len_a, feature_dim)  # Target tensor
+    scale = torch.randn(batch_size, seq_len_s, feature_dim)  # Scale tensor
+    shift = torch.randn(batch_size, seq_len_s, feature_dim)  # Shift tensor
+
+    # Adjust tensor shapes
+    adjusted_scale, adjusted_shift = adjust_tensor_shapes(scale, shift, a)
+
+    # Verify the adjusted tensors have the same shape as a
+    assert adjusted_scale.shape == a.shape, f"Expected scale shape {a.shape}, got {adjusted_scale.shape}"
+    assert adjusted_shift.shape == a.shape, f"Expected shift shape {a.shape}, got {adjusted_shift.shape}"
+
+    # Verify we can perform element-wise operations without errors
+    result = adjusted_scale * a + adjusted_shift
     assert result.shape == a.shape
-
-    # Test case 2: Mismatched batch dimensions - we'll use broadcasting-compatible dimensions
-    a = torch.randn(2, 10, 768)  # Batch size 2
-    s = torch.randn(1, 10, 384)  # Batch size 1 (can broadcast to 2)
-
-    # This should not raise an error, and the result shape should match a's shape
-    # due to broadcasting rules
-    result = adaln(a, s)
-    assert result.shape == a.shape  # The shape should match a's shape
-
-    # Test case 3: Mismatched sequence dimensions
-    a = torch.randn(2, 10, 768)  # Sequence length 10
-    s = torch.randn(2, 10, 384)  # Sequence length 10 (matching)
-
-    # This should not raise an error and should return a tensor with the same shape as a
-    result = adaln(a, s)
-    assert result.shape == a.shape  # The shape should match a's shape
-
-    # Test case 4: Completely different shapes but with proper feature dimensions
-    a = torch.randn(2, 10, 768)  # [batch, seq, features]
-    s = torch.randn(2, 5, 384)   # Different sequence length
-
-    # This should still work because we're adjusting the tensors
-    result = adaln(a, s)
-    assert result.shape == a.shape  # The shape should match a's shape
 
 
 def test_integration_with_attention_bias():
