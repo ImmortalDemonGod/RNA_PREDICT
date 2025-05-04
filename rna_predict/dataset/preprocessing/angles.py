@@ -11,28 +11,30 @@ def extract_rna_torsions(
     structure_file: str,
     chain_id: str = "A",
     backend: Literal["mdanalysis", "dssr"] = "mdanalysis",
+    angle_set: Literal["canonical", "full"] = "canonical",
     **kwargs
 ) -> Optional[np.ndarray]:
     """
-    Extracts RNA backbone and glycosidic torsion angles from a structure file.
+    Extracts RNA torsion angles from a structure file.
     
     Given a PDB or mmCIF file, computes the seven standard RNA torsion angles
     (alpha, beta, gamma, delta, epsilon, zeta, chi) for each residue in the
-    specified chain using the selected backend.
+    specified chain using the selected backend. Optionally, also computes the
+    full set of 14 angles, including ribose and pseudo-torsions.
     
     Args:
         structure_file: Path to a .pdb or .cif RNA structure file.
         chain_id: Chain identifier to extract torsions from (default: "A").
         backend: Extraction backend to use ("mdanalysis" or "dssr").
+        angle_set: "canonical" (7 angles) or "full" (14 angles, includes ribose and pseudo-torsions)
     
     Returns:
-        A NumPy array of shape [L, 7] containing torsion angles in radians for
-        each residue, or None if extraction fails.
+        A NumPy array of shape [L, 7] or [L, 14] containing torsion angles in radians for each residue, or None if extraction fails.
     """
-    print(f"[DEBUG] extract_rna_torsions called with: structure_file={structure_file}, chain_id={chain_id}, backend={backend}")
+    print(f"[DEBUG] extract_rna_torsions called with: structure_file={structure_file}, chain_id={chain_id}, backend={backend}, angle_set={angle_set}")
     if backend == "mdanalysis":
         try:
-            result = _extract_rna_torsions_mdanalysis(structure_file, chain_id)
+            result = _extract_rna_torsions_mdanalysis(structure_file, chain_id, angle_set=angle_set)
             print(f"[DEBUG] _extract_rna_torsions_mdanalysis returned type: {type(result)}, value: {result if result is None else 'array shape ' + str(result.shape)}")
             return result
         except Exception as e:
@@ -138,7 +140,9 @@ def _safe_select_atom(res, name: str):
 
 
 def _calc_dihedral(p1, p2, p3, p4):
-    """Calculate dihedral angle in radians given 4 points. Return None if invalid."""
+    """Calculate dihedral angle in radians given 4 points. Return np.nan if any atom missing or invalid."""
+    if p1 is None or p2 is None or p3 is None or p4 is None:
+        return np.nan
     b1 = p2 - p1
     b2 = p3 - p2
     b3 = p4 - p3
@@ -147,7 +151,7 @@ def _calc_dihedral(p1, p2, p3, p4):
     norm_n1 = np.linalg.norm(n1)
     norm_n2 = np.linalg.norm(n2)
     if norm_n1 < 1e-12 or norm_n2 < 1e-12:
-        return None
+        return np.nan
     cos_angle = np.dot(n1, n2) / (norm_n1 * norm_n2)
     cos_angle = max(-1.0, min(1.0, cos_angle))
     sign = np.dot(b2, np.cross(n1, n2))
@@ -200,13 +204,70 @@ def _chi_torsion(res):
     atoms = [O4, C1, N_base, C_base]
     return _calc_dihedral(*atoms) if all(a is not None for a in atoms) else np.nan
 
-def _extract_torsions_from_residues(residues) -> np.ndarray:
+def _nu0_torsion(res):
+    p1 = _safe_select_atom(res, "C4'")
+    p2 = _safe_select_atom(res, "O4'")
+    p3 = _safe_select_atom(res, "C1'")
+    p4 = _safe_select_atom(res, "C2'")
+    return _calc_dihedral(p1, p2, p3, p4)
+
+def _nu1_torsion(res):
+    p1 = _safe_select_atom(res, "O4'")
+    p2 = _safe_select_atom(res, "C1'")
+    p3 = _safe_select_atom(res, "C2'")
+    p4 = _safe_select_atom(res, "C3'")
+    return _calc_dihedral(p1, p2, p3, p4)
+
+def _nu2_torsion(res):
+    p1 = _safe_select_atom(res, "C1'")
+    p2 = _safe_select_atom(res, "C2'")
+    p3 = _safe_select_atom(res, "C3'")
+    p4 = _safe_select_atom(res, "C4'")
+    return _calc_dihedral(p1, p2, p3, p4)
+
+def _nu3_torsion(res):
+    p1 = _safe_select_atom(res, "C2'")
+    p2 = _safe_select_atom(res, "C3'")
+    p3 = _safe_select_atom(res, "C4'")
+    p4 = _safe_select_atom(res, "O4'")
+    return _calc_dihedral(p1, p2, p3, p4)
+
+def _nu4_torsion(res):
+    p1 = _safe_select_atom(res, "C3'")
+    p2 = _safe_select_atom(res, "C4'")
+    p3 = _safe_select_atom(res, "O4'")
+    p4 = _safe_select_atom(res, "C1'")
+    return _calc_dihedral(p1, p2, p3, p4)
+
+def _eta_torsion(prev_res, res, next_res):
+    if prev_res is None or next_res is None:
+        return np.nan
+    p1 = _safe_select_atom(prev_res, "C4'")
+    p2 = _safe_select_atom(res, "P")
+    p3 = _safe_select_atom(res, "C4'")
+    p4 = _safe_select_atom(next_res, "P")
+    return _calc_dihedral(p1, p2, p3, p4)
+
+def _theta_torsion(res, next_res, next_next_res):
+    if next_res is None or next_next_res is None:
+        return np.nan
+    p1 = _safe_select_atom(res, "P")
+    p2 = _safe_select_atom(res, "C4'")
+    p3 = _safe_select_atom(next_res, "P")
+    p4 = _safe_select_atom(next_next_res, "C4'")
+    return _calc_dihedral(p1, p2, p3, p4)
+
+def _extract_torsions_from_residues(residues, angle_set="canonical") -> np.ndarray:
     """Extract torsion angles for each residue in a residue list."""
     n_res = len(residues)
-    torsion_data = np.full((n_res, 7), np.nan, dtype=np.float32)
+    if angle_set == "full":
+        torsion_data = np.full((n_res, 14), np.nan, dtype=np.float32)
+    else:
+        torsion_data = np.full((n_res, 7), np.nan, dtype=np.float32)
     for i, res in enumerate(residues):
         prev_res = residues[i - 1] if i > 0 else None
         next_res = residues[i + 1] if i < n_res - 1 else None
+        next_next_res = residues[i + 2] if i < n_res - 2 else None
         torsion_data[i, 0] = _alpha_torsion(prev_res, res)
         torsion_data[i, 1] = _beta_torsion(res)
         torsion_data[i, 2] = _gamma_torsion(res)
@@ -214,6 +275,14 @@ def _extract_torsions_from_residues(residues) -> np.ndarray:
         torsion_data[i, 4] = _epsilon_torsion(res, next_res)
         torsion_data[i, 5] = _zeta_torsion(res, next_res)
         torsion_data[i, 6] = _chi_torsion(res)
+        if angle_set == "full":
+            torsion_data[i, 7] = _nu0_torsion(res)
+            torsion_data[i, 8] = _nu1_torsion(res)
+            torsion_data[i, 9] = _nu2_torsion(res)
+            torsion_data[i, 10] = _nu3_torsion(res)
+            torsion_data[i, 11] = _nu4_torsion(res)
+            torsion_data[i, 12] = _eta_torsion(prev_res, res, next_res)
+            torsion_data[i, 13] = _theta_torsion(res, next_res, next_next_res)
     return torsion_data
 
 
@@ -240,24 +309,23 @@ class TempFileManager:
             os.remove(self.temp_file)
 
 
-def _extract_rna_torsions_mdanalysis(structure_file: str, chain_id: str) -> Optional[np.ndarray]:
+def _extract_rna_torsions_mdanalysis(structure_file: str, chain_id: str, angle_set: str = "canonical") -> Optional[np.ndarray]:
     """
     Implementation of RNA torsion extraction using MDAnalysis.
-    Returns [L, 7] array (radians), np.nan for missing.
+    Returns [L, 7] or [L, 14] array (radians), np.nan for missing.
     """
-    print(f"[DEBUG] _extract_rna_torsions_mdanalysis called with: {structure_file}, chain_id={chain_id}")
+    print(f"[DEBUG] _extract_rna_torsions_mdanalysis called with: {structure_file}, chain_id={chain_id}, angle_set={angle_set}")
     with TempFileManager(structure_file) as mda_file:
-        print(f"[DEBUG] TempFileManager returned: {mda_file}")
-        universe = _load_universe(mda_file)
-        if universe is None:
-            print(f"[WARN] _load_universe returned None for file: {mda_file}")
+        u = _load_universe(mda_file)
+        if u is None:
+            print(f"[ERROR] Could not load universe for {structure_file}")
             return None
-        chain = _select_chain_with_fallback(universe, chain_id)
-        if chain is None:
-            print(f"[WARN] _select_chain_with_fallback returned None for chain_id: {chain_id}")
+        chain = _select_chain_with_fallback(u, chain_id)
+        if chain is None or len(chain.residues) == 0:
+            print(f"[ERROR] No residues found in chain {chain_id} for {structure_file}")
             return None
         residues = chain.residues
         print(f"[DEBUG] Number of residues in chain: {len(residues)}")
-        torsion_data = _extract_torsions_from_residues(residues)
-        print(f"[DEBUG] torsion_data shape: {torsion_data.shape} (should be [L,7])")
+        torsion_data = _extract_torsions_from_residues(residues, angle_set=angle_set)
+        print(f"[DEBUG] torsion_data shape: {torsion_data.shape} (should be [L,7] or [L,14])")
         return torsion_data
