@@ -21,6 +21,13 @@ def test_extract_rna_torsions_file_not_found():
 
 def test_extract_rna_torsions_chain_not_found(tmp_path):
     # Use a real file but a bogus chain
+    """
+    Tests extract_rna_torsions behavior when a non-existent chain ID is requested.
+    
+    Uses a real CIF file and requests a bogus chain. If the structure contains only one
+    chain or segment, asserts that fallback returns real torsion data. If multiple chains
+    or segments exist, asserts that the result is either None or an array of all NaN values.
+    """
     example = os.path.join(EXAMPLES_DIR, "1a34_1_B.cif")
     result = extract_rna_torsions(example, chain_id="Z")
     # Fallback logic: if only one chain is present, fallback returns real data
@@ -42,6 +49,9 @@ def test_extract_rna_torsions_chain_not_found(tmp_path):
         assert result is None or np.all(np.isnan(result)), "Should return None or all-nan array if chain not found and multiple chains present"
 
 def test_extract_rna_torsions_empty_file(tmp_path):
+    """
+    Tests that extract_rna_torsions returns None when given an empty PDB file.
+    """
     empty = tmp_path / "empty.pdb"
     empty.write_text("")
     assert extract_rna_torsions(str(empty)) is None
@@ -143,6 +153,11 @@ def test_TempFileManager_context(monkeypatch, tmp_path):
     assert not dummy_pdb.exists() or not mgr.using_temp
 
 def test__convert_cif_to_pdb_invalid(monkeypatch, tmp_path):
+    """
+    Tests that _convert_cif_to_pdb raises an appropriate exception when MMCIFParser fails.
+    
+    Ensures that ValueError, RuntimeError, or IOError is raised if the CIF parser encounters an error.
+    """
     import rna_predict.dataset.preprocessing.angles as angles
     # Patch parser to throw a specific exception instead of generic Exception
     monkeypatch.setattr(angles, "MMCIFParser", lambda *_, **__: (_ for _ in ()).throw(RuntimeError("fail")))
