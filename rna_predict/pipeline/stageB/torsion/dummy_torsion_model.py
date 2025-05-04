@@ -8,8 +8,10 @@ class DummyTorsionModel(nn.Module):
     This is used as a fallback when the actual model fails to load.
     """
 
-    def __init__(self, device: str = "cpu", num_angles: int = 7):
+    def __init__(self, device, num_angles: int = 7):
         super().__init__()
+        if device is None:
+            raise ValueError("DummyTorsionModel requires an explicit device argument; do not use hardcoded defaults.")
         self.device = torch.device(device)
         self.num_angles = num_angles
 
