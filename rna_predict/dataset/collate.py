@@ -1,10 +1,10 @@
 # rna_predict/dataset/collate.py
 import torch
 import logging
-import snoop
+
 logger = logging.getLogger("rna_predict.dataset.collate")
 
-@snoop
+
 def rna_collate_fn(batch, cfg=None, debug_logging=None):
     """Collate function for RNA dataset batches, robust to empty and single-item batches.
     Args:
