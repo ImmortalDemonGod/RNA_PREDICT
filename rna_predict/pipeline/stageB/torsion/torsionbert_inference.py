@@ -5,7 +5,9 @@ import torch
 import torch.nn as nn
 from transformers import AutoModel, AutoTokenizer
 from rna_predict.utils.device_management import get_device_for_component, move_to_device, handle_device_error
+import logging
 
+logger = logging.getLogger(__name__)
 
 class DummyTorsionBertAutoModel(nn.Module):
     """Dummy model for testing that returns tensors with correct shape."""
@@ -115,7 +117,9 @@ class TorsionBertModel(nn.Module):
         return_dict: bool = True,
         cfg: Any = None,  # Optional config object for device management
     ) -> None:
+        print("[DEVICE-DEBUG][stageB_torsion] Entering TorsionBertModel.__init__")
         super().__init__()
+        self.device_init = torch.device(device)  # Track the originally requested device
         self.num_angles = num_angles
         self.max_length = max_length
         self.return_dict = return_dict
@@ -125,53 +129,36 @@ class TorsionBertModel(nn.Module):
             try:
                 self.device = get_device_for_component(cfg, "model.stageB.torsion_bert.model", default_device=device)
             except Exception as e:
-                print(f"[DEVICE-MANAGEMENT] Error getting device from config: {str(e)}. Using provided device: {device}")
+                print(f"[DEVICE-DEBUG][stageB_torsion] Exception in get_device_for_component: {e}")
                 self.device = torch.device(device)
         else:
             self.device = torch.device(device)
 
-        # Validate device availability with graceful fallback
-        try:
-            if self.device.type == "cuda" and not torch.cuda.is_available():
-                print(f"[DEVICE-WARNING] CUDA requested but not available. Falling back to CPU.")
-                self.device = torch.device("cpu")
-            if self.device.type == "mps" and not torch.backends.mps.is_available():
-                print(f"[DEVICE-WARNING] MPS requested but not available. Falling back to CPU.")
-                self.device = torch.device("cpu")
-        except Exception as e:
-            print(f"[DEVICE-ERROR] Error checking device availability: {str(e)}. Falling back to CPU.")
-            self.device = torch.device("cpu")
-
-        # Initialize tokenizer and model with error handling
         try:
             self.tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
             self.model = AutoModel.from_pretrained(model_path, trust_remote_code=True)
+            print(f"[DEVICE-DEBUG][stageB_torsion] After model load, param device: {next(self.model.parameters()).device}")
 
             # Move model to device with error handling
             try:
                 self.model = self.model.to(self.device)
-
-                # Verify device placement
-                for name, param in self.model.named_parameters():
-                    if param.device != self.device:
-                        print(f"[DEVICE-WARNING] Parameter '{name}' is on {param.device}, expected {self.device}. Attempting to fix.")
-                        param.data = param.data.to(self.device)
-
-                for name, buf in self.model.named_buffers():
-                    if buf.device != self.device:
-                        print(f"[DEVICE-WARNING] Buffer '{name}' is on {buf.device}, expected {self.device}. Attempting to fix.")
-                        buf.data = buf.data.to(self.device)
+                print(f"[DEVICE-DEBUG][stageB_torsion] After .to(self.device), param device: {next(self.model.parameters()).device}")
             except Exception as e:
-                print(f"[DEVICE-ERROR] Error moving model to {self.device}: {str(e)}. Falling back to CPU.")
-                self.device = torch.device("cpu")
-                self.model = self.model.to(self.device)
+                print(f"[DEVICE-DEBUG][stageB_torsion] Error during .to(self.device): {e}")
+
+            # If PEFT/LoRA is enabled, wrap and then move to device again
+            if getattr(self, "lora_enabled", False) or getattr(self, "peft_enabled", False) or hasattr(self, "apply_lora"):
+                try:
+                    # (Assume model is wrapped here)
+                    print(f"[DEVICE-DEBUG][stageB_torsion] After LoRA/PEFT wrapping, param device: {next(self.model.parameters()).device}")
+                    self.model = self.model.to(self.device)
+                    print(f"[DEVICE-DEBUG][stageB_torsion] After final .to(self.device), param device: {next(self.model.parameters()).device}")
+                except Exception as e:
+                    print(f"[DEVICE-DEBUG][stageB_torsion] Error during LoRA/PEFT .to(self.device): {e}")
         except Exception as e:
+            print(f"[DEVICE-DEBUG][stageB_torsion] Exception in __init__: {e}")
             print(f"[MODEL-ERROR] Error loading model/tokenizer: {str(e)}. Using dummy model.")
             self.tokenizer = None
-            self.model = DummyTorsionBertAutoModel(num_angles=num_angles)
-
-        # If model is mocked (for testing), replace with dummy model
-        if isinstance(self.model, MagicMock):
             self.model = DummyTorsionBertAutoModel(num_angles=num_angles)
         # Assert that neither model nor tokenizer is a MagicMock after all patching/config
         # Skip this assertion in test mode
@@ -424,12 +411,16 @@ class TorsionBertModel(nn.Module):
         result = self._fill_result(raw_sincos, seq_len)
 
         # Ensure result is on the correct device
+        target_device = self.device_init if hasattr(self, 'device_init') else self.device
+        current_device = result.device
+        logger.info(f"[DEVICE-PATCH] Attempting to move result from {current_device} to target {target_device}")
         try:
-            # Try to move result to the configured device
-            if result.device != self.device:
-                result = result.to(self.device)
+            if current_device != target_device:
+                result = result.to(target_device)
+                logger.info(f"[DEVICE-PATCH] Successfully moved result to {result.device}")
+            else:
+                logger.info(f"[DEVICE-PATCH] Result already on target device {target_device}")
         except Exception as e:
-            # If there's an error, leave it on its current device (likely CPU)
-            print(f"[DEVICE-ERROR] Error moving result to {self.device}: {str(e)}. Keeping on {result.device}.")
-
+            logger.error(f"[DEVICE-PATCH-ERROR] Failed to move result to {target_device}: {str(e)}. Keeping on {current_device}.")
+        logger.info(f"[DEVICE-DEBUG][stageB_torsion] FINAL CHECK - Returning torsion angles on device: {result.device}")
         return result
