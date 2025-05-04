@@ -14,6 +14,11 @@ def rna_collate_fn(batch, debug_logging=False):
     """
     if debug_logging:
         logger.debug("[collate] Batch size: %d", len(batch))
+    # Instrument: Print device info for all tensors in the batch
+    for i, sample in enumerate(batch):
+        for k, v in sample.items():
+            if isinstance(v, torch.Tensor):
+                logger.debug(f"[collate][DEBUG-DEVICE] Batch item {i} key '{k}': device={v.device}, shape={v.shape}, dtype={v.dtype}")
     if len(batch) == 0:
         raise ValueError("Empty batch passed to rna_collate_fn.")
     if len(batch) == 1:
