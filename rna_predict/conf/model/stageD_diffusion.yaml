@@ -33,7 +33,7 @@ diffusion:
   init_from_scratch: false
   enabled: true
   mode: "inference"
-  device: cpu
+  device: ${device}
   debug_logging: true
   ref_element_size: 128
   ref_atom_name_chars_size: 256
