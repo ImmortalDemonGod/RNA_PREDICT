@@ -90,6 +90,18 @@ class StageARFoldPredictor(nn.Module):
         # Call super().__init__() to properly initialize nn.Module
         super(StageARFoldPredictor, self).__init__()
 
+        # --- HYDRA DEVICE COMPLIANCE PATCH ---
+        # Always require device from config, never fallback to CPU unless explicitly set in config
+        resolved_device = None
+        if stage_cfg is not None and hasattr(stage_cfg, 'device'):
+            resolved_device = stage_cfg.device
+        elif device is not None:
+            resolved_device = device
+        else:
+            raise ValueError("StageARFoldPredictor requires a device specified in the config or as an explicit argument; do not use hardcoded defaults.")
+        self.device = torch.device(resolved_device)
+        print(f"[DEVICE-DEBUG][StageARFoldPredictor] Using device: {self.device}")
+
         # Assert device is resolved if present in config
         if stage_cfg is not None and hasattr(stage_cfg, 'device'):
             assert stage_cfg.device != "${device}", f"Device not resolved in stage_cfg for {self.__class__.__name__}: {stage_cfg.device}"
@@ -98,8 +110,6 @@ class StageARFoldPredictor(nn.Module):
         # Initialize default values
         self.debug_logging = False
         # Use the provided device or fallback to CPU, then validate
-        self.device = torch.device("cpu") if device is None else device
-        self.device = self._validate_device(self.device) # Ensure device is valid and handled
         self.min_seq_length = 1
 
         # Get process for memory logging
