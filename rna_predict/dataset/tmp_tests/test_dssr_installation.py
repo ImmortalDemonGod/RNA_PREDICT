@@ -1,5 +1,4 @@
 import subprocess
-import pytest
 
 def test_dssr_installation(dssr_path="x3dna-dssr"):
     """Test if X3DNA-DSSR is installed and working correctly."""
