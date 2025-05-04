@@ -90,6 +90,11 @@ class StageARFoldPredictor(nn.Module):
         # Call super().__init__() to properly initialize nn.Module
         super(StageARFoldPredictor, self).__init__()
 
+        # Assert device is resolved if present in config
+        if stage_cfg is not None and hasattr(stage_cfg, 'device'):
+            assert stage_cfg.device != "${device}", f"Device not resolved in stage_cfg for {self.__class__.__name__}: {stage_cfg.device}"
+            print(f"[DEBUG][StageARFoldPredictor] Resolved device in stage_cfg: {stage_cfg.device}")
+
         # Initialize default values
         self.debug_logging = False
         self.device = torch.device("cpu") if device is None else device
