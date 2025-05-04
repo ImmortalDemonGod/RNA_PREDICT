@@ -1,7 +1,7 @@
 import pathlib
 import lightning as L
 import hydra
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 from torch.utils.data import DataLoader
 from rna_predict.conf.config_schema import register_configs
 from rna_predict.training.rna_lightning_module import RNALightningModule
@@ -17,6 +17,15 @@ register_configs()
 @hydra.main(config_path="../conf", config_name="default.yaml", version_base="1.1")
 ####@snoop
 def main(cfg: DictConfig):
+    # SYSTEMATIC HYDRA INTERPOLATION DEBUGGING PATCH
+    print("[DEBUG][PATCH] Calling OmegaConf.resolve(cfg) to force interpolation...")
+    OmegaConf.resolve(cfg)
+    print("[DEBUG][PATCH] After resolve: cfg.device:", getattr(cfg, 'device', None))
+    for stage in ["stageA", "stageB", "stageC", "stageD"]:
+        stage_cfg = getattr(cfg.model, stage, None)
+        if stage_cfg is not None:
+            print(f"[DEBUG][PATCH] After resolve: cfg.model.{stage}.device:", getattr(stage_cfg, 'device', None))
+
     # Debug configuration
     print("[DEBUG] Configuration keys:")
     for k in cfg.keys():
@@ -80,9 +89,12 @@ def main(cfg: DictConfig):
         ds = RNADataset(index_csv_path, cfg,
                         load_adj=cfg.data.load_adj,
                         load_ang=cfg.data.load_ang)
+        # Set num_workers=0 if device is mps (PyTorch limitation)
+        num_workers = 0 if str(getattr(cfg, 'device', 'cpu')).startswith('mps') else getattr(cfg.data, 'num_workers', 0)
+        print(f"[DEBUG][main] DataLoader num_workers={num_workers} (device={getattr(cfg, 'device', 'cpu')})")
         dl = DataLoader(ds,
                         batch_size=cfg.data.batch_size,
-                        num_workers=cfg.data.num_workers,
+                        num_workers=num_workers,
                         collate_fn=rna_collate_fn,
                         shuffle=True)
         # DEBUG: Inspect first batch in detail only if debug_inspect_batch is enabled
