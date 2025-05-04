@@ -260,6 +260,8 @@ def run_pipeline(sequence: str, cfg: Optional[DictConfig] = None):
         raise ValueError("Input sequence must not be empty. [ERR-STAGEB-RUNPIPELINE-002]")
     if not all(base in "ACGU" for base in sequence):
         raise ValueError(f"Invalid RNA sequence: {sequence} [ERR-STAGEB-RUNPIPELINE-003]")
+    # SYSTEMATIC DEBUGGING: Log type and value of sequence at Stage B entry
+    logger.info(f"[DEBUG-SEQUENCE-ENTRY-STAGEB] type={type(sequence)}, value={sequence}")
 
     # If no config provided, load default config
     if cfg is None:
@@ -304,10 +306,14 @@ def run_pipeline(sequence: str, cfg: Optional[DictConfig] = None):
         stageB = StageBTorsionBertPredictor(cfg.model)
     else:
         raise TypeError("cfg must be a DictConfig")
+    # SYSTEMATIC DEBUGGING: Log type and value of sequence before Stage B model call
+    logger.info(f"[DEBUG-SEQUENCE-BEFORE-STAGEB] type={type(sequence)}, value={sequence}")
     outB = stageB(sequence, adjacency=adjacency)
     torsion_angles = outB["torsion_angles"]
 
     # Stage C: Generate 3D coordinates from angles
+    # SYSTEMATIC DEBUGGING: Log type and value of sequence before Stage C call
+    logger.info(f"[DEBUG-SEQUENCE-BEFORE-STAGEC] type={type(sequence)}, value={sequence}")
     stageC = StageCReconstruction()
     outC = stageC(torsion_angles)
 
