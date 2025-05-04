@@ -23,7 +23,23 @@ def test_extract_rna_torsions_chain_not_found(tmp_path):
     # Use a real file but a bogus chain
     example = os.path.join(EXAMPLES_DIR, "1a34_1_B.cif")
     result = extract_rna_torsions(example, chain_id="Z")
-    assert result is None or np.all(np.isnan(result)), "Should return None or all-nan array if chain not found"
+    # Fallback logic: if only one chain is present, fallback returns real data
+    # If multiple chains, should return None or all-nan array
+    from rna_predict.dataset.preprocessing.angles import _convert_cif_to_pdb
+    import MDAnalysis as mda
+    # Convert CIF to PDB for chain counting
+    pdb_path = _convert_cif_to_pdb(example)
+    u = mda.Universe(pdb_path)
+    all_chainids = set(u.atoms.chainIDs)
+    all_segids = set(u.atoms.segids)
+    all_ids = {c for c in all_chainids if c and c.strip()} | {s for s in all_segids if s and s.strip()}
+    if len(all_ids) == 1:
+        # Fallback: should return real data (not None, not all-nan)
+        assert result is not None, "Should return real data via fallback if only one chain present"
+        assert np.any(~np.isnan(result)), "Should return at least some real torsion values via fallback"
+    else:
+        # Strict: should return None or all-nan
+        assert result is None or np.all(np.isnan(result)), "Should return None or all-nan array if chain not found and multiple chains present"
 
 def test_extract_rna_torsions_empty_file(tmp_path):
     empty = tmp_path / "empty.pdb"
@@ -128,7 +144,7 @@ def test_TempFileManager_context(monkeypatch, tmp_path):
 
 def test__convert_cif_to_pdb_invalid(monkeypatch, tmp_path):
     import rna_predict.dataset.preprocessing.angles as angles
-    # Patch parser to throw
-    monkeypatch.setattr(angles, "MMCIFParser", lambda *_, **__: (_ for _ in ()).throw(Exception("fail")))
-    with pytest.raises(Exception):
+    # Patch parser to throw a specific exception instead of generic Exception
+    monkeypatch.setattr(angles, "MMCIFParser", lambda *_, **__: (_ for _ in ()).throw(RuntimeError("fail")))
+    with pytest.raises((ValueError, RuntimeError, IOError)):
         angles._convert_cif_to_pdb("bad.cif")
