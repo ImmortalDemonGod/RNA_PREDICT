@@ -64,7 +64,9 @@ class RNADataset(Dataset):
             print(f"[DEBUG][RNADataset] Resolved device in cfg: {cfg.device}")
         self.cfg = cfg
         # Set device from config (Hydra best practice)
-        self.device = torch.device(cfg.device) if hasattr(cfg, 'device') else torch.device('cpu')
+        if not hasattr(cfg, 'device'):
+            raise ValueError("RNADataset requires an explicit 'device' in the config; do not use hardcoded defaults or fallbacks.")
+        self.device = torch.device(cfg.device)
         # Use pandas for robust CSV loading, preserving empty strings and forcing all columns to str
         df = pd.read_csv(index_csv, dtype=str, keep_default_na=False, na_values=[''])
         df = df.fillna('')  # Ensure all NaN are replaced with empty strings
@@ -271,15 +273,17 @@ class RNADataset(Dataset):
             if ang_np is None:
                 ang = torch.zeros((L, n_angles), device=self.device)
             else:
-                ang = torch.as_tensor(ang_np, dtype=torch.float32)
-                if ang.device != torch.device(self.device):
-                    ang = ang.to(self.device)
-                print(f"[DEBUG][RNADataset._load_angles] ang device after conversion: {ang.device}")
+                # Create tensor directly on the target device to avoid CPU->MPS transfer issues
+                ang = torch.tensor(ang_np, dtype=torch.float32, device=self.device)
+                print(f"[DEBUG][RNADataset._load_angles] ang device after torch.tensor(..., device=self.device): {ang.device}, type: {type(ang)}")
+                ang = ang.contiguous()
+                print(f"[DEBUG][RNADataset._load_angles] ang device after .contiguous(): {ang.device}, type: {type(ang)}")
             if ang.shape[0] < self.max_res:
-                pad = torch.zeros((self.max_res - ang.shape[0], ang.shape[1]), device=self.device)
-                print(f"[DEBUG][RNADataset._load_angles] ang device before cat: {ang.device}")
-                print(f"[DEBUG][RNADataset._load_angles] pad device before cat: {pad.device}")
+                pad_shape = (self.max_res - ang.shape[0], ang.shape[1])
+                pad = torch.zeros(pad_shape, dtype=ang.dtype, device=self.device)
+                print(f"[DEBUG][RNADataset._load_angles] ang device before cat: {ang.device}, pad device before cat: {pad.device}")
                 ang = torch.cat([ang, pad], dim=0)
+                print(f"[DEBUG][RNADataset._load_angles] ang device after direct cat: {ang.device}")
             elif ang.shape[0] > self.max_res:
                 ang = ang[:self.max_res]
             return ang
