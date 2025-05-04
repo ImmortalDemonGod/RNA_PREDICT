@@ -18,7 +18,7 @@ def run_stageB_combined(
     adjacency_matrix: Optional[torch.Tensor] = None,
     torsion_bert_model: Any = None,
     pairformer_model: Any = None,
-    device: Optional[str] = None,
+    device: str = None,
     init_z_from_adjacency: bool = False,
     cfg: Optional[DictConfig] = None
 ) -> Dict[str, Any]:
@@ -55,8 +55,10 @@ def run_stageB_combined(
     if adjacency_matrix is not None and len(sequence) != adjacency_matrix.shape[0]:
         raise ValueError(f"Shape mismatch: sequence length ({len(sequence)}) does not match adjacency matrix shape ({adjacency_matrix.shape[0]}). [ERR-STAGEB-COMBINED-SHAPE-MISMATCH]")
 
-    # Convert device string to torch.device
-    torch_device = torch.device(device if device is not None else "cpu")
+    # Require explicit device
+    if device is None:
+        raise ValueError("run_stageB_combined requires an explicit device argument; do not use hardcoded defaults.")
+    torch_device = torch.device(device)
 
     # Initialize models if not provided (for actual usage)
     if torsion_bert_model is None and cfg is not None:
