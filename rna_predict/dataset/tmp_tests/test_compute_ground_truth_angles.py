@@ -7,8 +7,8 @@ from subprocess import run
 # Set EXAMPLES_DIR to the correct absolute path
 dataset_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 EXAMPLES_DIR = os.path.join(dataset_dir, 'examples')
-# Set SCRIPT to the correct absolute path directly
-SCRIPT = "/Users/tomriddle1/RNA_PREDICT/rna_predict/dataset/preprocessing/compute_ground_truth_angles.py"
+# Set SCRIPT to the correct path using relative path
+SCRIPT = os.path.abspath(os.path.join(dataset_dir, 'preprocessing', 'compute_ground_truth_angles.py'))
 
 @pytest.mark.parametrize("filename,chain_id", [
     ("1a34_1_B.cif", "B"),
