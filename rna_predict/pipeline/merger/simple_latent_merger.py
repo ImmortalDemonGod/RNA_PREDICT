@@ -15,7 +15,7 @@ class SimpleLatentMerger(torch.nn.Module):
     Merges adjacency, angles, single embeddings, pair embeddings,
     plus partial coords, into a single per-residue latent.
     """
-    def __init__(self, dim_angles: int, dim_s: int, dim_z: int, dim_out: int):
+    def __init__(self, dim_angles: int, dim_s: int, dim_z: int, dim_out: int, device=None):
         super().__init__()
         self.expected_dim_angles = dim_angles
         self.expected_dim_s = dim_s
@@ -27,6 +27,8 @@ class SimpleLatentMerger(torch.nn.Module):
             torch.nn.ReLU(),
             torch.nn.Linear(dim_out, dim_out),
         )
+        if device is not None:
+            self.to(device)
 
     def forward(self, inputs: LatentInputs):
         angles = inputs.angles
@@ -45,9 +47,9 @@ class SimpleLatentMerger(torch.nn.Module):
                 torch.nn.Linear(total_in_dim, self.dim_out),
                 torch.nn.ReLU(),
                 torch.nn.Linear(self.dim_out, self.dim_out),
-            ).to(angles.device)
-        elif self.mlp[0].weight.device != angles.device:
-            self.mlp = self.mlp.to(angles.device)
+            )
+            # Move to same device as current module
+            self.mlp = self.mlp.to(next(self.parameters()).device)
         x = torch.cat([angles, s_emb, z_pooled], dim=-1)
         out = self.mlp(x)
         return out
