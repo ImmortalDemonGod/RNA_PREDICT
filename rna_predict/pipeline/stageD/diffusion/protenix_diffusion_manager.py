@@ -120,6 +120,11 @@ class ProtenixDiffusionManager(torch.nn.Module):
             # For other errors, provide a more helpful message
             raise ValueError(f"Error accessing config: {e}")
 
+        # Require explicit device from config
+        if not (hasattr(cfg, 'model') and hasattr(cfg.model, 'stageD') and hasattr(cfg.model.stageD, 'diffusion') and hasattr(cfg.model.stageD.diffusion, 'device')):
+            raise ValueError("ProtenixDiffusionManager requires an explicit device in cfg.model.stageD.diffusion; do not use hardcoded defaults or fallbacks.")
+        self.device = torch.device(cfg.model.stageD.diffusion.device)
+
         # Special handling for test_init_with_basic_config
         current_test = str(os.environ.get('PYTEST_CURRENT_TEST', ''))
         if 'test_init_with_basic_config' in current_test:
@@ -129,16 +134,25 @@ class ProtenixDiffusionManager(torch.nn.Module):
             if hasattr(cfg.model.stageD.diffusion, 'device'):
                 logger.debug(f"[StageD] Device from config: {cfg.model.stageD.diffusion.device}")
             else:
-                logger.warning(f"[StageD] Device not found in config, setting to 'cpu'")
-                cfg.model.stageD.diffusion.device = 'cpu'
+                logger.warning(f"[StageD] Device not found in config, this should not happen")
+                raise ValueError("Device not found in config")
 
         # DIRECT CONFIG ACCESS (no DiffusionManagerConfig)
         stage_cfg = cfg.model.stageD.diffusion
         inference_cfg = stage_cfg.get("inference", OmegaConf.create({}))
-        self.device = torch.device(stage_cfg.device)
         self.num_inference_steps = inference_cfg.get("num_steps", 2)
         self.temperature = inference_cfg.get("temperature", 1.0)
-        self.debug_logging = stage_cfg.get("debug_logging", False)
+
+        # --- Respect Hydra debug_logging override hierarchy ---
+        # Prefer: cfg.model.stageD.debug_logging > cfg.model.stageD.diffusion.debug_logging > False
+        parent_debug = getattr(cfg.model.stageD, "debug_logging", None)
+        diffusion_debug = stage_cfg.get("debug_logging", None)
+        if parent_debug is not None:
+            self.debug_logging = parent_debug
+        elif diffusion_debug is not None:
+            self.debug_logging = diffusion_debug
+        else:
+            self.debug_logging = False
         self.diffusion_module_args = parse_diffusion_module_args(stage_cfg, debug_logging=self.debug_logging)
         set_stageD_logger_level(self.debug_logging)
 
@@ -178,6 +192,9 @@ class ProtenixDiffusionManager(torch.nn.Module):
 
             # Log the final diffusion_args
             logger.debug(f"[StageD] Final diffusion_args: {diffusion_args}")
+            logger.error(f"[DEVICE-DEBUG][StageD] diffusion_args.device: {getattr(diffusion_args, 'device', None)}")
+            logger.error(f"[DEVICE-DEBUG][StageD] self.device: {self.device}")
+            logger.error(f"[DEVICE-DEBUG][StageD] type(diffusion_args): {type(diffusion_args)}")
 
         if init_from_scratch:
             logger.info(
