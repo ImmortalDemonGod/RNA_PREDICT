@@ -89,6 +89,49 @@ def test_extract_rna_torsions_smoke(filename, chain_id, expected_shape):
     print(f"DEBUG: np.all(valid) = {np.all(valid)}")
     assert np.all(valid), f"Angles out of range for {filename}"
 
+@pytest.mark.parametrize("filename,chain_id,angle_set,expected_shape", [
+    ("1a34_1_B.cif", "B", "canonical", (None, 7)),
+    ("1a34_1_B.cif", "B", "full", (None, 14)),
+    ("1a9n_1_R.cif", "R", "canonical", (None, 7)),
+    ("1a9n_1_R.cif", "R", "full", (None, 14)),
+    ("RNA_NET_1a9n_1_Q.cif", "Q", "canonical", (None, 7)),
+    ("RNA_NET_1a9n_1_Q.cif", "Q", "full", (None, 14)),
+    ("synthetic_cppc_0000001.pdb", "B", "canonical", (None, 7)),
+    ("synthetic_cppc_0000001.pdb", "B", "full", (None, 14)),
+])
+def test_extract_rna_torsions_parametrized(filename, chain_id, angle_set, expected_shape):
+    path = os.path.join(EXAMPLES_DIR, filename)
+    angles = extract_rna_torsions(path, chain_id=chain_id, backend="mdanalysis", angle_set=angle_set)
+    print(f"\nDEBUG: {filename} ({angle_set}) shape={angles.shape if angles is not None else None}, dtype={angles.dtype if angles is not None else None}")
+    assert angles is not None, f"Failed to extract angles for {filename} ({angle_set})"
+    assert angles.shape[-1] == expected_shape[1]
+    assert angles.ndim in (1, 2)
+    # Check that at least one angle per row is not nan (handle 1D and 2D, vectorized)
+    if angles.ndim == 2:
+        assert np.all(np.any(~np.isnan(angles), axis=1)), f"All angles are nan in at least one row for {filename} ({angle_set})"
+    else:
+        assert np.any(~np.isnan(angles)), f"All angles are nan for {filename} ({angle_set})"
+    # Check angles are finite or nan
+    assert np.all(np.isfinite(angles) | np.isnan(angles))
+    # Check angles are in valid range
+    valid = np.abs(angles[~np.isnan(angles)]) <= np.pi + 1e-3
+    assert np.all(valid), f"Angles out of range for {filename} ({angle_set})"
+
+def test_extract_rna_torsions_missing_atoms_nan():
+    """Edge case: file with missing ribose/pseudotorsion atoms should yield np.nan in relevant columns."""
+    # Use synthetic_cppc_0000001.pdb, which is likely to have missing atoms in some residues
+    path = os.path.join(EXAMPLES_DIR, "synthetic_cppc_0000001.pdb")
+    angles = extract_rna_torsions(path, chain_id="B", backend="mdanalysis", angle_set="full")
+    assert angles is not None and angles.shape[-1] == 14
+    # At least one column (ribose or pseudotorsion) should be all-nan in at least one row
+    ribose_cols = list(range(7, 12))  # ν0–ν4
+    pseudo_cols = [12, 13]            # η, θ
+    nan_in_ribose = np.any(np.all(np.isnan(angles[:, ribose_cols]), axis=1))
+    nan_in_pseudo = np.any(np.all(np.isnan(angles[:, pseudo_cols]), axis=1))
+    assert nan_in_ribose or nan_in_pseudo, "Expected np.nan in ribose or pseudotorsion columns for missing atoms"
+    # All canonical angles should still have at least some non-nan values
+    assert np.any(~np.isnan(angles[:, :7]))
+
 @given(
     chain_id=st.text(min_size=1, max_size=2),
     backend=st.sampled_from(["mdanalysis"]),
