@@ -123,7 +123,9 @@ def main(cfg: DictConfig):
         trainer = L.Trainer(
             callbacks=[checkpoint_callback],
             max_epochs=1,  # Run at least one epoch
-            # Remove fast_dev_run
+            # FIX: Use cfg.device for accelerator, and set devices accordingly
+            accelerator=cfg.device,
+            devices=1 if cfg.device in ['mps', 'cuda'] else cfg.training.devices
         )
         trainer.fit(model, dl)
         print(f"[DEBUG] Checkpoints saved to: {checkpoint_callback.dirpath}")
