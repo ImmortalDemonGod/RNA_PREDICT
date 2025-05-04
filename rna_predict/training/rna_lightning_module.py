@@ -240,7 +240,7 @@ class RNALightningModule(L.LightningModule):
             raise ValueError("[UNIQUE-ERR-PAIRFORMER-MISSING] pairformer not found in cfg.model.stageB. Available keys: " + str(list(cfg.model.stageB.keys())))
         self.stageB_pairformer = PairformerWrapper(cfg.model.stageB.pairformer)
         # Use unified Stage C entrypoint (mp_nerf or fallback) per config
-        self.stageC = StageCReconstruction()
+        self.stageC = StageCReconstruction(cfg)
         logger.debug("[DEBUG-LM-STAGED] cfg.model.stageD: %s", getattr(cfg.model, 'stageD', None))
         # Pass the full config to ProtenixDiffusionManager, not just cfg.model
         self.stageD = ProtenixDiffusionManager(cfg)
