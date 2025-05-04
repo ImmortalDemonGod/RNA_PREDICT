@@ -132,6 +132,11 @@ class RNADataset(Dataset):
             sample[field] = row[field]
         if self.load_adj:
             sample["adjacency_true"] = self._load_adj(row, L)
+        # Always provide 'adjacency' key for pipeline compatibility
+        if "adjacency_true" in sample:
+            sample["adjacency"] = sample["adjacency_true"]
+        else:
+            sample["adjacency"] = torch.zeros((self.max_res, self.max_res), device=self.device)
         if self.load_ang:
             sample["angles_true"] = self._load_angles(row, L)
         if self.verbose:
@@ -152,6 +157,7 @@ class RNADataset(Dataset):
             target_id: ID to look up in CSV (if needed)
         """
         import os
+        import ast
         if sequence_path.endswith('.csv'):
             import csv
             if not target_id:
@@ -159,11 +165,18 @@ class RNADataset(Dataset):
             with open(sequence_path, 'r') as f:
                 reader = csv.DictReader(f)
                 for row in reader:
-                    if row['target_id'] == target_id:
-                        return row['sequence'][: self.max_res]
-            print(f"[WARNING] target_id {target_id} not found in {sequence_path}, returning dummy sequence")
-            return "A" * 10
-        elif sequence_path and os.path.exists(sequence_path):
+                    row_id = row.get('id') or row.get('target_id')
+                    if row_id == target_id:
+                        seq = row.get('sequence')
+                        # PATCH: Robustly handle stringified list format
+                        if isinstance(seq, str) and seq.startswith("['") and seq.endswith("']"):
+                            try:
+                                seq = ast.literal_eval(seq)[0]
+                            except Exception:
+                                pass  # fallback: leave as-is if parsing fails
+                        return seq[: self.max_res]
+            raise ValueError(f"target_id {target_id} not found in {sequence_path}")
+        elif sequence_path.endswith('.fasta') or sequence_path.endswith('.fa'):
             try:
                 rec = next(SeqIO.parse(sequence_path, "fasta"))
                 return str(rec.seq)[: self.max_res]
