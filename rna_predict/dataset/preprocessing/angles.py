@@ -1,12 +1,10 @@
 from typing import Optional, Literal
 import os
 import tempfile
-from typing import Optional, Literal
 import numpy as np
 from Bio.PDB.MMCIFParser import MMCIFParser
 from Bio.PDB.PDBIO import PDBIO
 import MDAnalysis as mda  # type: ignore
-import numpy as np
 
 
 def extract_rna_torsions(
@@ -46,9 +44,8 @@ def _convert_cif_to_pdb(cif_file: str) -> str:
     """Convert mmCIF file to PDB using Biopython. Returns path to temp PDB."""
     parser = MMCIFParser(QUIET=True)
     structure = parser.get_structure("mmcif_structure", cif_file)
-    tmp_handle = tempfile.NamedTemporaryFile(suffix=".pdb", delete=False)
-    tmp_handle.close()
-    pdb_path = tmp_handle.name
+    with tempfile.NamedTemporaryFile(suffix=".pdb", delete=False) as tmp_handle:
+        pdb_path = tmp_handle.name
     io = PDBIO()
     io.set_structure(structure)
     io.save(pdb_path)
@@ -78,12 +75,31 @@ def _select_chain(u: 'mda.Universe', chain_id: str) -> Optional['mda.core.groups
 
 
 def _select_chain_with_fallback(universe: 'mda.Universe', chain_id: str) -> Optional['mda.core.groups.AtomGroup']:
-    """Select chain with fallback to nucleic atoms if no chain is found."""
+    """Select chain with fallback: if requested chain is missing, use the only available chain if there is just one; else, strict."""
     chain = _select_chain(universe, chain_id)
-    # If chain not found and chain_id is specified, return None (strict mode)
     if (chain is None or len(chain) == 0) and chain_id is not None:
-        print(f"[DEBUG] _select_chain_with_fallback: No chain found for requested chain_id={chain_id}, not falling back.")
-        return None
+        # List all unique chain IDs and segids
+        all_chainids = set(universe.atoms.chainIDs)
+        all_segids = set(universe.atoms.segids)
+        # Remove blanks
+        all_chainids = {c for c in all_chainids if c and c.strip()}
+        all_segids = {s for s in all_segids if s and s.strip()}
+        all_ids = all_chainids | all_segids
+        if len(all_ids) == 1:
+            only_chain = list(all_ids)[0]
+            print(f"[INFO] Requested chain_id={chain_id} not found, but only one chain ({only_chain}) present. Using it.")
+            chain = _select_chain(universe, only_chain)
+            if chain is not None and len(chain) > 0:
+                return chain
+            else:
+                print(f"[WARN] Fallback to only chain {only_chain} failed to select atoms.")
+                return None
+        elif len(all_ids) == 0:
+            print(f"[DEBUG] No chains present in structure.")
+            return None
+        else:
+            print(f"[DEBUG] _select_chain_with_fallback: No chain found for requested chain_id={chain_id}, multiple chains present ({all_ids}), not falling back.")
+            return None
     # If no chain found or no chain specified, fallback to all nucleic atoms
     if chain is None or len(chain) == 0:
         chain = universe.select_atoms("nucleic")
