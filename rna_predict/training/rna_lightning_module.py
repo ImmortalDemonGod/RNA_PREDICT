@@ -16,6 +16,8 @@ import shutil
 import time
 import urllib.request
 import zipfile
+import torch.nn.functional as F
+from rna_predict.dataset.preprocessing.angle_utils import angles_rad_to_sin_cos
 logger = logging.getLogger("rna_predict.training.rna_lightning_module")
 
 class RNALightningModule(L.LightningModule):
@@ -376,98 +378,57 @@ class RNALightningModule(L.LightningModule):
         for name, param in self.named_parameters():
             logger.debug("  %s: requires_grad=%s", name, param.requires_grad)
 
-        input_tensor = batch["coords_true"]
-        target_tensor = batch["coords_true"]
-        logger.debug("[DEBUG-LM] input_tensor.shape: %s, dtype: %s", input_tensor.shape, input_tensor.dtype)
-        logger.debug("[DEBUG-LM] target_tensor.shape: %s, dtype: %s", target_tensor.shape, target_tensor.dtype)
+        # --- Direct Angle Loss logic (Phase 1, Step 2) ---
         output = self.forward(batch)
         logger.debug("[DEBUG-LM] output.keys(): %s", list(output.keys()))
-        logger.debug("[DEBUG-LM] output['atom_metadata']: %s", output.get('atom_metadata', None))
-        logger.debug("[DEBUG-LM] batch.keys(): %s", list(batch.keys()))
-        for k in ["atom_mask", "atom_names", "residue_indices"]:
-            if k in batch:
-                v = batch[k]
-                if hasattr(v, 'shape'):
-                    logger.debug("[DEBUG-LM] batch['%s'].shape: %s", k, v.shape)
-                else:
-                    logger.debug("[DEBUG-LM] batch['%s']: %s", k, v)
-        predicted_coords = output["coords"] if isinstance(output, dict) and "coords" in output else output
-        logger.debug("[DEBUG-LM][GRAD-CHECK] Stage C predicted_coords.requires_grad: %s", getattr(predicted_coords, 'requires_grad', None))
-        logger.debug("[DEBUG-LM][GRAD-CHECK] Stage C predicted_coords.grad_fn: %s", getattr(predicted_coords, 'grad_fn', None))
-        logger.debug("[DEBUG-LM] About to check differentiability")
-        if not getattr(predicted_coords, 'requires_grad', False):
-            logger.error("Stage C output is not differentiable  cannot back-prop")
-            raise RuntimeError("Stage C produced non-differentiable coords")
-        if getattr(predicted_coords, 'grad_fn', None) is None:
-            logger.error("Stage C output coords must have a grad_fn!")
-            raise RuntimeError("Stage C output coords must have a grad_fn!")
-        pred_atom_metadata = output.get("atom_metadata", None)
-        # Force systematic masking if atom_metadata is present
-        if pred_atom_metadata is not None:
-            logger.debug("[DEBUG-LM] Running systematic masking logic!")
-            # Gather predicted atom keys
-            pred_keys = list(zip(pred_atom_metadata["residue_indices"], pred_atom_metadata["atom_names"]))
-            logger.debug("[DEBUG-LM] pred_keys (first 10): %s", pred_keys[:10])
-            # Gather target atom keys from batch metadata if available
-            batch_atom_names = batch.get("atom_names", None)
-            batch_res_indices = batch.get("residue_indices", None)
-            # If present, batch_atom_names and batch_res_indices are lists of lists (batch dimension)
-            if batch_atom_names is not None and batch_res_indices is not None:
-                # Flatten for batch size 1 (current pipeline)
-                if isinstance(batch_atom_names, list) and len(batch_atom_names) == 1:
-                    batch_atom_names = batch_atom_names[0]
-                    batch_res_indices = batch_res_indices[0]
-                tgt_keys = list(zip(batch_res_indices, batch_atom_names))
-            else:
-                mask_indices = torch.where(batch["atom_mask"])[0].tolist()
-                tgt_keys = []
-                for idx in mask_indices:
-                    if idx < len(pred_atom_metadata["residue_indices"]):
-                        tgt_keys.append((pred_atom_metadata["residue_indices"][idx], pred_atom_metadata["atom_names"][idx]))
-            logger.debug("[DEBUG-LM] tgt_keys (first 10): %s", tgt_keys[:10])
-            # Build boolean mask over predicted atoms for those present in target
-            tgt_keys_set = set(tgt_keys)
-            mask_pred_np = np.array([(ri, an) in tgt_keys_set for ri, an in pred_keys])
-            mask_pred = torch.from_numpy(mask_pred_np).to(predicted_coords.device)
-            mask_pred = mask_pred.bool()
-            n_matched = mask_pred.sum().item()
-            logger.debug("[DEBUG-LM] n_matched: %s / %s", n_matched, len(pred_keys))
-            if n_matched == 0:
-                logger.debug("[DEBUG-LM][WARNING] No matched atoms found! Setting loss to zero.")
-                loss = torch.tensor(0.0, device=predicted_coords.device, requires_grad=True)
-            else:
-                pred_sel = predicted_coords[mask_pred]
-                # Find indices of matched keys in tgt_keys for true_sel
-                matched_keys = [pk for pk in pred_keys if pk in tgt_keys_set]
-                target_indices = [tgt_keys.index(pk) for pk in matched_keys]
-                target_indices_tensor = torch.tensor(target_indices, dtype=torch.long, device=pred_sel.device)
-                true_sel_all = target_tensor[batch["atom_mask"].bool()]
-                true_sel = true_sel_all[target_indices_tensor]
-                # Instrumentation for debugging requires_grad chain
-                logger.debug("[DEBUG-LM] pred_sel.requires_grad: %s, pred_sel.grad_fn: %s", pred_sel.requires_grad, getattr(pred_sel, 'grad_fn', None))
-                logger.debug("[DEBUG-LM] true_sel.requires_grad: %s, true_sel.grad_fn: %s", true_sel.requires_grad, getattr(true_sel, 'grad_fn', None))
-                logger.debug("[DEBUG-LM] predicted_coords.requires_grad: %s, predicted_coords.grad_fn: %s", predicted_coords.requires_grad, getattr(predicted_coords, 'grad_fn', None))
-                logger.debug("[DEBUG-LM] target_tensor.requires_grad: %s, target_tensor.grad_fn: %s", target_tensor.requires_grad, getattr(target_tensor, 'grad_fn', None))
-                logger.debug("[DEBUG-LM] mask_pred dtype: %s, device: %s", mask_pred.dtype, mask_pred.device)
-                logger.debug("[DEBUG-LM] target_indices_tensor dtype: %s, device: %s", target_indices_tensor.dtype, target_indices_tensor.device)
-                logger.debug("[DEBUG-LM] true_sel_all.requires_grad: %s, true_sel_all.grad_fn: %s", true_sel_all.requires_grad, getattr(true_sel_all, 'grad_fn', None))
-                if pred_sel.shape[0] != true_sel.shape[0]:
-                    logger.debug("[DEBUG-LM][MISMATCH-FILTERED] pred_sel.shape=%s, true_sel.shape=%s", pred_sel.shape, true_sel.shape)
-                    loss = torch.tensor(0.0, device=pred_sel.device, requires_grad=True)
-                else:
-                    loss = ((pred_sel - true_sel) ** 2).mean()
-                    logger.debug("[DEBUG-LM] Masked-aligned filtered loss value: %s", loss.item())
+        predicted_angles_sincos = output.get("torsion_angles", None)
+        true_angles_rad = batch.get("angles_true", None)
+        residue_mask = batch.get("attention_mask", None)
+        if residue_mask is None:
+            residue_mask = batch.get("residue_mask", None)
+            if residue_mask is None and true_angles_rad is not None:
+                residue_mask = torch.ones(true_angles_rad.shape[:2], dtype=torch.bool, device=true_angles_rad.device)
+        if predicted_angles_sincos is None or true_angles_rad is None or residue_mask is None:
+            logger.error(f"Missing required keys for angle loss: torsion_angles={predicted_angles_sincos is not None}, angles_true={true_angles_rad is not None}, mask={residue_mask is not None}")
+            loss_angle = torch.tensor(0.0, device=self.device_, requires_grad=True)
         else:
-            logger.debug("[DEBUG-LM] Systematic masking not possible: atom_metadata missing!")
-            real_target_coords = target_tensor[batch["atom_mask"].bool()]
-            if predicted_coords.shape[0] != real_target_coords.shape[0]:
-                logger.debug("[DEBUG-LM][MISMATCH] predicted_coords.shape[0]=%s, real_target_coords.shape[0]=%s", predicted_coords.shape[0], real_target_coords.shape[0])
-                loss = torch.tensor(0.0, device=predicted_coords.device, requires_grad=True)
+            # Dynamically adapt to the number of predicted angles (and output dimension)
+            # predicted_angles_sincos: [B, L, N*2] (N = num_angles)
+            # true_angles_rad: [B, L, N]
+            # Convert true angles to sin/cos pairs for N angles
+            num_predicted_features = predicted_angles_sincos.shape[-1]
+            assert num_predicted_features % 2 == 0, f"Predicted torsion output last dim ({num_predicted_features}) should be even (sin/cos pairs)"
+            num_predicted_angles = num_predicted_features // 2
+            true_angles_sincos = angles_rad_to_sin_cos(true_angles_rad)
+            # Align feature dimension: slice or pad true_angles_sincos to match predicted
+            if true_angles_sincos.shape[-1] < num_predicted_features:
+                pad_feat = (0, num_predicted_features - true_angles_sincos.shape[-1])
+                true_angles_sincos = torch.nn.functional.pad(true_angles_sincos, pad_feat)
+            elif true_angles_sincos.shape[-1] > num_predicted_features:
+                true_angles_sincos = true_angles_sincos[..., :num_predicted_features]
+            # Ensure batch dimension for predictions
+            if predicted_angles_sincos.dim() == 2:
+                predicted_angles_sincos = predicted_angles_sincos.unsqueeze(0)  # [1, L, N*2]
+            # Align sequence length (pad or slice)
+            B, N_padded, D = true_angles_sincos.shape
+            L = predicted_angles_sincos.shape[1]
+            if L < N_padded:
+                pad = (0, 0, 0, N_padded - L)  # pad after the end
+                predicted_angles_sincos = torch.nn.functional.pad(predicted_angles_sincos, pad)
+            elif L > N_padded:
+                predicted_angles_sincos = predicted_angles_sincos[:, :N_padded, :]
+            # Now shapes should match: [B, N_padded, N*2]
+            if predicted_angles_sincos.shape != true_angles_sincos.shape:
+                logger.error(f"Shape mismatch for angle loss after alignment: Pred {predicted_angles_sincos.shape}, True {true_angles_sincos.shape}")
+                loss_angle = torch.tensor(0.0, device=self.device_, requires_grad=True)
             else:
-                loss = ((predicted_coords - real_target_coords) ** 2).mean()
-                logger.debug("[DEBUG-LM] Masked-aligned loss value: %s", loss.item())
-        logger.debug("[DEBUG-LM] loss.requires_grad: %s, loss.grad_fn: %s", loss.requires_grad, loss.grad_fn)
-        return {"loss": loss}
+                error_angle = torch.nn.functional.mse_loss(predicted_angles_sincos, true_angles_sincos, reduction='none')
+                mask_expanded = residue_mask.unsqueeze(-1).float()
+                masked_error_angle = error_angle * mask_expanded
+                num_valid_elements = mask_expanded.sum() * predicted_angles_sincos.shape[-1] + 1e-8
+                loss_angle = masked_error_angle.sum() / num_valid_elements
+        logger.debug(f"[DEBUG-LM] loss_angle value: {loss_angle.item()}")
+        return {"loss": loss_angle}
 
     def train_dataloader(self):
         """
@@ -516,12 +477,17 @@ class RNALightningModule(L.LightningModule):
             verbose=False
         )
 
+        # Set num_workers=0 if device is mps (PyTorch limitation)
+        num_workers = 0 if str(getattr(self.cfg, 'device', 'cpu')).startswith('mps') else getattr(self.cfg.data, 'num_workers', 0)
+        if num_workers == 0 and str(getattr(self.cfg, 'device', 'cpu')).startswith('mps'):
+            logger.warning("[DataLoader] MPS device detected: Forcing num_workers=0 due to PyTorch MPS multiprocessing limitation.")
+
         return torch.utils.data.DataLoader(
             dataset,
             batch_size=self.cfg.data.batch_size,
             shuffle=True,
             collate_fn=lambda batch: rna_collate_fn(batch, debug_logging=getattr(self.cfg.data, 'debug_logging', False)),
-            num_workers=0
+            num_workers=num_workers
         )
 
     def configure_optimizers(self):
