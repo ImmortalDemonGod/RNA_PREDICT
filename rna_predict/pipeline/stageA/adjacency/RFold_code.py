@@ -291,6 +291,42 @@ class Attn(nn.Module):
         return attn
 
 
+class Seq2Map(nn.Module):
+    def __init__(
+        self,
+        input_dim=4,
+        num_hidden=128,
+        dropout=0.1,
+        **kwargs,
+    ):
+        device = kwargs.pop("device", None)
+        if device is None:
+            raise ValueError("Seq2Map requires an explicit device argument; do not use hardcoded defaults.")
+        max_length = kwargs.pop("max_length", 3000)
+        nn.Module.__init__(self)
+        self.device = torch.device(device)
+        self.max_length = max_length
+        self.dropout = nn.Dropout(dropout)
+        # Register scale as a buffer so it moves with the model when to() is called
+        self.register_buffer('scale', torch.sqrt(torch.FloatTensor([num_hidden])).to(self.device))
+
+        self.tok_embedding = nn.Embedding(input_dim, num_hidden).to(self.device)
+        self.pos_embedding = nn.Embedding(self.max_length, num_hidden).to(self.device)
+        self.layer = Attn(dim=num_hidden, query_key_dim=num_hidden, dropout=dropout).to(self.device)
+
+    def forward(self, src, debug_logging: bool = False):
+        batch_size, src_len = src.shape[:2]
+        debug_log(f"[DEBUG-SEQ2MAP] tok_embedding.weight.device: {self.tok_embedding.weight.device}", debug_logging)
+        debug_log(f"[DEBUG-SEQ2MAP] src.device: {src.device}", debug_logging)
+        debug_log(f"[DEBUG-SEQ2MAP] self.device: {self.device}", debug_logging)
+        # Create pos tensor on the same device as src
+        pos = torch.arange(0, src_len, device=src.device).unsqueeze(0).repeat(batch_size, 1)
+        src = self.tok_embedding(src) * self.scale
+        src = self.dropout(src + self.pos_embedding(pos))
+        attention = self.layer(src)
+        return attention
+
+
 class Encoder(nn.Module):
     def __init__(self, C_lst=[17, 32, 64, 128, 256]):
         nn.Module.__init__(self)
@@ -365,40 +401,6 @@ class Decoder(nn.Module):
         return x
 
 
-class Seq2Map(nn.Module):
-    def __init__(
-        self,
-        input_dim=4,
-        num_hidden=128,
-        dropout=0.1,
-        **kwargs,
-    ):
-        device = kwargs.pop("device", torch.device("cuda"))
-        max_length = kwargs.pop("max_length", 3000)
-        nn.Module.__init__(self)
-        self.device = device
-        self.max_length = max_length
-        self.dropout = nn.Dropout(dropout)
-        # Register scale as a buffer so it moves with the model when to() is called
-        self.register_buffer('scale', torch.sqrt(torch.FloatTensor([num_hidden])))
-
-        self.tok_embedding = nn.Embedding(input_dim, num_hidden)
-        self.pos_embedding = nn.Embedding(self.max_length, num_hidden)
-        self.layer = Attn(dim=num_hidden, query_key_dim=num_hidden, dropout=dropout)
-
-    def forward(self, src, debug_logging: bool = False):
-        batch_size, src_len = src.shape[:2]
-        debug_log(f"[DEBUG-SEQ2MAP] tok_embedding.weight.device: {self.tok_embedding.weight.device}", debug_logging)
-        debug_log(f"[DEBUG-SEQ2MAP] src.device: {src.device}", debug_logging)
-        debug_log(f"[DEBUG-SEQ2MAP] self.device: {self.device}", debug_logging)
-        # Create pos tensor on the same device as src
-        pos = torch.arange(0, src_len, device=src.device).unsqueeze(0).repeat(batch_size, 1)
-        src = self.tok_embedding(src) * self.scale
-        src = self.dropout(src + self.pos_embedding(pos))
-        attention = self.layer(src)
-        return attention
-
-
 class RFoldModel(nn.Module):
     def __init__(self, args=None):
         nn.Module.__init__(self)
@@ -422,22 +424,18 @@ class RFoldModel(nn.Module):
             dropout = getattr(args, "dropout", dropout)
             use_gpu = getattr(args, "use_gpu", use_gpu)
 
-        # Determine device
-        device_val = torch.device(
-            "cuda"
-            if use_gpu and torch.cuda.is_available()
-            else "cpu"
-        )
-
+        # Determine device from args, require explicit device
+        device_val = getattr(args, "device", None)
+        if device_val is None:
+            raise ValueError("RFoldModel requires an explicit device argument in args; do not use hardcoded defaults.")
+        self.device = torch.device(device_val)
         self.seq2map = Seq2Map(
             input_dim=4,
             num_hidden=num_hidden,
             dropout=dropout,
-            device=device_val,
+            device=self.device,
         )
-
-        # PATCH: Move all model parameters and buffers to the correct device
-        self.to(device_val)
+        self.to(self.device)
 
     def forward(self, seqs, debug_logging: bool = False):
         import logging
