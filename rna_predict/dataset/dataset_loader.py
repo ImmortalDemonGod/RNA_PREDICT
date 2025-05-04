@@ -19,14 +19,12 @@ def stream_bprna_dataset(split: str = "train") -> IterableDataset:
     return ds_iter
 
 
-def build_rna_token_metadata(num_tokens: int, device="cpu"):
+def build_rna_token_metadata(num_tokens: int, device):
     """
     Construct basic token-level metadata for a single-chain RNA.
-
     Args:
         num_tokens (int): Number of tokens (e.g., residues in the RNA).
-        device (str): CPU or GPU device.
-
+        device (str): CPU or GPU device, must be provided from Hydra config context.
     Returns:
         dict[str, torch.Tensor]:
            {
@@ -37,6 +35,8 @@ def build_rna_token_metadata(num_tokens: int, device="cpu"):
              "token_index":   shape [num_tokens], 0..N-1
            }
     """
+    # Assert device is not hardcoded default
+    assert device is not None and device != "cpu", "Device argument must be provided from Hydra config; do not use hardcoded defaults."
     asym_id = torch.zeros((num_tokens,), dtype=torch.long, device=device)
     entity_id = torch.zeros((num_tokens,), dtype=torch.long, device=device)
     sym_id = torch.zeros((num_tokens,), dtype=torch.long, device=device)
@@ -53,7 +53,7 @@ def build_rna_token_metadata(num_tokens: int, device="cpu"):
     }
 
 
-def build_atom_to_token_idx(num_atoms: int, num_tokens: int, device="cpu"):
+def build_atom_to_token_idx(num_atoms: int, num_tokens: int, device):
     """
     Simplest possible mapping: partition 'num_atoms' equally among 'num_tokens'.
 
@@ -64,11 +64,12 @@ def build_atom_to_token_idx(num_atoms: int, num_tokens: int, device="cpu"):
     Args:
         num_atoms (int): Total number of atoms.
         num_tokens (int): Total number of tokens (residues).
-        device (str): Device.
+        device (str): Device, must be provided from Hydra config context.
 
     Returns:
         torch.Tensor: Shape [num_atoms], mapping each atom i -> token index j.
     """
+    assert device is not None and device != "cpu", "Device argument must be provided from Hydra config; do not use hardcoded defaults."
     atom_to_token = torch.empty((num_atoms,), dtype=torch.long, device=device)
     atoms_per_token = num_atoms // num_tokens
     leftover = num_atoms % num_tokens
@@ -110,7 +111,7 @@ def validate_input_features(input_feature_dict: dict):
 
 # #####@snoop
 def load_rna_data_and_features(
-    rna_filepath: str, device="cpu", override_num_atoms: int | None = None
+    rna_filepath: str, device, override_num_atoms: int | None = None
 ):
     """
     Example "high-level" routine that loads an RNA structure,
