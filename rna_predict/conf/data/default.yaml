@@ -9,6 +9,6 @@ ref_atom_name_chars_size: 10
 batch_size: 4
 num_workers: 8
 load_adj: false
-load_ang: false
+load_ang: true
 coord_fill_value: nan  # Default for missing coordinates, can be 'nan' or a float
 coord_dtype: float32   # Torch dtype as string, e.g., 'float32', 'float64'
