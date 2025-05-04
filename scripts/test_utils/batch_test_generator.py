@@ -8,8 +8,9 @@ from rna_predict.scripts.hypot_test_gen import (
 
 def process_folder(folder_path: Path, output_dir: Path):
     """
-    Recursively processes all Python files in the folder.
-    Skips files if the corresponding test_wrapped file already exists in output_dir.
+    Recursively generates test files for Python scripts in a folder.
+    
+    For each Python file in the specified folder (excluding those in the output directory or whose names start with 'test_'), this function checks if a corresponding test wrapper file exists in the output directory. If not, it attempts to generate tests using `run_test_generation`. On success, it creates a placeholder wrapper file if one does not already exist. Files are skipped if already processed or located in the output directory.
     """
     # Iterate recursively over Python files
     for py_file in folder_path.rglob("*.py"):

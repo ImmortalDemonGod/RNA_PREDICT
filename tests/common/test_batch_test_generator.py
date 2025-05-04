@@ -245,8 +245,7 @@ def test_main_invalid_folder(temp_dir: Path, capsys) -> None:
 
 def test_main_happy_path(temp_dir: Path) -> None:
     """
-    Test that main calls process_folder with correct arguments and does not exit
-    when provided a valid folder path.
+    Verifies that main invokes process_folder with the correct arguments when given a valid folder path and does not exit.
     """
     # We'll create a valid folder path and patch `process_folder` to confirm the call.
     test_argv = ["batch_test_generator.py", str(temp_dir)]

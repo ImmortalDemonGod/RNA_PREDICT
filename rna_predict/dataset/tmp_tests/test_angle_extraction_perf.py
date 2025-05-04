@@ -17,6 +17,15 @@ example_files = [
 ]
 
 def convert_cif_to_pdb(cif_file):
+    """
+    Converts a CIF structure file to a temporary PDB file.
+    
+    Args:
+    	cif_file: Path to the input CIF file.
+    
+    Returns:
+    	Path to the generated temporary PDB file.
+    """
     parser = MMCIFParser(QUIET=True)
     structure = parser.get_structure("mmcif_structure", cif_file)
     with tempfile.NamedTemporaryFile(suffix=".pdb", delete=False) as tmp_handle:

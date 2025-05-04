@@ -14,15 +14,20 @@ def extract_rna_torsions(
     **kwargs
 ) -> Optional[np.ndarray]:
     """
-    Extract backbone and glycosidic torsion angles for an RNA structure.
+    Extracts RNA backbone and glycosidic torsion angles from a structure file.
+    
+    Given a PDB or mmCIF file, computes the seven standard RNA torsion angles
+    (alpha, beta, gamma, delta, epsilon, zeta, chi) for each residue in the
+    specified chain using the selected backend.
+    
     Args:
-        structure_file: Path to .pdb or .cif file.
-        chain_id: Which chain to extract (default: "A").
-        backend: Which backend to use ("mdanalysis" [default], "dssr" [future]).
-        kwargs: Backend-specific options.
+        structure_file: Path to a .pdb or .cif RNA structure file.
+        chain_id: Chain identifier to extract torsions from (default: "A").
+        backend: Extraction backend to use ("mdanalysis" or "dssr").
+    
     Returns:
-        np.ndarray of shape [L, 7] (alpha, beta, gamma, delta, epsilon, zeta, chi), radians.
-        Returns None if extraction fails.
+        A NumPy array of shape [L, 7] containing torsion angles in radians for
+        each residue, or None if extraction fails.
     """
     print(f"[DEBUG] extract_rna_torsions called with: structure_file={structure_file}, chain_id={chain_id}, backend={backend}")
     if backend == "mdanalysis":
@@ -41,7 +46,15 @@ def extract_rna_torsions(
 
 
 def _convert_cif_to_pdb(cif_file: str) -> str:
-    """Convert mmCIF file to PDB using Biopython. Returns path to temp PDB."""
+    """
+    Converts an mmCIF structure file to a temporary PDB file.
+    
+    Args:
+        cif_file: Path to the input mmCIF file.
+    
+    Returns:
+        The file path to the generated temporary PDB file. The caller is responsible for deleting the file when no longer needed.
+    """
     parser = MMCIFParser(QUIET=True)
     structure = parser.get_structure("mmcif_structure", cif_file)
     with tempfile.NamedTemporaryFile(suffix=".pdb", delete=False) as tmp_handle:
@@ -75,7 +88,11 @@ def _select_chain(u: 'mda.Universe', chain_id: str) -> Optional['mda.core.groups
 
 
 def _select_chain_with_fallback(universe: 'mda.Universe', chain_id: str) -> Optional['mda.core.groups.AtomGroup']:
-    """Select chain with fallback: if requested chain is missing, use the only available chain if there is just one; else, strict."""
+    """
+    Attempts to select a chain from the universe, falling back to the only available chain if the requested one is missing.
+    
+    If the requested chain is not found but exactly one unique chain or segment exists, selects that chain instead. If multiple chains exist and the requested chain is missing, returns None. If no chain is found, falls back to selecting all nucleic atoms. Returns None if no suitable atoms are found.
+    """
     chain = _select_chain(universe, chain_id)
     if (chain is None or len(chain) == 0) and chain_id is not None:
         # List all unique chain IDs and segids
