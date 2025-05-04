@@ -42,6 +42,16 @@ class RNALightningModule(L.LightningModule):
 
         if cfg is not None:
             self._instantiate_pipeline(cfg)
+            # --- DEVICE DEBUGGING: Print device of all key model parameters after instantiation ---
+            def print_param_devices(module, name):
+                for pname, param in module.named_parameters(recurse=True):
+                    print(f"[DEVICE-DEBUG][{name}] Parameter: {pname}, device: {getattr(param, 'device', 'NO DEVICE')}" )
+            print_param_devices(self.stageA, 'stageA')
+            print_param_devices(self.stageB_torsion, 'stageB_torsion')
+            print_param_devices(self.stageB_pairformer, 'stageB_pairformer')
+            print_param_devices(self.stageC, 'stageC')
+            print_param_devices(self.stageD, 'stageD')
+            print_param_devices(self.latent_merger, 'latent_merger')
         else:
             self.pipeline = torch.nn.Identity()
             self._integration_test_mode = True  # Use dummy layer
@@ -139,7 +149,9 @@ class RNALightningModule(L.LightningModule):
         logger.debug("[DEBUG-LM] torch.backends.mps.is_available(): %s", getattr(torch.backends, 'mps', None) and torch.backends.mps.is_available())
         logger.debug("[DEBUG-LM] cfg.device: %s", getattr(cfg, 'device', None))
 
-        self.device_ = torch.device(cfg.device) if hasattr(cfg, 'device') else torch.device('cpu')
+        if cfg is None or not hasattr(cfg, 'device'):
+            raise ValueError("RNALightningModule requires an explicit 'device' in the config; do not use hardcoded defaults or fallbacks.")
+        self.device_ = torch.device(cfg.device)
         logger.debug("[DEBUG-LM] self.device_ in RNALightningModule: %s", self.device_)
 
         # For integration test mode, create dummy modules to avoid initialization issues
@@ -239,7 +251,7 @@ class RNALightningModule(L.LightningModule):
         dim_s = getattr(merger_cfg, 'dim_s', 64) if merger_cfg else 64
         dim_z = getattr(merger_cfg, 'dim_z', 32) if merger_cfg else 32
         dim_out = getattr(merger_cfg, 'output_dim', 128) if merger_cfg else 128
-        self.latent_merger = SimpleLatentMerger(dim_angles, dim_s, dim_z, dim_out)
+        self.latent_merger = SimpleLatentMerger(dim_angles, dim_s, dim_z, dim_out, device=self.device_)
 
         # Create a pipeline module that contains all components
         # This ensures the model has trainable parameters for the optimizer
@@ -259,7 +271,26 @@ class RNALightningModule(L.LightningModule):
     ##@snoop
     def forward(self, batch, **kwargs):
         logger.debug("[DEBUG-ENTRY] Entered forward")
-        logger.debug("[DEBUG-LM] Entered forward")
+        # --- DEVICE DEBUGGING: Print device info for batch and key model parameters ---
+        def print_tensor_devices(obj, prefix):
+            if isinstance(obj, dict):
+                for k, v in obj.items():
+                    print_tensor_devices(v, f"{prefix}.{k}")
+            elif isinstance(obj, torch.Tensor):
+                print(f"[DEVICE-DEBUG][forward] {prefix}: device={obj.device}, shape={tuple(obj.shape)}, dtype={obj.dtype}")
+            elif isinstance(obj, list):
+                for i, v in enumerate(obj):
+                    print_tensor_devices(v, f"{prefix}[{i}]")
+        print_tensor_devices(batch, "batch")
+        def print_param_devices(module, name):
+            for pname, param in module.named_parameters(recurse=True):
+                print(f"[DEVICE-DEBUG][forward][{name}] Parameter: {pname}, device: {getattr(param, 'device', 'NO DEVICE')}" )
+        print_param_devices(self.stageA, 'stageA')
+        print_param_devices(self.stageB_torsion, 'stageB_torsion')
+        print_param_devices(self.stageB_pairformer, 'stageB_pairformer')
+        print_param_devices(self.stageC, 'stageC')
+        print_param_devices(self.stageD, 'stageD')
+        print_param_devices(self.latent_merger, 'latent_merger')
 
         # Handle integration test mode with tensor input
         if self._integration_test_mode and isinstance(batch, torch.Tensor):
@@ -372,7 +403,39 @@ class RNALightningModule(L.LightningModule):
     ##@snoop
     def training_step(self, batch, batch_idx):
         logger.debug("[DEBUG-ENTRY] Entered training_step")
-        logger.debug("[DEBUG-LM] Entered training_step")
+        logger.debug("--- Checking batch devices upon entry to training_step ---")
+        def check_batch_devices(obj, prefix):
+            if isinstance(obj, dict):
+                for k, v in obj.items():
+                    check_batch_devices(v, f"{prefix}.{k}")
+            elif isinstance(obj, (list, tuple)):
+                for i, v in enumerate(obj):
+                    check_batch_devices(v, f"{prefix}[{i}]")
+            elif isinstance(obj, torch.Tensor):
+                logger.debug(f"  {prefix}: device={obj.device}")
+        check_batch_devices(batch, "batch")
+        logger.debug("--- Finished checking batch devices ---")
+        # --- DEVICE DEBUGGING: Print device info for batch and key model parameters ---
+        def print_tensor_devices(obj, prefix):
+            if isinstance(obj, dict):
+                for k, v in obj.items():
+                    print_tensor_devices(v, f"{prefix}.{k}")
+            elif isinstance(obj, torch.Tensor):
+                print(f"[DEVICE-DEBUG][training_step] {prefix}: device={obj.device}, shape={tuple(obj.shape)}, dtype={obj.dtype}")
+            elif isinstance(obj, list):
+                for i, v in enumerate(obj):
+                    print_tensor_devices(v, f"{prefix}[{i}]")
+        print_tensor_devices(batch, "batch")
+        def print_param_devices(module, name):
+            for pname, param in module.named_parameters(recurse=True):
+                print(f"[DEVICE-DEBUG][training_step][{name}] Parameter: {pname}, device: {getattr(param, 'device', 'NO DEVICE')}" )
+        print_param_devices(self.stageA, 'stageA')
+        print_param_devices(self.stageB_torsion, 'stageB_torsion')
+        print_param_devices(self.stageB_pairformer, 'stageB_pairformer')
+        print_param_devices(self.stageC, 'stageC')
+        print_param_devices(self.stageD, 'stageD')
+        print_param_devices(self.latent_merger, 'latent_merger')
+
         # Print requires_grad for all model parameters
         logger.debug("[DEBUG][training_step] Model parameters requires_grad status:")
         for name, param in self.named_parameters():
@@ -422,12 +485,27 @@ class RNALightningModule(L.LightningModule):
                 logger.error(f"Shape mismatch for angle loss after alignment: Pred {predicted_angles_sincos.shape}, True {true_angles_sincos.shape}")
                 loss_angle = torch.tensor(0.0, device=self.device_, requires_grad=True)
             else:
+                # Before loss calculation
+                print(f"[LOSS-DEBUG] predicted_angles_sincos device: {getattr(predicted_angles_sincos, 'device', None)}")
+                print(f"[LOSS-DEBUG] true_angles_sincos device: {getattr(true_angles_sincos, 'device', None)}")
+                print(f"[LOSS-DEBUG] residue_mask device: {getattr(residue_mask, 'device', None)}")
                 error_angle = torch.nn.functional.mse_loss(predicted_angles_sincos, true_angles_sincos, reduction='none')
+                print(f"[LOSS-DEBUG] error_angle after mse_loss device: {getattr(error_angle, 'device', None)}")
                 mask_expanded = residue_mask.unsqueeze(-1).float()
+                print(f"[LOSS-DEBUG] mask_expanded after float device: {getattr(mask_expanded, 'device', None)}")
                 masked_error_angle = error_angle * mask_expanded
+                print(f"[LOSS-DEBUG] masked_error_angle after multiply device: {getattr(masked_error_angle, 'device', None)}")
                 num_valid_elements = mask_expanded.sum() * predicted_angles_sincos.shape[-1] + 1e-8
+                print(f"[LOSS-DEBUG] num_valid_elements after sum device: {getattr(num_valid_elements, 'device', None)}")
                 loss_angle = masked_error_angle.sum() / num_valid_elements
-        logger.debug(f"[DEBUG-LM] loss_angle value: {loss_angle.item()}")
+                print(f"[LOSS-DEBUG] loss_angle after division device: {getattr(loss_angle, 'device', None)}")
+                # **** CRITICAL FIX: Move the final loss to the module's device ****
+                loss_angle = loss_angle.to(self.device_)
+                print(f"[LOSS-DEBUG] loss_angle after to(self.device_) device: {getattr(loss_angle, 'device', None)}")
+                # *****************************************************************
+
+        logger.debug(f"[DEBUG-LM] loss_angle value: {loss_angle.item()}, device: {loss_angle.device}")
+        # Return the loss dictionary, ensuring the 'loss' tensor is on self.device_
         return {"loss": loss_angle}
 
     def train_dataloader(self):
