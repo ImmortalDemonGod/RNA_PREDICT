@@ -11,9 +11,12 @@ class DummyPairformerModel(nn.Module):
     Dummy implementation of the Pairformer model for testing.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, device):
         super().__init__()
-        self.device = torch.device("cpu")
+        # Require explicit device; do not default to CPU
+        if device is None:
+            raise ValueError("DummyPairformerModel requires an explicit device argument; do not use hardcoded defaults.")
+        self.device = torch.device(device)
 
     def forward(self, *args, **kwargs):
         # Return dummy output with correct shape
