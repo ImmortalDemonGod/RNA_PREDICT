@@ -252,7 +252,7 @@ def test_main_happy_path(temp_dir: Path) -> None:
     test_argv = ["batch_test_generator.py", str(temp_dir)]
     with (
         patch.object(sys, "argv", test_argv),
-        patch("tests.common.mock_batch_test_generator.process_folder") as mock_pf
+        patch("tests.common.mock_batch_test_generator.process_folder") as mock_pf,
     ):
         batch_test_generator.main()
 
