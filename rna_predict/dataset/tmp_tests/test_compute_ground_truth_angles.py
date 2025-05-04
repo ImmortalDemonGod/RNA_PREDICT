@@ -39,6 +39,35 @@ def test_compute_ground_truth_angles_cli(filename, chain_id):
             # At least one angle not nan
             assert torch.any(~torch.isnan(t)), f"All angles nan in {f}"
 
+@pytest.mark.parametrize("filename,chain_id,angle_set,expected_dim", [
+    ("1a34_1_B.cif", "B", "canonical", 7),
+    ("1a34_1_B.cif", "B", "full", 14),
+    ("1a9n_1_R.cif", "R", "canonical", 7),
+    ("1a9n_1_R.cif", "R", "full", 14),
+    ("RNA_NET_1a9n_1_Q.cif", "Q", "canonical", 7),
+    ("RNA_NET_1a9n_1_Q.cif", "Q", "full", 14),
+    ("synthetic_cppc_0000001.pdb", "B", "canonical", 7),
+    ("synthetic_cppc_0000001.pdb", "B", "full", 14),
+])
+def test_compute_ground_truth_angles_cli_parametrized(filename, chain_id, angle_set, expected_dim):
+    with tempfile.TemporaryDirectory() as outdir:
+        result = run([
+            "uv", "run", SCRIPT,
+            "--input_dir", EXAMPLES_DIR,
+            "--output_dir", outdir,
+            "--chain_id", chain_id,
+            "--backend", "mdanalysis",
+            "--angle_set", angle_set
+        ], capture_output=True, text=True)
+        assert result.returncode == 0, f"CLI failed: {result.stderr}\nSTDOUT: {result.stdout}"
+        out_files = [f for f in os.listdir(outdir) if f.endswith("_angles.pt")]
+        assert len(out_files) > 0, "No output files generated"
+        for f in out_files:
+            t = torch.load(os.path.join(outdir, f))
+            assert t.ndim == 2 and t.shape[1] == expected_dim
+            # At least one angle not nan
+            assert torch.any(~torch.isnan(t)), f"All angles nan in {f} ({angle_set})"
+
 def test_main_empty_input(tmp_path):
     # Prepare empty input dir
     input_dir = tmp_path / "inputs"
