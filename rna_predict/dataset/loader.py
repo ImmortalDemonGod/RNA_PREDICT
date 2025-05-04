@@ -218,5 +218,31 @@ class RNADataset(Dataset):
         return torch.zeros((self.max_res, self.max_res))
 
     def _load_angles(self, row, L):
-        # TODO: Implement angles loading
-        return torch.zeros((self.max_res, 14))
+        # On-the-fly angle extraction with robust padding/truncation
+        from rna_predict.dataset.preprocessing.angles import extract_rna_torsions
+        import torch
+        n_angles = 7  # Number of torsion angles (alpha, beta, gamma, delta, epsilon, zeta, chi)
+        try:
+            # Extract config values using Hydra best practices
+            # These should be set in the data/model config
+            backend = getattr(self.cfg.data, 'angle_backend', 'mdanalysis')
+            chain_id = row.get('chain_id', 'A') if hasattr(row, 'get') else 'A'
+            structure_file = row.get('pdb_path', None) if hasattr(row, 'get') else None
+            if structure_file is None:
+                raise ValueError("Missing structure file path in row for angle extraction.")
+            # Call the new torsion extraction function
+            ang_np = extract_rna_torsions(structure_file, chain_id=chain_id, backend=backend)
+            if ang_np is None:
+                ang = torch.zeros((L, n_angles))
+            else:
+                ang = torch.tensor(ang_np, dtype=torch.float32)
+            # Pad/truncate to max_res
+            if ang.shape[0] < self.max_res:
+                pad = torch.zeros((self.max_res - ang.shape[0], ang.shape[1]))
+                ang = torch.cat([ang, pad], dim=0)
+            elif ang.shape[0] > self.max_res:
+                ang = ang[:self.max_res]
+            return ang
+        except Exception as e:
+            print(f"[RNADataset._load_angles] Angle extraction failed: {e}")
+            return torch.zeros((self.max_res, n_angles))
