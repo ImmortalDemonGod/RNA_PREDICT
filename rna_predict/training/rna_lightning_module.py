@@ -154,61 +154,6 @@ class RNALightningModule(L.LightningModule):
         self.device_ = torch.device(cfg.device)
         logger.debug("[DEBUG-LM] self.device_ in RNALightningModule: %s", self.device_)
 
-        # For integration test mode, create dummy modules to avoid initialization issues
-        if getattr(self, '_integration_test_mode', False):
-            logger.info("[INFO] Integration test mode detected, creating dummy modules")
-            # Create dummy modules for all pipeline stages
-            self.stageA = torch.nn.Module()
-            self.stageB_torsion = torch.nn.Module()
-            self.stageB_pairformer = torch.nn.Module()
-            self.stageC = torch.nn.Module()
-            self.stageD = torch.nn.Module()
-
-            # Add predict method to stageB_pairformer
-            def dummy_predict(sequence, adjacency=None):
-                # Return a tuple of two tensors with appropriate shapes
-                s_emb = torch.zeros(len(sequence), 64, device=self.device_)
-                z_emb = torch.zeros(len(sequence), 32, device=self.device_)
-                return (s_emb, z_emb)
-
-            # Bind the dummy predict method
-            import types
-            self.stageB_pairformer.predict = types.MethodType(dummy_predict, self.stageB_pairformer)
-
-            # Create a dummy latent merger
-            self.latent_merger = torch.nn.Module()
-
-            # Add forward method to latent_merger
-            def dummy_forward(inputs):
-                # Return a tensor with appropriate shape
-                return torch.zeros(1, 128, device=self.device_)
-
-            # Bind the dummy forward method
-            self.latent_merger.forward = types.MethodType(dummy_forward, self.latent_merger)
-
-            # Create a pipeline module that contains all components
-            self.pipeline = torch.nn.ModuleDict({
-                'stageA': self.stageA,
-                'stageB_torsion': self.stageB_torsion,
-                'stageB_pairformer': self.stageB_pairformer,
-                'stageC': self.stageC,
-                'stageD': self.stageD,
-                'latent_merger': self.latent_merger
-            })
-
-            return  # Skip the rest of the initialization
-
-        # Normal initialization for non-integration test mode
-        logger.debug("[DEBUG-LM] cfg.model.stageB: %s", getattr(cfg.model, 'stageB', None))
-        if hasattr(cfg.model, 'stageB'):
-            logger.debug("[DEBUG-LM] cfg.model.stageB keys: %s", list(cfg.model.stageB.keys()) if hasattr(cfg.model.stageB, 'keys') else str(cfg.model.stageB))
-            if hasattr(cfg.model.stageB, 'pairformer'):
-                logger.debug("[DEBUG-LM] cfg.model.stageB.pairformer keys: %s", list(cfg.model.stageB.pairformer.keys()) if hasattr(cfg.model.stageB.pairformer, 'keys') else str(cfg.model.stageB.pairformer))
-            else:
-                logger.debug("[DEBUG-LM] cfg.model.stageB.pairformer: NOT FOUND")
-        else:
-            logger.debug("[DEBUG-LM] cfg.model.stageB: NOT FOUND")
-
         # --- Stage A Checkpoint Handling ---
         stageA_cfg = cfg.model.stageA
         checkpoint_dir = os.path.dirname(stageA_cfg.checkpoint_path)
@@ -316,19 +261,28 @@ class RNALightningModule(L.LightningModule):
         logger.debug("[DEBUG-LM] batch keys: %s", list(batch.keys()))
         sequence = batch["sequence"][0]  # assumes batch size 1 for now
         logger.debug("[DEBUG-LM] StageA input sequence: %s", sequence)
-        adj = self.stageA.predict_adjacency(sequence)
-        logger.debug("[DEBUG-LM] StageA output adj type: %s", type(adj))
+        adj = batch['adjacency'].to(self.device_)
+        sequence = batch['sequence']
+
         outB_torsion = self.stageB_torsion(sequence, adjacency=adj)
-        logger.debug("[DEBUG-LM] StageB_torsion output keys: %s", list(outB_torsion.keys()))
         torsion_angles = outB_torsion["torsion_angles"]
-        logger.debug("[DEBUG-LM][STAGEB] torsion_angles.requires_grad: %s", getattr(torsion_angles, 'requires_grad', None))
-        logger.debug("[DEBUG-LM][STAGEB] torsion_angles.grad_fn: %s", getattr(torsion_angles, 'grad_fn', None))
-        logger.debug("[DEBUG-LM][STAGEB] torsion_angles.device: %s", getattr(torsion_angles, 'device', None))
-        logger.debug("[DEBUG-LM] [PRE-STAGEC] torsion_angles requires_grad: %s", getattr(torsion_angles, 'requires_grad', None))
-        logger.debug("[DEBUG-LM] [PRE-STAGEC] torsion_angles grad_fn: %s", getattr(torsion_angles, 'grad_fn', None))
-        logger.debug("[DEBUG-LM] [PRE-STAGEC] torsion_angles device: %s", getattr(torsion_angles, 'device', None))
+        if torsion_angles.device != self.device_:
+            print(f"[DEVICE-PATCH][forward] Moving torsion_angles from {torsion_angles.device} to {self.device_}")
+            torsion_angles = torsion_angles.to(self.device_)
+        print(f"[DEVICE-DEBUG][forward] torsion_angles: device={torsion_angles.device}, shape={torsion_angles.shape}, dtype={torsion_angles.dtype}")
+
         outB_pairformer = self.stageB_pairformer.predict(sequence, adjacency=adj)
-        logger.debug("[DEBUG-LM] StageB_pairformer output type: %s", type(outB_pairformer))
+        s_emb = outB_pairformer[0]
+        z_emb = outB_pairformer[1]
+        if s_emb.device != self.device_:
+            print(f"[DEVICE-PATCH][forward] Moving s_emb from {s_emb.device} to {self.device_}")
+            s_emb = s_emb.to(self.device_)
+        if z_emb.device != self.device_:
+            print(f"[DEVICE-PATCH][forward] Moving z_emb from {z_emb.device} to {self.device_}")
+            z_emb = z_emb.to(self.device_)
+        print(f"[DEVICE-DEBUG][forward] s_emb: device={s_emb.device}, shape={s_emb.shape}, dtype={s_emb.dtype}")
+        print(f"[DEVICE-DEBUG][forward] z_emb: device={z_emb.device}, shape={z_emb.shape}, dtype={z_emb.dtype}")
+
         # Additional: Check for .detach(), .cpu(), .numpy(), .clone(), .to(), or torch.no_grad() in this section
         logger.debug("[DEBUG-LM][CHECK] About to call run_stageC with torsion_angles id: %s", id(torsion_angles))
         outC = run_stageC(sequence=sequence, torsion_angles=torsion_angles, cfg=self.cfg)
@@ -345,7 +299,6 @@ class RNALightningModule(L.LightningModule):
         logger.debug("[DEBUG-LM] coords_init shape (after .to(device)): %s, dtype: %s, device: %s", coords.shape, coords.dtype, coords.device)
         logger.debug("[DEBUG-LM] coords_init requires_grad (after .to(device)): %s", getattr(coords, 'requires_grad', None))
         logger.debug("[DEBUG-LM] coords_init grad_fn (after .to(device)): %s", getattr(coords, 'grad_fn', None))
-        s_emb, z_emb = outB_pairformer
         s_trunk = s_emb.unsqueeze(0)
         z_trunk = z_emb.unsqueeze(0)
         s_inputs = torch.zeros_like(s_trunk)
@@ -380,7 +333,7 @@ class RNALightningModule(L.LightningModule):
         # TODO: Update Stage D to accept and use unified_latent
         # Return outputs including unified_latent
         output = {
-            "adjacency": adj,
+            "adjacency": adj.to(self.device_),
             "torsion_angles": torsion_angles,
             "s_embeddings": s_emb,
             "z_embeddings": z_emb,
