@@ -101,7 +101,6 @@ class PairformerWrapper(nn.Module):
                 "n_blocks": 2,
                 "c_z": 32,
                 "c_s": 64,
-                "device": "cpu",
                 "n_heads": 4,
                 "dropout": 0.1,
                 "use_memory_efficient_kernel": False,
@@ -130,7 +129,6 @@ class PairformerWrapper(nn.Module):
                 "n_blocks": 2,
                 "c_z": 32,
                 "c_s": 64,
-                "device": "cpu",
                 "n_heads": 4,
                 "dropout": 0.1,
                 "use_memory_efficient_kernel": False,
@@ -147,6 +145,16 @@ class PairformerWrapper(nn.Module):
         if not self.debug_logging:
             logger.info("[UNIQUE-INFO-STAGEB-PAIRFORMER-TEST] PairformerWrapper initialized")
 
+        # Require explicit device
+        device = None
+        if hasattr(cfg, 'device'):
+            device = cfg.device
+        elif hasattr(cfg, 'pairformer') and hasattr(cfg.pairformer, 'device'):
+            device = cfg.pairformer.device
+        if device is None:
+            raise ValueError("PairformerWrapper requires an explicit device in the config; do not use hardcoded defaults.")
+        self.device = torch.device(device)
+
         # Store freeze_flag for later use after stack initialization
         self.freeze_flag = getattr(cfg, 'freeze_params', False)
         if self.debug_logging:
@@ -156,10 +164,6 @@ class PairformerWrapper(nn.Module):
                 logger.info("[StageB-Pairformer] Model parameters will be trainable (freeze_params is False or missing).")
 
         # Extract configuration
-        device_str = getattr(cfg, "device", "cuda" if torch.cuda.is_available() else "cpu")
-        # Ensure device is torch.device object
-        self.device = torch.device(device_str) if isinstance(device_str, str) else device_str
-
         # Get other configuration values with defaults
         self.init_z_from_adjacency = getattr(pairformer_cfg, "init_z_from_adjacency", True)
         self.model_name = getattr(pairformer_cfg, "model_name", "default")
@@ -224,6 +228,9 @@ class PairformerWrapper(nn.Module):
 
         # Instantiate the underlying PairformerStack with parameters from config
         self.stack = PairformerStack(stack_cfg)
+        # Move stack to the correct device
+        self.stack.to(self.device)
+        logger.info(f"[DEVICE-DEBUG][stageB_pairformer] After .to(self.device), parameter device: {next(self.stack.parameters()).device}")
 
         # Now freeze parameters if needed
         if hasattr(self, 'freeze_flag') and self.freeze_flag:
