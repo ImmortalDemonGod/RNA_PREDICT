@@ -14,7 +14,7 @@ c_pair: 32                  # Pair representation dimension
 dropout: 0.0                # Top-level dropout for Pairformer
 freeze_params: false
 
-device: cpu  # Inherit from global device setting
+device: ${device}  # Inherit from global device setting
 
 protenix_integration:
   c_token: 2

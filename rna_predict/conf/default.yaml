@@ -48,3 +48,5 @@ pipeline:
 
 training:
   checkpoint_dir: outputs/checkpoints
+  accelerator: cpu   # Trainer accelerator (e.g. 'cpu', 'mps', 'cuda')
+  devices: 1         # Number of devices for Trainer
