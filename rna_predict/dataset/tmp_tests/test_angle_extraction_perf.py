@@ -19,9 +19,8 @@ example_files = [
 def convert_cif_to_pdb(cif_file):
     parser = MMCIFParser(QUIET=True)
     structure = parser.get_structure("mmcif_structure", cif_file)
-    tmp_handle = tempfile.NamedTemporaryFile(suffix=".pdb", delete=False)
-    tmp_handle.close()
-    pdb_path = tmp_handle.name
+    with tempfile.NamedTemporaryFile(suffix=".pdb", delete=False) as tmp_handle:
+        pdb_path = tmp_handle.name
     io = PDBIO()
     io.set_structure(structure)
     io.save(pdb_path)
