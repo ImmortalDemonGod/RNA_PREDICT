@@ -382,6 +382,11 @@ def extract_atom_features(input_feature_dict, encoder_input_feature_config, debu
         features.append(value)
         feature_names.append(key)
     # Concatenate features
+    devices = [f.device for f in features]
+    if len(set(devices)) > 1:
+        print(f"[ERROR][extract_atom_features] Device mismatch: {[str(d) for d in devices]}")
+        for i, f in enumerate(features):
+            print(f"  Feature {i} shape: {f.shape}, device: {f.device}")
     concat = torch.cat(features, dim=2)
     if debug_logging:
         import logging
