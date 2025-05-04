@@ -1,0 +1,66 @@
+import os
+import tempfile
+import torch
+import pytest
+from subprocess import run
+
+# Set EXAMPLES_DIR to the correct absolute path
+dataset_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+EXAMPLES_DIR = os.path.join(dataset_dir, 'examples')
+# Set SCRIPT to the correct absolute path directly
+SCRIPT = "/Users/tomriddle1/RNA_PREDICT/rna_predict/dataset/preprocessing/compute_ground_truth_angles.py"
+
+@pytest.mark.parametrize("filename,chain_id", [
+    ("1a34_1_B.cif", "B"),
+    ("1a9n_1_R.cif", "R"),
+    ("RNA_NET_1a9n_1_Q.cif", "Q"),
+    ("synthetic_cppc_0000001.pdb", "B"),  # Use correct chain 'B' for this file
+])
+def test_compute_ground_truth_angles_cli(filename, chain_id):
+    with tempfile.TemporaryDirectory() as outdir:
+        print(f"[DEBUG] Using SCRIPT path: {SCRIPT}")
+        print(f"[DEBUG] Using EXAMPLES_DIR: {EXAMPLES_DIR}")
+        result = run([
+            "uv", "run", SCRIPT,
+            "--input_dir", EXAMPLES_DIR,
+            "--output_dir", outdir,
+            "--chain_id", chain_id,
+            "--backend", "mdanalysis"
+        ], capture_output=True, text=True)
+        if result.returncode != 0:
+            print("\n[DEBUG] CLI STDOUT:\n", result.stdout)
+            print("[DEBUG] CLI STDERR:\n", result.stderr)
+        assert result.returncode == 0, f"CLI failed: {result.stderr}\nSTDOUT: {result.stdout}"
+        out_files = [f for f in os.listdir(outdir) if f.endswith("_angles.pt")]
+        assert len(out_files) > 0, "No output files generated"
+        for f in out_files:
+            t = torch.load(os.path.join(outdir, f))
+            assert t.ndim == 2 and t.shape[1] == 7
+            # At least one angle not nan
+            assert torch.any(~torch.isnan(t)), f"All angles nan in {f}"
+
+def test_main_empty_input(tmp_path):
+    # Prepare empty input dir
+    input_dir = tmp_path / "inputs"
+    input_dir.mkdir()
+    output_dir = tmp_path / "outputs"
+    output_dir.mkdir()
+    import sys
+    sys_argv_backup = sys.argv[:]
+    sys.argv = ["script", "--input_dir", str(input_dir), "--output_dir", str(output_dir)]
+    from rna_predict.dataset.preprocessing import compute_ground_truth_angles
+    compute_ground_truth_angles.main()
+    sys.argv = sys_argv_backup
+    # Should not raise, output dir should be empty
+    assert not any(output_dir.iterdir())
+
+def test_main_invalid_args(monkeypatch):
+    import sys
+    sys_argv_backup = sys.argv[:]
+    sys.argv = ["script"] # missing required args
+    from rna_predict.dataset.preprocessing import compute_ground_truth_angles
+    try:
+        with pytest.raises(SystemExit):
+            compute_ground_truth_angles.main()
+    finally:
+        sys.argv = sys_argv_backup
