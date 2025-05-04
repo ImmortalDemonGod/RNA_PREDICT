@@ -1,11 +1,9 @@
 import sys
 from pathlib import Path
 
-# Add the current directory to the path
-current_dir = Path(__file__).parent
-sys.path.insert(0, str(current_dir))
-
-from hypot_test_gen import run_test_generation  # Adjust import if necessary
+from rna_predict.scripts.hypot_test_gen import (
+    run_test_generation,
+)  # Adjust import if necessary
 
 
 def process_folder(folder_path: Path, output_dir: Path):
