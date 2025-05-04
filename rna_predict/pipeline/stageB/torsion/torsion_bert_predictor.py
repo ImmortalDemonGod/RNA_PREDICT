@@ -30,6 +30,7 @@ class StageBTorsionBertPredictor(nn.Module):
     """Predicts RNA torsion angles using the TorsionBERT model."""
 
     def __init__(self, cfg: DictConfig):
+        print("[DEVICE-DEBUG][stageB_torsion] Entering StageBTorsionBertPredictor.__init__")
         super().__init__()
         # --- Logging: Always log essential info, only gate debug ---
         self.debug_logging = False
@@ -59,14 +60,17 @@ class StageBTorsionBertPredictor(nn.Module):
         if self.debug_logging:
             logger.info(f"[DEBUG-INST-STAGEB-002] Full config received in StageBTorsionBertPredictor: {cfg}")
 
-        # Require explicit device
+        # Require explicit device (patch: prefer cfg.stageB.torsion_bert.device)
         device = None
-        if hasattr(cfg, 'device'):
+        if hasattr(cfg, "stageB") and hasattr(cfg.stageB, "torsion_bert") and getattr(cfg.stageB.torsion_bert, "device", None) is not None:
+            device = cfg.stageB.torsion_bert.device
+            logger.info("[DEBUG-STAGEB-TORSIONBERT-CONFIG] Used cfg.stageB.torsion_bert.device")
+        elif hasattr(cfg, "device") and cfg.device is not None:
             device = cfg.device
-        elif hasattr(cfg, 'stageB_torsion') and hasattr(cfg.stageB_torsion, 'device'):
+            logger.info("[DEBUG-STAGEB-TORSIONBERT-CONFIG] Used cfg.device")
+        elif hasattr(cfg, 'stageB_torsion') and hasattr(cfg.stageB_torsion, 'device') and cfg.stageB_torsion.device is not None:
             device = cfg.stageB_torsion.device
-        elif hasattr(cfg, 'model') and hasattr(cfg.model, 'stageB') and hasattr(cfg.model.stageB, 'device'):
-            device = cfg.model.stageB.device
+            logger.info("[DEBUG-STAGEB-TORSIONBERT-CONFIG] Used cfg.stageB_torsion.device (legacy)")
         logger.info(f"[DEBUG-STAGEB-TORSIONBERT-CONFIG] Resolved device in config: {device}")
         if device is None:
             raise ValueError("StageBTorsionBertPredictor requires an explicit device in the config; do not use hardcoded defaults.")
@@ -110,9 +114,10 @@ class StageBTorsionBertPredictor(nn.Module):
             self.max_length = getattr(cfg, 'max_length', 512)
             self.output_dim = self.num_angles * 2 if self.angle_mode == 'sin_cos' else self.num_angles
 
-            # Emit a debug log even in dummy mode to satisfy tests
+            # Instantiate dummy model and move to device
+            self.model = DummyTorsionBertAutoModel(num_angles=self.num_angles).to(self.device)
             if self.debug_logging:
-                logger.debug("[UNIQUE-DEBUG-STAGEB-TORSIONBERT-DUMMY] TorsionBertPredictor running in dummy mode with debug_logging=True")
+                logger.debug(f"[DEVICE-DEBUG] Dummy model parameters device: {next(self.model.parameters()).device}")
             return
         elif not hasattr(torsion_cfg, 'model_name_or_path'):
             # Same logic for incomplete config
@@ -129,9 +134,10 @@ class StageBTorsionBertPredictor(nn.Module):
             self.max_length = getattr(cfg, 'max_length', 512)
             self.output_dim = self.num_angles * 2 if self.angle_mode == 'sin_cos' else self.num_angles
 
-            # Emit a debug log even in dummy mode to satisfy tests
+            # Instantiate dummy model and move to device
+            self.model = DummyTorsionBertAutoModel(num_angles=self.num_angles).to(self.device)
             if self.debug_logging:
-                logger.debug("[UNIQUE-DEBUG-STAGEB-TORSIONBERT-DUMMY] TorsionBertPredictor running in dummy mode with debug_logging=True")
+                logger.debug(f"[DEVICE-DEBUG] Dummy model parameters device: {next(self.model.parameters()).device}")
             return
         else:
             self.dummy_mode = False
@@ -173,11 +179,35 @@ class StageBTorsionBertPredictor(nn.Module):
         if getattr(cfg, 'init_from_scratch', False):
             logger.info("[StageB] Initializing TorsionBERT from scratch (dummy model, no checkpoint/tokenizer loaded)")
             self.tokenizer = None
-            self.model = DummyTorsionBertAutoModel(num_angles=self.num_angles)
+            self.model = DummyTorsionBertAutoModel(num_angles=self.num_angles).to(self.device)
         else:
             try:
                 self.tokenizer = AutoTokenizer.from_pretrained(self.model_name_or_path, trust_remote_code=True)
-                self.model = AutoModel.from_pretrained(self.model_name_or_path, trust_remote_code=True).to(self.device)
+                self.model = AutoModel.from_pretrained(self.model_name_or_path, trust_remote_code=True)
+                logger.info(f"[DEVICE-DEBUG][stageB_torsion] Model class before to(device): {self.model.__class__}")
+                logger.info(f"[DEVICE-DEBUG][stageB_torsion] Model config before to(device): {self.model.config}")
+                self.model = self.model.to(self.device)
+                logger.info(f"[DEVICE-DEBUG][stageB_torsion] Model class after to(device): {self.model.__class__}")
+                logger.info(f"[DEVICE-DEBUG][stageB_torsion] Model config after to(device): {self.model.config}")
+                # --- SYSTEMATIC PATCH: Explicitly move all submodules and parameters to device ---
+                for name, module in self.model.named_modules():
+                    try:
+                        module.to(self.device)
+                    except Exception as e:
+                        logger.warning(f"[DEVICE-DEBUG] Could not move submodule '{name}' to {self.device}: {e}")
+                # Print device for every parameter
+                param_device_summary = {}
+                for name, param in self.model.named_parameters():
+                    param_device_summary[name] = str(param.device)
+                logger.info(f"[DEVICE-DEBUG][stageB_torsion] Parameter device summary: {param_device_summary}")
+                # Warn if any parameter is not on the intended device
+                not_on_device = [name for name, device in param_device_summary.items() if device != str(self.device)]
+                if not_on_device:
+                    logger.error(f"[DEVICE-DEBUG][stageB_torsion] FATAL: The following parameters are NOT on {self.device}: {not_on_device}. Fallback to CPU.")
+                    # Fallback to CPU for all of Stage B
+                    self.device = torch.device('cpu')
+                    self.model = self.model.to(self.device)
+                    logger.warning(f"[DEVICE-DEBUG][stageB_torsion] Fallback: Model moved to CPU. Stage B will run on CPU. This is a known limitation: HuggingFace DNABERT does not support MPS.")
             except Exception as e:
                 logger.error(f"[UNIQUE-ERR-TORSIONBERT-LOADFAIL] Failed to load model/tokenizer from {self.model_name_or_path}: {e}")
                 raise
@@ -185,7 +215,7 @@ class StageBTorsionBertPredictor(nn.Module):
             # If model is mocked (for testing), replace with dummy model
             from unittest.mock import MagicMock
             if isinstance(self.model, MagicMock):
-                self.model = DummyTorsionBertAutoModel(num_angles=self.num_angles)
+                self.model = DummyTorsionBertAutoModel(num_angles=self.num_angles).to(self.device)
 
             is_test_mode = os.environ.get('PYTEST_CURRENT_TEST') is not None
             if not is_test_mode and (isinstance(self.model, MagicMock) or isinstance(self.tokenizer, MagicMock)):
@@ -256,11 +286,11 @@ class StageBTorsionBertPredictor(nn.Module):
         """Preprocesses the RNA sequence for the TorsionBERT model."""
         # Check if tokenizer is available
         if self.tokenizer is None:
-            # Create a dummy tokenized input for testing - always use CPU
+            # Create a dummy tokenized input for testing - use self.device
             logger.warning("[UNIQUE-WARN-TORSIONBERT-NOTOKENIZER] No tokenizer available, creating dummy input.")
             return {
-                "input_ids": torch.zeros((1, len(sequence)), dtype=torch.long, device="cpu"),
-                "attention_mask": torch.ones((1, len(sequence)), dtype=torch.long, device="cpu")
+                "input_ids": torch.zeros((1, len(sequence)), dtype=torch.long, device=self.device),
+                "attention_mask": torch.ones((1, len(sequence)), dtype=torch.long, device=self.device)
             }
 
         try:
@@ -303,7 +333,7 @@ class StageBTorsionBertPredictor(nn.Module):
             # For tests, check if model is a MagicMock
             if hasattr(self.model, '_extract_mock_name') and self.model._extract_mock_name() == 'MockModel':
                 logger.info("Using mock model for testing")
-                # Return a dummy tensor with the correct shape for testing
+                # Return a dummy tensor with the correct shape for testing - use self.device
                 num_residues = len(sequence)
                 out_dim = self.num_angles * 2 if self.angle_mode == "sin_cos" else self.num_angles
                 return torch.rand((num_residues, out_dim), device=self.device) * 2 - 1
@@ -355,9 +385,9 @@ class StageBTorsionBertPredictor(nn.Module):
             # Ensure inputs has input_ids before calling model
             if "input_ids" not in inputs:
                 logger.error("[UNIQUE-ERR-TORSIONBERT-MISSING-INPUTIDS] inputs dictionary is missing 'input_ids' key")
-                # Add a dummy input_ids tensor - always use CPU device
-                inputs["input_ids"] = torch.zeros((1, len(sequence) or 1), dtype=torch.long, device="cpu")
-                inputs["attention_mask"] = torch.ones((1, len(sequence) or 1), dtype=torch.long, device="cpu")
+                # Add a dummy input_ids tensor - use self.device
+                inputs["input_ids"] = torch.zeros((1, len(sequence) or 1), dtype=torch.long, device=self.device)
+                inputs["attention_mask"] = torch.ones((1, len(sequence) or 1), dtype=torch.long, device=self.device)
 
             # Use device management to handle model device
             try:
@@ -426,9 +456,9 @@ class StageBTorsionBertPredictor(nn.Module):
 
             # Defensive: Ensure angle_preds is a tensor and has expected dims
             if angle_preds is None:
-                # Create a dummy tensor with the right shape for testing - always use CPU
+                # Create a dummy tensor with the right shape for testing - use self.device
                 logger.warning("Model output is None, creating dummy tensor for testing")
-                angle_preds = torch.zeros((1, num_residues, self.output_dim), device="cpu")
+                angle_preds = torch.zeros((1, num_residues, self.output_dim), device=self.device)
             elif not isinstance(angle_preds, torch.Tensor):
                 raise ValueError(f"Model output is not a tensor: got {type(angle_preds)}")
             elif angle_preds.dim() < 3:
@@ -445,8 +475,8 @@ class StageBTorsionBertPredictor(nn.Module):
             # Defensive bridging: ensure output matches num_residues
             actual_len = angle_preds.shape[1]
             if actual_len < num_residues:
-                # Pad with zeros and raise unique error - always use CPU
-                pad = torch.zeros((angle_preds.shape[0], num_residues-actual_len, angle_preds.shape[2]), device="cpu")
+                # Pad with zeros and raise unique error - use self.device
+                pad = torch.zeros((angle_preds.shape[0], num_residues-actual_len, angle_preds.shape[2]), device=self.device)
                 angle_preds = torch.cat([angle_preds, pad], dim=1)
                 logger.error(f"[UNIQUE-ERR-TORSIONBERT-BRIDGE-PAD] Output too short: padded from {actual_len} to {num_residues}")
             elif actual_len > num_residues:
@@ -568,8 +598,8 @@ class StageBTorsionBertPredictor(nn.Module):
         # Handle dummy mode for missing config
         if getattr(self, 'dummy_mode', False):
             num_residues = len(sequence)
-            # Always use CPU device for dummy tensors to avoid MPS issues
-            device = torch.device("cpu")
+            # Always use self.device for dummy tensors
+            device = self.device
             output_dim = self.output_dim if hasattr(self, 'output_dim') else 14
             # Dummy torsion_angles: [N, output_dim]
             dummy_torsion = torch.zeros((num_residues, output_dim), device=device)
@@ -609,8 +639,8 @@ class StageBTorsionBertPredictor(nn.Module):
                  target_dim = self.num_angles * 2
                  if raw_predictions.shape[-1] > target_dim:
                      processed_angles = raw_predictions[:, :target_dim]
-                 else: # Pad with zeros if too small - always use CPU
-                     padding = torch.zeros(raw_predictions.shape[0], target_dim - raw_predictions.shape[-1], device="cpu")
+                 else: # Pad with zeros if too small - use self.device
+                     padding = torch.zeros(raw_predictions.shape[0], target_dim - raw_predictions.shape[-1], device=self.device)
                      processed_angles = torch.cat([raw_predictions, padding], dim=-1)
             else:
                  processed_angles = raw_predictions
@@ -650,8 +680,8 @@ class StageBTorsionBertPredictor(nn.Module):
             logger.info(f"[TEST-COMPAT] Reshaping output from {processed_angles.shape} to [N, 16] for test compatibility")
             # If we have [N, 7] or [N, 14], we need to expand to [N, 16]
             if processed_angles.shape[1] < 16:
-                # Pad with zeros - always use CPU
-                padding = torch.zeros(processed_angles.shape[0], 16 - processed_angles.shape[1], device="cpu")
+                # Pad with zeros - use self.device
+                padding = torch.zeros(processed_angles.shape[0], 16 - processed_angles.shape[1], device=self.device)
                 processed_angles = torch.cat([processed_angles, padding], dim=1)
             else:
                 # Slice to 16
