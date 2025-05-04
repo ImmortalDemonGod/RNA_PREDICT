@@ -56,6 +56,18 @@ class StageBTorsionBertPredictor(nn.Module):
         if self.debug_logging:
             logger.info(f"[DEBUG-INST-STAGEB-002] Full config received in StageBTorsionBertPredictor: {cfg}")
 
+        # Require explicit device
+        device = None
+        if hasattr(cfg, 'device'):
+            device = cfg.device
+        elif hasattr(cfg, 'stageB_torsion') and hasattr(cfg.stageB_torsion, 'device'):
+            device = cfg.stageB_torsion.device
+        elif hasattr(cfg, 'model') and hasattr(cfg.model, 'stageB') and hasattr(cfg.model.stageB, 'device'):
+            device = cfg.model.stageB.device
+        if device is None:
+            raise ValueError("StageBTorsionBertPredictor requires an explicit device in the config; do not use hardcoded defaults.")
+        self.device = torch.device(device)
+
         # Handle different configuration structures
         # 1. Direct attributes (model_name_or_path, device, etc.)
         # 2. Nested under stageB_torsion
@@ -65,7 +77,7 @@ class StageBTorsionBertPredictor(nn.Module):
         torsion_cfg = None
 
         # Check for direct attributes
-        if hasattr(cfg, 'model_name_or_path') and hasattr(cfg, 'device'):
+        if hasattr(cfg, 'model_name_or_path'):
             torsion_cfg = cfg
         # Check for stageB_torsion
         elif hasattr(cfg, 'stageB_torsion'):
@@ -89,7 +101,6 @@ class StageBTorsionBertPredictor(nn.Module):
             self.dummy_mode = True
             # Set defaults for dummy mode
             self.model_name_or_path = None
-            self.device = torch.device("cpu")
             self.angle_mode = getattr(cfg, 'angle_mode', 'sin_cos')
             self.num_angles = getattr(cfg, 'num_angles', 7)
             self.max_length = getattr(cfg, 'max_length', 512)
@@ -99,7 +110,7 @@ class StageBTorsionBertPredictor(nn.Module):
             if self.debug_logging:
                 logger.debug("[UNIQUE-DEBUG-STAGEB-TORSIONBERT-DUMMY] TorsionBertPredictor running in dummy mode with debug_logging=True")
             return
-        elif not (hasattr(torsion_cfg, 'model_name_or_path') and hasattr(torsion_cfg, 'device')):
+        elif not hasattr(torsion_cfg, 'model_name_or_path'):
             # Same logic for incomplete config
             current_test = str(os.environ.get('PYTEST_CURRENT_TEST', ''))
             if 'test_stageb_torsionbert_config_structure_property' in current_test or 'test_stageB_missing_config_section' in current_test:
@@ -109,7 +120,6 @@ class StageBTorsionBertPredictor(nn.Module):
             self.dummy_mode = True
             # Set defaults for dummy mode
             self.model_name_or_path = None
-            self.device = torch.device("cpu")
             self.angle_mode = getattr(cfg, 'angle_mode', 'sin_cos')
             self.num_angles = getattr(cfg, 'num_angles', 7)
             self.max_length = getattr(cfg, 'max_length', 512)
@@ -140,34 +150,9 @@ class StageBTorsionBertPredictor(nn.Module):
 
         # Extract configuration values
         self.model_name_or_path = torsion_cfg.model_name_or_path
-        # --- DEVICE SELECTION USING DEVICE MANAGEMENT ---
-        try:
-            # Use device management utility to get the appropriate device
-            self.device = get_device_for_component(cfg, "model.stageB.torsion_bert", default_device=torsion_cfg.device)
-            logger.info(f"[DEVICE-MANAGEMENT] TorsionBERT using device: {self.device} from device management config")
-        except Exception as e:
-            # Fall back to traditional device selection if device management fails
-            logger.warning(f"[DEVICE-MANAGEMENT] Error using device management: {str(e)}. Falling back to traditional selection.")
-
-            # Traditional device selection (Hydra override)
-            hydra_device = None
-            if hasattr(cfg, 'device'):
-                hydra_device = str(cfg.device)
-            nested_device = None
-            if hasattr(cfg, 'device'):
-                nested_device = str(cfg.device)
-            elif hasattr(cfg, 'torsion_bert') and hasattr(cfg.torsion_bert, 'device'):
-                nested_device = str(cfg.torsion_bert.device)
-            # Use hydra_device if it is set and not 'cpu', else fallback to nested_device, else 'cpu'
-            final_device = hydra_device if hydra_device and hydra_device != 'cpu' else nested_device if nested_device else 'cpu'
-            if hydra_device and nested_device and hydra_device != nested_device:
-                logger.warning(f"[HYDRA-DEVICE-OVERRIDE] Overriding nested torsion_bert device '{nested_device}' with global device '{hydra_device}' from Hydra config.")
-            self.device = torch.device(final_device)
-            logger.info(f"[HYDRA-DEVICE-SELECTED] TorsionBERT using device: {self.device}")
-        # --- END DEVICE SELECTION ---
-        self.angle_mode = getattr(torsion_cfg, 'angle_mode', DEFAULT_ANGLE_MODE)
-        self.num_angles = getattr(torsion_cfg, 'num_angles', DEFAULT_NUM_ANGLES)
-        self.max_length = getattr(torsion_cfg, 'max_length', DEFAULT_MAX_LENGTH)
+        self.angle_mode = getattr(torsion_cfg, 'angle_mode', 'sin_cos')
+        self.num_angles = getattr(torsion_cfg, 'num_angles', 7)
+        self.max_length = getattr(torsion_cfg, 'max_length', 512)
         self.checkpoint_path = getattr(torsion_cfg, 'checkpoint_path', None)
         # debug_logging is already set earlier
         self.lora_cfg = getattr(torsion_cfg, 'lora', None)
@@ -308,7 +293,7 @@ class StageBTorsionBertPredictor(nn.Module):
             logger.warning("Empty sequence provided, returning empty tensor.")
             # Adjust shape based on angle_mode
             out_dim = self.num_angles * 2 if self.angle_mode == "sin_cos" else self.num_angles
-            return torch.empty((0, out_dim), device="cpu")
+            return torch.empty((0, out_dim), device=self.device)
 
         try:
             # For tests, check if model is a MagicMock
@@ -317,7 +302,7 @@ class StageBTorsionBertPredictor(nn.Module):
                 # Return a dummy tensor with the correct shape for testing
                 num_residues = len(sequence)
                 out_dim = self.num_angles * 2 if self.angle_mode == "sin_cos" else self.num_angles
-                return torch.rand((num_residues, out_dim), device="cpu") * 2 - 1
+                return torch.rand((num_residues, out_dim), device=self.device) * 2 - 1
 
             # Normal processing for real model
             inputs = self._preprocess_sequence(sequence)
@@ -469,7 +454,7 @@ class StageBTorsionBertPredictor(nn.Module):
             if not hasattr(self, 'output_projection') and angle_preds.shape[-1] != self.output_dim:
                 self.output_projection = torch.nn.Linear(
                     angle_preds.shape[-1], self.output_dim
-                ).to("cpu")
+                ).to(self.device)
 
             # Project to the correct output dimension if needed
             if hasattr(self, 'output_projection'):
@@ -663,4 +648,9 @@ class StageBTorsionBertPredictor(nn.Module):
             logger.debug(f"[TorsionBERT] sequence: {sequence}")
             logger.debug(f"[TorsionBERT] output: {processed_angles.shape}")
 
-        return {"torsion_angles": processed_angles}
+        result = {"torsion_angles": processed_angles}
+        # DEVICE DEBUG LOGGING
+        for k, v in result.items():
+            if hasattr(v, 'device'):
+                logger.debug(f"[DEVICE-DEBUG][StageBTorsionBertPredictor.__call__] Output '{k}' device: {v.device}")
+        return result
