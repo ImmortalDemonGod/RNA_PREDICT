@@ -95,7 +95,7 @@ def main(cfg: DictConfig):
         dl = DataLoader(ds,
                         batch_size=cfg.data.batch_size,
                         num_workers=num_workers,
-                        collate_fn=rna_collate_fn,
+                        collate_fn=lambda batch: rna_collate_fn(batch, cfg=cfg),
                         shuffle=True)
         # DEBUG: Inspect first batch in detail only if debug_inspect_batch is enabled
         debug_inspect_batch = getattr(cfg.data, 'debug_inspect_batch', False)
