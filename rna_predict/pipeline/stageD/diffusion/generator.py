@@ -50,17 +50,19 @@ class TrainingNoiseSampler:
             print(f"train scheduler {self.sigma_data}")
 
     def __call__(
-        self, size: torch.Size, device: torch.device = torch.device("cpu")
+        self, size: torch.Size, device: torch.device = None
     ) -> torch.Tensor:
         """Sampling
 
         Args:
             size (torch.Size): the target size
-            device (torch.device, optional): target device. Defaults to torch.device("cpu").
+            device (torch.device, optional): target device. Defaults to None.
 
         Returns:
             torch.Tensor: sampled noise-level
         """
+        if device is None:
+            raise ValueError("TrainingNoiseSampler requires an explicit device argument; do not use hardcoded defaults.")
         rnd_normal = torch.randn(size=size, device=device)
         noise_level = (rnd_normal * self.p_std + self.p_mean).exp() * self.sigma_data
         return noise_level
@@ -98,20 +100,22 @@ class InferenceNoiseScheduler:
     def __call__(
         self,
         N_step: int = 200,
-        device: torch.device = torch.device("cpu"),
+        device: torch.device = None,
         dtype: torch.dtype = torch.float32,
     ) -> torch.Tensor:
         """Schedule the noise-level (time steps). No sampling is performed.
 
         Args:
             N_step (int, optional): number of time steps. Defaults to 200.
-            device (torch.device, optional): target device. Defaults to torch.device("cpu").
+            device (torch.device, optional): target device. Defaults to None.
             dtype (torch.dtype, optional): target dtype. Defaults to torch.float32.
 
         Returns:
             torch.Tensor: noise-level (time_steps)
                 [N_step+1]
         """
+        if device is None:
+            raise ValueError("InferenceNoiseScheduler requires an explicit device argument; do not use hardcoded defaults.")
         step_size = 1 / N_step
         step_indices = torch.arange(N_step + 1, device=device, dtype=dtype)
         t_step_list = (
@@ -334,6 +338,11 @@ def sample_diffusion(
             results.append(chunk_result)
 
         # Concatenate results along the sample dimension (dim=1)
+        devices = [r.device for r in results]
+        if len(set(devices)) > 1:
+            print(f"[ERROR][sample_diffusion] Device mismatch: {[str(d) for d in devices]}")
+            for i, r in enumerate(results):
+                print(f"  Result {i} shape: {r.shape}, device: {r.device}")
         final_result = torch.cat(results, dim=1)
         if debug_logging:
             logger.debug(
@@ -381,29 +390,23 @@ def sample_diffusion_training(
     """
     logging.getLogger(__name__)
     if device is None:
-        device = torch.device("cpu")
-    batch_size_shape = label_dict["coordinate"].shape[:-2]
-    dtype = label_dict["coordinate"].dtype
-    if debug_logging:
         print(f"[DEVICE-DEBUG][StageD] sample_diffusion_training: device={device}")
     # Areate N_sample versions of the input structure by randomly rotating and translating
     x_gt_augment = centre_random_augmentation(
         x_input_coords=label_dict["coordinate"],
         N_sample=N_sample,
         mask=label_dict["coordinate_mask"],
-    ).to(device=device, dtype=dtype)
+    ).to(device=device, dtype=label_dict["coordinate"].dtype)
 
     # Add independent noise to each structure
     # sigma: independent noise-level [..., N_sample]
-    sigma_size_list = list(batch_size_shape) + [N_sample]
+    sigma_size_list = list(label_dict["coordinate"].shape[:-2]) + [N_sample]
     sigma_size = torch.Size(sigma_size_list)
-    sigma = noise_sampler(size=sigma_size, device=device).to(dtype)
-    if debug_logging:
-        print(f"[DEVICE-DEBUG][StageD] sample_diffusion_training: sigma.device={sigma.device}")
+    sigma = noise_sampler(size=sigma_size, device=device).to(label_dict["coordinate"].dtype)
+    print(f"[DEVICE-DEBUG][StageD] sample_diffusion_training: sigma.device={sigma.device}")
     # noise: [..., N_sample, N_atom, 3]
-    noise = torch.randn_like(x_gt_augment, dtype=dtype, device=device) * sigma[..., None, None]
-    if debug_logging:
-        print(f"[DEVICE-DEBUG][StageD] sample_diffusion_training: noise.device={noise.device}")
+    noise = torch.randn_like(x_gt_augment, dtype=label_dict["coordinate"].dtype, device=device) * sigma[..., None, None]
+    print(f"[DEVICE-DEBUG][StageD] sample_diffusion_training: noise.device={noise.device}")
 
     # Get denoising outputs [..., N_sample, N_atom, 3]
     if diffusion_chunk_size is None:
@@ -429,7 +432,7 @@ def sample_diffusion_training(
             print(f"[DEBUG][StageD] sample_diffusion_training: no_chunks={no_chunks}, diffusion_chunk_size={diffusion_chunk_size}, N_sample={N_sample}")
         if no_chunks == 0:
             # Defensive: If there are no chunks, return empty tensor with correct shape
-            x_denoised = torch.empty(0, device=device, dtype=dtype)
+            x_denoised = torch.empty(0, device=device, dtype=label_dict["coordinate"].dtype)
         else:
             for i in range(no_chunks):
                 x_noisy_i = (x_gt_augment + noise)[
