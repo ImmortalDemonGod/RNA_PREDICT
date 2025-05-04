@@ -52,6 +52,9 @@ class StageBTorsionBertPredictor(nn.Module):
         Args:
             cfg: Hydra configuration object containing model settings
         """
+        # Log the full config for systematic debugging (always log at info level for this test)
+        logger.info(f"[DEBUG-STAGEB-TORSIONBERT-CONFIG-FULL] Full cfg received: {cfg}")
+
         # Log the full config for systematic debugging
         if self.debug_logging:
             logger.info(f"[DEBUG-INST-STAGEB-002] Full config received in StageBTorsionBertPredictor: {cfg}")
@@ -64,6 +67,7 @@ class StageBTorsionBertPredictor(nn.Module):
             device = cfg.stageB_torsion.device
         elif hasattr(cfg, 'model') and hasattr(cfg.model, 'stageB') and hasattr(cfg.model.stageB, 'device'):
             device = cfg.model.stageB.device
+        logger.info(f"[DEBUG-STAGEB-TORSIONBERT-CONFIG] Resolved device in config: {device}")
         if device is None:
             raise ValueError("StageBTorsionBertPredictor requires an explicit device in the config; do not use hardcoded defaults.")
         self.device = torch.device(device)
@@ -458,6 +462,15 @@ class StageBTorsionBertPredictor(nn.Module):
 
             # Project to the correct output dimension if needed
             if hasattr(self, 'output_projection'):
+                # --- SYSTEMATIC PATCH FOR MPS PLACEHOLDER STORAGE BUG ---
+                # Ensure angle_preds is on the correct device and contiguous before projection
+                logger.debug(f"[DEVICE-DEBUG] angle_preds device before projection: {angle_preds.device}, contiguous: {angle_preds.is_contiguous()}")
+                logger.debug(f"[DEVICE-DEBUG] output_projection.weight device: {self.output_projection.weight.device}")
+                if angle_preds.device != self.device:
+                    logger.warning(f"[DEVICE-FIX] Moving angle_preds from {angle_preds.device} to {self.device}")
+                    angle_preds = angle_preds.to(self.device)
+                angle_preds = angle_preds.contiguous()  # Materialize storage for MPS
+                # --- END PATCH ---
                 angle_preds = self.output_projection(angle_preds)
 
             # Ensure we have the correct output shape
