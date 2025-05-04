@@ -218,5 +218,49 @@ class RNADataset(Dataset):
         return torch.zeros((self.max_res, self.max_res))
 
     def _load_angles(self, row, L):
-        # TODO: Implement angles loading
-        return torch.zeros((self.max_res, 14))
+        from rna_predict.dataset.preprocessing.angles import extract_rna_torsions
+        import torch
+        n_angles = 7  # Number of torsion angles (alpha, beta, gamma, delta, epsilon, zeta, chi)
+        try:
+            backend = getattr(self.cfg.data, 'angle_backend', 'mdanalysis')
+            # Robustly extract chain_id and pdb_path for both dict and numpy record
+            def get_field(r, key, default=None):
+                # Try dict-like
+                if hasattr(r, 'get'):
+                    val = r.get(key, None)
+                    if val is not None:
+                        return val
+                # Try attribute
+                if hasattr(r, key):
+                    val = getattr(r, key)
+                    if val is not None:
+                        return val
+                # Try index access (numpy record)
+                try:
+                    val = r[key]
+                    if val is not None:
+                        return val
+                except Exception:
+                    pass
+                return default
+            chain_id = get_field(row, 'chain_id', 'A')
+            structure_file = get_field(row, 'pdb_path', None)
+            if structure_file is None:
+                print(f"[DIAGNOSE] row type: {type(row)}; row: {row}")
+                if hasattr(row, 'dtype') and hasattr(row, 'fields'):
+                    print(f"[DIAGNOSE] row fields: {row.dtype.fields}")
+                raise ValueError("Missing structure file path in row for angle extraction.")
+            ang_np = extract_rna_torsions(structure_file, chain_id=chain_id, backend=backend)
+            if ang_np is None:
+                ang = torch.zeros((L, n_angles))
+            else:
+                ang = torch.tensor(ang_np, dtype=torch.float32)
+            if ang.shape[0] < self.max_res:
+                pad = torch.zeros((self.max_res - ang.shape[0], ang.shape[1]))
+                ang = torch.cat([ang, pad], dim=0)
+            elif ang.shape[0] > self.max_res:
+                ang = ang[:self.max_res]
+            return ang
+        except Exception as e:
+            print(f"[RNADataset._load_angles] Angle extraction failed: {e}")
+            return torch.zeros((self.max_res, n_angles))
