@@ -86,6 +86,11 @@ class ProtenixDiffusionManager(torch.nn.Module):
     """
 
     def __init__(self, cfg: DictConfig):
+        """
+        Initializes the ProtenixDiffusionManager with configuration-driven setup.
+        
+        Validates the presence and structure of the Hydra configuration, requiring an explicit device specification under `cfg.model.stageD.diffusion.device`. Determines debug logging settings with hierarchical precedence, parses diffusion module arguments, and sets up the diffusion module on the specified device. Handles special test cases to ensure all required parameters are present for initialization. Raises errors if configuration is incomplete or invalid.
+        """
         super().__init__()
         logger.info("[StageD] Initializing ProtenixDiffusionManager")
         import os

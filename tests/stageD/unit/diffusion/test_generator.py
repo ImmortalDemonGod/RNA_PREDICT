@@ -73,7 +73,9 @@ class TestTrainingNoiseSampler:
         self, p_mean: float, p_std: float, sigma_data: float
     ) -> None:
         """
-        Test TrainingNoiseSampler with parameterized values to ensure coverage.
+        Tests TrainingNoiseSampler with various parameter values to ensure correct noise sampling.
+        
+        Verifies that the sampled noise levels have the expected shape and are not all zeros.
         """
         sampler = TrainingNoiseSampler(
             p_mean=p_mean, p_std=p_std, sigma_data=sigma_data
@@ -97,8 +99,9 @@ class TestTrainingNoiseSampler:
         self, p_mean: float, p_std: float, sigma_data: float, width: int, height: int
     ) -> None:
         """
-        Hypothesis-based fuzz test for TrainingNoiseSampler to explore
-        a variety of parameter values and verify shape correctness.
+        Performs property-based fuzz testing of TrainingNoiseSampler for parameter and shape robustness.
+        
+        Tests that sampled noise levels have the correct shape and contain only finite values across a range of randomly generated parameters and input sizes.
         """
         sampler = TrainingNoiseSampler(
             p_mean=p_mean, p_std=p_std, sigma_data=sigma_data
@@ -118,7 +121,7 @@ class TestInferenceNoiseScheduler:
 
     def test_default_init_and_call(self) -> None:
         """
-        Test default constructor usage and verify final schedule shape and last step = 0.
+        Tests that the default InferenceNoiseScheduler produces a schedule of correct length with the last value equal to zero.
         """
         scheduler = InferenceNoiseScheduler()
         schedule = scheduler(device=torch.device("cpu"))
@@ -136,7 +139,11 @@ class TestInferenceNoiseScheduler:
     def test_inference_noise_scheduler_call(
         self, s_max: float, s_min: float, p: float, sigma_data: float, N_step: int
     ) -> None:
-        """Test InferenceNoiseScheduler call with various parameters."""
+        """
+        Tests that InferenceNoiseScheduler generates a valid noise schedule for given parameters.
+        
+        Verifies that the schedule has the correct length, ends with zero, and contains only finite values.
+        """
         scheduler = InferenceNoiseScheduler(
             s_max=s_max, s_min=s_min, p=p, sigma_data=sigma_data
         )
@@ -157,7 +164,11 @@ class TestInferenceNoiseScheduler:
     def test_inference_noise_scheduler_property_based(
         self, s_max: float, s_min: float, p: float, sigma_data: float, n_step: int
     ) -> None:
-        """Property-based test for InferenceNoiseScheduler."""
+        """
+        Performs property-based testing of InferenceNoiseScheduler for schedule shape and value correctness.
+        
+        Verifies that the generated noise schedule has the expected length, ends with zero, and contains only finite values for a range of input parameters.
+        """
         scheduler = InferenceNoiseScheduler(
             s_max=s_max, s_min=s_min, p=p, sigma_data=sigma_data
         )
@@ -340,7 +351,9 @@ class TestSampleDiffusionTraining:
         self, mock_denoise_net, label_dict_fixture
     ) -> None:
         """
-        Test sample_diffusion_training with no chunking to verify shapes.
+        Tests sample_diffusion_training without chunking, verifying that the output tensors
+        for augmented ground-truth coordinates, denoised coordinates, and noise levels have
+        the expected shapes.
         """
         noise_sampler = TrainingNoiseSampler()
         input_feature_dict = {
@@ -376,7 +389,7 @@ class TestSampleDiffusionTraining:
         self, mock_denoise_net, label_dict_fixture
     ) -> None:
         """
-        Test sample_diffusion_training with chunking for coverage.
+        Tests sample_diffusion_training with chunking enabled, verifying output shapes for augmented coordinates, denoised coordinates, and noise levels.
         """
         noise_sampler = TrainingNoiseSampler()
         input_feature_dict = {
@@ -415,7 +428,9 @@ class TestSampleDiffusionTraining:
         self, mock_denoise_net, n_sample: int, chunk: Optional[int]
     ) -> None:
         """
-        Hypothesis-based fuzz test of sample_diffusion_training with random chunk sizes and sample counts.
+        Property-based test for sample_diffusion_training using randomized sample counts and chunk sizes.
+        
+        Verifies that the function produces outputs of correct shapes and that all values are finite for a variety of input configurations.
         """
         noise_sampler = TrainingNoiseSampler()
         label_dict = {

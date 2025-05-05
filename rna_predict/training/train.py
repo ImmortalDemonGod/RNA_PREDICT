@@ -18,6 +18,16 @@ register_configs()
 ####@snoop
 def main(cfg: DictConfig):
     # SYSTEMATIC HYDRA INTERPOLATION DEBUGGING PATCH
+    """
+    Main training entry point for the RNA prediction model using Hydra configuration.
+    
+    Loads and resolves configuration, prepares dataset and DataLoader, initializes the model,
+    sets up checkpointing, and runs training with PyTorch Lightning. Handles device selection,
+    debug logging, and error reporting for configuration and data loading issues.
+    
+    Args:
+        cfg: Hydra configuration object containing all settings for data, model, and training.
+    """
     print("[DEBUG][PATCH] Calling OmegaConf.resolve(cfg) to force interpolation...")
     OmegaConf.resolve(cfg)
     print("[DEBUG][PATCH] After resolve: cfg.device:", getattr(cfg, 'device', None))

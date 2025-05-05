@@ -88,6 +88,11 @@ class StageARFoldPredictor(nn.Module):
 
     def __init__(self, stage_cfg: Optional[DictConfig] = None, device: Optional[torch.device] = None):
         # Call super().__init__() to properly initialize nn.Module
+        """
+        Initializes the StageARFoldPredictor with device, configuration, and RFold model setup.
+        
+        Requires a device specification either from the provided configuration or as an explicit argument. If configuration is missing or incomplete, enters dummy mode with no model loaded. Loads the RFold model with parameters from the configuration, moves it to the resolved device, loads checkpoint weights, and optionally freezes parameters if specified. Sets up logging and debug options based on configuration.
+        """
         super(StageARFoldPredictor, self).__init__()
 
         # --- HYDRA DEVICE COMPLIANCE PATCH ---
@@ -209,7 +214,11 @@ class StageARFoldPredictor(nn.Module):
                 logger.info("[MEMORY-LOG][StageA] Memory usage: Not available (psutil process is None)")
 
     def get_model_device(self):
-        """Safely get the device of the model."""
+        """
+        Returns the device on which the model's parameters are located.
+        
+        If the model has no parameters or an error occurs, returns the configured device instead.
+        """
         if self.model is None:
             return None
         try:
@@ -227,7 +236,11 @@ class StageARFoldPredictor(nn.Module):
     def _load_checkpoint(
         self, checkpoint_path: Optional[str], checkpoint_url: Optional[str]
     ):
-        """Loads the model checkpoint, handling missing files and logging."""
+        """
+        Loads model weights from a checkpoint file if available.
+        
+        If the checkpoint file is missing or cannot be loaded, the model remains initialized with random weights. Logs warnings for missing files, missing download URLs, or loading failures. Skips loading if in dummy mode or if the model is not initialized.
+        """
         # Skip loading if in dummy mode or model is None
         if getattr(self, 'dummy_mode', False) or self.model is None:
             logger.warning("[UNIQUE-WARN-STAGEA-CHECKPOINT] In dummy mode or model is None, skipping checkpoint loading.")
@@ -282,14 +295,13 @@ class StageARFoldPredictor(nn.Module):
 
     def _validate_device(self, device: torch.device) -> torch.device:
         """
-        Validate the device and handle fallbacks if necessary.
-        This ensures we don't crash on unavailable CUDA/MPS devices.
-
+        Validates the requested device, falling back to CPU if CUDA or MPS is unavailable.
+        
         Args:
-            device: The requested device as a torch.device object
-
+            device: The requested torch.device.
+        
         Returns:
-            The validated device (may be different if fallback was needed)
+            The validated device, using CPU if the requested device is not available.
         """
         if self.debug_logging:
             logger.debug(f"[DEBUG-VALIDATE-DEVICE] Requested device: {device}")
@@ -308,8 +320,13 @@ class StageARFoldPredictor(nn.Module):
 
     def _get_cut_len(self, length: int) -> int:
         """
-        Return a length that is at least 'self.min_seq_length' and is a multiple of 16.
-        Uses the min_seq_length configured during initialization.
+        Returns the smallest multiple of 16 greater than or equal to the given length and at least the configured minimum sequence length.
+        
+        Args:
+            length: The original sequence length.
+        
+        Returns:
+            The adjusted length, rounded up to the nearest multiple of 16 and not less than the minimum sequence length.
         """
         if length < self.min_seq_length:
             length = self.min_seq_length  # Corrected: Use stored value
@@ -318,6 +335,17 @@ class StageARFoldPredictor(nn.Module):
 
     def _create_sequence_tensor(self, seq_idxs, padded_len, original_len) -> torch.Tensor:
         # Debug: Log info before and after tensor creation
+        """
+        Creates a padded tensor containing sequence indices and moves it to the configured device.
+        
+        Args:
+            seq_idxs: List or array of sequence indices to encode.
+            padded_len: Total length of the output tensor (for padding).
+            original_len: Length of the original sequence (unpadded).
+        
+        Returns:
+            A torch.Tensor of shape [1, padded_len] with the sequence indices in the first original_len positions and zeros elsewhere, located on the configured device.
+        """
         if self.debug_logging:
             logger.debug(f"[DEBUG-SEQ-TENSOR] Entered _create_sequence_tensor with device: {self.device}")
         # PATCH: Call the appropriate device-specific function (removed this complexity, use direct .to(self.device))
@@ -337,7 +365,13 @@ class StageARFoldPredictor(nn.Module):
 
     def predict_adjacency(self, rna_sequence: str) -> np.ndarray:
         """
-        Predict adjacency [N x N] using the official RFold model + row/col argmax.
+        Predicts the RNA secondary structure adjacency matrix for a given sequence using the RFold model.
+        
+        Args:
+            rna_sequence: RNA sequence as a string.
+        
+        Returns:
+            A symmetric binary NumPy array of shape [N, N], where N is the input sequence length, representing the predicted adjacency matrix. If the model is in dummy mode, the input is empty, or an error occurs, returns a zero matrix of appropriate size.
         """
         import torch
         import numpy as np

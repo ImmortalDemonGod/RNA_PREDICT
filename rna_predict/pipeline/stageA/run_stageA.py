@@ -153,6 +153,14 @@ def visualize_with_varna(ct_file: str, jar_path: str, output_png: str, resolutio
 @hydra.main(version_base=None, config_path="../../../rna_predict/conf", config_name="default")
 def main(cfg: DictConfig) -> None:
     # With our fixed configuration structure, we can directly access the stageA config
+    """
+    Executes the Stage A pipeline for RNA secondary structure prediction using a Hydra configuration.
+    
+    This function orchestrates the setup and execution of Stage A, including checkpoint download and extraction, predictor instantiation, optional example inference, and optional visualization. It logs detailed progress and configuration information if debug logging is enabled.
+    
+    Args:
+        cfg: Hydra configuration object containing all pipeline and stage-specific settings.
+    """
     stage_cfg = cfg.model.stageA
 
     debug_logging = False

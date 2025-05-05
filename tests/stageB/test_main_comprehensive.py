@@ -117,15 +117,13 @@ class TestRunPipeline:
     @given(seq=st.text(alphabet="ACGU", min_size=1, max_size=5))  # Reduced max_size to 5 to speed up the test
     @patch("rna_predict.pipeline.stageB.main.hydra.compose")
     def test_run_pipeline_valid_sequences(self, mock_compose, seq):
-        """Test that run_pipeline works with valid sequences.
-
-        [UNIQUE-ERR-STAGEB-RUNPIPELINE-001] This test verifies that run_pipeline
-        correctly processes valid RNA sequences and returns the expected output.
-
-        Note: This test was previously skipped due to timeout issues. It has been fixed by:
-        1. Using the same model instances for all test cases instead of creating new ones each time
-        2. Limiting the number of examples that Hypothesis generates
-        3. Reducing the maximum sequence length to 5 to speed up the test
+        """
+        Tests that run_pipeline processes valid RNA sequences and returns expected output.
+        
+        This test uses real model instances and a mocked configuration to verify that
+        run_pipeline produces outputs containing "coords" and "atom_count" keys for
+        short, valid RNA sequences. It also asserts that model constructors are called
+        exactly once.
         """
         # Create a mock config
         mock_cfg = self._make_cfg()
@@ -203,15 +201,12 @@ class TestRunPipeline:
     @given(seq=st.text(alphabet="ACGU", min_size=10, max_size=15))  # Test with longer sequences
     @patch("rna_predict.pipeline.stageB.main.hydra.compose")
     def test_run_pipeline_long_sequence(self, mock_compose, seq):
-        """Test that run_pipeline works efficiently with long sequences.
-
-        [UNIQUE-ERR-STAGEB-RUNPIPELINE-005] This test verifies that run_pipeline
-        processes long sequences efficiently and returns the expected output.
-
-        Note: This test was previously skipped due to timeout issues. It has been fixed by:
-        1. Using the same model instances for all test cases instead of creating new ones each time
-        2. Limiting the number of examples that Hypothesis generates
-        3. Using a fixed range of sequence lengths (10-15) to ensure we test longer sequences
+        """
+        Tests that run_pipeline processes long RNA sequences efficiently and returns expected output.
+        
+        This test uses real model instances and mocks model constructors to ensure that run_pipeline
+        can handle sequences of length 10–15. It verifies that the output contains the "coords" and
+        "atom_count" keys and that each model constructor is called exactly once.
         """
         # Create a mock config
         mock_cfg = self._make_cfg()
@@ -536,15 +531,12 @@ class TestRunPipelineHypothesis:
     """
 
     def test_run_pipeline_valid_sequences(self):
-        """Test run_pipeline with valid sequences using Hypothesis.
-
-        [UNIQUE-ERR-STAGEB-HYPOTHESIS-002] This test verifies that run_pipeline
-        correctly processes valid RNA sequences and returns the expected output.
-
-        Note: This test was previously skipped due to timeout issues. It has been fixed by:
-        1. Using the same model instances for all test cases instead of creating new ones each time
-        2. Limiting the number of examples that Hypothesis generates
-        3. Reducing the maximum sequence length to 5 to speed up the test
+        """
+        Tests that run_pipeline processes valid short RNA sequences and returns expected output.
+        
+        Uses Hypothesis to generate random RNA sequences of length 1–5, patches model constructors
+        to use pre-instantiated models, and asserts that the output contains both "coords" and
+        "atom_count" keys for each valid sequence.
         """
         # Create a mock config
         mock_cfg = OmegaConf.create({
@@ -908,20 +900,9 @@ def make_config(structure):
 )
 def test_stageb_torsionbert_config_structure_property(config_dict):
     """
-    Property-based test: StageBTorsionBertPredictor should raise unique error code [UNIQUE-ERR-TORSIONBERT-NOCONFIG]
-    if config is missing model.stageB.torsion_bert. This ensures config validation is robust and future-proof.
-
-    Note: This test is currently skipped because it hangs or takes too long to run.
-    The issue might be related to the property-based testing approach or
-    the test environment. Further investigation is needed.
-
-    Possible issues:
-    1. The property-based test is generating too many test cases
-    2. The StageBTorsionBertPredictor initialization is slow
-    3. Memory limitations when running the test
-    4. Timeout issues during test execution
-
-    [ERR-TORSIONBERT-PROPERTY-TIMEOUT-001]
+    Property-based test ensuring StageBTorsionBertPredictor raises a ValueError with a unique error code if the required torsion_bert config or its device field is missing.
+    
+    This test verifies robust configuration validation by checking that missing or incomplete torsion_bert configuration triggers the appropriate error.
     """
     from rna_predict.pipeline.stageB.torsion.torsion_bert_predictor import StageBTorsionBertPredictor
     # Check for either missing torsion_bert config or missing device

@@ -107,7 +107,12 @@ def mock_tokenizer() -> Any:
 
 @pytest.fixture(scope="module")
 def model_with_logits(mock_tokenizer: Any) -> TorsionBertModel:
-    """Return a TorsionBertModel instance configured to return logits."""
+    """
+    Creates a TorsionBertModel fixture configured to return logits for testing.
+    
+    This fixture patches the tokenizer and model loading to use mock implementations,
+    ensuring the returned TorsionBertModel produces logits output for test scenarios.
+    """
     print("[DEBUG-FIXTURE] Setting up model_with_logits fixture")
     print(f"[DEBUG-FIXTURE] mock_tokenizer type: {type(mock_tokenizer)}")
 
@@ -145,7 +150,13 @@ def model_with_logits(mock_tokenizer: Any) -> TorsionBertModel:
 
 @pytest.fixture
 def model_with_last_hidden(mock_tokenizer: Any) -> TorsionBertModel:
-    """Return a TorsionBertModel instance configured to return last_hidden_state."""
+    """
+    Creates a TorsionBertModel fixture configured to return last_hidden_state outputs.
+    
+    This fixture patches the tokenizer and model loading to use mock objects, ensuring
+    the returned TorsionBertModel instance operates in a controlled test environment
+    with `return_dict=False` for last_hidden_state output mode.
+    """
     print("[DEBUG-FIXTURE] Setting up model_with_last_hidden fixture")
     print(f"[DEBUG-FIXTURE] mock_tokenizer type: {type(mock_tokenizer)}")
 
@@ -186,8 +197,10 @@ def predictor_fixture(
     mock_tokenizer: Any,
 ) -> StageBTorsionBertPredictor:
     """
-    Fixture that sets up a StageBTorsionBertPredictor using a model with num_angles=16
-    to test integrated behavior.
+    Pytest fixture that creates a StageBTorsionBertPredictor configured for integration tests.
+    
+    Sets up the predictor with a mock tokenizer and a dummy model using 16 angles and 'degrees'
+    angle mode, enabling debug logging for diagnostic output.
     """
     from omegaconf import DictConfig
     # Build a minimal config matching what StageBTorsionBertPredictor expects

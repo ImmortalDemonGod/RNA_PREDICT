@@ -35,13 +35,14 @@ class TrainingNoiseSampler:
         sigma_data: float = 16.0,  # NOTE: in EDM, this is 1.0
         debug_logging: bool = False,
     ) -> None:
-        """Sampler for training noise-level
-
+        """
+        Initializes a sampler for noise levels used during diffusion model training.
+        
         Args:
-            p_mean (float, optional): gaussian mean. Defaults to -1.2.
-            p_std (float, optional): gaussian std. Defaults to 1.5.
-            sigma_data (float, optional): scale. Defaults to 16.0, but this is 1.0 in EDM.
-            debug_logging (bool, optional): Whether to print debug statements. Defaults to False.
+            p_mean: Mean of the Gaussian distribution for noise sampling.
+            p_std: Standard deviation of the Gaussian distribution for noise sampling.
+            sigma_data: Scaling factor applied to sampled noise levels.
+            debug_logging: If True, enables debug logging during initialization.
         """
         self.sigma_data = sigma_data
         self.p_mean = p_mean
@@ -52,14 +53,18 @@ class TrainingNoiseSampler:
     def __call__(
         self, size: torch.Size, device: torch.device = None
     ) -> torch.Tensor:
-        """Sampling
-
+        """
+        Samples noise levels from a log-normal distribution for training.
+        
         Args:
-            size (torch.Size): the target size
-            device (torch.device, optional): target device. Defaults to None.
-
+            size: Shape of the output tensor.
+            device: Device on which to allocate the tensor.
+        
         Returns:
-            torch.Tensor: sampled noise-level
+            A tensor of sampled noise levels with the specified shape and device.
+        
+        Raises:
+            ValueError: If device is not provided.
         """
         if device is None:
             raise ValueError("TrainingNoiseSampler requires an explicit device argument; do not use hardcoded defaults.")
@@ -103,16 +108,16 @@ class InferenceNoiseScheduler:
         device: torch.device = None,
         dtype: torch.dtype = torch.float32,
     ) -> torch.Tensor:
-        """Schedule the noise-level (time steps). No sampling is performed.
-
+        """
+        Generates a schedule of noise levels for diffusion inference steps.
+        
         Args:
-            N_step (int, optional): number of time steps. Defaults to 200.
-            device (torch.device, optional): target device. Defaults to None.
-            dtype (torch.dtype, optional): target dtype. Defaults to torch.float32.
-
+            N_step: Number of inference steps.
+            device: Device on which to create the noise schedule tensor.
+            dtype: Data type of the resulting tensor.
+        
         Returns:
-            torch.Tensor: noise-level (time_steps)
-                [N_step+1]
+            A tensor of shape [N_step + 1] containing noise levels for each diffusion step, with the final value set to zero.
         """
         if device is None:
             raise ValueError("InferenceNoiseScheduler requires an explicit device argument; do not use hardcoded defaults.")
@@ -151,33 +156,24 @@ def sample_diffusion(
     attn_chunk_size: Optional[int] = None,
     debug_logging: bool = False,
 ) -> torch.Tensor:
-    """Implements Algorithm 18 in AF3.
-    It performances denoising steps from time 0 to time T.
-    The time steps (=noise levels) are given by noise_schedule.
-
+    """
+    Generates denoised protein structure coordinates using a diffusion process.
+    
+    Performs iterative denoising of randomly initialized coordinates according to a provided noise schedule, using a denoising network and input features. Supports chunked processing for memory efficiency. Returns the final denoised coordinates for all generated samples.
+    
     Args:
-        denoise_net (Callable): the network that performs the denoising step.
-        input_feature_dict (dict[str, Any]): input meta feature dict
-        s_inputs (torch.Tensor): single embedding from InputFeatureEmbedder
-            [..., N_tokens, c_s_inputs]
-        s_trunk (torch.Tensor): single feature embedding from PairFormer (Alg17)
-            [..., N_tokens, c_s]
-        z_trunk (torch.Tensor): pair feature embedding from PairFormer (Alg17)
-            [..., N_tokens, N_tokens, c_z]
-        noise_schedule (torch.Tensor): noise-level schedule (which is also the time steps) since sigma=t.
-            [N_iterations]
-        N_sample (int): number of generated samples
-        gamma0 (float): params in Alg.18.
-        gamma_min (float): params in Alg.18.
-        noise_scale_lambda (float): params in Alg.18.
-        step_scale_eta (float): params in Alg.18.
-        diffusion_chunk_size (Optional[int]): Chunk size for diffusion operation. Defaults to None.
-        inplace_safe (bool): Whether to use inplace operations safely. Defaults to False.
-        attn_chunk_size (Optional[int]): Chunk size for attention operation. Defaults to None.
-
+        N_sample: Number of samples to generate.
+        gamma0: Initial gamma parameter controlling noise scaling.
+        gamma_min: Minimum gamma threshold for noise scaling.
+        noise_scale_lambda: Scaling factor for added noise at each step.
+        step_scale_eta: Scaling factor for the Euler update step.
+        diffusion_chunk_size: If set, processes samples in chunks of this size.
+        inplace_safe: If True, enables in-place operations where safe.
+        attn_chunk_size: If set, chunks attention computation in the denoising network.
+        debug_logging: If True, enables detailed debug logging.
+    
     Returns:
-        torch.Tensor: the denoised coordinates of x in inference stage
-            [..., N_sample, N_atom, 3]
+        A tensor of denoised coordinates with shape [..., N_sample, N_atom, 3].
     """
     logger = logging.getLogger(__name__)
     # Ensure noise_schedule is a 1D tensor
@@ -364,29 +360,10 @@ def sample_diffusion_training(
     device: Optional[torch.device] = None,
     debug_logging: bool = False,
 ) -> tuple[torch.Tensor, ...]:
-    """Implements diffusion training as described in AF3 Appendix at page 23.
-    It performances denoising steps from time 0 to time T.
-    The time steps (=noise levels) are given by noise_schedule.
-
-    Args:
-        denoise_net (Callable): the network that performs the denoising step.
-        label_dict (dict, optional) : a dictionary containing the followings.
-            "coordinate": the ground-truth coordinates
-                [..., N_atom, 3]
-            "coordinate_mask": whether true coordinates exist.
-                [..., N_atom]
-        input_feature_dict (dict[str, Any]): input meta feature dict
-        s_inputs (torch.Tensor): single embedding from InputFeatureEmbedder
-            [..., N_tokens, c_s_inputs]
-        s_trunk (torch.Tensor): single feature embedding from PairFormer (Alg17)
-            [..., N_tokens, c_s]
-        z_trunk (torch.Tensor): pair feature embedding from PairFormer (Alg17)
-            [..., N_tokens, N_tokens, c_z]
-        N_sample (int): number of training samples
-        device (torch.device): device to use for all allocations
-    Returns:
-        torch.Tensor: the denoised coordinates of x in inference stage
-            [..., N_sample, N_atom, 3]
+    """
+    Performs diffusion-based training by adding noise to ground-truth coordinates and denoising.
+    
+    Randomly augments ground-truth coordinates, samples noise levels, adds Gaussian noise, and applies the denoising network. Supports optional chunked processing for memory efficiency. Returns the augmented coordinates, denoised outputs, and noise levels used.
     """
     logging.getLogger(__name__)
     if device is None:

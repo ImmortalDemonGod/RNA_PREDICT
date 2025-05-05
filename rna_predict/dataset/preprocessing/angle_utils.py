@@ -2,11 +2,10 @@ import torch
 
 def angles_rad_to_sin_cos(angles_rad: torch.Tensor) -> torch.Tensor:
     """
-    Convert angles in radians to interleaved sin/cos pairs.
-    Args:
-        angles_rad: Tensor of shape [..., num_angles]
-    Returns:
-        Tensor of shape [..., num_angles * 2] with [sin_0, cos_0, sin_1, cos_1, ...] order
+    Converts a tensor of angles in radians to an interleaved tensor of sine and cosine values.
+    
+    Given a tensor of shape [..., num_angles], returns a tensor of shape [..., num_angles * 2]
+    where the last dimension contains values in the order [sin_0, cos_0, sin_1, cos_1, ...].
     """
     sin_angles = torch.sin(angles_rad)
     cos_angles = torch.cos(angles_rad)

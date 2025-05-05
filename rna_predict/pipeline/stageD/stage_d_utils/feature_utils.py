@@ -356,6 +356,23 @@ def initialize_features_from_config(
     return features
 
 def extract_atom_features(input_feature_dict, encoder_input_feature_config, debug_logging=False):
+    """
+    Extracts and concatenates atom-level feature tensors according to the encoder configuration.
+    
+    Validates that each required feature is present in the input dictionary, is a 3D tensor with the correct feature dimension, and has consistent batch size and atom count across all features. Checks for device consistency among tensors and reports mismatches. Returns a single tensor with features concatenated along the last dimension.
+    
+    Args:
+        input_feature_dict: Dictionary mapping feature names to atom-level tensors.
+        encoder_input_feature_config: Dictionary specifying expected feature names and their dimensions.
+        debug_logging: If True, logs the shape of the concatenated tensor.
+    
+    Returns:
+        A tensor of shape [batch, num_atoms, total_feature_dim] containing concatenated features.
+    
+    Raises:
+        ValueError: If a required feature is missing, has incorrect shape, or inconsistent batch/atom count.
+        TypeError: If a feature is not a tensor.
+    """
     features = []
     feature_names = []
     batch_size = None

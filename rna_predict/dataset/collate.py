@@ -6,13 +6,21 @@ logger = logging.getLogger("rna_predict.dataset.collate")
 
 
 def rna_collate_fn(batch, cfg=None, debug_logging=None):
-    """Collate function for RNA dataset batches, robust to empty and single-item batches.
+    """
+    Collates a batch of RNA dataset samples into a batched dictionary suitable for model input.
+    
+    Handles both single-item and multi-item batches, stacking tensors and batching lists or strings as appropriate. Supports optional debug logging, which can be controlled via an explicit flag or inferred from a Hydra config object. Raises a ValueError if the batch is empty.
+    
     Args:
-        batch (list): List of samples (dicts) from RNADataset.
-        cfg (optional): Hydra config object. If provided, will attempt to source debug_logging from it.
-        debug_logging (bool, optional): Explicit debug flag. If None, will use cfg if available, else False.
+        batch: List of sample dictionaries from the RNA dataset.
+        cfg: Optional Hydra config object to resolve debug logging settings.
+        debug_logging: Optional boolean to explicitly enable debug logging.
+    
     Returns:
-        dict: Batched tensors and lists.
+        A dictionary with batched tensors and lists, ready for model consumption.
+    
+    Raises:
+        ValueError: If the input batch is empty.
     """
     # Respect Hydra config hierarchy for debug_logging
     resolved_debug = False
