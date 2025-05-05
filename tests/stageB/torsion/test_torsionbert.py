@@ -108,15 +108,25 @@ def mock_tokenizer() -> Any:
 @pytest.fixture(scope="module")
 def model_with_logits(mock_tokenizer: Any) -> TorsionBertModel:
     """Return a TorsionBertModel instance configured to return logits."""
-    with (
-        patch(
-            "transformers.AutoTokenizer.from_pretrained", return_value=mock_tokenizer
-        ),
-        patch(
-            "transformers.AutoModel.from_pretrained",
-            return_value=DummyTorsionBertAutoModel(),
-        ),
-    ):
+    print("[DEBUG-FIXTURE] Setting up model_with_logits fixture")
+    print(f"[DEBUG-FIXTURE] mock_tokenizer type: {type(mock_tokenizer)}")
+
+    # Create patchers explicitly to debug
+    tokenizer_patcher = patch(
+        "rna_predict.pipeline.stageB.torsion.torsionbert_inference.AutoTokenizer.from_pretrained",
+        return_value=mock_tokenizer
+    )
+    model_patcher = patch(
+        "rna_predict.pipeline.stageB.torsion.torsionbert_inference.AutoModel.from_pretrained",
+        return_value=DummyTorsionBertAutoModel()
+    )
+
+    # Start patchers
+    mock_tokenizer_func = tokenizer_patcher.start()
+    mock_model_func = model_patcher.start()
+
+    try:
+        print(f"[DEBUG-FIXTURE] Patchers started, creating model")
         model = TorsionBertModel(
             model_path="dummy_path",
             num_angles=7,
@@ -124,21 +134,37 @@ def model_with_logits(mock_tokenizer: Any) -> TorsionBertModel:
             device="cpu",
             return_dict=True,
         )
-    return model
+        print(f"[DEBUG-FIXTURE] Model created, tokenizer: {model.tokenizer}")
+        return model
+    finally:
+        # Stop patchers
+        tokenizer_patcher.stop()
+        model_patcher.stop()
+        print("[DEBUG-FIXTURE] Patchers stopped")
 
 
 @pytest.fixture
 def model_with_last_hidden(mock_tokenizer: Any) -> TorsionBertModel:
     """Return a TorsionBertModel instance configured to return last_hidden_state."""
-    with (
-        patch(
-            "transformers.AutoTokenizer.from_pretrained", return_value=mock_tokenizer
-        ),
-        patch(
-            "transformers.AutoModel.from_pretrained",
-            return_value=DummyTorsionBertAutoModel(),
-        ),
-    ):
+    print("[DEBUG-FIXTURE] Setting up model_with_last_hidden fixture")
+    print(f"[DEBUG-FIXTURE] mock_tokenizer type: {type(mock_tokenizer)}")
+
+    # Create patchers explicitly to debug
+    tokenizer_patcher = patch(
+        "rna_predict.pipeline.stageB.torsion.torsionbert_inference.AutoTokenizer.from_pretrained",
+        return_value=mock_tokenizer
+    )
+    model_patcher = patch(
+        "rna_predict.pipeline.stageB.torsion.torsionbert_inference.AutoModel.from_pretrained",
+        return_value=DummyTorsionBertAutoModel()
+    )
+
+    # Start patchers
+    tokenizer_patcher.start()
+    model_patcher.start()
+
+    try:
+        print(f"[DEBUG-FIXTURE] Patchers started, creating model with return_dict=False")
         model = TorsionBertModel(
             model_path="dummy_path",
             num_angles=7,
@@ -146,7 +172,13 @@ def model_with_last_hidden(mock_tokenizer: Any) -> TorsionBertModel:
             device="cpu",
             return_dict=False,
         )
-    return model
+        print(f"[DEBUG-FIXTURE] Model created, tokenizer: {model.tokenizer}")
+        return model
+    finally:
+        # Stop patchers
+        tokenizer_patcher.stop()
+        model_patcher.stop()
+        print("[DEBUG-FIXTURE] Patchers stopped")
 
 
 @pytest.fixture
@@ -174,13 +206,22 @@ def predictor_fixture(
     })
     # Add backward-compatible alias for root-level stageB_torsion
     cfg['stageB_torsion'] = cfg['model']['stageB']['torsion_bert']
+    # Add debug logging to the config
+    cfg['debug_logging'] = True
+
     # Patch predictor to use mock model and tokenizer
     with (
         patch("transformers.AutoTokenizer.from_pretrained", return_value=mock_tokenizer),
         patch("rna_predict.pipeline.stageB.torsion.torsion_bert_predictor.AutoTokenizer.from_pretrained", return_value=mock_tokenizer),
         patch("transformers.AutoModel.from_pretrained", return_value=DummyTorsionBertAutoModel(num_angles=16)),
     ):
+        print("[DEBUG-PREDICTOR-FIXTURE] Creating StageBTorsionBertPredictor with config:")
+        print(f"[DEBUG-PREDICTOR-FIXTURE] cfg: {cfg}")
         predictor = StageBTorsionBertPredictor(cfg)
+        print(f"[DEBUG-PREDICTOR-FIXTURE] predictor.dummy_mode: {getattr(predictor, 'dummy_mode', 'not set')}")
+        print(f"[DEBUG-PREDICTOR-FIXTURE] predictor.num_angles: {getattr(predictor, 'num_angles', 'not set')}")
+        print(f"[DEBUG-PREDICTOR-FIXTURE] predictor.angle_mode: {getattr(predictor, 'angle_mode', 'not set')}")
+        print(f"[DEBUG-PREDICTOR-FIXTURE] predictor.output_dim: {getattr(predictor, 'output_dim', 'not set')}")
     return predictor
 
 
