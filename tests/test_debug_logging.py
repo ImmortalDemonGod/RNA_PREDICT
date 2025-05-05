@@ -783,8 +783,15 @@ def test_stageC_debug_logging_hypothesis(
 
     # Create a mock for the StageCReconstruction class
     class MockStageCReconstruction:
-        def __init__(self, device=None, *args, **kwargs):
-            self.device = device or torch.device("cpu")
+        def __init__(self, cfg=None, *args, **kwargs):
+            # Extract device from config if provided
+            self.device = torch.device("cpu")
+            if cfg is not None:
+                if hasattr(cfg, 'device'):
+                    self.device = torch.device(cfg.device)
+                elif hasattr(cfg, 'model') and hasattr(cfg.model, 'stageC') and hasattr(cfg.model.stageC, 'device'):
+                    self.device = torch.device(cfg.model.stageC.device)
+
             logger = logging.getLogger("rna_predict.pipeline.stageC.stage_c_reconstruction")
             logger.info("[MEMORY-LOG][StageC] Initializing StageCReconstruction")
 
@@ -988,7 +995,8 @@ def test_stageB_debug_logging_substages(_unused_stage, substage, expected_msg, c
                 "use_deepspeed_evo_attention": False,
                 "use_lma": False,
                 "inplace_safe": False,
-                "chunk_size": 4
+                "chunk_size": 4,
+                "device": "cpu"  # Add explicit device parameter
             }
         })
         debug_val = cfg.stageB_pairformer.debug_logging
