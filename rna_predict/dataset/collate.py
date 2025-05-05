@@ -47,6 +47,9 @@ def rna_collate_fn(batch, cfg=None, debug_logging=None):
             elif k in ["atom_names", "residue_indices"]:
                 # For target atom metadata, batch as list of lists
                 out[k] = [v]
+            elif isinstance(v, str):
+                # For sequence and similar: always batch as a list of strings
+                out[k] = [v]
             else:
                 out[k] = [v]
         if debug_logging:
