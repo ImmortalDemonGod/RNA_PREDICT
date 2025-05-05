@@ -929,6 +929,7 @@ def bridge_residue_to_atom(
             print(f"[DEBUG][BRIDGE][ENTRY]   {k}: shape={getattr(v, 'shape', 'N/A')} type={type(v)}")
     # --- original code continues ---
     sequence_list = extract_sequence(sequence, input_features, trunk_embeddings)
+    print(f"[CASCADE-DEBUG][BRIDGE-SEQ] type={type(sequence_list)}, value={sequence_list}")
     # PATCH: SYSTEMATIC DEBUGGING FOR ATOM COUNT CONSISTENCY
     # Print atom_metadata, atom_names, residue_indices, and partial_coords shape if available
     if atom_metadata is not None:
