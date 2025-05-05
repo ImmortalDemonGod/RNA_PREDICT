@@ -63,13 +63,29 @@ def run_stageB_combined(
     # Initialize models if not provided (for actual usage)
     if torsion_bert_model is None and cfg is not None:
         if isinstance(cfg, DictConfig):
-            torsion_bert_model = StageBTorsionBertPredictor(cfg.model)
+            # DEBUG: Print the config section about to be passed to StageBTorsionBertPredictor
+            print("[DEBUG-CASCADE] About to instantiate StageBTorsionBertPredictor with cfg.model.stageB.torsion_bert:")
+            if hasattr(cfg.model.stageB, 'torsion_bert'):
+                print(cfg.model.stageB.torsion_bert)
+            else:
+                print("[DEBUG-CASCADE] cfg.model.stageB.torsion_bert not found, using cfg.model.stageB")
+                print(cfg.model.stageB)
+            torsion_bert_model = StageBTorsionBertPredictor(cfg.model.stageB.torsion_bert if hasattr(cfg.model.stageB, 'torsion_bert') else cfg.model.stageB)
         else:
             raise TypeError("cfg must be a DictConfig")
 
     if pairformer_model is None and cfg is not None:
         if isinstance(cfg, DictConfig):
-            pairformer_model = PairformerWrapper(cfg.model)
+            pairformer_cfg = cfg.model.stageB.pairformer if hasattr(cfg.model.stageB, 'pairformer') else cfg.model.stageB
+            # Ensure device is resolved
+            if not hasattr(pairformer_cfg, 'device'):
+                if hasattr(cfg.model.stageB, 'device'):
+                    pairformer_cfg.device = cfg.model.stageB.device
+                elif hasattr(cfg, 'device'):
+                    pairformer_cfg.device = cfg.device
+                else:
+                    raise ValueError("Pairformer config requires a device key.")
+            pairformer_model = PairformerWrapper(pairformer_cfg)
         else:
             raise TypeError("cfg must be a DictConfig")
 
@@ -256,10 +272,15 @@ def run_pipeline(sequence: str, cfg: Optional[DictConfig] = None):
     import hydra
 
     # Input validation
-    if not isinstance(sequence, str) or len(sequence) == 0:
+    if not isinstance(sequence, str) and not isinstance(sequence, list) or len(sequence) == 0:
         raise ValueError("Input sequence must not be empty. [ERR-STAGEB-RUNPIPELINE-002]")
-    if not all(base in "ACGU" for base in sequence):
-        raise ValueError(f"Invalid RNA sequence: {sequence} [ERR-STAGEB-RUNPIPELINE-003]")
+    if isinstance(sequence, list):
+        for seq in sequence:
+            if not all(base in "ACGU" for base in seq):
+                raise ValueError(f"Invalid RNA sequence: {seq} [ERR-STAGEB-RUNPIPELINE-003]")
+    else:
+        if not all(base in "ACGU" for base in sequence):
+            raise ValueError(f"Invalid RNA sequence: {sequence} [ERR-STAGEB-RUNPIPELINE-003]")
     # SYSTEMATIC DEBUGGING: Log type and value of sequence at Stage B entry
     logger.info(f"[DEBUG-SEQUENCE-ENTRY-STAGEB] type={type(sequence)}, value={sequence}")
 
@@ -278,8 +299,13 @@ def run_pipeline(sequence: str, cfg: Optional[DictConfig] = None):
 
     # For invalid sequences (non-RNA), raise ValueError
     valid_bases = set("ACGU")
-    if not all(base in valid_bases for base in sequence):
-        raise ValueError(f"Invalid sequence: {sequence}")
+    if isinstance(sequence, list):
+        for seq in sequence:
+            if not all(base in valid_bases for base in seq):
+                raise ValueError(f"Invalid RNA sequence: {seq} [ERR-STAGEB-RUNPIPELINE-003]")
+    else:
+        if not all(base in valid_bases for base in sequence):
+            raise ValueError(f"Invalid RNA sequence: {sequence} [ERR-STAGEB-RUNPIPELINE-003]")
 
     # Call the pipeline stages in sequence
     # These will be mocked in tests
@@ -303,18 +329,27 @@ def run_pipeline(sequence: str, cfg: Optional[DictConfig] = None):
 
     # Stage B: Predict torsion angles
     if isinstance(cfg, DictConfig):
-        stageB = StageBTorsionBertPredictor(cfg.model)
+        # FIX: Always pass cfg.model.stageB.torsion_bert if available, else cfg.model.stageB
+        torsion_cfg = getattr(cfg.model.stageB, 'torsion_bert', None)
+        if torsion_cfg is not None:
+            stageB = StageBTorsionBertPredictor(torsion_cfg)
+        else:
+            stageB = StageBTorsionBertPredictor(cfg.model.stageB)
     else:
         raise TypeError("cfg must be a DictConfig")
     # SYSTEMATIC DEBUGGING: Log type and value of sequence before Stage B model call
     logger.info(f"[DEBUG-SEQUENCE-BEFORE-STAGEB] type={type(sequence)}, value={sequence}")
+    print(f"[CASCADE-DEBUG] BEFORE STAGE B: type={type(sequence)}, value={sequence}")
     outB = stageB(sequence, adjacency=adjacency)
+    print(f"[CASCADE-DEBUG] AFTER STAGE B: type={type(sequence)}, value={sequence}")
     torsion_angles = outB["torsion_angles"]
 
     # Stage C: Generate 3D coordinates from angles
-    # SYSTEMATIC DEBUGGING: Log type and value of sequence before Stage C call
-    logger.info(f"[DEBUG-SEQUENCE-BEFORE-STAGEC] type={type(sequence)}, value={sequence}")
-    stageC = StageCReconstruction()
+    print(f"[CASCADE-DEBUG] BEFORE STAGE C: type={type(sequence)}, value={sequence}")
+    if cfg is not None and hasattr(cfg, 'model') and hasattr(cfg.model, 'stageC'):
+        stageC = StageCReconstruction(cfg.model.stageC)
+    else:
+        raise ValueError("StageCReconstruction requires cfg.model.stageC in the config.")
     outC = stageC(torsion_angles)
 
     return outC
@@ -354,7 +389,15 @@ def demo_gradient_flow_test(cfg: Optional[DictConfig] = None):
 
     # Initialize Pairformer with config
     if isinstance(cfg, DictConfig):
-        pairformer = PairformerWrapper(cfg.model).to(device)
+        pairformer_cfg = cfg.model.stageB.pairformer if hasattr(cfg.model.stageB, 'pairformer') else cfg.model.stageB
+        if not hasattr(pairformer_cfg, 'device'):
+            if hasattr(cfg.model.stageB, 'device'):
+                pairformer_cfg.device = cfg.model.stageB.device
+            elif hasattr(cfg, 'device'):
+                pairformer_cfg.device = cfg.device
+            else:
+                raise ValueError("Pairformer config requires a device key.")
+        pairformer = PairformerWrapper(pairformer_cfg).to(device)
     else:
         raise TypeError("cfg must be a DictConfig")
 
