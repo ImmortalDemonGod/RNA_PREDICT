@@ -254,6 +254,7 @@ class RNADataset(Dataset):
         import torch
         n_angles = 7  # Number of torsion angles (alpha, beta, gamma, delta, epsilon, zeta, chi)
         try:
+            # NOTE: All angles must be in radians for downstream use. If adding a backend (e.g., DSSR) that returns degrees, convert to radians here.
             backend = getattr(self.cfg.data, 'angle_backend', 'mdanalysis')
             # Robustly extract chain_id and pdb_path for both dict and numpy record
             def get_field(r, key, default=None):
@@ -284,6 +285,7 @@ class RNADataset(Dataset):
                 raise ValueError("Missing structure file path in row for angle extraction.")
             ang_np = extract_rna_torsions(structure_file, chain_id=chain_id, backend=backend)
             if ang_np is None:
+                print(f"[WARNING][RNADataset._load_angles] Angle extraction returned None for {structure_file} (chain {chain_id}). Returning zeros.")
                 ang = torch.zeros((L, n_angles), device=self.device)
             else:
                 # Create tensor directly on the target device to avoid CPU->MPS transfer issues
@@ -291,6 +293,19 @@ class RNADataset(Dataset):
                 print(f"[DEBUG][RNADataset._load_angles] ang device after torch.tensor(..., device=self.device): {ang.device}, type: {type(ang)}")
                 ang = ang.contiguous()
                 print(f"[DEBUG][RNADataset._load_angles] ang device after .contiguous(): {ang.device}, type: {type(ang)}")
+                # --- Explicit check for angle tensor shape (columns) ---
+                if ang.shape[1] != n_angles:
+                    print(f"[WARNING][RNADataset._load_angles] Angle tensor has {ang.shape[1]} columns, expected {n_angles}. Padding/truncating as needed.")
+                    if ang.shape[1] > n_angles:
+                        ang = ang[:, :n_angles]
+                    else:
+                        pad_cols = n_angles - ang.shape[1]
+                        pad = torch.zeros((ang.shape[0], pad_cols), dtype=ang.dtype, device=ang.device)
+                        ang = torch.cat([ang, pad], dim=1)
+                # --- NaN Handling: Replace NaNs with zeros ---
+                if torch.isnan(ang).any():
+                    print("[WARNING][RNADataset._load_angles] NaNs detected in angle tensor. Replacing NaNs with zeros.")
+                    ang = torch.nan_to_num(ang, nan=0.0)
             if ang.shape[0] < self.max_res:
                 pad_shape = (self.max_res - ang.shape[0], ang.shape[1])
                 pad = torch.zeros(pad_shape, dtype=ang.dtype, device=self.device)
@@ -301,5 +316,5 @@ class RNADataset(Dataset):
                 ang = ang[:self.max_res]
             return ang
         except Exception as e:
-            print(f"[RNADataset._load_angles] Angle extraction failed: {e}")
+            print(f"[WARNING][RNADataset._load_angles] Angle extraction failed for {structure_file} (chain {chain_id}). Returning zeros. Error: {e}")
             return torch.zeros((self.max_res, n_angles), device=self.device)
