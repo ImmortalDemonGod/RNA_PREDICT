@@ -140,8 +140,13 @@ class TestRunPipeline:
         # Create StageB model
         stage_b = StageBTorsionBertPredictor(mock_cfg)
 
-        # Create StageC model
-        stage_c = StageCReconstruction()
+        # Create StageC model with proper device configuration
+        if not hasattr(mock_cfg.model, 'stageC') or not hasattr(mock_cfg.model.stageC, 'device'):
+            # Create a config with device explicitly set
+            stage_c_cfg = OmegaConf.create({"device": "cpu"})
+        else:
+            stage_c_cfg = mock_cfg.model.stageC
+        stage_c = StageCReconstruction(stage_c_cfg)
 
         # Patch the model creation functions to return our instances
         with patch("rna_predict.pipeline.stageB.main.StageARFoldPredictor", return_value=stage_a) as mock_stage_a, \
@@ -221,8 +226,13 @@ class TestRunPipeline:
         # Create StageB model
         stage_b = StageBTorsionBertPredictor(mock_cfg)
 
-        # Create StageC model
-        stage_c = StageCReconstruction()
+        # Create StageC model with proper device configuration
+        if not hasattr(mock_cfg.model, 'stageC') or not hasattr(mock_cfg.model.stageC, 'device'):
+            # Create a config with device explicitly set
+            stage_c_cfg = OmegaConf.create({"device": "cpu"})
+        else:
+            stage_c_cfg = mock_cfg.model.stageC
+        stage_c = StageCReconstruction(stage_c_cfg)
 
         # Patch the model creation functions to return our instances
         with patch("rna_predict.pipeline.stageB.main.StageARFoldPredictor", return_value=stage_a) as mock_stage_a, \
@@ -612,11 +622,24 @@ class TestRunPipelineHypothesis:
         # Create StageA model
         stage_a = StageARFoldPredictor(stage_cfg=mock_cfg.model.stageA, device=device)
 
-        # Create StageB model
-        stage_b = StageBTorsionBertPredictor(mock_cfg)
+        # Create StageB model with proper device configuration
+        # Ensure model.stageB.torsion_bert.device is set
+        if not hasattr(mock_cfg.model.stageB, 'torsion_bert'):
+            mock_cfg.model.stageB.torsion_bert = OmegaConf.create({})
+        if not hasattr(mock_cfg.model.stageB.torsion_bert, 'device'):
+            mock_cfg.model.stageB.torsion_bert.device = 'cpu'
+        if not hasattr(mock_cfg.model.stageB.torsion_bert, 'model_name_or_path'):
+            mock_cfg.model.stageB.torsion_bert.model_name_or_path = 'sayby/rna_torsionbert'
+        # Pass only the torsion_bert config to StageBTorsionBertPredictor
+        stage_b = StageBTorsionBertPredictor(mock_cfg.model.stageB.torsion_bert)
 
-        # Create StageC model
-        stage_c = StageCReconstruction()
+        # Create StageC model with proper device configuration
+        if not hasattr(mock_cfg.model, 'stageC') or not hasattr(mock_cfg.model.stageC, 'device'):
+            # Create a config with device explicitly set
+            stage_c_cfg = OmegaConf.create({"device": "cpu"})
+        else:
+            stage_c_cfg = mock_cfg.model.stageC
+        stage_c = StageCReconstruction(stage_c_cfg)
 
         # Use Hypothesis to test the function with valid sequences
         @settings(deadline=None, max_examples=3)  # Limit to 3 examples to avoid timeouts
@@ -901,11 +924,25 @@ def test_stageb_torsionbert_config_structure_property(config_dict):
     [ERR-TORSIONBERT-PROPERTY-TIMEOUT-001]
     """
     from rna_predict.pipeline.stageB.torsion.torsion_bert_predictor import StageBTorsionBertPredictor
-    if not ("model" in config_dict and isinstance(config_dict["model"], dict) and "stageB" in config_dict["model"] and isinstance(config_dict["model"]["stageB"], dict) and "torsion_bert" in config_dict["model"]["stageB"]):
+    # Check for either missing torsion_bert config or missing device
+    missing_config = not ("model" in config_dict and isinstance(config_dict["model"], dict) and
+                         "stageB" in config_dict["model"] and isinstance(config_dict["model"]["stageB"], dict) and
+                         "torsion_bert" in config_dict["model"]["stageB"])
+
+    # If config exists, check if device is missing
+    missing_device = False
+    if not missing_config:
+        missing_device = not ("device" in config_dict["model"]["stageB"]["torsion_bert"])
+
+    if missing_config or missing_device:
         cfg = make_config(config_dict)
         with pytest.raises(ValueError) as excinfo:
             StageBTorsionBertPredictor(cfg)
-        assert "[UNIQUE-ERR-TORSIONBERT-NOCONFIG]" in str(excinfo.value)
+
+        # Accept either error message
+        error_msg = str(excinfo.value)
+        assert ("[UNIQUE-ERR-TORSIONBERT-NOCONFIG]" in error_msg or
+                "requires an explicit device in the config" in error_msg)
 
 
 if __name__ == "__main__":

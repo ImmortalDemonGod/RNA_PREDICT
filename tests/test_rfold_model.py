@@ -16,6 +16,7 @@ class TestRFoldModel:
         self.args.num_hidden = 128
         self.args.dropout = 0.1
         self.args.use_gpu = False
+        self.args.device = "cpu"  # Add explicit device parameter
 
     def test_model_instantiation(self):
         """Test that the RFoldModel can be instantiated successfully."""
