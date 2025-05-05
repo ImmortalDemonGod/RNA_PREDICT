@@ -13,7 +13,7 @@ from typing import List, Optional, Dict, Any
 from rna_predict.pipeline.stageB.torsion.torsion_bert_predictor import StageBTorsionBertPredictor
 from rna_predict.pipeline.stageC.stage_c_reconstruction import run_stageC
 from rna_predict.utils.submission import coords_to_df, extract_atom, reshape_coords
-
+import snoop
 
 class RNAPredictor:
     """High-level interface for the RNA_PREDICT pipeline."""
@@ -37,7 +37,9 @@ class RNAPredictor:
             raise ValueError("torsion_bert_cfg must specify device in the Hydra config.")
         self.torsion_predictor = StageBTorsionBertPredictor(torsion_bert_cfg)
 
+    @snoop
     def predict_3d_structure(self, sequence: str) -> Dict[str, Any]:
+        print(f"[DEBUG][predict_3d_structure] sequence type: {type(sequence)}, value: {sequence}")
         if not sequence:
             return {
                 "coords": torch.empty((0, 3), device=self.device),
@@ -103,6 +105,7 @@ def batch_predict(predictor: RNAPredictor, sequences: List[str], output_dir: str
     os.makedirs(output_dir, exist_ok=True)
     results = []
     for i, seq in enumerate(sequences):
+        print(f"[DEBUG][batch_predict] seq type: {type(seq)}, value: {seq}")
         out = predictor.predict_3d_structure(seq)
         # --- Save as .pt for internal/debugging (optional, can remove if not wanted) ---
         torch.save(out, os.path.join(output_dir, f"prediction_{i}.pt"))
