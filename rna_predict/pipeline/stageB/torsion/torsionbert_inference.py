@@ -16,6 +16,8 @@ class DummyTorsionBertAutoModel(nn.Module):
         super().__init__()
         self.num_angles = num_angles
         self.side_effect = None  # For testing purposes
+        # Add a dummy parameter so that next(self.parameters()) doesn't raise StopIteration
+        self.dummy_param = nn.Parameter(torch.zeros(1))
         # Patch: Add config attribute to mimic HuggingFace model API
         from types import SimpleNamespace
         # Patch: Add hidden_size to config to mimic HuggingFace model API
@@ -135,8 +137,13 @@ class TorsionBertModel(nn.Module):
             self.device = torch.device(device)
 
         try:
+            print(f"[DEBUG-INIT] Attempting to load tokenizer from model_path: '{model_path}'")
             self.tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
+            print(f"[DEBUG-INIT] Tokenizer loaded successfully: {type(self.tokenizer)}")
+
+            print(f"[DEBUG-INIT] Attempting to load model from model_path: '{model_path}'")
             self.model = AutoModel.from_pretrained(model_path, trust_remote_code=True)
+            print(f"[DEBUG-INIT] Model loaded successfully: {type(self.model)}")
             print(f"[DEVICE-DEBUG][stageB_torsion] After model load, param device: {next(self.model.parameters()).device}")
 
             # Move model to device with error handling
@@ -156,8 +163,12 @@ class TorsionBertModel(nn.Module):
                 except Exception as e:
                     print(f"[DEVICE-DEBUG][stageB_torsion] Error during LoRA/PEFT .to(self.device): {e}")
         except Exception as e:
+            import traceback
             print(f"[DEVICE-DEBUG][stageB_torsion] Exception in __init__: {e}")
+            print(f"[DEVICE-DEBUG][stageB_torsion] Exception type: {type(e)}")
             print(f"[MODEL-ERROR] Error loading model/tokenizer: {str(e)}. Using dummy model.")
+            print("[DEBUG-INIT] Traceback:")
+            traceback.print_exc()
             self.tokenizer = None
             self.model = DummyTorsionBertAutoModel(num_angles=num_angles)
         # Assert that neither model nor tokenizer is a MagicMock after all patching/config
