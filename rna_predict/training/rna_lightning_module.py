@@ -262,7 +262,6 @@ class RNALightningModule(L.LightningModule):
         sequence = batch["sequence"][0]  # assumes batch size 1 for now
         logger.debug("[DEBUG-LM] StageA input sequence: %s", sequence)
         adj = batch['adjacency'].to(self.device_)
-        sequence = batch['sequence']
 
         outB_torsion = self.stageB_torsion(sequence, adjacency=adj)
         torsion_angles = outB_torsion["torsion_angles"]
