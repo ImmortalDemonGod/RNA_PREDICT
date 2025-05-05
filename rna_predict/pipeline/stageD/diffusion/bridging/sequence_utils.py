@@ -32,26 +32,27 @@ def _convert_str_to_sequence(str_seq: str) -> List[str]:
 # Helper 1: Try extracting sequence from input_features dictionary
 def _try_extract_from_input_features(
     input_features: Dict[str, Any] | None,
-) -> List[str] | None:
+    *args, **kwargs
+):
     """Attempts to extract sequence from the input_features dictionary."""
     # Early return if input_features is None or doesn't contain sequence
     if input_features is None or "sequence" not in input_features:
         return None
 
     seq_data = input_features["sequence"]
-
     # Handle different sequence data types
     if isinstance(seq_data, torch.Tensor):
-        return _convert_tensor_to_sequence(seq_data)
+        result = _convert_tensor_to_sequence(seq_data)
     elif isinstance(seq_data, list):
-        return _convert_list_to_sequence(seq_data)
+        result = _convert_list_to_sequence(seq_data)
     elif isinstance(seq_data, str):
-        return _convert_str_to_sequence(seq_data)
+        result = _convert_str_to_sequence(seq_data)
     else:
         logger.warning(
-            f"Unexpected type for 'sequence' in input_features: {type(seq_data)}. Skipping."
-        )
+            f"Unexpected type for 'sequence' in input_features: {type(seq_data)}. Skipping.")
         return None
+    print(f"[CASCADE-DEBUG][SEQ-EXTRACT] type={type(result)}, value={result}")
+    return result
 
 
 # Helper 2: Try inferring sequence length from trunk embeddings
@@ -79,40 +80,52 @@ def _try_infer_from_embeddings(
 
 
 def extract_sequence(
-    sequence: List[str] | None,
+    sequence: List[str] | str | None,
     input_features: Dict[str, Any] | None,
     trunk_embeddings: Dict[str, torch.Tensor],
-) -> List[str]:
+) -> str:
     """
     Extract sequence from available sources with fallbacks.
 
     Args:
-        sequence: Explicitly provided sequence
+        sequence: Explicitly provided sequence (string or list of chars)
         input_features: Input features dictionary that might contain sequence
         trunk_embeddings: Trunk embeddings that might be used to infer sequence length
 
     Returns:
-        List of residue types
+        RNA sequence as a string (e.g., 'AUGC...')
 
     Raises:
         ValueError: If sequence cannot be derived from any source
     """
     # 1. Check explicitly provided sequence
     if sequence is not None:
-        return sequence
+        # If it's a list of single-character strings, join; else, assume already string
+        if isinstance(sequence, list) and all(isinstance(x, str) and len(x) == 1 for x in sequence):
+            return "".join(sequence)
+        elif isinstance(sequence, str):
+            return sequence
+        else:
+            raise ValueError(f"Unsupported sequence type: {type(sequence)}")
 
     # 2. Try extracting from input_features using helper
     seq_from_features = _try_extract_from_input_features(input_features)
     if seq_from_features is not None:
-        return seq_from_features
+        if isinstance(seq_from_features, list) and all(isinstance(x, str) and len(x) == 1 for x in seq_from_features):
+            return "".join(seq_from_features)
+        elif isinstance(seq_from_features, str):
+            return seq_from_features
+        else:
+            raise ValueError(f"Unsupported extracted sequence type: {type(seq_from_features)}")
 
     # 3. Fallback: Try inferring from trunk embeddings using helper
     seq_from_embeddings = _try_infer_from_embeddings(trunk_embeddings)
     if seq_from_embeddings is not None:
-        return seq_from_embeddings
+        if isinstance(seq_from_embeddings, list) and all(isinstance(x, str) and len(x) == 1 for x in seq_from_embeddings):
+            return "".join(seq_from_embeddings)
+        elif isinstance(seq_from_embeddings, str):
+            return seq_from_embeddings
+        else:
+            raise ValueError(f"Unsupported inferred sequence type: {type(seq_from_embeddings)}")
 
-    # 4. If no sequence source found, raise error
-    raise ValueError(
-        "Cannot derive sequence: Not provided explicitly, not found in "
-        "input_features, and could not infer length from trunk_embeddings."
-    )
+    raise ValueError("If sequence cannot be derived from any source")
