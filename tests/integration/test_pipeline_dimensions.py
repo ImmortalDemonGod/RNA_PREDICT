@@ -242,7 +242,14 @@ class TestPipelineDimensions(unittest.TestCase):
         self.assertEqual(z_in.shape[2], self.seq_len)
 
     def test_full_pipeline_dimensions(self):
-        """Test dimension consistency through the entire pipeline"""
+        """
+        Tests that tensor dimensions remain consistent across all stages of the RNA structure
+        prediction pipeline, from Stage A through Stage D.
+        
+        Runs a mock Stage A predictor, Stage B torsion angle prediction, Stage C reconstruction,
+        and Stage D Pairformer, verifying that the outputs at each stage have the expected shapes
+        for the configured sequence length, batch size, and feature dimensions.
+        """
         # Initialize all models
         device = torch.device("cpu")
 

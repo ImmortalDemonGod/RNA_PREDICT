@@ -44,13 +44,12 @@ class PairformerWrapper(nn.Module):
 
     def __init__(self, cfg: DictConfig):
         """
-        Initialize PairformerWrapper with configuration.
-
-        Args:
-            cfg: Hydra configuration object containing pairformer configuration
-
+        Initializes the PairformerWrapper with configuration and prepares the PairformerStack model.
+        
+        Parses and validates the provided Hydra configuration, extracts or constructs the pairformer model configuration, and ensures all required parameters are present. Enforces explicit device specification and moves the model to the configured device. Adjusts the pair embedding dimension to a multiple of 16 for compatibility, sets up logging, and optionally freezes model parameters or prepares for LoRA integration if enabled. Logs memory usage and configuration details for debugging and monitoring.
+        
         Raises:
-            ValueError: If required configuration sections are missing
+            ValueError: If required configuration sections or device specification are missing.
         """
         super().__init__()
         # --- Logging: Always log essential info, only gate debug ---

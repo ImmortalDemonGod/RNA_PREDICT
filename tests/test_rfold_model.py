@@ -10,7 +10,12 @@ from rna_predict.pipeline.stageA.adjacency.RFold_code import RFoldModel
 
 class TestRFoldModel:
     def setup_method(self):
-        """Set up the test environment before each test method."""
+        """
+        Prepares mock model arguments before each test method.
+        
+        Initializes a mock object with attributes for model configuration, including
+        number of hidden units, dropout rate, GPU usage flag, and device specification.
+        """
         # Create a simple namespace object with the required attributes
         self.args = mock.MagicMock()
         self.args.num_hidden = 128

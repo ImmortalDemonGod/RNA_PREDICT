@@ -786,6 +786,25 @@ def bridge_residue_to_atom(
     config: Any,  # Accepts either config object or DictConfig
     debug_logging: bool = False,
 ):
+    """
+    Bridges residue-level embeddings and features to atom-level representations for Stage D diffusion.
+    
+    This function validates configuration, ensures consistency between residue and atom mappings, and expands or maps residue-level trunk embeddings and input features to atom-level tensors as required for downstream diffusion modeling. It handles various tensor shapes, checks for double-bridging or atom-level input errors, and propagates or converts key embeddings (`s_trunk`, `s_inputs`) to atom-level. Returns the processed atomic coordinates, atom-level trunk embeddings, and atom-level input features.
+    
+    Args:
+        bridging_input: Input container with partial atomic coordinates, trunk embeddings, input features, and sequence.
+        config: Configuration object or dictionary containing feature dimension specifications.
+        debug_logging: If True, enables detailed debug logging and shape tracing.
+    
+    Returns:
+        A tuple containing:
+            - partial_coords: Tensor of atomic coordinates.
+            - bridged_trunk_embeddings: Dictionary of atom-level trunk embeddings.
+            - fixed_input_features: Dictionary of atom-level input features.
+    
+    Raises:
+        ValueError: If required configuration fields are missing, or if input tensors are already atom-level when residue-level is expected.
+    """
     log_mem("ENTRY", debug_logging)
     # --- CONFIG VALIDATION PATCH: Ensure feature_dimensions can be found in the config ---
     if debug_logging:

@@ -4,10 +4,21 @@ from transformers import AutoModel, AutoTokenizer
 MODEL_NAME = "sayby/rna_torsionbert"
 
 def print_param_devices(model):
+    """
+    Prints the device assignment for each parameter in the given model.
+    
+    Args:
+        model: A PyTorch model whose parameters' device locations will be displayed.
+    """
     for name, param in model.named_parameters():
         print(f"Param: {name}, device: {param.device}")
 
 def main():
+    """
+    Loads a pretrained model and tokenizer, attempts to move the model to an MPS device or CPU, and prints device placement of model parameters before and after transfer.
+    
+    Initializes the tokenizer and model from the specified repository, displays model information, and inspects parameter device assignments. If moving the entire model to the target device fails, attempts to move each submodule individually, logging any errors encountered.
+    """
     device = torch.device("mps:0" if torch.backends.mps.is_available() else "cpu")
     print("Using device:", device)
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, trust_remote_code=True)
