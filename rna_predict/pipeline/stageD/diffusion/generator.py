@@ -18,6 +18,8 @@ from typing import Any, Callable, Optional
 import torch
 import logging
 
+logger = logging.getLogger(__name__)
+
 from rna_predict.pipeline.stageA.input_embedding.current.utils import (
     centre_random_augmentation,
 )
@@ -50,19 +52,18 @@ class TrainingNoiseSampler:
             print(f"train scheduler {self.sigma_data}")
 
     def __call__(
-        self, size: torch.Size, device: torch.device = None
+        self, size: torch.Size, device: torch.device
     ) -> torch.Tensor:
         """Sampling
 
         Args:
             size (torch.Size): the target size
-            device (torch.device, optional): target device. Defaults to None.
+            device (torch.device): target device (required).
 
         Returns:
             torch.Tensor: sampled noise-level
         """
-        if device is None:
-            raise ValueError("TrainingNoiseSampler requires an explicit device argument; do not use hardcoded defaults.")
+        # Device is now a required parameter
         rnd_normal = torch.randn(size=size, device=device)
         noise_level = (rnd_normal * self.p_std + self.p_mean).exp() * self.sigma_data
         return noise_level
@@ -99,23 +100,22 @@ class InferenceNoiseScheduler:
 
     def __call__(
         self,
+        device: torch.device,
         N_step: int = 200,
-        device: torch.device = None,
         dtype: torch.dtype = torch.float32,
     ) -> torch.Tensor:
         """Schedule the noise-level (time steps). No sampling is performed.
 
         Args:
+            device (torch.device): target device (required).
             N_step (int, optional): number of time steps. Defaults to 200.
-            device (torch.device, optional): target device. Defaults to None.
             dtype (torch.dtype, optional): target dtype. Defaults to torch.float32.
 
         Returns:
             torch.Tensor: noise-level (time_steps)
                 [N_step+1]
         """
-        if device is None:
-            raise ValueError("InferenceNoiseScheduler requires an explicit device argument; do not use hardcoded defaults.")
+        # Device is now a required parameter
         step_size = 1 / N_step
         step_indices = torch.arange(N_step + 1, device=device, dtype=dtype)
         t_step_list = (
@@ -388,9 +388,13 @@ def sample_diffusion_training(
         torch.Tensor: the denoised coordinates of x in inference stage
             [..., N_sample, N_atom, 3]
     """
-    logging.getLogger(__name__)
+    # Initialize logger if needed for future use
+    # logger = logging.getLogger(__name__)
     if device is None:
-        print(f"[DEVICE-DEBUG][StageD] sample_diffusion_training: device={device}")
+        raise ValueError(
+            "sample_diffusion_training now requires an explicit `device`. "
+            "Pass `device=label_dict['coordinate'].device` or cfg.device."
+        )
     # Areate N_sample versions of the input structure by randomly rotating and translating
     x_gt_augment = centre_random_augmentation(
         x_input_coords=label_dict["coordinate"],
@@ -403,10 +407,12 @@ def sample_diffusion_training(
     sigma_size_list = list(label_dict["coordinate"].shape[:-2]) + [N_sample]
     sigma_size = torch.Size(sigma_size_list)
     sigma = noise_sampler(size=sigma_size, device=device).to(label_dict["coordinate"].dtype)
-    print(f"[DEVICE-DEBUG][StageD] sample_diffusion_training: sigma.device={sigma.device}")
+    if debug_logging:
+        print(f"[DEVICE-DEBUG][StageD] sample_diffusion_training: sigma.device={sigma.device}")
     # noise: [..., N_sample, N_atom, 3]
     noise = torch.randn_like(x_gt_augment, dtype=label_dict["coordinate"].dtype, device=device) * sigma[..., None, None]
-    print(f"[DEVICE-DEBUG][StageD] sample_diffusion_training: noise.device={noise.device}")
+    if debug_logging:
+        print(f"[DEVICE-DEBUG][StageD] sample_diffusion_training: noise.device={noise.device}")
 
     # Get denoising outputs [..., N_sample, N_atom, 3]
     if diffusion_chunk_size is None:

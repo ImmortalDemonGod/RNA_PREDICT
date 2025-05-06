@@ -87,6 +87,8 @@ class StageARFoldPredictor(nn.Module):
     """
 
     def __init__(self, stage_cfg: Optional[DictConfig] = None, device: Optional[torch.device] = None):
+        # Set debug_logging from config if available, before any method calls that may use it
+        self.debug_logging = getattr(stage_cfg, "debug_logging", False) if stage_cfg is not None else False
         # Call super().__init__() to properly initialize nn.Module
         super(StageARFoldPredictor, self).__init__()
 
@@ -99,16 +101,15 @@ class StageARFoldPredictor(nn.Module):
             resolved_device = device
         else:
             raise ValueError("StageARFoldPredictor requires a device specified in the config or as an explicit argument; do not use hardcoded defaults.")
-        self.device = torch.device(resolved_device)
-        print(f"[DEVICE-DEBUG][StageARFoldPredictor] Using device: {self.device}")
+        # validate & announce
+        self.device = self._validate_device(torch.device(resolved_device))
+        logger.debug("[DEVICE-DEBUG] Using device: %s", self.device)
 
         # Assert device is resolved if present in config
         if stage_cfg is not None and hasattr(stage_cfg, 'device'):
             assert stage_cfg.device != "${device}", f"Device not resolved in stage_cfg for {self.__class__.__name__}: {stage_cfg.device}"
-            print(f"[DEBUG][StageARFoldPredictor] Resolved device in stage_cfg: {stage_cfg.device}")
+            logger.debug("[DEBUG][StageARFoldPredictor] Resolved device in stage_cfg: %s", stage_cfg.device)
 
-        # Initialize default values
-        self.debug_logging = False
         # Use the provided device or fallback to CPU, then validate
         self.min_seq_length = 1
 
@@ -126,9 +127,7 @@ class StageARFoldPredictor(nn.Module):
             return
 
         # Accept debug_logging from all plausible config locations for robust testability
-        if hasattr(stage_cfg, 'debug_logging'):
-            self.debug_logging = stage_cfg.debug_logging
-        elif hasattr(stage_cfg, 'model') and hasattr(stage_cfg.model, 'stageA') and hasattr(stage_cfg.model.stageA, 'debug_logging'):
+        if hasattr(stage_cfg, 'model') and hasattr(stage_cfg.model, 'stageA') and hasattr(stage_cfg.model.stageA, 'debug_logging'):
             self.debug_logging = stage_cfg.model.stageA.debug_logging
         elif hasattr(stage_cfg, 'model') and hasattr(stage_cfg.model, 'debug_logging'):
             self.debug_logging = stage_cfg.model.debug_logging
@@ -292,17 +291,17 @@ class StageARFoldPredictor(nn.Module):
             The validated device (may be different if fallback was needed)
         """
         if self.debug_logging:
-            logger.debug(f"[DEBUG-VALIDATE-DEVICE] Requested device: {device}")
+            logger.debug("[DEBUG-VALIDATE-DEVICE] Requested device: %s", device)
         # Check if the requested device type is actually available
         if device.type == "cuda" and not torch.cuda.is_available():
-            logger.warning(f"CUDA requested but not available. Falling back to CPU.")
+            logger.warning("CUDA requested but not available – falling back to CPU.")
             return torch.device("cpu")
         if device.type == "mps" and not (getattr(torch.backends, 'mps', None) and torch.backends.mps.is_available()):
-            logger.warning(f"MPS requested but not available. Falling back to CPU.")
+            logger.warning("MPS requested but not available. Falling back to CPU.")
             return torch.device("cpu")
         # If the device type is available or is CPU, return it as is
         if self.debug_logging:
-            logger.debug(f"[DEBUG-VALIDATE-DEVICE] Returning validated device: {device}.")
+            logger.debug("[DEBUG-VALIDATE-DEVICE] Returning validated device: %s", device)
         return device
 
 
@@ -319,19 +318,19 @@ class StageARFoldPredictor(nn.Module):
     def _create_sequence_tensor(self, seq_idxs, padded_len, original_len) -> torch.Tensor:
         # Debug: Log info before and after tensor creation
         if self.debug_logging:
-            logger.debug(f"[DEBUG-SEQ-TENSOR] Entered _create_sequence_tensor with device: {self.device}")
+            logger.debug("[DEBUG-SEQ-TENSOR] Entered _create_sequence_tensor with device: %s", self.device)
         # PATCH: Call the appropriate device-specific function (removed this complexity, use direct .to(self.device))
         # Reverted: Simplify and rely on .to(self.device) after creation
         import torch
         # Debug: Log info before tensor creation
         if self.debug_logging:
-            logger.debug(f"[DEBUG-SEQ-TENSOR-GENERIC] Creating tensor with device: {self.device}")
+            logger.debug("[DEBUG-SEQ-TENSOR-GENERIC] Creating tensor with device: %s", self.device)
         tensor = torch.full((1, padded_len), fill_value=0, dtype=torch.long)
         tensor[0, :original_len] = torch.tensor(seq_idxs, dtype=torch.long)
         # PATCH: Always move to self.device explicitly
         tensor = tensor.to(self.device)
         if self.debug_logging:
-            logger.debug(f"[DEBUG-SEQ-TENSOR-GENERIC] Tensor device after creation and .to(self.device): {tensor.device}, shape: {tensor.shape}")
+            logger.debug("[DEBUG-SEQ-TENSOR-GENERIC] Tensor device after creation and .to(self.device): %s, shape: %s, dtype: %s", tensor.device, tensor.shape, tensor.dtype)
         return tensor
 
 
@@ -342,10 +341,10 @@ class StageARFoldPredictor(nn.Module):
         import torch
         import numpy as np
         logger = logging.getLogger("rna_predict.pipeline.stageA.adjacency.rfold_predictor")
-        logger.info(f"[STAGEA-ENTRY] rna_sequence type: {type(rna_sequence)}, value (first 50): {str(rna_sequence)[:50]}")
+        logger.info("rna_sequence type: %s, value (first 50): %s", type(rna_sequence), str(rna_sequence)[:50])
         # --- Instrumentation: log every step from sequence to model call ---
-        assert isinstance(rna_sequence, str), f"Input rna_sequence is not a string: {type(rna_sequence)}"
-        logger.info(f"[INSTRUMENT] Step 1: Received RNA sequence of length {len(rna_sequence)}")
+        assert isinstance(rna_sequence, str), "Input rna_sequence is not a string: %s" % type(rna_sequence)
+        logger.info("Step 1: Received RNA sequence of length %d", len(rna_sequence))
 
         # Defensive: Handle empty or None sequence, and dummy mode
         if getattr(self, 'dummy_mode', False):
@@ -363,27 +362,27 @@ class StageARFoldPredictor(nn.Module):
             else:
                 mapping = official_seq_dict
         except Exception as e:
-            logger.warning(f"[UNIQUE-WARN-STAGEA-MAPPING] Error accessing RFoldModel or official_seq_dict: {e}")
+            logger.warning("[UNIQUE-WARN-STAGEA-MAPPING] Error accessing RFoldModel or official_seq_dict: %s", e)
             mapping = {"A": 0, "U": 1, "C": 2, "G": 3}
         seq_idxs = [mapping.get(ch, 3) for ch in rna_sequence.upper()]
-        logger.info(f"[INSTRUMENT] Step 2: seq_idxs (len={len(seq_idxs)}): {seq_idxs[:10]}{'...' if len(seq_idxs) > 10 else ''}")
+        logger.info("Step 2: seq_idxs (len=%d): %s%s", len(seq_idxs), seq_idxs[:10], '...' if len(seq_idxs) > 10 else '')
 
         original_len = len(seq_idxs)
         padded_len = self._get_cut_len(original_len)
-        logger.info(f"[INSTRUMENT] Step 3: original_len={original_len}, padded_len={padded_len}")
+        logger.info("Step 3: original_len=%d, padded_len=%d", original_len, padded_len)
 
         # Step 4: Create padded sequence tensor
         # PATCH: Ensure seq_tensor is created and moved to the correct device here
         seq_tensor = self._create_sequence_tensor(seq_idxs, padded_len, original_len)
-        logger.info(f"[INSTRUMENT] Step 4: seq_tensor type: {type(seq_tensor)}, shape: {getattr(seq_tensor, 'shape', 'N/A')}, dtype: {getattr(seq_tensor, 'dtype', 'N/A')}, device: {getattr(seq_tensor, 'device', 'N/A')}")
-        assert hasattr(seq_tensor, 'shape'), f"seq_tensor has no shape attribute! Got: {type(seq_tensor)}"
-        assert len(seq_tensor.shape) == 2, f"seq_tensor shape is not [batch, seq_len]: {seq_tensor.shape}"
-        assert seq_tensor.shape[0] == 1, f"Batch dimension should be 1, got: {seq_tensor.shape[0]}"
-        assert seq_tensor.shape[1] == padded_len, f"Seq len should match padded_len: {seq_tensor.shape[1]} vs {padded_len}"
+        logger.info("Step 4: seq_tensor type: %s, shape: %s, dtype: %s, device: %s", type(seq_tensor), seq_tensor.shape, seq_tensor.dtype, seq_tensor.device)
+        assert hasattr(seq_tensor, 'shape'), "seq_tensor has no shape attribute! Got: %s" % type(seq_tensor)
+        assert len(seq_tensor.shape) == 2, "seq_tensor shape is not [batch, seq_len]: %s" % seq_tensor.shape
+        assert seq_tensor.shape[0] == 1, "Batch dimension should be 1, got: %d" % seq_tensor.shape[0]
+        assert seq_tensor.shape[1] == padded_len, "Seq len should match padded_len: %d vs %d" % (seq_tensor.shape[1], padded_len)
 
         if self.debug_logging:
-            logger.debug(f"[DEBUG-PREDICT-ADJACENCY] seq_tensor.device: {seq_tensor.device}")
-            logger.debug(f"[DEBUG-PREDICT-ADJACENCY] self.model.device: {self.get_model_device()}")
+            logger.debug("[DEBUG-PREDICT-ADJACENCY] seq_tensor.device: %s", seq_tensor.device)
+            logger.debug("[DEBUG-PREDICT-ADJACENCY] self.model.device: %s", self.get_model_device())
 
         # Step 5: Model call
         try:
@@ -396,7 +395,7 @@ class StageARFoldPredictor(nn.Module):
                  raise RuntimeError("RFoldModel is None. Dummy mode was likely entered due to incomplete config.")
 
             with torch.no_grad():
-                logger.info(f"[INSTRUMENT] Step 5: About to call model with seq_tensor shape: {seq_tensor.shape}, dtype: {seq_tensor.dtype}, device: {seq_tensor.device}")
+                logger.info("Step 5: About to call model with seq_tensor shape: %s, dtype: %s, device: %s", seq_tensor.shape, seq_tensor.dtype, seq_tensor.device)
                 # Ensure seq_tensor is on the correct device just before the model call
                 seq_tensor = seq_tensor.to(self.get_model_device()) # Use model's device as target
                 if hasattr(self.model, 'forward') and callable(self.model.forward):
@@ -404,9 +403,9 @@ class StageARFoldPredictor(nn.Module):
                 else:
                     logger.warning("[UNIQUE-WARN-STAGEA-FORWARD] Model has no forward method, using dummy tensor.")
                     final_map = torch.zeros((1, padded_len, padded_len), device=seq_tensor.device) # Create dummy on correct device
-                logger.info(f"[INSTRUMENT] Step 6: Model output shape: {getattr(final_map, 'shape', 'N/A')}, dtype: {getattr(final_map, 'dtype', 'N/A')}, device: {getattr(final_map, 'device', 'N/A')}")
+                logger.info("Step 6: Model output shape: %s, dtype: %s, device: %s", final_map.shape, final_map.dtype, final_map.device)
         except Exception as e:
-            logger.error(f"[INSTRUMENT] Model forward error: {e}")
+            logger.error("Model forward error: %s", e)
             # Return a default/dummy adjacency on error to allow pipeline continuation if needed
             return np.zeros((original_len, original_len), dtype=np.float32)
 
@@ -418,17 +417,18 @@ class StageARFoldPredictor(nn.Module):
             adjacency_sym = (adjacency_sym > 0.5).astype(np.float32)
             if not np.allclose(adjacency_sym, adjacency_sym.T, atol=1e-5):
                 logger.warning(
-                    f"[UNIQUE-WARN-STAGEA-ADJ-SYMMETRY] Adjacency matrix not symmetric for sequence: {rna_sequence}\n"
-                    f"adjacency_sym[:5,:5]=\n{adjacency_sym[:5,:5]}\n"
-                    f"adjacency_sym.T[:5,:5]=\n{adjacency_sym.T[:5,:5]}\n"
+                    "[UNIQUE-WARN-STAGEA-ADJ-SYMMETRY] Adjacency matrix not symmetric for sequence: %s\n"
+                    "adjacency_sym[:5,:5]=\n%s\n"
+                    "adjacency_sym.T[:5,:5]=\n%s\n",
+                    rna_sequence, adjacency_sym[:5,:5], adjacency_sym.T[:5,:5]
                 )
                 # Re-symmetrize just in case, though it should be symmetric by construction
                 adjacency_sym = (adjacency_sym + adjacency_sym.T) / 2
                 adjacency_sym = (adjacency_sym > 0.5).astype(np.float32)
-            logger.info(f"[INSTRUMENT] Step 7: Final adjacency matrix shape: {adjacency_sym.shape}, dtype: {adjacency_sym.dtype}")
+            logger.info("Step 7: Final adjacency matrix shape: %s, dtype: %s", adjacency_sym.shape, adjacency_sym.dtype)
             return adjacency_sym
         except Exception as e:
-            logger.warning(f"[UNIQUE-WARN-STAGEA-POSTPROCESS] Error in post-processing: {e}")
+            logger.warning("Error in post-processing: %s", e)
             return np.zeros((original_len, original_len), dtype=np.float32)
 
 
