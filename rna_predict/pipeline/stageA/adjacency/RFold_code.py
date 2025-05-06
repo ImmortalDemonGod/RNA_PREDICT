@@ -278,6 +278,17 @@ class Attn(nn.Module):
         self.offsetscale = OffsetScale(query_key_dim, heads=2)
 
     def forward(self, x):
+        """
+        Computes normalized attention maps from input embeddings.
+        
+        Applies layer normalization, projects to query and key vectors with learned scaling and offset, computes scaled dot-product similarity, applies non-negative activation, and normalizes the resulting attention scores across the last dimension.
+        
+        Args:
+            x: Input tensor of shape [batch_size, seq_len, embed_dim].
+        
+        Returns:
+            Tensor of shape [batch_size, seq_len, seq_len] containing normalized attention weights.
+        """
         seq_len = x.shape[-2]
         normed_x = self.norm(x)
         qk = self.to_qk(normed_x)
@@ -299,6 +310,19 @@ class Seq2Map(nn.Module):
         dropout=0.1,
         **kwargs,
     ):
+        """
+        Initializes the Seq2Map module for converting RNA sequences to attention maps.
+        
+        Args:
+            input_dim: Number of unique input tokens (default: 4 for RNA bases).
+            num_hidden: Dimensionality of embeddings and attention (default: 128).
+            dropout: Dropout probability applied to embeddings and attention (default: 0.1).
+            device: Device on which to allocate all module parameters and buffers (must be specified).
+            max_length: Maximum supported sequence length for positional embeddings (default: 3000).
+        
+        Raises:
+            ValueError: If the required 'device' argument is not provided.
+        """
         device = kwargs.pop("device", None)
         if device is None:
             raise ValueError("Seq2Map requires an explicit device argument; do not use hardcoded defaults.")
@@ -315,6 +339,16 @@ class Seq2Map(nn.Module):
         self.layer = Attn(dim=num_hidden, query_key_dim=num_hidden, dropout=dropout).to(self.device)
 
     def forward(self, src, debug_logging: bool = False):
+        """
+        Computes an attention map from input RNA sequences using token and positional embeddings.
+        
+        Args:
+            src: Tensor of integer-encoded RNA sequences with shape [batch_size, seq_len].
+            debug_logging: If True, logs device placement and internal states for debugging.
+        
+        Returns:
+            Tensor representing the attention map for each input sequence.
+        """
         batch_size, src_len = src.shape[:2]
         debug_log(f"[DEBUG-SEQ2MAP] tok_embedding.weight.device: {self.tok_embedding.weight.device}", debug_logging)
         debug_log(f"[DEBUG-SEQ2MAP] src.device: {src.device}", debug_logging)
@@ -329,6 +363,11 @@ class Seq2Map(nn.Module):
 
 class Encoder(nn.Module):
     def __init__(self, C_lst=[17, 32, 64, 128, 256]):
+        """
+        Initializes the Encoder module with a configurable sequence of convolutional and pooling layers.
+        
+        If the provided channel list is short (length ≤ 3), the encoder is set to an identity mapping for test compatibility. Otherwise, constructs a multi-layer encoder with an initial convolutional block followed by repeated max pooling and convolutional blocks, as specified by the channel list.
+        """
         nn.Module.__init__(self)
         # First layer input channel should match the input provided, so we use a different approach
         # for constructing the modules
@@ -388,6 +427,16 @@ class Decoder(nn.Module):
 
     def forward(self, x, skips):
         # Special case for tests
+        """
+        Performs the forward pass of the decoder, progressively upsampling and merging skip connections.
+        
+        Args:
+        	x: Input tensor to be decoded.
+        	skips: List of skip connection tensors to concatenate at each decoding stage.
+        
+        Returns:
+        	The decoded tensor after upsampling and skip connection fusion. For test cases with no decoder layers, returns the input unchanged.
+        """
         if len(self.dec) == 0:
             # For tests, just return the input
             return x
@@ -403,6 +452,15 @@ class Decoder(nn.Module):
 
 class RFoldModel(nn.Module):
     def __init__(self, args=None):
+        """
+        Initializes the RFoldModel with encoder, decoder, and sequence-to-map modules on a specified device.
+        
+        Args:
+            args: An object with model configuration attributes. Must include a 'device' attribute specifying the target device (e.g., 'cpu' or 'cuda'). Optional attributes include 'num_hidden', 'dropout', and 'use_gpu'.
+        
+        Raises:
+            ValueError: If the 'device' attribute is not provided in args.
+        """
         nn.Module.__init__(self)
 
         c_in, c_out, c_hid = 1, 1, 32
@@ -438,6 +496,16 @@ class RFoldModel(nn.Module):
         self.to(self.device)
 
     def forward(self, seqs, debug_logging: bool = False):
+        """
+        Performs a forward pass of the RFoldModel to predict RNA adjacency matrices.
+        
+        Args:
+            seqs: Tensor of integer-encoded RNA sequences with shape [batch_size, seq_len].
+            debug_logging: If True, enables detailed debug logging.
+        
+        Returns:
+            A tensor of shape [batch_size, seq_len, seq_len] representing predicted adjacency matrices for RNA secondary structure.
+        """
         import logging
         logger = logging.getLogger("rna_predict.pipeline.stageA.adjacency.RFold_code")
         logger.debug(f"[RFoldModel.forward] seqs type: {type(seqs)}, shape: {getattr(seqs, 'shape', 'N/A')}, dtype: {getattr(seqs, 'dtype', 'N/A')}")

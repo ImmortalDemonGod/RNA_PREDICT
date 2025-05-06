@@ -72,7 +72,12 @@ class TestStageCReconstructionComprehensive(unittest.TestCase):
         })
 
     def test_stage_c_reconstruction_legacy(self):
-        """Test the StageCReconstruction class (legacy approach)."""
+        """
+        Tests that StageCReconstruction produces correct output using the legacy configuration.
+        
+        Verifies that the output contains "coords" and "atom_count" keys, and that their values
+        have the expected shapes and counts based on the input torsion angles.
+        """
         # Initialize the legacy reconstruction class with a configuration object
         legacy_reconstruction = StageCReconstruction(self.legacy_cfg)
 

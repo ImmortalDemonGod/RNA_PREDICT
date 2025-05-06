@@ -15,21 +15,22 @@ def extract_rna_torsions(
     **kwargs
 ) -> Optional[np.ndarray]:
     """
-    Extracts RNA torsion angles from a structure file.
+    Extracts RNA torsion angles from a structure file for a specified chain.
     
-    Given a PDB or mmCIF file, computes the seven standard RNA torsion angles
-    (alpha, beta, gamma, delta, epsilon, zeta, chi) for each residue in the
-    specified chain using the selected backend. Optionally, also computes the
-    full set of 14 angles, including ribose and pseudo-torsions.
+    Given a PDB or mmCIF file, computes either the canonical set of 7 RNA torsion
+    angles (alpha, beta, gamma, delta, epsilon, zeta, chi) or an extended set of
+    14 angles (including ribose and pseudo-torsions) for each residue in the
+    selected chain, using the specified backend.
     
     Args:
-        structure_file: Path to a .pdb or .cif RNA structure file.
-        chain_id: Chain identifier to extract torsions from (default: "A").
+        structure_file: Path to the RNA structure file (.pdb or .cif).
+        chain_id: Chain identifier to extract torsions from.
         backend: Extraction backend to use ("mdanalysis" or "dssr").
-        angle_set: "canonical" (7 angles) or "full" (14 angles, includes ribose and pseudo-torsions)
+        angle_set: "canonical" for 7 angles, or "full" for 14 angles.
     
     Returns:
-        A NumPy array of shape [L, 7] or [L, 14] containing torsion angles in radians for each residue, or None if extraction fails.
+        A NumPy array of shape [L, 7] or [L, 14] with torsion angles in radians
+        for each residue, or None if extraction fails.
     """
     print(f"[DEBUG] extract_rna_torsions called with: structure_file={structure_file}, chain_id={chain_id}, backend={backend}, angle_set={angle_set}")
     if backend == "mdanalysis":
@@ -49,13 +50,15 @@ def extract_rna_torsions(
 
 def _convert_cif_to_pdb(cif_file: str) -> str:
     """
-    Converts an mmCIF structure file to a temporary PDB file.
+    Converts an mmCIF file to a temporary PDB file.
+    
+    Parses the input mmCIF structure and writes it to a temporary PDB file. The path to the temporary file is returned; the caller is responsible for deleting the file after use.
     
     Args:
         cif_file: Path to the input mmCIF file.
     
     Returns:
-        The file path to the generated temporary PDB file. The caller is responsible for deleting the file when no longer needed.
+        Path to the generated temporary PDB file.
     """
     parser = MMCIFParser(QUIET=True)
     structure = parser.get_structure("mmcif_structure", cif_file)
@@ -91,9 +94,9 @@ def _select_chain(u: 'mda.Universe', chain_id: str) -> Optional['mda.core.groups
 
 def _select_chain_with_fallback(universe: 'mda.Universe', chain_id: str) -> Optional['mda.core.groups.AtomGroup']:
     """
-    Attempts to select a chain from the universe, falling back to the only available chain if the requested one is missing.
+    Selects a chain from the universe, with fallback to the only available chain or all nucleic atoms.
     
-    If the requested chain is not found but exactly one unique chain or segment exists, selects that chain instead. If multiple chains exist and the requested chain is missing, returns None. If no chain is found, falls back to selecting all nucleic atoms. Returns None if no suitable atoms are found.
+    If the requested chain is not found but exactly one unique chain or segment exists, selects that chain instead. If multiple chains exist and the requested chain is missing, returns None. If no chains are present, or if no atoms are found for the requested or fallback chain, attempts to select all nucleic atoms. Returns None if no suitable atoms are found.
     """
     chain = _select_chain(universe, chain_id)
     if (chain is None or len(chain) == 0) and chain_id is not None:
@@ -140,7 +143,12 @@ def _safe_select_atom(res, name: str):
 
 
 def _calc_dihedral(p1, p2, p3, p4):
-    """Calculate dihedral angle in radians given 4 points. Return np.nan if any atom missing or invalid."""
+    """
+    Calculates the dihedral angle in radians defined by four 3D points.
+    
+    Returns:
+        The dihedral angle in radians, or np.nan if any input is missing or the calculation is invalid.
+    """
     if p1 is None or p2 is None or p3 is None or p4 is None:
         return np.nan
     b1 = p2 - p1
@@ -193,6 +201,11 @@ def _zeta_torsion(res, next_res):
     return _calc_dihedral(*atoms) if all(a is not None for a in atoms) else np.nan
 
 def _chi_torsion(res):
+    """
+    Calculates the chi torsion angle for a nucleic acid residue.
+    
+    The chi angle is defined by the atoms O4', C1', N1/N9, and C2/C4, with fallback to N9 and C4 if N1 or C2 are not present. Returns the angle in radians, or np.nan if required atoms are missing.
+    """
     O4 = _safe_select_atom(res, "O4'")
     C1 = _safe_select_atom(res, "C1'")
     N_base = _safe_select_atom(res, "N1")
@@ -205,6 +218,12 @@ def _chi_torsion(res):
     return _calc_dihedral(*atoms) if all(a is not None for a in atoms) else np.nan
 
 def _nu0_torsion(res):
+    """
+    Calculates the nu0 ribose ring torsion angle for a residue.
+    
+    The nu0 torsion is defined by the atoms C4', O4', C1', and C2' of the ribose ring.
+    Returns the dihedral angle in radians, or np.nan if any atom is missing.
+    """
     p1 = _safe_select_atom(res, "C4'")
     p2 = _safe_select_atom(res, "O4'")
     p3 = _safe_select_atom(res, "C1'")
@@ -212,6 +231,12 @@ def _nu0_torsion(res):
     return _calc_dihedral(p1, p2, p3, p4)
 
 def _nu1_torsion(res):
+    """
+    Calculates the nu1 ribose ring torsion angle for a residue.
+    
+    The nu1 torsion is defined by the atoms O4', C1', C2', and C3' of the given residue.
+    Returns the dihedral angle in radians, or np.nan if any atom is missing.
+    """
     p1 = _safe_select_atom(res, "O4'")
     p2 = _safe_select_atom(res, "C1'")
     p3 = _safe_select_atom(res, "C2'")
@@ -219,6 +244,11 @@ def _nu1_torsion(res):
     return _calc_dihedral(p1, p2, p3, p4)
 
 def _nu2_torsion(res):
+    """
+    Calculates the nu2 ribose ring torsion angle for a residue.
+    
+    The nu2 angle is defined by the dihedral formed by the atoms C1', C2', C3', and C4' within the same residue. Returns the angle in radians, or np.nan if any atom is missing.
+    """
     p1 = _safe_select_atom(res, "C1'")
     p2 = _safe_select_atom(res, "C2'")
     p3 = _safe_select_atom(res, "C3'")
@@ -226,6 +256,11 @@ def _nu2_torsion(res):
     return _calc_dihedral(p1, p2, p3, p4)
 
 def _nu3_torsion(res):
+    """
+    Calculates the nu3 ribose ring torsion angle for a residue.
+    
+    The nu3 angle is defined by the dihedral formed by the atoms C2', C3', C4', and O4' within the same residue. Returns the angle in radians, or np.nan if any atom is missing.
+    """
     p1 = _safe_select_atom(res, "C2'")
     p2 = _safe_select_atom(res, "C3'")
     p3 = _safe_select_atom(res, "C4'")
@@ -233,6 +268,11 @@ def _nu3_torsion(res):
     return _calc_dihedral(p1, p2, p3, p4)
 
 def _nu4_torsion(res):
+    """
+    Calculates the nu4 ribose ring torsion angle for a residue.
+    
+    The nu4 angle is defined by the dihedral formed by the atoms C3', C4', O4', and C1' within the same residue. Returns the angle in radians, or np.nan if any atom is missing.
+    """
     p1 = _safe_select_atom(res, "C3'")
     p2 = _safe_select_atom(res, "C4'")
     p3 = _safe_select_atom(res, "O4'")
@@ -240,6 +280,11 @@ def _nu4_torsion(res):
     return _calc_dihedral(p1, p2, p3, p4)
 
 def _eta_torsion(prev_res, res, next_res):
+    """
+    Calculates the eta pseudo-torsion angle for an RNA residue.
+    
+    The eta angle is defined by the dihedral formed by the C4' atom of the previous residue, the P and C4' atoms of the current residue, and the P atom of the next residue. Returns the angle in radians, or np.nan if any required atom is missing.
+    """
     if prev_res is None or next_res is None:
         return np.nan
     p1 = _safe_select_atom(prev_res, "C4'")
@@ -249,6 +294,13 @@ def _eta_torsion(prev_res, res, next_res):
     return _calc_dihedral(p1, p2, p3, p4)
 
 def _theta_torsion(res, next_res, next_next_res):
+    """
+    Calculates the theta pseudo-torsion angle for RNA using three consecutive residues.
+    
+    The theta angle is defined by the dihedral formed by the atoms: P and C4' of the current residue,
+    P of the next residue, and C4' of the residue after that. Returns the angle in radians, or np.nan
+    if any required atom is missing.
+    """
     if next_res is None or next_next_res is None:
         return np.nan
     p1 = _safe_select_atom(res, "P")
@@ -258,7 +310,18 @@ def _theta_torsion(res, next_res, next_next_res):
     return _calc_dihedral(p1, p2, p3, p4)
 
 def _extract_torsions_from_residues(residues, angle_set="canonical") -> np.ndarray:
-    """Extract torsion angles for each residue in a residue list."""
+    """
+    Extracts torsion angles for each residue in a list, returning canonical or full sets.
+    
+    Args:
+        residues: List of residue objects to process.
+        angle_set: Either "canonical" for 7 standard RNA torsions or "full" for 14 angles
+            including ribose and pseudo-torsions.
+    
+    Returns:
+        A NumPy array of shape (N, 7) or (N, 14) with torsion angles in radians for each
+        residue, using np.nan for missing or undefined values.
+    """
     n_res = len(residues)
     if angle_set == "full":
         torsion_data = np.full((n_res, 14), np.nan, dtype=np.float32)
@@ -305,14 +368,26 @@ class TempFileManager:
             return self.original_file
 
     def __exit__(self, *_):
+        """
+        Cleans up the temporary file if one was created during context management.
+        """
         if self.using_temp and self.temp_file and os.path.exists(self.temp_file):
             os.remove(self.temp_file)
 
 
 def _extract_rna_torsions_mdanalysis(structure_file: str, chain_id: str, angle_set: str = "canonical") -> Optional[np.ndarray]:
     """
-    Implementation of RNA torsion extraction using MDAnalysis.
-    Returns [L, 7] or [L, 14] array (radians), np.nan for missing.
+    Extracts RNA torsion angles from a structure file for a specified chain using MDAnalysis.
+    
+    Loads the structure, selects the specified chain (with fallback if necessary), and computes torsion angles for each residue. Returns a NumPy array of shape [L, 7] for canonical angles or [L, 14] for the full angle set, with angles in radians and np.nan for missing values. Returns None if loading or selection fails.
+    
+    Args:
+        structure_file: Path to the PDB or mmCIF structure file.
+        chain_id: Chain identifier to extract torsions from.
+        angle_set: "canonical" for 7 standard angles, "full" for 14 angles including ribose and pseudo-torsions.
+    
+    Returns:
+        NumPy array of torsion angles (shape [L, 7] or [L, 14]), or None on failure.
     """
     print(f"[DEBUG] _extract_rna_torsions_mdanalysis called with: {structure_file}, chain_id={chain_id}, angle_set={angle_set}")
     with TempFileManager(structure_file) as mda_file:

@@ -23,6 +23,27 @@ def run_stageB_combined(
     cfg: Optional[DictConfig] = None
 ) -> Dict[str, Any]:
     # Debug logging
+    """
+    Runs Stage B of the RNA prediction pipeline to generate torsion angles and pairwise embeddings.
+    
+    This function processes an RNA sequence using TorsionBERT and Pairformer models to predict torsion angles and produce single and pairwise embeddings. It supports optional initialization of embeddings from an adjacency matrix and can integrate additional input embeddings if ProtenixIntegration is configured. Models are initialized from the provided configuration if not supplied directly, and all computations are performed on the specified device.
+    
+    Args:
+        sequence: RNA sequence to process.
+        adjacency_matrix: Optional adjacency matrix tensor representing pairwise relationships.
+        torsion_bert_model: Optional pre-initialized TorsionBERT model.
+        pairformer_model: Optional pre-initialized Pairformer model.
+        device: Device identifier ('cpu' or 'cuda') on which to run the models.
+        init_z_from_adjacency: If True, initializes pairwise embeddings from the adjacency matrix.
+        cfg: Optional Hydra configuration object for model and integration settings.
+    
+    Returns:
+        A dictionary containing:
+            - "torsion_angles": Predicted torsion angles tensor [N, ...].
+            - "s_embeddings": Single residue embeddings tensor [N, c_s].
+            - "z_embeddings": Pairwise embeddings tensor [N, N, c_z].
+            - "s_inputs": Optional additional single residue embeddings or None.
+    """
     debug_logging = False
     if cfg is not None and hasattr(cfg, 'model') and hasattr(cfg.model, 'stageB') and hasattr(cfg.model.stageB, 'debug_logging'):
         debug_logging = cfg.model.stageB.debug_logging
@@ -259,14 +280,20 @@ def run_stageB_combined(
 
 def run_pipeline(sequence: str, cfg: Optional[DictConfig] = None):
     """
-    Run the RNA prediction pipeline from Stage A through Stage C.
-
+    Runs the full RNA structure prediction pipeline from adjacency prediction to 3D reconstruction.
+    
+    Validates the input RNA sequence(s), predicts the adjacency matrix (Stage A), computes torsion angles (Stage B), and reconstructs 3D coordinates (Stage C) using configuration-driven models.
+    
     Args:
-        sequence: RNA sequence string (e.g., "ACGUACGU")
-        cfg: Hydra configuration object
-
+        sequence: RNA sequence string or list of strings containing only A, C, G, U.
+        cfg: Optional Hydra configuration object specifying model parameters.
+    
     Returns:
-        Dictionary containing the pipeline outputs including coordinates and atom count
+        Dictionary containing the pipeline outputs, including coordinates and atom count.
+    
+    Raises:
+        ValueError: If the input sequence is empty or contains invalid RNA bases.
+        TypeError: If the configuration object is not a DictConfig.
     """
     import torch
     import hydra
@@ -356,11 +383,12 @@ def run_pipeline(sequence: str, cfg: Optional[DictConfig] = None):
 
 def demo_gradient_flow_test(cfg: Optional[DictConfig] = None):
     """
-    Demonstrate gradient flow through the Stage B models.
-    This is a simple test to ensure that gradients can flow through the models.
-
+    Runs a gradient flow test through Stage B models to verify backpropagation.
+    
+    Initializes TorsionBERT and Pairformer models using the provided configuration, generates test data, and performs a forward and backward pass to ensure gradients propagate through the models and associated linear layers. Logs loss and gradient norms if debug logging is enabled.
+    
     Args:
-        cfg: Hydra configuration object
+        cfg: Optional Hydra configuration object specifying model parameters and test data.
     """
     import hydra
 
