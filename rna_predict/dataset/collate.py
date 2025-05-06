@@ -68,29 +68,41 @@ def rna_collate_fn(batch, cfg=None, debug_logging=None):
                 else:
                     logger.debug(f"[collate] Key: {k}, Type: {type(v)}")
         # Instrument: Print all tensor devices in single-item batch
-        print("[DEBUG][collate_fn][single-item] Batch tensor device summary:")
-        for k, v in out.items():
-            if isinstance(v, torch.Tensor):
-                print(f"  Key: {k}, shape: {v.shape}, dtype: {v.dtype}, device: {v.device}")
-            else:
-                print(f"  Key: {k}, type: {type(v)}")
+        if debug_logging:
+            logger.debug("[DEBUG][collate_fn][single-item] Batch tensor device summary:")
+            for k, v in out.items():
+                if isinstance(v, torch.Tensor):
+                    logger.debug(f"  Key: {k}, shape: {v.shape}, dtype: {v.dtype}, device: {v.device}")
+                else:
+                    logger.debug(f"  Key: {k}, type: {type(v)}")
         return out
     # Multi-item batch: stack tensors, listify others
     out = {}
+    if debug_logging:
+        # Instrument: Print all tensor devices in multi-item batch
+        try:
+            device_summary = {}
+            for k, v in batch[0].items():
+                if hasattr(v, 'device'):
+                    device_summary[k] = str(v.device)
+            logger.debug(f"[collate_fn][multi-item] Batch tensor device summary: {device_summary}")
+        except Exception as e:
+            logger.debug(f"[collate_fn][multi-item] Error summarizing devices: {e}")
     for k in batch[0].keys():
         vs = [d[k] for d in batch]
-        # Instrument: Print devices of all tensors to be stacked
         if isinstance(vs[0], torch.Tensor):
-            print(f"[DEBUG][collate_fn][multi-item] Key: {k}")
-            for i, v in enumerate(vs):
-                print(f"  Sample {i}: shape={v.shape}, dtype={v.dtype}, device={v.device}")
-        if isinstance(vs[0], torch.Tensor):
+            if debug_logging:
+                logger.debug(f"[DEBUG][collate_fn][multi-item] Key: {k}")
+                for i, v in enumerate(vs):
+                    logger.debug(f"  Sample {i}: shape={v.shape}, dtype={v.dtype}, device={v.device}")
             try:
                 stacked = torch.stack(vs, dim=0)
-                print(f"  [DEBUG][collate_fn][multi-item] Stacked tensor: shape={stacked.shape}, dtype={stacked.dtype}, device={stacked.device}")
+                if debug_logging:
+                    logger.debug(f"  [DEBUG][collate_fn][multi-item] Stacked tensor: shape={stacked.shape}, dtype={stacked.dtype}, device={stacked.device}")
                 out[k] = stacked
             except Exception as e:
-                print(f"[ERROR][collate_fn][multi-item] Failed to stack key '{k}': {e}")
+                if debug_logging:
+                    logger.debug(f"[ERROR][collate_fn][multi-item] Failed to stack key '{k}': {e}")
                 raise
         elif isinstance(vs[0], list):
             out[k] = [item for sublist in vs for item in (sublist if isinstance(sublist, list) else [sublist])]

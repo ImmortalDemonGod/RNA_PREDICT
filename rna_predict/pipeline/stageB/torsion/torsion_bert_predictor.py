@@ -34,14 +34,16 @@ class StageBTorsionBertPredictor(nn.Module):
         Initializes the StageBTorsionBertPredictor for RNA torsion angle prediction.
         
         This constructor configures the predictor using a Hydra configuration object, handling device assignment, model and tokenizer loading, dummy mode fallback, and optional LoRA/PEFT integration. It supports multiple configuration structures, enforces explicit device specification, and robustly manages model initialization for both real and dummy/test scenarios. If configuration is incomplete or missing, the predictor enters dummy mode and uses a placeholder model. The model is moved to the specified device, and all relevant parameters such as angle mode, number of angles, and output dimension are set based on the configuration. If LoRA is enabled and available, the model is wrapped accordingly and non-adapter parameters are frozen. The model is set to evaluation mode after initialization.
-        print("[DEVICE-DEBUG][stageB_torsion] Entering StageBTorsionBertPredictor.__init__")
-        print(f"[CASCADE-DEBUG][TORSIONBERT-INIT] cfg type: {type(cfg)}")
+
+        logger.debug("[DEVICE-DEBUG][stageB_torsion] Entering StageBTorsionBertPredictor.__init__")
+        logger.debug("[CASCADE-DEBUG][TORSIONBERT-INIT] cfg type: %s", type(cfg))
+
         try:
             from omegaconf import OmegaConf
-            print(f"[CASCADE-DEBUG][TORSIONBERT-INIT] device (raw): {getattr(cfg, 'device', None)}")
-            print(f"[CASCADE-DEBUG][TORSIONBERT-INIT] device (resolved): {OmegaConf.to_container(cfg, resolve=True).get('device', None)}")
+            logger.debug("[CASCADE-DEBUG][TORSIONBERT-INIT] device (raw): %s", getattr(cfg, 'device', None))
+            logger.debug("[CASCADE-DEBUG][TORSIONBERT-INIT] device (resolved): %s", OmegaConf.to_container(cfg, resolve=True).get('device', None))
         except Exception as e:
-            print(f"[CASCADE-DEBUG][TORSIONBERT-INIT] Exception printing device: {e}")
+            logger.debug("[CASCADE-DEBUG][TORSIONBERT-INIT] Exception printing device: %s", e)
         super().__init__()
         # --- Logging: Always log essential info, only gate debug ---
         self.debug_logging = False
@@ -127,13 +129,13 @@ class StageBTorsionBertPredictor(nn.Module):
                 self.angle_mode = getattr(torsion_cfg, 'angle_mode', 'sin_cos')
                 self.num_angles = getattr(torsion_cfg, 'num_angles', 7)
                 self.max_length = getattr(torsion_cfg, 'max_length', 512)
-                print(f"[DEBUG-DUMMY-MODE] Using torsion_cfg values: angle_mode={self.angle_mode}, num_angles={self.num_angles}")
+                logger.debug(f"[DEBUG-DUMMY-MODE] Using torsion_cfg values: angle_mode={self.angle_mode}, num_angles={self.num_angles}")
             else:
                 # Fall back to direct attributes
                 self.angle_mode = getattr(cfg, 'angle_mode', 'sin_cos')
                 self.num_angles = getattr(cfg, 'num_angles', 7)
                 self.max_length = getattr(cfg, 'max_length', 512)
-                print(f"[DEBUG-DUMMY-MODE] Using cfg direct values: angle_mode={self.angle_mode}, num_angles={self.num_angles}")
+                logger.debug(f"[DEBUG-DUMMY-MODE] Using cfg direct values: angle_mode={self.angle_mode}, num_angles={self.num_angles}")
 
             self.output_dim = self.num_angles * 2 if self.angle_mode == 'sin_cos' else self.num_angles
 
@@ -141,15 +143,15 @@ class StageBTorsionBertPredictor(nn.Module):
             self.model = DummyTorsionBertAutoModel(num_angles=self.num_angles).to(self.device)
             if self.debug_logging:
                 logger.debug(f"[DEVICE-DEBUG] Dummy model parameters device: {next(self.model.parameters()).device}")
-            print("[CASCADE-DEBUG][TORSIONBERT-RETURN] Early return at line 140 (torsion_cfg is None)")
+            logger.debug("[CASCADE-DEBUG][TORSIONBERT-RETURN] Early return at line 140 (torsion_cfg is None)")
             return
         elif not ("model_name_or_path" in cfg and cfg.model_name_or_path):
             # CHECKPOINT-1: Top-level config dummy mode check
-            print("[CASCADE-DEBUG][TORSIONBERT-CHECKPOINT-1] cfg type:", type(cfg), "keys:", list(cfg.keys()) if hasattr(cfg, 'keys') else dir(cfg))
-            print("[CASCADE-DEBUG][TORSIONBERT-CHECKPOINT-1] model_name_or_path:", getattr(cfg, 'model_name_or_path', None))
+            logger.debug("[CASCADE-DEBUG][TORSIONBERT-CHECKPOINT-1] cfg type:", type(cfg), "keys:", list(cfg.keys()) if hasattr(cfg, 'keys') else dir(cfg))
+            logger.debug("[CASCADE-DEBUG][TORSIONBERT-CHECKPOINT-1] model_name_or_path:", getattr(cfg, 'model_name_or_path', None))
             if 'torsion_cfg' in locals():
-                print("[CASCADE-DEBUG][TORSIONBERT-CHECKPOINT-1] torsion_cfg type:", type(torsion_cfg), "keys:", list(torsion_cfg.keys()) if hasattr(torsion_cfg, 'keys') else dir(torsion_cfg))
-                print("[CASCADE-DEBUG][TORSIONBERT-CHECKPOINT-1] torsion_cfg.model_name_or_path:", getattr(torsion_cfg, 'model_name_or_path', None))
+                logger.debug("[CASCADE-DEBUG][TORSIONBERT-CHECKPOINT-1] torsion_cfg type:", type(torsion_cfg), "keys:", list(torsion_cfg.keys()) if hasattr(torsion_cfg, 'keys') else dir(torsion_cfg))
+                logger.debug("[CASCADE-DEBUG][TORSIONBERT-CHECKPOINT-1] torsion_cfg.model_name_or_path:", getattr(torsion_cfg, 'model_name_or_path', None))
             # Patch config validation to work reliably with OmegaConf
             from omegaconf import OmegaConf
             # Instead of hasattr, use 'in' or .get()
@@ -164,13 +166,13 @@ class StageBTorsionBertPredictor(nn.Module):
                 self.angle_mode = getattr(torsion_cfg, 'angle_mode', 'sin_cos')
                 self.num_angles = getattr(torsion_cfg, 'num_angles', 7)
                 self.max_length = getattr(torsion_cfg, 'max_length', 512)
-                print(f"[DEBUG-DUMMY-MODE] Using torsion_cfg values: angle_mode={self.angle_mode}, num_angles={self.num_angles}")
+                logger.debug(f"[DEBUG-DUMMY-MODE] Using torsion_cfg values: angle_mode={self.angle_mode}, num_angles={self.num_angles}")
             else:
                 # Fall back to direct attributes
                 self.angle_mode = getattr(cfg, 'angle_mode', 'sin_cos')
                 self.num_angles = getattr(cfg, 'num_angles', 7)
                 self.max_length = getattr(cfg, 'max_length', 512)
-                print(f"[DEBUG-DUMMY-MODE] Using cfg direct values: angle_mode={self.angle_mode}, num_angles={self.num_angles}")
+                logger.debug(f"[DEBUG-DUMMY-MODE] Using cfg direct values: angle_mode={self.angle_mode}, num_angles={self.num_angles}")
 
             self.output_dim = self.num_angles * 2 if self.angle_mode == 'sin_cos' else self.num_angles
 
@@ -178,12 +180,12 @@ class StageBTorsionBertPredictor(nn.Module):
             self.model = DummyTorsionBertAutoModel(num_angles=self.num_angles).to(self.device)
             if self.debug_logging:
                 logger.debug(f"[DEVICE-DEBUG] Dummy model parameters device: {next(self.model.parameters()).device}")
-            print("[CASCADE-DEBUG][TORSIONBERT-RETURN] Early return at line 176 (not model_name_or_path in cfg)")
+            logger.debug("[CASCADE-DEBUG][TORSIONBERT-RETURN] Early return at line 176 (not model_name_or_path in cfg)")
             return
         elif not ("model_name_or_path" in torsion_cfg and torsion_cfg.model_name_or_path):
             # CHECKPOINT-2: torsion_cfg dummy mode check
-            print("[CASCADE-DEBUG][TORSIONBERT-CHECKPOINT-2] torsion_cfg type:", type(torsion_cfg), "keys:", list(torsion_cfg.keys()) if hasattr(torsion_cfg, 'keys') else dir(torsion_cfg))
-            print("[CASCADE-DEBUG][TORSIONBERT-CHECKPOINT-2] torsion_cfg.model_name_or_path:", getattr(torsion_cfg, 'model_name_or_path', None))
+            logger.debug("[CASCADE-DEBUG][TORSIONBERT-CHECKPOINT-2] torsion_cfg type:", type(torsion_cfg), "keys:", list(torsion_cfg.keys()) if hasattr(torsion_cfg, 'keys') else dir(torsion_cfg))
+            logger.debug("[CASCADE-DEBUG][TORSIONBERT-CHECKPOINT-2] torsion_cfg.model_name_or_path:", getattr(torsion_cfg, 'model_name_or_path', None))
             logger.warning("[UNIQUE-WARN-TORSIONBERT-DUMMYMODE] Config missing or incomplete, entering dummy mode and returning dummy tensors.")
             self.dummy_mode = True
             # Set defaults for dummy mode
@@ -193,7 +195,7 @@ class StageBTorsionBertPredictor(nn.Module):
             self.angle_mode = getattr(torsion_cfg, 'angle_mode', 'sin_cos')
             self.num_angles = getattr(torsion_cfg, 'num_angles', 7)
             self.max_length = getattr(torsion_cfg, 'max_length', 512)
-            print(f"[DEBUG-DUMMY-MODE] Using torsion_cfg values: angle_mode={self.angle_mode}, num_angles={self.num_angles}")
+            logger.debug(f"[DEBUG-DUMMY-MODE] Using torsion_cfg values: angle_mode={self.angle_mode}, num_angles={self.num_angles}")
 
             self.output_dim = self.num_angles * 2 if self.angle_mode == 'sin_cos' else self.num_angles
 
@@ -201,7 +203,7 @@ class StageBTorsionBertPredictor(nn.Module):
             self.model = DummyTorsionBertAutoModel(num_angles=self.num_angles).to(self.device)
             if self.debug_logging:
                 logger.debug(f"[DEVICE-DEBUG] Dummy model parameters device: {next(self.model.parameters()).device}")
-            print("[CASCADE-DEBUG][TORSIONBERT-RETURN] Early return at line 198 (not model_name_or_path in torsion_cfg)")
+            logger.debug("[CASCADE-DEBUG][TORSIONBERT-RETURN] Early return at line 198 (not model_name_or_path in torsion_cfg)")
             return
         else:
             self.dummy_mode = False
