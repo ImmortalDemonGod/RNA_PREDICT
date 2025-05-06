@@ -28,6 +28,7 @@ config_dict = {
     "seq2map_heads": 8,
     "decoder_up_conv_channels": [128, 64, 32],
     "decoder_skip_connections": True,
+    "device": "cpu",  # Add explicit device parameter
 }
 
 import unittest
@@ -37,13 +38,13 @@ class TestArgsNamespace(unittest.TestCase):
         """Test creation of args namespace and model instantiation."""
         # Create args namespace
         args = args_namespace(config_dict)
-        
+
         # Verify args has expected attributes
         self.assertIsNotNone(args)
         for key in config_dict:
             self.assertTrue(hasattr(args, key))
             self.assertEqual(getattr(args, key), config_dict[key])
-        
+
         # Create and verify RFoldModel
         model = RFoldModel(args)
         self.assertIsInstance(model, RFoldModel)

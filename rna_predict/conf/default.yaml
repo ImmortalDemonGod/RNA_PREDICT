@@ -17,7 +17,7 @@ defaults:
 sequence: ${test_data.sequence}  # Default to test sequence
 
 # Global settings
-device: "cpu"  # Global device setting, can be overridden per stage
+device: ${oc.env:DEVICE, cpu}  # Global device setting, can be overridden per stage
 seed: 42
 atoms_per_residue: 44
 
@@ -48,3 +48,5 @@ pipeline:
 
 training:
   checkpoint_dir: outputs/checkpoints
+  accelerator: cpu   # Trainer accelerator (e.g. 'cpu', 'mps', 'cuda')
+  devices: 1         # Number of devices for Trainer

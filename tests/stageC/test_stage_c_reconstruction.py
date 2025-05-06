@@ -124,7 +124,9 @@ class TestStageCReconstruction(unittest.TestCase):
         Create an instance of StageCReconstruction and default torsion angles
         for repeated usage in tests.
         """
-        self.fallback_reconstructor = scr.StageCReconstruction()
+        # Create a test config for StageCReconstruction
+        self.test_cfg = create_stage_c_test_config(method="legacy", device="cpu")
+        self.fallback_reconstructor = scr.StageCReconstruction(self.test_cfg)
         # Example: 4-nt sequence, each with 7 angles
         self.default_torsions = torch.zeros((4, 7), dtype=torch.float32)
 

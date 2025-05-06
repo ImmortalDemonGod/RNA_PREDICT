@@ -11,7 +11,7 @@ method: "mp_nerf"            # "mp_nerf" or "legacy" (fallback)
 do_ring_closure: false       # Whether to perform ring closure refinement
 place_bases: true            # Whether to place base atoms
 sugar_pucker: "C3'-endo"     # Default sugar pucker conformation
-device: cpu                  # Device to run on ("cpu", "cuda", or "mps")
+device: ${device}                  # Device to run on ("cpu", "cuda", or "mps")
 debug_logging: true          # Enable debug logging
 
 # Parameters potentially used by run_stageC_rna_mpnerf or underlying modules

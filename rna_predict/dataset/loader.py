@@ -58,7 +58,15 @@ class RNADataset(Dataset):
         load_ang (bool): Whether to load angle data.
     """
     def __init__(self, index_csv, cfg, *, load_adj=False, load_ang=False, verbose=False):
+        # Assert device is resolved if present in config
+        if hasattr(cfg, 'device'):
+            assert cfg.device != "${device}", f"Device not resolved in cfg for RNADataset: {cfg.device}"
+            print(f"[DEBUG][RNADataset] Resolved device in cfg: {cfg.device}")
         self.cfg = cfg
+        # Set device from config (Hydra best practice)
+        if not hasattr(cfg, 'device'):
+            raise ValueError("RNADataset requires an explicit 'device' in the config; do not use hardcoded defaults or fallbacks.")
+        self.device = torch.device(cfg.device)
         # Use pandas for robust CSV loading, preserving empty strings and forcing all columns to str
         df = pd.read_csv(index_csv, dtype=str, keep_default_na=False, na_values=[''])
         df = df.fillna('')  # Ensure all NaN are replaced with empty strings
@@ -97,9 +105,10 @@ class RNADataset(Dataset):
         seq = self._load_sequence(row["sequence_path"], row["target_id"])
         L = len(seq)
 
-        coords, atom_mask, atom_to_tok, elem_emb, name_emb, tgt_names, tgt_indices = self._load_atom_features(row["pdb_path"], L)
+        # Ensure all tensors are created on self.device
+        coords, atom_mask, atom_to_tok, elem_emb, name_emb, tgt_names, tgt_indices = self._load_atom_features(row["pdb_path"], L, device=self.device)
 
-        residue_mask = torch.zeros(self.max_res, dtype=torch.bool)
+        residue_mask = torch.zeros(self.max_res, dtype=torch.bool, device=self.device)
         residue_mask[:L] = True
 
         sample = dict(
@@ -111,21 +120,33 @@ class RNADataset(Dataset):
             atom_to_token_idx=atom_to_tok,
             ref_element=elem_emb,
             ref_atom_name_chars=name_emb,
-            ref_charge=torch.zeros_like(atom_mask, dtype=torch.float32)[..., None],
             atom_names=tgt_names,  # NEW: target atom names
             residue_indices=tgt_indices,  # NEW: target residue indices
         )
+        # Instrument: Print device info for all tensors in sample
+        for k, v in sample.items():
+            if isinstance(v, torch.Tensor):
+                print(f"[RNADataset][DEBUG-DEVICE] key '{k}': device={v.device}, shape={v.shape}, dtype={v.dtype}")
         # Add all CSV metadata fields to the sample dict
         for field in row.dtype.names:
             sample[field] = row[field]
         if self.load_adj:
             sample["adjacency_true"] = self._load_adj(row, L)
+        # Always provide 'adjacency' key for pipeline compatibility
+        if "adjacency_true" in sample:
+            sample["adjacency"] = sample["adjacency_true"]
+        else:
+            sample["adjacency"] = torch.zeros((self.max_res, self.max_res), device=self.device)
         if self.load_ang:
             sample["angles_true"] = self._load_angles(row, L)
         if self.verbose:
             print(f"[DEBUG][RNADataset.__getitem__] index={i}, sample keys={list(sample.keys())}")
             for k, v in sample.items():
                 print(f"  - {k}: {type(v)} shape={getattr(v, 'shape', None)}")
+        # Safety net: move all tensors in sample to self.device
+        for k, v in sample.items():
+            if isinstance(v, torch.Tensor) and v.device != self.device:
+                sample[k] = v.to(self.device)
         return sample
 
     def _load_sequence(self, sequence_path, target_id=None):
@@ -136,6 +157,7 @@ class RNADataset(Dataset):
             target_id: ID to look up in CSV (if needed)
         """
         import os
+        import ast
         if sequence_path.endswith('.csv'):
             import csv
             if not target_id:
@@ -143,11 +165,18 @@ class RNADataset(Dataset):
             with open(sequence_path, 'r') as f:
                 reader = csv.DictReader(f)
                 for row in reader:
-                    if row['target_id'] == target_id:
-                        return row['sequence'][: self.max_res]
-            print(f"[WARNING] target_id {target_id} not found in {sequence_path}, returning dummy sequence")
-            return "A" * 10
-        elif sequence_path and os.path.exists(sequence_path):
+                    row_id = row.get('id') or row.get('target_id')
+                    if row_id == target_id:
+                        seq = row.get('sequence')
+                        # PATCH: Robustly handle stringified list format
+                        if isinstance(seq, str) and seq.startswith("['") and seq.endswith("']"):
+                            try:
+                                seq = ast.literal_eval(seq)[0]
+                            except Exception:
+                                pass  # fallback: leave as-is if parsing fails
+                        return seq[: self.max_res]
+            raise ValueError(f"target_id {target_id} not found in {sequence_path}")
+        elif sequence_path.endswith('.fasta') or sequence_path.endswith('.fa'):
             try:
                 rec = next(SeqIO.parse(sequence_path, "fasta"))
                 return str(rec.seq)[: self.max_res]
@@ -173,27 +202,27 @@ class RNADataset(Dataset):
         print(f"[WARNING] Sequence file not found: {sequence_path}, returning dummy sequence")
         return "A" * 10
 
-    def _load_atom_features(self, pdb_file, L):
+    def _load_atom_features(self, pdb_file, L, device=None):
         # Get dtype and fill value from config
         coord_dtype = getattr(torch, self.cfg.data.coord_dtype)
         fill_value = float('nan') if str(self.cfg.data.coord_fill_value).lower() == 'nan' else float(self.cfg.data.coord_fill_value)
         # If pdb_file is missing or empty, return dummy tensors
         if not pdb_file:
             print("[RNADataset] Empty pdb_file path, returning dummy atom features.")
-            coords = torch.zeros((L, self.max_atoms, 3), dtype=coord_dtype)
-            atom_mask = torch.zeros((L, self.max_atoms), dtype=torch.float32)
-            atom_to_tok = torch.zeros((L, self.max_atoms), dtype=torch.int32)
-            elem_emb = torch.zeros((L, self.max_atoms, self.cfg.data.ref_element_size), dtype=torch.float32)
-            name_emb = torch.zeros((L, self.max_atoms, self.cfg.data.ref_atom_name_chars_size), dtype=torch.float32)
+            coords = torch.zeros((L, self.max_atoms, 3), dtype=coord_dtype, device=device)
+            atom_mask = torch.zeros((L, self.max_atoms), dtype=torch.float32, device=device)
+            atom_to_tok = torch.zeros((L, self.max_atoms), dtype=torch.int32, device=device)
+            elem_emb = torch.zeros((L, self.max_atoms, self.cfg.data.ref_element_size), dtype=torch.float32, device=device)
+            name_emb = torch.zeros((L, self.max_atoms, self.cfg.data.ref_atom_name_chars_size), dtype=torch.float32, device=device)
             tgt_names = []
             tgt_indices = []
             return coords, atom_mask, atom_to_tok, elem_emb, name_emb, tgt_names, tgt_indices
         coords_dict = parse_pdb_atoms(pdb_file)
-        coords = torch.full((self.max_atoms, 3), fill_value, dtype=coord_dtype)
-        atom_mask = torch.zeros(self.max_atoms, dtype=torch.bool)
-        atom_to_tok = torch.zeros(self.max_atoms, dtype=torch.long)
-        elem_emb = torch.zeros(self.max_atoms, self.cfg.data.ref_element_size)  # Configurable shape
-        name_emb = torch.zeros(self.max_atoms, self.cfg.data.ref_atom_name_chars_size)  # Configurable shape
+        coords = torch.full((self.max_atoms, 3), fill_value, dtype=coord_dtype, device=device)
+        atom_mask = torch.zeros(self.max_atoms, dtype=torch.bool, device=device)
+        atom_to_tok = torch.zeros(self.max_atoms, dtype=torch.long, device=device)
+        elem_emb = torch.zeros(self.max_atoms, self.cfg.data.ref_element_size, dtype=torch.float32, device=device)  # Configurable shape
+        name_emb = torch.zeros(self.max_atoms, self.cfg.data.ref_atom_name_chars_size, dtype=torch.float32, device=device)  # Configurable shape
         tgt_names = []  # NEW: List of atom names for present atoms
         tgt_indices = []  # NEW: List of residue indices for present atoms
         a_idx = 0
@@ -203,7 +232,9 @@ class RNADataset(Dataset):
                     break
                 key = (r, atom_name)
                 if key in coords_dict:
-                    coords[a_idx] = torch.from_numpy(coords_dict[key])
+                    coords[a_idx] = torch.from_numpy(coords_dict[key]).to(device)
+                    if a_idx < 2 or a_idx >= self.max_atoms-2:
+                        print(f"[DEBUG][_load_atom_features] coords[{a_idx}] device after: {coords[a_idx].device}")
                     atom_mask[a_idx] = True
                     tgt_names.append(atom_name)  # NEW: Add atom name
                     tgt_indices.append(r)  # NEW: Add residue index
@@ -211,17 +242,19 @@ class RNADataset(Dataset):
                 elem_emb[a_idx] = element_one_hot(atom_name)
                 name_emb[a_idx] = atom_name_embedding(atom_name)
                 a_idx += 1
+        print(f"[RNADataset][_load_atom_features] coords tensor summary: device={coords.device}, shape={coords.shape}, dtype={coords.dtype}")
         return coords, atom_mask, atom_to_tok, elem_emb, name_emb, tgt_names, tgt_indices
 
     def _load_adj(self, row, L):
         # TODO: Implement adjacency loading
-        return torch.zeros((self.max_res, self.max_res))
+        return torch.zeros((self.max_res, self.max_res), device=self.device)
 
     def _load_angles(self, row, L):
         from rna_predict.dataset.preprocessing.angles import extract_rna_torsions
         import torch
         n_angles = 7  # Number of torsion angles (alpha, beta, gamma, delta, epsilon, zeta, chi)
         try:
+            # NOTE: All angles must be in radians for downstream use. If adding a backend (e.g., DSSR) that returns degrees, convert to radians here.
             backend = getattr(self.cfg.data, 'angle_backend', 'mdanalysis')
             # Robustly extract chain_id and pdb_path for both dict and numpy record
             def get_field(r, key, default=None):
@@ -252,15 +285,36 @@ class RNADataset(Dataset):
                 raise ValueError("Missing structure file path in row for angle extraction.")
             ang_np = extract_rna_torsions(structure_file, chain_id=chain_id, backend=backend)
             if ang_np is None:
-                ang = torch.zeros((L, n_angles))
+                print(f"[WARNING][RNADataset._load_angles] Angle extraction returned None for {structure_file} (chain {chain_id}). Returning zeros.")
+                ang = torch.zeros((L, n_angles), device=self.device)
             else:
-                ang = torch.tensor(ang_np, dtype=torch.float32)
+                # Create tensor directly on the target device to avoid CPU->MPS transfer issues
+                ang = torch.tensor(ang_np, dtype=torch.float32, device=self.device)
+                print(f"[DEBUG][RNADataset._load_angles] ang device after torch.tensor(..., device=self.device): {ang.device}, type: {type(ang)}")
+                ang = ang.contiguous()
+                print(f"[DEBUG][RNADataset._load_angles] ang device after .contiguous(): {ang.device}, type: {type(ang)}")
+                # --- Explicit check for angle tensor shape (columns) ---
+                if ang.shape[1] != n_angles:
+                    print(f"[WARNING][RNADataset._load_angles] Angle tensor has {ang.shape[1]} columns, expected {n_angles}. Padding/truncating as needed.")
+                    if ang.shape[1] > n_angles:
+                        ang = ang[:, :n_angles]
+                    else:
+                        pad_cols = n_angles - ang.shape[1]
+                        pad = torch.zeros((ang.shape[0], pad_cols), dtype=ang.dtype, device=ang.device)
+                        ang = torch.cat([ang, pad], dim=1)
+                # --- NaN Handling: Replace NaNs with zeros ---
+                if torch.isnan(ang).any():
+                    print("[WARNING][RNADataset._load_angles] NaNs detected in angle tensor. Replacing NaNs with zeros.")
+                    ang = torch.nan_to_num(ang, nan=0.0)
             if ang.shape[0] < self.max_res:
-                pad = torch.zeros((self.max_res - ang.shape[0], ang.shape[1]))
+                pad_shape = (self.max_res - ang.shape[0], ang.shape[1])
+                pad = torch.zeros(pad_shape, dtype=ang.dtype, device=self.device)
+                print(f"[DEBUG][RNADataset._load_angles] ang device before cat: {ang.device}, pad device before cat: {pad.device}")
                 ang = torch.cat([ang, pad], dim=0)
+                print(f"[DEBUG][RNADataset._load_angles] ang device after direct cat: {ang.device}")
             elif ang.shape[0] > self.max_res:
                 ang = ang[:self.max_res]
             return ang
         except Exception as e:
-            print(f"[RNADataset._load_angles] Angle extraction failed: {e}")
-            return torch.zeros((self.max_res, n_angles))
+            print(f"[WARNING][RNADataset._load_angles] Angle extraction failed for {structure_file} (chain {chain_id}). Returning zeros. Error: {e}")
+            return torch.zeros((self.max_res, n_angles), device=self.device)

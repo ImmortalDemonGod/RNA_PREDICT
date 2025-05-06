@@ -47,7 +47,8 @@ def create_test_pairformer_config(**overrides) -> DictConfig:
                 "dropout": 0.1,
                 "target_modules": []
             }
-        }
+        },
+        "device": "cpu"  # Add device parameter
         # Can add other top-level keys if ever needed by tests
     }
     cfg = OmegaConf.create(base_config)
@@ -294,21 +295,33 @@ class TestPairformerWrapperComprehensive(unittest.TestCase):
 
     def test_adjust_z_dimensions_with_dtype(self):
         """Test adjust_z_dimensions with tensors of different dtypes."""
+        print("\n[DEBUG] Starting test_adjust_z_dimensions_with_dtype")
         # Create wrapper
         test_cfg = create_test_pairformer_config(n_blocks=2, c_z=30, c_s=64)
+        print(f"[DEBUG] Created test_cfg: {test_cfg}")
         wrapper = PairformerWrapper(cfg=test_cfg)
+        print(f"[DEBUG] Created wrapper with c_z={wrapper.c_z}, c_z_adjusted={wrapper.c_z_adjusted}")
 
         # Create tensor with float64 dtype
         z_float64 = self.z_non_multiple.to(torch.float64)
+        print(f"[DEBUG] Created z_float64 with shape={z_float64.shape}, dtype={z_float64.dtype}")
 
         # Call adjust_z_dimensions
-        z_adjusted = wrapper.adjust_z_dimensions(z_float64)
+        try:
+            z_adjusted = wrapper.adjust_z_dimensions(z_float64)
+            print(f"[DEBUG] z_adjusted shape={z_adjusted.shape}, dtype={z_adjusted.dtype}")
 
-        # Check that output has the same dtype
-        self.assertEqual(z_adjusted.dtype, torch.float64)
+            # Check that output has the same dtype
+            self.assertEqual(z_adjusted.dtype, torch.float64)
 
-        # Check output shape
-        self.assertEqual(z_adjusted.shape[-1], 32)
+            # Check output shape
+            self.assertEqual(z_adjusted.shape[-1], 32)
+            print("[DEBUG] Test passed successfully")
+        except Exception as e:
+            print(f"[DEBUG] Exception occurred: {e}")
+            import traceback
+            traceback.print_exc()
+            raise
 
 
 if __name__ == "__main__":

@@ -7,7 +7,7 @@
 num_hidden: 128
 dropout: 0.3
 min_seq_length: 80
-device: cpu # Specify device as string ("cuda" or "cpu")
+device: ${device} # Specify device as string ("cuda" or "cpu")
 checkpoint_path: "RFold/checkpoints/RNAStralign_trainset_pretrained.pth"
 checkpoint_url: "https://www.dropbox.com/s/l04l9bf3v6z2tfd/checkpoints.zip?dl=1"
 checkpoint_zip_path: "RFold/checkpoints.zip" # Added configurable zip path

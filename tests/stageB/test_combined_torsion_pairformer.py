@@ -135,7 +135,7 @@ class TestCombinedTorsionPairformer(unittest.TestCase):
     def test_run_stageB_combined_with_adjacency_init(self):
         """Test run_stageB_combined with adjacency-based initialization controlled by config"""
         # Create a specific config for this test
-        cfg_adj_init = OmegaConf.create({"model": create_stage_b_test_config(
+        cfg_raw = create_stage_b_test_config(
              torsion_overrides={ # Keep torsion settings consistent
                  "device": self.device,
                  "angle_mode": "degrees",
@@ -143,14 +143,24 @@ class TestCombinedTorsionPairformer(unittest.TestCase):
              },
              pairformer_overrides={ # Keep small params, enable adj init
                 "n_blocks": 2, "c_z": 32, "c_s": 64, "dropout": 0.1, "use_checkpoint": False,
-                "init_z_from_adjacency": True # Enable flag via config
+                "init_z_from_adjacency": True, # Enable flag via config
+                "device": self.device
             }
-        )})
+        )
+        cfg_adj_init = OmegaConf.create({
+            "model": {
+                "stageB": {
+                    "torsion_bert": cfg_raw["stageB_torsion"],
+                    "pairformer": cfg_raw["stageB_pairformer"],
+                }
+            }
+        })
 
         result = run_stageB_combined(
             cfg=cfg_adj_init, # Pass the specific config
             sequence=self.sequence,
             adjacency_matrix=self.adjacency,
+            device=self.device,
         )
 
         # All outputs should be present

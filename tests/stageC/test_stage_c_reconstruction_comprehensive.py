@@ -73,8 +73,8 @@ class TestStageCReconstructionComprehensive(unittest.TestCase):
 
     def test_stage_c_reconstruction_legacy(self):
         """Test the StageCReconstruction class (legacy approach)."""
-        # Initialize the legacy reconstruction class
-        legacy_reconstruction = StageCReconstruction()
+        # Initialize the legacy reconstruction class with a configuration object
+        legacy_reconstruction = StageCReconstruction(self.legacy_cfg)
 
         # Call the class
         result = legacy_reconstruction(self.torsion_angles)

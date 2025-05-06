@@ -8,6 +8,7 @@ import logging
 import os
 import psutil
 import time
+import snoop
 
 # Initialize logger
 logger = logging.getLogger("rna_predict.pipeline.stageC.stage_c_reconstruction")
@@ -62,18 +63,31 @@ class StageCReconstruction(nn.Module):
     by mapping or replicating the sparse atoms to the expected format for Stage D.
     """
 
-    def __init__(self, device: Optional[torch.device] = None, *args, **kwargs):
+    def __init__(self, cfg: DictConfig, *args, **kwargs):
         super().__init__()
         logger.info("[MEMORY-LOG][StageC] Initializing StageCReconstruction")
         process = psutil.Process(os.getpid())
         logger.info(f"[MEMORY-LOG][StageC] Memory usage: {process.memory_info().rss / 1e6:.2f} MB")
         logger.info("[MEMORY-LOG][StageC] After super().__init__")
         logger.info(f"[MEMORY-LOG][StageC] Memory usage: {process.memory_info().rss / 1e6:.2f} MB")
-        self.debug_logging = False
+        # Respect Hydra debug_logging hierarchy: cfg.debug_logging > cfg.model.stageC.debug_logging > False
+        debug = getattr(cfg, 'debug_logging', None)
+        if debug is None and hasattr(cfg, 'model') and hasattr(cfg.model, 'stageC'):
+            debug = getattr(cfg.model.stageC, 'debug_logging', None)
+        self.debug_logging = debug if debug is not None else False
+
+        # Get device from config, supporting both top-level and nested config
+        device = None
+        if hasattr(cfg, 'device'):
+            device = cfg.device
+        elif hasattr(cfg, 'model') and hasattr(cfg.model, 'stageC') and hasattr(cfg.model.stageC, 'device'):
+            device = cfg.model.stageC.device
+
         if device is None:
-            # Default to CPU, but prefer config-driven device
-            device = torch.device("cpu")
-        self.device = device
+            raise ValueError("StageCReconstruction requires a 'device' key in the config or in cfg.model.stageC.")
+
+        self.device = torch.device(device)
+        self.cfg = cfg
 
     def __call__(self, torsion_angles: torch.Tensor):
         N = torsion_angles.size(0)
@@ -184,6 +198,7 @@ def create_stage_c_test_config(**overrides):
     return OmegaConf.create(base)
 
 
+@snoop
 def run_stageC_rna_mpnerf(
     cfg: DictConfig,
     sequence: str,
@@ -375,7 +390,7 @@ def run_stageC_rna_mpnerf(
 
     return output
 
-
+@snoop
 def run_stageC(
     sequence: str,
     torsion_angles: torch.Tensor,
@@ -441,9 +456,8 @@ def run_stageC(
             predicted_torsions=torsion_angles,
         )
     else:
-        # Convert string device to torch.device
-        device_obj = torch.device(stage_cfg.device) if isinstance(stage_cfg.device, str) else stage_cfg.device
-        stageC = StageCReconstruction(device=device_obj)
+        # Use StageCReconstruction for legacy method
+        stageC = StageCReconstruction(cfg)
         return stageC(torsion_angles)
 
 

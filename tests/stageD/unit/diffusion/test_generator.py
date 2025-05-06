@@ -79,7 +79,7 @@ class TestTrainingNoiseSampler:
             p_mean=p_mean, p_std=p_std, sigma_data=sigma_data
         )
         size = torch.Size([3, 2])
-        noise_levels = sampler(size=size)
+        noise_levels = sampler(size=size, device=torch.device("cpu"))
         assert noise_levels.shape == size
         # We cannot know the exact distribution, but we verify it's not all zeros
         assert torch.any(
@@ -104,7 +104,7 @@ class TestTrainingNoiseSampler:
             p_mean=p_mean, p_std=p_std, sigma_data=sigma_data
         )
         size = torch.Size([width, height])
-        noise_levels = sampler(size=size)
+        noise_levels = sampler(size=size, device=torch.device("cpu"))
         assert noise_levels.shape == size, "Noise level shape mismatch"
         # We simply check that the resulting tensor is finite
         assert torch.isfinite(noise_levels).all(), "Noise levels must be finite"
@@ -121,7 +121,7 @@ class TestInferenceNoiseScheduler:
         Test default constructor usage and verify final schedule shape and last step = 0.
         """
         scheduler = InferenceNoiseScheduler()
-        schedule = scheduler()
+        schedule = scheduler(device=torch.device("cpu"))
         # Default N_step=200 => schedule length = 201
         assert schedule.shape[0] == 201, "Schedule should have N_step+1 elements"
         assert schedule[-1].item() == 0, "Last element of schedule must be 0"
@@ -140,7 +140,7 @@ class TestInferenceNoiseScheduler:
         scheduler = InferenceNoiseScheduler(
             s_max=s_max, s_min=s_min, p=p, sigma_data=sigma_data
         )
-        schedule = scheduler(N_step=N_step)
+        schedule = scheduler(N_step=N_step, device=torch.device("cpu"))
         assert schedule.shape[0] == N_step + 1, "Schedule length mismatch"
         assert schedule[-1].item() == 0, "Last element must be zero"
         # Check monotonic decreasing property except for last forced 0:
@@ -161,7 +161,7 @@ class TestInferenceNoiseScheduler:
         scheduler = InferenceNoiseScheduler(
             s_max=s_max, s_min=s_min, p=p, sigma_data=sigma_data
         )
-        schedule = scheduler(N_step=n_step)
+        schedule = scheduler(N_step=n_step, device=torch.device("cpu"))
         assert schedule.shape[0] == n_step + 1, "Fuzz: schedule shape mismatch"
         assert schedule[-1].item() == 0, "Fuzz: last schedule element must be zero"
         assert torch.isfinite(schedule).all(), "Fuzz: schedule must be finite"
@@ -359,6 +359,7 @@ class TestSampleDiffusionTraining:
             s_trunk=s_trunk,
             z_trunk=z_trunk,
             N_sample=3,
+            device=torch.device("cpu")
         )
         # x_gt_aug => [1, 3, 4, 3]
         # x_denoised => [1, 3, 4, 3]
@@ -395,6 +396,7 @@ class TestSampleDiffusionTraining:
             z_trunk=z_trunk,
             N_sample=5,
             diffusion_chunk_size=2,
+            device=torch.device("cpu")
         )
         # Expected shapes:
         # x_gt_aug: [batch, N_sample, n_atoms, 3] -> [1, 5, 4, 3]
@@ -437,6 +439,7 @@ class TestSampleDiffusionTraining:
             z_trunk=z_trunk,
             N_sample=n_sample,
             diffusion_chunk_size=chunk,
+            device=torch.device("cpu")
         )
         assert x_gt_aug.shape == (
             1,
