@@ -591,7 +591,7 @@ class RNALightningModule(L.LightningModule):
             dataset,
             batch_size=self.cfg.data.batch_size,
             shuffle=True,
-            collate_fn=lambda batch: rna_collate_fn(batch, debug_logging=getattr(self.cfg.data, 'debug_logging', False)),
+            collate_fn=lambda batch: rna_collate_fn(batch, cfg=self.cfg),
             num_workers=num_workers
         )
 
