@@ -291,6 +291,7 @@ class PairformerWrapper(nn.Module):
                 z_adjusted = z[..., : self.c_z_adjusted]
                 if self.debug_logging:
                     logger.debug(f"Truncated z from shape {z.shape} to {z_adjusted.shape}")
+                    logger.debug(f"z_adjusted device: {z_adjusted.device}, dtype: {z_adjusted.dtype}")
         else:
             z_adjusted = z
             if self.debug_logging:
