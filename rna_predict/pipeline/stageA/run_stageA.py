@@ -186,6 +186,10 @@ def main(cfg: DictConfig) -> None:
     # Get device from config
     device_str = stage_cfg.device.lower()
 
+    # Print the resolved device for StageA for systematic Hydra compliance debugging
+    logger.info(f"[HYDRA-DEBUG][StageA] Resolved stage_cfg.device: {stage_cfg.device}")
+    logger.info(f"[HYDRA-DEBUG][StageA] Global cfg.device: {cfg.model.stageA.device}")
+
     # Create the device object (device validation will be handled in the predictor)
     device = torch.device(device_str)
     if debug_logging:

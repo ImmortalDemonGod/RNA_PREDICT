@@ -25,6 +25,7 @@ def parse_args():
     parser.add_argument("--output_dir", type=str, required=True, help="Directory to save output .pt files")
     parser.add_argument("--chain_id", type=str, default="A", help="Chain ID to extract (default: A)")
     parser.add_argument("--backend", type=str, default="mdanalysis", choices=["mdanalysis", "dssr"], help="Backend to use for extraction")
+    parser.add_argument("--angle_set", type=str, default="canonical", choices=["canonical", "full"], help="Which angle set to extract: 'canonical' (7) or 'full' (14)")
     return parser.parse_args()
 
 def main():
@@ -35,8 +36,8 @@ def main():
         if not fname.lower().endswith((".pdb", ".cif")):
             continue
         in_path = os.path.join(args.input_dir, fname)
-        print(f"[DEBUG] Processing: {in_path} (chain: {args.chain_id}, backend: {args.backend})")
-        angles = extract_rna_torsions(in_path, chain_id=args.chain_id, backend=args.backend)
+        print(f"[DEBUG] Processing: {in_path} (chain: {args.chain_id}, backend: {args.backend}, angle_set: {args.angle_set})")
+        angles = extract_rna_torsions(in_path, chain_id=args.chain_id, backend=args.backend, angle_set=args.angle_set)
         if angles is not None:
             out_path = os.path.join(args.output_dir, f"{os.path.splitext(fname)[0]}_{args.chain_id}_angles.pt")
             torch.save(torch.from_numpy(angles), out_path)

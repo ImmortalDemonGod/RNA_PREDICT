@@ -18,10 +18,30 @@ config = OmegaConf.create({
             "dropout": 0.1,
             "batch_size": 1,
             "lr": 0.001,
+            "device": "cpu",  # Add explicit device parameter
+            "dummy_mode": True,  # Enable dummy mode to avoid loading real model
+            "example_sequence_length": 10  # Add example sequence length for dummy mode
         },
         "stageB": {
-            "torsion_bert": {},
-            "pairformer": {},
+            "torsion_bert": {
+                "device": "cpu",  # Add explicit device parameter
+                "model_name_or_path": "dummy-path",  # Add model path
+                "debug_logging": True  # Enable debug logging
+            },
+            "pairformer": {
+                "device": "cpu",  # Add explicit device parameter
+                "n_blocks": 2,
+                "c_z": 32,
+                "c_s": 64,
+                "n_heads": 4,
+                "dropout": 0.1,
+                "use_memory_efficient_kernel": False,
+                "use_deepspeed_evo_attention": False,
+                "use_lma": False,
+                "inplace_safe": False,
+                "chunk_size": 4,
+                "debug_logging": True  # Enable debug logging
+            },
         },
         "stageC": {
             "enabled": True,

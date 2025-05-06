@@ -99,6 +99,9 @@ class DummyTorsionBertModel:
         self.num_angles = num_angles
         self.return_style = return_style
         self.config = types.SimpleNamespace(hidden_size=2 * num_angles)  # Add config attribute for compatibility
+        self._modules = {}  # Required for named_modules to work
+        # Add a dummy parameter for named_parameters
+        self.dummy_param = torch.nn.Parameter(torch.zeros(1))
 
     def to(self, device):
         # No-op for device placement
@@ -107,6 +110,52 @@ class DummyTorsionBertModel:
     def eval(self):
         # No-op for eval mode
         return self
+
+    def named_modules(self, memo=None, prefix=''):
+        """Implements named_modules method required by StageBTorsionBertPredictor.
+
+        This method returns an iterator over all modules in the model, including the model itself.
+
+        Args:
+            memo: Set of modules already visited (used to avoid infinite recursion)
+            prefix: Prefix for the module names
+
+        Returns:
+            Iterator over (name, module) pairs
+        """
+        if memo is None:
+            memo = set()
+        if self not in memo:
+            memo.add(self)
+            yield prefix, self
+            for name, module in self._modules.items():
+                if module is None:
+                    continue
+                submodule_prefix = prefix + ('.' if prefix else '') + name
+                for m in module.named_modules(memo, submodule_prefix):
+                    yield m
+
+    def named_parameters(self, prefix='', recurse=True):
+        """Implements named_parameters method required by StageBTorsionBertPredictor.
+
+        This method returns an iterator over all parameters in the model.
+
+        Args:
+            prefix: Prefix for the parameter names
+            recurse: Whether to recurse into submodules
+
+        Returns:
+            Iterator over (name, parameter) pairs
+        """
+        yield prefix + '.dummy_param', self.dummy_param
+
+        if recurse:
+            for name, module in self._modules.items():
+                if module is None:
+                    continue
+                submodule_prefix = prefix + ('.' if prefix else '') + name
+                for param_name, param in module.named_parameters(submodule_prefix, recurse):
+                    yield param_name, param
 
     def predict_angles_from_sequence(self, sequence: str) -> torch.Tensor:
         """

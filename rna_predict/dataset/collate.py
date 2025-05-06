@@ -4,16 +4,38 @@ import logging
 
 logger = logging.getLogger("rna_predict.dataset.collate")
 
-def rna_collate_fn(batch, debug_logging=False):
+
+def rna_collate_fn(batch, cfg=None, debug_logging=None):
     """Collate function for RNA dataset batches, robust to empty and single-item batches.
     Args:
         batch (list): List of samples (dicts) from RNADataset.
-        debug_logging (bool): If True, emit debug logs.
+        cfg (optional): Hydra config object. If provided, will attempt to source debug_logging from it.
+        debug_logging (bool, optional): Explicit debug flag. If None, will use cfg if available, else False.
     Returns:
         dict: Batched tensors and lists.
     """
+    # Respect Hydra config hierarchy for debug_logging
+    resolved_debug = False
+    if debug_logging is not None:
+        resolved_debug = debug_logging
+    elif cfg is not None:
+        # Try to find debug_logging in config, prefer model.stageD.debug_logging > data.debug_logging > False
+        try:
+            if hasattr(cfg, 'model') and hasattr(cfg.model, 'stageD') and hasattr(cfg.model.stageD, 'debug_logging'):
+                resolved_debug = cfg.model.stageD.debug_logging
+            elif hasattr(cfg, 'data') and hasattr(cfg.data, 'debug_logging'):
+                resolved_debug = cfg.data.debug_logging
+        except Exception:
+            pass
+    debug_logging = resolved_debug
+
     if debug_logging:
         logger.debug("[collate] Batch size: %d", len(batch))
+    # Instrument: Print device info for all tensors in the batch
+    for i, sample in enumerate(batch):
+        for k, v in sample.items():
+            if isinstance(v, torch.Tensor):
+                logger.debug(f"[collate][DEBUG-DEVICE] Batch item {i} key '{k}': device={v.device}, shape={v.shape}, dtype={v.dtype}")
     if len(batch) == 0:
         raise ValueError("Empty batch passed to rna_collate_fn.")
     if len(batch) == 1:
@@ -25,27 +47,59 @@ def rna_collate_fn(batch, debug_logging=False):
             elif k in ["atom_names", "residue_indices"]:
                 # For target atom metadata, batch as list of lists
                 out[k] = [v]
+            elif isinstance(v, str):
+                # For sequence and similar: always batch as a list of strings
+                out[k] = [v]
             else:
                 out[k] = [v]
         if debug_logging:
             logger.debug("[collate] Single-item batch keys: %s", list(out.keys()))
             for k, v in out.items():
                 if isinstance(v, torch.Tensor):
-                    logger.debug(f"[collate] Key: {k}, Shape: {v.shape}, Dtype: {v.dtype}, requires_grad: {getattr(v, 'requires_grad', 'N/A')}")
+                    logger.debug(f"[collate] Key: {k}, Shape: {v.shape}, Dtype: {v.dtype}, Device: {v.device}, requires_grad: {getattr(v, 'requires_grad', 'N/A')}")
                 else:
                     logger.debug(f"[collate] Key: {k}, Type: {type(v)}")
+        # Instrument: Print all tensor devices in single-item batch
+        if debug_logging:
+            logger.debug("[DEBUG][collate_fn][single-item] Batch tensor device summary:")
+            for k, v in out.items():
+                if isinstance(v, torch.Tensor):
+                    logger.debug(f"  Key: {k}, shape: {v.shape}, dtype: {v.dtype}, device: {v.device}")
+                else:
+                    logger.debug(f"  Key: {k}, type: {type(v)}")
         return out
     # Multi-item batch: stack tensors, listify others
     out = {}
-    for k in batch[0]:
-        if isinstance(batch[0][k], torch.Tensor):
-            stacked = torch.stack([b[k] for b in batch])
-            out[k] = stacked
-        elif k in ["atom_names", "residue_indices"]:
-            # For target atom metadata, batch as list of lists
-            out[k] = [b[k] for b in batch]
+    if debug_logging:
+        # Instrument: Print all tensor devices in multi-item batch
+        try:
+            device_summary = {}
+            for k, v in batch[0].items():
+                if hasattr(v, 'device'):
+                    device_summary[k] = str(v.device)
+            logger.debug(f"[collate_fn][multi-item] Batch tensor device summary: {device_summary}")
+        except Exception as e:
+            logger.debug(f"[collate_fn][multi-item] Error summarizing devices: {e}")
+    for k in batch[0].keys():
+        vs = [d[k] for d in batch]
+        if isinstance(vs[0], torch.Tensor):
+            if debug_logging:
+                logger.debug(f"[DEBUG][collate_fn][multi-item] Key: {k}")
+                for i, v in enumerate(vs):
+                    logger.debug(f"  Sample {i}: shape={v.shape}, dtype={v.dtype}, device={v.device}")
+            try:
+                stacked = torch.stack(vs, dim=0)
+                if debug_logging:
+                    logger.debug(f"  [DEBUG][collate_fn][multi-item] Stacked tensor: shape={stacked.shape}, dtype={stacked.dtype}, device={stacked.device}")
+                out[k] = stacked
+            except Exception as e:
+                if debug_logging:
+                    logger.debug(f"[ERROR][collate_fn][multi-item] Failed to stack key '{k}': {e}")
+                raise
+        elif isinstance(vs[0], list):
+            out[k] = [item for sublist in vs for item in (sublist if isinstance(sublist, list) else [sublist])]
         else:
-            out[k] = [b[k] for b in batch]
+            out[k] = vs
     if debug_logging:
         logger.debug("[collate] Multi-item batch keys: %s", list(out.keys()))
         for k, v in out.items():

@@ -277,7 +277,8 @@ class TestPipelineDimensions(unittest.TestCase):
                 "use_deepspeed_evo_attention": False,
                 "use_lma": False,
                 "inplace_safe": True,
-                "chunk_size": 128
+                "chunk_size": 128,
+                "device": "cpu"  # Add explicit device parameter
             }
         })
         pairformer = PairformerWrapper(pairformer_cfg)

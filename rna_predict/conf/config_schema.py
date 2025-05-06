@@ -1308,7 +1308,7 @@ class DataConfig:
     ref_element_size: int = field(default=4, metadata={"help": "Size of reference element embeddings"})
     ref_atom_name_chars_size: int = field(default=8, metadata={"help": "Size of atom name character embeddings"})
     batch_size: int = field(default=4, metadata={"help": "DataLoader batch size"})
-    num_workers: int = field(default=8, metadata={"help": "Number of DataLoader workers"})
+    num_workers: int = field(default=0, metadata={"help": "Number of DataLoader workers (set to 0 for debugging device mismatch)"})
     load_adj: bool = field(default=False, metadata={"help": "Whether to load adjacency ground truth"})
     load_ang: bool = field(default=False, metadata={"help": "Whether to load angle ground truth"})
     coord_fill_value: Union[float, str] = field(default="nan", metadata={"help": "Default for missing coordinates, can be 'nan' or a float"})
@@ -1318,6 +1318,8 @@ class DataConfig:
 class TrainingConfig:
     """Configuration for training-related parameters."""
     checkpoint_dir: str = field(default="outputs/checkpoints", metadata={"help": "Directory to save checkpoints"})
+    accelerator: str = field(default="cpu", metadata={"help": "Trainer accelerator (e.g. 'cpu', 'mps', 'cuda')"})
+    devices: int = field(default=1, metadata={"help": "Number of devices to use for Trainer (default 1)"})
 
 @dataclass
 class RNAConfig:

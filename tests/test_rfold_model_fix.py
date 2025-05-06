@@ -9,6 +9,7 @@ def test_rfold_model():
     args.num_hidden = 128
     args.dropout = 0.1
     args.use_gpu = False
+    args.device = "cpu"  # Add explicit device parameter
 
     # Create RFoldModel
     model = RFoldModel(args)

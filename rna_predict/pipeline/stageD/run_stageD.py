@@ -279,6 +279,13 @@ def _run_stageD_impl(
     log_mem("After bridging residue-to-atom")
     log_mem("Before diffusion")
     log.debug("[run_stageD] Calling unified Stage D runner with DiffusionConfig.")
+    # --- HYDRA DEBUG PATCH: Log device resolution for Hydra propagation debugging ---
+    log.info(f"[HYDRA-DEBUG][StageD] stage_cfg.device: {getattr(stage_cfg, 'device', None)}")
+    if hasattr(cfg, 'device'):
+        log.info(f"[HYDRA-DEBUG][StageD] global cfg.device: {cfg.device}")
+    if hasattr(stage_cfg, 'diffusion') and hasattr(stage_cfg.diffusion, 'device'):
+        log.info(f"[HYDRA-DEBUG][StageD] stage_cfg.diffusion.device: {stage_cfg.diffusion.device}")
+    # --- END PATCH ---
     _run_diffusion_step(context)
     # Return the result from the diffusion step
     if hasattr(context, 'result') and context.result is not None:

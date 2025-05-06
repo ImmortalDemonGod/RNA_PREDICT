@@ -16,6 +16,8 @@ import shutil
 import time
 import urllib.request
 import zipfile
+import torch.nn.functional as F
+from rna_predict.dataset.preprocessing.angle_utils import angles_rad_to_sin_cos
 logger = logging.getLogger("rna_predict.training.rna_lightning_module")
 
 class RNALightningModule(L.LightningModule):
@@ -40,6 +42,16 @@ class RNALightningModule(L.LightningModule):
 
         if cfg is not None:
             self._instantiate_pipeline(cfg)
+            # --- DEVICE DEBUGGING: Print device of all key model parameters after instantiation ---
+            def print_param_devices(module, name):
+                for pname, param in module.named_parameters(recurse=True):
+                    print(f"[DEVICE-DEBUG][{name}] Parameter: {pname}, device: {getattr(param, 'device', 'NO DEVICE')}" )
+            print_param_devices(self.stageA, 'stageA')
+            print_param_devices(self.stageB_torsion, 'stageB_torsion')
+            print_param_devices(self.stageB_pairformer, 'stageB_pairformer')
+            print_param_devices(self.stageC, 'stageC')
+            print_param_devices(self.stageD, 'stageD')
+            print_param_devices(self.latent_merger, 'latent_merger')
         else:
             self.pipeline = torch.nn.Identity()
             self._integration_test_mode = True  # Use dummy layer
@@ -137,63 +149,10 @@ class RNALightningModule(L.LightningModule):
         logger.debug("[DEBUG-LM] torch.backends.mps.is_available(): %s", getattr(torch.backends, 'mps', None) and torch.backends.mps.is_available())
         logger.debug("[DEBUG-LM] cfg.device: %s", getattr(cfg, 'device', None))
 
-        self.device_ = torch.device(cfg.device) if hasattr(cfg, 'device') else torch.device('cpu')
+        if cfg is None or not hasattr(cfg, 'device'):
+            raise ValueError("RNALightningModule requires an explicit 'device' in the config; do not use hardcoded defaults or fallbacks.")
+        self.device_ = torch.device(cfg.device)
         logger.debug("[DEBUG-LM] self.device_ in RNALightningModule: %s", self.device_)
-
-        # For integration test mode, create dummy modules to avoid initialization issues
-        if getattr(self, '_integration_test_mode', False):
-            logger.info("[INFO] Integration test mode detected, creating dummy modules")
-            # Create dummy modules for all pipeline stages
-            self.stageA = torch.nn.Module()
-            self.stageB_torsion = torch.nn.Module()
-            self.stageB_pairformer = torch.nn.Module()
-            self.stageC = torch.nn.Module()
-            self.stageD = torch.nn.Module()
-
-            # Add predict method to stageB_pairformer
-            def dummy_predict(sequence, adjacency=None):
-                # Return a tuple of two tensors with appropriate shapes
-                s_emb = torch.zeros(len(sequence), 64, device=self.device_)
-                z_emb = torch.zeros(len(sequence), 32, device=self.device_)
-                return (s_emb, z_emb)
-
-            # Bind the dummy predict method
-            import types
-            self.stageB_pairformer.predict = types.MethodType(dummy_predict, self.stageB_pairformer)
-
-            # Create a dummy latent merger
-            self.latent_merger = torch.nn.Module()
-
-            # Add forward method to latent_merger
-            def dummy_forward(inputs):
-                # Return a tensor with appropriate shape
-                return torch.zeros(1, 128, device=self.device_)
-
-            # Bind the dummy forward method
-            self.latent_merger.forward = types.MethodType(dummy_forward, self.latent_merger)
-
-            # Create a pipeline module that contains all components
-            self.pipeline = torch.nn.ModuleDict({
-                'stageA': self.stageA,
-                'stageB_torsion': self.stageB_torsion,
-                'stageB_pairformer': self.stageB_pairformer,
-                'stageC': self.stageC,
-                'stageD': self.stageD,
-                'latent_merger': self.latent_merger
-            })
-
-            return  # Skip the rest of the initialization
-
-        # Normal initialization for non-integration test mode
-        logger.debug("[DEBUG-LM] cfg.model.stageB: %s", getattr(cfg.model, 'stageB', None))
-        if hasattr(cfg.model, 'stageB'):
-            logger.debug("[DEBUG-LM] cfg.model.stageB keys: %s", list(cfg.model.stageB.keys()) if hasattr(cfg.model.stageB, 'keys') else str(cfg.model.stageB))
-            if hasattr(cfg.model.stageB, 'pairformer'):
-                logger.debug("[DEBUG-LM] cfg.model.stageB.pairformer keys: %s", list(cfg.model.stageB.pairformer.keys()) if hasattr(cfg.model.stageB.pairformer, 'keys') else str(cfg.model.stageB.pairformer))
-            else:
-                logger.debug("[DEBUG-LM] cfg.model.stageB.pairformer: NOT FOUND")
-        else:
-            logger.debug("[DEBUG-LM] cfg.model.stageB: NOT FOUND")
 
         # --- Stage A Checkpoint Handling ---
         stageA_cfg = cfg.model.stageA
@@ -226,7 +185,7 @@ class RNALightningModule(L.LightningModule):
             raise ValueError("[UNIQUE-ERR-PAIRFORMER-MISSING] pairformer not found in cfg.model.stageB. Available keys: " + str(list(cfg.model.stageB.keys())))
         self.stageB_pairformer = PairformerWrapper(cfg.model.stageB.pairformer)
         # Use unified Stage C entrypoint (mp_nerf or fallback) per config
-        self.stageC = StageCReconstruction()
+        self.stageC = StageCReconstruction(cfg)
         logger.debug("[DEBUG-LM-STAGED] cfg.model.stageD: %s", getattr(cfg.model, 'stageD', None))
         # Pass the full config to ProtenixDiffusionManager, not just cfg.model
         self.stageD = ProtenixDiffusionManager(cfg)
@@ -237,7 +196,7 @@ class RNALightningModule(L.LightningModule):
         dim_s = getattr(merger_cfg, 'dim_s', 64) if merger_cfg else 64
         dim_z = getattr(merger_cfg, 'dim_z', 32) if merger_cfg else 32
         dim_out = getattr(merger_cfg, 'output_dim', 128) if merger_cfg else 128
-        self.latent_merger = SimpleLatentMerger(dim_angles, dim_s, dim_z, dim_out)
+        self.latent_merger = SimpleLatentMerger(dim_angles, dim_s, dim_z, dim_out, device=self.device_)
 
         # Create a pipeline module that contains all components
         # This ensures the model has trainable parameters for the optimizer
@@ -257,7 +216,26 @@ class RNALightningModule(L.LightningModule):
     ##@snoop
     def forward(self, batch, **kwargs):
         logger.debug("[DEBUG-ENTRY] Entered forward")
-        logger.debug("[DEBUG-LM] Entered forward")
+        # --- DEVICE DEBUGGING: Print device info for batch and key model parameters ---
+        def print_tensor_devices(obj, prefix):
+            if isinstance(obj, dict):
+                for k, v in obj.items():
+                    print_tensor_devices(v, f"{prefix}.{k}")
+            elif isinstance(obj, torch.Tensor):
+                print(f"[DEVICE-DEBUG][forward] {prefix}: device={obj.device}, shape={tuple(obj.shape)}, dtype={obj.dtype}")
+            elif isinstance(obj, list):
+                for i, v in enumerate(obj):
+                    print_tensor_devices(v, f"{prefix}[{i}]")
+        print_tensor_devices(batch, "batch")
+        def print_param_devices(module, name):
+            for pname, param in module.named_parameters(recurse=True):
+                print(f"[DEVICE-DEBUG][forward][{name}] Parameter: {pname}, device: {getattr(param, 'device', 'NO DEVICE')}" )
+        print_param_devices(self.stageA, 'stageA')
+        print_param_devices(self.stageB_torsion, 'stageB_torsion')
+        print_param_devices(self.stageB_pairformer, 'stageB_pairformer')
+        print_param_devices(self.stageC, 'stageC')
+        print_param_devices(self.stageD, 'stageD')
+        print_param_devices(self.latent_merger, 'latent_merger')
 
         # Handle integration test mode with tensor input
         if self._integration_test_mode and isinstance(batch, torch.Tensor):
@@ -283,19 +261,27 @@ class RNALightningModule(L.LightningModule):
         logger.debug("[DEBUG-LM] batch keys: %s", list(batch.keys()))
         sequence = batch["sequence"][0]  # assumes batch size 1 for now
         logger.debug("[DEBUG-LM] StageA input sequence: %s", sequence)
-        adj = self.stageA.predict_adjacency(sequence)
-        logger.debug("[DEBUG-LM] StageA output adj type: %s", type(adj))
+        adj = batch['adjacency'].to(self.device_)
+
         outB_torsion = self.stageB_torsion(sequence, adjacency=adj)
-        logger.debug("[DEBUG-LM] StageB_torsion output keys: %s", list(outB_torsion.keys()))
         torsion_angles = outB_torsion["torsion_angles"]
-        logger.debug("[DEBUG-LM][STAGEB] torsion_angles.requires_grad: %s", getattr(torsion_angles, 'requires_grad', None))
-        logger.debug("[DEBUG-LM][STAGEB] torsion_angles.grad_fn: %s", getattr(torsion_angles, 'grad_fn', None))
-        logger.debug("[DEBUG-LM][STAGEB] torsion_angles.device: %s", getattr(torsion_angles, 'device', None))
-        logger.debug("[DEBUG-LM] [PRE-STAGEC] torsion_angles requires_grad: %s", getattr(torsion_angles, 'requires_grad', None))
-        logger.debug("[DEBUG-LM] [PRE-STAGEC] torsion_angles grad_fn: %s", getattr(torsion_angles, 'grad_fn', None))
-        logger.debug("[DEBUG-LM] [PRE-STAGEC] torsion_angles device: %s", getattr(torsion_angles, 'device', None))
+        if torsion_angles.device != self.device_:
+            print(f"[DEVICE-PATCH][forward] Moving torsion_angles from {torsion_angles.device} to {self.device_}")
+            torsion_angles = torsion_angles.to(self.device_)
+        print(f"[DEVICE-DEBUG][forward] torsion_angles: device={torsion_angles.device}, shape={torsion_angles.shape}, dtype={torsion_angles.dtype}")
+
         outB_pairformer = self.stageB_pairformer.predict(sequence, adjacency=adj)
-        logger.debug("[DEBUG-LM] StageB_pairformer output type: %s", type(outB_pairformer))
+        s_emb = outB_pairformer[0]
+        z_emb = outB_pairformer[1]
+        if s_emb.device != self.device_:
+            print(f"[DEVICE-PATCH][forward] Moving s_emb from {s_emb.device} to {self.device_}")
+            s_emb = s_emb.to(self.device_)
+        if z_emb.device != self.device_:
+            print(f"[DEVICE-PATCH][forward] Moving z_emb from {z_emb.device} to {self.device_}")
+            z_emb = z_emb.to(self.device_)
+        print(f"[DEVICE-DEBUG][forward] s_emb: device={s_emb.device}, shape={s_emb.shape}, dtype={s_emb.dtype}")
+        print(f"[DEVICE-DEBUG][forward] z_emb: device={z_emb.device}, shape={z_emb.shape}, dtype={z_emb.dtype}")
+
         # Additional: Check for .detach(), .cpu(), .numpy(), .clone(), .to(), or torch.no_grad() in this section
         logger.debug("[DEBUG-LM][CHECK] About to call run_stageC with torsion_angles id: %s", id(torsion_angles))
         outC = run_stageC(sequence=sequence, torsion_angles=torsion_angles, cfg=self.cfg)
@@ -312,7 +298,6 @@ class RNALightningModule(L.LightningModule):
         logger.debug("[DEBUG-LM] coords_init shape (after .to(device)): %s, dtype: %s, device: %s", coords.shape, coords.dtype, coords.device)
         logger.debug("[DEBUG-LM] coords_init requires_grad (after .to(device)): %s", getattr(coords, 'requires_grad', None))
         logger.debug("[DEBUG-LM] coords_init grad_fn (after .to(device)): %s", getattr(coords, 'grad_fn', None))
-        s_emb, z_emb = outB_pairformer
         s_trunk = s_emb.unsqueeze(0)
         z_trunk = z_emb.unsqueeze(0)
         s_inputs = torch.zeros_like(s_trunk)
@@ -347,7 +332,7 @@ class RNALightningModule(L.LightningModule):
         # TODO: Update Stage D to accept and use unified_latent
         # Return outputs including unified_latent
         output = {
-            "adjacency": adj,
+            "adjacency": adj.to(self.device_),
             "torsion_angles": torsion_angles,
             "s_embeddings": s_emb,
             "z_embeddings": z_emb,
@@ -370,104 +355,110 @@ class RNALightningModule(L.LightningModule):
     ##@snoop
     def training_step(self, batch, batch_idx):
         logger.debug("[DEBUG-ENTRY] Entered training_step")
-        logger.debug("[DEBUG-LM] Entered training_step")
+        logger.debug("--- Checking batch devices upon entry to training_step ---")
+        def check_batch_devices(obj, prefix):
+            if isinstance(obj, dict):
+                for k, v in obj.items():
+                    check_batch_devices(v, f"{prefix}.{k}")
+            elif isinstance(obj, (list, tuple)):
+                for i, v in enumerate(obj):
+                    check_batch_devices(v, f"{prefix}[{i}]")
+            elif isinstance(obj, torch.Tensor):
+                logger.debug(f"  {prefix}: device={obj.device}")
+        check_batch_devices(batch, "batch")
+        logger.debug("--- Finished checking batch devices ---")
+        # --- DEVICE DEBUGGING: Print device info for batch and key model parameters ---
+        def print_tensor_devices(obj, prefix):
+            if isinstance(obj, dict):
+                for k, v in obj.items():
+                    print_tensor_devices(v, f"{prefix}.{k}")
+            elif isinstance(obj, torch.Tensor):
+                print(f"[DEVICE-DEBUG][training_step] {prefix}: device={obj.device}, shape={tuple(obj.shape)}, dtype={obj.dtype}")
+            elif isinstance(obj, list):
+                for i, v in enumerate(obj):
+                    print_tensor_devices(v, f"{prefix}[{i}]")
+        print_tensor_devices(batch, "batch")
+        def print_param_devices(module, name):
+            for pname, param in module.named_parameters(recurse=True):
+                print(f"[DEVICE-DEBUG][training_step][{name}] Parameter: {pname}, device: {getattr(param, 'device', 'NO DEVICE')}" )
+        print_param_devices(self.stageA, 'stageA')
+        print_param_devices(self.stageB_torsion, 'stageB_torsion')
+        print_param_devices(self.stageB_pairformer, 'stageB_pairformer')
+        print_param_devices(self.stageC, 'stageC')
+        print_param_devices(self.stageD, 'stageD')
+        print_param_devices(self.latent_merger, 'latent_merger')
+
         # Print requires_grad for all model parameters
         logger.debug("[DEBUG][training_step] Model parameters requires_grad status:")
         for name, param in self.named_parameters():
             logger.debug("  %s: requires_grad=%s", name, param.requires_grad)
 
-        input_tensor = batch["coords_true"]
-        target_tensor = batch["coords_true"]
-        logger.debug("[DEBUG-LM] input_tensor.shape: %s, dtype: %s", input_tensor.shape, input_tensor.dtype)
-        logger.debug("[DEBUG-LM] target_tensor.shape: %s, dtype: %s", target_tensor.shape, target_tensor.dtype)
+        # --- Direct Angle Loss logic (Phase 1, Step 2) ---
         output = self.forward(batch)
         logger.debug("[DEBUG-LM] output.keys(): %s", list(output.keys()))
-        logger.debug("[DEBUG-LM] output['atom_metadata']: %s", output.get('atom_metadata', None))
-        logger.debug("[DEBUG-LM] batch.keys(): %s", list(batch.keys()))
-        for k in ["atom_mask", "atom_names", "residue_indices"]:
-            if k in batch:
-                v = batch[k]
-                if hasattr(v, 'shape'):
-                    logger.debug("[DEBUG-LM] batch['%s'].shape: %s", k, v.shape)
-                else:
-                    logger.debug("[DEBUG-LM] batch['%s']: %s", k, v)
-        predicted_coords = output["coords"] if isinstance(output, dict) and "coords" in output else output
-        logger.debug("[DEBUG-LM][GRAD-CHECK] Stage C predicted_coords.requires_grad: %s", getattr(predicted_coords, 'requires_grad', None))
-        logger.debug("[DEBUG-LM][GRAD-CHECK] Stage C predicted_coords.grad_fn: %s", getattr(predicted_coords, 'grad_fn', None))
-        logger.debug("[DEBUG-LM] About to check differentiability")
-        if not getattr(predicted_coords, 'requires_grad', False):
-            logger.error("Stage C output is not differentiable  cannot back-prop")
-            raise RuntimeError("Stage C produced non-differentiable coords")
-        if getattr(predicted_coords, 'grad_fn', None) is None:
-            logger.error("Stage C output coords must have a grad_fn!")
-            raise RuntimeError("Stage C output coords must have a grad_fn!")
-        pred_atom_metadata = output.get("atom_metadata", None)
-        # Force systematic masking if atom_metadata is present
-        if pred_atom_metadata is not None:
-            logger.debug("[DEBUG-LM] Running systematic masking logic!")
-            # Gather predicted atom keys
-            pred_keys = list(zip(pred_atom_metadata["residue_indices"], pred_atom_metadata["atom_names"]))
-            logger.debug("[DEBUG-LM] pred_keys (first 10): %s", pred_keys[:10])
-            # Gather target atom keys from batch metadata if available
-            batch_atom_names = batch.get("atom_names", None)
-            batch_res_indices = batch.get("residue_indices", None)
-            # If present, batch_atom_names and batch_res_indices are lists of lists (batch dimension)
-            if batch_atom_names is not None and batch_res_indices is not None:
-                # Flatten for batch size 1 (current pipeline)
-                if isinstance(batch_atom_names, list) and len(batch_atom_names) == 1:
-                    batch_atom_names = batch_atom_names[0]
-                    batch_res_indices = batch_res_indices[0]
-                tgt_keys = list(zip(batch_res_indices, batch_atom_names))
-            else:
-                mask_indices = torch.where(batch["atom_mask"])[0].tolist()
-                tgt_keys = []
-                for idx in mask_indices:
-                    if idx < len(pred_atom_metadata["residue_indices"]):
-                        tgt_keys.append((pred_atom_metadata["residue_indices"][idx], pred_atom_metadata["atom_names"][idx]))
-            logger.debug("[DEBUG-LM] tgt_keys (first 10): %s", tgt_keys[:10])
-            # Build boolean mask over predicted atoms for those present in target
-            tgt_keys_set = set(tgt_keys)
-            mask_pred_np = np.array([(ri, an) in tgt_keys_set for ri, an in pred_keys])
-            mask_pred = torch.from_numpy(mask_pred_np).to(predicted_coords.device)
-            mask_pred = mask_pred.bool()
-            n_matched = mask_pred.sum().item()
-            logger.debug("[DEBUG-LM] n_matched: %s / %s", n_matched, len(pred_keys))
-            if n_matched == 0:
-                logger.debug("[DEBUG-LM][WARNING] No matched atoms found! Setting loss to zero.")
-                loss = torch.tensor(0.0, device=predicted_coords.device, requires_grad=True)
-            else:
-                pred_sel = predicted_coords[mask_pred]
-                # Find indices of matched keys in tgt_keys for true_sel
-                matched_keys = [pk for pk in pred_keys if pk in tgt_keys_set]
-                target_indices = [tgt_keys.index(pk) for pk in matched_keys]
-                target_indices_tensor = torch.tensor(target_indices, dtype=torch.long, device=pred_sel.device)
-                true_sel_all = target_tensor[batch["atom_mask"].bool()]
-                true_sel = true_sel_all[target_indices_tensor]
-                # Instrumentation for debugging requires_grad chain
-                logger.debug("[DEBUG-LM] pred_sel.requires_grad: %s, pred_sel.grad_fn: %s", pred_sel.requires_grad, getattr(pred_sel, 'grad_fn', None))
-                logger.debug("[DEBUG-LM] true_sel.requires_grad: %s, true_sel.grad_fn: %s", true_sel.requires_grad, getattr(true_sel, 'grad_fn', None))
-                logger.debug("[DEBUG-LM] predicted_coords.requires_grad: %s, predicted_coords.grad_fn: %s", predicted_coords.requires_grad, getattr(predicted_coords, 'grad_fn', None))
-                logger.debug("[DEBUG-LM] target_tensor.requires_grad: %s, target_tensor.grad_fn: %s", target_tensor.requires_grad, getattr(target_tensor, 'grad_fn', None))
-                logger.debug("[DEBUG-LM] mask_pred dtype: %s, device: %s", mask_pred.dtype, mask_pred.device)
-                logger.debug("[DEBUG-LM] target_indices_tensor dtype: %s, device: %s", target_indices_tensor.dtype, target_indices_tensor.device)
-                logger.debug("[DEBUG-LM] true_sel_all.requires_grad: %s, true_sel_all.grad_fn: %s", true_sel_all.requires_grad, getattr(true_sel_all, 'grad_fn', None))
-                if pred_sel.shape[0] != true_sel.shape[0]:
-                    logger.debug("[DEBUG-LM][MISMATCH-FILTERED] pred_sel.shape=%s, true_sel.shape=%s", pred_sel.shape, true_sel.shape)
-                    loss = torch.tensor(0.0, device=pred_sel.device, requires_grad=True)
-                else:
-                    loss = ((pred_sel - true_sel) ** 2).mean()
-                    logger.debug("[DEBUG-LM] Masked-aligned filtered loss value: %s", loss.item())
+        predicted_angles_sincos = output.get("torsion_angles", None)
+        true_angles_rad = batch.get("angles_true", None)
+        residue_mask = batch.get("attention_mask", None)
+        if residue_mask is None:
+            residue_mask = batch.get("residue_mask", None)
+            if residue_mask is None and true_angles_rad is not None:
+                residue_mask = torch.ones(true_angles_rad.shape[:2], dtype=torch.bool, device=true_angles_rad.device)
+        if predicted_angles_sincos is None or true_angles_rad is None or residue_mask is None:
+            logger.error(f"Missing required keys for angle loss: torsion_angles={predicted_angles_sincos is not None}, angles_true={true_angles_rad is not None}, mask={residue_mask is not None}")
+            loss_angle = torch.tensor(0.0, device=self.device_, requires_grad=True)
         else:
-            logger.debug("[DEBUG-LM] Systematic masking not possible: atom_metadata missing!")
-            real_target_coords = target_tensor[batch["atom_mask"].bool()]
-            if predicted_coords.shape[0] != real_target_coords.shape[0]:
-                logger.debug("[DEBUG-LM][MISMATCH] predicted_coords.shape[0]=%s, real_target_coords.shape[0]=%s", predicted_coords.shape[0], real_target_coords.shape[0])
-                loss = torch.tensor(0.0, device=predicted_coords.device, requires_grad=True)
+            # Dynamically adapt to the number of predicted angles (and output dimension)
+            # predicted_angles_sincos: [B, L, N*2] (N = num_angles)
+            # true_angles_rad: [B, L, N]
+            # Convert true angles to sin/cos pairs for N angles
+            num_predicted_features = predicted_angles_sincos.shape[-1]
+            assert num_predicted_features % 2 == 0, f"Predicted torsion output last dim ({num_predicted_features}) should be even (sin/cos pairs)"
+            num_predicted_angles = num_predicted_features // 2
+            true_angles_sincos = angles_rad_to_sin_cos(true_angles_rad)
+            # Align feature dimension: slice or pad true_angles_sincos to match predicted
+            if true_angles_sincos.shape[-1] < num_predicted_features:
+                pad_feat = (0, num_predicted_features - true_angles_sincos.shape[-1])
+                true_angles_sincos = torch.nn.functional.pad(true_angles_sincos, pad_feat)
+            elif true_angles_sincos.shape[-1] > num_predicted_features:
+                true_angles_sincos = true_angles_sincos[..., :num_predicted_features]
+            # Ensure batch dimension for predictions
+            if predicted_angles_sincos.dim() == 2:
+                predicted_angles_sincos = predicted_angles_sincos.unsqueeze(0)  # [1, L, N*2]
+            # Align sequence length (pad or slice)
+            B, N_padded, D = true_angles_sincos.shape
+            L = predicted_angles_sincos.shape[1]
+            if L < N_padded:
+                pad = (0, 0, 0, N_padded - L)  # pad after the end
+                predicted_angles_sincos = torch.nn.functional.pad(predicted_angles_sincos, pad)
+            elif L > N_padded:
+                predicted_angles_sincos = predicted_angles_sincos[:, :N_padded, :]
+            # Now shapes should match: [B, N_padded, N*2]
+            if predicted_angles_sincos.shape != true_angles_sincos.shape:
+                logger.error(f"Shape mismatch for angle loss after alignment: Pred {predicted_angles_sincos.shape}, True {true_angles_sincos.shape}")
+                loss_angle = torch.tensor(0.0, device=self.device_, requires_grad=True)
             else:
-                loss = ((predicted_coords - real_target_coords) ** 2).mean()
-                logger.debug("[DEBUG-LM] Masked-aligned loss value: %s", loss.item())
-        logger.debug("[DEBUG-LM] loss.requires_grad: %s, loss.grad_fn: %s", loss.requires_grad, loss.grad_fn)
-        return {"loss": loss}
+                # Before loss calculation
+                print(f"[LOSS-DEBUG] predicted_angles_sincos device: {getattr(predicted_angles_sincos, 'device', None)}")
+                print(f"[LOSS-DEBUG] true_angles_sincos device: {getattr(true_angles_sincos, 'device', None)}")
+                print(f"[LOSS-DEBUG] residue_mask device: {getattr(residue_mask, 'device', None)}")
+                error_angle = torch.nn.functional.mse_loss(predicted_angles_sincos, true_angles_sincos, reduction='none')
+                print(f"[LOSS-DEBUG] error_angle after mse_loss device: {getattr(error_angle, 'device', None)}")
+                mask_expanded = residue_mask.unsqueeze(-1).float()
+                print(f"[LOSS-DEBUG] mask_expanded after float device: {getattr(mask_expanded, 'device', None)}")
+                masked_error_angle = error_angle * mask_expanded
+                print(f"[LOSS-DEBUG] masked_error_angle after multiply device: {getattr(masked_error_angle, 'device', None)}")
+                num_valid_elements = mask_expanded.sum() * predicted_angles_sincos.shape[-1] + 1e-8
+                print(f"[LOSS-DEBUG] num_valid_elements after sum device: {getattr(num_valid_elements, 'device', None)}")
+                loss_angle = masked_error_angle.sum() / num_valid_elements
+                print(f"[LOSS-DEBUG] loss_angle after division device: {getattr(loss_angle, 'device', None)}")
+                # **** CRITICAL FIX: Move the final loss to the module's device ****
+                loss_angle = loss_angle.to(self.device_)
+                print(f"[LOSS-DEBUG] loss_angle after to(self.device_) device: {getattr(loss_angle, 'device', None)}")
+                # *****************************************************************
+
+        logger.debug(f"[DEBUG-LM] loss_angle value: {loss_angle.item()}, device: {loss_angle.device}")
+        # Return the loss dictionary, ensuring the 'loss' tensor is on self.device_
+        return {"loss": loss_angle}
 
     def train_dataloader(self):
         """
@@ -516,12 +507,17 @@ class RNALightningModule(L.LightningModule):
             verbose=False
         )
 
+        # Set num_workers=0 if device is mps (PyTorch limitation)
+        num_workers = 0 if str(getattr(self.cfg, 'device', 'cpu')).startswith('mps') else getattr(self.cfg.data, 'num_workers', 0)
+        if num_workers == 0 and str(getattr(self.cfg, 'device', 'cpu')).startswith('mps'):
+            logger.warning("[DataLoader] MPS device detected: Forcing num_workers=0 due to PyTorch MPS multiprocessing limitation.")
+
         return torch.utils.data.DataLoader(
             dataset,
             batch_size=self.cfg.data.batch_size,
             shuffle=True,
-            collate_fn=lambda batch: rna_collate_fn(batch, debug_logging=getattr(self.cfg.data, 'debug_logging', False)),
-            num_workers=0
+            collate_fn=lambda batch: rna_collate_fn(batch, cfg=self.cfg),
+            num_workers=num_workers
         )
 
     def configure_optimizers(self):
