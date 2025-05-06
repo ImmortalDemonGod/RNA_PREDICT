@@ -20,11 +20,8 @@ def convert_cif_to_pdb(cif_file):
     """
     Converts a CIF structure file to a temporary PDB file.
     
-    Args:
-    	cif_file: Path to the input CIF file.
-    
-    Returns:
-    	Path to the generated temporary PDB file.
+    Parses the input CIF file and writes its structure to a new temporary PDB file.
+    Returns the path to the generated PDB file.
     """
     parser = MMCIFParser(QUIET=True)
     structure = parser.get_structure("mmcif_structure", cif_file)

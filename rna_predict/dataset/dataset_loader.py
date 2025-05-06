@@ -7,13 +7,13 @@ from datasets.iterable_dataset import IterableDataset
 
 def stream_bprna_dataset(split: str = "train") -> IterableDataset:
     """
-    Stream the bprna-spot dataset from the HF Hub.
-
+    Streams the "bprna-spot" RNA dataset from the Hugging Face Hub as an iterable dataset.
+    
     Args:
-        split (str): The dataset split to stream, defaults to "train".
-
+        split: The dataset split to stream (e.g., "train", "validation", "test"). Defaults to "train".
+    
     Returns:
-        IterableDataset: An iterable dataset object for the specified split.
+        An IterableDataset object for the specified split, enabling streaming access to the data.
     """
     ds_iter = load_dataset("multimolecule/bprna-spot", split=split, streaming=True)
     return ds_iter
@@ -21,19 +21,21 @@ def stream_bprna_dataset(split: str = "train") -> IterableDataset:
 
 def build_rna_token_metadata(num_tokens: int, device):
     """
-    Construct basic token-level metadata for a single-chain RNA.
+    Constructs token-level metadata tensors for a single-chain RNA molecule.
+    
+    Creates a dictionary of tensors representing metadata for each token (residue) in a single-chain, single-entity RNA. All tensors are allocated on the specified device, which must be provided explicitly.
+    
     Args:
-        num_tokens (int): Number of tokens (e.g., residues in the RNA).
-        device (str): CPU or GPU device, must be provided from Hydra config context.
+        num_tokens: Number of tokens (residues) in the RNA.
+        device: Device on which to allocate tensors (must not be "cpu" or None).
+    
     Returns:
-        dict[str, torch.Tensor]:
-           {
-             "asym_id":       shape [num_tokens], all zeros for a single chain
-             "residue_index": shape [num_tokens], e.g. 1..N
-             "entity_id":     shape [num_tokens], all zeros if single entity
-             "sym_id":        shape [num_tokens], all zeros for single chain
-             "token_index":   shape [num_tokens], 0..N-1
-           }
+        A dictionary with the following keys:
+            - "asym_id": Tensor of zeros, shape [num_tokens], indicating a single chain.
+            - "residue_index": Tensor of consecutive integers from 1 to num_tokens, shape [num_tokens].
+            - "entity_id": Tensor of zeros, shape [num_tokens], indicating a single entity.
+            - "sym_id": Tensor of zeros, shape [num_tokens], indicating a single chain.
+            - "token_index": Tensor of consecutive integers from 0 to num_tokens - 1, shape [num_tokens].
     """
     # Assert device is not hardcoded default
     assert device is not None and device != "cpu", "Device argument must be provided from Hydra config; do not use hardcoded defaults."
@@ -55,19 +57,9 @@ def build_rna_token_metadata(num_tokens: int, device):
 
 def build_atom_to_token_idx(num_atoms: int, num_tokens: int, device):
     """
-    Simplest possible mapping: partition 'num_atoms' equally among 'num_tokens'.
-
-    In reality, we might parse the PDB/CIF to know exactly which atoms
-    belong to each residue. For demonstration, we assign ~equal block
-    sizes of atoms to each token.
-
-    Args:
-        num_atoms (int): Total number of atoms.
-        num_tokens (int): Total number of tokens (residues).
-        device (str): Device, must be provided from Hydra config context.
-
-    Returns:
-        torch.Tensor: Shape [num_atoms], mapping each atom i -> token index j.
+    Creates a tensor mapping each atom to a token by partitioning atoms into contiguous blocks.
+    
+    Each of the `num_atoms` atoms is assigned to one of the `num_tokens` tokens, distributing atoms as evenly as possible. The mapping tensor is allocated on the specified device and has shape `[num_atoms]`, where each entry indicates the token index for the corresponding atom.
     """
     assert device is not None and device != "cpu", "Device argument must be provided from Hydra config; do not use hardcoded defaults."
     atom_to_token = torch.empty((num_atoms,), dtype=torch.long, device=device)
@@ -114,14 +106,18 @@ def load_rna_data_and_features(
     rna_filepath: str, device, override_num_atoms: int | None = None
 ):
     """
-    Example "high-level" routine that loads an RNA structure,
-    builds the input feature dictionaries, and returns them for the pipeline.
-    This is a placeholder — in real code, parse PDB/CIF properly.
-
-    override_num_atoms (int | None): If provided, force the number of atoms to match partial_coords.
-
+    Simulates loading RNA structure data and generates atom- and token-level feature dictionaries.
+    
+    This placeholder function creates synthetic atom coordinates and metadata for a single-chain RNA structure, assembling feature dictionaries suitable for downstream processing. The number of atoms defaults to 40 unless overridden. No actual file parsing is performed.
+    
+    Args:
+        rna_filepath: Path to the RNA structure file (not used; included for interface compatibility).
+        override_num_atoms: If provided, sets the number of atoms to this value.
+    
     Returns:
-        tuple: (atom_feature_dict, token_feature_dict)
+        A tuple containing:
+            - atom_feature_dict: Dictionary of atom-level features and metadata.
+            - token_feature_dict: Dictionary of token-level features.
     """
     # Suppose we parse the file and determine we have 40 atoms by default:
     default_num_atoms = 40

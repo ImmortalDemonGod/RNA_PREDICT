@@ -724,16 +724,22 @@ def test_stageA_debug_logging_hypothesis(rna_seq: str, debug_val: bool, caplog):
 def test_stageC_debug_logging_hypothesis(
     rna_seq: str, debug_val: bool, method: str, caplog
 ):
-    """Property-based test for stageC debug logging with random RNA sequences.
-
-    Uses Hypothesis to generate random RNA sequences and test debug logging behavior.
-    Tests both mp_nerf and legacy methods.
-
+    """
+    Property-based test that verifies debug logging behavior in stageC with random RNA sequences.
+    
+    Uses Hypothesis to generate random RNA sequences and tests whether enabling or disabling
+    the debug_logging flag in the configuration results in the expected presence or absence
+    of unique debug log messages for both "mp_nerf" and "legacy" reconstruction methods.
+    
     Args:
-        rna_seq: A randomly generated RNA sequence
-        debug_val: Whether debug logging should be enabled
-        method: The reconstruction method to use (mp_nerf or legacy)
-        caplog: Pytest fixture to capture log output
+        rna_seq: Randomly generated RNA sequence to test.
+        debug_val: Whether debug logging should be enabled for the test.
+        method: Reconstruction method to use ("mp_nerf" or "legacy").
+        caplog: Pytest fixture for capturing log output.
+    
+    Raises:
+        AssertionError: If the expected debug log message is not found when debug_logging is enabled,
+            or if it appears when debug_logging is disabled.
     """
     # Skip empty sequences
     if not rna_seq:
@@ -785,6 +791,11 @@ def test_stageC_debug_logging_hypothesis(
     class MockStageCReconstruction:
         def __init__(self, cfg=None, *args, **kwargs):
             # Extract device from config if provided
+            """
+            Initializes a mock StageCReconstruction instance, setting the device from the provided config.
+            
+            If a configuration object is given, attempts to extract the device specification from it; otherwise, defaults to CPU.
+            """
             self.device = torch.device("cpu")
             if cfg is not None:
                 if hasattr(cfg, 'device'):
@@ -953,7 +964,11 @@ def test_stageD_debug_logging_hypothesis(debug_val: bool, atom_metadata: Dict[st
     ("stageB", "torsion_bert", "[UNIQUE-DEBUG-STAGEB-TORSIONBERT-TEST] TorsionBertPredictor running with debug_logging=True"),
 ])
 def test_stageB_debug_logging_substages(_unused_stage, substage, expected_msg, caplog):
-    """Test debug logging for both Pairformer and TorsionBert substages in Stage B."""
+    """
+    Tests that enabling debug logging for Stage B substages ("pairformer" and "torsion_bert") results in the expected debug or info log messages.
+    
+    Configures the appropriate logger and Hydra/OmegaConf configuration for the specified substage, instantiates the substage class, and verifies that the expected debug message appears in the captured logs. Asserts correct debug_logging override and provides detailed diagnostic output on failure.
+    """
     from omegaconf import OmegaConf
     import logging
     import io

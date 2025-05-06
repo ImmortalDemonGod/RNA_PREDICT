@@ -7,9 +7,12 @@ import pytest
 @pytest.mark.slow
 def test_train_with_angle_supervision(tmp_path):
     """
-    Integration test: Runs the full training pipeline with angle supervision enabled.
-    Verifies that angles_true are loaded, batched, and used in loss computation.
-    Checks logs for correct loss debug output and checkpointing.
+    Runs an integration test for the training pipeline with angle supervision enabled.
+    
+    This test executes the training script via a subprocess with specific configuration overrides, captures the output logs, and verifies that angle loss computation occurs and checkpoints are saved. It asserts successful training completion, checks for expected debug log messages, and confirms that checkpoint files are created in the reported directory.
+    
+    Args:
+        tmp_path: Temporary directory provided by pytest for storing log output.
     """
     # Paths
     project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..'))

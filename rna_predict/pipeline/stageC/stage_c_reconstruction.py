@@ -64,6 +64,11 @@ class StageCReconstruction(nn.Module):
     """
 
     def __init__(self, cfg: DictConfig, *args, **kwargs):
+        """
+        Initializes the StageCReconstruction module with configuration settings.
+        
+        Extracts debug logging and device information from the provided Hydra config, supporting both top-level and nested configuration keys. Raises a ValueError if the device is not specified in the config. Stores the config and device for use in atom reconstruction.
+        """
         super().__init__()
         logger.info("[MEMORY-LOG][StageC] Initializing StageCReconstruction")
         process = psutil.Process(os.getpid())
@@ -90,6 +95,11 @@ class StageCReconstruction(nn.Module):
         self.cfg = cfg
 
     def __call__(self, torsion_angles: torch.Tensor):
+        """
+        Generates a sparse placeholder for atomic coordinates from input torsion angles.
+        
+        Accepts a tensor of torsion angles and returns zero-filled coordinate tensors representing a sparse set of atoms per residue, along with atom count and empty metadata. Intended as a legacy or placeholder output for Stage C reconstruction.
+        """
         N = torsion_angles.size(0)
         coords = torch.zeros((N * 3, 3), device=self.device)
         coords_3d = torch.zeros((N, 3, 3), device=self.device)
@@ -170,8 +180,13 @@ def validate_stageC_config(cfg: DictConfig) -> None:
 
 def create_stage_c_test_config(**overrides):
     """
-    Utility to create a valid DictConfig for Stage C tests, with all required fields.
-    Accepts overrides for any config value.
+    Creates a valid DictConfig for Stage C tests with default values, allowing overrides.
+    
+    Args:
+        **overrides: Configuration parameters to override default values.
+    
+    Returns:
+        An OmegaConf DictConfig object containing Stage C configuration for testing.
     """
     from omegaconf import OmegaConf
     base = {
@@ -205,19 +220,25 @@ def run_stageC_rna_mpnerf(
     predicted_torsions: torch.Tensor,
 ) -> Dict[str, Any]:
     """
-    Main RNA Stage C function using MP-NeRF approach, configured via Hydra.
-
+    Reconstructs RNA atomic coordinates from torsion angles using the MP-NeRF method.
+    
+    This function takes a Hydra configuration, an RNA sequence, and a tensor of predicted torsion angles, and generates dense atomic coordinates and metadata for the RNA molecule using the MP-NeRF approach. It validates the configuration, processes torsion angles, builds RNA scaffolds, performs backbone folding (with optional ring closure), and optionally places base atoms. The output includes flattened atomic coordinates, 3D coordinates, atom count, and atom metadata.
+    
     Args:
-        cfg: Hydra configuration object
-        sequence: RNA sequence string
-        predicted_torsions: Tensor of predicted torsion angles [N, 7]
-
+        cfg: Hydra configuration object specifying Stage C parameters.
+        sequence: RNA sequence string.
+        predicted_torsions: Tensor of predicted torsion angles with shape [N, 7].
+    
     Returns:
-        Dict containing coordinates, atom count, and atom metadata
-
+        A dictionary with the following keys:
+            - "coords": Flattened tensor of atomic coordinates.
+            - "coords_3d": 3D tensor of atomic coordinates.
+            - "atom_count": Total number of atoms.
+            - "atom_metadata": Dictionary with atom names and residue indices.
+    
     Raises:
-        ValidationError: If configuration is invalid
-        ValueError: If torsion angles have incorrect dimensions
+        ValidationError: If the configuration is invalid.
+        ValueError: If torsion angles have fewer than 7 dimensions or if atom metadata and coordinate counts mismatch.
     """
     if cfg.model.stageC.debug_logging:
         logger.debug(f"[DEBUG-ENTRY] Entered run_stageC_rna_mpnerf in {__file__}")
@@ -402,25 +423,25 @@ def run_stageC(
     sugar_pucker: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
-    Unified Stage C entrypoint, supporting both Hydra config and direct parameters.
-
+    Runs Stage C RNA atom reconstruction using either the MP-NeRF or legacy method.
+    
+    If a Hydra config is provided, uses its parameters; otherwise, constructs a config from direct arguments. Validates configuration and dispatches to the selected reconstruction method. Returns atomic coordinates and metadata for the input RNA sequence and torsion angles.
+    
     Args:
-        sequence: RNA sequence string
-        torsion_angles: Tensor of torsion angles [N, 7]
-        cfg: Hydra configuration object (preferred)
-        method: Method to use ('mp_nerf' or legacy) - only used if cfg is None
-        device: Device to run on ('auto', 'cpu', 'cuda') - only used if cfg is None
-        do_ring_closure: Whether to perform ring closure - only used if cfg is None
-        place_bases: Whether to place base atoms - only used if cfg is None
-        sugar_pucker: Sugar pucker conformation - only used if cfg is None
-
+        sequence: RNA sequence as a string.
+        torsion_angles: Tensor of torsion angles with shape [N, 7].
+        cfg: Optional Hydra configuration object specifying Stage C parameters.
+        method: Reconstruction method ('mp_nerf' or 'legacy'); used only if cfg is None.
+        device: Device identifier; used only if cfg is None.
+        do_ring_closure: Whether to perform ring closure; used only if cfg is None.
+        place_bases: Whether to place base atoms; used only if cfg is None.
+        sugar_pucker: Sugar pucker conformation; used only if cfg is None.
+    
     Returns:
-        Dict containing:
-            coords: Tensor of atomic coordinates [L, N, 3]
-            atom_count: Total number of atoms
-
+        Dictionary containing atomic coordinates, atom count, and atom metadata for the reconstructed RNA structure.
+    
     Raises:
-        ValidationError: If configuration is invalid
+        ValidationError: If the configuration is invalid.
     """
     ensure_stageC_logger_visible()
     if cfg is None:

@@ -30,8 +30,14 @@ class StageBTorsionBertPredictor(nn.Module):
     """Predicts RNA torsion angles using the TorsionBERT model."""
 
     def __init__(self, cfg: DictConfig):
+        """
+        Initializes the StageBTorsionBertPredictor for RNA torsion angle prediction.
+        
+        This constructor configures the predictor using a Hydra configuration object, handling device assignment, model and tokenizer loading, dummy mode fallback, and optional LoRA/PEFT integration. It supports multiple configuration structures, enforces explicit device specification, and robustly manages model initialization for both real and dummy/test scenarios. If configuration is incomplete or missing, the predictor enters dummy mode and uses a placeholder model. The model is moved to the specified device, and all relevant parameters such as angle mode, number of angles, and output dimension are set based on the configuration. If LoRA is enabled and available, the model is wrapped accordingly and non-adapter parameters are frozen. The model is set to evaluation mode after initialization.
+
         logger.debug("[DEVICE-DEBUG][stageB_torsion] Entering StageBTorsionBertPredictor.__init__")
         logger.debug("[CASCADE-DEBUG][TORSIONBERT-INIT] cfg type: %s", type(cfg))
+
         try:
             from omegaconf import OmegaConf
             logger.debug("[CASCADE-DEBUG][TORSIONBERT-INIT] device (raw): %s", getattr(cfg, 'device', None))
@@ -343,7 +349,11 @@ class StageBTorsionBertPredictor(nn.Module):
             return params
 
     def _preprocess_sequence(self, sequence: str) -> Dict[str, torch.Tensor]:
-        """Preprocesses the RNA sequence for the TorsionBERT model."""
+        """
+        Tokenizes an RNA sequence and prepares model input tensors on the configured device.
+        
+        If a tokenizer is unavailable or tokenization fails, returns dummy input tensors of appropriate shape on the correct device.
+        """
         # Check if tokenizer is available
         if self.tokenizer is None:
             # Create a dummy tokenized input for testing - use self.device
@@ -379,7 +389,22 @@ class StageBTorsionBertPredictor(nn.Module):
             }
 
     def predict_angles_from_sequence(self, sequence: str) -> torch.Tensor:
-        """Predicts torsion angles for a given RNA sequence."""
+        """
+        Predicts torsion angles for a single RNA sequence using the loaded TorsionBERT model.
+        
+        Given an RNA sequence, tokenizes and processes it, performs inference with the model,
+        and returns a tensor of predicted torsion angles for each residue. Handles device
+        placement, model input preparation, and output postprocessing to ensure the output
+        matches the expected shape and dimension. If the model is a mock or the sequence is
+        empty, returns a dummy tensor with the correct shape.
+        
+        Args:
+            sequence: RNA sequence as a string.
+        
+        Returns:
+            A tensor of shape [num_residues, output_dim] containing predicted torsion angles
+            for each residue in the sequence.
+        """
         if self.debug_logging:
             logger.debug(f"[UNIQUE-DEBUG-STAGEB-TORSIONBERT-PREDICT] Predicting angles for sequence of length {len(sequence)}")
 
@@ -642,18 +667,22 @@ class StageBTorsionBertPredictor(nn.Module):
             raise ValueError(f"Invalid conversion mode: {mode}")
 
     def __call__(self, sequence: str, adjacency=None, **kwargs: Any) -> Dict[str, torch.Tensor]:
-        """Predicts torsion angles and returns them in the specified format.
-
+        """
+        Predicts RNA torsion angles for a given sequence and returns them in the configured format.
+        
+        Given an RNA sequence, this method returns a dictionary containing a tensor of predicted torsion angles. The output tensor shape and value interpretation depend on the configured `angle_mode`:
+        - If `angle_mode` is `"sin_cos"`, the tensor shape is `[num_residues, num_angles * 2]` representing sine and cosine pairs.
+        - If `angle_mode` is `"radians"` or `"degrees"`, the tensor shape is `[num_residues, num_angles]` representing angles in the specified unit.
+        
+        In dummy mode (when the model is not loaded), returns zero-filled tensors with appropriate shapes for testing or missing configuration scenarios.
+        
         Args:
-            sequence: The RNA sequence string.
-            adjacency: Adjacency matrix (ignored by TorsionBERT, present for pipeline compatibility)
-            **kwargs: Additional keyword arguments (ignored by TorsionBERT)
-
+            sequence: RNA sequence string to predict torsion angles for.
+            adjacency: Optional adjacency matrix (ignored; present for pipeline compatibility).
+            **kwargs: Additional keyword arguments (ignored).
+        
         Returns:
-            A dictionary containing 'torsion_angles' tensor.
-            Shape depends on `angle_mode`:
-            - 'sin_cos': [num_residues, num_angles * 2]
-            - 'radians' or 'degrees': [num_residues, num_angles]
+            A dictionary with key `"torsion_angles"` containing the predicted angles tensor. In dummy mode, also includes `"adjacency"`, `"s_embeddings"`, and `"z_embeddings"` tensors for compatibility.
         """
         # Handle dummy mode for missing config
         if getattr(self, 'dummy_mode', False):

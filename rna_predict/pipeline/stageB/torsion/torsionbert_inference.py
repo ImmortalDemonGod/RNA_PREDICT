@@ -13,6 +13,12 @@ class DummyTorsionBertAutoModel(nn.Module):
     """Dummy model for testing that returns tensors with correct shape."""
 
     def __init__(self, num_angles: int = 7):
+        """
+        Initializes a dummy TorsionBert model for testing, simulating output shapes and HuggingFace model attributes.
+        
+        Args:
+            num_angles: Number of torsion angles to simulate in the output (default is 7).
+        """
         super().__init__()
         self.num_angles = num_angles
         self.side_effect = None  # For testing purposes
@@ -119,6 +125,11 @@ class TorsionBertModel(nn.Module):
         return_dict: bool = True,
         cfg: Any = None,  # Optional config object for device management
     ) -> None:
+        """
+        Initializes the TorsionBertModel with device management, model and tokenizer loading, and error handling.
+        
+        Attempts to load the tokenizer and model from the specified path, moving the model to the appropriate device as determined by the provided configuration or device string. Handles device placement for PEFT/LoRA-wrapped models if applicable. On failure to load the model or tokenizer, falls back to a dummy model for robustness. Asserts that neither the model nor tokenizer is a MagicMock outside of test mode.
+        """
         print("[DEVICE-DEBUG][stageB_torsion] Entering TorsionBertModel.__init__")
         super().__init__()
         self.device_init = torch.device(device)  # Track the originally requested device
@@ -394,7 +405,15 @@ class TorsionBertModel(nn.Module):
         return result
 
     def predict_angles_from_sequence(self, sequence: str) -> torch.Tensor:
-        """Predict torsion angles from an RNA sequence."""
+        """
+        Predicts torsion angles for a given RNA sequence using the underlying model.
+        
+        Args:
+            sequence: RNA sequence as a string.
+        
+        Returns:
+            A tensor of shape (sequence_length, 2 * num_angles) containing predicted torsion angles for each residue in the input sequence. The tensor is placed on the originally requested device if available.
+        """
         if not sequence:
             # Return empty tensor for empty sequence - use device management
             try:

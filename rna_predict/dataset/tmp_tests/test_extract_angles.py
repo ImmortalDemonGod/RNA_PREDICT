@@ -22,11 +22,9 @@ def test_extract_rna_torsions_file_not_found():
 def test_extract_rna_torsions_chain_not_found(tmp_path):
     # Use a real file but a bogus chain
     """
-    Tests extract_rna_torsions behavior when a non-existent chain ID is requested.
+    Tests extract_rna_torsions when a non-existent chain ID is requested from a real CIF file.
     
-    Uses a real CIF file and requests a bogus chain. If the structure contains only one
-    chain or segment, asserts that fallback returns real torsion data. If multiple chains
-    or segments exist, asserts that the result is either None or an array of all NaN values.
+    If the structure contains only one chain or segment, verifies that fallback returns real torsion data (not None, with at least some valid values). If multiple chains or segments exist, asserts that the result is either None or an array of all NaN values.
     """
     example = os.path.join(EXAMPLES_DIR, "1a34_1_B.cif")
     result = extract_rna_torsions(example, chain_id="Z")
@@ -50,7 +48,7 @@ def test_extract_rna_torsions_chain_not_found(tmp_path):
 
 def test_extract_rna_torsions_empty_file(tmp_path):
     """
-    Tests that extract_rna_torsions returns None when given an empty PDB file.
+    Tests that extract_rna_torsions returns None for an empty PDB file input.
     """
     empty = tmp_path / "empty.pdb"
     empty.write_text("")
@@ -63,6 +61,11 @@ def test_extract_rna_torsions_empty_file(tmp_path):
     ("synthetic_cppc_0000001.pdb", "B", (None, 7)),  # Use correct chain 'B' for this file
 ])
 def test_extract_rna_torsions_smoke(filename, chain_id, expected_shape):
+    """
+    Smoke test for extract_rna_torsions ensuring valid output shape and angle values.
+    
+    Verifies that extracting RNA torsion angles from the given file and chain ID produces a non-None array of the expected shape, with each row containing at least one non-NaN value. Confirms all angles are finite or NaN and within the valid range of [-π, π].
+    """
     path = os.path.join(EXAMPLES_DIR, filename)
     angles = extract_rna_torsions(path, chain_id=chain_id, backend="mdanalysis")
     print(f"\nDEBUG: {filename} shape={angles.shape}, dtype={angles.dtype}")
@@ -100,6 +103,11 @@ def test_extract_rna_torsions_smoke(filename, chain_id, expected_shape):
     ("synthetic_cppc_0000001.pdb", "B", "full", (None, 14)),
 ])
 def test_extract_rna_torsions_parametrized(filename, chain_id, angle_set, expected_shape):
+    """
+    Parametrized test verifying RNA torsion angle extraction for various files, chain IDs, and angle sets.
+    
+    Asserts that the output array has the expected shape and dimensionality, contains at least one non-NaN angle per row, all values are finite or NaN, and all angles are within the valid range of [-π, π].
+    """
     path = os.path.join(EXAMPLES_DIR, filename)
     angles = extract_rna_torsions(path, chain_id=chain_id, backend="mdanalysis", angle_set=angle_set)
     print(f"\nDEBUG: {filename} ({angle_set}) shape={angles.shape if angles is not None else None}, dtype={angles.dtype if angles is not None else None}")
@@ -118,7 +126,9 @@ def test_extract_rna_torsions_parametrized(filename, chain_id, angle_set, expect
     assert np.all(valid), f"Angles out of range for {filename} ({angle_set})"
 
 def test_extract_rna_torsions_missing_atoms_nan():
-    """Edge case: file with missing ribose/pseudotorsion atoms should yield np.nan in relevant columns."""
+    """
+    Tests that extracting RNA torsions from a file with missing ribose or pseudotorsion atoms produces NaNs in the corresponding columns, while canonical angle columns retain some valid values.
+    """
     # Use synthetic_cppc_0000001.pdb, which is likely to have missing atoms in some residues
     path = os.path.join(EXAMPLES_DIR, "synthetic_cppc_0000001.pdb")
     angles = extract_rna_torsions(path, chain_id="B", backend="mdanalysis", angle_set="full")
@@ -182,6 +192,12 @@ def test__chi_torsion_missing_atoms():
     assert np.isnan(_chi_torsion(res))
 
 def test_TempFileManager_context(monkeypatch, tmp_path):
+    """
+    Tests the TempFileManager context manager for proper temporary file handling.
+    
+    Simulates CIF-to-PDB conversion, verifies that the context yields the expected file path,
+    and checks that the temporary file is deleted after exiting the context or that no temp file was used.
+    """
     import rna_predict.dataset.preprocessing.angles as angles
     # Simulate .cif file conversion
     dummy_pdb = tmp_path / "dummy.pdb"
@@ -199,7 +215,7 @@ def test__convert_cif_to_pdb_invalid(monkeypatch, tmp_path):
     """
     Tests that _convert_cif_to_pdb raises an appropriate exception when MMCIFParser fails.
     
-    Ensures that ValueError, RuntimeError, or IOError is raised if the CIF parser encounters an error.
+    Verifies that a ValueError, RuntimeError, or IOError is raised if the CIF parser encounters an error during conversion.
     """
     import rna_predict.dataset.preprocessing.angles as angles
     # Patch parser to throw a specific exception instead of generic Exception
