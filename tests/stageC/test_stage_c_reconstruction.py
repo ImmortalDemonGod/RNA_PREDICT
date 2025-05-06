@@ -121,8 +121,9 @@ class TestStageCReconstruction(unittest.TestCase):
 
     def setUp(self):
         """
-        Create an instance of StageCReconstruction and default torsion angles
-        for repeated usage in tests.
+        Initializes the test fixture with a StageCReconstruction instance and default torsion angles.
+        
+        Creates a test configuration for the legacy reconstruction method on CPU, instantiates the reconstructor, and prepares a default torsion angles tensor for use in test cases.
         """
         # Create a test config for StageCReconstruction
         self.test_cfg = create_stage_c_test_config(method="legacy", device="cpu")

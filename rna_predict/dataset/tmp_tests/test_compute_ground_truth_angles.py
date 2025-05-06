@@ -17,6 +17,13 @@ SCRIPT = os.path.abspath(os.path.join(dataset_dir, 'preprocessing', 'compute_gro
     ("synthetic_cppc_0000001.pdb", "B"),  # Use correct chain 'B' for this file
 ])
 def test_compute_ground_truth_angles_cli(filename, chain_id):
+    """
+    Tests the CLI of compute_ground_truth_angles.py for correct output file generation.
+    
+    Runs the script with specified input file and chain ID, verifies successful execution,
+    checks that output angle tensor files are created, and asserts that each tensor has
+    the expected shape and contains at least one non-NaN angle value.
+    """
     with tempfile.TemporaryDirectory() as outdir:
         print(f"[DEBUG] Using SCRIPT path: {SCRIPT}")
         print(f"[DEBUG] Using EXAMPLES_DIR: {EXAMPLES_DIR}")
@@ -50,6 +57,11 @@ def test_compute_ground_truth_angles_cli(filename, chain_id):
     ("synthetic_cppc_0000001.pdb", "B", "full", 14),
 ])
 def test_compute_ground_truth_angles_cli_parametrized(filename, chain_id, angle_set, expected_dim):
+    """
+    Tests the CLI of compute_ground_truth_angles.py with various angle sets and validates output tensors.
+    
+    Runs the script with specified input file, chain ID, and angle set, then checks that output files are generated and that each tensor has the expected number of columns and contains at least one non-NaN value.
+    """
     with tempfile.TemporaryDirectory() as outdir:
         result = run([
             "uv", "run", SCRIPT,
@@ -70,6 +82,11 @@ def test_compute_ground_truth_angles_cli_parametrized(filename, chain_id, angle_
 
 def test_main_empty_input(tmp_path):
     # Prepare empty input dir
+    """
+    Tests that the main function handles an empty input directory without errors and produces no output files.
+    
+    Creates empty input and output directories, simulates CLI arguments, and verifies that the output directory remains empty after execution.
+    """
     input_dir = tmp_path / "inputs"
     input_dir.mkdir()
     output_dir = tmp_path / "outputs"

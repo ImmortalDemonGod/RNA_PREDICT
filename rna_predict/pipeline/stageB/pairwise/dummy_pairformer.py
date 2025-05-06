@@ -12,6 +12,15 @@ class DummyPairformerModel(nn.Module):
     """
 
     def __init__(self, device):
+        """
+        Initializes the DummyPairformerModel with a specified device.
+        
+        Args:
+        	device: The device on which the model will operate. Must not be None.
+        
+        Raises:
+        	ValueError: If device is None.
+        """
         super().__init__()
         # Require explicit device; do not default to CPU
         if device is None:
@@ -20,6 +29,11 @@ class DummyPairformerModel(nn.Module):
 
     def forward(self, *args, **kwargs):
         # Return dummy output with correct shape
+        """
+        Returns a dummy tensor with shape (1, 32, 32, 64) on the model's device.
+        
+        This method ignores all input arguments and is intended for testing purposes.
+        """
         return torch.randn(1, 32, 32, 64, device=self.device)
 
     def to(self, device):

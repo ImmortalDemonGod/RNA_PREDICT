@@ -16,6 +16,16 @@ class SimpleLatentMerger(torch.nn.Module):
     plus partial coords, into a single per-residue latent.
     """
     def __init__(self, dim_angles: int, dim_s: int, dim_z: int, dim_out: int, device=None):
+        """
+        Initializes the SimpleLatentMerger module with specified input and output dimensions.
+        
+        Args:
+        	dim_angles: Dimension of the angle features.
+        	dim_s: Dimension of the single embeddings.
+        	dim_z: Dimension of the pair embeddings.
+        	dim_out: Output dimension of the merged latent representation.
+        	device: Optional device to move the module to upon initialization.
+        """
         super().__init__()
         self.expected_dim_angles = dim_angles
         self.expected_dim_s = dim_s
@@ -31,6 +41,17 @@ class SimpleLatentMerger(torch.nn.Module):
             self.to(device)
 
     def forward(self, inputs: LatentInputs):
+        """
+        Merges latent input tensors into a unified per-residue representation.
+        
+        Extracts angle, single, and pair embedding tensors from the input, pools the pair embeddings, concatenates all features, and processes them through an MLP to produce the merged output tensor. Dynamically adjusts the MLP input layer if input dimensions change.
+        
+        Args:
+            inputs: LatentInputs containing angle, single, and pair embedding tensors.
+        
+        Returns:
+            A tensor of merged per-residue latent representations.
+        """
         angles = inputs.angles
         s_emb = inputs.s_emb
         z_emb = inputs.z_emb

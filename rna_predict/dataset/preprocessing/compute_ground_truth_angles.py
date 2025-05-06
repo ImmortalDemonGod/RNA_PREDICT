@@ -18,6 +18,13 @@ import torch
 from rna_predict.dataset.preprocessing.angles import extract_rna_torsions
 
 def parse_args():
+    """
+    Parses command-line arguments for RNA torsion angle extraction.
+    
+    Returns:
+        argparse.Namespace: Parsed arguments including input/output directories, chain ID,
+        backend selection, and angle set choice.
+    """
     parser = argparse.ArgumentParser(
         description="Compute ground truth torsion angles from RNA structure files using a modular backend"
     )
@@ -29,6 +36,14 @@ def parse_args():
     return parser.parse_args()
 
 def main():
+    """
+    Processes RNA structure files to extract and save ground truth torsion angles.
+    
+    Iterates over PDB or CIF files in the input directory, extracts RNA torsion angles
+    for a specified chain and angle set using the selected backend, and saves the
+    results as PyTorch tensors in the output directory. Files that fail extraction
+    are reported.
+    """
     args = parse_args()
     print(f"[DEBUG] Parsed args: {args}")
     os.makedirs(args.output_dir, exist_ok=True)

@@ -34,7 +34,12 @@ def _try_extract_from_input_features(
     input_features: Dict[str, Any] | None,
     *args, **kwargs
 ):
-    """Attempts to extract sequence from the input_features dictionary."""
+    """
+    Extracts a sequence from the 'sequence' key in the input_features dictionary.
+    
+    If the 'sequence' value is a tensor, list, or string, it is converted to a list of strings.
+    Returns None if input_features is None, lacks a 'sequence' key, or contains an unsupported type.
+    """
     # Early return if input_features is None or doesn't contain sequence
     if input_features is None or "sequence" not in input_features:
         return None
@@ -85,18 +90,21 @@ def extract_sequence(
     trunk_embeddings: Dict[str, torch.Tensor],
 ) -> str:
     """
-    Extract sequence from available sources with fallbacks.
-
+    Extracts an RNA sequence as a string from explicit input, input features, or trunk embeddings.
+    
+    Attempts to obtain the sequence from the provided argument, then from the input features dictionary,
+    and finally infers it from trunk embeddings if necessary. All outputs are normalized to a string.
+    
     Args:
-        sequence: Explicitly provided sequence (string or list of chars)
-        input_features: Input features dictionary that might contain sequence
-        trunk_embeddings: Trunk embeddings that might be used to infer sequence length
-
+        sequence: The explicit sequence, as a string or a list of single-character strings, or None.
+        input_features: Optional dictionary potentially containing a sequence entry.
+        trunk_embeddings: Dictionary of embedding tensors used to infer sequence length if needed.
+    
     Returns:
-        RNA sequence as a string (e.g., 'AUGC...')
-
+        The RNA sequence as a string.
+    
     Raises:
-        ValueError: If sequence cannot be derived from any source
+        ValueError: If the sequence cannot be derived from any source or if an unsupported type is encountered.
     """
     # 1. Check explicitly provided sequence
     if sequence is not None:

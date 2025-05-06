@@ -59,6 +59,21 @@ class RNADataset(Dataset):
     """
     def __init__(self, index_csv, cfg, *, load_adj=False, load_ang=False, verbose=False):
         # Assert device is resolved if present in config
+        """
+        Initializes the RNADataset with metadata, configuration, and loading options.
+        
+        Loads and validates the index CSV file, sets the device for tensor operations from the configuration, and stores dataset parameters such as maximum residues and atoms. Ensures required configuration keys are present and provides options to enable adjacency and angle data loading. Prints debug information about the loaded metadata and device setup.
+        
+        Args:
+            index_csv: Path to the CSV file containing dataset metadata.
+            cfg: Configuration object with required dataset and device settings.
+            load_adj: If True, enables loading of adjacency data.
+            load_ang: If True, enables loading of angle data.
+            verbose: If True, enables detailed debug output.
+        
+        Raises:
+            ValueError: If the device is not specified in the configuration or required config keys are missing.
+        """
         if hasattr(cfg, 'device'):
             assert cfg.device != "${device}", f"Device not resolved in cfg for RNADataset: {cfg.device}"
             print(f"[DEBUG][RNADataset] Resolved device in cfg: {cfg.device}")
@@ -100,6 +115,11 @@ class RNADataset(Dataset):
 
 
     def __getitem__(self, i):
+        """
+        Retrieves a single RNA sample with sequence, atomic features, and optional adjacency and angle data.
+        
+        Fetches the metadata row at the given index, loads the RNA sequence and associated atomic features, and constructs a sample dictionary containing sequence information, coordinates, masks, embeddings, atom names, and residue indices. Optionally includes adjacency and angle tensors if enabled. All tensors are allocated on the configured device, and the sample includes all metadata fields from the index. The returned dictionary is ready for model consumption.
+        """
         row = self.meta[i]
         seq_id = row["id"]
         seq = self._load_sequence(row["sequence_path"], row["target_id"])
@@ -151,10 +171,16 @@ class RNADataset(Dataset):
 
     def _load_sequence(self, sequence_path, target_id=None):
         """
-        Load sequence from a CSV (Kaggle format), FASTA, or fallback to parsing .cif if needed.
+        Loads an RNA sequence from a CSV, FASTA, or CIF file, with robust handling of various formats.
+        
+        If the input is a CSV file, retrieves the sequence for the specified target ID, handling both plain strings and stringified list formats. For FASTA files, parses the first sequence record. If both methods fail, attempts to extract the sequence from a corresponding CIF file by mapping residue names to one-letter codes. Returns a dummy sequence of 10 adenines if all methods fail.
+        
         Args:
-            sequence_path: Path to the sequence file (CSV or FASTA)
-            target_id: ID to look up in CSV (if needed)
+            sequence_path: Path to the sequence file (CSV, FASTA, or CIF).
+            target_id: Sequence identifier required for CSV lookup.
+        
+        Returns:
+            The RNA sequence as a string, truncated to the configured maximum length.
         """
         import os
         import ast
@@ -204,6 +230,25 @@ class RNADataset(Dataset):
 
     def _load_atom_features(self, pdb_file, L, device=None):
         # Get dtype and fill value from config
+        """
+        Loads atomic coordinate and feature tensors for a given structure file and sequence length.
+        
+        If the structure file is missing, returns zero-filled dummy tensors. Otherwise, parses atomic coordinates and generates tensors for coordinates, atom masks, atom-to-residue mapping, element embeddings, and atom name embeddings, along with lists of present atom names and their residue indices. All tensors are created on the specified device.
+        
+        Args:
+            pdb_file: Path to the structure file (.pdb or .cif).
+            L: Number of residues to process.
+            device: The torch device on which to allocate tensors.
+        
+        Returns:
+            coords: Tensor of shape (max_atoms, 3) with atomic coordinates.
+            atom_mask: Boolean tensor of shape (max_atoms,) indicating presence of atoms.
+            atom_to_tok: Long tensor of shape (max_atoms,) mapping atoms to residue indices.
+            elem_emb: Float tensor of shape (max_atoms, ref_element_size) with element type embeddings.
+            name_emb: Float tensor of shape (max_atoms, ref_atom_name_chars_size) with atom name embeddings.
+            tgt_names: List of atom names present in the structure.
+            tgt_indices: List of residue indices corresponding to present atoms.
+        """
         coord_dtype = getattr(torch, self.cfg.data.coord_dtype)
         fill_value = float('nan') if str(self.cfg.data.coord_fill_value).lower() == 'nan' else float(self.cfg.data.coord_fill_value)
         # If pdb_file is missing or empty, return dummy tensors
@@ -247,9 +292,31 @@ class RNADataset(Dataset):
 
     def _load_adj(self, row, L):
         # TODO: Implement adjacency loading
+        """
+        Returns a zero-filled adjacency tensor for the given sample.
+        
+        Args:
+            row: Metadata for the current sample (unused).
+            L: Number of residues in the sequence (unused).
+        
+        Returns:
+            torch.Tensor: A (max_res, max_res) tensor of zeros on the configured device.
+        """
         return torch.zeros((self.max_res, self.max_res), device=self.device)
 
     def _load_angles(self, row, L):
+        """
+        Extracts and processes RNA torsion angles for a given structure row.
+        
+        Attempts to extract up to seven torsion angles (alpha, beta, gamma, delta, epsilon, zeta, chi) for the specified structure and chain using the configured backend. The resulting tensor is padded or truncated to match the maximum number of residues and columns, with any NaN values replaced by zeros. If extraction fails or data is missing, returns a zero tensor of shape (max_res, 7).
+        
+        Args:
+            row: Metadata row containing structure and chain information.
+            L: Number of residues for which to extract angles.
+        
+        Returns:
+            A tensor of shape (max_res, 7) containing torsion angles in radians, with missing or invalid values set to zero.
+        """
         from rna_predict.dataset.preprocessing.angles import extract_rna_torsions
         import torch
         n_angles = 7  # Number of torsion angles (alpha, beta, gamma, delta, epsilon, zeta, chi)
@@ -259,6 +326,19 @@ class RNADataset(Dataset):
             # Robustly extract chain_id and pdb_path for both dict and numpy record
             def get_field(r, key, default=None):
                 # Try dict-like
+                """
+                Retrieves a value for a given key from an object supporting dict, attribute, or index access.
+                
+                Attempts to access the value in the following order: dictionary-style (`get` method), attribute access, and index/key access (e.g., for numpy records). Returns the first non-None value found, or the specified default if none is found.
+                
+                Args:
+                    r: The object to retrieve the value from.
+                    key: The key or attribute name to look up.
+                    default: The value to return if the key is not found or is None.
+                
+                Returns:
+                    The value associated with the key, or the default if not found.
+                """
                 if hasattr(r, 'get'):
                     val = r.get(key, None)
                     if val is not None:

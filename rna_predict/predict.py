@@ -18,6 +18,15 @@ import snoop
 class RNAPredictor:
     """High-level interface for the RNA_PREDICT pipeline."""
     def __init__(self, cfg: DictConfig) -> None:
+        """
+        Initializes the RNAPredictor with configuration for model inference.
+        
+        Args:
+            cfg: Hydra DictConfig containing model, device, and prediction parameters.
+        
+        Raises:
+            ValueError: If required configuration sections or fields are missing.
+        """
         self.device = cfg.device
         if isinstance(self.device, str):
             self.device = torch.device(self.device)
@@ -39,6 +48,17 @@ class RNAPredictor:
 
     @snoop
     def predict_3d_structure(self, sequence: str) -> Dict[str, Any]:
+        """
+        Predicts the 3D structure of an RNA sequence using torsion angle prediction and reconstruction.
+        
+        If the input sequence is empty, returns empty coordinate tensors and zero atom count. Otherwise, predicts torsion angles, prepares the configuration for stage C reconstruction, and generates 3D coordinates and related outputs.
+        
+        Args:
+            sequence: RNA sequence string to predict the structure for.
+        
+        Returns:
+            A dictionary containing predicted coordinates, 3D coordinates, and atom count.
+        """
         print(f"[DEBUG][predict_3d_structure] sequence type: {type(sequence)}, value: {sequence}")
         if not sequence:
             return {
@@ -102,6 +122,16 @@ def load_partial_checkpoint(model, checkpoint_path):
 
 
 def batch_predict(predictor: RNAPredictor, sequences: List[str], output_dir: str):
+    """
+    Generates 3D structure predictions for a batch of RNA sequences and saves results.
+    
+    For each input sequence, predicts its 3D structure using the provided predictor, then saves the output in three formats: a PyTorch tensor file (.pt), a CSV file with atom coordinates, and a PDB file. Also writes a summary CSV with metadata for all predictions.
+    
+    Args:
+        predictor: An RNAPredictor instance used for structure prediction.
+        sequences: List of RNA sequences to process.
+        output_dir: Directory where prediction outputs will be saved.
+    """
     os.makedirs(output_dir, exist_ok=True)
     results = []
     for i, seq in enumerate(sequences):

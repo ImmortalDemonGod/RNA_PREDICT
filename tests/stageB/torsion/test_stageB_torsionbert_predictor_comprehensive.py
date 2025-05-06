@@ -88,13 +88,15 @@ class DummyTorsionBertModel:
 
     def __init__(self, num_angles: int, return_style: str = "ones"):
         """
+        Initializes a dummy TorsionBert model for testing with configurable output style.
+        
         Args:
-            num_angles (int): The number of angles the predictor is configured to handle.
-            return_style (str): Controls what data is returned:
-                "ones" => returns all ones
-                "random" => returns random floats
-                "mismatch" => returns shape mismatch for negative testing
-                "sincos_45" => returns sin/cos pairs for 45 degrees (for value test)
+            num_angles: Number of torsion angles to simulate in outputs.
+            return_style: Output mode for predictions. Options:
+                - "ones": returns tensors filled with ones.
+                - "random": returns tensors with random values.
+                - "mismatch": returns tensors with shape mismatch for error testing.
+                - "sincos_45": returns sin/cos pairs representing 45 degrees.
         """
         self.num_angles = num_angles
         self.return_style = return_style
@@ -105,23 +107,29 @@ class DummyTorsionBertModel:
 
     def to(self, device):
         # No-op for device placement
+        """
+        Returns the model itself without performing any device placement.
+        
+        This method is a no-op, included for compatibility with PyTorch modules.
+        """
         return self
 
     def eval(self):
         # No-op for eval mode
+        """
+        Sets the model to evaluation mode. This is a no-op for the dummy model.
+        
+        Returns:
+            The model instance itself.
+        """
         return self
 
     def named_modules(self, memo=None, prefix=''):
-        """Implements named_modules method required by StageBTorsionBertPredictor.
-
-        This method returns an iterator over all modules in the model, including the model itself.
-
-        Args:
-            memo: Set of modules already visited (used to avoid infinite recursion)
-            prefix: Prefix for the module names
-
-        Returns:
-            Iterator over (name, module) pairs
+        """
+        Yields all modules in the model and its submodules with their qualified names.
+        
+        Iterates recursively through the model and its submodules, yielding (name, module)
+        pairs suitable for module introspection or parameter traversal.
         """
         if memo is None:
             memo = set()
@@ -136,16 +144,15 @@ class DummyTorsionBertModel:
                     yield m
 
     def named_parameters(self, prefix='', recurse=True):
-        """Implements named_parameters method required by StageBTorsionBertPredictor.
-
-        This method returns an iterator over all parameters in the model.
-
+        """
+        Yields all named parameters of the dummy model, including those from submodules if recursion is enabled.
+        
         Args:
-            prefix: Prefix for the parameter names
-            recurse: Whether to recurse into submodules
-
-        Returns:
-            Iterator over (name, parameter) pairs
+            prefix: String prefix added to parameter names.
+            recurse: If True, includes parameters from submodules.
+        
+        Yields:
+            Tuples of (name, parameter) for each parameter in the model and its submodules.
         """
         yield prefix + '.dummy_param', self.dummy_param
 
@@ -159,8 +166,9 @@ class DummyTorsionBertModel:
 
     def predict_angles_from_sequence(self, sequence: str) -> torch.Tensor:
         """
-        Returns either all ones, random data, or shape-mismatched data,
-        depending on self.return_style.
+        Generates dummy torsion angle predictions for a given sequence.
+        
+        Depending on the `return_style` attribute, returns a tensor of shape `(N, 2 * num_angles)` filled with ones, random values, or fixed sin/cos pairs for 45°, or a shape-mismatched tensor for error testing, where `N` is the sequence length.
         """
         N = len(sequence)
         if self.return_style == "mismatch":
