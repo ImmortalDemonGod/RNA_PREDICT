@@ -154,6 +154,7 @@ class PairformerWrapper(nn.Module):
         if device is None:
             raise ValueError("PairformerWrapper requires an explicit device in the config; do not use hardcoded defaults.")
         self.device = torch.device(device)
+        logger.info(f"[DEVICE-DEBUG][stageB_pairformer] Initialized with device: {self.device}")
 
         # Store freeze_flag for later use after stack initialization
         self.freeze_flag = getattr(cfg, 'freeze_params', False)
@@ -229,7 +230,7 @@ class PairformerWrapper(nn.Module):
         # Instantiate the underlying PairformerStack with parameters from config
         self.stack = PairformerStack(stack_cfg)
         # Move stack to the correct device
-        self.stack.to(self.device)
+        self.stack = self.stack.to(self.device)  # Ensure we capture the returned module
         logger.info(f"[DEVICE-DEBUG][stageB_pairformer] After .to(self.device), parameter device: {next(self.stack.parameters()).device}")
 
         # Now freeze parameters if needed
@@ -265,7 +266,10 @@ class PairformerWrapper(nn.Module):
         # Log input shapes for debugging
         if self.debug_logging:
             logger.debug(f"Forward input shapes: s={s.shape}, z={z.shape}, pair_mask={pair_mask.shape}")
+            logger.debug(f"s dtype={s.dtype}, device={s.device}")
             logger.debug(f"z dtype={z.dtype}, device={z.device}")
+            logger.debug(f"pair_mask dtype={pair_mask.dtype}, device={pair_mask.device}")
+            logger.debug(f"self.device={self.device}, stack device={next(self.stack.parameters()).device}")
 
         # If c_z_adjusted != c_z, need to adapt the input z tensor
         if self.c_z_adjusted != self.c_z:
@@ -275,12 +279,13 @@ class PairformerWrapper(nn.Module):
                 padding = torch.zeros(
                     *z.shape[:-1],
                     self.c_z_adjusted - self.c_z,
-                    device=z.device,  # Add device to ensure tensor is on the same device
-                    dtype=z.dtype,
+                    device=z.device,  # Explicitly use the input tensor's device
+                    dtype=z.dtype,    # Preserve the input tensor's dtype
                 )
                 z_adjusted = torch.cat([z, padding], dim=-1)
                 if self.debug_logging:
                     logger.debug(f"Padded z from shape {z.shape} to {z_adjusted.shape}")
+                    logger.debug(f"z_adjusted device: {z_adjusted.device}, dtype: {z_adjusted.dtype}")
             else:
                 # This case shouldn't happen with our adjustment logic, but for completeness
                 z_adjusted = z[..., : self.c_z_adjusted]
@@ -338,22 +343,27 @@ class PairformerWrapper(nn.Module):
             logger.debug(f"adjust_z_dimensions input: z.shape={z.shape}, z.dtype={z.dtype}, z.device={z.device}")
             logger.debug(f"Target dimensions: c_z={self.c_z}, c_z_adjusted={self.c_z_adjusted}")
 
+        # Ensure we're working with the correct device
+        device = z.device
+
         if self.c_z_adjusted > z.shape[-1]:
             # Pad with zeros
             padding = torch.zeros(
                 *z.shape[:-1],
                 self.c_z_adjusted - z.shape[-1],
-                device=z.device,  # Add device to ensure tensor is on the same device
-                dtype=z.dtype,
+                device=device,  # Explicitly use the input tensor's device
+                dtype=z.dtype,  # Preserve the input tensor's dtype
             )
             z_adjusted = torch.cat([z, padding], dim=-1)
             if self.debug_logging:
                 logger.debug(f"Padded z from shape {z.shape} to {z_adjusted.shape}")
+                logger.debug(f"z_adjusted device: {z_adjusted.device}, dtype: {z_adjusted.dtype}")
         else:
             # Truncate if needed
             z_adjusted = z[..., :self.c_z_adjusted]
             if self.debug_logging:
                 logger.debug(f"Truncated z from shape {z.shape} to {z_adjusted.shape}")
+                logger.debug(f"z_adjusted device: {z_adjusted.device}, dtype: {z_adjusted.dtype}")
 
         return z_adjusted
 
