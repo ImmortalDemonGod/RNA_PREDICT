@@ -1,18 +1,18 @@
 Detailed Model Summary:
 stageA: 20 parameters
-stageB_torsion: 0 parameters
+stageB_torsion: 1 parameters
 stageB_pairformer: 69,200 parameters
 stageC: 0 parameters
 stageD: 48,600 parameters
 latent_merger: 29,824 parameters
-pipeline: 147,644 parameters
+pipeline: 147,645 parameters
   Submodules of pipeline:
     stageA: 20 parameters
-    stageB_torsion: 0 parameters
+    stageB_torsion: 1 parameters
     stageB_pairformer: 69,200 parameters
     stageC: 0 parameters
     stageD: 48,600 parameters
     latent_merger: 29,824 parameters
 _integration_test_dummy: 1,071 parameters
 
-Total parameters: 296,359
+Total parameters: 296,361
