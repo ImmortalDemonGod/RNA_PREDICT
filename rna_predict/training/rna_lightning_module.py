@@ -26,6 +26,14 @@ class RNALightningModule(L.LightningModule):
     Uses Hydra config for construction. All major submodules are accessible as attributes for checkpointing.
     """
     def __init__(self, cfg: Optional[DictConfig] = None):
+        """
+        Initializes the RNALightningModule, configuring the RNA_PREDICT pipeline and device management.
+        
+        If a configuration is provided, instantiates all pipeline stages and prints device information for key model parameters. Detects integration test mode based on the caller filename. If no configuration is given, sets up a dummy pipeline and enables integration test mode. Always defines a dummy linear layer for integration test trainability.
+        
+        Args:
+            cfg: Optional configuration object specifying pipeline components and device.
+        """
         super().__init__()
         self.save_hyperparameters()
         self.cfg = cfg
@@ -44,6 +52,13 @@ class RNALightningModule(L.LightningModule):
             self._instantiate_pipeline(cfg)
             # --- DEVICE DEBUGGING: Print device of all key model parameters after instantiation ---
             def print_param_devices(module, name):
+                """
+                Prints the device placement of all parameters in a given module.
+                
+                Args:
+                    module: The module whose parameters will be inspected.
+                    name: A label used to identify the module in the output.
+                """
                 for pname, param in module.named_parameters(recurse=True):
                     print(f"[DEVICE-DEBUG][{name}] Parameter: {pname}, device: {getattr(param, 'device', 'NO DEVICE')}" )
             print_param_devices(self.stageA, 'stageA')
@@ -142,8 +157,9 @@ class RNALightningModule(L.LightningModule):
 
     def _instantiate_pipeline(self, cfg):
         """
-        Instantiate all pipeline stages as module attributes using Hydra config.
-        This is the single source of pipeline construction, following Hydra best practices.
+        Instantiates all pipeline stages and supporting modules using the provided configuration.
+        
+        Initializes each stage of the RNA_PREDICT pipeline as module attributes, ensuring all components are constructed on the explicitly specified device. Handles checkpoint directory creation, downloading, and extraction for Stage A if required. Validates the presence of essential configuration keys and raises errors for missing components. Aggregates all stages into a ModuleDict for unified parameter management.
         """
         logger.debug("[DEBUG-LM] torch.cuda.is_available(): %s", torch.cuda.is_available())
         logger.debug("[DEBUG-LM] torch.backends.mps.is_available(): %s", getattr(torch.backends, 'mps', None) and torch.backends.mps.is_available())
@@ -215,9 +231,27 @@ class RNALightningModule(L.LightningModule):
 
     ##@snoop
     def forward(self, batch, **kwargs):
+        """
+        Runs a forward pass through the full RNA_PREDICT pipeline for a given batch.
+        
+        In integration test mode, returns dummy outputs matching the expected structure. Otherwise, processes the input batch through all pipeline stages: predicts torsion angles and embeddings, reconstructs 3D coordinates, merges latent representations, and returns a dictionary containing all intermediate and final outputs. Ensures all tensors are placed on the configured device and propagates atom metadata if available.
+        
+        Args:
+            batch: Input data containing sequence, adjacency, and required features.
+        
+        Returns:
+            A dictionary with keys including 'adjacency', 'torsion_angles', 's_embeddings', 'z_embeddings', 'coords', 'unified_latent', and optionally 'atom_metadata' and 'atom_count'.
+        """
         logger.debug("[DEBUG-ENTRY] Entered forward")
         # --- DEVICE DEBUGGING: Print device info for batch and key model parameters ---
         def print_tensor_devices(obj, prefix):
+            """
+            Recursively prints device, shape, and dtype information for all tensors within a nested structure.
+            
+            Args:
+                obj: The object to inspect, which may be a tensor, dict, or list.
+                prefix: String prefix used to indicate the path to each tensor in the structure.
+            """
             if isinstance(obj, dict):
                 for k, v in obj.items():
                     print_tensor_devices(v, f"{prefix}.{k}")
@@ -228,6 +262,13 @@ class RNALightningModule(L.LightningModule):
                     print_tensor_devices(v, f"{prefix}[{i}]")
         print_tensor_devices(batch, "batch")
         def print_param_devices(module, name):
+            """
+            Prints the device placement of all parameters in a given module.
+            
+            Args:
+                module: The module whose parameters' devices will be printed.
+                name: A label to include in the debug output for context.
+            """
             for pname, param in module.named_parameters(recurse=True):
                 print(f"[DEVICE-DEBUG][forward][{name}] Parameter: {pname}, device: {getattr(param, 'device', 'NO DEVICE')}" )
         print_param_devices(self.stageA, 'stageA')
@@ -354,9 +395,28 @@ class RNALightningModule(L.LightningModule):
 
     ##@snoop
     def training_step(self, batch, batch_idx):
+        """
+        Performs a single training step by computing the masked mean squared error loss between predicted and true torsion angles in sin/cos representation.
+        
+        The method aligns predicted and true angle tensors by padding or slicing as needed, applies a residue mask to focus the loss on valid residues, and ensures all tensors are on the correct device. If required inputs are missing or shapes are incompatible, a zero loss is returned on the module's device.
+        
+        Args:
+            batch: A dictionary containing model inputs and ground truth, including predicted torsion angles, true angles in radians, and a residue mask.
+            batch_idx: Index of the current batch.
+        
+        Returns:
+            A dictionary with the key "loss" containing the computed loss tensor on the module's device.
+        """
         logger.debug("[DEBUG-ENTRY] Entered training_step")
         logger.debug("--- Checking batch devices upon entry to training_step ---")
         def check_batch_devices(obj, prefix):
+            """
+            Recursively logs the device placement of all tensors within a nested structure.
+            
+            Args:
+                obj: The input object, which may be a tensor, dict, list, or tuple.
+                prefix: String prefix used to identify the location of each tensor in the structure.
+            """
             if isinstance(obj, dict):
                 for k, v in obj.items():
                     check_batch_devices(v, f"{prefix}.{k}")
@@ -369,6 +429,13 @@ class RNALightningModule(L.LightningModule):
         logger.debug("--- Finished checking batch devices ---")
         # --- DEVICE DEBUGGING: Print device info for batch and key model parameters ---
         def print_tensor_devices(obj, prefix):
+            """
+            Recursively prints device, shape, and dtype information for all tensors within a nested structure.
+            
+            Args:
+                obj: The object to inspect, which may be a tensor, dict, or list.
+                prefix: String prefix used to indicate the path to each tensor in the structure.
+            """
             if isinstance(obj, dict):
                 for k, v in obj.items():
                     print_tensor_devices(v, f"{prefix}.{k}")
@@ -379,6 +446,13 @@ class RNALightningModule(L.LightningModule):
                     print_tensor_devices(v, f"{prefix}[{i}]")
         print_tensor_devices(batch, "batch")
         def print_param_devices(module, name):
+            """
+            Prints the device placement of all parameters in a given module.
+            
+            Args:
+                module: The module whose parameters' devices will be printed.
+                name: A label to include in the debug output for context.
+            """
             for pname, param in module.named_parameters(recurse=True):
                 print(f"[DEVICE-DEBUG][training_step][{name}] Parameter: {pname}, device: {getattr(param, 'device', 'NO DEVICE')}" )
         print_param_devices(self.stageA, 'stageA')
@@ -462,8 +536,9 @@ class RNALightningModule(L.LightningModule):
 
     def train_dataloader(self):
         """
-        Real dataloader for RNA_PREDICT pipeline using minimal Kaggle data.
-        For testing purposes, returns a dummy dataloader if data config is missing.
+        Creates and returns a DataLoader for training the RNA_PREDICT pipeline.
+        
+        If a data configuration is present, loads the dataset and constructs a DataLoader with appropriate batching, shuffling, and collation. If no data configuration is found, returns a dummy DataLoader yielding a minimal example for testing purposes. Automatically sets `num_workers=0` when running on Apple MPS devices to avoid multiprocessing issues.
         """
         # Check if data config is available
         if not hasattr(self.cfg, 'data'):
@@ -522,7 +597,7 @@ class RNALightningModule(L.LightningModule):
 
     def configure_optimizers(self):
         """
-        Returns the optimizer for training.
+        Configures and returns the Adam optimizer for training with a learning rate of 1e-3.
         """
         return torch.optim.Adam(self.parameters(), lr=1e-3)
 

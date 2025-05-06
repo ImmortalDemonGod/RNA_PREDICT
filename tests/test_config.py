@@ -9,6 +9,13 @@ from hydra.core.global_hydra import GlobalHydra
 # This logic ensures correct relative path for both project root and tests/ as CWD.
 def get_hydra_conf_path():
     # Dynamically compute config_path RELATIVE to the runtime CWD, per Hydra best practices
+    """
+    Determines the relative path to the Hydra configuration directory for testing.
+    
+    Attempts to compute a path to the 'rna_predict/conf' directory relative to the current
+    working directory, ensuring the directory exists and contains 'default.yaml'. If any
+    check fails, returns the fallback path 'rna_predict/conf'.
+    """
     abs_conf = Path(__file__).parent.parent / "rna_predict" / "conf"
     abs_conf = abs_conf.resolve()
     cwd = Path.cwd().resolve()
@@ -167,11 +174,19 @@ def test_training_config(hydra_config):
 # Unskip paths config test due to Hydra configuration issues
 def test_paths_config(hydra_config):
     # Example: Check for output_dir in pipeline
+    """
+    Checks that the 'pipeline' section of the Hydra config includes an 'output_dir' field.
+    """
     assert hasattr(hydra_config.pipeline, "output_dir"), "Pipeline config should have output_dir"
 
 # Test environment variable override
 def test_environment_variable_override(monkeypatch):
     # Simulate environment variable override for device
+    """
+    Tests that an OmegaConf config field correctly resolves to an environment variable.
+    
+    Sets an environment variable, creates a config referencing it, and verifies the value is loaded from the environment. Cleans up the environment variable after the test.
+    """
     monkeypatch.setenv("RNA_PREDICT_TEST_VAR", "test_value")
     try:
         # Create a simple config object directly for testing
@@ -187,6 +202,11 @@ def test_environment_variable_override(monkeypatch):
 # Unskip test_hydra_config_structure due to Hydra configuration issues
 def test_hydra_config_structure(hydra_config):
     # Test basic structure (already checked above, but keep for completeness)
+    """
+    Verifies that the Hydra configuration contains the required top-level sections.
+    
+    Asserts the presence of "model", "pipeline", "device", and "seed" fields in the loaded configuration.
+    """
     assert "model" in hydra_config, "Config should have model section"
     assert "pipeline" in hydra_config, "Config should have pipeline section"
     assert "device" in hydra_config, "Config should have device field"
@@ -194,6 +214,11 @@ def test_hydra_config_structure(hydra_config):
 
 # Unskip test_hydra_model_config due to Hydra configuration issues
 def test_hydra_model_config(hydra_config):
+    """
+    Validates the structure and key parameters of the 'model' section in the Hydra config.
+    
+    Asserts that the model configuration includes stages 'stageA' through 'stageD', that 'stageA.dropout' is within the range [0, 1], and that 'stageA.device' is set to a supported device type.
+    """
     model = hydra_config.model
     assert "stageA" in model, "Model config should have stageA"
     assert "stageB" in model, "Model config should have stageB"
@@ -206,6 +231,11 @@ def test_hydra_model_config(hydra_config):
 # Test Hydra environment variable override
 def test_hydra_environment_variable_override(monkeypatch):
     # Set environment variable
+    """
+    Tests that OmegaConf correctly resolves environment variable interpolation.
+    
+    Sets an environment variable, creates a config referencing it, and asserts the value is correctly loaded. Cleans up the environment variable after the test.
+    """
     monkeypatch.setenv("RNA_PREDICT_HYDRA_TEST_VAR", "hydra_test_value")
     try:
         # Create a simple config object directly for testing

@@ -35,7 +35,13 @@ import unittest
 
 class TestArgsNamespace(unittest.TestCase):
     def test_args_namespace_creation(self):
-        """Test creation of args namespace and model instantiation."""
+        """
+        Tests that the args namespace is correctly created from the configuration and that
+        the RFoldModel can be instantiated with it.
+        
+        Verifies that all configuration parameters are present as attributes in the args
+        namespace and that the resulting model is an instance of RFoldModel.
+        """
         # Create args namespace
         args = args_namespace(config_dict)
 

@@ -178,7 +178,13 @@ def _run_diffusion_step(context):
 def _run_stageD_impl(
     context: StageDContext,
 ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor, torch.Tensor]]:
-    """Run diffusion refinement on the input coordinates using the unified Stage D runner."""
+    """
+    Executes Stage D diffusion refinement on input coordinates and embeddings.
+    
+    Validates and prepares input tensors and metadata, bridges residue-level to atom-level
+    embeddings if required, initializes features, and runs the diffusion process using
+    the unified Stage D runner. Returns the refined coordinates or diffusion outputs.
+    """
     log_mem("StageD ENTRY")
 
     # Add explicit debug logging with the expected format

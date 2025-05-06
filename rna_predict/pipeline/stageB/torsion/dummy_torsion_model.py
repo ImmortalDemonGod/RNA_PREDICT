@@ -9,6 +9,16 @@ class DummyTorsionModel(nn.Module):
     """
 
     def __init__(self, device, num_angles: int = 7):
+        """
+        Initializes the DummyTorsionModel with a specified device and number of torsion angles.
+        
+        Args:
+            device: The device on which tensors will be allocated (e.g., 'cpu' or 'cuda').
+            num_angles: Number of torsion angles to predict per input (default is 7).
+        
+        Raises:
+            ValueError: If device is None.
+        """
         super().__init__()
         if device is None:
             raise ValueError("DummyTorsionModel requires an explicit device argument; do not use hardcoded defaults.")
