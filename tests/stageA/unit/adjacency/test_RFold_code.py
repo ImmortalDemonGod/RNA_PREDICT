@@ -310,6 +310,7 @@ class TestRFoldModel(unittest.TestCase):
             num_hidden = 16
             dropout = 0.0
             use_gpu = False
+            device = 'cpu'  # Added to fix ValueError in RFoldModel
 
         self.args = MockArgs()
         self.model = RC.RFoldModel(self.args)
