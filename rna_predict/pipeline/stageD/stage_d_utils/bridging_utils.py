@@ -66,7 +66,13 @@ def check_and_bridge_embeddings(
         else:
             # Fallback: map each atom to its own index (should not happen in normal pipeline)
             n_atoms = coords.shape[1] if hasattr(coords, 'shape') and len(coords.shape) > 1 else 0
-            input_feature_dict['atom_to_token_idx'] = torch.arange(n_atoms, device=coords.device if hasattr(coords, 'device') else 'cpu').long().unsqueeze(0)
+            # Warn about synthetic mapping to surface upstream data-pipeline mismatches
+            logger.warning(
+                f"[BRIDGE WARNING] Synthetic atom_to_token_idx generated for {n_atoms} atoms; this may mask upstream alignment errors." )
+            input_feature_dict['atom_to_token_idx'] = torch.arange(
+                n_atoms,
+                device=coords.device if hasattr(coords, 'device') else 'cpu'
+            ).long().unsqueeze(0)
 
     if debug_logging:
         logger.debug("[DEBUG][check_and_bridge_embeddings] BEFORE bridging: atom_to_token_idx type: %s shape: %s", type(input_feature_dict.get("atom_to_token_idx")), getattr(input_feature_dict.get("atom_to_token_idx"), 'shape', None))

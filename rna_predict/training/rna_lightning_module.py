@@ -29,12 +29,6 @@ from rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager import Pro
 # from rna_predict.models.stageB_torsion import run_stageB_torsion
 
 logger = logging.getLogger(__name__)
-if not logger.hasHandlers():
-    handler = logging.StreamHandler(sys.stdout)
-    formatter = logging.Formatter("%(levelname)s %(message)s")
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
-logger.setLevel(logging.DEBUG)
 
 class RNALightningModule(L.LightningModule):
     """
@@ -85,6 +79,15 @@ class RNALightningModule(L.LightningModule):
         else:
             self.pipeline = torch.nn.Identity()
             self._integration_test_mode = True  # Use dummy layer
+
+        # Configure module logger based on config debug flag
+        if not logger.hasHandlers():
+            handler = logging.StreamHandler(sys.stdout)
+            formatter = logging.Formatter("%(levelname)s %(message)s")
+            handler.setFormatter(formatter)
+            logger.addHandler(handler)
+        level = logging.DEBUG if getattr(self, 'debug_logging', False) else logging.INFO
+        logger.setLevel(level)
 
         # Dummy layer for integration test to ensure trainability
         self._integration_test_dummy = torch.nn.Linear(16, 21 * 3)
