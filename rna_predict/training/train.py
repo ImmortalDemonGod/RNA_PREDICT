@@ -105,8 +105,10 @@ def main(cfg: DictConfig):
         dl = DataLoader(ds,
                         batch_size=cfg.data.batch_size,
                         num_workers=num_workers,
-                        collate_fn=lambda batch: rna_collate_fn(batch, cfg=cfg),
+                        collate_fn=rna_collate_fn,
                         shuffle=True)
+        # After DataLoader creation, print its type for debugging
+        print(f"[DEBUG][train.py] DataLoader type: {type(dl)}")
         # DEBUG: Inspect first batch in detail only if debug_inspect_batch is enabled
         debug_inspect_batch = getattr(cfg.data, 'debug_inspect_batch', False)
         if debug_inspect_batch:
@@ -123,6 +125,14 @@ def main(cfg: DictConfig):
                 else:
                     print(f"[DEBUG][main] Key: {k!r}, Type: {type(v)!r}")
             print("[DEBUG] First batch device: {!r}".format(first_batch['coords_true'].device))
+        # Additional debug instrumentation
+        print(f"[DEBUG] Dataset length: {len(ds)}")
+        try:
+            print(f"[DEBUG] DataLoader length: {len(dl)}")
+            first_batch = next(iter(dl))
+            print(f"[DEBUG] First batch keys: {list(first_batch.keys())}")
+        except Exception as batch_e:
+            print(f"[ERROR] Exception when iterating DataLoader: {batch_e}")
         # Add ModelCheckpoint callback
         checkpoint_callback = ModelCheckpoint(
             dirpath=cfg.training.checkpoint_dir,
