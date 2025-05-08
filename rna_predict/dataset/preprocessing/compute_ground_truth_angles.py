@@ -46,15 +46,55 @@ def main():
     """
     args = parse_args()
     print(f"[DEBUG] Parsed args: {args}")
+    # --- Hydra config integration ---
+    try:
+        from hydra import initialize, compose
+        import omegaconf
+        # Use absolute path as per project best practice
+        hydra_conf_path = "/Users/tomriddle1/RNA_PREDICT/rna_predict/conf"
+        with initialize(config_path=hydra_conf_path, job_name="compute_ground_truth_angles"):
+            cfg = compose(config_name="default")
+        config_chain_id = cfg.data.chain_id if hasattr(cfg.data, "chain_id") else None
+    except Exception as e:
+        print(f"[WARNING] Could not load Hydra config: {e}")
+        cfg = None
+        config_chain_id = None
+    # --- Chain selection logic ---
+    cli_chain_id = args.chain_id
+    if config_chain_id is not None:
+        if cli_chain_id != config_chain_id:
+            print(f"[WARNING] CLI --chain_id ({cli_chain_id}) differs from config chain_id ({config_chain_id}). Using config value.")
+        selected_chain_id = config_chain_id
+    else:
+        selected_chain_id = cli_chain_id
+        print(f"[INFO] Using CLI --chain_id: {selected_chain_id}")
     os.makedirs(args.output_dir, exist_ok=True)
     for fname in os.listdir(args.input_dir):
         if not fname.lower().endswith((".pdb", ".cif")):
             continue
         in_path = os.path.join(args.input_dir, fname)
-        print(f"[DEBUG] Processing: {in_path} (chain: {args.chain_id}, backend: {args.backend}, angle_set: {args.angle_set})")
-        angles = extract_rna_torsions(in_path, chain_id=args.chain_id, backend=args.backend, angle_set=args.angle_set)
+        # Print available chain IDs in structure
+        try:
+            from Bio.PDB import MMCIFParser, PDBParser
+            import os as _os
+            ext = _os.path.splitext(in_path)[1].lower()
+            if ext == ".cif":
+                parser = MMCIFParser(QUIET=True)
+                structure = parser.get_structure("rna", in_path)
+            elif ext == ".pdb":
+                parser = PDBParser(QUIET=True)
+                structure = parser.get_structure("rna", in_path)
+            else:
+                structure = None
+            if structure is not None:
+                chain_ids = [chain.id for model in structure for chain in model]
+                print(f"[DEBUG][compute_ground_truth_angles] Available chain IDs in {in_path}: {chain_ids}")
+        except Exception as e:
+            print(f"[DEBUG][compute_ground_truth_angles] Could not parse structure to list chain IDs: {e}")
+        print(f"[DEBUG] Processing: {in_path} (chain: {selected_chain_id}, backend: {args.backend}, angle_set: {args.angle_set})")
+        angles = extract_rna_torsions(in_path, chain_id=selected_chain_id, backend=args.backend, angle_set=args.angle_set)
         if angles is not None:
-            out_path = os.path.join(args.output_dir, f"{os.path.splitext(fname)[0]}_{args.chain_id}_angles.pt")
+            out_path = os.path.join(args.output_dir, f"{os.path.splitext(fname)[0]}_{selected_chain_id}_angles.pt")
             torch.save(torch.from_numpy(angles), out_path)
             print(f"Saved: {out_path}")
         else:
