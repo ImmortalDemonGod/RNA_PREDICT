@@ -106,6 +106,17 @@ class ConditionedTransitionBlock(nn.Module):
         return scale * shift
 
     def forward(self, a: torch.Tensor, s: torch.Tensor) -> torch.Tensor:
+        print(f"[INSTRUMENT][CTB.forward] a.shape={a.shape}, a.requires_grad={a.requires_grad}, a.is_leaf={a.is_leaf if hasattr(a, 'is_leaf') else 'N/A'}")
+        a_norm = self.adaln(a, s)
+        print(f"[INSTRUMENT][CTB.forward] a_norm.shape={a_norm.shape}, a_norm.requires_grad={a_norm.requires_grad}, a_norm.is_leaf={a_norm.is_leaf if hasattr(a_norm, 'is_leaf') else 'N/A'}")
+        linear_a1 = self.linear_nobias_a1(a_norm)
+        print(f"[INSTRUMENT][CTB.forward] linear_a1.shape={linear_a1.shape}, linear_a1.requires_grad={linear_a1.requires_grad}, linear_a1.is_leaf={linear_a1.is_leaf if hasattr(linear_a1, 'is_leaf') else 'N/A'}")
+        linear_a2 = self.linear_nobias_a2(a_norm)
+        print(f"[INSTRUMENT][CTB.forward] linear_a2.shape={linear_a2.shape}, linear_a2.requires_grad={linear_a2.requires_grad}, linear_a2.is_leaf={linear_a2.is_leaf if hasattr(linear_a2, 'is_leaf') else 'N/A'}")
+        b = F.silu(linear_a1) * linear_a2
+        print(f"[INSTRUMENT][CTB.forward] b.shape={b.shape}, b.requires_grad={b.requires_grad}, b.is_leaf={b.is_leaf if hasattr(b, 'is_leaf') else 'N/A'}")
+        # replace old a with a_norm for rest of forward
+        a = a_norm
         """
         Forward pass for the ConditionedTransitionBlock.
 
@@ -134,5 +145,9 @@ class ConditionedTransitionBlock(nn.Module):
                 )
 
             # Fallback: just apply linear transform without conditioning
+            import traceback
+            print(f"[INSTRUMENT][Fallback] ConditionedTransitionBlock fallback triggered. b.shape={b.shape}, b.requires_grad={b.requires_grad}, b.is_leaf={b.is_leaf if hasattr(b, 'is_leaf') else 'N/A'}")
+            print(''.join(traceback.format_stack(limit=12)))
             result = self.linear_nobias_b(b)
+            print(f"[INSTRUMENT][Fallback] ConditionedTransitionBlock fallback triggered. result.requires_grad={result.requires_grad}, result.is_leaf={result.is_leaf if hasattr(result, 'is_leaf') else 'N/A'}")
             return cast(torch.Tensor, result)
