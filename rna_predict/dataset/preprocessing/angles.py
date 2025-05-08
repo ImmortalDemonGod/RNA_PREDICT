@@ -5,8 +5,9 @@ import numpy as np
 from Bio.PDB.MMCIFParser import MMCIFParser
 from Bio.PDB.PDBIO import PDBIO
 import MDAnalysis as mda  # type: ignore
+import snoop
 
-
+@snoop
 def extract_rna_torsions(
     structure_file: str,
     chain_id: str = "A",
