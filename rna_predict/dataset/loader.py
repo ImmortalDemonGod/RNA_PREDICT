@@ -5,6 +5,7 @@ from torch.utils.data import Dataset
 from Bio import SeqIO
 from Bio.PDB import MMCIFParser, PDBParser
 from .atom_lists import STANDARD_ATOMS
+import snoop
 
 # Utility stubs (implement or replace with actual logic)
 def parse_pdb_atoms(pdb_file):
@@ -304,6 +305,7 @@ class RNADataset(Dataset):
         """
         return torch.zeros((self.max_res, self.max_res), device=self.device)
 
+    @snoop
     def _load_angles(self, row, L):
         """
         Extracts and processes RNA torsion angles for a given structure row.
