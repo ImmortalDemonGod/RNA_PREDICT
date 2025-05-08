@@ -1,6 +1,7 @@
 from typing import Any, Dict, Tuple, Union, Optional, cast
 import torch
 import torch.nn as nn
+import logging
 
 from rna_predict.pipeline.stageA.input_embedding.current.embedders import (
     FourierEmbedding,
@@ -394,8 +395,10 @@ class DiffusionConditioning(nn.Module):
         """Ensure the input feature dictionary has required keys and correct types."""
         # Always use the provided device or fall back to t_hat_noise_level.device
         target_device = device if device is not None else t_hat_noise_level.device
-        if debug_logging:
-            print(f"[DEVICE-DEBUG][StageD] _ensure_input_feature_dict: using device {target_device}")
+        # Use debug_logging from config if available
+        debug_flag = self.debug_logging if hasattr(self, 'debug_logging') else debug_logging
+        if debug_flag:
+            logging.info(f"[DEVICE-DEBUG][StageD] _ensure_input_feature_dict: using device {target_device}")
         result: Dict[str, Any] = {}
 
         # List of keys to always pass through if present
