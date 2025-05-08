@@ -57,12 +57,19 @@ def _validate_atom_metadata(atom_metadata):
                 if 'atom_metadata' in config.input_features:
                     atom_metadata = config.input_features['atom_metadata']
 
+    import logging
+    logger = logging.getLogger("rna_predict.pipeline.stageD.stage_d_utils.feature_utils")
+    logger.info(f"[DEBUG][validate_atom_metadata] type(atom_metadata): {type(atom_metadata)}, keys: {list(atom_metadata.keys()) if atom_metadata else None}")
     # Now validate the atom_metadata
     if atom_metadata is None or "residue_indices" not in atom_metadata:
+        logger.error(f"[DEBUG][validate_atom_metadata] atom_metadata missing or missing 'residue_indices': {atom_metadata}")
         raise ValueError("[ERR-STAGED-BRIDGE-002] atom_metadata with 'residue_indices' is required for Stage D. This pipeline does not support fallback to fixed atom counts.")
     residue_indices = atom_metadata["residue_indices"]
+    logger.info(f"[DEBUG][validate_atom_metadata] type(residue_indices): {type(residue_indices)}, len: {len(residue_indices) if hasattr(residue_indices, '__len__') else 'N/A'}")
     if isinstance(residue_indices, torch.Tensor):
+        logger.info(f"[DEBUG][validate_atom_metadata] residue_indices.shape: {residue_indices.shape}")
         residue_indices = residue_indices.tolist()
+    logger.info(f"[DEBUG][validate_atom_metadata] residue_indices (first 20): {residue_indices[:20] if hasattr(residue_indices, '__getitem__') else 'N/A'}")
     num_residues = max(residue_indices) + 1
     return residue_indices, num_residues
 
