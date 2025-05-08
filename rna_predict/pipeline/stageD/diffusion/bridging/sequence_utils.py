@@ -88,12 +88,12 @@ def extract_sequence(
     sequence: List[str] | str | None,
     input_features: Dict[str, Any] | None,
     trunk_embeddings: Dict[str, torch.Tensor],
-) -> str:
+) -> list:
     """
-    Extracts an RNA sequence as a string from explicit input, input features, or trunk embeddings.
+    Extracts an RNA sequence as a list of characters from explicit input, input features, or trunk embeddings.
     
     Attempts to obtain the sequence from the provided argument, then from the input features dictionary,
-    and finally infers it from trunk embeddings if necessary. All outputs are normalized to a string.
+    and finally infers it from trunk embeddings if necessary. All outputs are normalized to a list of characters.
     
     Args:
         sequence: The explicit sequence, as a string or a list of single-character strings, or None.
@@ -101,39 +101,38 @@ def extract_sequence(
         trunk_embeddings: Dictionary of embedding tensors used to infer sequence length if needed.
     
     Returns:
-        The RNA sequence as a string.
+        The RNA sequence as a list of characters.
     
     Raises:
         ValueError: If the sequence cannot be derived from any source or if an unsupported type is encountered.
     """
     # 1. Check explicitly provided sequence
     if sequence is not None:
-        # If it's a list of single-character strings, join; else, assume already string
-        if isinstance(sequence, list) and all(isinstance(x, str) and len(x) == 1 for x in sequence):
-            return "".join(sequence)
-        elif isinstance(sequence, str):
+        if isinstance(sequence, list):
             return sequence
+        elif isinstance(sequence, str):
+            return list(sequence)
         else:
             raise ValueError(f"Unsupported sequence type: {type(sequence)}")
 
     # 2. Try extracting from input_features using helper
     seq_from_features = _try_extract_from_input_features(input_features)
     if seq_from_features is not None:
-        if isinstance(seq_from_features, list) and all(isinstance(x, str) and len(x) == 1 for x in seq_from_features):
-            return "".join(seq_from_features)
-        elif isinstance(seq_from_features, str):
+        if isinstance(seq_from_features, list):
             return seq_from_features
+        elif isinstance(seq_from_features, str):
+            return list(seq_from_features)
         else:
             raise ValueError(f"Unsupported extracted sequence type: {type(seq_from_features)}")
 
     # 3. Fallback: Try inferring from trunk embeddings using helper
     seq_from_embeddings = _try_infer_from_embeddings(trunk_embeddings)
     if seq_from_embeddings is not None:
-        if isinstance(seq_from_embeddings, list) and all(isinstance(x, str) and len(x) == 1 for x in seq_from_embeddings):
-            return "".join(seq_from_embeddings)
-        elif isinstance(seq_from_embeddings, str):
+        if isinstance(seq_from_embeddings, list):
             return seq_from_embeddings
+        elif isinstance(seq_from_embeddings, str):
+            return list(seq_from_embeddings)
         else:
             raise ValueError(f"Unsupported inferred sequence type: {type(seq_from_embeddings)}")
 
-    raise ValueError("If sequence cannot be derived from any source")
+    raise ValueError("Cannot derive sequence from any source")

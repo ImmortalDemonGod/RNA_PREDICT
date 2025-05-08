@@ -386,12 +386,12 @@ def sample_diffusion_training(
     sigma_size_list = list(label_dict["coordinate"].shape[:-2]) + [N_sample]
     sigma_size = torch.Size(sigma_size_list)
     sigma = noise_sampler(size=sigma_size, device=device).to(label_dict["coordinate"].dtype)
-    if debug_logging:
-        print(f"[DEVICE-DEBUG][StageD] sample_diffusion_training: sigma.device={sigma.device}")
+    if hasattr(self, 'debug_logging') and self.debug_logging:
+        logger.info(f"[DEVICE-DEBUG][StageD] sample_diffusion_training: sigma.device={sigma.device}")
     # noise: [..., N_sample, N_atom, 3]
     noise = torch.randn_like(x_gt_augment, dtype=label_dict["coordinate"].dtype, device=device) * sigma[..., None, None]
-    if debug_logging:
-        print(f"[DEVICE-DEBUG][StageD] sample_diffusion_training: noise.device={noise.device}")
+    if hasattr(self, 'debug_logging') and self.debug_logging:
+        logger.info(f"[DEVICE-DEBUG][StageD] sample_diffusion_training: noise.device={noise.device}")
 
     # Get denoising outputs [..., N_sample, N_atom, 3]
     if diffusion_chunk_size is None:
