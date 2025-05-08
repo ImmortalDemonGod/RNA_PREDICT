@@ -250,19 +250,29 @@ class RNADataset(Dataset):
             tgt_names: List of atom names present in the structure.
             tgt_indices: List of residue indices corresponding to present atoms.
         """
-        # --- PATCH: Fetch feature dims from model config, not data config ---
-        # Robustly access model.stageD.diffusion config
-        model_cfg = getattr(self.cfg, 'model', None)
-        stageD_cfg = getattr(model_cfg, 'stageD', None) if model_cfg else None
-        diffusion_cfg = getattr(stageD_cfg, 'diffusion', None) if stageD_cfg else None
-        # Fallbacks
-        ref_element_size = 128
-        ref_atom_name_chars_size = 256
-        if diffusion_cfg is not None:
-            ref_element_size = getattr(diffusion_cfg, 'ref_element_size', ref_element_size)
-            ref_atom_name_chars_size = getattr(diffusion_cfg, 'ref_atom_name_chars_size', ref_atom_name_chars_size)
-        print(f"[RNADataset][_load_atom_features] Using ref_element_size: {ref_element_size}")
-        print(f"[RNADataset][_load_atom_features] Using ref_atom_name_chars_size: {ref_atom_name_chars_size}")
+        # --- PATCH: Unified feature dim getter ---
+        def get_stageD_feature_dim(cfg, key, default):
+            # Try the outer block first
+            try:
+                val = getattr(cfg.model.stageD.diffusion, key)
+                if val is not None:
+                    print(f"[RNADataset][_load_atom_features] Using OUTER {key}: {val}")
+                    return val
+            except Exception:
+                pass
+            # Fallback: try nested block
+            try:
+                val = getattr(cfg.model.stageD.diffusion.diffusion, key)
+                if val is not None:
+                    print(f"[RNADataset][_load_atom_features] Using NESTED {key}: {val}")
+                    return val
+            except Exception:
+                pass
+            print(f"[RNADataset][_load_atom_features] Using DEFAULT {key}: {default}")
+            return default
+        ref_element_size = get_stageD_feature_dim(self.cfg, 'ref_element_size', 128)
+        ref_atom_name_chars_size = get_stageD_feature_dim(self.cfg, 'ref_atom_name_chars_size', 256)
+
         coord_dtype = getattr(torch, self.cfg.data.coord_dtype)
         fill_value = float('nan') if str(self.cfg.data.coord_fill_value).lower() == 'nan' else float(self.cfg.data.coord_fill_value)
         # If pdb_file is missing or empty, return dummy tensors

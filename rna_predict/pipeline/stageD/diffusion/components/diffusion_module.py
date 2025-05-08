@@ -130,6 +130,29 @@ class DiffusionModule(nn.Module):
             if field not in cfg and not hasattr(cfg, field):
                 raise ValueError(f"Missing required config field: {field}")
 
+        # --- PATCH: Unified feature dim getter for StageD diffusion ---
+        def get_stageD_feature_dim(cfg, key, default):
+            # Try the outer block first
+            try:
+                val = getattr(cfg, key)
+                if val is not None:
+                    print(f"[DiffusionModule][__init__] Using OUTER {key}: {val}")
+                    return val
+            except Exception:
+                pass
+            # Fallback: try nested block
+            try:
+                val = getattr(cfg.diffusion, key)
+                if val is not None:
+                    print(f"[DiffusionModule][__init__] Using NESTED {key}: {val}")
+                    return val
+            except Exception:
+                pass
+            print(f"[DiffusionModule][__init__] Using DEFAULT {key}: {default}")
+            return default
+        self.ref_element_size = get_stageD_feature_dim(cfg, 'ref_element_size', 128)
+        self.ref_atom_name_chars_size = get_stageD_feature_dim(cfg, 'ref_atom_name_chars_size', 256)
+
         # Extract model architecture parameters
         # CRITICAL FIX: Handle both dict and object configs
         if isinstance(cfg, dict):
