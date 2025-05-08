@@ -168,6 +168,10 @@ class RNADataset(Dataset):
         for k, v in sample.items():
             if isinstance(v, torch.Tensor) and v.device != self.device:
                 sample[k] = v.to(self.device)
+        # Debug: print device info for all tensors after moving
+        for k, v in sample.items():
+            if isinstance(v, torch.Tensor):
+                print(f"[RNADataset][FINAL-DEVICE] key '{k}': device={v.device}, shape={v.shape}, dtype={v.dtype}")
         return sample
 
     def _load_sequence(self, sequence_path, target_id=None):
