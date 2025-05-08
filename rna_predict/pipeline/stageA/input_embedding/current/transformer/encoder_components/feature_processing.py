@@ -157,21 +157,22 @@ def extract_atom_features(
             logger.info(msg)
         else:
             print(msg)
-    log(f"[DEBUG][extract_atom_features] encoder.input_feature expected keys: {list(getattr(encoder, 'input_feature', {}).keys())}")
-    log(f"[DEBUG][extract_atom_features] encoder.input_feature dict: {getattr(encoder, 'input_feature', {})}")
-    expected_dim_sum = sum(getattr(encoder, 'input_feature', {}).values()) if hasattr(encoder, 'input_feature') else None
-    log(f"[DEBUG][extract_atom_features] SUM expected feature dim: {expected_dim_sum}")
-    log(f"[DEBUG][extract_atom_features] input_feature_dict actual keys: {list(input_feature_dict.keys())}")
-    actual_dim_sum = 0
-    for k in input_feature_dict:
-        v = input_feature_dict[k]
-        if hasattr(v, 'shape'):
-            log(f"[DEBUG][extract_atom_features] key='{k}' shape={v.shape} dtype={getattr(v, 'dtype', type(v))}")
-            if isinstance(v, torch.Tensor) and v.dim() > 0:
-                actual_dim_sum += v.shape[-1]
-        else:
-            log(f"[DEBUG][extract_atom_features] key='{k}' type={type(v)}")
-    log(f"[DEBUG][extract_atom_features] SUM actual feature last dims: {actual_dim_sum}")
+    if debug_logging:
+        log(f"[DEBUG][extract_atom_features] encoder.input_feature expected keys: {list(getattr(encoder, 'input_feature', {}).keys())}")
+        log(f"[DEBUG][extract_atom_features] encoder.input_feature dict: {getattr(encoder, 'input_feature', {})}")
+        expected_dim_sum = sum(getattr(encoder, 'input_feature', {}).values()) if hasattr(encoder, 'input_feature') else None
+        log(f"[DEBUG][extract_atom_features] SUM expected feature dim: {expected_dim_sum}")
+        log(f"[DEBUG][extract_atom_features] input_feature_dict actual keys: {list(input_feature_dict.keys())}")
+        actual_dim_sum = 0
+        for k in input_feature_dict:
+            v = input_feature_dict[k]
+            if hasattr(v, 'shape'):
+                log(f"[DEBUG][extract_atom_features] key='{k}' shape={v.shape} dtype={getattr(v, 'dtype', type(v))}")
+                if isinstance(v, torch.Tensor) and v.dim() > 0:
+                    actual_dim_sum += v.shape[-1]
+            else:
+                log(f"[DEBUG][extract_atom_features] key='{k}' type={type(v)}")
+        log(f"[DEBUG][extract_atom_features] SUM actual feature last dims: {actual_dim_sum}")
     """
     Extract atom features from input dictionary.
 
