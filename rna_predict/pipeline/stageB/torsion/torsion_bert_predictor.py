@@ -85,15 +85,12 @@ class StageBTorsionBertPredictor(nn.Module):
             device = cfg.model.stageB.torsion_bert.device
             logger.info("[DEBUG-STAGEB-TORSIONBERT-CONFIG] Used cfg.model.stageB.torsion_bert.device")
         elif hasattr(cfg, "stageB") and hasattr(cfg.stageB, "torsion_bert") and hasattr(cfg.stageB.torsion_bert, "device"):
-            device = cfg.stageB.torsion_bert.device
-            logger.info("[DEBUG-STAGEB-TORSIONBERT-CONFIG] Used cfg.stageB.torsion_bert.device")
+            raise ValueError("[MIGRATION-ERR-TORSIONBERT] Please migrate config: use 'model.stageB.torsion_bert' instead of 'stageB.torsion_bert'.")
         elif hasattr(cfg, "device") and cfg.device is not None:
             device = cfg.device
             logger.info("[DEBUG-STAGEB-TORSIONBERT-CONFIG] Used cfg.device")
         elif hasattr(cfg, 'stageB_torsion') and hasattr(cfg.stageB_torsion, 'device') and cfg.stageB_torsion.device is not None:
-            device = cfg.stageB_torsion.device
-            logger.info("[DEBUG-STAGEB-TORSIONBERT-CONFIG] Used cfg.stageB_torsion.device (legacy)")
-
+            raise ValueError("[MIGRATION-ERR-TORSIONBERT] Please migrate config: use 'model.stageB.torsion_bert' instead of 'stageB_torsion'.")
         # Log the resolved device
         logger.info(f"[DEBUG-STAGEB-TORSIONBERT-CONFIG] Resolved device in config: {device}")
         if device is None:
@@ -107,14 +104,12 @@ class StageBTorsionBertPredictor(nn.Module):
         if hasattr(cfg, 'model') and hasattr(cfg.model, 'stageB') and hasattr(cfg.model.stageB, 'torsion_bert'):
             torsion_cfg = cfg.model.stageB.torsion_bert
             logger.info("[DEBUG-STAGEB-TORSIONBERT-CONFIG] Using cfg.model.stageB.torsion_bert")
-        # Check for stageB.torsion_bert
+        # Reject legacy 'stageB.torsion_bert' config path
         elif hasattr(cfg, 'stageB') and hasattr(cfg.stageB, 'torsion_bert'):
-            torsion_cfg = cfg.stageB.torsion_bert
-            logger.info("[DEBUG-STAGEB-TORSIONBERT-CONFIG] Using cfg.stageB.torsion_bert")
-        # Check for stageB_torsion (legacy)
+            raise ValueError("[MIGRATION-ERR-TORSIONBERT] Please migrate config: use 'model.stageB.torsion_bert' instead of 'stageB.torsion_bert'.")
+        # Reject legacy 'stageB_torsion' config path
         elif hasattr(cfg, 'stageB_torsion'):
-            torsion_cfg = cfg.stageB_torsion
-            logger.info("[DEBUG-STAGEB-TORSIONBERT-CONFIG] Using cfg.stageB_torsion (legacy)")
+            raise ValueError("[MIGRATION-ERR-TORSIONBERT] Please migrate config: use 'model.stageB.torsion_bert' instead of 'stageB_torsion'.")
         # Check for direct attributes
         elif hasattr(cfg, 'model_name_or_path'):
             torsion_cfg = cfg
@@ -241,7 +236,7 @@ class StageBTorsionBertPredictor(nn.Module):
                     self.device = torch.device('cpu')
                     self.model = self.model.to(self.device)
                     if self.debug_logging:
-                        logger.warning(f"[DEVICE-DEBUG][stageB_torsion] Fallback: Model moved to CPU. Stage B will run on CPU. This is a known limitation: HuggingFace DNABERT does not support MPS.")
+                        logger.warning("[DEVICE-DEBUG][stageB_torsion] Fallback: Model moved to CPU. Stage B will run on CPU. This is a known limitation: HuggingFace DNABERT does not support MPS.")
             except Exception as e:
                 logger.error(f"[UNIQUE-ERR-TORSIONBERT-LOADFAIL] Failed to load model/tokenizer from {self.model_name_or_path}: {e}")
                 raise

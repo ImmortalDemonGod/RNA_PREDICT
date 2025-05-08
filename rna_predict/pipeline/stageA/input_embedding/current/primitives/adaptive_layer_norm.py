@@ -36,8 +36,8 @@ class AdaptiveLayerNorm(nn.Module):
         if c_s_layernorm is None:
             c_s_layernorm = c_s
         self.c_s_layernorm = c_s_layernorm
-        self.layernorm_a = nn.LayerNorm(c_a, elementwise_affine=True, bias=False)
-        self.layernorm_s = nn.LayerNorm(c_s_layernorm, elementwise_affine=True, bias=False)
+        self.layernorm_a = nn.LayerNorm(c_a, elementwise_affine=True)
+        self.layernorm_s = nn.LayerNorm(c_s_layernorm, elementwise_affine=True)
         self.linear_s = Linear(in_features=c_s, out_features=c_a)
         self.linear_nobias_s = LinearNoBias(in_features=c_s, out_features=c_a)
 

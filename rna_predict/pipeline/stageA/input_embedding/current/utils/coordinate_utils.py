@@ -431,7 +431,7 @@ def broadcast_token_to_atom(
         # If we get here, the reshape failed and we're not in the special case
         raise RuntimeError(f"Failed to reshape x_atom_flat from {x_atom_flat.shape} to {(*config.original_leading_dims, config.n_atom, config.n_features)}. Error: {e}") from e
 
-@snoop
+#@snoop
 def aggregate_atom_to_token(
     x_atom: torch.Tensor,
     atom_to_token_idx: torch.Tensor,
