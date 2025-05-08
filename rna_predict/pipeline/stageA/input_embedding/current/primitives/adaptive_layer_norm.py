@@ -146,7 +146,7 @@ class AdaptiveLayerNorm(nn.Module):
                 conditioned_a, a_original_shape, a_was_unsqueezed
             )
 
-    @snoop
+    #@snoop
     def forward(self, a: torch.Tensor, s: torch.Tensor) -> torch.Tensor:
         print(f"[DEBUG][AdaLN] ENTRY: a.requires_grad={a.requires_grad}, s.requires_grad={s.requires_grad}, a.shape={a.shape}, s.shape={s.shape}")
         print(f"[DEBUG][AdaLN] ENTRY: a.device={a.device}, a.dtype={a.dtype}, a.is_leaf={a.is_leaf}, a.grad_fn={a.grad_fn}")
