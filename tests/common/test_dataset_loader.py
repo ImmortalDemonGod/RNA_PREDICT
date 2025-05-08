@@ -193,12 +193,14 @@ class TestBuildRnaTokenMetadata(unittest.TestCase):
         Common setup for TestBuildRnaTokenMetadata.
         """
         self.num_tokens = 10
-        self.device = "cpu"
+        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     def test_build_rna_token_metadata_basic(self) -> None:
         """
         Test basic usage with fixed parameters.
         """
+        if self.device == 'cpu':
+            self.skipTest("No CUDA device available; test requires non-cpu device for build_rna_token_metadata.")
         metadata = build_rna_token_metadata(self.num_tokens, device=self.device)
         self.assertIn("asym_id", metadata)
         self.assertIn("residue_index", metadata)

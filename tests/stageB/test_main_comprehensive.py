@@ -93,10 +93,25 @@ class TestRunPipeline:
                         "max_length": 512
                     },
                     "pairformer": {
-                        "init_z_from_adjacency": False
+                        "init_z_from_adjacency": False,
+                        "device": "cpu"
                     }
                 },
-                "stageC": {}
+                "stageC": {
+                    "enabled": True,
+                    "method": "mp_nerf",
+                    "device": "cpu",
+                    "do_ring_closure": False,
+                    "place_bases": True,
+                    "sugar_pucker": "C3'-endo",
+                    "angle_representation": "sin_cos",
+                    "use_metadata": False,
+                    "use_memory_efficient_kernel": False,
+                    "use_deepspeed_evo_attention": False,
+                    "use_lma": False,
+                    "inplace_safe": True,
+                    "debug_logging": False
+                }
             },
             "stageB_torsion": {
                 "device": "cpu",
