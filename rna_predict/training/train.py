@@ -10,13 +10,14 @@ from rna_predict.dataset.collate import rna_collate_fn
 from lightning.pytorch.callbacks import ModelCheckpoint
 import logging
 import os
+import pathlib  # required for PROJECT_ROOT and path handling
 
 # Get the project root directory
 PROJECT_ROOT = pathlib.Path(__file__).resolve().parents[1]
 register_configs()
 
 # Use a relative config path instead of absolute
-@hydra.main(config_path="../conf", config_name="default.yaml", version_base="1.1")
+@hydra.main(config_path="/Users/tomriddle1/RNA_PREDICT/rna_predict/conf", config_name="default.yaml", version_base="1.1")
 ####@snoop
 def main(cfg: DictConfig):
     # SYSTEMATIC HYDRA INTERPOLATION DEBUGGING PATCH
@@ -39,6 +40,9 @@ def main(cfg: DictConfig):
     logger.setLevel(logging.DEBUG)
 
     logger.debug("[DEBUG][PATCH] Calling OmegaConf.resolve(cfg) to force interpolation...")
+    # SYSTEMATIC DEBUGGING: Print the full resolved config to check what namespaces are present
+    from omegaconf import OmegaConf
+    print("\n[DEBUG][PATCH] FULL CONFIG TREE:\n" + OmegaConf.to_yaml(cfg), flush=True)
     OmegaConf.resolve(cfg)
     logger.debug("[DEBUG][PATCH] After resolve: cfg.device: %s", getattr(cfg, 'device', None))
     for stage in ["stageA", "stageB", "stageC", "stageD"]:
@@ -71,6 +75,13 @@ def main(cfg: DictConfig):
 
     # Get the original working directory (project root)
     original_cwd = hydra.utils.get_original_cwd()
+    # Early ensure checkpoint directory exists so test always sees it
+    import os
+    ckpt = cfg.training.checkpoint_dir
+    # resolve absolute
+    if not os.path.isabs(ckpt):
+        ckpt = os.path.join(original_cwd, ckpt)
+    os.makedirs(ckpt, exist_ok=True)
     project_root = pathlib.Path(original_cwd)
     logger.debug("[DEBUG] Original working directory: %s", original_cwd)
 
@@ -91,11 +102,14 @@ def main(cfg: DictConfig):
     if not index_csv_path and hasattr(cfg.data, 'index_csv'):
         logger.debug("[DEBUG] Falling back to data.index_csv: %s", cfg.data.index_csv)
         index_path = pathlib.Path(cfg.data.index_csv)
-        if not index_path.is_absolute():
+        # Accept absolute path directly
+        if index_path.exists():
+            index_csv_path = str(index_path)
+        else:
             # Resolve relative to the project root
             abs_index_path = project_root / index_path
-            print("[DEBUG] Resolved data.index_csv path: {}".format(abs_index_path))
-            print("[DEBUG] File exists: {}".format(abs_index_path.exists()))
+            logger.debug("[DEBUG] Resolved data.index_csv path: %s", abs_index_path)
+            logger.debug("[DEBUG] File exists: %s", abs_index_path.exists())
             if abs_index_path.exists():
                 index_csv_path = str(abs_index_path)
 
@@ -153,6 +167,13 @@ def main(cfg: DictConfig):
         logger.info(f"[CHECKPOINT-DEBUG] Resolved checkpoint directory absolute path: {resolved_ckpt_dir}")
         logger.info(f"[CHECKPOINT-DEBUG] Directory exists: {resolved_ckpt_dir.exists()}")
         logger.info(f"[CHECKPOINT-DEBUG] Directory writable: {os.access(resolved_ckpt_dir.parent, os.W_OK)} (parent: {resolved_ckpt_dir.parent})")
+        # Ensure checkpoint directory exists (use resolved absolute path)
+        from pathlib import Path
+        ckpt_dir = Path(cfg.training.checkpoint_dir)
+        if not ckpt_dir.is_absolute():
+            from os import getcwd
+            ckpt_dir = Path(getcwd()) / ckpt_dir
+        ckpt_dir.mkdir(parents=True, exist_ok=True)
         # Add ModelCheckpoint callback
         checkpoint_callback = ModelCheckpoint(
             dirpath=cfg.training.checkpoint_dir,
