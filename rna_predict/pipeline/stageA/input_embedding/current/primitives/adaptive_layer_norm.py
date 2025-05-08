@@ -9,7 +9,7 @@ import warnings
 import torch
 import torch.nn as nn
 from torch.nn import Linear
-
+import snoop
 from .adaptive_layer_norm_utils import (
     adjust_tensor_shapes,
     check_and_adjust_dimensions,
@@ -24,7 +24,7 @@ class AdaptiveLayerNorm(nn.Module):
     Implements Algorithm 26 in AF3
     """
 
-    def __init__(self, c_a: int = 768, c_s: int = 384) -> None:
+    def __init__(self, c_a: int = 768, c_s: int = 384, c_s_layernorm: int = None) -> None:
         """
         Args:
             c_a (int, optional): the embedding dim of a(single feature aggregated atom info). Defaults to 768.
@@ -33,7 +33,11 @@ class AdaptiveLayerNorm(nn.Module):
         super().__init__()
         self.c_a = c_a  # Store c_a for reference
         self.c_s = c_s  # Store c_s for reference
-        self.layernorm_a = nn.LayerNorm(c_a, elementwise_affine=False, bias=False)
+        if c_s_layernorm is None:
+            c_s_layernorm = c_s
+        self.c_s_layernorm = c_s_layernorm
+        self.layernorm_a = nn.LayerNorm(c_a, elementwise_affine=True, bias=False)
+        self.layernorm_s = nn.LayerNorm(c_s_layernorm, elementwise_affine=True, bias=False)
         self.linear_s = Linear(in_features=c_s, out_features=c_a)
         self.linear_nobias_s = LinearNoBias(in_features=c_s, out_features=c_a)
 
@@ -92,7 +96,9 @@ class AdaptiveLayerNorm(nn.Module):
         a_b, scale_b, shift_b = torch.broadcast_tensors(a, scale, shift)
         return scale_b * a_b + shift_b
 
+    
     def _apply_conditioning(self, a: torch.Tensor, s: torch.Tensor) -> torch.Tensor:
+        print(f"[DEBUG][AdaLN][_apply_conditioning] ENTRY: a.requires_grad={a.requires_grad}, s.requires_grad={s.requires_grad}, a.shape={a.shape}, s.shape={s.shape}")
         """
         Apply conditioning from s to a.
 
@@ -111,10 +117,12 @@ class AdaptiveLayerNorm(nn.Module):
 
         # Step 2: Prepare scale and shift tensors
         scale, shift = self._prepare_scale_and_shift(s, a)
+        print(f"[DEBUG][AdaLN][_apply_conditioning] after _prepare_scale_and_shift: scale.shape={scale.shape}, shift.shape={shift.shape}, scale.requires_grad={scale.requires_grad}, shift.requires_grad={shift.requires_grad}")
 
         # Step 3: Try broadcasting approach first
         try:
             conditioned_a = self._try_broadcasting(a, scale, shift)
+            print(f"[DEBUG][AdaLN][_apply_conditioning] after _try_broadcasting: conditioned_a.requires_grad={conditioned_a.requires_grad}, conditioned_a.shape={conditioned_a.shape}")
             return restore_original_shape(
                 conditioned_a, a_original_shape, a_was_unsqueezed
             )
@@ -127,16 +135,24 @@ class AdaptiveLayerNorm(nn.Module):
 
             # Adjust tensor shapes to be compatible
             scale, shift = adjust_tensor_shapes(scale, shift, a)
+            print(f"[DEBUG][AdaLN][_apply_conditioning] after adjust_tensor_shapes: scale.shape={scale.shape}, shift.shape={shift.shape}, scale.requires_grad={scale.requires_grad}, shift.requires_grad={shift.requires_grad}")
 
             # Apply conditioning directly
             conditioned_a = scale * a + shift
+            print(f"[DEBUG][AdaLN][_apply_conditioning] after direct conditioning: conditioned_a.requires_grad={conditioned_a.requires_grad}, conditioned_a.shape={conditioned_a.shape}")
 
             # Restore original shape if needed
             return restore_original_shape(
                 conditioned_a, a_original_shape, a_was_unsqueezed
             )
 
+    @snoop
     def forward(self, a: torch.Tensor, s: torch.Tensor) -> torch.Tensor:
+        print(f"[DEBUG][AdaLN] ENTRY: a.requires_grad={a.requires_grad}, s.requires_grad={s.requires_grad}, a.shape={a.shape}, s.shape={s.shape}")
+        print(f"[DEBUG][AdaLN] ENTRY: a.device={a.device}, a.dtype={a.dtype}, a.is_leaf={a.is_leaf}, a.grad_fn={a.grad_fn}")
+        print(f"[DEBUG][AdaLN] ENTRY: s.device={s.device}, s.dtype={s.dtype}, s.is_leaf={s.is_leaf}, s.grad_fn={s.grad_fn}")
+        print(f"[DEBUG][AdaLN] layernorm_a.weight.device={self.layernorm_a.weight.device if hasattr(self.layernorm_a, 'weight') and self.layernorm_a.weight is not None else 'N/A'}, layernorm_a.weight.dtype={self.layernorm_a.weight.dtype if hasattr(self.layernorm_a, 'weight') and self.layernorm_a.weight is not None else 'N/A'}")
+        print(f"[DEBUG][AdaLN] layernorm_s.weight.device={self.layernorm_s.weight.device if hasattr(self.layernorm_s, 'weight') and self.layernorm_s.weight is not None else 'N/A'}, layernorm_s.weight.dtype={self.layernorm_s.weight.dtype if hasattr(self.layernorm_s, 'weight') and self.layernorm_s.weight is not None else 'N/A'}")
         """
         Args:
             a (torch.Tensor): the single feature aggregate per-atom representation
@@ -152,14 +168,22 @@ class AdaptiveLayerNorm(nn.Module):
 
         # Ensure a has the correct feature dimension (self.c_a)
         a = adjust_tensor_feature_dim(a, self.c_a, tensor_name="AdaLN input 'a'")
+        print(f"[DEBUG][AdaLN] after adjust_tensor_feature_dim: a.device={a.device}, a.dtype={a.dtype}, a.is_leaf={a.is_leaf}, a.grad_fn={a.grad_fn}")
 
         # Normalize inputs
         a_norm = self.layernorm_a(a)
+        print(f"[DEBUG][AdaLN] after layernorm_a: a_norm.requires_grad={a_norm.requires_grad}, a_norm.shape={a_norm.shape}")
+        print(f"[DEBUG][AdaLN] after layernorm_a: a_norm.device={a_norm.device}, a_norm.dtype={a_norm.dtype}, a_norm.is_leaf={a_norm.is_leaf}, a_norm.grad_fn={a_norm.grad_fn}")
 
-        # Create a new layer norm for s with the correct dimension
-        s_last_dim = s.size(-1)  # Use size() instead of shape
-        layernorm_s = nn.LayerNorm(s_last_dim, bias=False).to(s.device)
-        s_norm = layernorm_s(s)
+        # Ensure s matches the expected feature dimension for layernorm_s
+        assert s.shape[-1] == self.layernorm_s.normalized_shape[0], (
+            f"[AdaLN] s.shape[-1] ({s.shape[-1]}) does not match layernorm_s.normalized_shape ({self.layernorm_s.normalized_shape[0]})"
+        )
+        s_norm = self.layernorm_s(s)
+        print(f"[DEBUG][AdaLN] after layernorm_s: s_norm.requires_grad={s_norm.requires_grad}, s_norm.shape={s_norm.shape}")
+        print(f"[DEBUG][AdaLN] after layernorm_s: s_norm.device={s_norm.device}, s_norm.dtype={s_norm.dtype}, s_norm.is_leaf={s_norm.is_leaf}, s_norm.grad_fn={s_norm.grad_fn}")
 
         # Apply conditioning
-        return self._apply_conditioning(a_norm, s_norm)
+        out = self._apply_conditioning(a_norm, s_norm)
+        print(f"[DEBUG][AdaLN] RETURN: out.requires_grad={out.requires_grad}, out.shape={out.shape}")
+        return out
