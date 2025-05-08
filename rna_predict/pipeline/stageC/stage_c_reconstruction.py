@@ -213,7 +213,7 @@ def create_stage_c_test_config(**overrides):
     return OmegaConf.create(base)
 
 
-@snoop
+#@snoop
 def run_stageC_rna_mpnerf(
     cfg: DictConfig,
     sequence: str,
@@ -411,7 +411,7 @@ def run_stageC_rna_mpnerf(
 
     return output
 
-@snoop
+#@snoop
 def run_stageC(
     sequence: str,
     torsion_angles: torch.Tensor,
