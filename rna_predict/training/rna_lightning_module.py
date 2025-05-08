@@ -1,26 +1,34 @@
-import lightning as L
-import torch
-import numpy as np
-from typing import Optional
-from omegaconf import DictConfig
-from rna_predict.pipeline.merger.simple_latent_merger import LatentInputs
-from rna_predict.pipeline.stageA.adjacency.rfold_predictor import StageARFoldPredictor
-from rna_predict.pipeline.stageB.torsion.torsion_bert_predictor import StageBTorsionBertPredictor
-from rna_predict.pipeline.stageB.pairwise.pairformer_wrapper import PairformerWrapper
-from rna_predict.pipeline.stageC.stage_c_reconstruction import StageCReconstruction, run_stageC
-from rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager import ProtenixDiffusionManager
-from rna_predict.pipeline.merger.simple_latent_merger import SimpleLatentMerger
 import logging
 import os
 import shutil
+import sys
 import time
 import urllib.request
 import zipfile
-import torch.nn.functional as F
-from rna_predict.dataset.preprocessing.angle_utils import angles_rad_to_sin_cos
-import sys
+from typing import Optional, Union, Dict, Any, List, Tuple
 
-logger = logging.getLogger("rna_predict.training.rna_lightning_module")
+import lightning as L
+import torch
+from lightning.pytorch.utilities.combined_loader import CombinedLoader
+from omegaconf import DictConfig
+from torch.utils.data import DataLoader
+
+from rna_predict.pipeline.merger.simple_latent_merger import LatentInputs, SimpleLatentMerger
+from rna_predict.pipeline.stageB.pairwise.pairformer_wrapper import PairformerWrapper
+from rna_predict.dataset.loader import RNADataset
+from rna_predict.pipeline.stageC.stage_c_reconstruction import run_stageC, StageCReconstruction
+from rna_predict.pipeline.stageD.run_stageD import run_stageD
+from rna_predict.utils.angle_loss import angle_loss
+from rna_predict.pipeline.stageA.adjacency.rfold_predictor import StageARFoldPredictor
+from rna_predict.pipeline.stageB.torsion.torsion_bert_predictor import StageBTorsionBertPredictor
+from rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager import ProtenixDiffusionManager
+
+# TODO: These modules need to be implemented or moved to the correct location
+# from rna_predict.models.latent_merger import LatentMerger
+# from rna_predict.models.stageB_pairformer import run_stageB_pairformer
+# from rna_predict.models.stageB_torsion import run_stageB_torsion
+
+logger = logging.getLogger(__name__)
 if not logger.hasHandlers():
     handler = logging.StreamHandler(sys.stdout)
     formatter = logging.Formatter("%(levelname)s %(message)s")
@@ -48,7 +56,7 @@ class RNALightningModule(L.LightningModule):
 
         # Set debug_logging attribute: default False, override if present in config
         self.debug_logging = False
-        if cfg is not None and hasattr(cfg, 'model') and hasattr(cfg.model, 'stageD') and hasattr(cfg.model.stageD, 'debug_logging'):
+        if cfg is not None and hasattr(cfg.model, 'stageD') and hasattr(cfg.model.stageD, 'debug_logging'):
             self.debug_logging = cfg.model.stageD.debug_logging
 
         # Check if this is being called from the integration test
@@ -239,7 +247,7 @@ class RNALightningModule(L.LightningModule):
     def _sample_noise_level(self, batch_size: int) -> torch.Tensor:
         """Samples noise level sigma_t for each item in the batch based on config."""
         noise_schedule_cfg = {}
-        if hasattr(self.cfg, 'model') and hasattr(self.cfg.model, 'stageD'):
+        if self.cfg is not None and hasattr(self.cfg, 'model') and hasattr(self.cfg.model, 'stageD'):
             diffusion_cfg_parent = getattr(self.cfg.model.stageD, 'diffusion', getattr(self.cfg.model.stageD, 'stageD_diffusion', {}))
             if hasattr(diffusion_cfg_parent, 'noise_schedule'):
                 noise_schedule_cfg = diffusion_cfg_parent.noise_schedule
@@ -250,7 +258,7 @@ class RNALightningModule(L.LightningModule):
         s_min = getattr(noise_schedule_cfg, 's_min', 4e-4)
         s_max = getattr(noise_schedule_cfg, 's_max', 160.0)
         model_arch_cfg = {}
-        if hasattr(self.cfg, 'model') and hasattr(self.cfg.model, 'stageD'):
+        if self.cfg is not None and hasattr(self.cfg, 'model') and hasattr(self.cfg.model, 'stageD'):
             diffusion_cfg_parent = getattr(self.cfg.model.stageD, 'diffusion', getattr(self.cfg.model.stageD, 'stageD_diffusion', {}))
             if hasattr(diffusion_cfg_parent, 'model_architecture'):
                 model_arch_cfg = diffusion_cfg_parent.model_architecture
@@ -291,6 +299,13 @@ class RNALightningModule(L.LightningModule):
             A dictionary with keys including 'adjacency', 'torsion_angles', 's_embeddings', 'z_embeddings', 'coords', 'unified_latent', and optionally 'atom_metadata' and 'atom_count'.
         """
         logger.debug("[DEBUG-ENTRY] Entered forward")
+        
+        # Check for required keys
+        required_keys = ["sequence", "adjacency", "angles_true"]
+        missing_keys = [key for key in required_keys if key not in batch]
+        if missing_keys:
+            raise RuntimeError(f"Missing required key for angle loss: {missing_keys[0]}")
+
         # --- DEVICE DEBUGGING: Print device info for batch and key model parameters ---
         if hasattr(self, 'debug_logging') and self.debug_logging:
             def print_tensor_devices(obj, prefix):
@@ -488,6 +503,8 @@ class RNALightningModule(L.LightningModule):
         # --- Direct Angle Loss logic (Phase 1, Step 2) ---
         output = self.forward(batch)
         logger.debug("[DEBUG-LM] output.keys(): %s", list(output.keys()))
+
+        # Robust angle loss calculation and shape alignment
         predicted_angles_sincos = output.get("torsion_angles", None)
         true_angles_rad = batch.get("angles_true", None)
         residue_mask = batch.get("attention_mask", None)
@@ -503,6 +520,7 @@ class RNALightningModule(L.LightningModule):
             # predicted_angles_sincos: [B, L, N*2] (N = num_angles)
             # true_angles_rad: [B, L, N]
             # Convert true angles to sin/cos pairs for N angles
+            from rna_predict.dataset.preprocessing.angle_utils import angles_rad_to_sin_cos
             num_predicted_features = predicted_angles_sincos.shape[-1]
             assert num_predicted_features % 2 == 0, f"Predicted torsion output last dim ({num_predicted_features}) should be even (sin/cos pairs)"
             num_predicted_angles = num_predicted_features // 2
@@ -553,7 +571,6 @@ class RNALightningModule(L.LightningModule):
                 loss_angle = loss_angle.to(self.device_)
                 if hasattr(self, 'debug_logging') and self.debug_logging:
                     logger.info(f"[LOSS-DEBUG] loss_angle after to(self.device_) device: {getattr(loss_angle, 'device', None)}")
-                # *****************************************************************
 
         logger.debug(f"[DEBUG-LM] loss_angle value: {loss_angle.item()}, device: {loss_angle.device}")
 
