@@ -633,7 +633,7 @@ def process_input_features(
     debug_logging: bool = False,
 ) -> Dict[str, Any]:
     # SYSTEMATIC DEBUGGING: Print requires_grad, shape, dtype for all input_features before and after expansion
-    if input_features:
+    if debug_logging and input_features:
         for k, v in input_features.items():
             if isinstance(v, torch.Tensor):
                 print(f"[INSTRUMENT][BRIDGE][process_input_features][BEFORE] input_features['{k}']: shape={v.shape}, dtype={v.dtype}, requires_grad={v.requires_grad}, is_leaf={v.is_leaf if hasattr(v, 'is_leaf') else 'N/A'}")
@@ -815,15 +815,18 @@ def bridge_residue_to_atom(
     debug_logging: bool = False,
 ):
     # SYSTEMATIC DEBUGGING: Print requires_grad, shape, dtype for all trunk_embeddings and input_features
-    for k, v in getattr(bridging_input, 'trunk_embeddings', {}).items():
-        if isinstance(v, torch.Tensor):
-            print(f"[INSTRUMENT][BRIDGE] trunk_embeddings['{k}']: shape={v.shape}, dtype={v.dtype}, requires_grad={v.requires_grad}, is_leaf={v.is_leaf if hasattr(v, 'is_leaf') else 'N/A'}")
-    if hasattr(bridging_input, 'input_features') and bridging_input.input_features:
-        for k, v in bridging_input.input_features.items():
+    if debug_logging:
+        for k, v in getattr(bridging_input, 'trunk_embeddings', {}).items():
             if isinstance(v, torch.Tensor):
-                print(f"[INSTRUMENT][BRIDGE] input_features['{k}']: shape={v.shape}, dtype={v.dtype}, requires_grad={v.requires_grad}, is_leaf={v.is_leaf if hasattr(v, 'is_leaf') else 'N/A'}")
-    if hasattr(bridging_input, 'partial_coords') and isinstance(bridging_input.partial_coords, torch.Tensor):
-        print(f"[INSTRUMENT][BRIDGE] partial_coords: shape={bridging_input.partial_coords.shape}, dtype={bridging_input.partial_coords.dtype}, requires_grad={bridging_input.partial_coords.requires_grad}, is_leaf={bridging_input.partial_coords.is_leaf if hasattr(bridging_input.partial_coords, 'is_leaf') else 'N/A'}")
+                print(f"[INSTRUMENT][BRIDGE] trunk_embeddings['{k}']: shape={v.shape}, dtype={v.dtype}, requires_grad={v.requires_grad}, is_leaf={v.is_leaf if hasattr(v, 'is_leaf') else 'N/A'}")
+    if debug_logging:
+        if hasattr(bridging_input, 'input_features') and bridging_input.input_features:
+            for k, v in bridging_input.input_features.items():
+                if isinstance(v, torch.Tensor):
+                    print(f"[INSTRUMENT][BRIDGE] input_features['{k}']: shape={v.shape}, dtype={v.dtype}, requires_grad={v.requires_grad}, is_leaf={v.is_leaf if hasattr(v, 'is_leaf') else 'N/A'}")
+    if debug_logging:
+        if hasattr(bridging_input, 'partial_coords') and isinstance(bridging_input.partial_coords, torch.Tensor):
+            print(f"[INSTRUMENT][BRIDGE] partial_coords: shape={bridging_input.partial_coords.shape}, dtype={bridging_input.partial_coords.dtype}, requires_grad={bridging_input.partial_coords.requires_grad}, is_leaf={bridging_input.partial_coords.is_leaf if hasattr(bridging_input.partial_coords, 'is_leaf') else 'N/A'}")
 
     """
     Bridges residue-level embeddings and features to atom-level representations for Stage D diffusion.
@@ -1008,7 +1011,7 @@ def bridge_residue_to_atom(
         # Use only real atoms for mapping
         real_atom_indices = atom_mask.nonzero(as_tuple=True)[0].tolist()
         # Subset partial_coords and metadata to real atoms
-        partial_coords_real = bridging_input.partial_coords[real_atom_indices]
+        partial_coords_real = bridging_input.partial_coords[:, real_atom_indices, :]
         # If trunk_embeddings has atom_metadata, subset as well
         atom_metadata = None
         if hasattr(bridging_input, 'trunk_embeddings') and bridging_input.trunk_embeddings is not None:
