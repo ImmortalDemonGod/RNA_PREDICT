@@ -87,15 +87,11 @@ class StageARFoldPredictor(nn.Module):
     """
 
     def __init__(self, stage_cfg: Optional[DictConfig] = None, device: Optional[torch.device] = None):
+        # Call super().__init__() first to properly initialize nn.Module
+        super().__init__()
+        
         # Set debug_logging from config if available, before any method calls that may use it
         self.debug_logging = getattr(stage_cfg, "debug_logging", False) if stage_cfg is not None else False
-        # Call super().__init__() to properly initialize nn.Module
-        """
-        Initializes the StageARFoldPredictor with device, configuration, and RFold model setup.
-        
-        Requires a device specification either from the provided configuration or as an explicit argument. If configuration is missing or incomplete, enters dummy mode with no model loaded. Loads the RFold model with parameters from the configuration, moves it to the resolved device, loads checkpoint weights, and optionally freezes parameters if specified. Sets up logging and debug options based on configuration.
-        """
-        super(StageARFoldPredictor, self).__init__()
 
         # --- HYDRA DEVICE COMPLIANCE PATCH ---
         # Always require device from config, never fallback to CPU unless explicitly set in config
@@ -108,13 +104,14 @@ class StageARFoldPredictor(nn.Module):
             raise ValueError("StageARFoldPredictor requires a device specified in the config or as an explicit argument; do not use hardcoded defaults.")
         # validate & announce
         self.device = self._validate_device(torch.device(resolved_device))
-        logger.debug("[DEVICE-DEBUG] Using device: %s", self.device)
+        if self.debug_logging:
+            logger.debug("[DEVICE-DEBUG] Using device: %s", self.device)
 
         # Assert device is resolved if present in config
         if stage_cfg is not None and hasattr(stage_cfg, 'device'):
             assert stage_cfg.device != "${device}", f"Device not resolved in stage_cfg for {self.__class__.__name__}: {stage_cfg.device}"
-            logger.debug("[DEBUG][StageARFoldPredictor] Resolved device in stage_cfg: %s", stage_cfg.device)
-
+            if self.debug_logging:
+                logger.debug("[DEBUG][StageARFoldPredictor] Resolved device in stage_cfg: %s", stage_cfg.device)
         # Use the provided device or fallback to CPU, then validate
         self.min_seq_length = 1
 
