@@ -495,8 +495,10 @@ class ProtenixDiffusionManager(torch.nn.Module):
         self._log_shapes(
             debug_logging, coords_init, trunk_embeddings["s_trunk"], s_inputs, z_trunk
         )
+        # PATCH: Pass max_atoms from config for strict Hydra best practices
+        max_atoms = self.cfg.data.max_atoms if hasattr(self.cfg, 'data') and hasattr(self.cfg.data, 'max_atoms') else 4096
         ctx = FeaturePreparationContext(
-            coords_init, override_input_features, device, trunk_embeddings, s_inputs
+            coords_init, override_input_features, device, trunk_embeddings, s_inputs, max_atoms=max_atoms
         )
         input_feature_dict = self._prepare_input_features(ctx)
         schedule_type = noise_schedule_cfg.get("schedule_type", "linear")
