@@ -60,31 +60,13 @@ class TestTorsionBertPredictorHypothesis:
 
     @given(
         angle_mode=angle_modes,
-        num_angles=num_angles,
-        config_type=st.sampled_from(["model.stageB.torsion_bert", "stageB.torsion_bert"])
+        num_angles=num_angles
     )
     @settings(max_examples=10, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture])
-    def test_initialization(self, angle_mode, num_angles, config_type):
-        """Test that the predictor initializes correctly with various configurations."""
-        # Create a config based on the config_type
-        if config_type == "model.stageB.torsion_bert":
-            cfg = OmegaConf.create({
-                "model": {
-                    "stageB": {
-                        "torsion_bert": {
-                            "model_name_or_path": "sayby/rna_torsionbert",
-                            "device": "cpu",
-                            "angle_mode": angle_mode,
-                            "num_angles": num_angles,
-                            "max_length": 512,
-                            "checkpoint_path": None
-                        },
-                        "debug_logging": True
-                    }
-                }
-            })
-        else:  # stageB.torsion_bert
-            cfg = OmegaConf.create({
+    def test_initialization(self, angle_mode, num_angles):
+        """Test that the predictor initializes correctly with model.stageB.torsion_bert config."""
+        cfg = OmegaConf.create({
+            "model": {
                 "stageB": {
                     "torsion_bert": {
                         "model_name_or_path": "sayby/rna_torsionbert",
@@ -93,9 +75,11 @@ class TestTorsionBertPredictorHypothesis:
                         "num_angles": num_angles,
                         "max_length": 512,
                         "checkpoint_path": None
-                    }
+                    },
+                    "debug_logging": True
                 }
-            })
+            }
+        })
 
         # Initialize the predictor
         predictor = StageBTorsionBertPredictor(cfg=cfg)
@@ -108,9 +92,43 @@ class TestTorsionBertPredictorHypothesis:
         assert predictor.max_length == 512
         assert predictor.checkpoint_path is None
 
-        # Check debug_logging if using model.stageB config
-        if config_type == "model.stageB.torsion_bert":
-            assert predictor.debug_logging is True
+        # debug_logging should be True from config
+        assert predictor.debug_logging is True
+
+    @given(angle_mode=angle_modes, num_angles=num_angles)
+    @settings(max_examples=10, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    def test_legacy_config_path_raises(self, angle_mode, num_angles):
+        """Legacy config paths should raise migration error."""
+        # stageB.torsion_bert legacy
+        legacy1 = OmegaConf.create({
+            "stageB": {
+                "torsion_bert": {
+                    "model_name_or_path": "sayby/rna_torsionbert",
+                    "device": "cpu",
+                    "angle_mode": angle_mode,
+                    "num_angles": num_angles,
+                    "max_length": 512
+                }
+            }
+        })
+        with pytest.raises(ValueError, match="Please migrate config"):  # legacy branch error
+            StageBTorsionBertPredictor(cfg=legacy1)
+
+    @given(angle_mode=angle_modes, num_angles=num_angles)
+    @settings(max_examples=10, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    def test_legacy_flat_config_path_raises(self, angle_mode, num_angles):
+        """Flat legacy config stageB_torsion should raise migration error."""
+        legacy2 = OmegaConf.create({
+            "stageB_torsion": {
+                "model_name_or_path": "sayby/rna_torsionbert",
+                "device": "cpu",
+                "angle_mode": angle_mode,
+                "num_angles": num_angles,
+                "max_length": 512
+            }
+        })
+        with pytest.raises(ValueError, match="Please migrate config"):  # legacy branch error
+            StageBTorsionBertPredictor(cfg=legacy2)
 
     @given(
         sequence=rna_sequences
@@ -120,11 +138,18 @@ class TestTorsionBertPredictorHypothesis:
         """Test that the __call__ method works correctly."""
         # Create a config
         cfg = OmegaConf.create({
-            "stageB_torsion": {
-                "model_name_or_path": "sayby/rna_torsionbert",
-                "device": "cpu",
-                "angle_mode": "sin_cos",
-                "num_angles": 7
+            "model": {
+                "stageB": {
+                    "torsion_bert": {
+                        "model_name_or_path": "sayby/rna_torsionbert",
+                        "device": "cpu",
+                        "angle_mode": "sin_cos",
+                        "num_angles": 7,
+                        "max_length": 512,
+                        "checkpoint_path": None
+                    },
+                    "debug_logging": True
+                }
             }
         })
 
@@ -268,11 +293,18 @@ class TestTorsionBertPredictorHypothesis:
         """Test that empty sequences are handled correctly."""
         # Create a config
         cfg = OmegaConf.create({
-            "stageB_torsion": {
-                "model_name_or_path": "sayby/rna_torsionbert",
-                "device": "cpu",
-                "angle_mode": "sin_cos",
-                "num_angles": 7
+            "model": {
+                "stageB": {
+                    "torsion_bert": {
+                        "model_name_or_path": "sayby/rna_torsionbert",
+                        "device": "cpu",
+                        "angle_mode": "sin_cos",
+                        "num_angles": 7,
+                        "max_length": 512,
+                        "checkpoint_path": None
+                    },
+                    "debug_logging": True
+                }
             }
         })
 
@@ -298,11 +330,16 @@ class TestTorsionBertPredictorHypothesis:
         """Test the _convert_sincos_to_angles method."""
         # Create a config
         cfg = OmegaConf.create({
-            "stageB_torsion": {
-                "model_name_or_path": "sayby/rna_torsionbert",
-                "device": "cpu",
-                "angle_mode": "sin_cos",
-                "num_angles": 7
+            "model": {
+                "stageB": {
+                    "torsion_bert": {
+                        "model_name_or_path": "sayby/rna_torsionbert",
+                        "device": "cpu",
+                        "angle_mode": "sin_cos",
+                        "num_angles": 7,
+                        "max_length": 512
+                    }
+                }
             }
         })
 
