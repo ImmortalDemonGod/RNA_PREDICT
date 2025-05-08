@@ -71,10 +71,15 @@ def test_adaptive_layernorm_broadcast_mismatch_fixed():
     # --- Gradient check ---
     # Sum output and backward to check gradients
     out.sum().backward()
-    print(f"a_input.grad is None? {a_input.grad is None}")
-    print(f"s_input.grad is None? {s_input.grad is None}")
+    # Verify gradients exist
+    assert a_input.grad is not None, "Gradient for a_input should exist"
+    assert s_input.grad is not None, "Gradient for s_input should exist"
+    # Print gradient statistics
     print(f"a_input.grad (mean, std): {a_input.grad.mean().item()}, {a_input.grad.std().item()}")
     print(f"s_input.grad (mean, std): {s_input.grad.mean().item()}, {s_input.grad.std().item()}")
+    # Verify gradients are non-zero
+    assert a_input.grad.abs().sum() > 0, "Gradient for a_input should be non-zero"
+    assert s_input.grad.abs().sum() > 0, "Gradient for s_input should be non-zero"
 
 if __name__ == "__main__":
     test_adaptive_layernorm_broadcast_mismatch_fixed()

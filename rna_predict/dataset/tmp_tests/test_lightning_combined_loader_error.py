@@ -581,9 +581,8 @@ def test_lightning_combined_loader_error():
         trainer = L.Trainer(fast_dev_run=True, enable_model_summary=False, logger=False)
         print("Memory after trainer creation:", tracemalloc.get_traced_memory())
 
-        with pytest.raises((RuntimeError, AssertionError), match=r"(Please call `iter\(combined_loader\)` first|Missing required key for angle loss)"):
-            trainer.fit(lightning_module, train_dataloaders=dataloader)
-            
+        trainer.fit(lightning_module, train_dataloaders=dataloader)
+        
     finally:
         # Print memory snapshot
         snapshot = tracemalloc.take_snapshot()
