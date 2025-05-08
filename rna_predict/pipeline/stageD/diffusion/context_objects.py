@@ -61,6 +61,10 @@ class FeaturePreparationContext:
     device: torch.device
     trunk_embeddings: Dict[str, Any]
     s_inputs: torch.Tensor
+    max_atoms: int = 4096  # default fallback, but should always be set from cfg
+
+    def __post_init__(self):
+        logger.debug(f"[INSTRUMENT][FeaturePreparationContext] max_atoms={self.max_atoms}, coords_init.shape={self.coords_init.shape}")
 
     @property
     def batch_size(self):
@@ -75,11 +79,11 @@ class FeaturePreparationContext:
         return self.trunk_embeddings["s_trunk"].shape
 
     def fallback_input_feature_dict(self):
+        # Use config-driven max_atoms
+        atom_idx = torch.arange(self.max_atoms, device=self.device).long().unsqueeze(0).expand(self.batch_size, -1)
+        logger.debug(f"[INSTRUMENT][FeaturePreparationContext] fallback_input_feature_dict: max_atoms={self.max_atoms}, atom_idx.shape={atom_idx.shape}")
         return {
-            "atom_to_token_idx": torch.arange(self.n_atoms, device=self.device)
-            .long()
-            .unsqueeze(0)
-            .expand(self.batch_size, -1)
+            "atom_to_token_idx": atom_idx
         }
 
     def get_atom_idx(self, input_feature_dict):
@@ -188,6 +192,7 @@ class EmbeddingContext:
         return s_inputs
 
     def get_z_trunk(self):
+        from rna_predict.pipeline.stageD.run_stageD import log_mem
         z_trunk = self.trunk_embeddings.get("pair")
         if z_trunk is None:
             logger.warning(
@@ -201,6 +206,7 @@ class EmbeddingContext:
                 (batch_size, n_tokens, n_tokens, c_z_dim), device=self.device
             )
             logger.debug(f"[EmbeddingContext] Created fallback z_trunk with shape: {z_trunk.shape}")
+            log_mem("After z_trunk fallback allocation")
         else:
             logger.debug(f"[EmbeddingContext] Initial z_trunk shape: {z_trunk.shape}")
             # Handle multi-sample case with extra dimensions
@@ -208,9 +214,13 @@ class EmbeddingContext:
                 logger.info(f"[EmbeddingContext] Reshaping 6D z_trunk with shape {z_trunk.shape} to 5D")
                 z_trunk = z_trunk.squeeze(1)  # Remove the extra dimension at index 1
                 logger.info(f"[EmbeddingContext] After reshaping, z_trunk shape: {z_trunk.shape}")
+                log_mem("After z_trunk reshape (6D->5D)")
             # Patch: If z_trunk is 3D, expand to 4D by adding batch dim
             elif z_trunk.dim() == 3:  # [N_res, N_res, C]
                 logger.warning(f"[EmbeddingContext] z_trunk is 3D, expanding to 4D. Original shape: {z_trunk.shape}")
                 z_trunk = z_trunk.unsqueeze(0)  # [1, N_res, N_res, C]
                 logger.info(f"[EmbeddingContext] After expanding, z_trunk shape: {z_trunk.shape}")
+                log_mem("After z_trunk expand (3D->4D)")
+        # Always log memory after get_z_trunk returns
+        log_mem("After get_z_trunk return")
         return z_trunk
