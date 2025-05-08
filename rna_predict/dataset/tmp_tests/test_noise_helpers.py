@@ -1,20 +1,16 @@
-import torch
 import pytest
-from pathlib import Path
+import torch
 from omegaconf import OmegaConf
-from hydra import compose, initialize
+from hydra import compose, initialize_config_dir
 from rna_predict.training.rna_lightning_module import RNALightningModule
-
-# Absolute config directory for Hydra
-CONF_DIR = Path(__file__).resolve().parents[2] / "conf"
 
 @pytest.fixture
 def hydra_cfg():
-    # Initialize Hydra using absolute config path without changing cwd
-    with initialize(config_path=str(CONF_DIR), job_name="test_noise_helpers", version_base=None):
+    # Hypothesis-driven fix: use initialize_config_dir for absolute paths
+    abs_conf = "/Users/tomriddle1/RNA_PREDICT/rna_predict/conf"
+    with initialize_config_dir(config_dir=abs_conf, version_base=None):
         cfg = compose(config_name="default")
         cfg.device = "cpu"
-        # Ensure StageD diffusion config is present and set sane test values
         if not hasattr(cfg.model.stageD, 'diffusion'):
             cfg.model.stageD.diffusion = OmegaConf.create({})
         cfg.model.stageD.diffusion.noise_schedule = OmegaConf.create({
@@ -41,7 +37,6 @@ def hydra_cfg():
             'c_atompair': 4,
             'sigma_data': 1.0,
         })
-        # Fixture returns the composed config
         return cfg
 
 def test_sample_noise_level_shape_and_device(hydra_cfg):
@@ -50,7 +45,6 @@ def test_sample_noise_level_shape_and_device(hydra_cfg):
     sigma_t = model._sample_noise_level(batch_size)
     assert sigma_t.shape == (batch_size,)
     assert sigma_t.device.type == 'cpu'
-    # Value range check
     assert (sigma_t > 0).all()
     assert sigma_t.min() >= torch.tensor(hydra_cfg.model.stageD.diffusion.noise_schedule.s_min)
     assert sigma_t.max() <= torch.tensor(hydra_cfg.model.stageD.diffusion.noise_schedule.s_max)
@@ -64,9 +58,7 @@ def test_add_noise_shapes_and_broadcasting(hydra_cfg):
     coords_noisy, epsilon = model._add_noise(coords_true, sigma_t)
     assert coords_noisy.shape == coords_true.shape
     assert epsilon.shape == coords_true.shape
-    # Check broadcasting: all values change if sigma_t is nonzero
     assert not torch.equal(coords_noisy, coords_true)
-    # Device check
     assert coords_noisy.device == coords_true.device
     assert epsilon.device == coords_true.device
 
@@ -81,7 +73,6 @@ def test_add_noise_empty_tensor(hydra_cfg):
     assert torch.equal(epsilon, torch.zeros_like(coords_true))
 
 def test_sample_noise_level_extreme_sigma(hydra_cfg):
-    # Test with extreme s_min, s_max
     hydra_cfg.model.stageD.diffusion.noise_schedule.s_min = 1e-8
     hydra_cfg.model.stageD.diffusion.noise_schedule.s_max = 1e2
     model = RNALightningModule(cfg=hydra_cfg)
