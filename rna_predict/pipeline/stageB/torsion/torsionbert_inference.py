@@ -28,6 +28,8 @@ class DummyTorsionBertAutoModel(nn.Module):
         from types import SimpleNamespace
         # Patch: Add hidden_size to config to mimic HuggingFace model API
         self.config = SimpleNamespace(num_angles=num_angles, hidden_size=768)
+        # Add debug_logging attribute to avoid AttributeError in tests
+        self.debug_logging = False
 
     def forward(self, inputs: Any) -> Any:
         """Forward pass that returns a tensor with correct shape. Accepts dict or str for test robustness.
@@ -41,35 +43,41 @@ class DummyTorsionBertAutoModel(nn.Module):
 
         # ERROR_ID: DUMMY_TORSIONBERT_FORWARD_RETURN_TYPE
         """
-        print(f"[DEBUG-DUMMY] DummyTorsionBertAutoModel.forward type(inputs): {type(inputs)}, branch: " + (
-            "dict" if isinstance(inputs, dict) and "input_ids" in inputs else
-            "str" if isinstance(inputs, str) else
-            "fallback"
-        ))
+        if self.debug_logging:
+            logger.info(f"[DEBUG-DUMMY] DummyTorsionBertAutoModel.forward type(inputs): {type(inputs)}, branch: " + (
+                "dict" if isinstance(inputs, dict) and "input_ids" in inputs else
+                "str" if isinstance(inputs, str) else
+                "fallback"
+            ))
         # Always match output shape to input sequence length for integration tests
         if isinstance(inputs, dict):
             if "input_ids" in inputs:
                 input_ids = inputs["input_ids"]
                 batch_size, seq_len = input_ids.shape
-                print(f"[DEBUG-DUMMY] dict input: batch_size={batch_size}, seq_len={seq_len}")
+                if self.debug_logging:
+                    logger.info(f"[DEBUG-DUMMY] dict input: batch_size={batch_size}, seq_len={seq_len}")
                 # For direct model tests, do NOT add CLS token
                 output = torch.zeros(batch_size, seq_len, 2 * self.num_angles)
             else:
                 # Instead of raising an error, create a dummy output with a default shape
-                print("[DEBUG-DUMMY] dict input without input_ids, creating dummy output")
+                if self.debug_logging:
+                    logger.warning("[DEBUG-DUMMY] dict input without input_ids, creating dummy output")
                 # Use a default size of 1x4 (batch_size=1, seq_len=4) for ACGU
                 batch_size, seq_len = 1, 4
                 output = torch.zeros(batch_size, seq_len, 2 * self.num_angles)
                 # Log a warning instead of raising an error
-                print("[UNIQUE-WARN-TORSIONBERT-DICT-MISSING-INPUTIDS] DummyTorsionBertAutoModel received dict without 'input_ids'. Creating dummy output.")
+                if self.debug_logging:
+                    logger.warning("[UNIQUE-WARN-TORSIONBERT-DICT-MISSING-INPUTIDS] DummyTorsionBertAutoModel received dict without 'input_ids'. Creating dummy output.")
         elif isinstance(inputs, str):
             seq_len = len(inputs)
-            print(f"[DEBUG-DUMMY] str input: seq_len={seq_len}")
+            if self.debug_logging:
+                logger.info(f"[DEBUG-DUMMY] str input: seq_len={seq_len}")
             # For predictor logic, simulate CLS + residues
             output = torch.zeros(1, seq_len + 1, 2 * self.num_angles)
         else:
             # Handle unexpected input types more gracefully
-            print(f"[UNIQUE-WARN-TORSIONBERT-UNEXPECTED-INPUT] DummyTorsionBertAutoModel received unsupported input type: {type(inputs)}. Creating dummy output.")
+            if self.debug_logging:
+                logger.warning(f"[UNIQUE-WARN-TORSIONBERT-UNEXPECTED-INPUT] DummyTorsionBertAutoModel received unsupported input type: {type(inputs)}. Creating dummy output.")
             # Create a default output
             output = torch.zeros(1, 4, 2 * self.num_angles)  # Default size for ACGU
 
@@ -83,11 +91,13 @@ class DummyTorsionBertAutoModel(nn.Module):
             elif isinstance(inputs, str):
                 seq_len = len(inputs)
                 output = torch.zeros(1, seq_len + 1, 2 * self.num_angles)
-            print(f"[DEBUG-DUMMY] Special case for num_angles=16, output shape: {output.shape}")
+            if self.debug_logging:
+                logger.info(f"[DEBUG-DUMMY] Special case for num_angles=16, output shape: {output.shape}")
 
         if self.side_effect and isinstance(inputs, dict) and "input_ids" in inputs and "attention_mask" in inputs:
             return self.side_effect(inputs["input_ids"], inputs["attention_mask"])
-        print(f"[DEBUG-DUMMY] DummyTorsionBertAutoModel.forward output shape: {output.shape}")
+        if self.debug_logging:
+            logger.info(f"[DEBUG-DUMMY] DummyTorsionBertAutoModel.forward output shape: {output.shape}")
 
         # For test_forward_logits, we need to return a dictionary
         # For other tests, we need to return an object with attributes
@@ -99,12 +109,14 @@ class DummyTorsionBertAutoModel(nn.Module):
             if frame and frame.f_back:
                 caller_function = frame.f_back.f_code.co_name
         except Exception as e:
-            print(f"[DEBUG-DUMMY] Error getting caller: {e}")
+            if self.debug_logging:
+                logger.error(f"[DEBUG-DUMMY] Error getting caller: {e}")
         finally:
             # Clean up to prevent reference cycles
             del frame
 
-        print(f"[DEBUG-DUMMY] Caller function: {caller_function}")
+        if self.debug_logging:
+            logger.info(f"[DEBUG-DUMMY] Caller function: {caller_function}")
 
         # If called from test_forward_logits, return a dictionary
         if caller_function == 'test_forward_logits':
@@ -130,7 +142,14 @@ class TorsionBertModel(nn.Module):
         
         Attempts to load the tokenizer and model from the specified path, moving the model to the appropriate device as determined by the provided configuration or device string. Handles device placement for PEFT/LoRA-wrapped models if applicable. On failure to load the model or tokenizer, falls back to a dummy model for robustness. Asserts that neither the model nor tokenizer is a MagicMock outside of test mode.
         """
-        print("[DEVICE-DEBUG][stageB_torsion] Entering TorsionBertModel.__init__")
+        self.debug_logging = False
+        if cfg is not None and hasattr(cfg, 'debug_logging'):
+            self.debug_logging = cfg.debug_logging
+        elif cfg is not None and hasattr(cfg, 'model') and hasattr(cfg.model, 'stageB') and hasattr(cfg.model.stageB, 'torsion_bert') and hasattr(cfg.model.stageB.torsion_bert, 'debug_logging'):
+            self.debug_logging = cfg.model.stageB.torsion_bert.debug_logging
+
+        if self.debug_logging:
+            logger.info("[DEVICE-DEBUG][stageB_torsion] Entering TorsionBertModel.__init__")
         super().__init__()
         self.device_init = torch.device(device)  # Track the originally requested device
         self.num_angles = num_angles
@@ -142,43 +161,54 @@ class TorsionBertModel(nn.Module):
             try:
                 self.device = get_device_for_component(cfg, "model.stageB.torsion_bert.model", default_device=device)
             except Exception as e:
-                print(f"[DEVICE-DEBUG][stageB_torsion] Exception in get_device_for_component: {e}")
+                if self.debug_logging:
+                    logger.warning(f"[DEVICE-DEBUG][stageB_torsion] Exception in get_device_for_component: {e}")
                 self.device = torch.device(device)
         else:
             self.device = torch.device(device)
 
         try:
-            print(f"[DEBUG-INIT] Attempting to load tokenizer from model_path: '{model_path}'")
+            if self.debug_logging:
+                logger.info(f"[DEBUG-INIT] Attempting to load tokenizer from model_path: '{model_path}'")
             self.tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
-            print(f"[DEBUG-INIT] Tokenizer loaded successfully: {type(self.tokenizer)}")
+            if self.debug_logging:
+                logger.info(f"[DEBUG-INIT] Tokenizer loaded successfully: {type(self.tokenizer)}")
 
-            print(f"[DEBUG-INIT] Attempting to load model from model_path: '{model_path}'")
+            if self.debug_logging:
+                logger.info(f"[DEBUG-INIT] Attempting to load model from model_path: '{model_path}'")
             self.model = AutoModel.from_pretrained(model_path, trust_remote_code=True)
-            print(f"[DEBUG-INIT] Model loaded successfully: {type(self.model)}")
-            print(f"[DEVICE-DEBUG][stageB_torsion] After model load, param device: {next(self.model.parameters()).device}")
+            if self.debug_logging:
+                logger.info(f"[DEBUG-INIT] Model loaded successfully: {type(self.model)}")
+                logger.info(f"[DEVICE-DEBUG][stageB_torsion] After model load, param device: {next(self.model.parameters()).device}")
 
             # Move model to device with error handling
             try:
                 self.model = self.model.to(self.device)
-                print(f"[DEVICE-DEBUG][stageB_torsion] After .to(self.device), param device: {next(self.model.parameters()).device}")
+                if self.debug_logging:
+                    logger.info(f"[DEVICE-DEBUG][stageB_torsion] After .to(self.device), param device: {next(self.model.parameters()).device}")
             except Exception as e:
-                print(f"[DEVICE-DEBUG][stageB_torsion] Error during .to(self.device): {e}")
+                if self.debug_logging:
+                    logger.warning(f"[DEVICE-DEBUG][stageB_torsion] Error during .to(self.device): {e}")
 
             # If PEFT/LoRA is enabled, wrap and then move to device again
             if getattr(self, "lora_enabled", False) or getattr(self, "peft_enabled", False) or hasattr(self, "apply_lora"):
                 try:
                     # (Assume model is wrapped here)
-                    print(f"[DEVICE-DEBUG][stageB_torsion] After LoRA/PEFT wrapping, param device: {next(self.model.parameters()).device}")
+                    if self.debug_logging:
+                        logger.info(f"[DEVICE-DEBUG][stageB_torsion] After LoRA/PEFT wrapping, param device: {next(self.model.parameters()).device}")
                     self.model = self.model.to(self.device)
-                    print(f"[DEVICE-DEBUG][stageB_torsion] After final .to(self.device), param device: {next(self.model.parameters()).device}")
+                    if self.debug_logging:
+                        logger.info(f"[DEVICE-DEBUG][stageB_torsion] After final .to(self.device), param device: {next(self.model.parameters()).device}")
                 except Exception as e:
-                    print(f"[DEVICE-DEBUG][stageB_torsion] Error during LoRA/PEFT .to(self.device): {e}")
+                    if self.debug_logging:
+                        logger.warning(f"[DEVICE-DEBUG][stageB_torsion] Error during LoRA/PEFT .to(self.device): {e}")
         except Exception as e:
             import traceback
-            print(f"[DEVICE-DEBUG][stageB_torsion] Exception in __init__: {e}")
-            print(f"[DEVICE-DEBUG][stageB_torsion] Exception type: {type(e)}")
-            print(f"[MODEL-ERROR] Error loading model/tokenizer: {str(e)}. Using dummy model.")
-            print("[DEBUG-INIT] Traceback:")
+            if self.debug_logging:
+                logger.error(f"[DEVICE-DEBUG][stageB_torsion] Exception in __init__: {e}")
+                logger.error(f"[DEVICE-DEBUG][stageB_torsion] Exception type: {type(e)}")
+                logger.error(f"[MODEL-ERROR] Error loading model/tokenizer: {str(e)}. Using dummy model.")
+                logger.error("[DEBUG-INIT] Traceback:")
             traceback.print_exc()
             self.tokenizer = None
             self.model = DummyTorsionBertAutoModel(num_angles=num_angles)
@@ -205,10 +235,12 @@ class TorsionBertModel(nn.Module):
 
         # ERROR_ID: TORSIONBERT_FORWARD_RETURN_TYPE
         """
-        print(f"[DEBUG-TORSIONBERT-FORWARD] Input type: {type(inputs)}, keys: {list(inputs.keys()) if isinstance(inputs, dict) else 'N/A'}")
+        if self.debug_logging:
+            logger.info(f"[DEBUG-TORSIONBERT-FORWARD] Input type: {type(inputs)}, keys: {list(inputs.keys()) if isinstance(inputs, dict) else 'N/A'}")
         if isinstance(inputs, dict):
             for k, v in inputs.items():
-                print(f"[DEBUG-TORSIONBERT-FORWARD] Input key: {k}, shape: {getattr(v, 'shape', None)}, device: {getattr(v, 'device', None)}")
+                if self.debug_logging:
+                    logger.info(f"[DEBUG-TORSIONBERT-FORWARD] Input key: {k}, shape: {getattr(v, 'shape', None)}, device: {getattr(v, 'device', None)}")
 
         # Ensure inputs are on the correct device
         try:
@@ -220,18 +252,21 @@ class TorsionBertModel(nn.Module):
                 outputs = self.model(device_inputs)
             except Exception as e:
                 # Try dictionary unpacking as an alternative calling method
-                print(f"[MODEL-CALL] Error with direct call: {str(e)}. Trying dictionary unpacking.")
+                if self.debug_logging:
+                    logger.warning(f"[MODEL-CALL] Error with direct call: {str(e)}. Trying dictionary unpacking.")
                 outputs = self.model(**device_inputs)
 
         except Exception as e:
             # If there's a device-related error, try falling back to CPU
-            print(f"[DEVICE-ERROR] Error running model on {self.device}: {str(e)}. Attempting CPU fallback.")
+            if self.debug_logging:
+                logger.warning(f"[DEVICE-ERROR] Error running model on {self.device}: {str(e)}. Attempting CPU fallback.")
 
             # Move model and inputs to CPU
             cpu_device = torch.device("cpu")
             if hasattr(self.model, 'to'):
                 self.model = self.model.to(cpu_device)
-                print(f"[DEVICE-FALLBACK] Moved model to CPU due to error on {self.device}")
+                if self.debug_logging:
+                    logger.info(f"[DEVICE-FALLBACK] Moved model to CPU due to error on {self.device}")
 
             # Move inputs to CPU
             cpu_inputs = move_to_device(inputs, cpu_device)
@@ -241,21 +276,27 @@ class TorsionBertModel(nn.Module):
                 outputs = self.model(cpu_inputs)
             except Exception as inner_e:
                 try:
-                    print(f"[CPU-FALLBACK] Error with direct call: {str(inner_e)}. Trying dictionary unpacking.")
+                    if self.debug_logging:
+                        logger.warning(f"[CPU-FALLBACK] Error with direct call: {str(inner_e)}. Trying dictionary unpacking.")
                     outputs = self.model(**cpu_inputs)
                 except Exception as final_e:
-                    print(f"[FATAL-ERROR] All model calling methods failed. Original error: {str(e)}, CPU error: {str(final_e)}")
+                    if self.debug_logging:
+                        logger.error(f"[FATAL-ERROR] All model calling methods failed. Original error: {str(e)}, CPU error: {str(final_e)}")
                     raise RuntimeError(f"Failed to run model on any device: {str(final_e)}") from final_e
 
-        print(f"[DEBUG-TORSIONBERT-FORWARD] Raw outputs type: {type(outputs)}")
+        if self.debug_logging:
+            logger.info(f"[DEBUG-TORSIONBERT-FORWARD] Raw outputs type: {type(outputs)}")
         if hasattr(outputs, 'logits'):
-            print(f"[DEBUG-TORSIONBERT-FORWARD] outputs.logits shape: {getattr(outputs.logits, 'shape', None)}")
+            if self.debug_logging:
+                logger.info(f"[DEBUG-TORSIONBERT-FORWARD] outputs.logits shape: {getattr(outputs.logits, 'shape', None)}")
         if hasattr(outputs, 'last_hidden_state'):
-            print(f"[DEBUG-TORSIONBERT-FORWARD] outputs.last_hidden_state shape: {getattr(outputs.last_hidden_state, 'shape', None)}")
+            if self.debug_logging:
+                logger.info(f"[DEBUG-TORSIONBERT-FORWARD] outputs.last_hidden_state shape: {getattr(outputs.last_hidden_state, 'shape', None)}")
 
         # Extract logits and last_hidden_state from outputs
         if isinstance(outputs, dict):
-            print(f"[DEBUG-TORSIONBERT-FORWARD] outputs dict keys: {list(outputs.keys())}")
+            if self.debug_logging:
+                logger.info(f"[DEBUG-TORSIONBERT-FORWARD] outputs dict keys: {list(outputs.keys())}")
             logits = outputs.get("logits", None)
             last_hidden_state = outputs.get("last_hidden_state", logits)
         else:
@@ -331,7 +372,8 @@ class TorsionBertModel(nn.Module):
             inputs = move_to_device(inputs, self.device)
         except Exception as e:
             # If there's an error, fall back to CPU
-            print(f"[DEVICE-ERROR] Error moving inputs to {self.device}: {str(e)}. Falling back to CPU.")
+            if self.debug_logging:
+                logger.warning(f"[DEVICE-ERROR] Error moving inputs to {self.device}: {str(e)}. Falling back to CPU.")
             inputs = move_to_device(inputs, torch.device("cpu"))
 
         return inputs
@@ -371,7 +413,8 @@ class TorsionBertModel(nn.Module):
         """
         sincos_dim = raw_sincos.shape[-1]
         n_3mers = raw_sincos.shape[1]
-        print(f"[DEBUG-FILL-RESULT] seq_len={seq_len}, n_3mers={n_3mers}, raw_sincos.shape={raw_sincos.shape}")
+        if self.debug_logging:
+            logger.info(f"[DEBUG-FILL-RESULT] seq_len={seq_len}, n_3mers={n_3mers}, raw_sincos.shape={raw_sincos.shape}")
 
         # Create result tensor with device management
         try:
@@ -379,18 +422,21 @@ class TorsionBertModel(nn.Module):
             result = torch.zeros((seq_len, sincos_dim), device=self.device)
         except Exception as e:
             # If there's an error, fall back to CPU
-            print(f"[DEVICE-ERROR] Error creating tensor on {self.device}: {str(e)}. Falling back to CPU.")
+            if self.debug_logging:
+                logger.warning(f"[DEVICE-ERROR] Error creating tensor on {self.device}: {str(e)}. Falling back to CPU.")
             result = torch.zeros((seq_len, sincos_dim), device="cpu")
             # Also move raw_sincos to CPU if needed
             if raw_sincos.device.type != "cpu":
                 raw_sincos = raw_sincos.to("cpu")
 
         if seq_len == 0:
-            print("[DEBUG-FILL-RESULT] Empty sequence, returning empty result tensor.")
+            if self.debug_logging:
+                logger.info("[DEBUG-FILL-RESULT] Empty sequence, returning empty result tensor.")
             return result
 
         if n_3mers == 1 and seq_len > 1:
-            print(f"[DEBUG-FILL-RESULT] Broadcasting single k-mer output to all positions: result.shape={result.shape}")
+            if self.debug_logging:
+                logger.info(f"[DEBUG-FILL-RESULT] Broadcasting single k-mer output to all positions: result.shape={result.shape}")
             for i in range(seq_len):
                 result[i] = raw_sincos[0, 0]
         else:
@@ -398,7 +444,8 @@ class TorsionBertModel(nn.Module):
                 if i < seq_len:
                     result[i] = raw_sincos[0, i]
 
-        print(f"[DEBUG-FILL-RESULT] After fill: result.shape={result.shape}")
+        if self.debug_logging:
+            logger.info(f"[DEBUG-FILL-RESULT] After fill: result.shape={result.shape}")
         assert result.shape == (seq_len, sincos_dim), (
             f"[UNIQUE-ERR-TORSIONBERT-FILL-SHAPE] result.shape={result.shape} does not match expected ({seq_len}, {sincos_dim})"
         )
@@ -419,7 +466,8 @@ class TorsionBertModel(nn.Module):
             try:
                 return torch.zeros((0, 2 * self.num_angles), device=self.device)
             except Exception as e:
-                print(f"[DEVICE-ERROR] Error creating empty tensor on {self.device}: {str(e)}. Falling back to CPU.")
+                if self.debug_logging:
+                    logger.warning(f"[DEVICE-ERROR] Error creating empty tensor on {self.device}: {str(e)}. Falling back to CPU.")
                 return torch.zeros((0, 2 * self.num_angles), device="cpu")
 
         # Preprocess sequence
@@ -443,14 +491,19 @@ class TorsionBertModel(nn.Module):
         # Ensure result is on the correct device
         target_device = self.device_init if hasattr(self, 'device_init') else self.device
         current_device = result.device
-        logger.info(f"[DEVICE-PATCH] Attempting to move result from {current_device} to target {target_device}")
+        if self.debug_logging:
+            logger.info(f"[DEVICE-PATCH] Attempting to move result from {current_device} to target {target_device}")
         try:
             if current_device != target_device:
                 result = result.to(target_device)
-                logger.info(f"[DEVICE-PATCH] Successfully moved result to {result.device}")
+                if self.debug_logging:
+                    logger.info(f"[DEVICE-PATCH] Successfully moved result to {result.device}")
             else:
-                logger.info(f"[DEVICE-PATCH] Result already on target device {target_device}")
+                if self.debug_logging:
+                    logger.info(f"[DEVICE-PATCH] Result already on target device {target_device}")
         except Exception as e:
-            logger.error(f"[DEVICE-PATCH-ERROR] Failed to move result to {target_device}: {str(e)}. Keeping on {current_device}.")
-        logger.info(f"[DEVICE-DEBUG][stageB_torsion] FINAL CHECK - Returning torsion angles on device: {result.device}")
+            if self.debug_logging:
+                logger.error(f"[DEVICE-PATCH-ERROR] Failed to move result to {target_device}: {str(e)}. Keeping on {current_device}.")
+        if self.debug_logging:
+            logger.info(f"[DEVICE-DEBUG][stageB_torsion] FINAL CHECK - Returning torsion angles on device: {result.device}")
         return result
