@@ -8,9 +8,9 @@ defaults:
 enabled: true
 debug_logging: true
 # Required parameters for feature initialization
-ref_element_size: 128
-ref_atom_name_chars_size: 256
-profile_size: 32
+ref_element_size: ${shared.ref_element_size}
+ref_atom_name_chars_size: ${shared.ref_atom_name_chars_size}
+profile_size: ${shared.profile_size}
 
 model_architecture:
   c_token: 8
@@ -35,9 +35,9 @@ diffusion:
   mode: "inference"
   device: ${device}
   debug_logging: true
-  ref_element_size: 128
-  ref_atom_name_chars_size: 256
-  profile_size: 32
+  ref_element_size: ${shared.ref_element_size}
+  ref_atom_name_chars_size: ${shared.ref_atom_name_chars_size}
+  profile_size: ${shared.profile_size}
   # Feature dimensions required for bridging
   feature_dimensions:
     c_s: 8

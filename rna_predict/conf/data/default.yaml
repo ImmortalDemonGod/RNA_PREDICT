@@ -4,8 +4,8 @@ max_residues: 512
 max_atoms: 4096
 C_element: 128
 C_char: 256
-ref_element_size: 5
-ref_atom_name_chars_size: 10
+ref_element_size: ${shared.ref_element_size}
+ref_atom_name_chars_size: ${shared.ref_atom_name_chars_size}
 batch_size: 4
 num_workers: 8
 load_adj: false

@@ -2,6 +2,7 @@
 # Main Hydra configuration file for RNA prediction pipeline
 
 defaults:
+  - shared: features
   - _self_  # Load this file's contents first
   - data: default
   - model/stageA@model.stageA
