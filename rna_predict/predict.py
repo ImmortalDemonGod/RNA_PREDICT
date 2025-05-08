@@ -46,7 +46,7 @@ class RNAPredictor:
             raise ValueError("torsion_bert_cfg must specify device in the Hydra config.")
         self.torsion_predictor = StageBTorsionBertPredictor(torsion_bert_cfg)
 
-    @snoop
+    #@snoop
     def predict_3d_structure(self, sequence: str) -> Dict[str, Any]:
         """
         Predicts the 3D structure of an RNA sequence using torsion angle prediction and reconstruction.
