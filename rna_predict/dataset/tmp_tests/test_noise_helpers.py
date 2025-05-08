@@ -1,52 +1,48 @@
 import torch
 import pytest
-import os
+from pathlib import Path
 from omegaconf import OmegaConf
 from hydra import compose, initialize
 from rna_predict.training.rna_lightning_module import RNALightningModule
 
+# Absolute config directory for Hydra
+CONF_DIR = Path(__file__).resolve().parents[2] / "conf"
+
 @pytest.fixture
 def hydra_cfg():
-    # Compute config_path relative to this test file's directory for robust Hydra usage
-    config_dir = "/Users/tomriddle1/RNA_PREDICT/rna_predict/conf"
-    test_dir = os.path.dirname(__file__)
-    rel_config_path = os.path.relpath(config_dir, test_dir)
-    orig_cwd = os.getcwd()
-    os.chdir(test_dir)
-    try:
-        with initialize(config_path=rel_config_path, job_name="test_noise_helpers", version_base=None):
-            cfg = compose(config_name="default")
-            cfg.device = "cpu"
-            # Ensure StageD diffusion config is present and set sane test values
-            if not hasattr(cfg.model.stageD, 'diffusion'):
-                cfg.model.stageD.diffusion = OmegaConf.create({})
-            cfg.model.stageD.diffusion.noise_schedule = OmegaConf.create({
-                'p_mean': -1.2,
-                'p_std': 1.5,
-                's_min': 4e-4,
-                's_max': 160.0,
-            })
-            cfg.model.stageD.diffusion.model_architecture = OmegaConf.create({
-                'c_token': 8,
-                'c_s': 8,
-                'c_z': 4,
-                'c_s_inputs': 8,
-                'c_atom': 4,
-                'c_noise_embedding': 4,
-                'num_layers': 2,
-                'num_heads': 2,
-                'dropout': 0.1,
-                'coord_eps': 1e-6,
-                'coord_min': -1e4,
-                'coord_max': 1e4,
-                'coord_similarity_rtol': 1e-3,
-                'test_residues_per_batch': 2,
-                'c_atompair': 4,
-                'sigma_data': 1.0,
-            })
-            return cfg
-    finally:
-        os.chdir(orig_cwd)
+    # Initialize Hydra using absolute config path without changing cwd
+    with initialize(config_path=str(CONF_DIR), job_name="test_noise_helpers", version_base=None):
+        cfg = compose(config_name="default")
+        cfg.device = "cpu"
+        # Ensure StageD diffusion config is present and set sane test values
+        if not hasattr(cfg.model.stageD, 'diffusion'):
+            cfg.model.stageD.diffusion = OmegaConf.create({})
+        cfg.model.stageD.diffusion.noise_schedule = OmegaConf.create({
+            'p_mean': -1.2,
+            'p_std': 1.5,
+            's_min': 4e-4,
+            's_max': 160.0,
+        })
+        cfg.model.stageD.diffusion.model_architecture = OmegaConf.create({
+            'c_token': 8,
+            'c_s': 8,
+            'c_z': 4,
+            'c_s_inputs': 8,
+            'c_atom': 4,
+            'c_noise_embedding': 4,
+            'num_layers': 2,
+            'num_heads': 2,
+            'dropout': 0.1,
+            'coord_eps': 1e-6,
+            'coord_min': -1e4,
+            'coord_max': 1e4,
+            'coord_similarity_rtol': 1e-3,
+            'test_residues_per_batch': 2,
+            'c_atompair': 4,
+            'sigma_data': 1.0,
+        })
+        # Fixture returns the composed config
+        return cfg
 
 def test_sample_noise_level_shape_and_device(hydra_cfg):
     model = RNALightningModule(cfg=hydra_cfg)
