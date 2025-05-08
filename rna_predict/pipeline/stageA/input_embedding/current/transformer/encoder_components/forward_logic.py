@@ -263,8 +263,8 @@ def _process_style_embedding(
             logger.debug(f"[DEBUG][EXCEPTION-ADD] {e}")
             logger.debug(f"[DEBUG][EXCEPTION-ADD-SHAPE] c_l.shape={getattr(c_l, 'shape', None)}, x.shape={getattr(x, 'shape', None)}")
     # Patch: Only operate if both dims are not None
-    c_l_dim = getattr(c_l, 'dim', None)
-    x_dim = getattr(x, 'dim', None)
+    c_l_dim = c_l.dim() if hasattr(c_l, 'dim') and callable(getattr(c_l, 'dim', None)) else None
+    x_dim = x.dim() if hasattr(x, 'dim') and callable(getattr(x, 'dim', None)) else None
     if c_l_dim is not None and x_dim is not None and c_l_dim != x_dim:
         if debug:
             logger.debug(f"[DEBUG][EXCEPTION-ADD-DIM] c_l.dim()={c_l_dim}, x.dim()={x_dim}")
