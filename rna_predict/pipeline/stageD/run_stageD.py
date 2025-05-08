@@ -293,6 +293,7 @@ def _run_stageD_impl(
         log.info(f"[HYDRA-DEBUG][StageD] stage_cfg.diffusion.device: {stage_cfg.diffusion.device}")
     # --- END PATCH ---
     _run_diffusion_step(context)
+    log_mem("After diffusion")
     # Return the result from the diffusion step
     if hasattr(context, 'result') and context.result is not None:
         return context.result
