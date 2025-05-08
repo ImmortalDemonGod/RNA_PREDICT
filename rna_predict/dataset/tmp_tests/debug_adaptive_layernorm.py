@@ -1,18 +1,18 @@
 """
-Debug script for .
+Debug script for AdaptiveLayerNorm.
 """
 
 import torch
-from rna_predict.pipeline.stageA.input_embedding.current.primitives.adaptive_layer_norm import 
+from rna_predict.pipeline.stageA.input_embedding.current.primitives.adaptive_layer_norm import AdaptiveLayerNorm
 
 # Enable debug logging
 import logging
 logging.basicConfig(level=logging.DEBUG)
 
 def debug_adaptive_layernorm():
-    """Debug the  class with different sequence lengths."""
-    print("Creating  instance...")
-    adaln = (c_a=768, c_s=384)
+    """Debug the AdaptiveLayerNorm class with different sequence lengths."""
+    print("Creating AdaptiveLayerNorm instance...")
+    adaln = AdaptiveLayerNorm(c_a=768, c_s=384)
     
     print("\nTest case 1: Matching sequence lengths")
     a = torch.randn(2, 10, 768)  # [batch, seq, features]
