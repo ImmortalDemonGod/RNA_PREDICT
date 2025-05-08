@@ -21,7 +21,7 @@ import os
 import warnings
 from typing import Optional
 import logging
-
+import snoop
 # Add a module-level logger for this file
 logger = logging.getLogger(__name__)
 
@@ -431,7 +431,7 @@ def broadcast_token_to_atom(
         # If we get here, the reshape failed and we're not in the special case
         raise RuntimeError(f"Failed to reshape x_atom_flat from {x_atom_flat.shape} to {(*config.original_leading_dims, config.n_atom, config.n_features)}. Error: {e}") from e
 
-
+@snoop
 def aggregate_atom_to_token(
     x_atom: torch.Tensor,
     atom_to_token_idx: torch.Tensor,
@@ -439,6 +439,8 @@ def aggregate_atom_to_token(
     reduce: str = "mean",
     debug_logging: bool = False,
 ) -> torch.Tensor:
+    # SYSTEMATIC DEBUG: Track requires_grad at entry
+    print(f"[DEBUG][aggregate_atom_to_token] ENTRY: x_atom.requires_grad={x_atom.requires_grad}, shape={x_atom.shape}") if debug_logging else None
     """Aggregate atom embedding to obtain token embedding
 
     Args:
@@ -628,6 +630,7 @@ def aggregate_atom_to_token(
 
             # Create a zero tensor with the correct shape
             out = torch.zeros(out_shape, dtype=x_atom.dtype, device=x_atom.device)
+            print(f"[DEBUG][aggregate_atom_to_token] FALLBACK: out.requires_grad={out.requires_grad}, shape={out.shape} (should be False if non-differentiable)") if debug_logging else None
 
             # Fill in the values manually
             try:
@@ -650,11 +653,13 @@ def aggregate_atom_to_token(
                 if x_atom.dim() == 4:  # [B, S, N, C]
                     # Average over the atom dimension (dim=2)
                     out = torch.mean(x_atom, dim=2, keepdim=True)
+                    print(f"[DEBUG][aggregate_atom_to_token] SIMPLER FALLBACK: out.requires_grad={out.requires_grad}, shape={out.shape}") if debug_logging else None
                     # Expand to the desired token count
                     out = out.expand(-1, -1, n_token, -1)
                 elif x_atom.dim() == 3:  # [B, N, C]
                     # Average over the atom dimension (dim=1)
                     out = torch.mean(x_atom, dim=1, keepdim=True)
+                    print(f"[DEBUG][aggregate_atom_to_token] SIMPLER FALLBACK: out.requires_grad={out.requires_grad}, shape={out.shape}") if debug_logging else None
                     # Expand to the desired token count
                     out = out.expand(-1, n_token, -1)
                 else:  # [N, C] or other unexpected dimensions

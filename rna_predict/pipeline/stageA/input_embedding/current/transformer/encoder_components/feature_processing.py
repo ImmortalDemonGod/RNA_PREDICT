@@ -150,6 +150,15 @@ def _process_feature(
 def extract_atom_features(
     encoder: torch.nn.Module, input_feature_dict: InputFeatureDict, debug_logging: bool = False
 ) -> torch.Tensor:
+    # SYSTEMATIC DEBUGGING: Print expected and actual feature keys and shapes
+    print("[DEBUG][extract_atom_features] encoder.input_feature expected keys:", list(getattr(encoder, 'input_feature', {}).keys()))
+    print("[DEBUG][extract_atom_features] input_feature_dict actual keys:", list(input_feature_dict.keys()))
+    for k in input_feature_dict:
+        v = input_feature_dict[k]
+        if hasattr(v, 'shape'):
+            print(f"[DEBUG][extract_atom_features] key='{k}' shape={v.shape} dtype={getattr(v, 'dtype', type(v))}")
+        else:
+            print(f"[DEBUG][extract_atom_features] key='{k}' type={type(v)}")
     """
     Extract atom features from input dictionary.
 
