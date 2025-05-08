@@ -61,6 +61,21 @@ class DiffusionModule(nn.Module):
         # Print all kwargs for debugging
         print(f"[DEBUG] DiffusionModule.__init__ kwargs: {kwargs}")
 
+        # DEBUG-PROPAGATION instrumentation
+        logger = logging.getLogger("rna_predict.pipeline.stageD.diffusion.components.diffusion_module")
+        debug_logging = None
+        if hasattr(cfg, 'debug_logging'):
+            debug_logging = cfg.debug_logging
+        elif hasattr(cfg, 'diffusion') and hasattr(cfg.diffusion, 'debug_logging'):
+            debug_logging = cfg.diffusion.debug_logging
+        elif hasattr(cfg, 'model') and hasattr(cfg.model, 'stageD') and hasattr(cfg.model.stageD, 'debug_logging'):
+            debug_logging = cfg.model.stageD.debug_logging
+        elif hasattr(cfg, 'model') and hasattr(cfg.model, 'stageD') and hasattr(cfg.model.stageD, 'diffusion') and hasattr(cfg.model.stageD.diffusion, 'debug_logging'):
+            debug_logging = cfg.model.stageD.diffusion.debug_logging
+        logger.info(f"[DEBUG-PROPAGATION][StageD-Diffusion] self.debug_logging resolved to: {debug_logging}")
+        logger.info(f"[DEBUG-PROPAGATION][StageD-Diffusion] config subtree used: {getattr(cfg, 'debug_logging', None)}, {getattr(cfg, 'diffusion', None)}, {getattr(cfg, 'model', None)}")
+        logger.info(f"[DEBUG-PROPAGATION][StageD-Diffusion] full config: {cfg}")
+
         # Check if we're in a test environment
         import os
         current_test = str(os.environ.get('PYTEST_CURRENT_TEST', ''))
@@ -619,6 +634,10 @@ class DiffusionModule(nn.Module):
                         idx = min(i, atom_to_token_idx_reshaped.shape[0] - 1)
 
                         # Use scatter_mean to aggregate atoms to tokens
+                        print("[DEBUG][scatter_mean-call] a_token.shape[-2] =", a_token.shape[-2])
+                        print("[DEBUG][scatter_mean-call] atom_to_token_idx_reshaped[idx].min() =", atom_to_token_idx_reshaped[idx].min().item())
+                        print("[DEBUG][scatter_mean-call] atom_to_token_idx_reshaped[idx].max() =", atom_to_token_idx_reshaped[idx].max().item())
+                        print("[DEBUG][scatter_mean-call] atom_to_token_idx_reshaped[idx] =", atom_to_token_idx_reshaped[idx].tolist())
                         aggregated = scatter_mean(
                             s_single_proj_reshaped[i],
                             atom_to_token_idx_reshaped[idx],
