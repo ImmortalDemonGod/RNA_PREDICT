@@ -3,13 +3,24 @@ Feature processing utilities for the AtomAttentionEncoder.
 """
 
 import warnings
-from typing import Optional
+from typing import Dict, List, Optional, TypedDict, Union
 
 import torch
 
 from rna_predict.pipeline.stageA.input_embedding.current.transformer.common import (
     InputFeatureDict,
 )
+
+
+class AtomFeatures(TypedDict):
+    atom_to_token_idx: torch.Tensor
+    ref_pos: torch.Tensor
+    ref_charge: torch.Tensor
+    ref_mask: torch.Tensor
+    ref_element: torch.Tensor
+    ref_residue: torch.Tensor
+    ref_chain: torch.Tensor
+    ref_atom_type: torch.Tensor
 
 
 def _process_feature(
@@ -471,3 +482,17 @@ def adapt_tensor_dimensions(tensor: torch.Tensor, target_dim: int) -> torch.Tens
             f"using padding/truncation."
         )
         return compatible_tensor
+
+
+def process_atom_features(features: Dict[str, torch.Tensor]) -> AtomFeatures:
+    """Process atom features into a standardized format."""
+    return {
+        "atom_to_token_idx": features["atom_to_token_idx"],
+        "ref_pos": features["ref_pos"],
+        "ref_charge": features["ref_charge"],
+        "ref_mask": features["ref_mask"],
+        "ref_element": features["ref_element"],
+        "ref_residue": features["ref_residue"],
+        "ref_chain": features["ref_chain"],
+        "ref_atom_type": features["ref_atom_type"]
+    }

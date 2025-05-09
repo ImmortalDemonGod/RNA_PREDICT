@@ -2,11 +2,13 @@ import logging
 import torch
 import os
 import psutil
-from typing import Dict, Any
+from typing import Dict, Any, List, Optional, Union
 from omegaconf import DictConfig
 from transformers import AutoTokenizer, AutoModel
 from .torsionbert_inference import DummyTorsionBertAutoModel
 import torch.nn as nn
+from argparse import Namespace
+from dataclasses import dataclass
 
 logger = logging.getLogger("rna_predict.pipeline.stageB.torsion.torsion_bert_predictor")
 # Logger level will be set conditionally in __init__
@@ -24,6 +26,51 @@ try:
     _HAS_PEFT = True
 except ImportError:
     _HAS_PEFT = False
+
+@dataclass
+class TorsionConfig:
+    """Configuration for torsion prediction."""
+    hidden_size: int = 768
+    num_hidden_layers: int = 12
+    num_attention_heads: int = 12
+    intermediate_size: int = 3072
+    hidden_act: str = "gelu"
+    hidden_dropout_prob: float = 0.1
+    attention_probs_dropout_prob: float = 0.1
+    max_position_embeddings: int = 512
+    type_vocab_size: int = 2
+    initializer_range: float = 0.02
+    layer_norm_eps: float = 1e-12
+    pad_token_id: int = 0
+    position_embedding_type: str = "absolute"
+    use_cache: bool = True
+    classifier_dropout: Optional[float] = None
+
+def get_config_value(config: Union[Dict[str, Any], Namespace], key: str, default: Any) -> Any:
+    """Get a value from a config object, handling both dict and Namespace types."""
+    if isinstance(config, dict):
+        return config.get(key, default)
+    return getattr(config, key, default)
+
+def create_torsion_config(config: Union[Dict[str, Any], Namespace]) -> TorsionConfig:
+    """Create a TorsionConfig from a config object."""
+    return TorsionConfig(
+        hidden_size=get_config_value(config, 'hidden_size', 768),
+        num_hidden_layers=get_config_value(config, 'num_hidden_layers', 12),
+        num_attention_heads=get_config_value(config, 'num_attention_heads', 12),
+        intermediate_size=get_config_value(config, 'intermediate_size', 3072),
+        hidden_act=get_config_value(config, 'hidden_act', "gelu"),
+        hidden_dropout_prob=get_config_value(config, 'hidden_dropout_prob', 0.1),
+        attention_probs_dropout_prob=get_config_value(config, 'attention_probs_dropout_prob', 0.1),
+        max_position_embeddings=get_config_value(config, 'max_position_embeddings', 512),
+        type_vocab_size=get_config_value(config, 'type_vocab_size', 2),
+        initializer_range=get_config_value(config, 'initializer_range', 0.02),
+        layer_norm_eps=get_config_value(config, 'layer_norm_eps', 1e-12),
+        pad_token_id=get_config_value(config, 'pad_token_id', 0),
+        position_embedding_type=get_config_value(config, 'position_embedding_type', "absolute"),
+        use_cache=get_config_value(config, 'use_cache', True),
+        classifier_dropout=get_config_value(config, 'classifier_dropout', None)
+    )
 
 class StageBTorsionBertPredictor(nn.Module):
     """Predicts RNA torsion angles using the TorsionBERT model."""
