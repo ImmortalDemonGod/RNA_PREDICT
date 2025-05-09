@@ -1,7 +1,8 @@
 import torch
 import torch.nn.functional as F
+from typing import Optional
 
-def angle_loss(pred_angles: torch.Tensor, target_angles: torch.Tensor, mask: torch.Tensor = None) -> torch.Tensor:
+def angle_loss(pred_angles: torch.Tensor, target_angles: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
     """
     Compute the loss between predicted and target angles.
     

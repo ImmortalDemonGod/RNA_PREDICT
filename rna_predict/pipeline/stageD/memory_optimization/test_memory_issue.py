@@ -2,6 +2,7 @@ import torch
 import unittest
 import psutil
 import os
+import gc
 from rna_predict.pipeline.stageD.diffusion.run_stageD_unified import run_stageD_diffusion
 
 def get_memory_usage():

@@ -144,7 +144,7 @@ def expand_tensor_for_samples(
         tensor_name: A descriptive name for logging purposes.
 
     Returns:
-        The expanded tensor with an extra sample dimension.
+        The expanded tensor with an extra sample dimension, or None if input is None.
     """
     if tensor is None:
         return None

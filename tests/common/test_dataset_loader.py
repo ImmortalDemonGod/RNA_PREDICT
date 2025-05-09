@@ -36,6 +36,8 @@ from rna_predict.dataset.dataset_loader import (
     validate_input_features,
 )
 
+from hydra import compose, initialize
+
 
 class TestDatasetLoader(unittest.TestCase):
     @patch("rna_predict.dataset.dataset_loader.load_dataset")
@@ -406,7 +408,6 @@ class TestLoadRnaDataAndFeatures(unittest.TestCase):
             self.assertEqual(atom_dict["ref_pos"].shape[1], override_num_atoms)
 
 
-from hydra import compose, initialize
 
 class TestRNADatasetMinimal(unittest.TestCase):
     def test_loader_reads_target_id(self):
