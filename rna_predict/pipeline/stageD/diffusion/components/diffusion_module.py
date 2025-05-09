@@ -1101,3 +1101,20 @@ class DiffusionModule(nn.Module):
         c_in = 1 / (sigma * (sigma_sq + 1) ** 0.5 + 1e-8)  # Add epsilon for stability
 
         return c_in, c_skip, c_out
+
+    def get_caller_frame():
+        """Get the caller's frame safely."""
+        import inspect
+        frame = inspect.currentframe()
+        if frame is not None:
+            caller = frame.f_back
+            if caller is not None:
+                return caller
+        return None
+
+    def get_caller_name() -> str:
+        """Get the caller's function name safely."""
+        caller = get_caller_frame()
+        if caller is not None:
+            return caller.f_code.co_name
+        return "unknown"

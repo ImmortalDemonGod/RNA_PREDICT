@@ -101,7 +101,7 @@ def _perform_gather(
     )
     
     # Reshape token features for gathering
-    x_token_flat = config.token_shape.view(-1, config.feature_dim)
+    x_token_flat = torch.reshape(config.token_shape, (-1, config.feature_dim))
     
     # Perform gather operation
     x_atom_flat = torch.gather(x_token_flat, 0, gather_idx)
@@ -262,7 +262,7 @@ def aggregate_atom_to_token(
     
     # Handle n_token and index clamping
     if isinstance(atom_to_token_idx, torch.Tensor):
-        max_token_idx = atom_to_token_idx.max().item()
+        max_token_idx = int(atom_to_token_idx.max().item())  # Convert to int
         if n_token is not None and max_token_idx >= n_token:
             if debug_logging:
                 print(f"[DEBUG][aggregate_atom_to_token] Clipping atom_to_token_idx: max index {max_token_idx} >= n_token {n_token}")
@@ -293,10 +293,10 @@ def aggregate_atom_to_token(
                 
             # Create fallback output tensor
             if n_token is None:
-                n_token = atom_to_token_idx.max().item() + 1
+                n_token = int(atom_to_token_idx.max().item()) + 1  # Convert to int
                 
             feature_dim = x_atom.shape[-1]
-            out_shape = list(x_atom.shape[:-2]) + [n_token, feature_dim]
+            out_shape = [int(x) for x in list(x_atom.shape[:-2]) + [n_token, feature_dim]]  # Convert all dimensions to int
             if debug_logging:
                 print(f"[DEBUG][aggregate_atom_to_token] Creating fallback tensor with shape {out_shape}")
                 
@@ -307,7 +307,7 @@ def aggregate_atom_to_token(
             try:
                 for i in range(atom_to_token_idx.shape[0]):
                     for j in range(atom_to_token_idx.shape[1]):
-                        token_idx = atom_to_token_idx[i, j].item()
+                        token_idx = int(atom_to_token_idx[i, j].item())  # Convert to int
                         if token_idx < n_token:
                             out[i, token_idx] = x_atom[i, j]
                         elif debug_logging:
@@ -330,8 +330,8 @@ def aggregate_atom_to_token(
                     out = out.expand(-1, n_token, -1)
                 else:  # [N, C] or other dimensions
                     if x_atom.dim() >= 2:
-                        feature_dim = x_atom.shape[-1]
-                        out_shape = list(x_atom.shape[:-2]) + [n_token, feature_dim]
+                        feature_dim = int(x_atom.shape[-1])  # Convert to int
+                        out_shape = [int(x) for x in list(x_atom.shape[:-2]) + [n_token, feature_dim]]  # Convert all dimensions to int
                         out = torch.zeros(out_shape, dtype=x_atom.dtype, device=x_atom.device)
                     else:
                         out = torch.zeros(1, n_token, 1, dtype=x_atom.dtype, device=x_atom.device)
