@@ -1,8 +1,6 @@
 import torch
 import pytest
 from unittest.mock import MagicMock
-from omegaconf import OmegaConf
-import hydra
 from hydra import compose, initialize
 
 from rna_predict.training.rna_lightning_module import RNALightningModule

@@ -14,7 +14,7 @@ from rna_predict.pipeline.stageD.run_stageD import run_stageD
 ])
 def test_gradient_flow_through_stageD(batch_size, n_res, c_s):
     # Set up a minimal config using Hydra (adjust config group as needed)
-    with initialize(config_path=str(CONF_DIR), version_base=None):
+    with initialize(config_path="../../../rna_predict/conf", version_base=None):
         cfg = compose(config_name="default")
         # Optionally override config values for a minimal test
         cfg.model.stageD.debug_logging = True
