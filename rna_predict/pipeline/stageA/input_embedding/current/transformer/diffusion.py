@@ -3,7 +3,6 @@ Diffusion transformer modules for RNA structure prediction.
 """
 
 import logging
-logger = logging.getLogger(__name__)
 from typing import Callable, List, Optional, Tuple
 
 import torch
@@ -21,6 +20,8 @@ from rna_predict.pipeline.stageA.input_embedding.current.transformer.common impo
 from rna_predict.pipeline.stageA.input_embedding.current.transformer.transition import (
     ConditionedTransitionBlock,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class DiffusionTransformerBlock(nn.Module):

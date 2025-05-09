@@ -482,8 +482,7 @@ def test_lightning_combined_loader_error():
                     'use_deepspeed_evo_attention': False,
                     'use_lma': False,
                     'inplace_safe': False,
-                    'chunk_size': None,
-                    'init_from_scratch': False
+                    'chunk_size': None
                 }
             }
         },
