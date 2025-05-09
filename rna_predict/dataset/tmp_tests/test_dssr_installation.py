@@ -11,7 +11,7 @@ def test_dssr_installation(dssr_path="x3dna-dssr"):
         True if the executable is present and runs successfully, False otherwise.
     """
     try:
-        result = subprocess.run(
+        subprocess.run(
             [dssr_path, "--version"],
             check=True,
             stdout=subprocess.PIPE,
