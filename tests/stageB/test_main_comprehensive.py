@@ -928,7 +928,7 @@ def test_stageb_torsionbert_config_structure_property(config_dict):
     # If config exists, check if device is missing
     missing_device = False
     if not missing_config:
-        missing_device = not ("device" in config_dict["model"]["stageB"]["torsion_bert"])
+        missing_device = "device" not in config_dict["model"]["stageB"]["torsion_bert"]
 
     if missing_config or missing_device:
         cfg = make_config(config_dict)
