@@ -1,13 +1,12 @@
+import os
 import pytest
 import torch
-from hydra import initialize, compose
-import os
-from rna_predict.pipeline.stageD.diffusion.utils import DiffusionConfig
-from rna_predict.pipeline.stageD.diffusion.run_stageD_unified import run_stageD_diffusion
-from rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager import (
-    ProtenixDiffusionManager,
-)
 from omegaconf import OmegaConf
+from hydra import compose, initialize
+
+from rna_predict.pipeline.stageD.diffusion.run_stageD_unified import run_stageD_diffusion
+from rna_predict.pipeline.stageD.diffusion.config import DiffusionConfig
+from rna_predict.pipeline.stageD.diffusion.manager import ProtenixDiffusionManager
 
 print(f"[IMPORT DEBUG] CWD at import: {os.getcwd()}")
 print(f"[IMPORT DEBUG] Contents of CWD: {os.listdir(os.getcwd())}")
@@ -299,26 +298,20 @@ def test_run_stageD_diffusion_inference_original(missing_s_inputs, minimal_diffu
 
 @pytest.mark.xfail(reason="Shape mismatch in diffusion module - not related to API change")
 def test_multi_step_inference_fallback(minimal_diffusion_config, minimal_input_features):
-    """
-    Skips run_stageD_diffusion and calls manager.multi_step_inference directly,
-    providing partial trunk_embeddings plus override_input_features to
-    auto-build 's_inputs' if missing.
-    """
-    # Use smaller tensors for testing
+    """Test multi-step inference with fallback behavior."""
+    ensure_project_root()
+    
     coords_init = torch.randn(1, 5, 3)
     trunk_embeddings = {
         "s_trunk": torch.randn(1, 5, 384),
         "pair": torch.randn(1, 5, 5, 32),
     }
-
-    # Create a properly structured config with stageD_diffusion key
-    # First, create a clean copy of minimal_diffusion_config without 'inference' key
-    # since DiffusionModule doesn't accept it
+    
     diffusion_model_clean = {k: v for k, v in minimal_diffusion_config.items()
                            if k not in ['inference', 'conditioning', 'embedder']}
-
-    # Create an OmegaConf DictConfig object instead of a regular dictionary
-    hydra_compatible_config = OmegaConf.create({
+    
+    # Create config using OmegaConf
+    config_dict = {
         "stageD_diffusion": {
             "device": "cpu",
             "diffusion_chunk_size": None,
@@ -340,15 +333,13 @@ def test_multi_step_inference_fallback(minimal_diffusion_config, minimal_input_f
             "N_sample": 1,
             "inplace_safe": False,
         }
-    })
-
+    }
+    hydra_compatible_config = OmegaConf.create(config_dict)
+    
     try:
-        print(f"[DEBUG] CWD: {os.getcwd()}")
         manager = ProtenixDiffusionManager(hydra_compatible_config)
-        # Update manager's config with inference parameters
-        from omegaconf import OmegaConf
-        inference_params = {"num_steps": 2, "N_sample": 1}  # Reduced steps
-
+        inference_params = {"num_steps": 2, "N_sample": 1}
+        
         if not hasattr(manager, 'cfg') or not OmegaConf.is_config(manager.cfg):
             manager.cfg = OmegaConf.create({
                 "stageD_diffusion": {
@@ -357,24 +348,22 @@ def test_multi_step_inference_fallback(minimal_diffusion_config, minimal_input_f
                 }
             })
         else:
-            # Update existing config
             if "inference" not in manager.cfg.stageD_diffusion:
                 manager.cfg.stageD_diffusion.inference = OmegaConf.create(inference_params)
             else:
                 for k, v in inference_params.items():
                     manager.cfg.stageD_diffusion.inference[k] = v
             manager.cfg.stageD_diffusion.debug_logging = True
-
-        # Call with updated API
+        
         coords_final = manager.multi_step_inference(
             coords_init=coords_init,
             trunk_embeddings=trunk_embeddings,
             override_input_features=minimal_input_features
         )
-
+        
         assert isinstance(coords_final, torch.Tensor)
-        assert coords_final.ndim == 3  # [batch, n_atoms, 3]
+        assert coords_final.ndim == 3
         assert coords_final.shape[1] == coords_init.shape[1]
+        
     finally:
-        # Cleanup
         torch.cuda.empty_cache() if torch.cuda.is_available() else None
