@@ -18,11 +18,11 @@ from typing import Any, Callable, Optional
 import torch
 import logging
 
-logger = logging.getLogger(__name__)
-
 from rna_predict.pipeline.stageA.input_embedding.current.utils import (
     centre_random_augmentation,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class TrainingNoiseSampler:
