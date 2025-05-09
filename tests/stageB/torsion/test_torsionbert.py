@@ -127,11 +127,11 @@ def model_with_logits(mock_tokenizer: Any) -> TorsionBertModel:
     )
 
     # Start patchers
-    mock_tokenizer_func = tokenizer_patcher.start()
-    mock_model_func = model_patcher.start()
+    tokenizer_patcher.start()
+    model_patcher.start()
 
     try:
-        print(f"[DEBUG-FIXTURE] Patchers started, creating model")
+        print("[DEBUG-FIXTURE] Patchers started, creating model")
         model = TorsionBertModel(
             model_path="dummy_path",
             num_angles=7,
@@ -175,7 +175,7 @@ def model_with_last_hidden(mock_tokenizer: Any) -> TorsionBertModel:
     model_patcher.start()
 
     try:
-        print(f"[DEBUG-FIXTURE] Patchers started, creating model with return_dict=False")
+        print("[DEBUG-FIXTURE] Patchers started, creating model with return_dict=False")
         model = TorsionBertModel(
             model_path="dummy_path",
             num_angles=7,

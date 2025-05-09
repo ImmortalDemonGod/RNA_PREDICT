@@ -22,7 +22,6 @@ Key Improvements:
 import unittest
 from unittest.mock import MagicMock, patch
 import os
-from omegaconf import OmegaConf
 from rna_predict.dataset.loader import RNADataset
 
 import torch
@@ -407,7 +406,6 @@ class TestLoadRnaDataAndFeatures(unittest.TestCase):
             self.assertEqual(atom_dict["ref_pos"].shape[1], override_num_atoms)
 
 
-import hydra
 from hydra import compose, initialize
 
 class TestRNADatasetMinimal(unittest.TestCase):
