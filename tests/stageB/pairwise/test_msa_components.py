@@ -8,7 +8,6 @@ Tests for MSA-related components including:
 
 import unittest
 from unittest.mock import patch
-import pytest
 
 import torch
 from hypothesis import given, settings
