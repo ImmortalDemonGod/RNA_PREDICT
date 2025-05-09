@@ -218,7 +218,6 @@ def test_run_stageD_diffusion_inference_original(missing_s_inputs, minimal_diffu
 
     # Provide a minimal sequence matching the number of residues/atoms (5)
     # Convert list to string for DiffusionConfig which expects str or None
-    sequence = "ACGUA"
 
     # Add atom_metadata to minimal_input_features
     minimal_input_features = {
