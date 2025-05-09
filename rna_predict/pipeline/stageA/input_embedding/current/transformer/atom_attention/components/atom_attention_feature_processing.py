@@ -4,7 +4,7 @@ Feature processing components for atom attention.
 """
 
 import torch
-from typing import Optional
+from typing import Optional, List, Tuple
 
 from rna_predict.pipeline.stageA.input_embedding.current.primitives import (
     LinearNoBias,
@@ -205,3 +205,80 @@ class FeatureProcessor:
         """
         # num_atoms parameter is not used by broadcast_token_to_atom
         return broadcast_token_to_atom(a_token, atom_to_token_idx)
+
+def get_tensor_shape(tensor: Optional[torch.Tensor]) -> Tuple[int, int]:
+    """Get the batch size and sequence length from a tensor, defaulting to (1, 1) if None."""
+    if tensor is None:
+        return (1, 1)
+    return tensor.shape[0], tensor.shape[1]
+
+def process_atom_attention_features(
+    pos: Optional[torch.Tensor] = None,
+    charge: Optional[torch.Tensor] = None,
+    element: Optional[torch.Tensor] = None,
+    residue: Optional[torch.Tensor] = None,
+    chain: Optional[torch.Tensor] = None,
+    atom_type: Optional[torch.Tensor] = None,
+    mask: Optional[torch.Tensor] = None,
+) -> List[torch.Tensor]:
+    """
+    Process atom attention features into a standardized format.
+    
+    Args:
+        pos: Position tensor
+        charge: Charge tensor
+        element: Element tensor
+        residue: Residue tensor
+        chain: Chain tensor
+        atom_type: Atom type tensor
+        mask: Mask tensor
+        
+    Returns:
+        List of processed tensors
+    """
+    # Get device and dtype from first non-None tensor
+    tensors = [pos, charge, element, residue, chain, atom_type, mask]
+    device = next((x.device for x in tensors if x is not None), torch.device('cpu'))
+    dtype = next((x.dtype for x in tensors if x is not None), torch.float32)
+    
+    # Get maximum batch size and sequence length
+    shapes = [get_tensor_shape(t) for t in tensors]
+    batch_size = max(shape[0] for shape in shapes)
+    seq_len = max(shape[1] for shape in shapes)
+    
+    # Create default tensors for None inputs
+    if pos is None:
+        pos = torch.zeros((batch_size, seq_len, 3), dtype=dtype, device=device)
+    if charge is None:
+        charge = torch.zeros((batch_size, seq_len), dtype=dtype, device=device)
+    if element is None:
+        element = torch.zeros((batch_size, seq_len), dtype=dtype, device=device)
+    if residue is None:
+        residue = torch.zeros((batch_size, seq_len), dtype=dtype, device=device)
+    if chain is None:
+        chain = torch.zeros((batch_size, seq_len), dtype=dtype, device=device)
+    if atom_type is None:
+        atom_type = torch.zeros((batch_size, seq_len), dtype=dtype, device=device)
+    if mask is None:
+        mask = torch.ones((batch_size, seq_len), dtype=dtype, device=device)
+    
+    # Ensure all tensors have compatible shapes
+    def expand_tensor(t: torch.Tensor, name: str) -> torch.Tensor:
+        if t.shape[0] == 1 and batch_size > 1:
+            t = t.expand(batch_size, -1, *t.shape[2:])
+        if t.shape[1] == 1 and seq_len > 1:
+            t = t.expand(-1, seq_len, *t.shape[2:])
+        return t
+    
+    # Expand tensors to match largest dimensions
+    pos = expand_tensor(pos, 'pos')
+    charge = expand_tensor(charge, 'charge')
+    element = expand_tensor(element, 'element')
+    residue = expand_tensor(residue, 'residue')
+    chain = expand_tensor(chain, 'chain')
+    atom_type = expand_tensor(atom_type, 'atom_type')
+    mask = expand_tensor(mask, 'mask')
+    
+    # Return list of tensors
+    result: List[torch.Tensor] = [pos, charge, element, residue, chain, atom_type, mask]
+    return result
