@@ -1,4 +1,3 @@
-import pytest
 import tracemalloc
 from omegaconf import OmegaConf
 from rna_predict.training.rna_lightning_module import RNALightningModule
@@ -6,8 +5,6 @@ from rna_predict.dataset.loader import RNADataset
 from torch.utils.data import DataLoader
 import lightning as L
 from rna_predict.conf.config_schema import RNAConfig
-from rna_predict.pipeline.stageC.stage_c_reconstruction import run_stageC
-from rna_predict.pipeline.stageD.run_stageD import run_stageD
 
 # TODO: These modules need to be implemented or moved to the correct location
 # from rna_predict.models.latent_merger import LatentMerger
