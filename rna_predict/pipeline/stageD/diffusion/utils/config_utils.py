@@ -27,12 +27,18 @@ def get_embedding_dimension(
     # Handle both DiffusionConfig and dict types
     if hasattr(diffusion_config, 'diffusion_config'):
         # It's a DiffusionConfig object
-        conditioning_config = diffusion_config.diffusion_config.get("conditioning", {})
-        return diffusion_config.diffusion_config.get(key, conditioning_config.get(key, default_value))
+        config_dict = diffusion_config.diffusion_config
     else:
         # It's a dict
-        conditioning_config = diffusion_config.get("conditioning", {})
-        return diffusion_config.get(key, conditioning_config.get(key, default_value))
+        config_dict = diffusion_config
+    # If nested 'diffusion' group present (from Hydra model.stageD), use it
+    if isinstance(config_dict, dict) and 'diffusion' in config_dict:
+        config_dict = config_dict['diffusion']
+    elif hasattr(config_dict, 'get') and 'diffusion' in config_dict:
+        config_dict = config_dict.get('diffusion')
+
+    conditioning_config = config_dict.get("conditioning", {})
+    return config_dict.get(key, conditioning_config.get(key, default_value))
 
 
 def create_fallback_input_features(
@@ -51,33 +57,37 @@ def create_fallback_input_features(
     """
     N = partial_coords.shape[1]
 
-    # Handle both DiffusionConfig and dict types
+    # Extract base config dict (for DiffusionConfig dataclass or raw dict/DictConfig)
     if hasattr(diffusion_config, 'diffusion_config'):
-        # It's a DiffusionConfig object
         config_dict = diffusion_config.diffusion_config
     else:
-        # It's a dict
         config_dict = diffusion_config
+    # If nested 'diffusion' group present (from Hydra model.stageD), use it
+    if isinstance(config_dict, dict) and 'diffusion' in config_dict:
+        config_dict = config_dict['diffusion']
+    elif hasattr(config_dict, 'get') and 'diffusion' in config_dict:
+        config_dict = config_dict.get('diffusion')
 
-    # Get the dimension for s_inputs
-    c_s_inputs_dim = config_dict.get("c_s_inputs", None)
+    # Get feature dimensions
+    feat_dims = config_dict.get("feature_dimensions", {})
+    c_s_inputs_dim = feat_dims.get("c_s_inputs")
     if c_s_inputs_dim is None:
-        raise ValueError("Missing config value for 'c_s_inputs'")
+        raise ValueError("Missing config value for 'feature_dimensions.c_s_inputs'")
 
-    # Get the dimension for ref_element
-    ref_element_dim = config_dict.get("ref_element_dim", None)
+    # Get dimensions for ref_element and atom_name_chars
+    ref_element_dim = config_dict.get("ref_element_size")
     if ref_element_dim is None:
-        raise ValueError("Missing config value for 'ref_element_dim'")
-
-    # Get the dimension for ref_atom_name_chars
-    ref_atom_name_chars_dim = config_dict.get("ref_atom_name_chars_dim", None)
+        raise ValueError("Missing config value for 'ref_element_size'")
+    ref_atom_name_chars_dim = config_dict.get("ref_atom_name_chars_size")
     if ref_atom_name_chars_dim is None:
-        raise ValueError("Missing config value for 'ref_atom_name_chars_dim'")
+        raise ValueError("Missing config value for 'ref_atom_name_chars_size'")
 
-    # Get the dimension for restype and profile
-    restype_dim = config_dict.get("restype_dim", None)
-    if restype_dim is None:
-        raise ValueError("Missing config value for 'restype_dim'")
+    # Get dimension for residue-type embedding (use same as s_inputs)
+    restype_dim = c_s_inputs_dim
+    # Profile size
+    profile_dim = config_dict.get("profile_size")
+    if profile_dim is None:
+        raise ValueError("Missing config value for 'profile_size'")
 
     return {
         "atom_to_token_idx": torch.arange(N, device=device).unsqueeze(0),
@@ -88,9 +98,9 @@ def create_fallback_input_features(
         "ref_atom_name_chars": torch.zeros(1, N, ref_atom_name_chars_dim, device=device),
         "ref_mask": torch.ones(1, N, 1, device=device),
         "restype": torch.zeros(1, N, restype_dim, device=device),
-        "profile": torch.zeros(1, N, restype_dim, device=device),
+        "profile": torch.zeros(1, N, profile_dim, device=device),
         "deletion_mean": torch.zeros(1, N, 1, device=device),
-        "sing": torch.zeros(1, N, c_s_inputs_dim, device=device),
+        "sing": torch.zeros(1, N, c_s_inputs_dim, device=device),  # for s_inputs fallback
         # Add s_inputs as well to ensure it's available
         "s_inputs": torch.zeros(1, N, c_s_inputs_dim, device=device),
     }
@@ -201,7 +211,7 @@ def parse_diffusion_module_args(stage_cfg, debug_logging=False):
             model_arch = stage_cfg.model_architecture
             # Add model_architecture to diffusion_module_args
             diffusion_module_args['model_architecture'] = model_arch
-            logger.debug(f"[StageD] Added model_architecture from stage_cfg")
+            logger.debug("[StageD] Added model_architecture from stage_cfg")
 
             # Extract c_atom and c_z from model_architecture
             if hasattr(model_arch, 'c_atom'):
@@ -234,7 +244,7 @@ def parse_diffusion_module_args(stage_cfg, debug_logging=False):
             # Add model_architecture to diffusion_module_args if not already there
             if 'model_architecture' not in diffusion_module_args:
                 diffusion_module_args['model_architecture'] = model_arch
-                logger.debug(f"[StageD] Added model_architecture from base_cfg")
+                logger.debug("[StageD] Added model_architecture from base_cfg")
 
             # Extract parameters from model_architecture in base_cfg
             if hasattr(model_arch, 'c_atom') and 'c_atom' not in diffusion_module_args:
@@ -264,10 +274,10 @@ def parse_diffusion_module_args(stage_cfg, debug_logging=False):
         # Add transformer if it exists
         if hasattr(stage_cfg, 'transformer'):
             diffusion_module_args['transformer'] = stage_cfg.transformer
-            logger.debug(f"[StageD] Added transformer from stage_cfg")
+            logger.debug("[StageD] Added transformer from stage_cfg")
         elif hasattr(base_cfg, 'transformer'):
             diffusion_module_args['transformer'] = base_cfg.transformer
-            logger.debug(f"[StageD] Added transformer from base_cfg")
+            logger.debug("[StageD] Added transformer from base_cfg")
 
         # Add debug_logging
         diffusion_module_args['debug_logging'] = debug_logging

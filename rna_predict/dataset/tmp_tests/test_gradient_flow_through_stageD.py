@@ -2,11 +2,12 @@ import pytest
 import torch
 from hydra import initialize, compose
 from pathlib import Path
-CONF_DIR = Path(__file__).resolve().parents[3] / "rna_predict" / "conf"
-
-# Import Stage D main entry point (adjust as needed for your pipeline)
 from rna_predict.pipeline.stageD.run_stageD import run_stageD
+from rna_predict.utils.tensor_utils.types import STANDARD_RNA_ATOMS
+from rna_predict.utils.tensor_utils import derive_residue_atom_map
 
+# Config directory for Hydra
+CONF_DIR = Path(__file__).resolve().parents[3] / "rna_predict" / "conf"
 
 @pytest.mark.parametrize("batch_size, n_res, c_s", [
     (2, 10, 8),
@@ -30,7 +31,6 @@ def test_gradient_flow_through_stageD(batch_size, n_res, c_s):
 
     # Create dummy sequence and residue-level features
     sequence = ["A"] * n_res
-    from rna_predict.utils.tensor_utils.types import STANDARD_RNA_ATOMS
     n_atoms = sum(len(STANDARD_RNA_ATOMS[res]) for res in sequence)
     s_trunk = torch.randn(batch_size, n_res, c_s, requires_grad=True)
     z_trunk = torch.randn(batch_size, n_res, n_res, c_z, requires_grad=True)
@@ -38,7 +38,6 @@ def test_gradient_flow_through_stageD(batch_size, n_res, c_s):
     coords = torch.randn(batch_size, n_atoms, 3, requires_grad=True)
 
     # Derive atom_metadata using real mapping logic
-    from rna_predict.utils.tensor_utils import derive_residue_atom_map
     residue_atom_map = derive_residue_atom_map(sequence, partial_coords=coords)
     residue_indices = []
     for res_idx, atom_idxs in enumerate(residue_atom_map):
@@ -90,4 +89,5 @@ def test_gradient_flow_through_stageD(batch_size, n_res, c_s):
         print("GRADIENT FLOW CONFIRMED: All input tensors have non-None gradients.")
     else:
         print("GRADIENT FLOW FAILURE: One or more input tensors missing gradients.")
-    import sys; sys.stdout.flush()
+    import sys
+    sys.stdout.flush()

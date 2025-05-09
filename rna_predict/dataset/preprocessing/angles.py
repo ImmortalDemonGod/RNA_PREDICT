@@ -118,7 +118,7 @@ def _select_chain_with_fallback(universe: 'mda.Universe', chain_id: str) -> Opti
                 print(f"[WARN] Fallback to only chain {only_chain} failed to select atoms.")
                 return None
         elif len(all_ids) == 0:
-            print(f"[DEBUG] No chains present in structure.")
+            print("[DEBUG] No chains present in structure.")
             return None
         else:
             print(f"[DEBUG] _select_chain_with_fallback: No chain found for requested chain_id={chain_id}, multiple chains present ({all_ids}), not falling back.")
@@ -128,7 +128,7 @@ def _select_chain_with_fallback(universe: 'mda.Universe', chain_id: str) -> Opti
         chain = universe.select_atoms("nucleic")
         print(f"[DEBUG] _select_chain_with_fallback: Fallback to nucleic, found {len(chain)} atoms.")
         if len(chain) == 0:
-            print(f"[DEBUG] _select_chain_with_fallback: No nucleic atoms found.")
+            print("[DEBUG] _select_chain_with_fallback: No nucleic atoms found.")
             return None
     return chain
 
