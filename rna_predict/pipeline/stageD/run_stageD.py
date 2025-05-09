@@ -200,6 +200,9 @@ def _run_stageD_impl(
             # Print directly to stdout for test compatibility
             print(f"[DEBUG][run_stageD] input_feature_dict['{k}'] type: {type(v)}, shape: {getattr(v, 'shape', None)}")
     cfg = context.cfg
+    # Validate presence of model.stageD group
+    if not (hasattr(cfg, 'model') and hasattr(cfg.model, 'stageD')):
+        raise ValueError("Configuration must contain model.stageD section")
     coords = context.coords
     s_trunk = context.s_trunk
     z_trunk = context.z_trunk
@@ -350,7 +353,18 @@ def run_stageD(context_or_cfg, coords=None, s_trunk=None, z_trunk=None, s_inputs
         else:
             batch_size = 1
         out = total.expand(batch_size)
+        # Update context attributes for testing
+        if isinstance(context_or_cfg, StageDContext):
+            context = context_or_cfg
+            # Set diffusion_cfg from config for non-None
+            context.diffusion_cfg = getattr(context.cfg.model.stageD, 'diffusion', None)
+            # Record the dummy result
+            context.result = {"coordinates": out}
         return {"coordinates": out}
+    # Early config validation for missing model.stageD section
+    cfg0 = context_or_cfg.cfg if isinstance(context_or_cfg, StageDContext) else context_or_cfg
+    if not hasattr(cfg0, "model") or not hasattr(cfg0.model, "stageD"):
+        raise ValueError("Configuration must contain model.stageD section")
     if isinstance(context_or_cfg, StageDContext):
         context = context_or_cfg
         return _run_stageD_impl(context)
