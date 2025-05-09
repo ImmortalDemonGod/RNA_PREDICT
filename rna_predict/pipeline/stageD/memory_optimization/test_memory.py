@@ -15,7 +15,6 @@ from rna_predict.pipeline.stageD.memory_optimization.memory_fix import (
     preprocess_inputs
 )
 
-import os
 
 def get_torch_memory():
     """Get PyTorch memory usage in GB"""
