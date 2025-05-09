@@ -110,13 +110,33 @@ def interpolate_sequence_dim(tensor: torch.Tensor, target_size: int) -> torch.Te
     """
     Interpolate tensor along sequence dimension to match target size.
 
-    Args:
-        tensor: Input tensor
-        target_size: Target sequence length
-
-    Returns:
-        Interpolated tensor
+    Handles 3D and higher-dimensional tensors by flattening leading dims.
     """
+    # Debug: log shapes to diagnose interpolation errors
+    print(f"[DEBUG][AdaLN][interpolate_sequence_dim] tensor.shape={tensor.shape}, target_size={target_size}")
+    # If no sequence length required, return empty along sequence dim
+    if target_size <= 0:
+        # Return tensor with zero-length sequence dimension
+        *lead, seq, chan = tensor.shape
+        return tensor.reshape(*lead, 0, chan)
+    # If sequence dimension already matches, return tensor
+    if tensor.shape[-2] == target_size:
+        return tensor
+    orig_shape = tensor.shape
+    # Handle tensors with extra leading dimensions (e.g., multi-sample)
+    if tensor.dim() > 3:
+        seq_dim = orig_shape[-2]
+        chan_dim = orig_shape[-1]
+        # Flatten leading dims into batch
+        tensor_flat = tensor.reshape(-1, seq_dim, chan_dim)
+        # Interpolate along sequence dim
+        interp_flat = torch.nn.functional.interpolate(
+            tensor_flat.transpose(1, 2), size=target_size, mode="nearest"
+        ).transpose(1, 2)
+        # Restore original leading dims
+        leading_shape = orig_shape[:-2]
+        return interp_flat.reshape(*leading_shape, target_size, chan_dim)
+    # Standard 3D case
     return torch.nn.functional.interpolate(
         tensor.transpose(1, 2),  # [B, C, S]
         size=target_size,
