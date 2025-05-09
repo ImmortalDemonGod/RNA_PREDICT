@@ -110,8 +110,8 @@ seed: 42
 
 # Unskipped: Check config file exists (Hydra-based)
 def test_config_file_exists():
-    conf_path = get_hydra_conf_path()
-    config_path = Path(conf_path) / "default.yaml"
+    # Ensure default.yaml exists in the repo config directory
+    config_path = Path(__file__).parent.parent / "rna_predict" / "conf" / "default.yaml"
     assert config_path.exists(), "default.yaml config file should exist"
 
 # Unskip config structure test due to Hydra configuration issues
