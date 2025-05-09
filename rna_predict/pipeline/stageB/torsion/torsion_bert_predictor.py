@@ -589,8 +589,7 @@ class StageBTorsionBertPredictor(nn.Module):
                 )
 
             # Remove batch dimension since we process one sequence at a time
-            torsion_tensor = angle_preds.squeeze(0)
-            return {"torsion_angles": torsion_tensor}
+            return angle_preds.squeeze(0)
         except Exception as e:
             logger.error(f"Error during model inference: {str(e)}")
             raise RuntimeError(f"TorsionBERT inference failed: {str(e)}") from e

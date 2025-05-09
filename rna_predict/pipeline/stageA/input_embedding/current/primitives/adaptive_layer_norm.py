@@ -5,6 +5,7 @@ This module contains the AdaptiveLayerNorm class which implements Algorithm 26 i
 """
 
 import warnings
+from typing import Optional
 
 import torch
 import torch.nn as nn
@@ -23,11 +24,12 @@ class AdaptiveLayerNorm(nn.Module):
     Implements Algorithm 26 in AF3
     """
 
-    def __init__(self, c_a: int = 768, c_s: int = 384, c_s_layernorm: int = None) -> None:
+    def __init__(self, c_a: int = 768, c_s: int = 384, c_s_layernorm: Optional[int] = None) -> None:
         """
         Args:
             c_a (int, optional): the embedding dim of a(single feature aggregated atom info). Defaults to 768.
             c_s (int, optional): hidden dim [for single embedding]. Defaults to 384.
+            c_s_layernorm (Optional[int], optional): layer norm dimension for single embedding. Defaults to None.
         """
         super().__init__()
         self.c_a = c_a  # Store c_a for reference
