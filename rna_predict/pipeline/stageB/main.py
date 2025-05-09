@@ -1,4 +1,4 @@
-from typing import Dict, Optional, Any
+from typing import Dict, Optional, Any, Union
 import hydra
 from omegaconf import DictConfig
 
@@ -18,7 +18,7 @@ def run_stageB_combined(
     adjacency_matrix: Optional[torch.Tensor] = None,
     torsion_bert_model: Any = None,
     pairformer_model: Any = None,
-    device: str = None,
+    device: Union[str, None] = "cpu",
     init_z_from_adjacency: bool = False,
     cfg: Optional[DictConfig] = None
 ) -> Dict[str, Any]:
