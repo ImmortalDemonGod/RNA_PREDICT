@@ -48,7 +48,7 @@ def test_residue_index_squeeze_fix():
     })
 
     # Initialize with the configuration object
-    integrator = ProtenixIntegration(cfg)
+    ProtenixIntegration(cfg)
 
     # Use smaller values to reduce memory usage
     N_token = 3  # Reduced from 5 to 3
@@ -56,7 +56,7 @@ def test_residue_index_squeeze_fix():
     atoms_per_token = 2  # Reduced from 4 to 2
 
     # Create minimal input features with 2D shapes [batch, feat_dim]
-    input_features = {
+    {
         "residue_index": torch.arange(N_token).reshape(1, N_token),  # [1, N_token]
         "ref_pos": torch.randn(1, N_atom * 3),  # [1, N_atom * 3]
         "ref_charge": torch.randn(1, N_atom),  # [1, N_atom]
