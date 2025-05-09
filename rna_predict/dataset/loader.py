@@ -5,7 +5,6 @@ from torch.utils.data import Dataset
 from Bio import SeqIO
 from Bio.PDB import MMCIFParser, PDBParser
 from .atom_lists import STANDARD_ATOMS
-import snoop
 
 # Utility stubs (implement or replace with actual logic)
 def parse_pdb_atoms(pdb_file):
@@ -397,7 +396,7 @@ class RNADataset(Dataset):
                 print(f"[DEBUG][RNADataset._load_angles] Using chain_id from config: {selected_chain_id}")
             else:
                 selected_chain_id = 'A'
-                print(f"[DEBUG][RNADataset._load_angles] No chain_id in row or config; defaulting to 'A'")
+                print("[DEBUG][RNADataset._load_angles] No chain_id in row or config; defaulting to 'A'")
 
             structure_file = get_field(row, 'pdb_path', None)
             if structure_file is None:
@@ -458,5 +457,6 @@ class RNADataset(Dataset):
                 ang = ang[:self.max_res]
             return ang
         except Exception as e:
-            print(f"[WARNING][RNADataset._load_angles] Angle extraction failed for {structure_file} (chain {chain_id}). Returning zeros. Error: {e}")
+            # Use selected_chain_id in warning instead of undefined chain_id
+            print(f"[WARNING][RNADataset._load_angles] Angle extraction failed for {structure_file} (chain {selected_chain_id}). Returning zeros. Error: {e}")
             return torch.zeros((self.max_res, n_angles), device=self.device)

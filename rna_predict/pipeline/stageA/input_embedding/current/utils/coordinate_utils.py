@@ -21,7 +21,6 @@ import os
 import warnings
 from typing import Optional
 import logging
-import snoop
 # Add a module-level logger for this file
 logger = logging.getLogger(__name__)
 
@@ -477,7 +476,7 @@ def aggregate_atom_to_token(
     # CRITICAL FIX: Handle dimension mismatch in test_run_stageD_diffusion_inference_original
     if 'test_run_stageD_diffusion_inference_original' in current_test:
         if debug_logging:
-            print(f"[DEBUG][aggregate_atom_to_token] Special case for test_run_stageD_diffusion_inference_original")
+            print("[DEBUG][aggregate_atom_to_token] Special case for test_run_stageD_diffusion_inference_original")
             print(f"[DEBUG][aggregate_atom_to_token] idx_shape={idx_shape}, atom_prefix_shape={atom_prefix_shape}")
 
         # Handle the case where atom_to_token_idx is [1, 1, 11] and x_atom is [1, 11, 384]
@@ -491,7 +490,7 @@ def aggregate_atom_to_token(
     # CRITICAL FIX: Handle dimension mismatch in test_run_stageD_basic
     if 'test_run_stageD_basic' in current_test:
         if debug_logging:
-            print(f"[DEBUG][aggregate_atom_to_token] Special case for test_run_stageD_basic")
+            print("[DEBUG][aggregate_atom_to_token] Special case for test_run_stageD_basic")
             print(f"[DEBUG][aggregate_atom_to_token] idx_shape={idx_shape}, atom_prefix_shape={atom_prefix_shape}")
 
         # Handle the case where atom_to_token_idx is [1, 1, 11] and x_atom is [1, 11, 384]
@@ -544,7 +543,7 @@ def aggregate_atom_to_token(
             # CRITICAL FIX: Handle dimension mismatch in test_run_stageD_diffusion_inference_original
             if 'test_run_stageD_diffusion_inference_original' in current_test or 'test_run_stageD_basic' in current_test:
                 if debug_logging:
-                    print(f"[DEBUG][aggregate_atom_to_token] Special case handling for test_run_stageD_diffusion_inference_original")
+                    print("[DEBUG][aggregate_atom_to_token] Special case handling for test_run_stageD_diffusion_inference_original")
 
                 # Try to reshape x_atom to match atom_to_token_idx
                 try:
@@ -616,7 +615,7 @@ def aggregate_atom_to_token(
         # CRITICAL FIX: Handle dimension mismatch in test_run_stageD_diffusion_inference_original
         if 'test_run_stageD_diffusion_inference_original' in current_test or 'test_run_stageD_basic' in current_test:
             if debug_logging:
-                print(f"[DEBUG][aggregate_atom_to_token] Special case handling for scatter failure")
+                print("[DEBUG][aggregate_atom_to_token] Special case handling for scatter failure")
 
             # Create a fallback output tensor
             if n_token is None:
