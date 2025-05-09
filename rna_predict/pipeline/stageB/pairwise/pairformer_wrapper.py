@@ -86,17 +86,25 @@ class PairformerWrapper(nn.Module):
 
         # Extract the pairformer config section from the provided config
         pairformer_cfg = None
+        # Direct config mode: cfg is already the pairformer config if it contains c_z and c_s
+        if isinstance(cfg, DictConfig) and 'c_z' in cfg and 'c_s' in cfg:
+            pairformer_cfg = cfg
+            logger.info("[DEBUG-STAGEB-PAIRFORMER-CONFIG] Using direct stageB_pairformer config")
 
-        # Check for model.stageB.pairformer (preferred)
-        if hasattr(cfg, 'model') and hasattr(cfg.model, 'stageB') and hasattr(cfg.model.stageB, 'pairformer'):
+        # Check for nested config sections if direct mode is not used
+        if pairformer_cfg is None and hasattr(cfg, 'model') and hasattr(cfg.model, 'stageB') and hasattr(cfg.model.stageB, 'pairformer'):
             pairformer_cfg = cfg.model.stageB.pairformer
             logger.info("[DEBUG-STAGEB-PAIRFORMER-CONFIG] Using cfg.model.stageB.pairformer")
         # Check for stageB.pairformer
-        elif hasattr(cfg, 'stageB') and hasattr(cfg.stageB, 'pairformer'):
+        elif pairformer_cfg is None and hasattr(cfg, 'stageB') and hasattr(cfg.stageB, 'pairformer'):
             pairformer_cfg = cfg.stageB.pairformer
             logger.info("[DEBUG-STAGEB-PAIRFORMER-CONFIG] Using cfg.stageB.pairformer")
-        # Check for direct attributes
-        elif hasattr(cfg, 'pairformer'):
+        # Check for stageB_pairformer key (tests use this structure)
+        elif pairformer_cfg is None and hasattr(cfg, 'stageB_pairformer'):
+            pairformer_cfg = cfg.stageB_pairformer
+            logger.info("[DEBUG-STAGEB-PAIRFORMER-CONFIG] Using cfg.stageB_pairformer")
+        # Check for direct pairformer subtree
+        elif pairformer_cfg is None and hasattr(cfg, 'pairformer'):
             pairformer_cfg = cfg.pairformer
             logger.info("[DEBUG-STAGEB-PAIRFORMER-CONFIG] Using cfg.pairformer")
 
@@ -123,26 +131,13 @@ class PairformerWrapper(nn.Module):
                 "chunk_size": None
             })
 
-        # Check for required keys
+        # Ensure required keys exist in config mapping
         required_keys = ["c_z", "c_s"]
-        if not all(hasattr(pairformer_cfg, key) for key in required_keys):
+        if not all(key in pairformer_cfg for key in required_keys):
             if 'test_stageB_missing_config_section' in current_test:
                 raise ValueError("[UNIQUE-ERR-PAIRFORMER-NOCONFIG] PairformerWrapper requires a valid configuration section")
-            
-            # For other tests, enter dummy mode
-            logger.warning("[UNIQUE-WARN-PAIRFORMER-DUMMYMODE] Config missing required keys, entering dummy mode")
-            pairformer_cfg = OmegaConf.create({
-                "n_blocks": 2,
-                "c_z": 32,
-                "c_s": 64,
-                "n_heads": 4,
-                "dropout": 0.1,
-                "use_memory_efficient_kernel": False,
-                "use_deepspeed_evo_attention": False,
-                "use_lma": False,
-                "inplace_safe": False,
-                "chunk_size": None
-            })
+            # For other tests or incomplete config, maintain direct config and warn
+            logger.warning("[UNIQUE-WARN-PAIRFORMER-INCOMPLETE] Config missing required keys, using defaults for missing ones")
 
         # Store config parameters with defaults
         self.n_blocks = getattr(pairformer_cfg, "n_blocks", 2)
@@ -180,6 +175,9 @@ class PairformerWrapper(nn.Module):
         elif hasattr(cfg, 'pairformer') and hasattr(cfg.pairformer, 'device') and cfg.pairformer.device is not None:
             device = cfg.pairformer.device
             logger.info("[DEBUG-STAGEB-PAIRFORMER-CONFIG] Used cfg.pairformer.device (legacy)")
+        elif hasattr(cfg, 'stageB_pairformer') and hasattr(cfg.stageB_pairformer, 'device') and cfg.stageB_pairformer.device is not None:
+            device = cfg.stageB_pairformer.device
+            logger.info("[DEBUG-STAGEB-PAIRFORMER-CONFIG] Used cfg.stageB_pairformer.device")
         logger.info(f"[DEBUG-STAGEB-PAIRFORMER-CONFIG] Resolved device in config: {device}")
         if device is None:
             raise ValueError("[UNIQUE-ERR-PAIRFORMER-NOCONFIG] PairformerWrapper requires an explicit device in the config; do not use hardcoded defaults.")
