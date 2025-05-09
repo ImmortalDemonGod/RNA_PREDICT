@@ -51,7 +51,7 @@ try:
         N_sample=3,
         device=None
     )
-    print(f"ERROR: Should have failed without device")
+    print("ERROR: Should have failed without device")
 except ValueError as e:
     print(f"Expected error without device: {e}")
 except Exception as e:
