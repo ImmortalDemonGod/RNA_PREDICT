@@ -6,8 +6,6 @@ including handling different query-key-value configurations and small tensor pro
 """
 
 import math
-import warnings
-import os
 from typing import NamedTuple, Optional
 
 import torch
@@ -118,10 +116,14 @@ def _process_with_batch_matmul(params: BatchMatmulParams) -> torch.Tensor:
     Returns:
         torch.Tensor: Processed attention output
     """
+    # Debug: log original tensor shapes and bias
+    print(f"[DEBUG][BatchMatmul] q_orig={params.tensors.q.shape}, k_orig={params.tensors.k.shape}, v_orig={params.tensors.v.shape}, bias_orig={getattr(params.attn_bias, 'shape', None)}, num_heads={params.config.num_heads}")
     bsz = params.tensors.q.shape[0]
-    q = params.tensors.q.reshape(-1, *params.tensors.q.shape[-2:])
-    k = params.tensors.k.reshape(-1, *params.tensors.k.shape[-2:])
-    v = params.tensors.v.reshape(-1, *params.tensors.v.shape[-2:])
+    # Explicitly compute batch*heads to avoid ambiguous reshape when sequence length is zero
+    num_heads = params.config.num_heads
+    q = params.tensors.q.reshape(bsz * num_heads, *params.tensors.q.shape[-2:])
+    k = params.tensors.k.reshape(bsz * num_heads, *params.tensors.k.shape[-2:])
+    v = params.tensors.v.reshape(bsz * num_heads, *params.tensors.v.shape[-2:])
 
     # Get attention scores
     reshaped_bias = _reshape_attention_bias(params.attn_bias, params.config.num_heads)
