@@ -1,5 +1,6 @@
 import sys
 import os
+import unittest
 
 # Add the project root to the Python path
 sys.path.insert(0, os.path.abspath('.'))
@@ -30,8 +31,6 @@ config_dict = {
     "decoder_skip_connections": True,
     "device": "cpu",  # Add explicit device parameter
 }
-
-import unittest
 
 class TestArgsNamespace(unittest.TestCase):
     def test_args_namespace_creation(self):
