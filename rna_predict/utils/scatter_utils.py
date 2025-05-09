@@ -48,8 +48,23 @@ def scatter_mean(
     Returns:
       out: Tensor of shape [dim_size, c] containing the per-segment average.
     """
+    # Validate that src and index have matching lengths along scatter dimension
+    if src.size(dim) != index.size(0):
+        raise IndexError(f"src length ({src.size(dim)}) and index length ({index.size(0)}) must match")
     device = src.device
     c = src.size(-1)
+    # Adjust dim_size based on index values to avoid out-of-bounds
+    try:
+        max_idx = int(index.max().item()) if index.numel() > 0 else -1
+        if max_idx >= dim_size:
+            dim_size = max_idx + 1
+    except Exception:
+        pass
+    # Clamp index values to valid range
+    try:
+        index = index.clamp(min=0, max=dim_size - 1)
+    except Exception:
+        pass
     print(f"[DEBUG][scatter_mean] index shape: {index.shape}, values: {index.tolist()}")
     print(f"[DEBUG][scatter_mean] dim_size (N_token): {dim_size}")
     out = torch.zeros(dim_size, c, device=device)
