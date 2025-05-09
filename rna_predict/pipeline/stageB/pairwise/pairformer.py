@@ -116,11 +116,12 @@ class PairformerBlock(nn.Module):
 
         # Initialize single representation components if needed
         if self.c_s > 0:
-            # Enable single‑rep conditioning and gating
+            # Enable single-rep conditioning and gating
             self.attention_pair_bias = AttentionPairBias(
-                has_s=True,  # <-- enable s‑conditioning
+                has_s=True,
                 n_heads=self.n_heads,
                 c_a=self.c_s,
+                c_s=self.c_s,
                 c_z=self.c_z,
             )
             self.single_transition = Transition(c_in=self.c_s, n=4)
