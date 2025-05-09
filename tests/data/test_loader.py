@@ -5,7 +5,6 @@ import pandas as pd
 import pytest
 from omegaconf import OmegaConf
 from torch.utils.data import DataLoader
-import hydra
 from hydra import compose, initialize
 
 from rna_predict.dataset.loader import RNADataset

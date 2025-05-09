@@ -131,7 +131,7 @@ class MockDiffusionModule(torch.nn.Module):
         import os
         current_test = str(os.environ.get('PYTEST_CURRENT_TEST', ''))
         if 'test_init_with_basic_config' in current_test:
-            print(f"[DEBUG] MockDiffusionModule.__init__ in test_init_with_basic_config")
+            print("[DEBUG] MockDiffusionModule.__init__ in test_init_with_basic_config")
             print(f"[DEBUG] MockDiffusionModule.__init__ cfg: {cfg}")
             print(f"[DEBUG] MockDiffusionModule.__init__ kwargs: {kwargs}")
 
