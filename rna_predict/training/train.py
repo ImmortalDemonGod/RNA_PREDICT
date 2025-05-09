@@ -10,7 +10,6 @@ from rna_predict.dataset.collate import rna_collate_fn
 from lightning.pytorch.callbacks import ModelCheckpoint
 import logging
 import os
-import pathlib  # required for PROJECT_ROOT and path handling
 
 # Get the project root directory
 PROJECT_ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -41,7 +40,6 @@ def main(cfg: DictConfig):
 
     logger.debug("[DEBUG][PATCH] Calling OmegaConf.resolve(cfg) to force interpolation...")
     # SYSTEMATIC DEBUGGING: Print the full resolved config to check what namespaces are present
-    from omegaconf import OmegaConf
     print("\n[DEBUG][PATCH] FULL CONFIG TREE:\n" + OmegaConf.to_yaml(cfg), flush=True)
     OmegaConf.resolve(cfg)
     logger.debug("[DEBUG][PATCH] After resolve: cfg.device: %s", getattr(cfg, 'device', None))
@@ -76,7 +74,6 @@ def main(cfg: DictConfig):
     # Get the original working directory (project root)
     original_cwd = hydra.utils.get_original_cwd()
     # Early ensure checkpoint directory exists so test always sees it
-    import os
     ckpt = cfg.training.checkpoint_dir
     # resolve absolute
     if not os.path.isabs(ckpt):
