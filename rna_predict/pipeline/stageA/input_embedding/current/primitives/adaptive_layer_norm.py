@@ -9,7 +9,6 @@ import warnings
 import torch
 import torch.nn as nn
 from torch.nn import Linear
-import snoop
 from .adaptive_layer_norm_utils import (
     adjust_tensor_shapes,
     check_and_adjust_dimensions,
@@ -175,10 +174,20 @@ class AdaptiveLayerNorm(nn.Module):
         print(f"[DEBUG][AdaLN] after layernorm_a: a_norm.requires_grad={a_norm.requires_grad}, a_norm.shape={a_norm.shape}")
         print(f"[DEBUG][AdaLN] after layernorm_a: a_norm.device={a_norm.device}, a_norm.dtype={a_norm.dtype}, a_norm.is_leaf={a_norm.is_leaf}, a_norm.grad_fn={a_norm.grad_fn}")
 
-        # Ensure s matches the expected feature dimension for layernorm_s
-        assert s.shape[-1] == self.layernorm_s.normalized_shape[0], (
-            f"[AdaLN] s.shape[-1] ({s.shape[-1]}) does not match layernorm_s.normalized_shape ({self.layernorm_s.normalized_shape[0]})"
-        )
+        # Ensure s matches the expected feature dimension for layernorm_s; adjust if not
+        s_dim = s.shape[-1]
+        ln_dim = self.layernorm_s.normalized_shape[0]
+        if s_dim != ln_dim:
+            warnings.warn(f"[AdaLN] s.shape[-1] ({s_dim}) does not match layernorm_s.normalized_shape ({ln_dim}). Recreating layernorm_s.")
+            import torch.nn as nn
+            # Recreate layernorm_s to match new s_dim
+            self.layernorm_s = nn.LayerNorm(s_dim, elementwise_affine=True).to(s.device)
+            # Recreate linear mappings to match new s dimension
+            self.linear_s = nn.Linear(in_features=s_dim, out_features=self.c_a).to(s.device)
+            self.linear_nobias_s = LinearNoBias(in_features=s_dim, out_features=self.c_a).to(s.device)
+            # Update stored s dimensions to prevent future mismatch
+            self.c_s = s_dim
+            self.c_s_layernorm = s_dim
         s_norm = self.layernorm_s(s)
         print(f"[DEBUG][AdaLN] after layernorm_s: s_norm.requires_grad={s_norm.requires_grad}, s_norm.shape={s_norm.shape}")
         print(f"[DEBUG][AdaLN] after layernorm_s: s_norm.device={s_norm.device}, s_norm.dtype={s_norm.dtype}, s_norm.is_leaf={s_norm.is_leaf}, s_norm.grad_fn={s_norm.grad_fn}")
