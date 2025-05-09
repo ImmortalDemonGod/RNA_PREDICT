@@ -49,7 +49,6 @@ def main():
     # --- Hydra config integration ---
     try:
         from hydra import initialize, compose
-        import omegaconf
         # Use absolute path as per project best practice
         hydra_conf_path = "/Users/tomriddle1/RNA_PREDICT/rna_predict/conf"
         with initialize(config_path=hydra_conf_path, job_name="compute_ground_truth_angles"):
