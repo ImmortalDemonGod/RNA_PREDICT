@@ -13,7 +13,6 @@ from typing import List, Optional, Dict, Any
 from rna_predict.pipeline.stageB.torsion.torsion_bert_predictor import StageBTorsionBertPredictor
 from rna_predict.pipeline.stageC.stage_c_reconstruction import run_stageC
 from rna_predict.utils.submission import coords_to_df, extract_atom, reshape_coords
-import snoop
 
 class RNAPredictor:
     """High-level interface for the RNA_PREDICT pipeline."""
