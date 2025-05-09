@@ -662,7 +662,7 @@ def process_input_features(
 
     # Calculate total number of atoms and residues
     n_atoms = sum(len(atoms) for atoms in residue_atom_map)
-    n_residues = len(residue_atom_map)
+    len(residue_atom_map)
 
     # Identify residue-level tensors that need to be expanded to atom-level
     residue_level_keys = ["ref_charge", "ref_element", "ref_atom_name_chars", "ref_mask", "restype", "profile", "deletion_mean"]

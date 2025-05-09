@@ -134,33 +134,31 @@ def _run_stageD_diffusion_impl(
         original_trunk_embeddings_ref = config.trunk_embeddings
         apply_tensor_fixes()
         diffusion_manager = ProtenixDiffusionManager(cfg=config.cfg)
+        # Validate input_features; if missing essential data, use fallback
         input_features = config.input_features
-        if input_features is None:
+        if not isinstance(input_features, dict) or 'ref_pos' not in input_features:
             logger.warning(
-                "input_features not provided, using basic fallback based on partial_coords."
+                "input_features missing or incomplete, using basic fallback based on partial_coords."
             )
-            input_features = create_fallback_input_features(
+            fb = create_fallback_input_features(
                 config.partial_coords, config, config.device
             )
-        # Defensive check: s_trunk must be residue-level at entry to unified runner
-        if isinstance(original_trunk_embeddings_ref, dict) and "s_trunk" in original_trunk_embeddings_ref:
-            s_trunk = original_trunk_embeddings_ref["s_trunk"]
-            sequence = getattr(config, "sequence", None)
-            n_residues = len(sequence) if sequence else 0
-            if n_residues == 0 and hasattr(config, 'atom_metadata') and config.atom_metadata:
-                if 'residue_indices' in config.atom_metadata:
-                    residue_indices = config.atom_metadata['residue_indices']
-                    if residue_indices:
-                        n_residues = max(residue_indices) + 1
-            if n_residues == 0:
-                residue_dim_idx = 2 if s_trunk.dim() == 4 else 1
-                n_residues = s_trunk.shape[residue_dim_idx]
-            else:
-                residue_dim_idx = 2 if s_trunk.dim() == 4 else 1
-                if n_residues and s_trunk.shape[residue_dim_idx] != n_residues:
-                    logger.error(f"[STAGED-UNIFIED ERROR][UNIQUE_CODE_004] Atom-level embeddings detected in s_trunk before bridging. Upstream code must pass residue-level embeddings. Expected {n_residues} residues, got {s_trunk.shape[residue_dim_idx]} at dimension {residue_dim_idx} of shape {s_trunk.shape}")
-                    raise ValueError(f"[STAGED-UNIFIED ERROR][UNIQUE_CODE_004] Atom-level embeddings detected in s_trunk before bridging. Upstream code must pass residue-level embeddings. Expected {n_residues} residues, got {s_trunk.shape[residue_dim_idx]} at dimension {residue_dim_idx} of shape {s_trunk.shape}")
+            # Preserve atom_metadata if provided in config
+            if getattr(config, 'atom_metadata', None):
+                fb['atom_metadata'] = config.atom_metadata
+            input_features = fb
         sequence = getattr(config, "sequence", None)
+        # If no sequence provided but atom_metadata exists, generate dummy sequence for bridging
+        if sequence is None and getattr(config, 'atom_metadata', None):
+            indices = config.atom_metadata.get('residue_indices', [])
+            # Derive number of residues from max index
+            if indices:
+                max_idx = max(indices)
+                n_residues = max_idx + 1
+            else:
+                n_residues = 0
+            sequence = ["A"] * n_residues
+            logger.debug(f"[StageD] Generated dummy sequence of {n_residues} residues from atom_metadata using 'A'")
         bridging_data = BridgingInput(
             partial_coords=config.partial_coords,
             trunk_embeddings=original_trunk_embeddings_ref,
@@ -257,147 +255,6 @@ def _run_stageD_diffusion_impl(
     except Exception as e:
         logger.exception("[StageD][EXCEPTION] Exception in _run_stageD_diffusion_impl: %s", str(e))
         raise
-                    n_residues = max(residue_indices) + 1
-
-        # If we still don't have n_residues, use the shape of s_trunk
-        if n_residues == 0:
-            # If s_trunk has 4 dimensions [batch, sample, residue, features], use shape[2]
-            # If s_trunk has 3 dimensions [batch, residue, features], use shape[1]
-            residue_dim_idx = 2 if s_trunk.dim() == 4 else 1
-            n_residues = s_trunk.shape[residue_dim_idx]
-        else:
-            # Handle the case where s_trunk has a sample dimension
-            # If s_trunk has 4 dimensions [batch, sample, residue, features], check shape[2]
-            # If s_trunk has 3 dimensions [batch, residue, features], check shape[1]
-            residue_dim_idx = 2 if s_trunk.dim() == 4 else 1
-
-            if n_residues and s_trunk.shape[residue_dim_idx] != n_residues:
-                raise ValueError(f"[STAGED-UNIFIED ERROR][UNIQUE_CODE_004] Atom-level embeddings detected in s_trunk before bridging. Upstream code must pass residue-level embeddings. Expected {n_residues} residues, got {s_trunk.shape[residue_dim_idx]} at dimension {residue_dim_idx} of shape {s_trunk.shape}")
-
-    # Bridge residue-level embeddings to atom-level embeddings
-    sequence = getattr(config, "sequence", None)
-    bridging_data = BridgingInput(
-        partial_coords=config.partial_coords,
-        trunk_embeddings=original_trunk_embeddings_ref,
-        input_features=input_features,
-        sequence=sequence,
-    )
-    logger.debug("[DEBUG-BRIDGE-ENTRY] Entering bridge_residue_to_atom call in Stage D.")
-    partial_coords, trunk_embeddings_internal, input_features = bridge_residue_to_atom(
-        bridging_input=bridging_data,
-        config=config,
-        debug_logging=config.debug_logging,
-    )
-
-    # Ensure consistent sample dimensions for all tensors
-    # This is particularly important for single-sample cases
-    # Validate diffusion_config exists and raise explicit error if missing
-    if not hasattr(config, 'diffusion_config'):
-        raise ValueError("[STAGED-UNIFIED ERROR][UNIQUE_CODE_005] 'diffusion_config' attribute is missing from config. This is required for proper operation.")
-
-    diffusion_cfg = config.diffusion_config
-
-    # Navigate to the correct nested location for num_samples
-    # First try the proper Hydra path: diffusion.inference.sampling.num_samples
-    num_samples = 1  # Default as last resort
-
-    # Try to find num_samples in the proper nested structure
-    if isinstance(diffusion_cfg, dict):
-        # Check if inference.sampling.num_samples exists
-        if 'inference' in diffusion_cfg and isinstance(diffusion_cfg['inference'], dict):
-            inference_cfg = diffusion_cfg['inference']
-            if 'sampling' in inference_cfg and isinstance(inference_cfg['sampling'], dict):
-                sampling_cfg = inference_cfg['sampling']
-                if 'num_samples' in sampling_cfg:
-                    num_samples = sampling_cfg['num_samples']
-                    logger.debug(f"[StageD] Using num_samples from config.diffusion_config.inference.sampling.num_samples: {num_samples}")
-        # Direct access as fallback
-        elif 'num_samples' in diffusion_cfg:
-            num_samples = diffusion_cfg['num_samples']
-            logger.debug(f"[StageD] Using num_samples from config.diffusion_config.num_samples: {num_samples}")
-
-    # Log the value being used
-    logger.debug(f"[StageD] Using num_samples: {num_samples}")
-
-    trunk_embeddings_internal, input_features = ensure_consistent_sample_dimensions(
-        trunk_embeddings=trunk_embeddings_internal,
-        input_features=input_features,
-        num_samples=num_samples,
-        sample_dim=1  # Sample dimension is typically after batch dimension
-    )
-
-    # PATCH: Overwrite all downstream references to trunk_embeddings with trunk_embeddings_internal
-    trunk_embeddings = trunk_embeddings_internal
-    # Defensive check: ensure no code uses original_trunk_embeddings_ref after this point
-    # Set to empty dict instead of None to maintain type compatibility
-    original_trunk_embeddings_ref = {}
-
-    if debug_logging:
-        logger.debug(f"[StageD] partial_coords shape: {partial_coords.shape}")
-        logger.debug(f"[StageD] trunk_embeddings keys: {list(trunk_embeddings.keys())}")
-        if input_features is not None:
-            logger.debug(f"[StageD] input_features keys: {list(input_features.keys())}")
-        else:
-            logger.debug("[StageD] input_features is None")
-
-    # Store the processed embeddings in the config for potential reuse
-    config.trunk_embeddings_internal = trunk_embeddings_internal
-
-    # --- Refactored: always use _init_feature_tensors for tensor creation if needed
-    # Example usage (adapt as needed):
-    # features = _init_feature_tensors(batch_size, num_atoms, device, stage_cfg)
-    # ---
-    # Run diffusion based on mode
-    if config.mode == "inference":
-        from rna_predict.pipeline.stageD.diffusion.inference.inference_mode import InferenceContext
-
-        # Create the inference context
-        # Ensure input_features is not None
-        safe_input_features = input_features if input_features is not None else {}
-        inference_context = InferenceContext(
-            diffusion_manager=diffusion_manager,
-            partial_coords=partial_coords,
-            trunk_embeddings_internal=trunk_embeddings,
-            diffusion_config=config.diffusion_config,
-            input_features=safe_input_features,
-            device=config.device,
-            original_trunk_embeddings_ref=config.trunk_embeddings,
-        )
-
-        output = run_inference_mode(inference_context, cfg=config)
-        if debug_logging:
-            logger.debug(f"[StageD] Inference output shape: {output.shape}")
-        return output
-
-    # mode == "train"
-    from rna_predict.pipeline.stageD.diffusion.training.training_mode import TrainingContext
-
-    # Create the training context
-    # Ensure input_features is not None
-    safe_input_features = input_features if input_features is not None else {}
-    training_context = TrainingContext(
-        diffusion_manager=diffusion_manager,
-        partial_coords=partial_coords,
-        trunk_embeddings_internal=trunk_embeddings,
-        diffusion_config=config.diffusion_config,
-        input_features=safe_input_features,
-        device=config.device,
-        original_trunk_embeddings_ref=config.trunk_embeddings,
-    )
-
-    # In training mode, output is a tuple of (x_denoised, sigma, x_gt_augment)
-    training_output = run_training_mode(training_context)
-    if debug_logging:
-        logger.debug(f"[StageD] Training output shapes: {[x.shape for x in training_output if isinstance(x, torch.Tensor)]}")
-    # Enforce output shape for x_denoised in training mode
-    x_denoised = training_output[0]
-    assert x_denoised.dim() == 3, f"[StageD] x_denoised must have 3 dims, got {x_denoised.shape}"
-    assert x_denoised.shape[0] == 1, f"[StageD] Batch size must be 1, got {x_denoised.shape}"
-    assert x_denoised.shape[2] == 3, f"[StageD] Last dim must be 3, got {x_denoised.shape}"
-    # Optionally, enforce 25 atoms if desired (comment out if variable):
-    # assert x_denoised.shape[1] == 25, f"[StageD] Atom count must be 25, got {x_denoised.shape}"
-    logger.debug(f"[StageD][run_stageD_unified] x_denoised output shape: {x_denoised.shape}")
-    return training_output
 
 
 def demo_run_diffusion() -> Union[

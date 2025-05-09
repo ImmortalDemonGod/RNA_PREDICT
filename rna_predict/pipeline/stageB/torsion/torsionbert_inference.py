@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 import torch
 import torch.nn as nn
 from transformers import AutoModel, AutoTokenizer
-from rna_predict.utils.device_management import get_device_for_component, move_to_device, handle_device_error
+from rna_predict.utils.device_management import get_device_for_component, move_to_device
 import logging
 
 logger = logging.getLogger(__name__)
