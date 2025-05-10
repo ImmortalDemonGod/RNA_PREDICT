@@ -1,5 +1,9 @@
 """
-Re-export ProtenixDiffusionManager for clean imports.
+Stage D diffusion manager module.
+
+Re-exports ProtenixDiffusionManager for clean imports.
 """
 
-from rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager import ProtenixDiffusionManager
+from .protenix_diffusion_manager import ProtenixDiffusionManager
+
+__all__ = ["ProtenixDiffusionManager"]

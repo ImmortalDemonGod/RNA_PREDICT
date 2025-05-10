@@ -5,7 +5,7 @@ This module provides type definitions for configuration objects used in the Stag
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 from omegaconf import DictConfig
 
 import torch
@@ -18,7 +18,7 @@ class DiffusionConfig:
     # Required parameters
     partial_coords: torch.Tensor
     trunk_embeddings: Dict[str, torch.Tensor]
-    diffusion_config: DictConfig
+    diffusion_config: Union[DictConfig, Dict[str, Any]]
 
     # Optional parameters with defaults
     mode: str = "inference"
