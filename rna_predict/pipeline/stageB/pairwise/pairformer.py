@@ -29,6 +29,7 @@ The module includes several components:
 
 from functools import partial
 from typing import Any, Optional, Union
+from dataclasses import dataclass
 
 import torch
 import torch.nn as nn
@@ -47,7 +48,6 @@ from rna_predict.pipeline.stageB.pairwise.triangular_multiplicative import (
 from rna_predict.conf.config_schema import (
     PairformerBlockConfig,
     PairformerStackConfig,
-    MSAConfig,
     TemplateEmbedderConfig,
 )
 
@@ -65,6 +65,33 @@ from rna_predict.pipeline.stageA.input_embedding.current.transformer import (
 from rna_predict.pipeline.stageA.input_embedding.current.utils import (
     sample_msa_feature_dict_random_without_replacement,
 )
+
+
+@dataclass
+class MSAConfig:
+    """Configuration for MSA processing."""
+    enable: bool
+    strategy: str
+    train_cutoff: int
+    test_cutoff: int
+    train_lowerb: int
+    test_lowerb: int
+
+    @classmethod
+    def from_dict(cls, config: Dict[str, Any]) -> 'MSAConfig':
+        """Create MSAConfig from a dictionary with type conversion."""
+        return cls(
+            enable=bool(config.get('enable', False)),
+            strategy=str(config.get('strategy', 'default')),
+            train_cutoff=int(config.get('train_cutoff', 1000)),
+            test_cutoff=int(config.get('test_cutoff', 1000)),
+            train_lowerb=int(config.get('train_lowerb', 0)),
+            test_lowerb=int(config.get('test_lowerb', 0))
+        )
+
+def create_msa_config(config: Dict[str, Any]) -> MSAConfig:
+    """Create MSAConfig from a dictionary."""
+    return MSAConfig.from_dict(config)
 
 
 class PairformerBlock(nn.Module):
@@ -661,36 +688,32 @@ class MSAModule(nn.Module):
             cfg: Configuration object containing parameters for MSAModule.
                 Can be either a DictConfig from Hydra or an MSAConfig.
         """
-        super(MSAModule, self).__init__()
+        super().__init__()
+
+        # Convert DictConfig to MSAConfig if needed
+        if isinstance(cfg, DictConfig):
+            self.msa_configs = MSAConfig.from_dict(dict(cfg))
+        else:
+            self.msa_configs = cfg
 
         # Validate required parameters
         required_params = ["c_m", "c", "c_z", "dropout", "n_blocks"]
         for param in required_params:
-            if not hasattr(cfg, param):
+            if not hasattr(self.msa_configs, param):
                 raise ValueError(f"Configuration missing required parameter: {param}")
 
         # Extract parameters from config with defaults for missing values
-        self.n_blocks = cfg.n_blocks
-        self.c_m = cfg.c_m
-        self.c = cfg.c
-        self.dropout = cfg.dropout
-        self.c_s_inputs = getattr(cfg, "c_s_inputs", 8)  # Default to 8 if not provided
-        self.blocks_per_ckpt = getattr(cfg, "blocks_per_ckpt", 1)  # Default to 1 if not provided
-        self.c_z = cfg.c_z
+        self.n_blocks = self.msa_configs.n_blocks
+        self.c_m = self.msa_configs.c_m
+        self.c = self.msa_configs.c
+        self.dropout = self.msa_configs.dropout
+        self.c_s_inputs = getattr(self.msa_configs, "c_s_inputs", 8)  # Default to 8 if not provided
+        self.blocks_per_ckpt = getattr(self.msa_configs, "blocks_per_ckpt", 1)  # Default to 1 if not provided
+        self.c_z = self.msa_configs.c_z
 
         # Input feature dimensions from config with default if not provided
         default_input_feature_dims = {"msa": 32, "has_deletion": 1, "deletion_value": 1}
-        self.input_feature = getattr(cfg, "input_feature_dims", default_input_feature_dims)
-
-        # Set up msa_configs from the structured config with defaults
-        self.msa_configs = {
-            "enable": getattr(cfg, "enable", False),  # Default to False if not provided
-            "strategy": getattr(cfg, "strategy", "random"),  # Default to "random" if not provided
-            "train_cutoff": getattr(cfg, "train_cutoff", 512),  # Default to 512 if not provided
-            "test_cutoff": getattr(cfg, "test_cutoff", 16384),  # Default to 16384 if not provided
-            "train_lowerb": getattr(cfg, "train_lowerb", 1),  # Default to 1 if not provided
-            "test_lowerb": getattr(cfg, "test_lowerb", 1),  # Default to 1 if not provided
-        }
+        self.input_feature = getattr(self.msa_configs, "input_feature_dims", default_input_feature_dims)
 
         # Initialize linear layers
         self.linear_no_bias_m = LinearNoBias(
@@ -711,15 +734,15 @@ class MSAModule(nn.Module):
             c_z=self.c_z,  # Add c_z to MSAConfig
             dropout=self.dropout,
             n_blocks=1,  # Not used in MSABlock
-            enable=self.msa_configs["enable"],
-            strategy=self.msa_configs["strategy"],
-            train_cutoff=self.msa_configs["train_cutoff"],
-            test_cutoff=self.msa_configs["test_cutoff"],
-            train_lowerb=self.msa_configs["train_lowerb"],
-            test_lowerb=self.msa_configs["test_lowerb"],
+            enable=self.msa_configs.enable,
+            strategy=self.msa_configs.strategy,
+            train_cutoff=self.msa_configs.train_cutoff,
+            test_cutoff=self.msa_configs.test_cutoff,
+            train_lowerb=self.msa_configs.train_lowerb,
+            test_lowerb=self.msa_configs.test_lowerb,
             # Add additional parameters needed by MSABlock
-            pair_dropout=getattr(cfg, "pair_dropout", 0.25),  # Default to 0.25 if not provided
-            n_heads=getattr(cfg, "n_heads", 2),  # Default to 2 if not provided
+            pair_dropout=getattr(self.msa_configs, "pair_dropout", 0.25),  # Default to 0.25 if not provided
+            n_heads=getattr(self.msa_configs, "n_heads", 2),  # Default to 2 if not provided
             c_s_inputs=self.c_s_inputs,
             blocks_per_ckpt=self.blocks_per_ckpt,
             input_feature_dims=self.input_feature
@@ -807,7 +830,7 @@ class MSAModule(nn.Module):
             pair_mask = pair_mask.float()
 
         # Sample MSA features with explicit type conversion
-        sample_size = int(self.msa_configs["train_cutoff"] if self.training else self.msa_configs["test_cutoff"])
+        sample_size = int(self.msa_configs.train_cutoff if self.training else self.msa_configs.test_cutoff)
         msa_feat = sample_msa_feature_dict_random_without_replacement(
             feat_dict=input_feature_dict,
             # dim_dict removed as it's not an accepted argument
