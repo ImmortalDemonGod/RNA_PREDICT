@@ -28,7 +28,7 @@ The module includes several components:
 """
 
 from functools import partial
-from typing import Any, Optional, Union, Dict
+from typing import Dict, Any, Optional, Union
 from dataclasses import dataclass
 
 import torch
@@ -80,7 +80,7 @@ class MSAConfig:
     pair_dropout: float = 0.25
     c_s_inputs: int = 8
     blocks_per_ckpt: int = 1
-    input_feature_dims: dict = None
+    input_feature_dims: Optional[Dict[str, Any]] = None
     # MSA selection/config fields
     enable: bool = False
     strategy: str = "default"
