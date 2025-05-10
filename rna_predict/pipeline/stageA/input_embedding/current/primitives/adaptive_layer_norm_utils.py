@@ -6,6 +6,7 @@ used by the AdaptiveLayerNorm class.
 """
 
 import warnings
+from typing import Tuple
 
 import torch
 
@@ -61,7 +62,7 @@ def should_add_sample_dimension(a: torch.Tensor, s: torch.Tensor) -> bool:
 
 def check_and_adjust_dimensions(
     a: torch.Tensor, s: torch.Tensor
-) -> tuple[torch.Tensor, bool]:
+) -> Tuple[torch.Tensor, bool]:
     """
     Check and adjust dimensions of input tensors to ensure compatibility.
 
@@ -287,7 +288,7 @@ def _has_token_dimension_mismatch(scale: torch.Tensor, a: torch.Tensor) -> bool:
 
 def _handle_fewer_tokens_in_scale(
     scale: torch.Tensor, shift: torch.Tensor, a: torch.Tensor
-) -> tuple[torch.Tensor, torch.Tensor]:
+) -> Tuple[torch.Tensor, torch.Tensor]:
     """
     Handle the case where scale has fewer tokens than a.
 
@@ -321,7 +322,7 @@ def _handle_fewer_tokens_in_scale(
 
 def _handle_more_tokens_in_scale(
     scale: torch.Tensor, shift: torch.Tensor, a: torch.Tensor
-) -> tuple[torch.Tensor, torch.Tensor]:
+) -> Tuple[torch.Tensor, torch.Tensor]:
     """
     Handle the case where scale has more tokens than a.
 
@@ -346,7 +347,7 @@ def _handle_more_tokens_in_scale(
 
 def _handle_token_dimension_mismatch(
     scale: torch.Tensor, shift: torch.Tensor, a: torch.Tensor
-) -> tuple[torch.Tensor, torch.Tensor]:
+) -> Tuple[torch.Tensor, torch.Tensor]:
     """
     Handle token dimension mismatch between scale/shift and a tensors.
 
@@ -371,7 +372,7 @@ def _handle_token_dimension_mismatch(
 
 def _handle_sequence_length_mismatch(
     scale: torch.Tensor, shift: torch.Tensor, a: torch.Tensor
-) -> tuple[torch.Tensor, torch.Tensor]:
+) -> Tuple[torch.Tensor, torch.Tensor]:
     """
     Handle sequence length mismatch between scale/shift and a tensors.
 
@@ -396,7 +397,7 @@ def _handle_sequence_length_mismatch(
 
 def _handle_general_dimension_mismatch(
     scale: torch.Tensor, shift: torch.Tensor, a: torch.Tensor
-) -> tuple[torch.Tensor, torch.Tensor]:
+) -> Tuple[torch.Tensor, torch.Tensor]:
     """
     Handle general dimension mismatches between scale/shift and a tensors.
 
@@ -419,7 +420,7 @@ def _handle_general_dimension_mismatch(
 
 def adjust_tensor_shapes(
     scale: torch.Tensor, shift: torch.Tensor, a: torch.Tensor
-) -> tuple[torch.Tensor, torch.Tensor]:
+) -> Tuple[torch.Tensor, torch.Tensor]:
     """
     Adjust tensor shapes when broadcasting fails.
 

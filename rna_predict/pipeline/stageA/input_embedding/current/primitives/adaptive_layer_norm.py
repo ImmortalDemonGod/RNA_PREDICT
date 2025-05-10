@@ -5,7 +5,7 @@ This module contains the AdaptiveLayerNorm class which implements Algorithm 26 i
 """
 
 import warnings
-from typing import Optional
+from typing import Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -50,7 +50,7 @@ class AdaptiveLayerNorm(nn.Module):
 
     def _prepare_scale_and_shift(
         self, s: torch.Tensor, a: torch.Tensor
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Prepare scale and shift tensors from the conditioning tensor s.
 
