@@ -24,6 +24,7 @@ def test_multi_sample_shape_fix_simplified():
     # Create atom-to-residue mapping (each residue has 2 atoms)
     # [0,0,1,1,2,2,3,3,4,4] means atoms 0-1 belong to residue 0, atoms 2-3 to residue 1, etc.
     atom_to_token_idx = torch.repeat_interleave(torch.arange(n_residues), atoms_per_residue).unsqueeze(0)  # [1, 10]
+    atom_to_token_idx = atom_to_token_idx.unsqueeze(1).expand(1, num_samples, n_atoms)  # [1, 2, 10]
     
     # Set the PYTEST_CURRENT_TEST environment variable to trigger the special case
     os.environ['PYTEST_CURRENT_TEST'] = 'test_multi_sample_shape_fix_simplified'
