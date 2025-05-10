@@ -17,11 +17,12 @@
 General utility functions for RNA structure prediction.
 """
 
-from typing import Dict, Optional
+from typing import Dict, List, Optional, Any, TypeVar
 
 import numpy as np
 import torch
 
+T = TypeVar('T', bound=np.ndarray)
 
 def sample_indices(
     n: int,
@@ -156,7 +157,7 @@ def _convert_value_to_numpy(value) -> np.ndarray:
         raise ValueError(f"Unsupported type for metric data: {type(value)}")
 
 
-def _collect_values_from_dicts(dict_list: list[dict]) -> dict:
+def _collect_values_from_dicts(dict_list: List[Dict[str, Any]]) -> Dict[str, List[np.ndarray]]:
     """Collect values from a list of dictionaries.
 
     Args:
@@ -165,11 +166,12 @@ def _collect_values_from_dicts(dict_list: list[dict]) -> dict:
     Returns:
         dict: Dictionary with collected values as lists
     """
-    merged_dict: dict = {}
+    merged_dict: Dict[str, List[np.ndarray]] = {}
 
     for x in dict_list:
         for k, v in x.items():
-            merged_dict.setdefault(k, [])
+            if k not in merged_dict:
+                merged_dict[k] = []
             merged_dict[k].append(_convert_value_to_numpy(v))
 
     return merged_dict
@@ -212,7 +214,7 @@ def _reshape_item_to_match(item: np.ndarray, target_shape) -> np.ndarray:
         return item  # Will be caught by compatibility check later
 
 
-def _reshape_arrays_if_needed(arrays: list, key: str) -> list:
+def _reshape_arrays_if_needed(arrays: List[np.ndarray], key: str) -> List[np.ndarray]:
     """Reshape arrays to make them compatible for concatenation.
 
     Args:
@@ -268,18 +270,19 @@ def _concatenate_arrays(arrays: list, key: str) -> np.ndarray:
         raise e
 
 
-def simple_merge_dict_list(dict_list: list[dict]) -> dict:
+def simple_merge_dict_list(dict_list: List[Dict[str, Any]]) -> Dict[str, np.ndarray]:
     """
     Merge a list of dictionaries into a single dictionary.
 
     Args:
-        dict_list (list[dict]): List of dictionaries to merge.
+        dict_list (List[Dict[str, Any]]): List of dictionaries to merge.
 
     Returns:
-        dict: Merged dictionary where values are concatenated arrays.
+        Dict[str, np.ndarray]: Merged dictionary where values are concatenated arrays.
     """
     # Collect values from dictionaries
     merged_dict = _collect_values_from_dicts(dict_list)
+    result: Dict[str, np.ndarray] = {}
 
     # Process each key-value pair
     for k, v in list(merged_dict.items()):
@@ -291,6 +294,6 @@ def simple_merge_dict_list(dict_list: list[dict]) -> dict:
         reshaped_v = _reshape_arrays_if_needed(v, k)
 
         # Concatenate arrays
-        merged_dict[k] = _concatenate_arrays(reshaped_v, k)
+        result[k] = _concatenate_arrays(reshaped_v, k)
 
-    return merged_dict
+    return result
