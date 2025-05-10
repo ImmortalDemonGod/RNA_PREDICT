@@ -133,6 +133,7 @@ def test_run_stageD_diffusion_inference(minimal_diffusion_config):
     """Test Stage D diffusion using Hydra-composed config group, not ad-hoc dict."""
     print(f"[DEBUG] __file__: {__file__}")
     print(f"[DEBUG] CWD: {os.getcwd()}")
+    # Initialize Hydra with project config path relative to this file
     with initialize(config_path="../../../rna_predict/conf", version_base=None):
         hydra_cfg = compose(config_name="default.yaml")
         hydra_cfg.model.stageD.diffusion.feature_dimensions = minimal_diffusion_config["feature_dimensions"]
@@ -240,6 +241,7 @@ def test_run_stageD_diffusion_inference_original(missing_s_inputs, minimal_diffu
     try:
         print(f"[DEBUG] __file__: {__file__}")
         print(f"[DEBUG] CWD: {os.getcwd()}")
+        # Initialize Hydra with project config path relative to this file
         with initialize(config_path="../../../rna_predict/conf", version_base=None):
             hydra_cfg = compose(config_name="default.yaml")
             hydra_cfg.model.stageD.diffusion.feature_dimensions = minimal_diffusion_config["feature_dimensions"]
