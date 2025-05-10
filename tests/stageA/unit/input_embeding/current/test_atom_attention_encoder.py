@@ -65,7 +65,7 @@ def test_atom_encoder_no_coords_fixed():
     # Create input features with correct dimensions
     num_atoms = 48
     input_feature_dict = {
-        "atom_to_token_idx": token_map.unsqueeze(-1),  # shape [48, 1], all in [0..11]
+        "atom_to_token_idx": token_map,  # shape [48], all in [0..11]
         "ref_pos": torch.randn(num_atoms, 3),  # [48, 3]
         "ref_charge": torch.zeros(num_atoms, 1),  # [48, 1]
         "ref_mask": torch.ones(num_atoms, 1, dtype=torch.bool),  # [48, 1]
@@ -76,6 +76,9 @@ def test_atom_encoder_no_coords_fixed():
         "profile": torch.zeros(1, 12, 32),
         "deletion_mean": torch.zeros(1, 12, 1),
     }
+    print("DEBUG: token_map shape:", token_map.shape, "dtype:", token_map.dtype)
+    print("DEBUG: atom_to_token_idx min/max:", token_map.min().item(), token_map.max().item())
+    print("DEBUG: input_feature_dict['atom_to_token_idx'] shape:", input_feature_dict["atom_to_token_idx"].shape)
 
     params = EncoderForwardParams(input_feature_dict=input_feature_dict)
     a, q_l, c_l, p_lm = encoder(params)

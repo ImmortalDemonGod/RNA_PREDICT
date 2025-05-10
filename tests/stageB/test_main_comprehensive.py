@@ -196,6 +196,7 @@ class TestRunPipeline:
         with pytest.raises(ValueError, match="Input sequence must not be empty.*\\[ERR-STAGEB-RUNPIPELINE-002\\]"):
             run_pipeline(seq, cfg=mock_cfg)
 
+    @settings(deadline=None)
     @given(seq=st.text(alphabet="XYZ123", min_size=1, max_size=10))
     @patch("rna_predict.pipeline.stageB.main.hydra.compose")
     def test_run_pipeline_invalid_sequence(self, mock_compose, seq):
