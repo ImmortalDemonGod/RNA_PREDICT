@@ -54,7 +54,7 @@ def input_feature_dict(device):
     # Create atom-to-token mapping (4 atoms per token)
     atom_to_token_idx = torch.repeat_interleave(
         torch.arange(n_token, device=device), n_atom // n_token
-    ).unsqueeze(-1)
+    )
 
     return {
         "atom_to_token_idx": atom_to_token_idx,

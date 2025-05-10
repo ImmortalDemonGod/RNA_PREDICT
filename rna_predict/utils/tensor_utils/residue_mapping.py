@@ -86,16 +86,19 @@ def _convert_to_int_list(indices: List[Union[int, str]]) -> List[int]:
     if not indices:
         return []
     
-    if isinstance(indices[0], str):
-        try:
-            return [int(idx) for idx in indices]
-        except ValueError as e:
-            raise ValueError(f"Failed to convert string residue indices to integers: {e}")
+    result = []
+    for idx in indices:
+        if isinstance(idx, str):
+            try:
+                result.append(int(idx))
+            except ValueError as e:
+                raise ValueError(f"Failed to convert string residue index '{idx}' to integer: {e}")
+        elif isinstance(idx, int):
+            result.append(idx)
+        else:
+            raise ValueError(f"Residue index must be string or integer, got {type(idx)}")
     
-    if not all(isinstance(idx, int) for idx in indices):
-        raise ValueError("All residue indices must be integers after conversion")
-    
-    return [int(idx) for idx in indices]
+    return result
 
 
 def _populate_residue_atom_map(
@@ -335,7 +338,7 @@ def _create_residue_atom_map_from_counts(
 
 def _cast_residue_indices(
     residue_indices: Union[List[str], List[int], torch.Tensor]
-) -> Union[List[Union[int, str]], torch.Tensor]:
+) -> List[Union[int, str]]:
     """
     Cast residue indices to the expected type.
 
@@ -343,10 +346,10 @@ def _cast_residue_indices(
         residue_indices: List or tensor of residue indices
 
     Returns:
-        Residue indices in the expected type
+        List of residue indices as integers or strings
     """
     if isinstance(residue_indices, torch.Tensor):
-        return residue_indices
+        return residue_indices.tolist()  # Convert tensor to list
     return [x for x in residue_indices]  # Convert to List[Union[int, str]]
 
 
@@ -396,7 +399,15 @@ def derive_residue_atom_map(
     if atom_metadata is not None and 'residue_indices' in atom_metadata:
         residue_indices = atom_metadata['residue_indices']
         # Derive number of residues from metadata if needed
-        n_residues_meta = max(residue_indices) + 1 if residue_indices else n_residues
+        if residue_indices:
+            if isinstance(residue_indices, torch.Tensor):
+                n_residues_meta = int(residue_indices.max().item()) + 1
+            else:
+                # Convert all indices to integers for max operation
+                int_indices = _convert_to_int_list(_cast_residue_indices(residue_indices))
+                n_residues_meta = max(int_indices) + 1
+        else:
+            n_residues_meta = n_residues
         logger.info("Deriving residue-atom map from explicit atom metadata.")
         return _derive_map_from_metadata(_cast_residue_indices(residue_indices), sequence_list or [], n_residues_meta)
 
@@ -422,3 +433,19 @@ def derive_residue_atom_map(
     expected_atom_counts = _calculate_expected_atom_counts(sequence_list, counts_map)
     logger.info(f"[DEBUG][StageD] expected_atom_counts: {expected_atom_counts}, sum={sum(expected_atom_counts)}")
     return _create_residue_atom_map_from_counts(expected_atom_counts)
+
+
+def _get_residue_id(residue_id: Union[str, int]) -> str:
+    """Convert residue ID to string format."""
+    return str(residue_id)
+
+
+def _format_residue_id(residue_id: Union[str, int]) -> str:
+    """Format residue ID for consistent comparison."""
+    return str(residue_id).strip()
+
+
+def get_residue_key(chain_id: str, residue_id: Union[str, int]) -> str:
+    """Generate a unique key for a residue based on chain ID and residue ID."""
+    formatted_id = _format_residue_id(residue_id)
+    return f"{chain_id}_{formatted_id}"
