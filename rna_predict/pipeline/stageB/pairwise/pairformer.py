@@ -28,7 +28,7 @@ The module includes several components:
 """
 
 from functools import partial
-from typing import Any, Optional, Union
+from typing import Any, Optional, Union, Dict
 from dataclasses import dataclass
 
 import torch
