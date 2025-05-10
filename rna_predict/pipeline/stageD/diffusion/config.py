@@ -1,5 +1,5 @@
-"""
-Re-export DiffusionConfig for end-to-end tests and Hydra interfaces.
-"""
+"""Stage D diffusion config module."""
 
-from rna_predict.pipeline.stageD.diffusion.utils.config_types import DiffusionConfig
+from .utils.config_types import DiffusionConfig
+
+__all__ = ["DiffusionConfig"]

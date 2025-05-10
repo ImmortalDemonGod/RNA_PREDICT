@@ -21,7 +21,9 @@ def main(cfg: RNAConfig) -> None:
 
     # Run the pipeline with the updated config
     print("\n--- Running pipeline ---")
-    final_res = run_full_pipeline(cfg)
+    # Convert RNAConfig to DictConfig for compatibility with run_full_pipeline
+    cfg_dict = OmegaConf.structured(cfg)
+    final_res = run_full_pipeline(cfg_dict)
     print("--- Pipeline completed ---")
 
     print("\n--- Pipeline Output ---")
