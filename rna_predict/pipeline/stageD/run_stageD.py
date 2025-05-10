@@ -27,7 +27,7 @@ Configuration Requirements:
 """
 import os
 import logging
-from typing import Union, Tuple, Any
+from typing import Union, Tuple, Any, TextIO
 import hydra
 from omegaconf import DictConfig, OmegaConf
 import psutil
@@ -86,7 +86,7 @@ def set_stageD_logger_level(debug_logging: bool):
 
     # Ensure the root logger has at least one handler
     if not root_logger.handlers:
-        handler = logging.StreamHandler(sys.stdout)
+        handler: logging.Handler = logging.StreamHandler(sys.stdout)
         formatter = logging.Formatter('[%(asctime)s][%(name)s][%(levelname)s] - %(message)s')
         handler.setFormatter(formatter)
         root_logger.addHandler(handler)
@@ -103,8 +103,10 @@ def set_stageD_logger_level(debug_logging: bool):
     stageD_package_logger.propagate = True
     for handler in stageD_package_logger.handlers:
         # mypy: allow generic Handler, only set level if possible
-        if hasattr(handler, 'setLevel'):
-            handler.setLevel(level)
+        # Add type annotation to satisfy mypy
+        handler_typed: logging.StreamHandler[Union[TextIO, Any]] = handler  # type: ignore
+        if hasattr(handler_typed, 'setLevel'):
+            handler_typed.setLevel(level)
 
 
 # Ensure logger level is set at the very start using Hydra config
@@ -181,7 +183,7 @@ def _run_stageD_impl(
 ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor, torch.Tensor]]:
     """
     Executes Stage D diffusion refinement on input coordinates and embeddings.
-    
+
     Validates and prepares input tensors and metadata, bridges residue-level to atom-level
     embeddings if required, initializes features, and runs the diffusion process using
     the unified Stage D runner. Returns the refined coordinates or diffusion outputs.
@@ -596,14 +598,14 @@ def setup_logging(debug_logging: bool = False) -> None:
     # Create logger
     logger = logging.getLogger("rna_predict.pipeline.stageD")
     logger.setLevel(logging.DEBUG if debug_logging else logging.INFO)
-    
+
     # Create console handler with Any type
     console_handler: Any = StreamHandler()
     console_handler.setLevel(logging.DEBUG if debug_logging else logging.INFO)
-    
+
     # Create formatter
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     console_handler.setFormatter(formatter)
-    
+
     # Add handler to logger
     logger.addHandler(console_handler)
