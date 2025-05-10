@@ -69,13 +69,25 @@ from rna_predict.pipeline.stageA.input_embedding.current.utils import (
 
 @dataclass
 class MSAConfig:
-    """Configuration for MSA processing."""
-    enable: bool
-    strategy: str
-    train_cutoff: int
-    test_cutoff: int
-    train_lowerb: int
-    test_lowerb: int
+    """Unified configuration for MSA processing and model hyperparameters (Hydra best practices)."""
+    # Model hyperparameters
+    c_m: int = 8
+    c: int = 8
+    c_z: int = 8
+    dropout: float = 0.1
+    n_heads: int = 2
+    n_blocks: int = 1
+    pair_dropout: float = 0.25
+    c_s_inputs: int = 8
+    blocks_per_ckpt: int = 1
+    input_feature_dims: dict = None
+    # MSA selection/config fields
+    enable: bool = False
+    strategy: str = "default"
+    train_cutoff: int = 1000
+    test_cutoff: int = 1000
+    train_lowerb: int = 0
+    test_lowerb: int = 0
 
     @classmethod
     def from_dict(cls, config: Dict[str, Any]) -> 'MSAConfig':
