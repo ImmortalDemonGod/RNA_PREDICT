@@ -27,9 +27,9 @@ logger = logging.getLogger(__name__)
 
 class BroadcastConfig:
     """Configuration for broadcasting token features to atom features."""
-    
     def __init__(self, x_token: torch.Tensor, atom_to_token_idx: torch.Tensor):
         # Store dimensions
+        self.x_token = x_token  # Store the actual tensor for gather/reshape
         self.token_shape = x_token.shape
         self.idx_shape = atom_to_token_idx.shape
         self.n_token = x_token.shape[-2]
@@ -65,6 +65,16 @@ def _validate_and_expand_indices(
     # Get leading dimensions (all but the last dimension)
     idx_leading_dims = atom_to_token_idx.shape[:-1]
     config_dims = config.token_shape[:-2]  # Exclude token and feature dimensions
+    
+    # Remove extra singleton sample dimension if present
+    if len(idx_leading_dims) > len(config_dims) and idx_leading_dims[-2] == 1:
+        atom_to_token_idx = atom_to_token_idx.squeeze(dim=-2)
+        idx_leading_dims = atom_to_token_idx.shape[:-1]
+    
+    # Automatic expansion for missing sample dimension
+    if len(idx_leading_dims) + 1 == len(config_dims):
+        atom_to_token_idx = atom_to_token_idx.unsqueeze(dim=-2)
+        idx_leading_dims = atom_to_token_idx.shape[:-1]
 
     # Check dimensions
     _check_dimension_count(idx_leading_dims, config_dims)
@@ -101,7 +111,7 @@ def _perform_gather(
     )
     
     # Reshape token features for gathering
-    x_token_flat = torch.reshape(config.token_shape, (-1, config.feature_dim))
+    x_token_flat = torch.reshape(config.x_token, (-1, config.feature_dim))
     
     # Perform gather operation
     x_atom_flat = torch.gather(x_token_flat, 0, gather_idx)
@@ -131,7 +141,7 @@ def broadcast_token_to_atom(
     atom_to_token_idx = _validate_and_expand_indices(atom_to_token_idx, config)
     
     # Flatten indices for gathering
-    atom_to_token_idx_flat = atom_to_token_idx.view(-1)
+    atom_to_token_idx_flat = atom_to_token_idx.reshape(-1)
     
     # Validate and clamp indices
     atom_to_token_idx_flat = _validate_and_clamp_indices(atom_to_token_idx_flat, config)
