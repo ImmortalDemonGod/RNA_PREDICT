@@ -27,7 +27,7 @@ Configuration Requirements:
 """
 import os
 import logging
-from typing import Union, Tuple
+from typing import Union, Tuple, Any
 import hydra
 from omegaconf import DictConfig, OmegaConf
 import psutil
@@ -46,6 +46,7 @@ from rna_predict.pipeline.stageD.context import StageDContext
 from rna_predict.pipeline.stageD.stage_d_utils.feature_utils import (
     _validate_feature_config, _validate_atom_metadata, _init_feature_tensors, initialize_features_from_config
 )
+from logging import StreamHandler
 
 # --- PATCH: Configure all relevant loggers at import time ---
 for name in [
@@ -589,3 +590,20 @@ if __name__ == "__main__":
 
 # Alias for test and patch compatibility
 run_stageD_diffusion = run_stageD
+
+def setup_logging(debug_logging: bool = False) -> None:
+    """Set up logging configuration."""
+    # Create logger
+    logger = logging.getLogger("rna_predict.pipeline.stageD")
+    logger.setLevel(logging.DEBUG if debug_logging else logging.INFO)
+    
+    # Create console handler with Any type
+    console_handler: Any = StreamHandler()
+    console_handler.setLevel(logging.DEBUG if debug_logging else logging.INFO)
+    
+    # Create formatter
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    console_handler.setFormatter(formatter)
+    
+    # Add handler to logger
+    logger.addHandler(console_handler)
