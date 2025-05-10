@@ -197,12 +197,23 @@ class DiffusionConditioning(nn.Module):
         self,
         s_trunk: torch.Tensor,
         s_inputs: torch.Tensor,
-        unified_latent: Optional[torch.Tensor] = None,
+        unified_latent: Optional[Union[torch.Tensor, int, float, Dict[str, Any]]] = None,
         inplace_safe: bool = False,
     ) -> torch.Tensor:
         """Process single features through the conditioning pipeline."""
         if self.debug_logging:
             print(f"[STAGED DEBUG] _process_single_features: s_trunk.shape={s_trunk.shape}, s_inputs.shape={s_inputs.shape}, c_s={self.c_s}, c_s_inputs={self.c_s_inputs}, expected_in_features={self.c_s + self.c_s_inputs}")
+
+        # Convert unified_latent to tensor if it's not None and not already a tensor
+        if unified_latent is not None and not isinstance(unified_latent, torch.Tensor):
+            if isinstance(unified_latent, (int, float)):
+                unified_latent = torch.tensor(unified_latent, device=s_trunk.device)
+            elif isinstance(unified_latent, dict):
+                # If it's a dict, we'll skip it as it's not a valid tensor type
+                unified_latent = None
+            else:
+                # For any other type, we'll skip it
+                unified_latent = None
 
         # CRITICAL FIX: Handle token dimension mismatch between s_trunk and s_inputs
         # Use atom_to_token_idx for correct bridging if available

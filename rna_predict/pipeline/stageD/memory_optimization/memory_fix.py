@@ -133,10 +133,14 @@ def run_stageD_with_memory_fixes(
     )
 
     # Create DiffusionConfig object
+    # Convert fixed_config to DictConfig if it's a regular dictionary
+    from omegaconf import OmegaConf
+    diffusion_config_dict = OmegaConf.create(fixed_config) if isinstance(fixed_config, dict) else fixed_config
+
     config = DiffusionConfig(
         partial_coords=processed_coords,
         trunk_embeddings=processed_embeddings,
-        diffusion_config=fixed_config,
+        diffusion_config=diffusion_config_dict,
         mode=mode,
         device=device,
         debug_logging=True

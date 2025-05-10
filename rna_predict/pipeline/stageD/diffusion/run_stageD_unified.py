@@ -6,9 +6,9 @@ residue-to-atom bridging for tensor shape compatibility.
 """
 
 import logging
-from typing import Tuple, Union
-
+from typing import Tuple, Union, Dict, Any, cast
 import torch
+from omegaconf import OmegaConf, DictConfig
 
 from rna_predict.pipeline.stageD.diffusion.bridging import (
     bridge_residue_to_atom,
@@ -40,17 +40,19 @@ def set_stageD_logger_level(debug_logging: bool):
         logger.setLevel(logging.INFO)
     logger.propagate = True
     if not logger.handlers:
-        handler = logging.StreamHandler()
+        stream_handler = logging.StreamHandler()
         formatter = logging.Formatter('[%(asctime)s][%(name)s][%(levelname)s] - %(message)s')
-        handler.setFormatter(formatter)
+        stream_handler.setFormatter(formatter)
+        # Use base Handler type to satisfy mypy
+        handler: logging.Handler = stream_handler
         logger.addHandler(handler)
-    for handler in logger.handlers:
+    for handler_obj in logger.handlers:
         # mypy: allow generic Handler, only set level if possible
-        if hasattr(handler, 'setLevel'):
+        if hasattr(handler_obj, 'setLevel'):
             if debug_logging:
-                handler.setLevel(logging.DEBUG)
+                handler_obj.setLevel(logging.DEBUG)
             else:
-                handler.setLevel(logging.INFO)
+                handler_obj.setLevel(logging.INFO)
 
 def ensure_logger_config(config):
     debug_logging = False
@@ -133,7 +135,24 @@ def _run_stageD_diffusion_impl(
             )
         original_trunk_embeddings_ref = config.trunk_embeddings
         apply_tensor_fixes()
-        diffusion_manager = ProtenixDiffusionManager(cfg=config.cfg)
+        # Ensure cfg is provided before initializing manager
+        if config.cfg is None:
+            logger.warning("[StageD][WARN] config.cfg is None, creating a default DictConfig")
+            default_cfg = OmegaConf.create({
+                "model": {
+                    "stageD": {
+                        "diffusion": {
+                            "device": config.device,
+                            "mode": config.mode,
+                            "debug_logging": config.debug_logging
+                        }
+                    }
+                }
+            })
+            cfg_local = default_cfg
+        else:
+            cfg_local = config.cfg
+        diffusion_manager = ProtenixDiffusionManager(cfg=cfg_local)
         # Validate input_features; if missing essential data, use fallback
         input_features = config.input_features
         if not isinstance(input_features, dict) or 'ref_pos' not in input_features:
@@ -149,8 +168,10 @@ def _run_stageD_diffusion_impl(
             input_features = fb
         sequence = getattr(config, "sequence", None)
         # If no sequence provided but atom_metadata exists, generate dummy sequence for bridging
-        if sequence is None and getattr(config, 'atom_metadata', None):
-            indices = config.atom_metadata.get('residue_indices', [])
+        if sequence is None and config.atom_metadata is not None:
+            atom_metadata = config.atom_metadata
+            # Ensure atom_metadata is a dictionary before calling .get()
+            indices = atom_metadata.get('residue_indices', []) if isinstance(atom_metadata, dict) else []
             # Derive number of residues from max index
             if indices:
                 max_idx = max(indices)
@@ -215,11 +236,21 @@ def _run_stageD_diffusion_impl(
         if config.mode == "inference":
             from rna_predict.pipeline.stageD.diffusion.inference.inference_mode import InferenceContext
             safe_input_features = input_features if input_features is not None else {}
+            # Prepare diffusion_config dict
+            if isinstance(config.diffusion_config, DictConfig):
+                temp_cfg = OmegaConf.to_container(config.diffusion_config, resolve=True)
+            elif isinstance(config.diffusion_config, dict):
+                temp_cfg = config.diffusion_config
+            else:
+                logger.warning(f"[StageD][WARN] diffusion_config is not a dict, using empty dict. Type: {type(config.diffusion_config)}")
+                temp_cfg = {}
+            # temp_cfg is now dict[str, Any]
+            diffusion_cfg_dict: Dict[str, Any] = cast(Dict[str, Any], temp_cfg)
             inference_context = InferenceContext(
                 diffusion_manager=diffusion_manager,
                 partial_coords=partial_coords,
                 trunk_embeddings_internal=trunk_embeddings,
-                diffusion_config=config.diffusion_config,
+                diffusion_config=diffusion_cfg_dict,
                 input_features=safe_input_features,
                 device=config.device,
                 original_trunk_embeddings_ref=config.trunk_embeddings,
@@ -232,11 +263,21 @@ def _run_stageD_diffusion_impl(
             return output
         from rna_predict.pipeline.stageD.diffusion.training.training_mode import TrainingContext
         safe_input_features = input_features if input_features is not None else {}
+        # Prepare diffusion_config dict for training
+        if isinstance(config.diffusion_config, DictConfig):
+            temp_train_cfg = OmegaConf.to_container(config.diffusion_config, resolve=True)
+        elif isinstance(config.diffusion_config, dict):
+            temp_train_cfg = config.diffusion_config
+        else:
+            logger.warning(f"[StageD][WARN] training diffusion_config is not a dict, using empty dict. Type: {type(config.diffusion_config)}")
+            temp_train_cfg = {}
+        # temp_train_cfg is now dict[str, Any]
+        training_diffusion_cfg: Dict[str, Any] = cast(Dict[str, Any], temp_train_cfg)
         training_context = TrainingContext(
             diffusion_manager=diffusion_manager,
             partial_coords=partial_coords,
             trunk_embeddings_internal=trunk_embeddings,
-            diffusion_config=config.diffusion_config,
+            diffusion_config=training_diffusion_cfg,
             input_features=safe_input_features,
             device=config.device,
             original_trunk_embeddings_ref=config.trunk_embeddings,
@@ -277,7 +318,7 @@ def demo_run_diffusion() -> Union[
     }
 
     # Create diffusion config with memory-optimized settings
-    diffusion_config = {
+    diffusion_config: DictConfig = OmegaConf.create({
         "conditioning": {
             "hidden_dim": 16,
             "num_heads": 2,
@@ -295,7 +336,7 @@ def demo_run_diffusion() -> Union[
         "memory_efficient": True,
         "use_checkpointing": True,
         "chunk_size": 5,
-    }
+    })
 
     # Add model_architecture and diffusion sections required by validation
     model_architecture_config = {
