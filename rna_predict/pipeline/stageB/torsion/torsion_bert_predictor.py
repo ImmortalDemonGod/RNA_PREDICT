@@ -97,7 +97,11 @@ class StageBTorsionBertPredictor(nn.Module):
             from omegaconf import OmegaConf
             if self.debug_logging:
                 self._debug("[CASCADE-DEBUG][TORSIONBERT-INIT] device (raw): %s", getattr(cfg, 'device', None))
-                self._debug("[CASCADE-DEBUG][TORSIONBERT-INIT] device (resolved): %s", OmegaConf.to_container(cfg, resolve=True).get('device', None))
+                resolved_cfg = OmegaConf.to_container(cfg, resolve=True)
+                resolved_device = None
+                if isinstance(resolved_cfg, dict):
+                    resolved_device = resolved_cfg.get('device', None)
+                self._debug("[CASCADE-DEBUG][TORSIONBERT-INIT] device (resolved): %s", resolved_device)
         except Exception as e:
             if self.debug_logging:
                 self._debug("[CASCADE-DEBUG][TORSIONBERT-INIT] Exception printing device: %s", e)
@@ -362,7 +366,10 @@ class StageBTorsionBertPredictor(nn.Module):
 
         # Determine the expected output dimension based on model config or num_angles
         # The model's output dim is typically 2 * num_angles for sin/cos pairs
-        self.output_dim = self.model.config.hidden_size # Placeholder, adjust if model provides output dim directly
+        hidden_size = getattr(self.model.config, 'hidden_size', None)
+        if hidden_size is None and isinstance(self.model.config, dict):
+            hidden_size = self.model.config.get('hidden_size', None)
+        self.output_dim = hidden_size # Placeholder, adjust if model provides output dim directly
         if hasattr(self.model.config, 'torsion_output_dim'):
              self.output_dim = self.model.config.torsion_output_dim
         elif self.angle_mode == "sin_cos":
