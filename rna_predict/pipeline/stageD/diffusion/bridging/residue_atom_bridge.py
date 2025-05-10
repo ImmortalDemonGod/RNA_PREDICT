@@ -1016,8 +1016,10 @@ def bridge_residue_to_atom(
         atom_metadata = None
         if hasattr(bridging_input, 'trunk_embeddings') and bridging_input.trunk_embeddings is not None:
             atom_metadata = bridging_input.trunk_embeddings.get('atom_metadata', None)
-            if atom_metadata is not None and 'residue_indices' in atom_metadata:
+            if isinstance(atom_metadata, dict) and 'residue_indices' in atom_metadata:
                 atom_metadata = {k: [v[i] for i in real_atom_indices] for k, v in atom_metadata.items()}
+            elif not isinstance(atom_metadata, dict):
+                atom_metadata = None
         # Use canonical mapping if possible, else fallback to metadata
         residue_atom_map = derive_residue_atom_map(
             bridging_input.sequence,
