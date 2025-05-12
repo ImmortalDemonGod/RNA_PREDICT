@@ -21,6 +21,8 @@ sequence: ${test_data.sequence}  # Default to test sequence
 device: ${oc.env:DEVICE, cpu}  # Global device setting, can be overridden per stage
 seed: 42
 atoms_per_residue: 44
+# Default backend for torsion extraction; can be overridden via Hydra/CLI
+extraction_backend: dssr
 
 # Pipeline stage control flags
 run_stageD: true  # Enable Stage D diffusion refinement
@@ -53,3 +55,4 @@ training:
   devices: 1         # Number of devices for Trainer
   epochs: 10         # Default number of training epochs
   batch_size: 32     # Default training batch size
+  limit_train_batches: 1  # Default number of training batches per epoch (for quick tests)
