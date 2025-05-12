@@ -1,0 +1,28 @@
+Total commits: 2091
+Total commit messages: 2095
+
+=== Commit Types (including multi-message commits) ===
+type
+feat        727
+refactor    350
+test        269
+style       207
+docs        141
+other       125
+chore       123
+fix          82
+merge        49
+ci           11
+build         8
+config        2
+perf          1
+
+=== Top Authors ===
+author
+openhands                   1933
+ImmortalDemonGod             106
+openhands (aider)             34
+ImmortalDemonGod (aider)      11
+dependabot[bot]                5
+coderabbitai[bot]              4
+                               2
