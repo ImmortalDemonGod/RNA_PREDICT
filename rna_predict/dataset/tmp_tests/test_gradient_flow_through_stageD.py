@@ -80,14 +80,12 @@ def test_gradient_flow_through_stageD(batch_size, n_res, c_s):
     print(f"[INSTRUMENT] coords.grad after backward: {coords.grad}")
 
     # All input tensors should have gradients
-    all_grads_present = True
+    missing_grads = []
     for t in [s_trunk, z_trunk, s_inputs, coords]:
         print(f"[DEBUG][GRADCHECK] t.shape={t.shape}, t.requires_grad={t.requires_grad}, t.grad is None? {t.grad is None}")
         if t.grad is None:
-            all_grads_present = False
-    if all_grads_present:
-        print("GRADIENT FLOW CONFIRMED: All input tensors have non-None gradients.")
-    else:
-        print("GRADIENT FLOW FAILURE: One or more input tensors missing gradients.")
-    import sys
-    sys.stdout.flush()
+            missing_grads.append(t)
+
+    # Assert that all tensors have gradients
+    assert len(missing_grads) == 0, f"GRADIENT FLOW FAILURE: {len(missing_grads)} input tensors missing gradients"
+    print("GRADIENT FLOW CONFIRMED: All input tensors have non-None gradients.")

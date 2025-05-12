@@ -1158,6 +1158,9 @@ def bridge_residue_to_atom(
     # SYSTEMATIC DEBUG: Print initial shapes
     s_trunk = output_embeddings["trunk_embeddings"].get("s_trunk")
     s_inputs = output_embeddings["trunk_embeddings"].get("s_inputs")
+    if debug_logging:
+        print(f"[DEBUG][BRIDGE][PRE-EXPAND] s_trunk shape: {s_trunk.shape if s_trunk is not None else 'MISSING'}")
+        print(f"[DEBUG][BRIDGE][PRE-EXPAND] s_inputs shape: {s_inputs.shape if s_inputs is not None else 'MISSING'}")
     # Import torch here to avoid UnboundLocalError
 
 
@@ -1223,6 +1226,6 @@ def bridge_residue_to_atom(
             print("[BRIDGE PATCH][ATOM-LEVEL][ERROR] s_inputs missing from trunk_embeddings!")
     # SYSTEMATIC DEBUG: Print shapes before returning
     if debug_logging:
-        print(f"[BRIDGE PATCH][ATOM-LEVEL][FINAL] s_trunk: {output_embeddings['trunk_embeddings'].get('s_trunk', None).shape if output_embeddings['trunk_embeddings'].get('s_trunk', None) is not None else 'MISSING'}")
-        print(f"[BRIDGE PATCH][ATOM-LEVEL][FINAL] s_inputs: {output_embeddings['trunk_embeddings'].get('s_inputs', None).shape if output_embeddings['trunk_embeddings'].get('s_inputs', None) is not None else 'MISSING'}")
+        print(f"[DEBUG][BRIDGE][POST-EXPAND] s_trunk shape: {output_embeddings['trunk_embeddings'].get('s_trunk', None).shape if output_embeddings['trunk_embeddings'].get('s_trunk', None) is not None else 'MISSING'}")
+        print(f"[DEBUG][BRIDGE][POST-EXPAND] s_inputs shape: {output_embeddings['trunk_embeddings'].get('s_inputs', None).shape if output_embeddings['trunk_embeddings'].get('s_inputs', None) is not None else 'MISSING'}")
     return partial_coords, output_embeddings["trunk_embeddings"], output_embeddings["input_features"]
