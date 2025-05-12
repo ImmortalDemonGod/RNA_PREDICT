@@ -2,16 +2,21 @@ from typing import Optional, Literal
 import os
 import tempfile
 import numpy as np
+import zipfile
+import subprocess
+import json
 from Bio.PDB.MMCIFParser import MMCIFParser
 from Bio.PDB.PDBIO import PDBIO
 import MDAnalysis as mda  # type: ignore
 import snoop
+from typing import Optional, Literal
+from contextlib import nullcontext
 
 @snoop
 def extract_rna_torsions(
     structure_file: str,
     chain_id: str = "A",
-    backend: Literal["mdanalysis", "dssr"] = "mdanalysis",
+    backend: Literal["mdanalysis", "dssr"] = "dssr",
     angle_set: Literal["canonical", "full"] = "canonical",
     **kwargs
 ) -> Optional[np.ndarray]:
@@ -43,8 +48,13 @@ def extract_rna_torsions(
             print(f"[ERROR] extract_rna_torsions failed for {structure_file}: {e}")
             return None
     elif backend == "dssr":
-        # Placeholder for future DSSR backend
-        raise NotImplementedError("DSSR backend not yet implemented.")
+        # DSSR backend using DSSR CLI JSON output
+        angles = _extract_rna_torsions_dssr(structure_file, chain_id, angle_set)
+        # Fallback to MDAnalysis if DSSR fails
+        if angles is None:
+            print(f"[DEBUG] DSSR returned None; falling back to MDAnalysis for {structure_file}, angle_set={angle_set}")
+            return _extract_rna_torsions_mdanalysis(structure_file, chain_id, angle_set)
+        return angles
     else:
         raise ValueError(f"Unknown backend: {backend}")
 
@@ -405,3 +415,84 @@ def _extract_rna_torsions_mdanalysis(structure_file: str, chain_id: str, angle_s
         torsion_data = _extract_torsions_from_residues(residues, angle_set=angle_set)
         print(f"[DEBUG] torsion_data shape: {torsion_data.shape} (should be [L,7] or [L,14])")
         return torsion_data
+
+
+# --- DSSR Backend Support ---
+_DSSR_ZIP = os.path.join(os.path.dirname(__file__), 'dssr-basic-linuxMacWindows-v2.5.3.zip')
+_DSSR_DIR = os.path.join(os.path.dirname(__file__), 'dssr')
+_DSSR_BIN = os.path.join(_DSSR_DIR, 'x3dna-dssr')
+
+# Extract DSSR binary if missing
+if not os.path.exists(_DSSR_BIN):
+    # Ensure base dir exists
+    os.makedirs(_DSSR_DIR, exist_ok=True)
+    # Extract top-level zip to get platform-specific archives
+    with zipfile.ZipFile(_DSSR_ZIP, 'r') as zip_ref:
+        zip_ref.extractall(_DSSR_DIR)
+    # Select correct nested zip
+    import sys
+    if sys.platform.startswith('darwin'):
+        nested = 'dssr-basic-macOS-v2.5.3.zip'
+    elif sys.platform.startswith('linux'):
+        nested = 'dssr-basic-linux-v2.5.3.zip'
+    elif sys.platform.startswith('win') or sys.platform.startswith('cygwin'):
+        nested = 'dssr-basic-windows-v2.5.3.zip'
+    else:
+        raise RuntimeError(f"Unsupported platform for DSSR: {sys.platform}")
+    nested_path = os.path.join(_DSSR_DIR, nested)
+    with zipfile.ZipFile(nested_path, 'r') as zip_ref:
+        zip_ref.extractall(_DSSR_DIR)
+    # Locate the binary (named x3dna-dssr or x3dna-dssr.exe)
+    for fname in os.listdir(_DSSR_DIR):
+        if fname.lower().startswith('x3dna-dssr') and os.access(os.path.join(_DSSR_DIR, fname), os.X_OK):
+            os.rename(os.path.join(_DSSR_DIR, fname), _DSSR_BIN)
+            break
+    os.chmod(_DSSR_BIN, 0o755)
+
+def _extract_rna_torsions_dssr(
+    structure_file: str,
+    chain_id: str = "A",
+    angle_set: Literal["canonical", "full"] = "canonical",
+    **kwargs
+) -> Optional[np.ndarray]:
+    """
+    Extract RNA torsion angles via DSSR CLI JSON output,
+    converting mmCIF to PDB if needed.
+    """
+    # Always convert CIF to PDB for DSSR, use original for PDB
+    if structure_file.lower().endswith('.cif'):
+        mngr = TempFileManager(structure_file)
+        pdb_input_ctx = mngr
+    else:
+        pdb_input_ctx = nullcontext(structure_file)
+    with pdb_input_ctx as dssr_input:
+        # Run DSSR without chain filter; filter JSON output by chain below
+        cmd = [_DSSR_BIN, f'-i={dssr_input}', '--json']
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        except subprocess.CalledProcessError as e:
+            # Detailed DSSR error logging
+            print(f"[ERROR] DSSR failed for {structure_file}: {e}")
+            print(f"[DSSR stderr]: {e.stderr}")
+            print(f"[DSSR stdout]: {e.stdout}")
+            return None
+        try:
+            data = json.loads(result.stdout)
+            # Debug JSON schema keys
+            print(f"[DEBUG] DSSR JSON keys: {list(data.keys())}")
+        except json.JSONDecodeError as e:
+            print(f"[ERROR] DSSR JSON parse failed: {e}")
+            return None
+    # Filter nucleotides by chain_name field
+    nts = [nt for nt in data.get('nts', []) if nt.get('chain_name') == chain_id]
+    if not nts:
+        return None
+    angles_list = []
+    for nt in nts:
+        vals = [nt.get(k) for k in ['alpha','beta','gamma','delta','epsilon','zeta','chi']]
+        if angle_set == 'full':
+            vals += [nt.get(k) for k in ['nu0','nu1','nu2','nu3','nu4','eta','theta']]
+        # convert degrees to radians, handle None
+        rad_vals = [(np.deg2rad(float(v)) if v is not None else np.nan) for v in vals]
+        angles_list.append(rad_vals)
+    return np.array(angles_list)

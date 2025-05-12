@@ -58,6 +58,16 @@ def main():
         print(f"[WARNING] Could not load Hydra config: {e}")
         cfg = None
         config_chain_id = None
+    # --- Backend selection logic ---
+    cli_backend = args.backend
+    cfg_backend = getattr(cfg, 'extraction_backend', None)
+    if cfg_backend:
+        if cli_backend != cfg_backend:
+            print(f"[WARNING] CLI --backend ({cli_backend}) differs from config extraction_backend ({cfg_backend}). Using config value.")
+        selected_backend = cfg_backend
+    else:
+        selected_backend = cli_backend
+    print(f"[DEBUG] Using extraction backend: {selected_backend}")
     # --- Chain selection logic ---
     cli_chain_id = args.chain_id
     if config_chain_id is not None:
@@ -90,8 +100,8 @@ def main():
                 print(f"[DEBUG][compute_ground_truth_angles] Available chain IDs in {in_path}: {chain_ids}")
         except Exception as e:
             print(f"[DEBUG][compute_ground_truth_angles] Could not parse structure to list chain IDs: {e}")
-        print(f"[DEBUG] Processing: {in_path} (chain: {selected_chain_id}, backend: {args.backend}, angle_set: {args.angle_set})")
-        angles = extract_rna_torsions(in_path, chain_id=selected_chain_id, backend=args.backend, angle_set=args.angle_set)
+        print(f"[DEBUG] Processing: {in_path} (chain: {selected_chain_id}, backend: {selected_backend}, angle_set: {args.angle_set})")
+        angles = extract_rna_torsions(in_path, chain_id=selected_chain_id, backend=selected_backend, angle_set=args.angle_set)
         if angles is not None:
             out_path = os.path.join(args.output_dir, f"{os.path.splitext(fname)[0]}_{selected_chain_id}_angles.pt")
             torch.save(torch.from_numpy(angles), out_path)
