@@ -8,8 +8,8 @@ from rna_predict.training.rna_lightning_module import RNALightningModule
 def cfg():
     # Load Hydra config with Stage D disabled and debug_logging off
     # Use relative config_path per project guidelines
-    # Initialize Hydra using config_path relative to this test file
-    with initialize(config_path="../../conf", job_name="test_training_angle_loss"):
+    # Initialize Hydra using config_path relative to project root
+    with initialize(config_path="rna_predict/conf", job_name="test_training_angle_loss"):
         cfg = compose(config_name="default", overrides=["run_stageD=false", "model.stageD.debug_logging=false"])
     return cfg
 
