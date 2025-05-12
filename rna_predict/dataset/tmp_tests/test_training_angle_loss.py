@@ -1,19 +1,19 @@
 import pytest
 import torch
+import os
 from hydra import initialize, compose
 
 from rna_predict.training.rna_lightning_module import RNALightningModule
 
-@ pytest.fixture(scope="function")
+@pytest.fixture(scope="function")
 def cfg():
-    # Load Hydra config with Stage D disabled and debug_logging off
-    # Use relative config_path per project guidelines
-    # Initialize Hydra using config_path relative to project root
-    with initialize(config_path="rna_predict/conf", job_name="test_training_angle_loss"):
+    # Initialize Hydra config for tests
+    # Hypothesis H1: Use CWD-relative config_path
+    with initialize(config_path="rna_predict/conf", version_base=None, job_name="test_training_angle_loss"):
         cfg = compose(config_name="default", overrides=["run_stageD=false", "model.stageD.debug_logging=false"])
     return cfg
 
-@ pytest.fixture(scope="function")
+@pytest.fixture(scope="function")
 def dummy_batch(cfg):
     # Simple 4-mer RNA
     seq = "ACGU"
@@ -33,7 +33,7 @@ def dummy_batch(cfg):
     }
     return batch
 
-@ pytest.mark.parametrize("seed", [0, 42])
+@pytest.mark.parametrize("seed", [0, 42])
 def test_angle_loss_and_gradients(cfg, dummy_batch, seed):
     torch.manual_seed(seed)
     model = RNALightningModule(cfg)
