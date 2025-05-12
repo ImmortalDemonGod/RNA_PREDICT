@@ -1,0 +1,621 @@
+cfg:
+  shared:
+    ref_element_size: 128
+    ref_atom_name_chars_size: 256
+    profile_size: 32
+  sequence: GGGUGCUCAGUACGAGAGGAACCGCACCC
+  device: cpu
+  seed: 42
+  atoms_per_residue: 44
+  extraction_backend: dssr
+  run_stageD: true
+  enable_stageC: true
+  merge_latent: true
+  pipeline:
+    verbose: true
+    save_intermediates: true
+    output_dir: outputs
+    ignore_nan_values: true
+    nan_replacement_value: 0.0
+  training:
+    checkpoint_dir: outputs/checkpoints
+    accelerator: cpu
+    devices: 1
+    epochs: 10
+    batch_size: 32
+    limit_train_batches: 1
+    streamline_mode: true
+  data:
+    index_csv: rna_predict/dataset/examples/kaggle_minimal_index.csv
+    root_dir: ./data/
+    max_residues: 512
+    max_atoms: 4096
+    C_element: 128
+    C_char: 256
+    ref_element_size: 128
+    ref_atom_name_chars_size: 256
+    batch_size: 4
+    num_workers: 8
+    load_adj: false
+    load_ang: true
+    coord_fill_value: 'nan'
+    coord_dtype: float32
+  model:
+    stageA:
+      enabled: true
+      num_hidden: 128
+      dropout: 0.3
+      debug_logging: true
+      freeze_params: true
+      min_seq_length: 80
+      batch_size: 32
+      lr: 0.001
+      device: cpu
+      checkpoint_path: RFold/checkpoints/RNAStralign_trainset_pretrained.pth
+      checkpoint_url: https://www.dropbox.com/s/l04l9bf3v6z2tfd/checkpoints.zip?dl=1
+      checkpoint_zip_path: RFold/checkpoints.zip
+      threshold: 0.5
+      run_example: true
+      example_sequence: AAGUCUGGUGGACAUUGGCGUCCUGAGGUGUUAAAACCUCUUAUUGCUGACGCCAGAAAGAGAAGAACUUCGGUUCUACUAGUCGACUAUACUACAAGCUUUGGGUGUAUAGCGGCAAGACAACCUGGAUCGGGGGAGGCUAAGGGCGCAAGCCUAUGCUAACCCCGAGCCGAGCUACUGGAGGGCAACCCCCAGAUAGCCGGUGUAGAGCGCGGAAAGGUGUCGGUCAUCCUAUCUGAUAGGUGGCUUGAGGGACGUGCCGUCUCACCCGAAAGGGUGUUUCUAAGGAGGAGCUCCCAAAGGGCAAAUCUUAGAAAAGGGUGUAUACCCUAUAAUUUAACGGCCAGCAGCC
+      visualization:
+        enabled: true
+        varna_jar_path: tools/varna-3-93.jar
+        resolution: 8.0
+        output_path: test_seq.png
+      model:
+        conv_channels:
+        - 64
+        - 128
+        - 256
+        - 512
+        residual: true
+        c_in: 1
+        c_out: 1
+        c_hid: 32
+        seq2map:
+          input_dim: 4
+          max_length: 3000
+          attention_heads: 8
+          attention_dropout: 0.1
+          positional_encoding: true
+          query_key_dim: 128
+          expansion_factor: 2.0
+          heads: 1
+        decoder:
+          up_conv_channels:
+          - 256
+          - 128
+          - 64
+          skip_connections: true
+    stageC:
+      enabled: true
+      method: mp_nerf
+      do_ring_closure: false
+      place_bases: true
+      sugar_pucker: C3'-endo
+      device: cpu
+      angle_representation: degrees
+      use_metadata: false
+      use_memory_efficient_kernel: false
+      use_deepspeed_evo_attention: false
+      use_lma: false
+      inplace_safe: false
+      chunk_size: null
+      debug_logging: true
+    stageB:
+      torsion_bert:
+        model_name_or_path: sayby/rna_torsionbert
+        device: cpu
+        angle_mode: sin_cos
+        num_angles: 7
+        max_length: 512
+        checkpoint_path: null
+        lora:
+          enabled: false
+          r: 8
+          alpha: 16
+          dropout: 0.1
+          target_modules:
+          - query
+          - value
+        debug_logging: true
+        init_from_scratch: false
+      pairformer:
+        device: cpu
+        n_blocks: 1
+        n_heads: 1
+        c_z: 2
+        c_s: 0
+        c_token: 384
+        c_atom: 128
+        c_pair: 32
+        dropout: 0.0
+        freeze_params: false
+        protenix_integration:
+          device: cpu
+          c_token: 449
+          restype_dim: 32
+          profile_dim: 32
+          c_atom: 128
+          c_pair: 32
+          atoms_per_token: 4
+          num_heads: 4
+          num_layers: 3
+          r_max: 32
+          s_max: 2
+          use_optimized: false
+        c_hidden_mul: 1
+        c_hidden_pair_att: 2
+        no_heads_pair: 1
+        init_z_from_adjacency: false
+        use_checkpoint: true
+        use_memory_efficient_kernel: false
+        use_deepspeed_evo_attention: false
+        use_lma: false
+        inplace_safe: false
+        chunk_size: null
+        block:
+          n_heads: 2
+          c_z: 4
+          c_s: 8
+          c_hidden_mul: 4
+          c_hidden_pair_att: 4
+          no_heads_pair: 2
+          dropout: 0.25
+        stack:
+          n_blocks: 1
+          n_heads: 2
+          c_z: 4
+          c_s: 8
+          dropout: 0.25
+          blocks_per_ckpt: null
+        msa:
+          c_m: 2
+          c: 2
+          c_z: 2
+          dropout: 0.0
+          n_blocks: 1
+          enable: false
+          strategy: random
+          train_cutoff: 1
+          test_cutoff: 1
+          train_lowerb: 1
+          test_lowerb: 1
+          n_heads: 1
+          pair_dropout: 0.0
+          input_feature_dims:
+            msa: 2
+            has_deletion: 1
+            deletion_value: 1
+          c_s_inputs: 2
+          blocks_per_ckpt: 1
+        template:
+          n_blocks: 1
+          c: 2
+          c_z: 2
+          dropout: 0.0
+          blocks_per_ckpt: null
+          input_feature_dims:
+            feature1:
+              template_distogram: 1
+              b_template_backbone_frame_mask: 1
+              template_unit_vector: 1
+              b_template_pseudo_beta_mask: 1
+            feature2:
+              template_restype_i: 1
+              template_restype_j: 1
+          distogram:
+            max_bin: 1.0
+            min_bin: 1.0
+            no_bins: 1.0
+        lora:
+          enabled: false
+          r: 1
+          alpha: 1
+          dropout: 0.0
+          target_modules:
+          - query
+          - value
+        debug_logging: false
+    stageD:
+      enabled: true
+      mode: inference
+      device: cpu
+      debug_logging: true
+      ref_element_size: 128
+      ref_atom_name_chars_size: 256
+      profile_size: 32
+      model_architecture:
+        c_token: 8
+        c_s: 8
+        c_z: 4
+        c_s_inputs: 8
+        c_atom: 4
+        c_noise_embedding: 4
+        num_layers: 6
+        num_heads: 8
+        dropout: 0.1
+        coord_eps: 1.0e-06
+        coord_min: -10000.0
+        coord_max: 10000.0
+        coord_similarity_rtol: 0.001
+        test_residues_per_batch: 25
+        c_atompair: 4
+        sigma_data: 1.0
+      transformer:
+        n_blocks: 2
+        n_heads: 2
+        blocks_per_ckpt: null
+      atom_encoder:
+        c_in: 4
+        c_hidden:
+        - 8
+        c_out: 4
+        dropout: 0.1
+        n_blocks: 1
+        n_heads: 2
+        n_queries: 2
+        n_keys: 2
+      atom_decoder:
+        c_in: 4
+        c_hidden:
+        - 8
+        c_out: 4
+        dropout: 0.1
+        n_blocks: 1
+        n_heads: 2
+        n_queries: 2
+        n_keys: 2
+      diffusion:
+        init_from_scratch: false
+        enabled: true
+        mode: inference
+        device: cpu
+        debug_logging: true
+        ref_element_size: 128
+        ref_atom_name_chars_size: 256
+        profile_size: 32
+        atom_metadata: null
+        feature_dimensions:
+          c_s: 8
+          c_s_inputs: 8
+          c_sing: 8
+          s_trunk: 8
+          s_inputs: 8
+        test_residues_per_batch: 2
+        model_architecture:
+          c_token: 8
+          c_s: 8
+          c_z: 4
+          c_s_inputs: 8
+          c_atom: 4
+          c_noise_embedding: 4
+          num_layers: 6
+          num_heads: 8
+          dropout: 0.1
+          coord_eps: 1.0e-06
+          coord_min: -10000.0
+          coord_max: 10000.0
+          coord_similarity_rtol: 0.001
+          test_residues_per_batch: 25
+          c_atompair: 4
+          sigma_data: 1.0
+        transformer:
+          n_blocks: 2
+          n_heads: 2
+          blocks_per_ckpt: null
+        atom_encoder:
+          c_in: 4
+          c_hidden:
+          - 8
+          c_out: 4
+          dropout: 0.1
+          n_blocks: 1
+          n_heads: 2
+          n_queries: 2
+          n_keys: 2
+        atom_decoder:
+          c_in: 4
+          c_hidden:
+          - 8
+          c_out: 4
+          dropout: 0.1
+          n_blocks: 1
+          n_heads: 2
+          n_queries: 2
+          n_keys: 2
+        noise_schedule:
+          schedule_type: linear
+          s_max: 1.0
+          s_min: 0.01
+          p: 0.5
+          sigma_data: 16.0
+          p_mean: 0.0
+          p_std: 1.0
+        inference:
+          num_steps: 2
+          temperature: 1.0
+          use_ddim: true
+          sampling:
+            num_samples: 1
+            gamma0: 0.8
+            gamma_min: 1.0
+            noise_scale_lambda: 1.003
+            step_scale_eta: 1.5
+        use_memory_efficient_kernel: false
+        use_deepspeed_evo_attention: false
+        use_lma: false
+        inplace_safe: false
+        chunk_size: null
+        diffusion:
+          enabled: true
+          mode: inference
+          device: cpu
+          debug_logging: true
+          ref_element_size: 4
+          ref_atom_name_chars_size: 8
+          profile_size: 8
+          feature_dimensions:
+            c_s: 8
+            c_s_inputs: 8
+            c_sing: 8
+            s_trunk: 8
+            s_inputs: 8
+          test_residues_per_batch: 2
+          model_architecture:
+            c_token: 8
+            c_s: 8
+            c_z: 4
+            c_s_inputs: 8
+            c_atom: 4
+            c_atompair: 4
+            c_noise_embedding: 4
+            sigma_data: 1.0
+          transformer:
+            n_blocks: 2
+            n_heads: 2
+            blocks_per_ckpt: null
+          atom_encoder:
+            c_in: 4
+            c_hidden:
+            - 8
+            c_out: 4
+            dropout: 0.1
+            n_blocks: 1
+            n_heads: 2
+            n_queries: 2
+            n_keys: 2
+          atom_decoder:
+            c_in: 4
+            c_hidden:
+            - 8
+            c_out: 4
+            dropout: 0.1
+            n_blocks: 1
+            n_heads: 2
+            n_queries: 2
+            n_keys: 2
+          noise_schedule:
+            schedule_type: linear
+            s_max: 1.0
+            s_min: 0.01
+            p: 0.5
+            p_mean: 0.0
+            p_std: 1.0
+          inference:
+            num_steps: 2
+            temperature: 1.0
+            use_ddim: true
+            sampling:
+              num_samples: 1
+              gamma0: 0.8
+              gamma_min: 1.0
+              noise_scale_lambda: 1.003
+              step_scale_eta: 1.5
+          use_memory_efficient_kernel: false
+          use_deepspeed_evo_attention: false
+          use_lma: false
+          inplace_safe: false
+          chunk_size: null
+          init_from_scratch: false
+      input_features: null
+    protenix_integration:
+      device: cpu
+      c_token: 449
+      restype_dim: 32
+      profile_dim: 32
+      c_atom: 128
+      c_pair: 32
+      atoms_per_token: 4
+      num_heads: 4
+      num_layers: 3
+      r_max: 32
+      s_max: 2
+      use_optimized: false
+  stageD_diffusion:
+    enabled: true
+    debug_logging: true
+    ref_element_size: 128
+    ref_atom_name_chars_size: 256
+    profile_size: 32
+    model_architecture:
+      c_token: 8
+      c_s: 8
+      c_z: 4
+      c_s_inputs: 8
+      c_atom: 4
+      c_atompair: 4
+      c_noise_embedding: 4
+      sigma_data: 1.0
+    diffusion:
+      init_from_scratch: false
+      enabled: true
+      mode: inference
+      device: cpu
+      debug_logging: true
+      ref_element_size: 128
+      ref_atom_name_chars_size: 256
+      profile_size: 32
+      feature_dimensions:
+        c_s: 8
+        c_s_inputs: 8
+        c_sing: 8
+        s_trunk: 8
+        s_inputs: 8
+      test_residues_per_batch: 2
+      model_architecture:
+        c_token: 8
+        c_s: 8
+        c_z: 4
+        c_s_inputs: 8
+        c_atom: 4
+        c_atompair: 4
+        c_noise_embedding: 4
+        sigma_data: 1.0
+      transformer:
+        n_blocks: 2
+        n_heads: 2
+        blocks_per_ckpt: null
+      atom_encoder:
+        c_in: 4
+        c_hidden:
+        - 8
+        c_out: 4
+        dropout: 0.1
+        n_blocks: 1
+        n_heads: 2
+        n_queries: 2
+        n_keys: 2
+      atom_decoder:
+        c_in: 4
+        c_hidden:
+        - 8
+        c_out: 4
+        dropout: 0.1
+        n_blocks: 1
+        n_heads: 2
+        n_queries: 2
+        n_keys: 2
+      noise_schedule:
+        schedule_type: linear
+        s_max: 1.0
+        s_min: 0.01
+        p: 0.5
+        p_mean: 0.0
+        p_std: 1.0
+      inference:
+        num_steps: 2
+        temperature: 1.0
+        use_ddim: true
+        sampling:
+          num_samples: 1
+          gamma0: 0.8
+          gamma_min: 1.0
+          noise_scale_lambda: 1.003
+          step_scale_eta: 1.5
+      use_memory_efficient_kernel: false
+      use_deepspeed_evo_attention: false
+      use_lma: false
+      inplace_safe: false
+      chunk_size: null
+  test_data:
+    sequence: GGGUGCUCAGUACGAGAGGAACCGCACCC
+    sequence_length: 8
+    atoms_per_residue: 44
+    adjacency_fill_value: 1.0
+    target_dim: 3
+    torsion_angle_dim: 7
+    embedding_dims:
+      s_trunk: 384
+      z_trunk: 128
+      s_inputs: 449
+    sequence_path: ./data/kaggle/stanford-rna-3d-folding/train_sequences.csv
+    data_index: ./rna_predict/dataset/examples/kaggle_minimal_index.csv
+    target_id: 1SCL_A
+    model:
+      stageD:
+        enabled: true
+        debug_logging: true
+        ref_element_size: 128
+        ref_atom_name_chars_size: 256
+        profile_size: 32
+        model_architecture:
+          c_token: 8
+          c_s: 8
+          c_z: 4
+          c_s_inputs: 8
+          c_atom: 4
+          c_atompair: 4
+          c_noise_embedding: 4
+          sigma_data: 1.0
+        diffusion:
+          init_from_scratch: false
+          enabled: true
+          mode: inference
+          device: cpu
+          debug_logging: true
+          ref_element_size: 128
+          ref_atom_name_chars_size: 256
+          profile_size: 32
+          feature_dimensions:
+            c_s: 8
+            c_s_inputs: 8
+            c_sing: 8
+            s_trunk: 8
+            s_inputs: 8
+          test_residues_per_batch: 2
+          model_architecture:
+            c_token: 8
+            c_s: 8
+            c_z: 4
+            c_s_inputs: 8
+            c_atom: 4
+            c_atompair: 4
+            c_noise_embedding: 4
+            sigma_data: 1.0
+          transformer:
+            n_blocks: 2
+            n_heads: 2
+            blocks_per_ckpt: null
+          atom_encoder:
+            c_in: 4
+            c_hidden:
+            - 8
+            c_out: 4
+            dropout: 0.1
+            n_blocks: 1
+            n_heads: 2
+            n_queries: 2
+            n_keys: 2
+          atom_decoder:
+            c_in: 4
+            c_hidden:
+            - 8
+            c_out: 4
+            dropout: 0.1
+            n_blocks: 1
+            n_heads: 2
+            n_queries: 2
+            n_keys: 2
+          noise_schedule:
+            schedule_type: linear
+            s_max: 1.0
+            s_min: 0.01
+            p: 0.5
+            p_mean: 0.0
+            p_std: 1.0
+          inference:
+            num_steps: 2
+            temperature: 1.0
+            use_ddim: true
+            sampling:
+              num_samples: 1
+              gamma0: 0.8
+              gamma_min: 1.0
+              noise_scale_lambda: 1.003
+              step_scale_eta: 1.5
+          use_memory_efficient_kernel: false
+          use_deepspeed_evo_attention: false
+          use_lma: false
+          inplace_safe: false
+          chunk_size: null

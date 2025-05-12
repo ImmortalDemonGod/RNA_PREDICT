@@ -56,3 +56,4 @@ training:
   epochs: 10         # Default number of training epochs
   batch_size: 32     # Default training batch size
   limit_train_batches: 1  # Default number of training batches per epoch (for quick tests)
+  streamline_mode: true  # When true, run only TorsionBERT -> Stage C for streamlined training
