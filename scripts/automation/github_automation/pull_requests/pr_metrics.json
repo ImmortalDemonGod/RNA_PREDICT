@@ -1,0 +1,21 @@
+{
+  "development_time": {
+    "mean": 1.95,
+    "median": 0.0,
+    "min": 0.0,
+    "max": 13.0
+  },
+  "categories": {
+    "feature": 19,
+    "documentation": 7,
+    "other": 21,
+    "bugfix": 4,
+    "refactor": 3
+  },
+  "changes": {
+    "total_additions": 217545,
+    "total_deletions": 75634,
+    "total_files_changed": 1774,
+    "average_changes_per_pr": 6663.159090909091
+  }
+}

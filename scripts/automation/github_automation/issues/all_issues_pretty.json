@@ -1,0 +1,933 @@
+[
+  {
+    "assignees": [],
+    "body": "## Description\nDuring the `AtomAttentionEncoder` forward pass within Stage D, the following warning occurs:\n`UserWarning: ref_space_uid has wrong shape torch.Size([1, 168]), expected [..., 3]. Setting to zeros.`\n\nThis indicates that the `ref_space_uid` feature generated in `initialize_features_from_config` (currently shape `[Batch, Num_Atoms]`) does not match the shape expected by the encoder component responsible for processing it (likely expecting a 3D coordinate-like shape). While the code defaults to zeros, this might neglect potentially useful spatial information.\n\n## Expected Behavior\n`ref_space_uid` should be provided in the shape expected by the `AtomAttentionEncoder`.\n\n## Affected Files\n* `rna_predict/pipeline/stageD/run_stageD.py` (specifically `initialize_features_from_config`)\n* `rna_predict/pipeline/stageA/input_embedding/current/transformer/atom_attention_encoder.py` (or its sub-components like `feature_processing.py`)\n\n## Suggested Steps\n1. Determine the exact shape and meaning expected for `ref_space_uid` by the encoder component that uses it.\n2. Adjust the initialization logic in `initialize_features_from_config` to create `ref_space_uid` with the correct shape (e.g., potentially using `ref_pos` or another coordinate source if appropriate).",
+    "createdAt": "2025-04-17T00:19:26Z",
+    "labels": [
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB7YTJyg",
+        "name": "bug",
+        "description": "Something isn't working",
+        "color": "d73a4a"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB-NFggA",
+        "name": "stage-d",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB-NFggQ",
+        "name": "shape-mismatch",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB-NFqnA",
+        "name": "medium-priority",
+        "description": "",
+        "color": "ededed"
+      }
+    ],
+    "number": 61,
+    "state": "OPEN",
+    "title": "Stage D: AtomAttentionEncoder Warns About Incorrect ref_space_uid Shape",
+    "updatedAt": "2025-04-17T00:19:26Z"
+  },
+  {
+    "assignees": [],
+    "body": "## Description\nThe `AtomAttentionDecoder` consistently receives a conditioning signal `s` with an incorrect feature dimension (128 instead of the expected 384), triggering the warning:\n`UserWarning: Conditioning signal 's' has incorrect feature dim 128, expected 384. Adapting.`\n\nThis happens during the final steps of `DiffusionModule.f_forward` when preparing inputs for and calling the decoder. The adaptation likely involves incorrect truncation or padding, potentially harming the decoder's performance. The source tensor likely has dimension 128 (characteristic of `z_trunk`/`z_pair`), suggesting incorrect routing within `f_forward`.\n\n## Expected Behavior\nThe `AtomAttentionDecoder` should receive a conditioning signal `s` with the feature dimension defined by `c_s` (typically 384). This signal should likely be derived from the residue-level `s_single` produced by `DiffusionConditioning`.\n\n## Affected Files\n* `rna_predict/pipeline/stageD/diffusion/components/diffusion_module.py` (logic in `f_forward`, `_prepare_decoder_params`)\n* `rna_predict/pipeline/stageA/input_embedding/current/transformer/atom_attention_decoder.py` (where the warning is raised)\n\n## Suggested Steps\n1. In `DiffusionModule.f_forward`, trace the origin of the tensor passed as the `s` conditioning to the decoder (via `_prepare_decoder_params` and the `_run_with_checkpointing` call).\n2. Identify why this tensor has dimension 128.\n3. Modify the logic to ensure the correct residue-level `s_single` (output of `DiffusionConditioning`, shape `[..., 8, 384]`) or a suitable derivative is passed as the `s` argument.",
+    "createdAt": "2025-04-17T00:19:04Z",
+    "labels": [
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB7YTJyg",
+        "name": "bug",
+        "description": "Something isn't working",
+        "color": "d73a4a"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB-NFggA",
+        "name": "stage-d",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB-NFggQ",
+        "name": "shape-mismatch",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB-NFggg",
+        "name": "high-priority",
+        "description": "",
+        "color": "ededed"
+      }
+    ],
+    "number": 60,
+    "state": "OPEN",
+    "title": "Stage D: AtomAttentionDecoder Receives Incorrect Conditioning (s) Feature Dimension (128 vs 384)",
+    "updatedAt": "2025-04-17T00:19:04Z"
+  },
+  {
+    "assignees": [],
+    "body": "## Description\nDespite resolving the previous crash, the `DiffusionModule`'s internal `DiffusionTransformer` still exhibits a shape mismatch during conditioning. The `AdaptiveLayerNorm` layer receives token-level features (`a`) but is conditioned by a signal (`s`) derived from `s_single` that retains an atom-level dimension (168 vs. 8).\n\nThis is evidenced by the persistent warnings:\n* `UserWarning: Broadcasting failed in AdaptiveLayerNorm: The size of tensor a (8) must match the size of tensor b (168) at non-singleton dimension 2. Attempting direct shape adjustment.`\n* `UserWarning: Token dimension mismatch in AdaptiveLayerNorm: scale has 168 tokens, but a has 8 tokens. Using first 8 tokens from scale.`\n\nThe current fallback mechanism (truncating the `s`-derived `scale`/`shift` tensors) prevents a crash but is likely incorrect and contributes to the unstable output coordinates. The root cause is hypothesized to be that `DiffusionConditioning` outputs an atom-level `s_single` which is then inappropriately used to condition token-level features (`a`) in the transformer blocks.\n\n## Expected Behavior\nThe conditioning signal (`s`, or `scale`/`shift` derived from it) passed to `AdaptiveLayerNorm` within the `DiffusionTransformer` blocks should have dimensions consistent with the features (`a`) being conditioned, specifically matching the token/residue dimension (e.g., 8 in the test case).\n\n## Affected Files\n* `rna_predict/pipeline/stageD/diffusion/components/diffusion_module.py` (routing within `f_forward`)\n* `rna_predict/pipeline/stageA/input_embedding/current/transformer/diffusion.py` (transformer blocks)\n* `rna_predict/pipeline/stageA/input_embedding/current/primitives/adaptive_layer_norm.py`\n* `rna_predict/pipeline/stageA/input_embedding/current/primitives/adaptive_layer_norm_utils.py` (contains fallback)\n* `rna_predict/pipeline/stageD/diffusion/components/diffusion_conditioning.py` (potential source of atom-level `s_single`)\n\n## Suggested Steps\n1. Verify the output shape of `s_single` from `DiffusionConditioning` when fed residue-level inputs. Ensure it is residue-level (e.g., `[B, N_sample, N_residue, C_s]`).\n2. Confirm this residue-level `s_single` is correctly passed to `DiffusionTransformer`.\n3. Trace how `s` is used within `DiffusionTransformer` and `AttentionWithPairBias` to ensure it remains residue-level when passed to `AdaptiveLayerNorm`.\n4. Remove the fallback truncation logic in `adaptive_layer_norm_utils.adjust_tensor_shapes` once the upstream shapes are correct.",
+    "createdAt": "2025-04-17T00:18:23Z",
+    "labels": [
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB7YTJyg",
+        "name": "bug",
+        "description": "Something isn't working",
+        "color": "d73a4a"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB-NFggA",
+        "name": "stage-d",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB-NFggQ",
+        "name": "shape-mismatch",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB-NFggg",
+        "name": "high-priority",
+        "description": "",
+        "color": "ededed"
+      }
+    ],
+    "number": 59,
+    "state": "OPEN",
+    "title": "Stage D: AdaptiveLayerNorm Token/Atom Dimension Mismatch in DiffusionTransformer",
+    "updatedAt": "2025-04-17T00:18:23Z"
+  },
+  {
+    "assignees": [],
+    "body": "## Description\n\nCurrent test coverage is below the required threshold of 77%, with several critical modules having very low coverage (e.g., ml_utils.py at 5%, protenix_diffusion_manager.py at 6%, and run_stageD_unified.py at 4%). This task aims to systematically improve test coverage across the codebase to reach 80% coverage, focusing on critical modules with low coverage first.\n\n## Tasks\n1. **Analyze Current Coverage**: Use `rna_predict/scripts/show_coverage.py` to identify modules with the lowest coverage.\n2. **Prioritize Modules**: Focus on high-impact, low-coverage modules first:\n   - `ml_utils.py` (5%)\n   - `protenix_diffusion_manager.py` (6%)\n   - `run_stageD_unified.py` (4%)\n3. **Write Unit Tests**: Create comprehensive test suites for each prioritized module.\n4. **Write Integration Tests**: Add integration tests for critical pipeline components.\n5. **Verify Coverage**: Run coverage reports after each module is tested to track progress.\n6. **Document Testing Strategy**: Update documentation with testing approach for each module.\n\n## Acceptance Criteria\n- Overall test coverage reaches 80% or higher. ✅ (Current coverage: 80.77%)\n- No critical module has less than 50% coverage. ⚠️ (Some modules still have low coverage)\n- All tests pass consistently. ✅\n- Testing strategy is documented for future maintenance. ✅\n\n## Potential Problems\n- Complex dependencies may make some modules difficult to test in isolation.\n- Some legacy code might require refactoring to be testable.\n- Mocking complex objects and tensors can be challenging.\n- Time constraints may limit the depth of testing for all modules.\n\n## Completion Notes\nThe overall test coverage goal of 80% has been achieved (current coverage: 80.77%). The tests added to the codebase have improved coverage across several modules. While some individual modules still have low coverage, the project as a whole now meets the required threshold of 77% and exceeds the target of 80%.\n\nFuture work should focus on improving coverage for the remaining low-coverage modules, particularly:\n- `ml_utils.py`\n- `protenix_diffusion_manager.py`\n- `run_stageD_unified.py`",
+    "createdAt": "2025-04-10T01:14:19Z",
+    "labels": [
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlxfQ",
+        "name": "M2-Test",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlxgA",
+        "name": "coverage",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9pQwNQ",
+        "name": "testing",
+        "description": "",
+        "color": "ededed"
+      }
+    ],
+    "number": 42,
+    "state": "CLOSED",
+    "title": "M2-Test Increase Test Coverage to 80%",
+    "updatedAt": "2025-04-10T18:24:18Z"
+  },
+  {
+    "assignees": [],
+    "body": "**Description**\n\nEnsure a functional inference script (`predict.py`) exists that correctly loads a partial M2 checkpoint and generates PDB outputs for specified input sequences.\n\n---\n\n**Tasks**\n1. **Create/Refactor `predict.py`**: Ensure it uses Hydra for configuration.\n2. **Implement Checkpoint Loading**: Integrate the `partial_load_state_dict` logic (from Task 4.4 / Issue M2-Test Verify Partial Checkpoint Cycle).\n3. **Implement Inference Loop**: Load sequence(s), prepare necessary inputs (incl. adjacency), run model (`model.eval()`, `torch.no_grad()`), call `run_full_pipeline` or equivalent forward logic.\n4. **Implement Output Saving**: Call the PDB saving utility (from Task 4.9 / Issue M2-Prep Implement Basic Visualization Utilities) to write output coordinates.\n\n**Acceptance Criteria**\n- `predict.py` runs successfully using a config file and a saved partial M2 checkpoint.\n- Generates `.pdb` files for specified input sequences.\n- Handles basic error conditions (e.g., file not found).\n\n---\n\n**Potential Problems**\n- Discrepancies between model instantiation in `train.py` vs. `predict.py`.\n- Correctly loading/finding precomputed adjacency files for inference inputs.\n- Handling potential batching if predicting multiple sequences.",
+    "createdAt": "2025-04-07T23:46:51Z",
+    "labels": [
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlwXg",
+        "name": "M2-Prep",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlwYA",
+        "name": "pipeline",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlyeA",
+        "name": "inference",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dl0Cg",
+        "name": "scripting",
+        "description": "",
+        "color": "ededed"
+      }
+    ],
+    "number": 35,
+    "state": "OPEN",
+    "title": "M2-Prep Finalize/Create Inference Script (predict.py)",
+    "updatedAt": "2025-04-07T23:46:51Z"
+  },
+  {
+    "assignees": [],
+    "body": "**Description**\n\nIntegrate Hydra configuration flags to control the activation of new debugging features (tensor stats logging, gradient norm logging, visualization saving).\n\n---\n\n**Tasks**\n1. **Update Schema**: Add a `DebugConfig` dataclass to `conf/config_schema.py` with fields like `log_tensor_stats: bool = True`, `log_gradient_norms: bool = True`, `save_visualizations: bool = False`, `visualization_frequency: int = 100`.\n2. **Update Defaults**: Add a `debug: default` entry in `conf/train.yaml` and create `conf/debug/default.yaml` with default values.\n3. **Integrate Checks**: In `RNALightningModule` and the `GradientNormLogger` callback, access these flags via `self.config.debug.*` or `cfg.debug.*` to conditionally execute the logging/saving logic.\n\n**Acceptance Criteria**\n- Debugging features are controllable via command-line overrides or config files.\n- Default settings are sensible (e.g., visualizations off by default).\n- Code correctly checks flags before performing debug actions.\n\n---\n\n**Potential Problems**\n- Forgetting to check the flag in some code paths.\n- Conflicts if debug settings interact unexpectedly with other configurations.",
+    "createdAt": "2025-04-07T23:46:50Z",
+    "labels": [
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlwXg",
+        "name": "M2-Prep",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlyMg",
+        "name": "config",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlyxQ",
+        "name": "debuggability",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlzww",
+        "name": "hydra",
+        "description": "",
+        "color": "ededed"
+      }
+    ],
+    "number": 34,
+    "state": "OPEN",
+    "title": "M2-Prep Implement Debug Configuration Flags",
+    "updatedAt": "2025-04-07T23:46:50Z"
+  },
+  {
+    "assignees": [],
+    "body": "**Description**\n\nImplement functions to save sample PDB structures and angle plots, callable during validation for qualitative checks.\n\n---\n\n**Tasks**\n1. **Create Utilities**: In `rna_predict/analysis/visualization.py`:\n   - `save_coords_as_pdb(coords_tensor, atom_types, res_indices, filename)`: Takes coordinates and necessary metadata (atom names/types, residue numbers - potentially derived from dataset or static RNA info) and writes a basic PDB file using `Bio.PDB`.\n   - `plot_torsion_comparison(pred_angles_rad, true_angles_rad, angle_names, filename)`: Generates scatter plots (pred vs true) for specified torsion angles using `matplotlib`. Handle angle wrapping for visualization.\n2. **Modify `RNALightningModule`**: In `on_validation_batch_end` (or `on_validation_epoch_end`):\n   - Check config flags `cfg.debug.save_visualizations` and `batch_idx % cfg.debug.visualization_freq == 0`.\n   - If enabled, extract data for the first sample in the batch (`batch[0]`).\n   - Call the utility functions to save the PDB and angle plot to a designated output directory (e.g., `visualizations/epoch_{epoch}_batch_{batch_idx}`).\n   - Log the paths of saved files or upload as WandB artifacts.\n\n**Acceptance Criteria**\n- Utility functions can save valid PDB and plot files from tensors.\n- Files are saved conditionally based on config during validation.\n- Minimal impact when visualizations are disabled.\n\n---\n\n**Potential Problems**\n- Correctly mapping tensor indices to PDB atom/residue information.\n- Handling plotting for potentially large numbers of angles.\n- File I/O permissions and path management.",
+    "createdAt": "2025-04-07T23:46:49Z",
+    "labels": [
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlwXg",
+        "name": "M2-Prep",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlwYA",
+        "name": "pipeline",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlyxQ",
+        "name": "debuggability",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlzlg",
+        "name": "visualization",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlzlw",
+        "name": "analysis",
+        "description": "",
+        "color": "ededed"
+      }
+    ],
+    "number": 33,
+    "state": "OPEN",
+    "title": "M2-Prep Implement Basic Visualization Utilities & Hooks",
+    "updatedAt": "2025-04-07T23:46:49Z"
+  },
+  {
+    "assignees": [],
+    "body": "**Description**\n\nLogging basic statistics of key intermediate tensors during validation helps monitor numerical stability, value ranges, and potential issues like collapse or explosion.\n\n---\n\n**Tasks**\n1. **Identify Key Tensors**: Select critical intermediate outputs (e.g., `predicted_torsion_angles`, norms of `s_embeddings`/`z_embeddings`, `unified_latent`, `final_coords` before loss).\n2. **Modify `RNALightningModule`**: In `validation_step`:\n   - Access the stored intermediate tensors.\n   - Calculate statistics: `tensor.mean()`, `tensor.std()`, `tensor.min()`, `tensor.max()`.\n   - Log these stats using `self.log` with clear names (e.g., `stats/angles_mean`, `stats/s_emb_norm_mean`, `stats/final_coords_std`).\n3. **Add Config Flag**: Control this logging via Hydra (`cfg.debug.log_tensor_stats`).\n\n**Acceptance Criteria**\n- Statistics for key tensors are logged during validation steps.\n- Logging can be toggled via config.\n- No significant performance impact on validation.\n\n---\n\n**Potential Problems**\n- Logging too many tensors or stats can clutter logs and add overhead.\n- Calculating stats on very large tensors might consume extra memory/time.\n- Need to handle potential NaNs/Infs gracefully during stat calculation.",
+    "createdAt": "2025-04-07T23:46:48Z",
+    "labels": [
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlwXg",
+        "name": "M2-Prep",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlwYA",
+        "name": "pipeline",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlyww",
+        "name": "logging",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlyxQ",
+        "name": "debuggability",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlzYQ",
+        "name": "monitoring",
+        "description": "",
+        "color": "ededed"
+      }
+    ],
+    "number": 32,
+    "state": "OPEN",
+    "title": "M2-Prep Implement Intermediate Tensor Statistics Logging",
+    "updatedAt": "2025-04-07T23:46:48Z"
+  },
+  {
+    "assignees": [],
+    "body": "**Description**\n\nWe need to monitor gradient magnitudes for different trainable components (LoRA adapters, Merger, Diffusion head) to diagnose training issues like vanishing/exploding gradients.\n\n---\n\n**Tasks**\n1. **Create Callback**: Implement a new PyTorch Lightning `Callback` class (e.g., `GradientNormLogger` in `rna_predict/training/callbacks.py`).\n2. **Identify Parameter Groups**: Define logical groups (e.g., 'lora_torsionbert', 'lora_pairformer', 'merger', 'diffusion_head') based on parameter names within `named_parameters()`.\n3. **Implement Hook**: Use the `on_before_optimizer_step` hook (runs after `backward` but before `step`).\n4. **Calculate & Log Norms**: Inside the hook, iterate through the model's parameters. If `p.grad` exists, calculate its L2 norm (`p.grad.norm()`) and log it using `pl_module.log` with a descriptive name (e.g., `gradients/norm_lora_torsionbert`). Handle potential device placement issues if necessary.\n5. **Integrate**: Add this callback to the `Trainer` instance in `train.py`, potentially controlled by a Hydra flag (`cfg.debug.log_gradient_norms`).\n\n**Acceptance Criteria**\n- Gradient norms for specified parameter groups are logged during training.\n- The callback runs without significant performance overhead.\n- Logging can be toggled via config.\n\n---\n\n**Potential Problems**\n- Correctly filtering parameter names for each group.\n- Callback execution order relative to other callbacks (like gradient clipping).\n- Handling cases where gradients might be None (e.g., frozen layers).",
+    "createdAt": "2025-04-07T23:46:47Z",
+    "labels": [
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlwXg",
+        "name": "M2-Prep",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlwYA",
+        "name": "pipeline",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlx-Q",
+        "name": "gradients",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlyww",
+        "name": "logging",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlyxQ",
+        "name": "debuggability",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlzDg",
+        "name": "callback",
+        "description": "",
+        "color": "ededed"
+      }
+    ],
+    "number": 31,
+    "state": "OPEN",
+    "title": "M2-Prep Implement Gradient Norm Logging Callback",
+    "updatedAt": "2025-04-07T23:46:47Z"
+  },
+  {
+    "assignees": [],
+    "body": "**Description**\n\nTo aid debugging, the RNALightningModule needs to calculate and log losses for intermediate stages, specifically the torsion angle prediction from Stage B.\n\n---\n\n**Tasks**\n1. **Modify `RNALightningModule`**: In `training_step` and `validation_step`:\n   - Ensure `predicted_torsion_angles` (from TorsionBERT) and `batch['ground_truth']['torsion_angles_true']` are available.\n   - Compute `loss_torsion` using the appropriate circular loss function (e.g., MAE on angle difference, MSE on sin/cos) defined in `rna_predict/core/losses.py` or similar.\n   - *(Optional)* Compute `loss_2D` if Stage A outputs and ground truth are available and joint training is desired.\n2. **Log Losses**: Use `self.log` to record `train/loss_torsion`, `val/loss_torsion` (and optionally `train/loss_2D`, `val/loss_2D`) alongside the final `loss_3D` and `loss_total`.\n3. **Configure Weights**: Ensure `lambda_torsion` (and `lambda_2D` if used) are configurable via Hydra (`cfg.training.loss_weights`).\n\n**Acceptance Criteria**\n- Intermediate loss(es) are calculated without errors.\n- The losses are logged correctly during training and validation (verifiable via WandB/TensorBoard).\n- The calculation can be controlled/weighted via Hydra config.\n\n---\n\n**Potential Problems**\n- Ensuring correct ground truth angle format (radians vs. degrees, sin/cos) matches prediction format.\n- Shape mismatches between prediction and ground truth due to padding or residue/atom representation differences.\n- Choosing the correct circular loss implementation.",
+    "createdAt": "2025-04-07T23:46:46Z",
+    "labels": [
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlwXg",
+        "name": "M2-Prep",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlwYA",
+        "name": "pipeline",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlyww",
+        "name": "logging",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlyxA",
+        "name": "loss",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlyxQ",
+        "name": "debuggability",
+        "description": "",
+        "color": "ededed"
+      }
+    ],
+    "number": 30,
+    "state": "OPEN",
+    "title": "M2-Prep Implement Intermediate Loss Calculation & Logging",
+    "updatedAt": "2025-04-07T23:46:46Z"
+  },
+  {
+    "assignees": [],
+    "body": "**Description**\n\nAdaptive layernorm conditioning currently logs warnings on shape mismatch. We need tests confirming correct usage when shapes match, and fallback/warnings if shapes differ. Also update docs on how adaptive LN is supposed to work.\n\n---\n\n**Tasks**\n1. **New file**: `tests/stageA/unit/test_adaptive_layernorm.py`.\n2. **Matching shapes**: Confirm no warnings, LN applies.\n3. **Mismatched**: Confirm skip or warning logs.\n4. **Docs**: Provide usage examples, shape guidelines.\n\n**Acceptance Criteria**\n- LN works correctly with matched shape.\n- Warnings/fallback if shape is off.\n- Documentation is updated for LN usage.\n\n---\n\n**Potential Problems**\n- Some code paths might do partial LN if shapes partially match.\n- Full coverage might require testing multiple LN layers.\n- Performance overhead if tested with large mock data.\n",
+    "createdAt": "2025-04-07T23:46:44Z",
+    "labels": [
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB7YTJzQ",
+        "name": "documentation",
+        "description": "Improvements or additions to documentation",
+        "color": "0075ca"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlwtw",
+        "name": "layernorm",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlxfQ",
+        "name": "M2-Test",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlxfg",
+        "name": "unit-test",
+        "description": "",
+        "color": "ededed"
+      }
+    ],
+    "number": 29,
+    "state": "CLOSED",
+    "title": "M2-Test Ensure Adaptive LN Conditioning is Correctly Handled",
+    "updatedAt": "2025-04-08T08:05:14Z"
+  },
+  {
+    "assignees": [],
+    "body": "**Description**\n\nWe want a test for `predict.py` that loads a partial checkpoint, runs inference on dummy sequences, and outputs final coords (e.g., `.pdb` or `.pt`). Checks shape `[batch, N_atoms, 3]` and numeric validity.\n\n---\n\n**Tasks**\n1. **Create**: `tests/integration/test_predict_inference.py`.\n2. **Minimal config**: For inference.\n3. **Load partial checkpoint**: `partial_load_state_dict(...)`.\n4. **Run inference**: On dummy input, verify shape `[B, N_atoms, 3]`.\n5. **Check**: Output files exist, contain valid numeric data.\n\n**Acceptance Criteria**\n- Script runs without error.\n- Output coords in correct shape.\n- No NaNs or major shape mismatches.\n\n---\n\n**Potential Problems**\n- Need a legitimate partial checkpoint (generated in tests?).\n- File I/O can fail if paths are not carefully managed.\n- Dummy input must align with partial checkpoint’s shape assumptions.\n",
+    "createdAt": "2025-04-07T23:46:44Z",
+    "labels": [
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlxfQ",
+        "name": "M2-Test",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlxzg",
+        "name": "integration",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlyeA",
+        "name": "inference",
+        "description": "",
+        "color": "ededed"
+      }
+    ],
+    "number": 28,
+    "state": "OPEN",
+    "title": "M2-Test Inference Integration Test with Partial Checkpoint",
+    "updatedAt": "2025-04-07T23:46:44Z"
+  },
+  {
+    "assignees": [],
+    "body": "**Description**\n\nStage B’s `main.py` orchestrates TorsionBERT + Pairformer, but coverage sits at ~29%. We need deeper tests to ensure correct shapes, error handling, and integration points.\n\n---\n\n**Tasks**\n1. **Test file**: `tests/stageB/unit/test_main.py`.\n2. **Dummy data**: Match TorsionBERT/Pairformer shape expectations.\n3. **Check**: Output angles, embeddings are correct shape.\n4. **Error conditions**: Feed mismatched shapes, confirm warnings.\n\n**Acceptance Criteria**\n- Coverage > 70%.\n- Valid inputs produce correct outputs.\n- Bad inputs yield controlled warnings or errors.\n\n---\n\n**Potential Problems**\n- Generating dummy data for TorsionBERT + Pairformer can be tricky.\n- Some sub-functions may be hard to reach without a specialized setup.\n- Ongoing pipeline changes might force frequent test updates.\n",
+    "createdAt": "2025-04-07T23:46:43Z",
+    "labels": [
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlxfQ",
+        "name": "M2-Test",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlxfg",
+        "name": "unit-test",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlxgA",
+        "name": "coverage",
+        "description": "",
+        "color": "ededed"
+      }
+    ],
+    "number": 27,
+    "state": "OPEN",
+    "title": "M2-Test Increase Coverage in Stage B’s main.py",
+    "updatedAt": "2025-04-07T23:46:43Z"
+  },
+  {
+    "assignees": [],
+    "body": "**Description**\n\nM2 relies heavily on Hydra configs. We need tests confirming default configs load as intended and that custom overrides produce correct final configurations.\n\n---\n\n**Tasks**\n1. **Create**: `tests/config/test_hydra_loading.py`.\n2. **Load default**: e.g. `train.yaml`.\n3. **Override**: Provide test config or CLI overrides.\n4. **Assert**: The final config has expected values/fields.\n\n**Acceptance Criteria**\n- All config fields (DataConfig, ModelConfig, LoRAConfig, etc.) appear.\n- Overrides apply properly.\n- No missing mandatory fields.\n\n---\n\n**Potential Problems**\n- Hydra’s layered composition can yield surprises.\n- Different Hydra versions might behave slightly differently.\n- Missing fields can cause runtime or dataclass errors.\n",
+    "createdAt": "2025-04-07T23:46:42Z",
+    "labels": [
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlxfQ",
+        "name": "M2-Test",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlxfg",
+        "name": "unit-test",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlyMg",
+        "name": "config",
+        "description": "",
+        "color": "ededed"
+      }
+    ],
+    "number": 26,
+    "state": "OPEN",
+    "title": "M2-Test Hydra Config Tests",
+    "updatedAt": "2025-04-07T23:46:42Z"
+  },
+  {
+    "assignees": [],
+    "body": "**Description**\n\nWe save only trainable parameters (LoRA + new modules). This test ensures partial checkpoints reload cleanly without missing/unexpected key errors and that inference still works.\n\n---\n\n**Tasks**\n1. **New test**: `tests/integration/test_checkpoint_cycle.py`.\n2. **Dummy training**: A few steps, produce partial checkpoint.\n3. **Reload**: Use `partial_load_state_dict(...)` in a fresh model.\n4. **Inference**: Confirm no key mismatch, shape is correct.\n\n**Acceptance Criteria**\n- Partial checkpoint is smaller than a full model.\n- Reload is error-free.\n- Forward pass works post-load.\n\n---\n\n**Potential Problems**\n- Lightning’s default checkpoint might still save the entire state.\n- Param naming differences can cause mismatch warnings.\n- Distinguishing intentionally excluded vs. truly missing keys can be tricky.\n",
+    "createdAt": "2025-04-07T23:46:41Z",
+    "labels": [
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlxfQ",
+        "name": "M2-Test",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlxzg",
+        "name": "integration",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlyFQ",
+        "name": "checkpoint",
+        "description": "",
+        "color": "ededed"
+      }
+    ],
+    "number": 25,
+    "state": "OPEN",
+    "title": "M2-Test Verify Partial Checkpoint Cycle",
+    "updatedAt": "2025-04-07T23:46:41Z"
+  },
+  {
+    "assignees": [],
+    "body": "**Description**\n\nWe must confirm that LoRA adapters (and newly added modules, like the Merger or diffusion heads) receive nonzero gradients, while base model parameters remain frozen.\n\n---\n\n**Tasks**\n1. **New file**: `tests/unit/test_gradient_flow.py`.\n2. **Dummy forward**: Pass a small batch, compute a trivial loss.\n3. **Backward**: `loss.backward()`, check `param.grad`.\n4. **Assert**: LoRA/new → nonzero; base → zero or None.\n\n**Acceptance Criteria**\n- Only trainable layers have nonzero grads.\n- Frozen layers remain unaffected.\n\n---\n\n**Potential Problems**\n- A trivial loss might produce zero grads for everything.\n- Complex param naming can confuse which are base vs. LoRA.\n- If any part is unintentionally unfrozen, it might produce unexpected grads.\n",
+    "createdAt": "2025-04-07T23:46:40Z",
+    "labels": [
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlxfQ",
+        "name": "M2-Test",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlxfg",
+        "name": "unit-test",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlx-Q",
+        "name": "gradients",
+        "description": "",
+        "color": "ededed"
+      }
+    ],
+    "number": 24,
+    "state": "OPEN",
+    "title": "M2-Test Check That Only LoRA + New Modules Get Gradients",
+    "updatedAt": "2025-04-07T23:46:40Z"
+  },
+  {
+    "assignees": [],
+    "body": "**Description**\n\nWe want an integration test that runs the entire pipeline from Stage A through Stage D on a small dummy dataset. This verifies final 3D coords shape `[batch_size, N_atoms, 3]` and checks for shape/device errors.\n\n---\n\n**Tasks**\n1. **Create**: `tests/integration/test_full_pipeline.py`.\n2. **Minimal dataset**: A few sequences, adjacency, partial coords.\n3. **Run pipeline**: Possibly via the main script or a test harness.\n4. **Check**: Final coords `[B, N_atoms, 3]`, no shape mismatches.\n\n**Acceptance Criteria**\n- Integration completes without error.\n- Correct final shape.\n- If debug logs are on, shape transitions are confirmed.\n\n---\n\n**Potential Problems**\n- Constructing a realistic dummy dataset that triggers all code paths.\n- CPU vs. GPU or half-precision differences.\n- Flakiness if random seeds or nondeterminism aren’t managed.\n",
+    "createdAt": "2025-04-07T23:46:39Z",
+    "labels": [
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlxfQ",
+        "name": "M2-Test",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlxzg",
+        "name": "integration",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlxzw",
+        "name": "end-to-end",
+        "description": "",
+        "color": "ededed"
+      }
+    ],
+    "number": 23,
+    "state": "OPEN",
+    "title": "M2-Test End-to-End Pipeline Test (A→B→(C)→Merger→D)",
+    "updatedAt": "2025-04-07T23:46:39Z"
+  },
+  {
+    "assignees": [],
+    "body": "**Description**\n\n`trunk_processing.py` handles intermediate feature transformations in Stage A but has only ~29% coverage. We need tests verifying shape correctness and transformations.\n\n---\n\n**Tasks**\n1. **Create**: `tests/stageA/unit/test_trunk_processing.py`.\n2. **Dummy input**: Provide realistic intermediate data shapes.\n3. **Verify outputs**: Check shape, possible numeric checks.\n4. **Test errors**: Wrong shapes → confirm warnings.\n\n**Acceptance Criteria**\n- Valid input → correct shape.\n- Invalid shape → clear warning/error.\n- Coverage improved significantly.\n\n---\n\n**Potential Problems**\n- The code might do multi-step transformations that hide subtle issues.\n- External config or environment might need mocking.\n- Legacy refactoring could have leftover code paths.\n",
+    "createdAt": "2025-04-07T23:46:38Z",
+    "labels": [
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlxfQ",
+        "name": "M2-Test",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlxfg",
+        "name": "unit-test",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlxgA",
+        "name": "coverage",
+        "description": "",
+        "color": "ededed"
+      }
+    ],
+    "number": 22,
+    "state": "OPEN",
+    "title": "M2-Test Add Tests for trunk_processing.py Intermediate Feature Flow",
+    "updatedAt": "2025-04-07T23:46:38Z"
+  },
+  {
+    "assignees": [],
+    "body": "**Description**\n\n`masking_padding_utils.py` has ~21% coverage. It handles padding/masking of variable-length sequences. We need thorough tests to confirm correct batch shapes, masks, and edge cases.\n\n---\n\n**Tasks**\n1. **New file**: `tests/stageA/unit/test_masking_padding_utils.py`.\n2. **Dummy data**: Sequences of differing lengths.\n3. **Collate function**: Verify padded outputs and correct masks.\n4. **Edge cases**: Empty sequence, max length, multiple dims.\n\n**Acceptance Criteria**\n- Correct padded outputs, accurate masks.\n- Coverage significantly improved.\n- Multiple scenarios tested.\n\n---\n\n**Potential Problems**\n- Ambiguous or poorly documented “correct” behavior.\n- Handling multi-dim sequences vs. single-dim can be tricky.\n- Large random tests might slow the suite.\n",
+    "createdAt": "2025-04-07T23:46:37Z",
+    "labels": [
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlxfQ",
+        "name": "M2-Test",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlxfg",
+        "name": "unit-test",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlxgA",
+        "name": "coverage",
+        "description": "",
+        "color": "ededed"
+      }
+    ],
+    "number": 21,
+    "state": "CLOSED",
+    "title": "M2-Test Improve Test Coverage for masking_padding_utils.py",
+    "updatedAt": "2025-04-08T19:43:42Z"
+  },
+  {
+    "assignees": [],
+    "body": "**Description**\n\n`dense_trunk.py` is crucial for Stage A’s attention or embedding modules but has low coverage (~29%). We need tests to verify output shapes under varied configs and inputs.\n\n---\n\n**Tasks**\n1. **Create**: `tests/stageA/unit/test_dense_trunk.py`.\n2. **Instantiate module** with different config parameters.\n3. **Dummy tensors**: e.g., `[batch, features]` → check output shape.\n4. **Edge cases**: Minimal batch or mismatched dims → confirm logs/errors.\n\n**Acceptance Criteria**\n- Coverage for `dense_trunk.py` significantly increases.\n- Output shape is correct for valid inputs.\n- Wrong dims produce expected warnings/errors.\n\n---\n\n**Potential Problems**\n- Hidden dependencies might complicate isolated testing.\n- Over-mocking can hide real integration issues.\n- Edge cases might reveal untested branches.\n",
+    "createdAt": "2025-04-07T23:46:36Z",
+    "labels": [
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlxfQ",
+        "name": "M2-Test",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlxfg",
+        "name": "unit-test",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlxgA",
+        "name": "coverage",
+        "description": "",
+        "color": "ededed"
+      }
+    ],
+    "number": 20,
+    "state": "CLOSED",
+    "title": "M2-Test Increase Coverage for dense_trunk.py in Stage A",
+    "updatedAt": "2025-04-08T19:17:53Z"
+  },
+  {
+    "assignees": [],
+    "body": "**Description**\n\nAfter deciding bridging, partial coords, and consistent `c_s`, we must thoroughly document the final pipeline shape flow (A→B→(C)→D). This includes bridging details and typical shapes.\n\n---\n\n**Tasks**\n1. **Create/update doc**: e.g., `docs/pipeline/overview/final_design.md`.\n2. **Diagrams/Tables**: Show shapes, bridging steps.\n3. **Troubleshooting**: Note common mismatch pitfalls.\n4. **Link**: From the main README or code docstrings.\n\n**Acceptance Criteria**\n- A clear doc explaining shape flow.\n- Team uses it to avoid future dimension confusion.\n- Accurately reflects final bridging decisions.\n\n---\n\n**Potential Problems**\n- Overly detailed docs can become unwieldy.\n- Pipeline changes after M2 might outdate these docs.\n- Must coordinate doc updates whenever shape logic changes.\n",
+    "createdAt": "2025-04-07T23:46:36Z",
+    "labels": [
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB7YTJzQ",
+        "name": "documentation",
+        "description": "Improvements or additions to documentation",
+        "color": "0075ca"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlwXg",
+        "name": "M2-Prep",
+        "description": "",
+        "color": "ededed"
+      }
+    ],
+    "number": 19,
+    "state": "OPEN",
+    "title": "M2-Prep Document the Final Pipeline Shapes & Data Flow",
+    "updatedAt": "2025-04-07T23:46:36Z"
+  },
+  {
+    "assignees": [],
+    "body": "**Description**\n\nA local geometry checker can quickly spot nonsensical coords by verifying typical RNA bond lengths (e.g., P–O5′). This is optional for M2 but helps debugging.\n\n---\n\n**Tasks**\n1. **Function**: `check_rna_bond_lengths(coords, sequence)` for typical RNA bonds.\n2. **Run**: Possibly in debug or validation steps, log out-of-range bond lengths.\n3. **Optional**: Expand to angles, ring closures if time permits.\n\n**Acceptance Criteria**\n- The checker flags obvious geometry anomalies.\n- Minimal overhead on normal training.\n- Code is togglable if advanced geometry checks aren’t needed.\n\n---\n\n**Potential Problems**\n- RNA ring structures are more complex than linear peptides.\n- Performance overhead if run on large batches.\n- Reference bond lengths might vary for non-canonical nucleotides.\n",
+    "createdAt": "2025-04-07T23:46:35Z",
+    "labels": [
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlwXg",
+        "name": "M2-Prep",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlxTg",
+        "name": "debugging",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlxTw",
+        "name": "optional",
+        "description": "",
+        "color": "ededed"
+      }
+    ],
+    "number": 18,
+    "state": "OPEN",
+    "title": "M2-Prep Implement a Local RNA Bond/Angle Checker (Optional)",
+    "updatedAt": "2025-04-07T23:46:35Z"
+  },
+  {
+    "assignees": [],
+    "body": "**Description**\n\nSome final coords can be in the thousands or tens of thousands, potentially hurting training stability. A scale/clamp might help.\n\n---\n\n**Tasks**\n1. **Analyze**: Observe coordinate distributions on a small run.\n2. **Decide**: If training is unstable, clamp or scale (e.g. `coords *= 0.001`).\n3. **Implement**: Possibly in Stage D’s forward or the loss; make togglable.\n4. **Check**: Confirm numeric stability improves.\n\n**Acceptance Criteria**\n- With clamping/scaling, coords remain in a workable range.\n- Training is stable.\n- Docs mention how/why we do it.\n\n---\n\n**Potential Problems**\n- Setting clamp range incorrectly may degrade predictions.\n- Must preserve gradient flow if scaling in forward.\n- Possibly unnecessary if large coords do not actually harm training.\n",
+    "createdAt": "2025-04-07T23:46:34Z",
+    "labels": [
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlwXg",
+        "name": "M2-Prep",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlxMQ",
+        "name": "stability",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlxMg",
+        "name": "scaling",
+        "description": "",
+        "color": "ededed"
+      }
+    ],
+    "number": 17,
+    "state": "OPEN",
+    "title": "M2-Prep Address Large Final Coordinates in Stage D Outputs",
+    "updatedAt": "2025-04-07T23:46:34Z"
+  },
+  {
+    "assignees": [],
+    "body": "**Description**\n\nPairformer outputs `[N, c_s]` for residues, while Stage D needs `[N_atom, c_s]`. We need a bridging function (e.g., `residue_to_atoms(...)`) rather than naive expansions.\n\n---\n\n**Tasks**\n1. **Create bridging**: E.g., `res_to_atom(s_emb, residue_atom_map)` → `[N_atom, c_s]`.\n2. **Plug in**: Integrate it into the Unified Latent Merger.\n3. **Remove naive expansions**: Eliminate shape multiplication hacks.\n4. **Test**: For an 8-residue → 24-atom example.\n\n**Acceptance Criteria**\n- Pipeline shape is stable.\n- Stage D receives `[N_atom, c_s]` consistently.\n- No forced expansions in logs.\n\n---\n\n**Potential Problems**\n- Inconsistent or missing atom indexing can break bridging.\n- Off-by-one errors if using 0-based vs. 1-based indices.\n- Memory usage can spike if bridging duplicates embeddings naively.\n",
+    "createdAt": "2025-04-07T23:46:33Z",
+    "labels": [
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlwXg",
+        "name": "M2-Prep",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlwYA",
+        "name": "pipeline",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlxDg",
+        "name": "bridging",
+        "description": "",
+        "color": "ededed"
+      }
+    ],
+    "number": 16,
+    "state": "OPEN",
+    "title": "M2-Prep Implement Residue-to-Atom Bridging Function",
+    "updatedAt": "2025-04-07T23:46:33Z"
+  },
+  {
+    "assignees": [],
+    "body": "**Description**\n\nStage C (MP-NeRF or similar) yields `[N_atom, 3]` partial coords, sometimes 24 vs. 25 for an 8-nt sequence. We must define exactly how many atoms per residue we use, ensuring consistency for Stage D.\n\n---\n\n**Tasks**\n1. **Check MP-NeRF docs**: Confirm how backbone/sugar atoms are counted.\n2. **Add config**: Possibly `num_backbone_atoms=3` or a flag for sugar atoms.\n3. **Refactor**: Make 8-nt → 24 atoms consistent.\n4. **Update README**: Document partial coord dimension logic.\n\n**Acceptance Criteria**\n- No random shift (24→25) for the same sequence.\n- Stage D sees stable shapes.\n- Docs explain how we arrived at `N_atom`.\n\n---\n\n**Potential Problems**\n- Modified or special residues might not fit a fixed count.\n- Breaking existing tests if they rely on old assumptions.\n- Docs can drift from code if not carefully maintained.\n",
+    "createdAt": "2025-04-07T23:46:32Z",
+    "labels": [
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB7YTJzQ",
+        "name": "documentation",
+        "description": "Improvements or additions to documentation",
+        "color": "0075ca"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlwXg",
+        "name": "M2-Prep",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlwYQ",
+        "name": "shape",
+        "description": "",
+        "color": "ededed"
+      }
+    ],
+    "number": 15,
+    "state": "OPEN",
+    "title": "M2-Prep Standardize Partial Coordinates from Stage C",
+    "updatedAt": "2025-04-07T23:46:32Z"
+  },
+  {
+    "assignees": [],
+    "body": "**Description**\n\nFrequent logs: “Skipping adaptive layernorm due to shape mismatch,” “Skipping bias for stability,” etc. If these advanced features are truly desired, fix the shape logic so they apply; if not, remove/disable them.\n\n---\n\n**Tasks**\n1. **Locate code**: Possibly in `attention_base.py`, `feature_processing.py`.\n2. **Analyze shape**: Compare expected vs. actual shapes.\n3. **Decide**: Fix shape handling so LN/bias is applied, or disable them.\n4. **Verify**: No skip warnings remain.\n\n**Acceptance Criteria**\n- No “Skipping adaptive LN/bias” logs.\n- If LN/bias is enabled, it truly runs.\n- Documentation clarifies final approach.\n\n---\n\n**Potential Problems**\n- The mismatch might be in a deep multi-head attention path.\n- Re-enabling LN may alter training dynamics.\n- If the team doesn’t want these features, removing them must be done thoroughly.\n======\nOkay, let's create a comprehensive implementation plan document suitable for a junior engineer to address the GitHub issue regarding the skipping of Adaptive LayerNorm (AdaLN) and bias applications due to shape mismatches.\n\n**Document Title: Implementation Plan - Fixing AdaLN/Bias Shape Mismatches**\n\n**1. Introduction & Goal**\n\n*   **Issue:** The codebase currently logs warnings like \"Skipping adaptive layernorm due to shape mismatch\" and \"Skipping bias application for stability\". This indicates that certain normalization and bias steps, intended as advanced features, are not being applied correctly because the input tensor shapes do not match the expected shapes of the layers.\n*   **Goal:** Modify the codebase to ensure that Adaptive LayerNorm (AdaLN) and related bias applications are *always* applied correctly by resolving the underlying tensor shape mismatches. This involves adjusting tensor shapes *before* they are passed to these layers, rather than skipping the operations. We are explicitly choosing to *fix* the application of these features, not remove them.\n*   **Target Audience:** This plan is intended for a junior engineer implementing the fix.\n\n**2. Investigation and Analysis (Understanding the Problem)**\n\n*   **2.1. Identify All Affected Locations:**\n    *   **Primary Code:**\n        *   `rna_predict/pipeline/stageA/input_embedding/current/primitives/attention_base.py`: Contains the `AdaptiveLayerNorm` class. The `forward` method here is the most likely place where AdaLN conditioning is skipped.\n        *   `rna_predict/pipeline/stageA/input_embedding/current/transformer/attention.py`: Uses `AdaptiveLayerNorm` or standard `LayerNorm` and applies bias. Check the `forward`, `standard_multihead_attention`, and `local_multihead_attention` methods.\n        *   `rna_predict/pipeline/stageD/diffusion/components/diffusion_module.py`: The `_process_small_tensors` method within this file logs warnings about skipping bias (\"Warning: Selected bias shape mismatch... Skipping bias application for stability.\"). This needs investigation.\n        *   Other potential locations identified by `grep LayerNorm` (from context): `pairformer.py`, `diffusion_conditioning.py`, `atom_transformer.py`, etc. Review these usages, especially where conditioning signals or tensors from different sources are combined before normalization.\n    *   **Patch/Fix Code:**\n        *   `rna_predict/pipeline/stageD/tensor_fixes/transformer_fixes.py`: Contains `fix_adaptive_layernorm`. Understand how this patch attempts to solve the issue and if it's effective or needs replacement.\n        *   `rna_predict/pipeline/stageA/input_embedding/current/transformer_patch.py`: Contains another patch related to transformer shape issues. Evaluate its relevance and interaction with the AdaLN/bias issue.\n    *   **Log Analysis:**\n        *   Run the full pipeline (e.g., using `rna_predict/scripts/run_all_pipeline.py` or relevant stage scripts) with detailed logging enabled (`DEBUG` level if possible).\n        *   Carefully collect *all* instances of the \"Skipping adaptive layernorm...\" and \"Skipping bias...\" warnings. Note the exact file, line number, and context (which tensors were involved).\n\n*   **2.2. Understand Shape Mismatches:**\n    *   For each location identified above:\n        *   **Add Diagnostic Logging:** Temporarily insert `print` or `logging.debug` statements *immediately before* the LayerNorm/AdaLN call or bias addition that is being skipped.\n        *   Log the shapes of *all* input tensors involved (e.g., `a`, `s` for AdaLN; the tensor being normalized; the bias tensor).\n        *   Log the *expected* shape (e.g., `self.c_a`, `self.c_s` for AdaLN; the shape of the layer's weight/bias parameters).\n        *   **Example:** Inside `AdaptiveLayerNorm.forward` in `attention_base.py`:\n            ```python\n            # Before applying layernorm_a\n            print(f\"DEBUG: AdaLN Input 'a' shape: {a.shape}, Expected last dim: {self.c_a}\")\n            # Before applying conditioning logic\n            print(f\"DEBUG: AdaLN Conditioning 's' shape: {s.shape}, Expected last dim: {self.c_s}\")\n            # ... existing code ...\n            try:\n                # ... apply conditioning ...\n            except RuntimeError as e:\n                # Existing warning log\n                print(f\"DEBUG: AdaLN Exception caught: {e}\") # Keep this to see why it failed before\n                # Potentially log shapes again here if they changed\n            ```\n        *   **Analyze:** Determine the dimension(s) causing the mismatch. It's often the last (feature) dimension, but sequence length mismatches might also occur in specific components.\n\n**3. Design: Robust Shape Adjustment**\n\n*   **3.1. Strategy:** Implement helper functions that explicitly adjust tensor shapes (primarily the last/feature dimension) to match the requirements of LayerNorm, AdaLN, and bias additions. These functions will use padding (if the tensor is too small) or slicing (if too large).\n*   **3.2. Utility Functions:**\n    *   **Create File:** `rna_predict/utils/shape_utils.py`\n    *   **Implement `adjust_tensor_feature_dim`:**\n        ```python\n        import torch\n        import torch.nn.functional as F\n        import logging\n\n        logger = logging.getLogger(__name__)\n\n        def adjust_tensor_feature_dim(tensor: torch.Tensor, expected_feature_dim: int, tensor_name: str = \"tensor\") -> torch.Tensor:\n            \"\"\"\n            Adjusts the last dimension (features) of a tensor to match the expected size.\n\n            Pads with zeros if the actual dimension is smaller.\n            Slices if the actual dimension is larger.\n\n            Args:\n                tensor: The input tensor.\n                expected_feature_dim: The target size for the last dimension.\n                tensor_name: A descriptive name for logging purposes.\n\n            Returns:\n                The adjusted tensor.\n            \"\"\"\n            actual_feature_dim = tensor.shape[-1]\n\n            if actual_feature_dim == expected_feature_dim:\n                return tensor\n            elif actual_feature_dim < expected_feature_dim:\n                padding_size = expected_feature_dim - actual_feature_dim\n                # Pad only the last dimension: (0, padding_size) means no padding for other dims\n                adjusted_tensor = F.pad(tensor, (0, padding_size), mode='constant', value=0)\n                logger.debug(f\"Padded '{tensor_name}' from {actual_feature_dim} to {expected_feature_dim} features. Original shape: {tensor.shape}, New shape: {adjusted_tensor.shape}\")\n                return adjusted_tensor\n            else: # actual_feature_dim > expected_feature_dim\n                # Slice the last dimension\n                slices = [slice(None)] * tensor.dim()\n                slices[-1] = slice(0, expected_feature_dim)\n                adjusted_tensor = tensor[tuple(slices)]\n                logger.debug(f\"Sliced '{tensor_name}' from {actual_feature_dim} to {expected_feature_dim} features. Original shape: {tensor.shape}, New shape: {adjusted_tensor.shape}\")\n                return adjusted_tensor\n\n        # Add more adjustment functions if needed (e.g., for sequence length, bias shapes)\n        ```\n    *   **Add Unit Tests:** Create `tests/utils/test_shape_utils.py` to thoroughly test `adjust_tensor_feature_dim` with various input shapes (smaller, larger, equal) and data types.\n\n**4. Implementation Steps**\n\n*   **4.1. Integrate `adjust_tensor_feature_dim` into `AdaptiveLayerNorm`:**\n    *   **File:** `rna_predict/pipeline/stageA/input_embedding/current/primitives/attention_base.py`\n    *   **Location:** Inside the `AdaptiveLayerNorm.forward` method.\n    *   **Changes:**\n        *   Import the helper: `from rna_predict.utils.shape_utils import adjust_tensor_feature_dim`\n        *   *Before* `self.layernorm_a(a)`:\n            ```python\n            a = adjust_tensor_feature_dim(a, self.c_a, tensor_name=\"AdaLN input 'a'\")\n            a_norm = self.layernorm_a(a)\n            ```\n        *   *Before* the line `layernorm_s = nn.LayerNorm(...)` and `s_norm = layernorm_s(s)` inside the conditioning logic:\n            ```python\n            # Ensure conditioning signal 's' has the correct feature dimension (self.c_s)\n            s = adjust_tensor_feature_dim(s, self.c_s, tensor_name=\"AdaLN conditioning 's'\")\n            # Now, the LayerNorm dimension will match s.shape[-1] which is self.c_s\n            s_last_dim = s.shape[-1]\n            layernorm_s = nn.LayerNorm(s_last_dim, bias=False).to(s.device)\n            s_norm = layernorm_s(s)\n            ```\n        *   **Remove Skipping Logic:** Delete the `try...except RuntimeError` block that catches the shape mismatch and logs the \"Skipping adaptive layernorm...\" warning. The adjustment should prevent this exception.\n\n*   **4.2. Integrate Adjustments for Bias Mismatches:**\n    *   **File:** `rna_predict/pipeline/stageD/diffusion/components/diffusion_module.py`\n    *   **Location:** Inside the `_process_small_tensors` method (or wherever the \"Skipping bias application for stability\" warning originates).\n    *   **Changes:**\n        *   Import the helper: `from rna_predict.utils.shape_utils import adjust_tensor_feature_dim`\n        *   Identify the tensor (`selected_bias` in the log message context) and the target tensor it's being added to.\n        *   Determine the *expected* shape for the bias based on the target tensor. The mismatch seems to be in the sequence dimensions (`N_queries`, `N_keys`) rather than the feature dimension. A simple padding/slicing helper might not be enough here.\n        *   **Revised Strategy for Bias:** Instead of padding/slicing, the bias needs to be correctly *selected* or *broadcasted*. The warning `Expected size: 16, actual size: 2500` suggests the bias tensor has many more elements than expected for the specific operation. Investigate *why* the `selected_bias` has shape `[1, 1, 4, 25, 25]` when only `16` elements seem needed. Is it selecting the wrong slice? Is the bias computed incorrectly earlier?\n        *   **Fix:** Correct the logic that *computes* or *selects* the `selected_bias` so its shape matches the operation it's intended for *before* the addition. This might involve indexing correctly or reshaping upstream. *Do not simply pad/slice the bias here*, as that would likely be semantically incorrect. If broadcasting is intended, ensure shapes are compatible for broadcasting.\n        *   Remove the `if selected_bias.numel() == expected_bias_size:` check and the associated warning log.\n\n*   **4.3. Integrate Adjustments in Other Identified Locations:**\n    *   Review the locations found in step 2.1 where standard `LayerNorm` is used with potentially mismatched inputs (especially if conditioning signals are involved).\n    *   Apply `adjust_tensor_feature_dim` *before* the `LayerNorm(...)` call, ensuring the `expected_feature_dim` matches the `normalized_shape` argument of the `LayerNorm`.\n\n*   **4.4. Refactor/Remove Existing Patches:**\n    *   **File:** `rna_predict/pipeline/stageD/tensor_fixes/transformer_fixes.py`\n        *   Review `fix_adaptive_layernorm`. Since we are fixing `AdaptiveLayerNorm` directly, this patch function might become redundant. Delete it if the direct fix works.\n        *   Review other fixes in this file. If they address the same shape issues now handled by `adjust_tensor_feature_dim`, remove them. If they address *different* issues, keep them but ensure they don't conflict.\n    *   **File:** `rna_predict/pipeline/stageA/input_embedding/current/transformer_patch.py`\n        *   This patch seems complex and might be attempting similar adjustments. Analyze if its functionality is now covered by the `adjust_tensor_feature_dim` calls within the core components. Aim to remove this patch if possible, simplifying the codebase.\n\n*   **4.5. Update Unit Tests:**\n    *   **Files:** `tests/test_adaptive_layernorm.py`, `tests/test_adaptive_layernorm_more_cases.py`, potentially tests related to `diffusion_module.py` or other affected components.\n    *   **Changes:**\n        *   Modify existing tests that expect the \"Skipping\" warnings. Remove checks for `pytest.warns`.\n        *   Add assertions to verify that the LayerNorm/AdaLN/bias operations *are executed*. This could involve checking output tensor statistics (mean close to 0, std close to 1 after LN) or mocking the layer's `forward` call and asserting it was called.\n        *   Create new test cases with inputs specifically designed to have feature dimensions smaller and larger than expected, verifying that `adjust_tensor_feature_dim` works correctly within the component's `forward` pass.\n\n**5. Verification**\n\n*   **5.1. Log Verification:** Run the pipeline again (as in step 2.1). Confirm *zero* occurrences of the \"Skipping adaptive layernorm...\" and \"Skipping bias...\" warnings in the logs. Check the new `DEBUG` logs from `adjust_tensor_feature_dim` to see where adjustments occurred.\n*   **5.2. Test Suite:** Run the *entire* test suite using `pytest` (potentially via `rna_predict/scripts/run_failing_tests.sh`). Ensure all tests pass, including the newly modified ones.\n*   **5.3. Coverage:** Run coverage analysis (e.g., using `rna_predict/scripts/show_coverage.py`). Ensure coverage hasn't dropped significantly in the modified files. Aim to maintain or improve coverage, especially for the new utility functions.\n*   **5.4. Functionality Check (Manual/Integration):** If possible, compare the pipeline's final output (e.g., predicted coordinates) before and after the fix on a small example. While exact numerical identity isn't expected (due to enabling previously skipped ops), the output should remain structurally reasonable. This is a sanity check against major regressions.\n\n**6. Documentation**\n\n*   **6.1. Code Comments:** Add comments within the modified code (e.g., `attention_base.py`, `diffusion_module.py`) explaining *why* `adjust_tensor_feature_dim` is being called before specific operations.\n*   **6.2. Utility Function Docstrings:** Ensure `adjust_tensor_feature_dim` in `shape_utils.py` has a clear and comprehensive docstring.\n*   **6.3. README/Design Docs:** If there are relevant README files or internal design documents discussing the transformer architecture or diffusion process, add a note explaining that shape mismatches for LN/bias are now automatically handled via padding/slicing using the `shape_utils` module. Update any sections describing the (now removed) patch mechanisms.\n*   **6.4. Pull Request Description:** Clearly explain the problem (skipped LN/bias), the solution (shape adjustment helpers), the specific files changed, and how verification was performed (logs checked, tests passed).\n\n**7. Professional Considerations & Pull Request**\n\n*   **Code Style:** Ensure all new and modified code adheres to the project's style guide (likely enforced by Ruff). Run `ruff check --fix .` and `ruff format .` before committing.\n*   **Commit History:** Create logical, atomic commits (e.g., one for the utility functions, one for integrating into AdaLN, one for fixing bias issues, one for updating tests, one for removing old patches).\n*   **Pull Request:**\n    *   Link the PR to the original GitHub issue.\n    *   Provide a clear title and description summarizing the fix.\n    *   Explain the investigation process and the chosen solution.\n    *   Detail the key changes made and the rationale.\n    *   Confirm that verification steps (logs, tests) were successful.\n    *   Request reviews from relevant team members.\n\nThis detailed plan should provide the necessary guidance to systematically investigate, implement, and verify the fix for the AdaLN/bias skipping issue.\n",
+    "createdAt": "2025-04-07T23:46:31Z",
+    "labels": [
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB7YTJyg",
+        "name": "bug",
+        "description": "Something isn't working",
+        "color": "d73a4a"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlwXg",
+        "name": "M2-Prep",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlwtg",
+        "name": "attention",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlwtw",
+        "name": "layernorm",
+        "description": "",
+        "color": "ededed"
+      }
+    ],
+    "number": 14,
+    "state": "CLOSED",
+    "title": "M2-Prep Resolve Skipped Adaptive Layernorm & Attention Bias",
+    "updatedAt": "2025-04-09T17:58:47Z"
+  },
+  {
+    "assignees": [],
+    "body": "**Description**\n\nWe have warnings like “Conditioning signal ‘s’ has incorrect feature dim 128, expected 64,” indicating inconsistent `s` embedding dimensions. We must choose one (e.g., 64) and ensure all modules use it.\n\n---\n\n**Tasks**\n1. **Check configs**: Inspect Hydra or code defaults for `model.pairformer.c_s`.\n2. **Pick dimension** (e.g., 64) as the global standard.\n3. **Update submodules**: Remove references to 128 if picking 64.\n4. **Retest**: Confirm no “incorrect dimension” warnings.\n\n**Acceptance Criteria**\n- No dimension mismatch warnings.\n- All references to `c_s` share the same value.\n\n---\n\n**Potential Problems**\n- Dimensions may be hardcoded in multiple files.\n- Submodules that used 128 might need reinitialized weights.\n- Old checkpoints saved at 128 might be incompatible.\n",
+    "createdAt": "2025-04-07T23:46:30Z",
+    "labels": [
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB7YTJyg",
+        "name": "bug",
+        "description": "Something isn't working",
+        "color": "d73a4a"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlwXg",
+        "name": "M2-Prep",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlwmA",
+        "name": "dimension",
+        "description": "",
+        "color": "ededed"
+      }
+    ],
+    "number": 13,
+    "state": "OPEN",
+    "title": "M2-Prep Fix s Embedding Dimension Mismatch (64 vs. 128)",
+    "updatedAt": "2025-04-07T23:46:30Z"
+  },
+  {
+    "assignees": [],
+    "body": "**Description**\n\nThe logs show expansions from 8 (residues) to 24 or 25 (atoms) when transitioning between Stage B (residue-level outputs) and Stage D (atom-level). This causes forced shape adjustments, e.g., “Adjusting sequence length for s_trunk from 8 to 24.” We need a single consistent representation or a well-defined bridging function if we keep Stage B at residue level.\n\n---\n\n**Tasks**\n1. **Audit pipeline**: Identify where Pairformer outputs `[N, c_s]` for residues, but partial coords are `[N_atom, 3]`.\n2. **Decide**:\n   - Unify all stages at residue level, **or**\n   - Implement a bridging function (`residue_to_atoms(...)`) to expand `[N, c_s]` into `[N_atom, c_s]`.\n3. **Remove forced expansions**: Eliminate logs forcibly reshaping 8 → 24/25.\n4. **Document**: In code/README, clarify how bridging or unification is done.\n\n**Acceptance Criteria**\n- No forced expansions remain in logs.\n- Stage D receives a consistent shape with no mismatch warnings.\n- A bridging function or single-level representation is documented.\n\n---\n\n**Potential Problems**\n- Overhauling residue→atom can cascade changes in data loaders, configs, and tests.\n- A bridging approach might grow complex for non-canonical or modified residues.\n- Hidden hardcoded references can break if not updated.\n- Performance overhead if going from N=8 to N_atom=24 on large datasets.\n",
+    "createdAt": "2025-04-07T23:46:29Z",
+    "labels": [
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlwXg",
+        "name": "M2-Prep",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlwYA",
+        "name": "pipeline",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlwYQ",
+        "name": "shape",
+        "description": "",
+        "color": "ededed"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB9dlwYw",
+        "name": "critical",
+        "description": "",
+        "color": "ededed"
+      }
+    ],
+    "number": 12,
+    "state": "OPEN",
+    "title": "M2-Prep Unify Residue vs. Atom Representation in Stages B & D",
+    "updatedAt": "2025-04-07T23:46:29Z"
+  },
+  {
+    "assignees": [],
+    "body": "\n### Description\nThe current RNA prediction pipeline lacks a standardized, high-performance mechanism for computing RNA torsion angles and benchmarking model performance. Additionally, the existing codebase has limited documentation and test coverage, impacting maintainability and ease of use.\n\nThis issue addresses these gaps by introducing:\n\n- **TorsionBERT Pipeline Stage**: A structured, documented approach for RNA torsion-angle prediction.\n- **Standardized Benchmarking**: Scripts and configurations for profiling RNA prediction performance (forward/backward passes, memory usage, and decoding latency).\n- **Improved Documentation**: Comprehensive documentation and code examples.\n- **Codebase Organization**: Clearly structured modules and subpackages for maintainability.\n- **Automation and Developer Tooling**: Scripts for static analysis, automated commits, and GitHub repository management.\n- **Enhanced Test Coverage**: Expanded unit tests covering new functionalities and ensuring reliability.\n\n### Acceptance Criteria\n- [ ] TorsionBERT integrated and documented (stageB pipeline).\n- [ ] Benchmarking scripts implemented and validated.\n- [ ] Improved module structure with proper Python packaging (`__init__.py`).\n- [ ] Automation scripts confirmed to function correctly in development and CI/CD workflows.\n- [ ] Comprehensive unit tests executed successfully.\n- [ ] All documentation clearly written, accurate, and usable.\n\n### Related Pull Request\n- [Link the associated PR here]\n\n",
+    "createdAt": "2025-03-20T01:57:37Z",
+    "labels": [
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB7YTJ0g",
+        "name": "enhancement",
+        "description": "New feature or request",
+        "color": "a2eeef"
+      },
+      {
+        "id": "LA_kwDOOHIeyc8AAAAB7YTJ3w",
+        "name": "question",
+        "description": "Further information is requested",
+        "color": "d876e3"
+      }
+    ],
+    "number": 8,
+    "state": "CLOSED",
+    "title": "**Implement TorsionBERT Stage, Performance Benchmarking, and Enhanced RNA Prediction Pipeline**",
+    "updatedAt": "2025-03-20T02:21:40Z"
+  }
+]
