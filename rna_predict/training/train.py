@@ -79,6 +79,12 @@ def main(cfg: DictConfig):
     if not os.path.isabs(ckpt):
         ckpt = os.path.join(original_cwd, ckpt)
     os.makedirs(ckpt, exist_ok=True)
+    # DEBUG: Verify checkpoint dir creation and contents immediately after mkdir
+    try:
+        contents = os.listdir(ckpt)
+    except Exception as e:
+        contents = f"<error listing dir: {e}>"
+    logger.info(f"[CHECKPOINT-DEBUG] Post-mkdir checkpoint dir: {ckpt}, contents: {contents}")
     project_root = pathlib.Path(original_cwd)
     logger.debug("[DEBUG] Original working directory: %s", original_cwd)
 
@@ -173,7 +179,8 @@ def main(cfg: DictConfig):
         ckpt_dir.mkdir(parents=True, exist_ok=True)
         # Add ModelCheckpoint callback
         checkpoint_callback = ModelCheckpoint(
-            dirpath=cfg.training.checkpoint_dir,
+            # Use resolved absolute path to ensure checkpoints land in original project directory
+            dirpath=ckpt,
             save_top_k=1,
             monitor=None,  # No validation metric for now
             save_last=True
@@ -181,6 +188,8 @@ def main(cfg: DictConfig):
         logger.info(f"[CHECKPOINT-DEBUG] About to start training with checkpoint dir: {checkpoint_callback.dirpath}")
         try:
             trainer = L.Trainer(
+                # Ensure Lightning uses project root for outputs
+                default_root_dir=original_cwd,
                 callbacks=[checkpoint_callback],
                 max_epochs=cfg.training.epochs,
                 limit_train_batches=cfg.training.limit_train_batches,
@@ -189,6 +198,12 @@ def main(cfg: DictConfig):
                 devices=1 if cfg.device in ['mps', 'cuda'] else cfg.training.devices
             )
             trainer.fit(model, dl)
+            # DEBUG: List checkpoint directory contents after training
+            try:
+                post_contents = os.listdir(ckpt)
+            except Exception as e:
+                post_contents = f"<error listing dir: {e}>"
+            logger.info(f"[CHECKPOINT-DEBUG] After training contents of {ckpt}: {post_contents}")
             logger.info(f"[CHECKPOINT-DEBUG] Training completed. Checkpoints should be saved to: {checkpoint_callback.dirpath}")
         except Exception as train_exc:
             logger.error(f"[CHECKPOINT-ERROR] Exception during training/checkpoint saving: {train_exc}", exc_info=True)

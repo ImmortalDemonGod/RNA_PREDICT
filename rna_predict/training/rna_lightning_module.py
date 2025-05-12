@@ -20,7 +20,7 @@ from rna_predict.pipeline.stageA.adjacency.rfold_predictor import StageARFoldPre
 from rna_predict.pipeline.stageB.torsion.torsion_bert_predictor import StageBTorsionBertPredictor
 from rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager import ProtenixDiffusionManager
 from rna_predict.dataset.preprocessing.angle_utils import angles_rad_to_sin_cos
-from rna_predict.dataset.preprocessing.angles import extract_rna_torsions
+# from rna_predict.dataset.preprocessing.angles import extract_rna_torsions
 
 # TODO: These modules need to be implemented or moved to the correct location
 # from rna_predict.models.latent_merger import LatentMerger
@@ -213,7 +213,7 @@ class RNALightningModule(L.LightningModule):
             logger.debug("[DEBUG-LM] After StageARFoldPredictor init, self.stageA.model.device: %s", getattr(getattr(self.stageA, 'model', None), 'device', 'NO DEVICE ATTR'))
             self.stageA.model.to(self.device_)
         self.stageB_torsion = StageBTorsionBertPredictor(cfg.model.stageB.torsion_bert)
-        logger.debug("[DEBUG-LM] About to access cfg.model.stageB.pairformer. Keys: %s", list(cfg.model.stageB.keys()) if hasattr(cfg.model.stageB, 'keys') else str(cfg.model.stageB))
+        logger.debug("[DEBUG-LM] About to access cfg.model.stageB. Keys: %s", list(cfg.model.stageB.keys()) if hasattr(cfg.model.stageB, 'keys') else str(cfg.model.stageB))
         if "pairformer" not in cfg.model.stageB:
             raise ValueError("[UNIQUE-ERR-PAIRFORMER-MISSING] pairformer not found in cfg.model.stageB. Available keys: " + str(list(cfg.model.stageB.keys())))
         self.stageB_pairformer = PairformerWrapper(cfg.model.stageB.pairformer)
@@ -500,6 +500,8 @@ class RNALightningModule(L.LightningModule):
             true_angles_rad = batch.get("angles_true", batch.get("angles", None))
             true_angles_sincos = angles_rad_to_sin_cos(true_angles_rad)
             residue_mask = batch.get("attention_mask", batch.get("ref_mask", None))
+            if residue_mask is not None and residue_mask.device != self.device_:
+                residue_mask = residue_mask.to(self.device_)
             logger.debug(f"[LOSS-SHAPES] pred={predicted_angles_sincos.shape}, true={true_angles_sincos.shape}")
             num_predicted_features = predicted_angles_sincos.shape[-1]
             assert num_predicted_features % 2 == 0, f"Predicted torsion output last dim ({num_predicted_features}) should be even (sin/cos pairs)"
@@ -581,23 +583,57 @@ class RNALightningModule(L.LightningModule):
         logger.debug(f"[DEBUG-LM] loss_angle value: {loss_angle.item()}, device: {loss_angle.device}")
         self.log("angle_loss", loss_angle, on_step=True, on_epoch=True, prog_bar=True)
 
-        # Streamlined mode: compute torsion via DSSR, then Stage C
+        # Streamlined mode: compute loss using TorsionBERT + Stage C outputs if available
+        logger.debug(f"[DEBUG][Streamline] output keys: {list(output.keys())}")
         if getattr(self.cfg.training, 'streamline_mode', False):
-            # Use true PDB path from batch (first element)
-            pdb_file = batch['pdb_path'][0]
-            # Extract torsion angles via DSSR backend as numpy array [L, N]
-            angles_np = extract_rna_torsions(pdb_file, chain_id=self.cfg.test_data.target_id, backend=self.cfg.extraction_backend)
-            pred_angles = torch.tensor(angles_np, device=self.device_).unsqueeze(0)
-            # Reconstruct atom coords
-            outC = run_stageC(sequence=batch['sequence'][0], torsion_angles=pred_angles, cfg=self.cfg)
-            coords_pred = outC['coords'].to(self.device_)
-            coords_true = batch['coords_true'].to(self.device_)
-            if coords_true.dim() == 2:
-                coords_true = coords_true.unsqueeze(0)
-            # Compute coordinate loss
-            coord_loss = torch.nn.functional.mse_loss(coords_pred, coords_true)
-            total_loss = loss_angle + coord_loss
-            return {"loss": total_loss}
+            # Ensure correct key for Stage C coords
+            if "coords" in output:
+                logger.info("Streamline mode active: Training TorsionBERT + Stage C with L_angle and L_coord_C.")
+                # Coordinates from Stage C: prefer 3D per-res coords
+                coords_pred_C = (output.get('coords_3d') or output.get('coords')).to(self.device_)
+                logger.debug(f"[DEBUG][Streamline] coords_pred_C shape BEFORE: {coords_pred_C.shape}")
+                # Sanitize sequence and derive residue-atom mapping
+                sequence = batch.get('sequence', None)
+                if isinstance(sequence, list) and len(sequence) == 1 and isinstance(sequence[0], str):
+                    sequence = list(sequence[0])
+                atom_metadata = batch.get('atom_metadata', None)
+                from rna_predict.utils.tensor_utils.residue_mapping import derive_residue_atom_map
+                residue_atom_map = derive_residue_atom_map(sequence, atom_metadata=atom_metadata)
+                logger.debug(f"[DEBUG][Streamline] residue_atom_map[0:5]: {residue_atom_map[:5]}")
+                # Bridge sparse coords to dense using hybrid function
+                from rna_predict.pipeline.stageD.diffusion.bridging.hybrid_bridging_template import hybrid_bridging_sparse_to_dense
+                # derive canonical atom count per residue: max number of atoms in any residue mapping
+                canonical_atom_count = max(len(lst) for lst in residue_atom_map)
+                feature_dim = coords_pred_C.shape[-1]
+                B = coords_pred_C.shape[0] if coords_pred_C.dim() > 1 else 1
+                coords_pred_C, mask = hybrid_bridging_sparse_to_dense(
+                    coords_pred_C, residue_atom_map, len(residue_atom_map),
+                    canonical_atom_count, feature_dim, batch_size=B,
+                    fill_value=0.0, device=coords_pred_C.device, debug_logging=True
+                )
+                logger.debug(f"[DEBUG][Streamline] coords_pred_C dense shape: {coords_pred_C.shape}, mask shape: {mask.shape}")
+                # Compute coordinate loss on bridged atoms only
+                # Build dense ground truth tensor matching preds
+                coords_true_global = batch['coords_true'].to(self.device_)
+                if coords_true_global.dim() == 2:
+                    coords_true_global = coords_true_global.unsqueeze(0)
+                coords_true_dense = torch.zeros_like(coords_pred_C)
+                for i, atom_idxs in enumerate(residue_atom_map):
+                    n_atoms = len(atom_idxs)
+                    coords_true_dense[:, i, :n_atoms, :] = coords_true_global[:, atom_idxs, :]
+                # Flatten preds and truths via mask for matching shapes
+                feat_dim = coords_pred_C.shape[-1]
+                coords_pred_flat = coords_pred_C[mask].view(-1, feat_dim)
+                coords_true_flat = coords_true_dense[mask].view(-1, feat_dim)
+                logger.debug(f"[DEBUG][Streamline] coords_pred_flat: {coords_pred_flat.shape}, coords_true_flat: {coords_true_flat.shape}")
+                # MSE over only valid atoms
+                coord_loss_C = torch.nn.functional.mse_loss(coords_pred_flat, coords_true_flat)
+
+                total_loss = loss_angle + coord_loss_C
+                self.log('train/coord_loss_C_streamlined', coord_loss_C, on_step=True, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
+                self.log('train/total_loss_streamlined', total_loss, on_step=True, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
+                logger.info(f"Streamlined loss: L_angle={loss_angle.item():.4f}, L_coord_C={coord_loss_C.item():.4f}, Total={total_loss.item():.4f}")
+                return {"loss": total_loss}
 
         # Skip Stage D if disabled in config
         if not self.cfg.run_stageD:
@@ -648,15 +684,15 @@ class RNALightningModule(L.LightningModule):
         atom_mask = atom_mask.to(self.device_)
         atom_to_token_idx = atom_to_token_idx.to(self.device_)
         batch_size = batch["sequence"].shape[0] if hasattr(batch["sequence"], 'shape') else 1
-        print(f"[DEBUG][TRAINING_STEP] s_embeddings_res shape before unsqueeze: {s_embeddings_res.shape}")
+        logger.debug(f"[DEBUG][TRAINING_STEP] s_embeddings_res shape before unsqueeze: {s_embeddings_res.shape}")
         # Always unsqueeze if dim==2 (to ensure [batch, num_residues, c_s])
         if s_embeddings_res.dim() == 2:
             s_embeddings_res = s_embeddings_res.unsqueeze(0)
-            print(f"[DEBUG][TRAINING_STEP] s_embeddings_res shape after unsqueeze: {s_embeddings_res.shape}")
+            logger.debug(f"[DEBUG][TRAINING_STEP] s_embeddings_res shape after unsqueeze: {s_embeddings_res.shape}")
         # Assert correct shape
         assert s_embeddings_res.dim() == 3, f"s_embeddings_res should be 3D, got {s_embeddings_res.shape}"
         assert s_embeddings_res.shape[0] == batch_size, f"Batch size mismatch: expected {batch_size}, got {s_embeddings_res.shape[0]}"
-        print(f"[DEBUG][TRAINING_STEP] s_embeddings_res shape before bridging: {s_embeddings_res.shape}")
+        logger.debug(f"[DEBUG][TRAINING_STEP] s_embeddings_res shape before bridging: {s_embeddings_res.shape}")
         if z_embeddings_res.dim() == 3:
             z_embeddings_res = z_embeddings_res.unsqueeze(0)
         if atom_mask.dim() == 1:
@@ -672,9 +708,8 @@ class RNALightningModule(L.LightningModule):
             "atom_metadata": batch.get("atom_metadata"),
         }
         input_features_for_bridge = {k: v for k, v in input_features_for_bridge.items() if v is not None}
-        print(f"[DEBUG][TRAINING_STEP] s_embeddings_res shape before bridging: {s_embeddings_res.shape}")
-        print(f"[DEBUG][TRAINING_STEP] sequence_list: {sequence_list}")
-        print(f"[DEBUG][TRAINING_STEP] expected residue count: {len(sequence_list[0]) if isinstance(sequence_list, list) else len(sequence_list)}")
+        logger.debug(f"[DEBUG][TRAINING_STEP] s_embeddings_res shape before bridging: {s_embeddings_res.shape}")
+        logger.debug(f"[DEBUG][TRAINING_STEP] expected residue count: {len(sequence_list[0]) if isinstance(sequence_list, list) else len(sequence_list)}")
         if hasattr(self, 'debug_logging') and self.debug_logging:
             logger.info(f"  s_embeddings_res shape: {s_embeddings_res.shape}, device: {s_embeddings_res.device}")
             logger.info(f"  z_embeddings_res shape: {z_embeddings_res.shape}, device: {z_embeddings_res.device}")
@@ -714,15 +749,15 @@ class RNALightningModule(L.LightningModule):
         )
         try:
             # SYSTEMATIC DEBUGGING: Print all relevant shapes and sequence info before bridging
-            print("[DEBUG][BRIDGING] sequence:", sequence_list[0] if isinstance(sequence_list, list) else sequence_list)
-            print("[DEBUG][BRIDGING] len(sequence):", len(sequence_list[0]) if isinstance(sequence_list, list) else len(sequence_list))
-            print("[DEBUG][BRIDGING] s_embeddings_res shape:", s_embeddings_res.shape)
-            print("[DEBUG][BRIDGING] trunk_embeddings_residue['s_trunk'] shape:", trunk_embeddings_residue["s_trunk"].shape)
-            print("[DEBUG][BRIDGING] batch size:", batch_size)
+            logger.debug("[DEBUG][BRIDGING] sequence:", sequence_list[0] if isinstance(sequence_list, list) else sequence_list)
+            logger.debug("[DEBUG][BRIDGING] len(sequence):", len(sequence_list[0]) if isinstance(sequence_list, list) else len(sequence_list))
+            logger.debug("[DEBUG][BRIDGING] s_embeddings_res shape:", s_embeddings_res.shape)
+            logger.debug("[DEBUG][BRIDGING] trunk_embeddings_residue['s_trunk'] shape:", trunk_embeddings_residue["s_trunk"].shape)
+            logger.debug("[DEBUG][BRIDGING] batch size:", batch_size)
             # Print all shapes in trunk_embeddings_residue
             for k, v in trunk_embeddings_residue.items():
                 if v is not None:
-                    print(f"[DEBUG][BRIDGING] trunk_embeddings_residue['{k}'] shape: {v.shape}")
+                    logger.debug(f"[DEBUG][BRIDGING] trunk_embeddings_residue['{k}'] shape: {v.shape}")
             # Call bridging
             _, bridged_trunk_embeddings, bridged_input_features = bridge_residue_to_atom(
                 bridging_input,
