@@ -263,8 +263,8 @@ def _process_style_embedding(
             logger.debug(f"[DEBUG][EXCEPTION-ADD] {e}")
             logger.debug(f"[DEBUG][EXCEPTION-ADD-SHAPE] c_l.shape={getattr(c_l, 'shape', None)}, x.shape={getattr(x, 'shape', None)}")
     # Patch: Only operate if both dims are not None
-    c_l_dim = getattr(c_l, 'dim', None)
-    x_dim = getattr(x, 'dim', None)
+    c_l_dim = c_l.dim() if hasattr(c_l, 'dim') and callable(getattr(c_l, 'dim', None)) else None
+    x_dim = x.dim() if hasattr(x, 'dim') and callable(getattr(x, 'dim', None)) else None
     if c_l_dim is not None and x_dim is not None and c_l_dim != x_dim:
         if debug:
             logger.debug(f"[DEBUG][EXCEPTION-ADD-DIM] c_l.dim()={c_l_dim}, x.dim()={x_dim}")
@@ -323,7 +323,12 @@ def _process_inputs_with_coords_impl(
     atom_to_token_idx = get_atom_to_token_idx(params.input_feature_dict, num_tokens=None, encoder=encoder)
     default_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     batch_size = getattr(atom_to_token_idx, 'shape', [None])[0] if atom_to_token_idx is not None else 1
-    num_tokens = getattr(atom_to_token_idx, 'shape', [None])[1] if atom_to_token_idx is not None and getattr(atom_to_token_idx, 'dim', None) > 1 else 50
+    # Get the shape safely
+    shape_dim = getattr(atom_to_token_idx, 'shape', [None])[1] if atom_to_token_idx is not None else None
+    # Get the dim safely
+    tensor_dim = getattr(atom_to_token_idx, 'dim', None)
+    # Check both shape and dim
+    num_tokens = shape_dim if shape_dim is not None and tensor_dim is not None and tensor_dim > 1 else 50
     default_restype = torch.zeros((batch_size, num_tokens), device=default_device, dtype=torch.long)
     restype = safe_tensor_access(params.input_feature_dict, "restype", default=default_restype)
     if debug:
@@ -359,7 +364,13 @@ def _process_inputs_with_coords_impl(
         if atom_to_token_idx is not None and torch.is_tensor(atom_to_token_idx) and atom_to_token_idx.numel() > 0:
             num_tokens = int(atom_to_token_idx.max().item()) + 1
         else:
-            num_tokens = getattr(q_l, 'shape', [None])[-2]
+            # Get the shape safely
+            q_l_shape = getattr(q_l, 'shape', None)
+            # Check if shape exists and has enough dimensions
+            if q_l_shape is not None and len(q_l_shape) >= 2:
+                num_tokens = q_l_shape[-2]
+            else:
+                num_tokens = 1
     if atom_to_token_idx is not None and torch.is_tensor(atom_to_token_idx) and a_atom is not None:
         a = _aggregate_to_token_level(encoder, a_atom, atom_to_token_idx, num_tokens)
     else:
@@ -446,7 +457,11 @@ def process_inputs_with_coords(
             if atom_to_token_idx is not None and torch.is_tensor(atom_to_token_idx) and atom_to_token_idx.numel() > 0:
                 num_tokens = int(atom_to_token_idx.max().item()) + 1
             else:
-                num_tokens = q_l.shape[-2] if q_l is not None else 1
+                # Ensure q_l is not None before accessing shape
+                if q_l is None:
+                    num_tokens = 1
+                else:
+                    num_tokens = q_l.shape[-2]
         s_for_transformer = torch.zeros(
             *batch_dims, num_tokens, encoder.c_s, device=q_l.device if q_l is not None else None, dtype=q_l.dtype if q_l is not None else None
         )
@@ -486,7 +501,11 @@ def process_inputs_with_coords(
     elif atom_to_token_idx is not None and torch.is_tensor(atom_to_token_idx) and atom_to_token_idx.numel() > 0:
         num_tokens = int(atom_to_token_idx.max().item()) + 1
     else:
-        num_tokens = q_l.shape[-2] if q_l is not None else 1
+        # Ensure q_l is not None before accessing shape
+        if q_l is None:
+            num_tokens = 1
+        else:
+            num_tokens = q_l.shape[-2]
 
     if atom_to_token_idx is not None and torch.is_tensor(atom_to_token_idx) and a_atom is not None:
         a = _aggregate_to_token_level(encoder, a_atom, atom_to_token_idx, num_tokens)

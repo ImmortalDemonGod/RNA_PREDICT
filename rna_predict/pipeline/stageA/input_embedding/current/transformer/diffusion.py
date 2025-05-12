@@ -21,6 +21,8 @@ from rna_predict.pipeline.stageA.input_embedding.current.transformer.transition 
     ConditionedTransitionBlock,
 )
 
+logger = logging.getLogger(__name__)
+
 
 class DiffusionTransformerBlock(nn.Module):
     """
@@ -90,6 +92,8 @@ class DiffusionTransformerBlock(nn.Module):
                 - Original single embedding (s) - preserved for checkpointing
                 - Original pair embedding (z) - preserved for checkpointing
         """
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug(f"[DTB] ENTRY: a.requires_grad={a.requires_grad}, shape={a.shape}")
         # Apply attention with pair bias
         attn_out = self.attention_pair_bias(
             a=a,
@@ -100,18 +104,26 @@ class DiffusionTransformerBlock(nn.Module):
             inplace_safe=inplace_safe,
             chunk_size=chunk_size,
         )
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug(f"[DTB] attn_out(after attention).requires_grad={attn_out.requires_grad}, shape={attn_out.shape}")
 
         # Residual connection after attention
         if inplace_safe:
             attn_out += a
         else:
             attn_out = attn_out + a
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug(f"[DTB] attn_out(after residual).requires_grad={attn_out.requires_grad}, shape={attn_out.shape}")
 
         # Apply feed-forward network
         ff_out = self.conditioned_transition_block(a=attn_out, s=s)
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug(f"[DTB] ff_out.requires_grad={ff_out.requires_grad}, shape={ff_out.shape}")
 
         # Residual connection after feed-forward
         out_a = ff_out + attn_out
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug(f"[DTB] out_a(final).requires_grad={out_a.requires_grad}, shape={out_a.shape}")
 
         # Return tuple including s and z to avoid deletion by torch.utils.checkpoint
         return out_a, s, z

@@ -22,11 +22,11 @@ def test_adaptive_layernorm_broadcast_mismatch_fixed():
 
 
     # Create input tensor 'a' with shape [B, 1, N, c_a] (extra singleton dim)
-    a_input = torch.randn(B, 1, N, c_a)
+    a_input = torch.randn(B, 1, N, c_a, requires_grad=True)
     a_input_original = a_input.clone() # Keep original for comparison
 
     # Create conditioning tensor 's' with shape [B, N, c_s]
-    s_input = torch.randn(B, N, c_s)
+    s_input = torch.randn(B, N, c_s, requires_grad=True)
 
     # --- Verification ---
     # 1. Run the forward pass - expect NO warnings now
@@ -67,3 +67,19 @@ def test_adaptive_layernorm_broadcast_mismatch_fixed():
     print(f"Input 'a' shape: {a_input.shape}")
     print(f"Input 's' shape: {s_input.shape}")
     print(f"Output shape: {out.shape}")
+
+    # --- Gradient check ---
+    # Sum output and backward to check gradients
+    out.sum().backward()
+    # Verify gradients exist
+    assert a_input.grad is not None, "Gradient for a_input should exist"
+    assert s_input.grad is not None, "Gradient for s_input should exist"
+    # Print gradient statistics
+    print(f"a_input.grad (mean, std): {a_input.grad.mean().item()}, {a_input.grad.std().item()}")
+    print(f"s_input.grad (mean, std): {s_input.grad.mean().item()}, {s_input.grad.std().item()}")
+    # Verify gradients are non-zero
+    assert a_input.grad.abs().sum() > 0, "Gradient for a_input should be non-zero"
+    assert s_input.grad.abs().sum() > 0, "Gradient for s_input should be non-zero"
+
+if __name__ == "__main__":
+    test_adaptive_layernorm_broadcast_mismatch_fixed()

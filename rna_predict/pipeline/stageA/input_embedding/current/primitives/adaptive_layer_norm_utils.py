@@ -6,6 +6,7 @@ used by the AdaptiveLayerNorm class.
 """
 
 import warnings
+from typing import Tuple
 
 import torch
 
@@ -61,7 +62,7 @@ def should_add_sample_dimension(a: torch.Tensor, s: torch.Tensor) -> bool:
 
 def check_and_adjust_dimensions(
     a: torch.Tensor, s: torch.Tensor
-) -> tuple[torch.Tensor, bool]:
+) -> Tuple[torch.Tensor, bool]:
     """
     Check and adjust dimensions of input tensors to ensure compatibility.
 
@@ -110,13 +111,33 @@ def interpolate_sequence_dim(tensor: torch.Tensor, target_size: int) -> torch.Te
     """
     Interpolate tensor along sequence dimension to match target size.
 
-    Args:
-        tensor: Input tensor
-        target_size: Target sequence length
-
-    Returns:
-        Interpolated tensor
+    Handles 3D and higher-dimensional tensors by flattening leading dims.
     """
+    # Debug: log shapes to diagnose interpolation errors
+    print(f"[DEBUG][AdaLN][interpolate_sequence_dim] tensor.shape={tensor.shape}, target_size={target_size}")
+    # If no sequence length required, return empty along sequence dim
+    if target_size <= 0:
+        # Return tensor with zero-length sequence dimension
+        *lead, seq, chan = tensor.shape
+        return tensor.reshape(*lead, 0, chan)
+    # If sequence dimension already matches, return tensor
+    if tensor.shape[-2] == target_size:
+        return tensor
+    orig_shape = tensor.shape
+    # Handle tensors with extra leading dimensions (e.g., multi-sample)
+    if tensor.dim() > 3:
+        seq_dim = orig_shape[-2]
+        chan_dim = orig_shape[-1]
+        # Flatten leading dims into batch
+        tensor_flat = tensor.reshape(-1, seq_dim, chan_dim)
+        # Interpolate along sequence dim
+        interp_flat = torch.nn.functional.interpolate(
+            tensor_flat.transpose(1, 2), size=target_size, mode="nearest"
+        ).transpose(1, 2)
+        # Restore original leading dims
+        leading_shape = orig_shape[:-2]
+        return interp_flat.reshape(*leading_shape, target_size, chan_dim)
+    # Standard 3D case
     return torch.nn.functional.interpolate(
         tensor.transpose(1, 2),  # [B, C, S]
         size=target_size,
@@ -267,7 +288,7 @@ def _has_token_dimension_mismatch(scale: torch.Tensor, a: torch.Tensor) -> bool:
 
 def _handle_fewer_tokens_in_scale(
     scale: torch.Tensor, shift: torch.Tensor, a: torch.Tensor
-) -> tuple[torch.Tensor, torch.Tensor]:
+) -> Tuple[torch.Tensor, torch.Tensor]:
     """
     Handle the case where scale has fewer tokens than a.
 
@@ -301,7 +322,7 @@ def _handle_fewer_tokens_in_scale(
 
 def _handle_more_tokens_in_scale(
     scale: torch.Tensor, shift: torch.Tensor, a: torch.Tensor
-) -> tuple[torch.Tensor, torch.Tensor]:
+) -> Tuple[torch.Tensor, torch.Tensor]:
     """
     Handle the case where scale has more tokens than a.
 
@@ -326,7 +347,7 @@ def _handle_more_tokens_in_scale(
 
 def _handle_token_dimension_mismatch(
     scale: torch.Tensor, shift: torch.Tensor, a: torch.Tensor
-) -> tuple[torch.Tensor, torch.Tensor]:
+) -> Tuple[torch.Tensor, torch.Tensor]:
     """
     Handle token dimension mismatch between scale/shift and a tensors.
 
@@ -351,7 +372,7 @@ def _handle_token_dimension_mismatch(
 
 def _handle_sequence_length_mismatch(
     scale: torch.Tensor, shift: torch.Tensor, a: torch.Tensor
-) -> tuple[torch.Tensor, torch.Tensor]:
+) -> Tuple[torch.Tensor, torch.Tensor]:
     """
     Handle sequence length mismatch between scale/shift and a tensors.
 
@@ -376,7 +397,7 @@ def _handle_sequence_length_mismatch(
 
 def _handle_general_dimension_mismatch(
     scale: torch.Tensor, shift: torch.Tensor, a: torch.Tensor
-) -> tuple[torch.Tensor, torch.Tensor]:
+) -> Tuple[torch.Tensor, torch.Tensor]:
     """
     Handle general dimension mismatches between scale/shift and a tensors.
 
@@ -399,7 +420,7 @@ def _handle_general_dimension_mismatch(
 
 def adjust_tensor_shapes(
     scale: torch.Tensor, shift: torch.Tensor, a: torch.Tensor
-) -> tuple[torch.Tensor, torch.Tensor]:
+) -> Tuple[torch.Tensor, torch.Tensor]:
     """
     Adjust tensor shapes when broadcasting fails.
 

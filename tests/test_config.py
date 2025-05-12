@@ -8,46 +8,9 @@ from hydra.core.global_hydra import GlobalHydra
 # Hydra config_path must always be RELATIVE to the runtime CWD!
 # This logic ensures correct relative path for both project root and tests/ as CWD.
 def get_hydra_conf_path():
-    # Dynamically compute config_path RELATIVE to the runtime CWD, per Hydra best practices
-    """
-    Determines the relative path to the Hydra configuration directory for testing.
-    
-    Attempts to compute a path to the 'rna_predict/conf' directory relative to the current
-    working directory, ensuring the directory exists and contains 'default.yaml'. If any
-    check fails, returns the fallback path 'rna_predict/conf'.
-    """
+    # Compute config_path relative to this test file for Hydra
     abs_conf = Path(__file__).parent.parent / "rna_predict" / "conf"
-    abs_conf = abs_conf.resolve()
-    cwd = Path.cwd().resolve()
-
-    # Print debug information
-    print(f"[DEBUG][test_config.py] abs_conf: {abs_conf}", file=sys.stderr)
-    print(f"[DEBUG][test_config.py] cwd: {cwd}", file=sys.stderr)
-    print(f"[DEBUG][test_config.py] abs_conf exists: {abs_conf.exists()}", file=sys.stderr)
-    print(f"[DEBUG][test_config.py] abs_conf is dir: {abs_conf.is_dir()}", file=sys.stderr)
-
-    # Check if the config directory exists
-    if not abs_conf.exists() or not abs_conf.is_dir():
-        print(f"[ERROR][test_config.py] Config dir {abs_conf} does not exist or is not a directory", file=sys.stderr)
-        # Use a fallback path for testing
-        return "rna_predict/conf"
-
-    try:
-        rel_conf = abs_conf.relative_to(cwd)
-        config_path = str(rel_conf)
-    except ValueError:
-        # abs_conf is not a subdirectory of cwd
-        print(f"[ERROR][test_config.py] Config dir {abs_conf} is not under CWD {cwd}", file=sys.stderr)
-        # Use a fallback path for testing
-        return "rna_predict/conf"
-
-    print(f"[DEBUG][test_config.py] Using computed RELATIVE config path: {config_path}", file=sys.stderr)
-    if not (abs_conf.is_dir() and (abs_conf / "default.yaml").exists()):
-        print(f"[ERROR][test_config.py] Config path {abs_conf} is missing or does not contain default.yaml", file=sys.stderr)
-        # Use a fallback path for testing
-        return "rna_predict/conf"
-
-    return config_path
+    return os.path.relpath(abs_conf, start=Path(__file__).parent)
 
 @pytest.fixture
 def hydra_config():
@@ -55,9 +18,15 @@ def hydra_config():
     print(f"[DEBUG][test_config.py] CWD at start of hydra_config fixture: {os.getcwd()}", file=sys.stderr)
     conf_path = get_hydra_conf_path()
     print(f"[DEBUG][test_config.py] CWD immediately before hydra.initialize: {os.getcwd()}", file=sys.stderr)
-    print(f"[DEBUG][test_config.py] Absolute path for config: {os.path.abspath(conf_path)}", file=sys.stderr)
+    print(f"[DEBUG][test_config.py] Relative path for config: {conf_path}", file=sys.stderr)
     print(f"[DEBUG][test_config.py] Listing CWD: {os.listdir(os.getcwd())}", file=sys.stderr)
-    print(f"[DEBUG][test_config.py] Listing config dir: {os.listdir(conf_path)}", file=sys.stderr)
+    # List config directory using absolute path to avoid CWD-relative errors
+    try:
+        cfg_dir = os.path.abspath(conf_path)
+        entries = os.listdir(cfg_dir)
+        print(f"[DEBUG][test_config.py] Listing config dir (abs): {entries}", file=sys.stderr)
+    except Exception as e:
+        print(f"[ERROR][test_config.py] Could not list config dir at {conf_path}: {e}", file=sys.stderr)
     print(f"[DEBUG][test_config.py] Type of conf_path: {type(conf_path)}", file=sys.stderr)
     try:
         with initialize(version_base=None, config_path=conf_path):
@@ -141,8 +110,8 @@ seed: 42
 
 # Unskipped: Check config file exists (Hydra-based)
 def test_config_file_exists():
-    conf_path = get_hydra_conf_path()
-    config_path = Path(conf_path) / "default.yaml"
+    # Ensure default.yaml exists in the repo config directory
+    config_path = Path(__file__).parent.parent / "rna_predict" / "conf" / "default.yaml"
     assert config_path.exists(), "default.yaml config file should exist"
 
 # Unskip config structure test due to Hydra configuration issues

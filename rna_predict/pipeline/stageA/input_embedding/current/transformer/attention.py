@@ -619,6 +619,7 @@ class AttentionPairBias(nn.Module):
         inplace_safe: bool = False,
         chunk_size: Optional[int] = None,
     ) -> torch.Tensor:
+        print(f"[DEBUG][APB] ENTRY: a.requires_grad={a.requires_grad}, s.requires_grad={s.requires_grad}, z.requires_grad={z.requires_grad}, a.shape={a.shape}, s.shape={s.shape}, z.shape={z.shape}")
         """
         Forward pass for the AttentionPairBias module.
 
@@ -639,6 +640,7 @@ class AttentionPairBias(nn.Module):
             a = self.layernorm_a(a=a, s=s)
         else:
             a = self.layernorm_a(a)
+        print(f"[DEBUG][APB] after layernorm_a: a.requires_grad={a.requires_grad}, shape={a.shape}")
 
         # Multihead attention with pair bias
         if n_queries and n_keys:
@@ -651,11 +653,14 @@ class AttentionPairBias(nn.Module):
                 inplace_safe=inplace_safe,
                 chunk_size=chunk_size,
             )
+            print(f"[DEBUG][APB] after local_multihead_attention: a.requires_grad={a.requires_grad}, shape={a.shape}")
         else:
             a = self.standard_multihead_attention(a, s, z, inplace_safe=inplace_safe)
+            print(f"[DEBUG][APB] after standard_multihead_attention: a.requires_grad={a.requires_grad}, shape={a.shape}")
 
         # Output projection with gating if has_s
         if self.has_s:
             a = self._apply_gating(a, s, inplace_safe)
-
+            print(f"[DEBUG][APB] after _apply_gating: a.requires_grad={a.requires_grad}, shape={a.shape}")
+        print(f"[DEBUG][APB] RETURN: a.requires_grad={a.requires_grad}, shape={a.shape}")
         return a

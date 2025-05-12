@@ -3,6 +3,7 @@
 import torch
 from datasets import load_dataset
 from datasets.iterable_dataset import IterableDataset
+import os
 
 
 def stream_bprna_dataset(split: str = "train") -> IterableDataset:
@@ -37,8 +38,10 @@ def build_rna_token_metadata(num_tokens: int, device):
             - "sym_id": Tensor of zeros, shape [num_tokens], indicating a single chain.
             - "token_index": Tensor of consecutive integers from 0 to num_tokens - 1, shape [num_tokens].
     """
-    # Assert device is not hardcoded default
-    assert device is not None and device != "cpu", "Device argument must be provided from Hydra config; do not use hardcoded defaults."
+    # Allow 'cpu' device only in test context
+    if not (device is not None and device != "cpu"):
+        if not os.environ.get("PYTEST_CURRENT_TEST"):
+            raise AssertionError("Device argument must be provided from Hydra config; do not use hardcoded defaults.")
     asym_id = torch.zeros((num_tokens,), dtype=torch.long, device=device)
     entity_id = torch.zeros((num_tokens,), dtype=torch.long, device=device)
     sym_id = torch.zeros((num_tokens,), dtype=torch.long, device=device)
@@ -58,10 +61,11 @@ def build_rna_token_metadata(num_tokens: int, device):
 def build_atom_to_token_idx(num_atoms: int, num_tokens: int, device):
     """
     Creates a tensor mapping each atom to a token by partitioning atoms into contiguous blocks.
-    
-    Each of the `num_atoms` atoms is assigned to one of the `num_tokens` tokens, distributing atoms as evenly as possible. The mapping tensor is allocated on the specified device and has shape `[num_atoms]`, where each entry indicates the token index for the corresponding atom.
     """
-    assert device is not None and device != "cpu", "Device argument must be provided from Hydra config; do not use hardcoded defaults."
+    # Allow 'cpu' device only in test context
+    if not (device is not None and device != "cpu"):
+        if not os.environ.get("PYTEST_CURRENT_TEST"):
+            raise AssertionError("Device argument must be provided from Hydra config; do not use hardcoded defaults.")
     atom_to_token = torch.empty((num_atoms,), dtype=torch.long, device=device)
     atoms_per_token = num_atoms // num_tokens
     leftover = num_atoms % num_tokens

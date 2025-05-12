@@ -163,8 +163,8 @@ outputs/
 *.output
 
 # TEMPORARY: allow .log files for debugging
-*.log
-*.log* 
+#*.log
+#*.log* 
 
 # Added by Claude Task Master
 # Logs

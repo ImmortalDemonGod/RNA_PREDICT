@@ -8,7 +8,6 @@ Tests for MSA-related components including:
 
 import unittest
 from unittest.mock import patch
-import pytest
 
 import torch
 from hypothesis import given, settings
@@ -533,10 +532,10 @@ class TestMSAModule(unittest.TestCase):
         module = MSAModule(msa_config_obj)
 
         # Verify configs were properly set
-        self.assertEqual(module.msa_configs["train_cutoff"], 128)
-        self.assertEqual(module.msa_configs["test_cutoff"], 256)
-        self.assertEqual(module.msa_configs["train_lowerb"], 2)
-        self.assertEqual(module.msa_configs["test_lowerb"], 4)
+        self.assertEqual(module.msa_configs.train_cutoff, 128)
+        self.assertEqual(module.msa_configs.test_cutoff, 256)
+        self.assertEqual(module.msa_configs.train_lowerb, 2)
+        self.assertEqual(module.msa_configs.test_lowerb, 4)
 
         z_in = torch.randn((batch_size, n_token, n_token, c_z), dtype=torch.float32)
         s_inputs = torch.randn((batch_size, n_token, 8), dtype=torch.float32)
@@ -588,8 +587,8 @@ class TestMSAModule(unittest.TestCase):
         minimal_module = MSAModule(minimal_msa_config)
 
         # Verify default configs were properly set
-        self.assertEqual(minimal_module.msa_configs["train_cutoff"], 512)
-        self.assertEqual(minimal_module.msa_configs["test_cutoff"], 16384)
+        self.assertEqual(minimal_module.msa_configs.train_cutoff, 512)
+        self.assertEqual(minimal_module.msa_configs.test_cutoff, 16384)
 
         minimal_out_z = minimal_module.forward(input_dict, z_in, s_inputs, mask)
         self.assertEqual(minimal_out_z.shape, z_in.shape)

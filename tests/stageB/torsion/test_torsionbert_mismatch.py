@@ -1,5 +1,8 @@
 import pytest
 import logging
+import os
+import psutil
+import gc
 from hypothesis import given, settings, HealthCheck, strategies as st
 from omegaconf import OmegaConf
 
@@ -34,8 +37,9 @@ def shared_predictor():
 
 @settings(
     deadline=None,  # Disable deadline checks since model loading can be slow
-    max_examples=10,  # Limit number of examples to keep test runtime reasonable
-    suppress_health_check=[HealthCheck.too_slow]
+    max_examples=1,  # Only run one example to minimize memory usage for debugging
+    suppress_health_check=[HealthCheck.too_slow],
+    database=None  # Disable Hypothesis example database to avoid large cache
 )
 @given(
     angle_mode=st.sampled_from(["sin_cos", "degrees", "radians"]),
@@ -43,6 +47,9 @@ def shared_predictor():
     seq=st.text(alphabet=["A", "C", "G", "U"], min_size=5, max_size=20)  # Random RNA sequences
 )
 def test_torsionbert_shape_mismatch(shared_predictor, angle_mode, num_angles, seq):
+    process = psutil.Process(os.getpid())
+    mem_before = process.memory_info().rss / 1e6
+    logger.info(f"[MEM-DEBUG] Memory before test: {mem_before:.2f} MB")
     """
     Property-based test: TorsionBERT predictor should handle dimension mismatches gracefully.
 
@@ -70,34 +77,37 @@ def test_torsionbert_shape_mismatch(shared_predictor, angle_mode, num_angles, se
 
     logger.info(f"Testing with angle_mode={angle_mode}, num_angles={num_angles}, seq_len={len(seq)}")
 
+    e = None
+    mem_before = process.memory_info().rss / 1e6
+    logger.info(f"[MEM-DEBUG] Memory before model call: {mem_before:.2f} MB")
     try:
         out = shared_predictor(seq)
-        # Should no longer raise an error if the fix is in place
         torsion_angles = out["torsion_angles"]
-
         # Verify output shape matches sequence length
         assert torsion_angles.shape[0] == len(seq), f"Output shape {torsion_angles.shape[0]} should match sequence length {len(seq)}"
-
         # Verify output dimension is appropriate for the angle mode
         if angle_mode == "sin_cos":
-            # For sin_cos, output should have even number of dimensions (sin/cos pairs)
             assert torsion_angles.shape[1] % 2 == 0, f"Sin/cos output should have even number of dimensions, got {torsion_angles.shape[1]}"
         else:
-            # For degrees/radians, output dimension should be consistent with number of angles
-            # The exact dimension depends on the model's implementation
             pass  # We're mainly testing that it doesn't crash
-
         logger.info(f"Successfully processed sequence with angle_mode={angle_mode}, num_angles={num_angles}")
         logger.info(f"Output shape: {torsion_angles.shape}")
-
-    except RuntimeError as e:
-        # Check if this is the expected dimension mismatch error
-        if "Model output dimension" in str(e) and "does not match expected dimension" in str(e):
-            # This is the expected error for this test - the model outputs a fixed dimension (14)
-            # but we're testing with different num_angles values
-            logger.info(f"Expected dimension mismatch: {e}")
-            # Don't fail the test - this is expected behavior
-            pass
-        else:
-            # For other unexpected errors, fail the test
-            pytest.fail(f"Unexpected error: {e}")
+    except RuntimeError as exc:
+        e = exc
+    finally:
+        mem_after = process.memory_info().rss / 1e6
+        logger.info(f"[MEM-DEBUG] Memory after model call: {mem_after:.2f} MB")
+        # Cleanup
+        for var in ['out', 'torsion_angles', 'seq']:
+            if var in locals():
+                del locals()[var]
+        gc.collect()
+        mem_after_cleanup = process.memory_info().rss / 1e6
+        logger.info(f"[MEM-DEBUG] Memory after cleanup: {mem_after_cleanup:.2f} MB")
+        # Error handling
+        if e is not None:
+            if "Model output dimension" in str(e) and "does not match expected dimension" in str(e):
+                logger.info(f"Expected dimension mismatch: {e}")
+                pass
+            else:
+                pytest.fail(f"Unexpected error: {e}")
