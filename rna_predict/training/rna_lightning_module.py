@@ -20,6 +20,7 @@ from rna_predict.pipeline.stageA.adjacency.rfold_predictor import StageARFoldPre
 from rna_predict.pipeline.stageB.torsion.torsion_bert_predictor import StageBTorsionBertPredictor
 from rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager import ProtenixDiffusionManager
 from rna_predict.dataset.preprocessing.angle_utils import angles_rad_to_sin_cos
+from rna_predict.dataset.preprocessing.angles import extract_rna_torsions
 
 # TODO: These modules need to be implemented or moved to the correct location
 # from rna_predict.models.latent_merger import LatentMerger
@@ -579,6 +580,24 @@ class RNALightningModule(L.LightningModule):
 
         logger.debug(f"[DEBUG-LM] loss_angle value: {loss_angle.item()}, device: {loss_angle.device}")
         self.log("angle_loss", loss_angle, on_step=True, on_epoch=True, prog_bar=True)
+
+        # Streamlined mode: compute torsion via DSSR, then Stage C
+        if getattr(self.cfg.training, 'streamline_mode', False):
+            # Use true PDB path from batch (first element)
+            pdb_file = batch['pdb_path'][0]
+            # Extract torsion angles via DSSR backend as numpy array [L, N]
+            angles_np = extract_rna_torsions(pdb_file, chain_id=self.cfg.test_data.target_id, backend=self.cfg.extraction_backend)
+            pred_angles = torch.tensor(angles_np, device=self.device_).unsqueeze(0)
+            # Reconstruct atom coords
+            outC = run_stageC(sequence=batch['sequence'][0], torsion_angles=pred_angles, cfg=self.cfg)
+            coords_pred = outC['coords'].to(self.device_)
+            coords_true = batch['coords_true'].to(self.device_)
+            if coords_true.dim() == 2:
+                coords_true = coords_true.unsqueeze(0)
+            # Compute coordinate loss
+            coord_loss = torch.nn.functional.mse_loss(coords_pred, coords_true)
+            total_loss = loss_angle + coord_loss
+            return {"loss": total_loss}
 
         # Skip Stage D if disabled in config
         if not self.cfg.run_stageD:
