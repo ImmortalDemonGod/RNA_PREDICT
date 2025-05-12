@@ -182,8 +182,9 @@ def main(cfg: DictConfig):
         try:
             trainer = L.Trainer(
                 callbacks=[checkpoint_callback],
-                max_epochs=1,  # Run at least one epoch
-                # FIX: Use cfg.device for accelerator, and set devices accordingly
+                max_epochs=cfg.training.epochs,
+                limit_train_batches=cfg.training.limit_train_batches,
+                # Use cfg.device for accelerator, and set devices accordingly
                 accelerator=cfg.device,
                 devices=1 if cfg.device in ['mps', 'cuda'] else cfg.training.devices
             )

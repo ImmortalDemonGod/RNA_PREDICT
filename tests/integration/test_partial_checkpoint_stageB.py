@@ -11,7 +11,7 @@ from rna_predict.pipeline.stageB.torsion.torsion_bert_predictor import StageBTor
 from rna_predict.pipeline.stageB.pairwise.pairformer_wrapper import PairformerWrapper
 from rna_predict.utils.checkpointing import save_trainable_checkpoint
 from rna_predict.utils.checkpoint import partial_load_state_dict
-from hydra.experimental import initialize_config_dir
+from hydra import initialize_config_dir
 import tempfile
 from hypothesis import given, strategies as st, settings
 

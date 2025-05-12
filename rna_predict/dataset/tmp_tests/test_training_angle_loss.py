@@ -1,15 +1,12 @@
 import pytest
 import torch
-import os
-from hydra import initialize, compose
-
+from hydra import initialize_config_dir, compose
 from rna_predict.training.rna_lightning_module import RNALightningModule
 
 @pytest.fixture(scope="function")
 def cfg():
-    # Initialize Hydra config for tests
-    # Hypothesis H1: Use CWD-relative config_path
-    with initialize(config_path="rna_predict/conf", version_base=None, job_name="test_training_angle_loss"):
+    # Initialize Hydra with absolute config directory
+    with initialize_config_dir(config_dir="/Users/tomriddle1/RNA_PREDICT/rna_predict/conf", version_base=None, job_name="test_training_angle_loss"):
         cfg = compose(config_name="default", overrides=["run_stageD=false", "model.stageD.debug_logging=false"])
     return cfg
 
@@ -30,6 +27,9 @@ def dummy_batch(cfg):
         "coords_true": torch.zeros((1, L, 3)),
         "atom_mask": torch.ones((1, L * cfg.atoms_per_residue), dtype=torch.bool),
         "atom_to_token_idx": torch.arange(L, dtype=torch.long).repeat_interleave(cfg.atoms_per_residue).reshape(1, -1),
+        # Atom metadata required by forward
+        "ref_element": list(seq),                    # list of residue elements
+        "ref_atom_name_chars": list(seq),            # list of atom name chars per residue
     }
     return batch
 

@@ -12,9 +12,10 @@ def test_extract_rna_torsions_wrong_backend():
     with pytest.raises(ValueError):
         extract_rna_torsions("not_a_file.pdb", backend="nonsense")
 
-def test_extract_rna_torsions_dssr_not_implemented():
-    with pytest.raises(NotImplementedError):
-        extract_rna_torsions("not_a_file.pdb", backend="dssr")
+def test_extract_rna_torsions_dssr_backend_file_not_found():
+    # DSSR backend should return None for nonexistent files
+    result = extract_rna_torsions("not_a_file.pdb", backend="dssr")
+    assert result is None, "Expected None for DSSR backend when file not found"
 
 def test_extract_rna_torsions_file_not_found():
     assert extract_rna_torsions("/tmp/this_file_does_not_exist.pdb") is None
@@ -124,6 +125,33 @@ def test_extract_rna_torsions_parametrized(filename, chain_id, angle_set, expect
     # Check angles are in valid range
     valid = np.abs(angles[~np.isnan(angles)]) <= np.pi + 1e-3
     assert np.all(valid), f"Angles out of range for {filename} ({angle_set})"
+
+@pytest.mark.parametrize("filename,chain_id,angle_set,expected_shape", [
+    ("1a34_1_B.cif", "B", "canonical", (None, 7)),
+    ("1a34_1_B.cif", "B", "full", (None, 14)),
+    ("1a9n_1_R.cif", "R", "canonical", (None, 7)),
+    ("1a9n_1_R.cif", "R", "full", (None, 14)),
+    ("RNA_NET_1a9n_1_Q.cif", "Q", "canonical", (None, 7)),
+    ("RNA_NET_1a9n_1_Q.cif", "Q", "full", (None, 14)),
+    ("synthetic_cppc_0000001.pdb", "B", "canonical", (None, 7)),
+    ("synthetic_cppc_0000001.pdb", "B", "full", (None, 14)),
+])
+def test_extract_rna_torsions_dssr_parametrized(filename, chain_id, angle_set, expected_shape):
+    """
+    Smoke test for DSSR backend: canonical and full angle sets.
+    """
+    path = os.path.join(EXAMPLES_DIR, filename)
+    angles = extract_rna_torsions(path, chain_id=chain_id, backend="dssr", angle_set=angle_set)
+    assert angles is not None, f"Failed to extract angles via DSSR for {filename} ({angle_set})"
+    assert angles.shape[-1] == expected_shape[1]
+    assert angles.ndim in (1, 2)
+    if angles.ndim == 2:
+        assert np.all(np.any(~np.isnan(angles), axis=1)), f"All angles are nan in at least one row for DSSR {filename} ({angle_set})"
+    else:
+        assert np.any(~np.isnan(angles)), f"All angles are nan for DSSR {filename} ({angle_set})"
+    assert np.all(np.isfinite(angles) | np.isnan(angles))
+    valid = np.abs(angles[~np.isnan(angles)]) <= np.pi + 1e-3
+    assert np.all(valid), f"Angles out of range for DSSR {filename} ({angle_set})"
 
 def test_extract_rna_torsions_missing_atoms_nan():
     """

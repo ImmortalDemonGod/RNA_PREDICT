@@ -2,7 +2,7 @@ import torch
 import pytest
 from unittest.mock import MagicMock
 from hydra import compose, initialize
-
+import torch  # required for tensor creation and device handling in tests
 from rna_predict.training.rna_lightning_module import RNALightningModule
 
 @pytest.fixture
