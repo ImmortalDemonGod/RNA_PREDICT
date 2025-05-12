@@ -80,7 +80,9 @@ def _get_debug_logging(stage_cfg):
 def _validate_and_extract_test_data_cfg(cfg):
     # This function is already simple; no refactor needed for complexity.
     sequence_str = getattr(cfg, "test_sequence", "ACGU")
-    atoms_per_residue = getattr(cfg, "atoms_per_residue", 21)
+    if not hasattr(cfg, "atoms_per_residue"):
+        raise ValueError("Config missing required 'atoms_per_residue' field. Please check your Hydra config.")
+    atoms_per_residue = cfg.atoms_per_residue
     return sequence_str, atoms_per_residue
 
 

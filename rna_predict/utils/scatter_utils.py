@@ -48,8 +48,25 @@ def scatter_mean(
     Returns:
       out: Tensor of shape [dim_size, c] containing the per-segment average.
     """
+    # Validate that src and index have matching lengths along scatter dimension
+    if src.size(dim) != index.size(0):
+        raise IndexError(f"src length ({src.size(dim)}) and index length ({index.size(0)}) must match")
     device = src.device
     c = src.size(-1)
+    # Adjust dim_size based on index values to avoid out-of-bounds
+    try:
+        max_idx = int(index.max().item()) if index.numel() > 0 else -1
+        if max_idx >= dim_size:
+            dim_size = max_idx + 1
+    except Exception:
+        pass
+    # Clamp index values to valid range
+    try:
+        index = index.clamp(min=0, max=dim_size - 1)
+    except Exception:
+        pass
+    print(f"[DEBUG][scatter_mean] index shape: {index.shape}, values: {index.tolist()}")
+    print(f"[DEBUG][scatter_mean] dim_size (N_token): {dim_size}")
     out = torch.zeros(dim_size, c, device=device)
     counts = torch.zeros(dim_size, device=device)
     # Use torch_scatter if available for efficiency, otherwise loop
@@ -62,16 +79,18 @@ def scatter_mean(
             dim, index, torch.ones_like(src[:, 0])
         )  # Count occurrences for each index
     except (ImportError, ModuleNotFoundError):
-        # Fallback loop if torch_scatter is not installed
-        for i in range(src.size(0)):
-            # Ensure index is explicitly int for tensor indexing
-            idx = int(index[i].item())
-            if idx >= dim_size:
-                import warnings
-                warnings.warn(f"[scatter_mean fallback] index {idx} >= dim_size ({dim_size}). Clipping to {dim_size-1}.")
-                idx = dim_size - 1
-            out[idx] += src[i]
-            counts[idx] += 1.0
+        # Systematic debug output before fallback loop
+        print(f"[DEBUG][scatter_mean-fallback] dim_size = {dim_size}")
+        print(f"[DEBUG][scatter_mean-fallback] index.min() = {index.min().item() if index.numel() > 0 else 'N/A'}")
+        print(f"[DEBUG][scatter_mean-fallback] index.max() = {index.max().item() if index.numel() > 0 else 'N/A'}")
+        print(f"[DEBUG][scatter_mean-fallback] index = {index.tolist()}")
+        # Differentiable fallback using torch.scatter_add_
+        # src: [N, c], index: [N], out: [dim_size, c]
+        expanded_index = index.unsqueeze(-1).expand(-1, src.size(-1))
+        out = out.scatter_add(0, expanded_index, src)
+        # For counts, use ones_like on src[..., 0] to match index shape
+        ones = torch.ones_like(src[..., 0])
+        counts = counts.scatter_add(0, index, ones)
 
     counts = torch.clamp(counts, min=1.0)  # Avoid division by zero
     out = out / counts.unsqueeze(-1)

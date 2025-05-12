@@ -355,9 +355,12 @@ def fix_linear_forward():
         if input.dim() > 2:
             # Reshape input to 2D
             orig_shape = input.shape
-            input = input.reshape(-1, input.shape[-1])
-            output = original_linear(self, input)
-            return output.reshape(*orig_shape[:-1], -1)
+            input_flat = input.reshape(-1, input.shape[-1])
+            output_flat = original_linear(self, input_flat)
+            # Determine output feature dimension explicitly
+            out_feat = output_flat.shape[-1]
+            # Reshape back to original dimensions with correct feature size
+            return output_flat.reshape(*orig_shape[:-1], out_feat)
         return original_linear(self, input)
 
     # Replace the original method

@@ -7,11 +7,11 @@ representations in the Stage D diffusion process.
 
 import logging
 import os
+import torch
 from dataclasses import dataclass
 from typing import Any, Dict, List
-import torch
 import psutil
-from rna_predict.utils.tensor_utils import residue_to_atoms
+from rna_predict.utils.tensor_utils import residue_to_atoms, derive_residue_atom_map
 from rna_predict.utils.shape_utils import adjust_tensor_feature_dim
 from ..utils.tensor_utils import normalize_tensor_dimensions
 from .sequence_utils import extract_sequence
@@ -461,6 +461,12 @@ def _process_one_trunk_embedding(
             feature_dimensions = config.model.stageD.diffusion.feature_dimensions
             logger.debug("[_process_one_trunk_embedding] Found feature_dimensions in config.model.stageD.diffusion")
 
+        # Path 10: Check if config has cfg.model.stageD.diffusion.feature_dimensions (for DiffusionConfig with cfg)
+        elif hasattr(config, 'cfg') and hasattr(config.cfg, 'model') and hasattr(config.cfg.model, 'stageD') and \
+             hasattr(config.cfg.model.stageD, 'diffusion') and hasattr(config.cfg.model.stageD.diffusion, 'feature_dimensions'):
+            feature_dimensions = config.cfg.model.stageD.diffusion.feature_dimensions
+            logger.debug("[_process_one_trunk_embedding] Found feature_dimensions in config.cfg.model.stageD.diffusion")
+
         # If feature_dimensions was found, extract the expected dimension
         if feature_dimensions is not None:
             # Try to get the dimension based on the key
@@ -626,6 +632,12 @@ def process_input_features(
     batch_size: int,
     debug_logging: bool = False,
 ) -> Dict[str, Any]:
+    # SYSTEMATIC DEBUGGING: Print requires_grad, shape, dtype for all input_features before and after expansion
+    if debug_logging and input_features:
+        for k, v in input_features.items():
+            if isinstance(v, torch.Tensor):
+                print(f"[INSTRUMENT][BRIDGE][process_input_features][BEFORE] input_features['{k}']: shape={v.shape}, dtype={v.dtype}, requires_grad={v.requires_grad}, is_leaf={v.is_leaf if hasattr(v, 'is_leaf') else 'N/A'}")
+
     """
     Process input features to ensure tensor shapes are compatible.
 
@@ -646,11 +658,11 @@ def process_input_features(
         input_features = {}
 
     # Import torch here to avoid UnboundLocalError
-    import torch
+
 
     # Calculate total number of atoms and residues
     n_atoms = sum(len(atoms) for atoms in residue_atom_map)
-    n_residues = len(residue_atom_map)
+    len(residue_atom_map)
 
     # Identify residue-level tensors that need to be expanded to atom-level
     residue_level_keys = ["ref_charge", "ref_element", "ref_atom_name_chars", "ref_mask", "restype", "profile", "deletion_mean"]
@@ -708,76 +720,92 @@ def process_input_features(
                     print(f"[DEBUG][BRIDGE] Using first sample for {key}, shape {fixed_input_features[key].shape}")
             continue
 
-        # Check if this is a residue-level tensor that needs expansion
-        if key in residue_level_keys and value.shape[1] == n_residues:
-            # This is a residue-level tensor that needs to be expanded to atom-level
-            if debug_logging:
-                print(f"[DEBUG][BRIDGE] Expanding residue-level tensor {key} from shape {value.shape} to atom-level")
-            B, _, *rest_dims = value.shape
-            rest_shape = tuple(rest_dims)
-
-            # Create a new tensor with atom-level dimensions
-            expanded_value = torch.zeros((B, n_atoms, *rest_shape), device=value.device, dtype=value.dtype)
-
-            # Fill in the expanded tensor by repeating each residue's values for its atoms
-            atom_counter = 0
-            for res_idx, atom_indices in enumerate(residue_atom_map):
-                n_atoms_in_res = len(atom_indices)
-                if n_atoms_in_res == 0:
-                    continue
-
-                # Expand the residue's values to all its atoms
-                if len(rest_shape) == 0:  # No extra dimensions
-                    expanded_value[:, atom_counter:atom_counter+n_atoms_in_res] = value[:, res_idx:res_idx+1].expand(B, n_atoms_in_res)
-                else:  # Has extra dimensions
-                    expanded_value[:, atom_counter:atom_counter+n_atoms_in_res] = value[:, res_idx:res_idx+1].expand(B, n_atoms_in_res, *rest_shape)
-
-                atom_counter += n_atoms_in_res
-
-            fixed_input_features[key] = expanded_value
-            if debug_logging:
-                print(f"[DEBUG][BRIDGE] Expanded {key} to shape {expanded_value.shape}")
+        # For all residue-level keys, forcibly expand to atom-level if not already at atom-level
+        if key in residue_level_keys:
+            # If already at atom-level, skip expansion
+            if value.shape[1] == n_atoms:
+                fixed_input_features[key] = value
+                if debug_logging:
+                    print(f"[DEBUG][BRIDGE] {key} already at atom-level shape {value.shape}, skipping expansion.")
+            else:
+                # Expand from residue-level to atom-level
+                if debug_logging:
+                    print(f"[DEBUG][BRIDGE] Expanding {key} from shape {value.shape} to atom-level (n_atoms={n_atoms})")
+                B = value.shape[0]
+                rest_shape = value.shape[2:] if value.dim() > 2 else ()
+                expanded_value = torch.zeros((B, n_atoms, *rest_shape), device=value.device, dtype=value.dtype)
+                atom_counter = 0
+                for res_idx, atom_indices in enumerate(residue_atom_map):
+                    n_atoms_in_res = len(atom_indices)
+                    if n_atoms_in_res == 0:
+                        continue
+                    if value.dim() == 2:
+                        expanded_value[:, atom_counter:atom_counter+n_atoms_in_res] = value[:, res_idx:res_idx+1].expand(B, n_atoms_in_res)
+                    else:
+                        expanded_value[:, atom_counter:atom_counter+n_atoms_in_res] = value[:, res_idx:res_idx+1].expand(B, n_atoms_in_res, *rest_shape)
+                    atom_counter += n_atoms_in_res
+                fixed_input_features[key] = expanded_value
+                if debug_logging:
+                    print(f"[DEBUG][BRIDGE] Expanded {key} to shape {expanded_value.shape}")
+                assert expanded_value.shape[1] == n_atoms, f"Expansion failed for {key}, got shape {expanded_value.shape}, expected n_atoms={n_atoms}"
         else:
             # Keep other tensors as is for now
             fixed_input_features[key] = value
 
-    # Ensure ref_pos uses the partial_coords
-    fixed_input_features["ref_pos"] = partial_coords
+    # Ensure ref_pos uses the partial_coords and is atom-level
+    if partial_coords.shape[1] == n_atoms:
+        fixed_input_features["ref_pos"] = partial_coords
+        if debug_logging:
+            print(f"[DEBUG][BRIDGE] ref_pos set to atom-level partial_coords shape {partial_coords.shape}")
+    else:
+        # Expand residue-level coords to atom-level
+        B = partial_coords.shape[0]
+        rest_shape = partial_coords.shape[2:] if partial_coords.dim() > 2 else ()
+        expanded_coords = torch.zeros((B, n_atoms, *rest_shape), device=partial_coords.device, dtype=partial_coords.dtype)
+        atom_counter = 0
+        for res_idx, atom_indices in enumerate(residue_atom_map):
+            n_atoms_in_res = len(atom_indices)
+            if n_atoms_in_res == 0:
+                continue
+            if partial_coords.dim() == 2:
+                expanded_coords[:, atom_counter:atom_counter+n_atoms_in_res] = partial_coords[:, res_idx:res_idx+1].expand(B, n_atoms_in_res)
+            else:
+                expanded_coords[:, atom_counter:atom_counter+n_atoms_in_res] = partial_coords[:, res_idx:res_idx+1].expand(B, n_atoms_in_res, *rest_shape)
+            atom_counter += n_atoms_in_res
+        fixed_input_features["ref_pos"] = expanded_coords
+        if debug_logging:
+            print(f"[DEBUG][BRIDGE] Expanded ref_pos from shape {partial_coords.shape} to atom-level {expanded_coords.shape}")
+        assert expanded_coords.shape[1] == n_atoms, f"ref_pos expansion failed, got shape {expanded_coords.shape}, expected n_atoms={n_atoms}"
 
-    # CRITICAL FIX: Create atom_to_token_idx mapping from residue_atom_map
-    # This is essential for the diffusion model to correctly map between atom and residue representations
-    # Always recreate atom_to_token_idx to ensure it matches the current residue_atom_map
-    # Create a tensor that maps each atom to its corresponding residue index
+    # CRITICAL: Always expand atom_to_token_idx to atom-level for downstream diffusion ops
+    # This mapping ensures that each atom (after residue-to-atom bridging) knows its originating residue/token index.
+    # The shape will be [batch_size, total_atoms], where each entry is the residue index for that atom.
     total_atoms = sum(len(atoms) for atoms in residue_atom_map)
     residue_count = len(residue_atom_map)
     if debug_logging:
         print(f"[DEBUG][BRIDGE] residue_atom_map lens={[len(x) for x in residue_atom_map]} total_atoms={total_atoms} residue_count={residue_count}")
-    atom_to_token_idx = torch.zeros(
+    atom_to_token_idx = torch.empty(
         batch_size,
         total_atoms,
         dtype=torch.long,
         device=partial_coords.device,
     )
-
-    # Fill in the mapping
+    # For each residue, fill in the atom positions with the residue index
     for residue_idx, atom_indices in enumerate(residue_atom_map):
         for atom_idx in atom_indices:
             atom_to_token_idx[:, atom_idx] = residue_idx
-
-    # DEBUG: Print atom_to_token_idx shape after construction
+    # This mapping is now correct for all atoms expanded by the bridging process
     if debug_logging:
         print(f"[DEBUG][BRIDGE] atom_to_token_idx.shape={atom_to_token_idx.shape}")
-
-    # UNCONDITIONAL DEBUG: Print all keys and their shapes in fixed_input_features
+        print(f"[DEBUG][BRIDGE] Example mapping: {atom_to_token_idx[0].tolist() if batch_size > 0 else 'N/A'}")
+    # Print all feature keys and shapes for traceability
     if debug_logging:
         print("[DEBUG][BRIDGE] fixed_input_features keys and shapes:")
         for k, v in fixed_input_features.items():
             print(f"[DEBUG][BRIDGE]   {k}: shape={getattr(v, 'shape', 'N/A')} type={type(v)}")
-
-    # Add to input features - always overwrite with the correct mapping
+    # Overwrite with the correct mapping for Stage D
     fixed_input_features["atom_to_token_idx"] = atom_to_token_idx
     logger.info(f"Created atom_to_token_idx mapping with shape {atom_to_token_idx.shape}")
-
     return fixed_input_features
 
 
@@ -786,6 +814,20 @@ def bridge_residue_to_atom(
     config: Any,  # Accepts either config object or DictConfig
     debug_logging: bool = False,
 ):
+    # SYSTEMATIC DEBUGGING: Print requires_grad, shape, dtype for all trunk_embeddings and input_features
+    if debug_logging:
+        for k, v in getattr(bridging_input, 'trunk_embeddings', {}).items():
+            if isinstance(v, torch.Tensor):
+                print(f"[INSTRUMENT][BRIDGE] trunk_embeddings['{k}']: shape={v.shape}, dtype={v.dtype}, requires_grad={v.requires_grad}, is_leaf={v.is_leaf if hasattr(v, 'is_leaf') else 'N/A'}")
+    if debug_logging:
+        if hasattr(bridging_input, 'input_features') and bridging_input.input_features:
+            for k, v in bridging_input.input_features.items():
+                if isinstance(v, torch.Tensor):
+                    print(f"[INSTRUMENT][BRIDGE] input_features['{k}']: shape={v.shape}, dtype={v.dtype}, requires_grad={v.requires_grad}, is_leaf={v.is_leaf if hasattr(v, 'is_leaf') else 'N/A'}")
+    if debug_logging:
+        if hasattr(bridging_input, 'partial_coords') and isinstance(bridging_input.partial_coords, torch.Tensor):
+            print(f"[INSTRUMENT][BRIDGE] partial_coords: shape={bridging_input.partial_coords.shape}, dtype={bridging_input.partial_coords.dtype}, requires_grad={bridging_input.partial_coords.requires_grad}, is_leaf={bridging_input.partial_coords.is_leaf if hasattr(bridging_input.partial_coords, 'is_leaf') else 'N/A'}")
+
     """
     Bridges residue-level embeddings and features to atom-level representations for Stage D diffusion.
     
@@ -960,49 +1002,36 @@ def bridge_residue_to_atom(
         if debug_logging:
             print(f"[BRIDGE DEBUG] partial_coords.shape={bridging_input.partial_coords.shape}")
 
-    # --- PATCH: Always derive residue_atom_map from atom_metadata if available ---
-    from rna_predict.utils.tensor_utils import derive_residue_atom_map
-    # Use atom_metadata if present, else fallback
-    residue_atom_map = derive_residue_atom_map(
-        sequence=sequence if sequence is not None else "",
-        partial_coords=bridging_input.partial_coords,
-        atom_metadata=atom_metadata
-    )
-    n_atoms_from_map = sum(len(x) for x in residue_atom_map)
-    if debug_logging:
-        print(f"[BRIDGE DEBUG] residue_atom_map: {len(residue_atom_map)} residues, total atoms from map: {n_atoms_from_map}")
-    # Defensive: If atom_names or residue_indices present, check length matches n_atoms_from_map
-    if atom_metadata is not None:
-        if "atom_names" in atom_metadata and len(atom_metadata["atom_names"]) != n_atoms_from_map:
-            # If residue_atom_map is empty but we have atom_names, use atom_names to create a default map
-            if n_atoms_from_map == 0 and len(atom_metadata["atom_names"]) > 0:
-                logger.warning(f"[BRIDGE WARNING] residue_atom_map is empty but atom_names has {len(atom_metadata['atom_names'])} entries. Creating default map.")
-                # Create a default map with one atom per residue
-                if "residue_indices" in atom_metadata and len(atom_metadata["residue_indices"]) > 0:
-                    # Use residue_indices to create the map
-                    residue_indices = atom_metadata["residue_indices"]
-                    n_residues = max(residue_indices) + 1
-                    residue_atom_map = [[] for _ in range(n_residues)]
-                    for atom_idx, res_idx in enumerate(residue_indices):
-                        residue_atom_map[res_idx].append(atom_idx)
-                    n_atoms_from_map = len(atom_metadata["atom_names"])
-                    logger.info(f"[BRIDGE INFO] Created residue_atom_map with {n_residues} residues and {n_atoms_from_map} atoms.")
-                else:
-                    # Create a simple 1:1 mapping
-                    n_atoms = len(atom_metadata["atom_names"])
-                    residue_atom_map = [[i] for i in range(n_atoms)]
-                    n_atoms_from_map = n_atoms
-                    logger.info(f"[BRIDGE INFO] Created 1:1 residue_atom_map with {n_atoms} atoms.")
-            else:
-                raise ValueError(f"[BRIDGE ERROR] atom_names length ({len(atom_metadata['atom_names'])}) does not match total atoms from residue_atom_map ({n_atoms_from_map})")
-        if "residue_indices" in atom_metadata and len(atom_metadata["residue_indices"]) != n_atoms_from_map:
-            raise ValueError(f"[BRIDGE ERROR] residue_indices length ({len(atom_metadata['residue_indices'])}) does not match total atoms from residue_atom_map ({n_atoms_from_map})")
-    # Defensive: If partial_coords present, check shape matches
-    if bridging_input.partial_coords is not None:
-        n_atoms_coords = bridging_input.partial_coords.shape[-2]
-        if n_atoms_coords != n_atoms_from_map:
-            raise ValueError(f"[BRIDGE ERROR] partial_coords.shape[-2] ({n_atoms_coords}) does not match total atoms from residue_atom_map ({n_atoms_from_map})")
-    # Continue with the rest of the function as before
+    # PATCH: Only use real atoms (not padded) for residue-atom mapping
+    # Loader provides atom_mask: shape (max_atoms,) where True = real atom
+    atom_mask = None
+    if hasattr(bridging_input, 'input_features') and bridging_input.input_features is not None:
+        atom_mask = bridging_input.input_features.get('atom_mask', None)
+    if atom_mask is not None:
+        # Use only real atoms for mapping
+        real_atom_indices = atom_mask.nonzero(as_tuple=True)[0].tolist()
+        # Subset partial_coords and metadata to real atoms
+        partial_coords_real = bridging_input.partial_coords[:, real_atom_indices, :]
+        # If trunk_embeddings has atom_metadata, subset as well
+        atom_metadata = None
+        if hasattr(bridging_input, 'trunk_embeddings') and bridging_input.trunk_embeddings is not None:
+            atom_metadata = bridging_input.trunk_embeddings.get('atom_metadata', None)
+            if isinstance(atom_metadata, dict) and 'residue_indices' in atom_metadata:
+                atom_metadata = {k: [v[i] for i in real_atom_indices] for k, v in atom_metadata.items()}
+            elif not isinstance(atom_metadata, dict):
+                atom_metadata = None
+        # Use canonical mapping if possible, else fallback to metadata
+        residue_atom_map = derive_residue_atom_map(
+            bridging_input.sequence,
+            partial_coords=partial_coords_real,
+            atom_metadata=atom_metadata
+        )
+    else:
+        # Fallback: use all atoms (legacy behavior)
+        residue_atom_map = derive_residue_atom_map(
+            bridging_input.sequence,
+            partial_coords=bridging_input.partial_coords
+        )
     log_mem("After residue-to-atom mapping", debug_logging)
     if debug_logging:
         logger.debug(f"[bridge_residue_to_atom] residue_atom_map length: {len(residue_atom_map)}")
@@ -1085,7 +1114,7 @@ def bridge_residue_to_atom(
             )
     elif "s_inputs" in trunk_embeddings:
         s_inputs_value = trunk_embeddings["s_inputs"]
-        import torch
+    
         B, n_second_dim, c = s_inputs_value.shape
         n_residues = len(residue_atom_map)
         device = s_inputs_value.device
@@ -1129,8 +1158,11 @@ def bridge_residue_to_atom(
     # SYSTEMATIC DEBUG: Print initial shapes
     s_trunk = output_embeddings["trunk_embeddings"].get("s_trunk")
     s_inputs = output_embeddings["trunk_embeddings"].get("s_inputs")
+    if debug_logging:
+        print(f"[DEBUG][BRIDGE][PRE-EXPAND] s_trunk shape: {s_trunk.shape if s_trunk is not None else 'MISSING'}")
+        print(f"[DEBUG][BRIDGE][PRE-EXPAND] s_inputs shape: {s_inputs.shape if s_inputs is not None else 'MISSING'}")
     # Import torch here to avoid UnboundLocalError
-    import torch
+
 
     residue_atom_map = derive_residue_atom_map(
         sequence if sequence is not None else "",
@@ -1194,13 +1226,6 @@ def bridge_residue_to_atom(
             print("[BRIDGE PATCH][ATOM-LEVEL][ERROR] s_inputs missing from trunk_embeddings!")
     # SYSTEMATIC DEBUG: Print shapes before returning
     if debug_logging:
-        print(f"[BRIDGE PATCH][ATOM-LEVEL][FINAL] s_trunk: {output_embeddings['trunk_embeddings'].get('s_trunk', None).shape if output_embeddings['trunk_embeddings'].get('s_trunk', None) is not None else 'MISSING'}")
-        print(f"[BRIDGE PATCH][ATOM-LEVEL][FINAL] s_inputs: {output_embeddings['trunk_embeddings'].get('s_inputs', None).shape if output_embeddings['trunk_embeddings'].get('s_inputs', None) is not None else 'MISSING'}")
+        print(f"[DEBUG][BRIDGE][POST-EXPAND] s_trunk shape: {output_embeddings['trunk_embeddings'].get('s_trunk', None).shape if output_embeddings['trunk_embeddings'].get('s_trunk', None) is not None else 'MISSING'}")
+        print(f"[DEBUG][BRIDGE][POST-EXPAND] s_inputs shape: {output_embeddings['trunk_embeddings'].get('s_inputs', None).shape if output_embeddings['trunk_embeddings'].get('s_inputs', None) is not None else 'MISSING'}")
     return partial_coords, output_embeddings["trunk_embeddings"], output_embeddings["input_features"]
-
-try:
-    import snoop
-    if snoop:  # pragma: no cover
-        bridge_residue_to_atom = snoop()(bridge_residue_to_atom)  # type: ignore
-except ImportError:
-    snoop = None

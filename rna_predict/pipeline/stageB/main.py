@@ -1,4 +1,4 @@
-from typing import Dict, Optional, Any
+from typing import Dict, Optional, Any, Union
 import hydra
 from omegaconf import DictConfig
 
@@ -18,7 +18,7 @@ def run_stageB_combined(
     adjacency_matrix: Optional[torch.Tensor] = None,
     torsion_bert_model: Any = None,
     pairformer_model: Any = None,
-    device: str = None,
+    device: Union[str, None] = "cpu",
     init_z_from_adjacency: bool = False,
     cfg: Optional[DictConfig] = None
 ) -> Dict[str, Any]:
@@ -45,33 +45,29 @@ def run_stageB_combined(
             - "s_inputs": Optional additional single residue embeddings or None.
     """
     debug_logging = False
-    if cfg is not None and hasattr(cfg, 'model') and hasattr(cfg.model, 'stageB') and hasattr(cfg.model.stageB, 'debug_logging'):
-        debug_logging = cfg.model.stageB.debug_logging
+    if cfg is not None:
+        # Check for debug_logging at the top level
+        if hasattr(cfg, 'debug_logging'):
+            debug_logging = cfg.debug_logging
+        # Check for debug_logging in model.stageB
+        elif hasattr(cfg, 'model') and hasattr(cfg.model, 'stageB'):
+            if hasattr(cfg.model.stageB, 'debug_logging'):
+                debug_logging = cfg.model.stageB.debug_logging
+            # Check individual components
+            elif (hasattr(cfg.model.stageB, 'torsion_bert') and hasattr(cfg.model.stageB.torsion_bert, 'debug_logging') and cfg.model.stageB.torsion_bert.debug_logging) or \
+                 (hasattr(cfg.model.stageB, 'pairformer') and hasattr(cfg.model.stageB.pairformer, 'debug_logging') and cfg.model.stageB.pairformer.debug_logging):
+                debug_logging = True
+
     logger.setLevel(logging.DEBUG if debug_logging else logging.INFO)
     if debug_logging:
         logger.debug("Debug logging is enabled for StageB main.")
-
-    if debug_logging:
         logger.debug(f"Starting run_stageB_combined with sequence: {sequence}")
         logger.debug(f"torsion_bert_model: {torsion_bert_model}")
         logger.debug(f"pairformer_model: {pairformer_model}")
         logger.debug(f"device: {device}")
         logger.debug(f"init_z_from_adjacency: {init_z_from_adjacency}")
-    """
-    Run Stage B models (TorsionBERT and Pairformer) to predict torsion angles and pairwise features.
+        logger.debug(f"Configuration debug_logging: {debug_logging}")
 
-    Args:
-        sequence: RNA sequence string
-        adjacency_matrix: Adjacency matrix tensor [N, N]
-        torsion_bert_model: TorsionBERT model instance (for testing)
-        pairformer_model: Pairformer model instance (for testing)
-        device: Device to run on ('cpu' or 'cuda')
-        init_z_from_adjacency: Whether to initialize z embeddings from adjacency matrix
-        cfg: Hydra configuration object (used if torsion_bert_model and pairformer_model are None)
-
-    Returns:
-        Dictionary containing torsion angles and embeddings
-    """
     # Input validation: check that sequence length matches adjacency_matrix shape if provided
     if adjacency_matrix is not None and len(sequence) != adjacency_matrix.shape[0]:
         raise ValueError(f"Shape mismatch: sequence length ({len(sequence)}) does not match adjacency matrix shape ({adjacency_matrix.shape[0]}). [ERR-STAGEB-COMBINED-SHAPE-MISMATCH]")
@@ -85,12 +81,13 @@ def run_stageB_combined(
     if torsion_bert_model is None and cfg is not None:
         if isinstance(cfg, DictConfig):
             # DEBUG: Print the config section about to be passed to StageBTorsionBertPredictor
-            print("[DEBUG-CASCADE] About to instantiate StageBTorsionBertPredictor with cfg.model.stageB.torsion_bert:")
-            if hasattr(cfg.model.stageB, 'torsion_bert'):
-                print(cfg.model.stageB.torsion_bert)
-            else:
-                print("[DEBUG-CASCADE] cfg.model.stageB.torsion_bert not found, using cfg.model.stageB")
-                print(cfg.model.stageB)
+            if debug_logging:
+                logger.debug("[DEBUG-CASCADE] About to instantiate StageBTorsionBertPredictor with cfg.model.stageB.torsion_bert:")
+                if hasattr(cfg.model.stageB, 'torsion_bert'):
+                    logger.debug(str(cfg.model.stageB.torsion_bert))
+                else:
+                    logger.debug("[DEBUG-CASCADE] cfg.model.stageB.torsion_bert not found, using cfg.model.stageB")
+                    logger.debug(str(cfg.model.stageB))
             torsion_bert_model = StageBTorsionBertPredictor(cfg.model.stageB.torsion_bert if hasattr(cfg.model.stageB, 'torsion_bert') else cfg.model.stageB)
         else:
             raise TypeError("cfg must be a DictConfig")
@@ -373,12 +370,19 @@ def run_pipeline(sequence: str, cfg: Optional[DictConfig] = None):
 
     # Stage C: Generate 3D coordinates from angles
     print(f"[CASCADE-DEBUG] BEFORE STAGE C: type={type(sequence)}, value={sequence}")
-    if cfg is not None and hasattr(cfg, 'model') and hasattr(cfg.model, 'stageC'):
-        stageC = StageCReconstruction(cfg.model.stageC)
-    else:
-        raise ValueError("StageCReconstruction requires cfg.model.stageC in the config.")
+    # Safely extract stageC config for various cfg types
+    try:
+        stageC_cfg = cfg.model.stageC
+    except Exception:
+        try:
+            # support DictConfig or dict key access
+            stageC_cfg = cfg.model['stageC']
+        except Exception:
+            # final fallback, may be None
+            stageC_cfg = None
+    # Instantiate StageCReconstruction (patched in tests)
+    stageC = StageCReconstruction(stageC_cfg)
     outC = stageC(torsion_angles)
-
     return outC
 
 def demo_gradient_flow_test(cfg: Optional[DictConfig] = None):

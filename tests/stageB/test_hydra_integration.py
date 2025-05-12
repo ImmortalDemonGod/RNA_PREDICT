@@ -112,6 +112,7 @@ def test_stageB_pairformer_hydra_config(
                     "inplace_safe": inplace_safe,
                     "chunk_size": chunk_size,
                     "use_checkpoint": use_checkpoint,
+                    "device": "cpu",
                     "lora": {
                         "enabled": False,
                         "r": 4,
@@ -138,6 +139,7 @@ def test_stageB_pairformer_hydra_config(
     assert wrapper.inplace_safe is inplace_safe
     assert wrapper.chunk_size == chunk_size
     assert wrapper.use_checkpoint is use_checkpoint
+    assert wrapper.device == torch.device("cpu")
 
 
 def test_stageB_torsion_bert_default_config(monkeypatch):
@@ -198,61 +200,100 @@ def test_stageB_missing_config_section():
     # Create a config without the required section
     test_config = OmegaConf.create({
         "model": {
-            "stageA": {}  # Missing stageB section
+            "stageB": {
+                # Missing torsion_bert and pairformer sections
+            }
         }
     })
 
-    # Verify that initialization raises ValueError with expected message
-    with pytest.raises(ValueError, match="Configuration must contain either stageB_torsion or model.stageB.torsion_bert section"):
+    # Verify that attempting to initialize without required sections raises an error
+    with pytest.raises(ValueError, match=".*UNIQUE-ERR-TORSIONBERT-NOCONFIG.*"):
         StageBTorsionBertPredictor(test_config)
 
-    with pytest.raises(ValueError, match="Pairformer config not found in Hydra config"):
+    with pytest.raises(ValueError, match=".*UNIQUE-ERR-PAIRFORMER-NOCONFIG.*"):
         PairformerWrapper(test_config)
 
 
 def test_stageB_config_override(monkeypatch):
-    """Test that command-line overrides work correctly with Hydra."""
+    """Test that configuration overrides work correctly."""
     # Mock the AutoTokenizer and AutoModel to avoid actual model loading
-    from unittest.mock import MagicMock
     import transformers
+    import torch
+    from unittest.mock import MagicMock
 
-    # Create mock objects
-    mock_tokenizer = MagicMock()
+    # Create dummy tokenizer class (not a MagicMock)
+    class DummyTokenizer:
+        def __call__(self, *args, **kwargs):
+            return {"input_ids": torch.zeros((1, 8), dtype=torch.long), "attention_mask": torch.ones((1, 8), dtype=torch.long)}
+
+    mock_tokenizer = DummyTokenizer()
     mock_model = MagicMock()
 
     # Patch the from_pretrained methods
     monkeypatch.setattr(transformers.AutoTokenizer, "from_pretrained", lambda *args, **kwargs: mock_tokenizer)
     monkeypatch.setattr(transformers.AutoModel, "from_pretrained", lambda *args, **kwargs: mock_model)
 
-    # Create a test configuration with overrides directly
+    # Create a test configuration with overrides
     test_config = OmegaConf.create({
         "model": {
             "stageB": {
                 "torsion_bert": {
                     "model_name_or_path": "test_model_path",
-                    "device": "cuda" if torch.cuda.is_available() else "cpu",
-                    "angle_mode": "radians",
+                    "device": "cpu",
+                    "angle_mode": "degrees",
                     "num_angles": 5,
                     "max_length": 256,
                     "lora": {
-                        "enabled": False,
-                        "r": 4,
-                        "alpha": 8,
-                        "dropout": 0.2,
-                        "target_modules": ["query", "key"]
+                        "enabled": True,
+                        "r": 16,
+                        "alpha": 32,
+                        "dropout": 0.3,
+                        "target_modules": ["query", "key", "value"]
+                    }
+                },
+                "pairformer": {
+                    "n_blocks": 4,
+                    "c_z": 32,
+                    "c_s": 64,
+                    "dropout": 0.2,
+                    "device": "cpu",
+                    "use_memory_efficient_kernel": True,
+                    "use_deepspeed_evo_attention": False,
+                    "use_lma": True,
+                    "inplace_safe": True,
+                    "chunk_size": 32,
+                    "use_checkpoint": True,
+                    "lora": {
+                        "enabled": True,
+                        "r": 16,
+                        "alpha": 32,
+                        "dropout": 0.3,
+                        "target_modules": ["query", "key", "value"]
                     }
                 }
             }
         }
     })
 
-    # Skip test if CUDA is not available when device=cuda is specified
-    if test_config.model.stageB.torsion_bert.device == "cuda" and not torch.cuda.is_available():
-        pytest.skip("CUDA not available, skipping test")
+    # Initialize both predictors with the test config
+    torsion_predictor = StageBTorsionBertPredictor(test_config)
+    pairformer_wrapper = PairformerWrapper(test_config)
 
-    # Initialize the predictor with the overridden config
-    predictor = StageBTorsionBertPredictor(test_config)
+    # Verify that the configuration overrides were correctly applied
+    assert torsion_predictor.model_name_or_path == "test_model_path"
+    assert torsion_predictor.device == torch.device("cpu")
+    assert torsion_predictor.angle_mode == "degrees"
+    assert torsion_predictor.num_angles == 5
+    assert torsion_predictor.max_length == 256
 
-    # Verify that overrides were applied
-    assert predictor.device == torch.device(test_config.model.stageB.torsion_bert.device)
-    assert predictor.angle_mode == "radians"
+    assert pairformer_wrapper.n_blocks == 4
+    assert pairformer_wrapper.c_z == 32
+    assert pairformer_wrapper.c_s == 64
+    assert pairformer_wrapper.dropout == 0.2
+    assert pairformer_wrapper.device == torch.device("cpu")
+    assert pairformer_wrapper.use_memory_efficient_kernel is True
+    assert pairformer_wrapper.use_deepspeed_evo_attention is False
+    assert pairformer_wrapper.use_lma is True
+    assert pairformer_wrapper.inplace_safe is True
+    assert pairformer_wrapper.chunk_size == 32
+    assert pairformer_wrapper.use_checkpoint is True

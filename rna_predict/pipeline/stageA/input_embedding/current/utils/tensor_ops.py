@@ -355,7 +355,7 @@ def expand_at_dim(x: torch.Tensor, dim: int, n: int) -> torch.Tensor:
 def pad_at_dim(
     x: torch.Tensor,
     dim: int,
-    pad_length: Union[tuple[int, int], list[int]],
+    pad_length: Union[Tuple[int, int], List[int]],
     value: float = 0,
 ) -> torch.Tensor:
     """pad to input x at dimension dim with length pad_length[0] to the left and and pad_length[1] to the right.
@@ -363,13 +363,13 @@ def pad_at_dim(
     Args:
         x (torch.Tensor): input
         dim (int): padding dimension
-        pad_length (Union[Tuple[int], List[int]]): length to pad to the beginning and end.
+        pad_length (Union[Tuple[int, int], List[int]]): length to pad to the beginning and end.
 
     Returns:
         torch.Tensor: padded tensor
     """
     n_dim = len(x.shape)
-    if not (-n_dim <= dim < n_dim):  # Added closing parenthesis
+    if not (-n_dim <= dim < n_dim):
         raise IndexError(
             f"Dimension out of range (expected to be in range of [-{n_dim}, {n_dim - 1}], but got {dim})"
         )
@@ -453,7 +453,7 @@ def _standard_reshape(
 def reshape_at_dim(
     x: torch.Tensor,
     dim: int,
-    target_shape: Union[tuple[int, ...], list[int]],
+    target_shape: Union[Tuple[int, ...], List[int]],
 ) -> torch.Tensor:
     """
     Reshape dimension 'dim' of x to 'target_shape'. If target_shape is a single-element

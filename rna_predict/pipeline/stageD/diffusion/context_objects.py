@@ -61,6 +61,10 @@ class FeaturePreparationContext:
     device: torch.device
     trunk_embeddings: Dict[str, Any]
     s_inputs: torch.Tensor
+    max_atoms: int = 4096  # default fallback, but should always be set from cfg
+
+    def __post_init__(self):
+        logger.debug(f"[INSTRUMENT][FeaturePreparationContext] max_atoms={self.max_atoms}, coords_init.shape={self.coords_init.shape}")
 
     @property
     def batch_size(self):
@@ -75,11 +79,11 @@ class FeaturePreparationContext:
         return self.trunk_embeddings["s_trunk"].shape
 
     def fallback_input_feature_dict(self):
+        # Use config-driven max_atoms
+        atom_idx = torch.arange(self.max_atoms, device=self.device).long().unsqueeze(0).expand(self.batch_size, -1)
+        logger.debug(f"[INSTRUMENT][FeaturePreparationContext] fallback_input_feature_dict: max_atoms={self.max_atoms}, atom_idx.shape={atom_idx.shape}")
         return {
-            "atom_to_token_idx": torch.arange(self.n_atoms, device=self.device)
-            .long()
-            .unsqueeze(0)
-            .expand(self.batch_size, -1)
+            "atom_to_token_idx": atom_idx
         }
 
     def get_atom_idx(self, input_feature_dict):
@@ -158,9 +162,26 @@ class EmbeddingContext:
         # SYSTEMATIC DEBUGGING: Print trunk_embeddings keys before accessing 's_inputs'
         logger.debug(f"[DEBUG][get_s_inputs] trunk_embeddings keys: {list(self.trunk_embeddings.keys())}")
         s_inputs = self.trunk_embeddings.get("s_inputs")
+        # Determine expected c_s_inputs from config or nested feature_dimensions
+        if hasattr(self.stage_cfg, "c_s_inputs"):
+            expected_c = getattr(self.stage_cfg, "c_s_inputs")
+        elif hasattr(self.stage_cfg, "feature_dimensions"):
+            fd = getattr(self.stage_cfg, "feature_dimensions")
+            expected_c = getattr(fd, "c_s_inputs", None) if not isinstance(fd, dict) else fd.get("c_s_inputs")
+        elif isinstance(self.stage_cfg, dict) and "feature_dimensions" in self.stage_cfg:
+            expected_c = self.stage_cfg["feature_dimensions"].get("c_s_inputs")
+        else:
+            expected_c = None
+        if expected_c is not None and s_inputs is not None and s_inputs.dim() >= 1 and s_inputs.shape[-1] != expected_c:
+            logger.warning(f"[StageD][HydraConf] Dropping s_inputs with channels {s_inputs.shape[-1]} != config c_s_inputs {expected_c}")
+            s_inputs = None
         if s_inputs is None and self.override_input_features is not None:
             logger.debug(f"[DEBUG][get_s_inputs] override_input_features keys: {list(self.override_input_features.keys()) if self.override_input_features is not None else None}")
             s_inputs = self.override_input_features.get("s_inputs")
+            # Drop override s_inputs if channel dim mismatches config
+            if expected_c is not None and s_inputs is not None and s_inputs.dim() >= 1 and s_inputs.shape[-1] != expected_c:
+                logger.warning(f"[StageD][HydraConf] Dropping override s_inputs channels {s_inputs.shape[-1]} != config c_s_inputs {expected_c}")
+                s_inputs = None
         if s_inputs is None:
             logger.warning(
                 "'s_inputs' not found in trunk_embeddings or override_input_features. Creating fallback."
@@ -173,7 +194,10 @@ class EmbeddingContext:
             s_trunk_shape = self.trunk_embeddings["s_trunk"].shape
             batch_size = s_trunk_shape[0]
             n_tokens = s_trunk_shape[1]
-            c_s_inputs_dim = self.stage_cfg["model_architecture"]["c_s_inputs"]
+            # Use expected_c from config (possibly nested in feature_dimensions)
+            c_s_inputs_dim = expected_c
+            if c_s_inputs_dim is None:
+                raise KeyError("Cannot determine c_s_inputs for fallback s_inputs from config.")
             s_inputs = torch.zeros(
                 (batch_size, n_tokens, c_s_inputs_dim), device=self.device
             )
@@ -188,6 +212,7 @@ class EmbeddingContext:
         return s_inputs
 
     def get_z_trunk(self):
+        from rna_predict.pipeline.stageD.run_stageD import log_mem
         z_trunk = self.trunk_embeddings.get("pair")
         if z_trunk is None:
             logger.warning(
@@ -201,6 +226,7 @@ class EmbeddingContext:
                 (batch_size, n_tokens, n_tokens, c_z_dim), device=self.device
             )
             logger.debug(f"[EmbeddingContext] Created fallback z_trunk with shape: {z_trunk.shape}")
+            log_mem("After z_trunk fallback allocation")
         else:
             logger.debug(f"[EmbeddingContext] Initial z_trunk shape: {z_trunk.shape}")
             # Handle multi-sample case with extra dimensions
@@ -208,9 +234,13 @@ class EmbeddingContext:
                 logger.info(f"[EmbeddingContext] Reshaping 6D z_trunk with shape {z_trunk.shape} to 5D")
                 z_trunk = z_trunk.squeeze(1)  # Remove the extra dimension at index 1
                 logger.info(f"[EmbeddingContext] After reshaping, z_trunk shape: {z_trunk.shape}")
+                log_mem("After z_trunk reshape (6D->5D)")
             # Patch: If z_trunk is 3D, expand to 4D by adding batch dim
             elif z_trunk.dim() == 3:  # [N_res, N_res, C]
                 logger.warning(f"[EmbeddingContext] z_trunk is 3D, expanding to 4D. Original shape: {z_trunk.shape}")
                 z_trunk = z_trunk.unsqueeze(0)  # [1, N_res, N_res, C]
                 logger.info(f"[EmbeddingContext] After expanding, z_trunk shape: {z_trunk.shape}")
+                log_mem("After z_trunk expand (3D->4D)")
+        # Always log memory after get_z_trunk returns
+        log_mem("After get_z_trunk return")
         return z_trunk

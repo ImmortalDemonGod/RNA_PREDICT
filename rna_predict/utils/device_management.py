@@ -7,7 +7,7 @@ behavior in a way that respects Hydra configuration.
 
 import logging
 import torch
-from typing import Union, Optional, List, Dict, Any
+from typing import Any
 from omegaconf import DictConfig
 
 logger = logging.getLogger(__name__)
@@ -50,14 +50,14 @@ def get_device_for_component(
             logger.warning(f"CUDA requested but not available, falling back to {fallback_device}")
             return torch.device(fallback_device)
         else:
-            raise RuntimeError(f"CUDA requested but not available, and auto_fallback is disabled")
+            raise RuntimeError("CUDA requested but not available, and auto_fallback is disabled")
     
     if primary_device == "mps" and not torch.backends.mps.is_available():
         if auto_fallback:
             logger.warning(f"MPS requested but not available, falling back to {fallback_device}")
             return torch.device(fallback_device)
         else:
-            raise RuntimeError(f"MPS requested but not available, and auto_fallback is disabled")
+            raise RuntimeError("MPS requested but not available, and auto_fallback is disabled")
     
     # Return the primary device if it's available
     return torch.device(primary_device)

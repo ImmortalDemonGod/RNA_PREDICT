@@ -22,7 +22,6 @@ Key Improvements:
 import unittest
 from unittest.mock import MagicMock, patch
 import os
-from omegaconf import OmegaConf
 from rna_predict.dataset.loader import RNADataset
 
 import torch
@@ -36,6 +35,8 @@ from rna_predict.dataset.dataset_loader import (
     stream_bprna_dataset,
     validate_input_features,
 )
+
+from hydra import compose, initialize
 
 
 class TestDatasetLoader(unittest.TestCase):
@@ -193,12 +194,14 @@ class TestBuildRnaTokenMetadata(unittest.TestCase):
         Common setup for TestBuildRnaTokenMetadata.
         """
         self.num_tokens = 10
-        self.device = "cpu"
+        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     def test_build_rna_token_metadata_basic(self) -> None:
         """
         Test basic usage with fixed parameters.
         """
+        if self.device == 'cpu':
+            self.skipTest("No CUDA device available; test requires non-cpu device for build_rna_token_metadata.")
         metadata = build_rna_token_metadata(self.num_tokens, device=self.device)
         self.assertIn("asym_id", metadata)
         self.assertIn("residue_index", metadata)
@@ -405,8 +408,6 @@ class TestLoadRnaDataAndFeatures(unittest.TestCase):
             self.assertEqual(atom_dict["ref_pos"].shape[1], override_num_atoms)
 
 
-import hydra
-from hydra import compose, initialize
 
 class TestRNADatasetMinimal(unittest.TestCase):
     def test_loader_reads_target_id(self):

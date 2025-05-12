@@ -2,6 +2,7 @@
 # Main Hydra configuration file for RNA prediction pipeline
 
 defaults:
+  - shared: features
   - _self_  # Load this file's contents first
   - data: default
   - model/stageA@model.stageA
@@ -50,3 +51,5 @@ training:
   checkpoint_dir: outputs/checkpoints
   accelerator: cpu   # Trainer accelerator (e.g. 'cpu', 'mps', 'cuda')
   devices: 1         # Number of devices for Trainer
+  epochs: 10         # Default number of training epochs
+  batch_size: 32     # Default training batch size

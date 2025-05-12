@@ -31,8 +31,13 @@ def run_diffusion_and_handle_output(
     trunk_embeddings = context.trunk_embeddings
     input_feature_dict = context.input_feature_dict
     unified_latent = context.unified_latent
+    # --- REMOVED PATCH: Do not pad/truncate to max_atoms; operate on actual atom count ---
+    orig_shape = coords.shape
+    logger.debug(f"[DEBUG][NO-PAD] coords shape: {orig_shape}")
+    # Pass original coords, s_trunk, and s_inputs without modification
+    # trunk_embeddings['s_trunk'] and ['s_inputs'] remain as originally provided
+
     # Call the diffusion manager (inference or train mode)
-    # FIXME: permanent use of the ProtenixDiffusionManager inference API
     try:
         # Convert trunk_embeddings to Dict[str, Any] for compatibility
         result = diffusion_manager.multi_step_inference(

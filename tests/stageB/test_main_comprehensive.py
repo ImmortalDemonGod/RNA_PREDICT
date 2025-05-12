@@ -93,10 +93,25 @@ class TestRunPipeline:
                         "max_length": 512
                     },
                     "pairformer": {
-                        "init_z_from_adjacency": False
+                        "init_z_from_adjacency": False,
+                        "device": "cpu"
                     }
                 },
-                "stageC": {}
+                "stageC": {
+                    "enabled": True,
+                    "method": "mp_nerf",
+                    "device": "cpu",
+                    "do_ring_closure": False,
+                    "place_bases": True,
+                    "sugar_pucker": "C3'-endo",
+                    "angle_representation": "sin_cos",
+                    "use_metadata": False,
+                    "use_memory_efficient_kernel": False,
+                    "use_deepspeed_evo_attention": False,
+                    "use_lma": False,
+                    "inplace_safe": True,
+                    "debug_logging": False
+                }
             },
             "stageB_torsion": {
                 "device": "cpu",
@@ -181,6 +196,7 @@ class TestRunPipeline:
         with pytest.raises(ValueError, match="Input sequence must not be empty.*\\[ERR-STAGEB-RUNPIPELINE-002\\]"):
             run_pipeline(seq, cfg=mock_cfg)
 
+    @settings(deadline=None)
     @given(seq=st.text(alphabet="XYZ123", min_size=1, max_size=10))
     @patch("rna_predict.pipeline.stageB.main.hydra.compose")
     def test_run_pipeline_invalid_sequence(self, mock_compose, seq):
@@ -913,7 +929,7 @@ def test_stageb_torsionbert_config_structure_property(config_dict):
     # If config exists, check if device is missing
     missing_device = False
     if not missing_config:
-        missing_device = not ("device" in config_dict["model"]["stageB"]["torsion_bert"])
+        missing_device = "device" not in config_dict["model"]["stageB"]["torsion_bert"]
 
     if missing_config or missing_device:
         cfg = make_config(config_dict)

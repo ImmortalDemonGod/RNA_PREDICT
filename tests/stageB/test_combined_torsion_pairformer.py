@@ -20,45 +20,54 @@ def create_stage_b_test_config(torsion_overrides=None, pairformer_overrides=None
         pairformer_overrides = {}
 
     # Create a configuration structure that matches what the models expect
-    # Use stageB_torsion and stageB_pairformer at the top level
+    # Use model.stageB.torsion_bert and model.stageB.pairformer
     base_config = {
-        "stageB_torsion": {
-            "model_name_or_path": "sayby/rna_torsionbert", # Use a real model path
-            "device": "cpu",
-            "angle_mode": "sin_cos",
-            "num_angles": 7,
-            "max_length": 512,
-            "checkpoint_path": None,
-            "lora": {"enabled": False} # Simplified LoRA for base
-        },
-        "stageB_pairformer": {
-            "n_blocks": 2, # Keep small defaults for testing
-            "n_heads": 4,  # Smaller
-            "c_z": 32,     # Smaller
-            "c_s": 64,     # Smaller
-            "dropout": 0.1,
-            "use_memory_efficient_kernel": False,
-            "use_deepspeed_evo_attention": False,
-            "use_lma": False,
-            "inplace_safe": False,
-            "chunk_size": None,
-            "c_hidden_mul": 128, # Keep these as they might be used elsewhere later
-            "c_hidden_pair_att": 32,
-            "no_heads_pair": 4,
-            "init_z_from_adjacency": False, # Default
-            "use_checkpoint": False,
-            "lora": {"enabled": False} # Simplified LoRA for base
+        "model": {
+            "stageB": {
+                "torsion_bert": {
+                    "model_name_or_path": "sayby/rna_torsionbert", # Use a real model path
+                    "device": "cpu",
+                    "angle_mode": "sin_cos",
+                    "num_angles": 7,
+                    "max_length": 512,
+                    "checkpoint_path": None,
+                    "lora": {"enabled": False} # Simplified LoRA for base
+                },
+                "pairformer": {
+                    "device": "cpu",  # Add device key
+                    "n_blocks": 2, # Keep small defaults for testing
+                    "n_heads": 4,  # Smaller
+                    "c_z": 32,     # Smaller
+                    "c_s": 64,     # Smaller
+                    "dropout": 0.1,
+                    "use_memory_efficient_kernel": False,
+                    "use_deepspeed_evo_attention": False,
+                    "use_lma": False,
+                    "inplace_safe": False,
+                    "chunk_size": None,
+                    "c_hidden_mul": 128, # Keep these as they might be used elsewhere later
+                    "c_hidden_pair_att": 32,
+                    "no_heads_pair": 4,
+                    "init_z_from_adjacency": False, # Default
+                    "use_checkpoint": False,
+                    "lora": {"enabled": False} # Simplified LoRA for base
+                }
+            }
         }
     }
     cfg = OmegaConf.create(base_config)
     # Apply overrides using merge
-    override_cfg_dict = {}
+    override_cfg_dict = {
+        "model": {
+            "stageB": {}
+        }
+    }
     if torsion_overrides:
-        override_cfg_dict["stageB_torsion"] = torsion_overrides
+        override_cfg_dict["model"]["stageB"]["torsion_bert"] = torsion_overrides
     if pairformer_overrides:
-         override_cfg_dict["stageB_pairformer"] = pairformer_overrides
+        override_cfg_dict["model"]["stageB"]["pairformer"] = pairformer_overrides
 
-    if override_cfg_dict:
+    if override_cfg_dict["model"]["stageB"]:
         override_cfg = OmegaConf.create(override_cfg_dict)
         cfg = OmegaConf.merge(cfg, override_cfg)
 
@@ -82,11 +91,11 @@ class TestCombinedTorsionPairformer(unittest.TestCase):
 
         # Create a default test config using the helper
         # Use smaller parameters matching the old setup for speed
-        self.test_cfg = OmegaConf.create({"model": create_stage_b_test_config(
+        base_config = create_stage_b_test_config(
             torsion_overrides={
-                 "device": "cpu",
-                 "angle_mode": "degrees", # Match old test default
-                 "num_angles": 7
+                "device": "cpu",
+                "angle_mode": "degrees", # Match old test default
+                "num_angles": 7
             },
             pairformer_overrides={
                 "n_blocks": 2,
@@ -95,9 +104,10 @@ class TestCombinedTorsionPairformer(unittest.TestCase):
                 "dropout": 0.1,
                 "use_checkpoint": False
             }
-        )})
+        )
+        self.test_cfg = base_config
         # Ensure device is consistent in the test config
-        self.device = self.test_cfg.model.stageB_torsion.device
+        self.device = self.test_cfg.model.stageB.torsion_bert.device
 
     def test_run_stageB_combined_basic(self):
         """Test that run_stageB_combined runs without errors and returns expected output structure"""
@@ -106,6 +116,7 @@ class TestCombinedTorsionPairformer(unittest.TestCase):
             cfg=self.test_cfg,
             sequence=self.sequence,
             adjacency_matrix=self.adjacency,
+            device=self.device  # Pass the device from setUp
             # init_z_from_adjacency is now controlled by the cfg
         )
 
@@ -122,8 +133,8 @@ class TestCombinedTorsionPairformer(unittest.TestCase):
 
         self.assertEqual(result["torsion_angles"].shape[0], N)
         # Get expected dims from config
-        expected_c_s = self.test_cfg.model.stageB_pairformer.c_s
-        expected_c_z = self.test_cfg.model.stageB_pairformer.c_z
+        expected_c_s = self.test_cfg.model.stageB.pairformer.c_s
+        expected_c_z = self.test_cfg.model.stageB.pairformer.c_z
         self.assertEqual(result["s_embeddings"].shape, (N, expected_c_s))
         self.assertEqual(result["z_embeddings"].shape, (N, N, expected_c_z))
 
@@ -150,8 +161,8 @@ class TestCombinedTorsionPairformer(unittest.TestCase):
         cfg_adj_init = OmegaConf.create({
             "model": {
                 "stageB": {
-                    "torsion_bert": cfg_raw["stageB_torsion"],
-                    "pairformer": cfg_raw["stageB_pairformer"],
+                    "torsion_bert": cfg_raw["model"]["stageB"]["torsion_bert"],
+                    "pairformer": cfg_raw["model"]["stageB"]["pairformer"],
                 }
             }
         })
@@ -214,8 +225,8 @@ class TestCombinedTorsionPairformer(unittest.TestCase):
         # Create a config with the specified debug_logging value
         cfg = self.test_cfg
         cfg.debug_logging = debug_logging
-        cfg.model.stageB_torsion.debug_logging = debug_logging
-        cfg.model.stageB_pairformer.debug_logging = debug_logging
+        cfg.model.stageB.torsion_bert.debug_logging = debug_logging
+        cfg.model.stageB.pairformer.debug_logging = debug_logging
 
         # Create adjacency matrix for the sequence
         N = len(sequence)
@@ -229,7 +240,12 @@ class TestCombinedTorsionPairformer(unittest.TestCase):
                 adjacency[1, N-2] = adjacency[N-2, 1] = 1.0
 
         # Call run_stageB_combined with the config
-        _ = run_stageB_combined(cfg=cfg, sequence=sequence, adjacency_matrix=adjacency)
+        _ = run_stageB_combined(
+            cfg=cfg,
+            sequence=sequence,
+            adjacency_matrix=adjacency,
+            device=self.device  # Pass the device from setUp
+        )
 
         # Check evidence file for expected instrumentation
         if debug_logging:

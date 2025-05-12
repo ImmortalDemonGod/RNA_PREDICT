@@ -18,11 +18,11 @@ from typing import Any, Callable, Optional
 import torch
 import logging
 
-logger = logging.getLogger(__name__)
-
 from rna_predict.pipeline.stageA.input_embedding.current.utils import (
     centre_random_augmentation,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class TrainingNoiseSampler:
@@ -216,9 +216,13 @@ def sample_diffusion(
         x_l = torch.randn(size=x_l_shape, device=device, dtype=dtype) * noise_schedule[0]
 
         # Process each step in the noise schedule
+        from rna_predict.pipeline.stageD.run_stageD import log_mem
+        import gc
         for step, (c_tau_last, c_tau) in enumerate(
             zip(noise_schedule[:-1], noise_schedule[1:])
         ):
+            gc.collect()
+            log_mem(f"Before diffusion step {step}")
             # Calculate gamma and t_hat
             gamma = float(gamma0) if c_tau > gamma_min else 0.0
             t_hat = c_tau_last * (gamma + 1.0)
@@ -304,6 +308,9 @@ def sample_diffusion(
                  raise TypeError(f"denoise_net expected to return (coords, loss) tuple, but got {type(denoise_result)}")
             x_denoised, _ = denoise_result # Unpack tuple, ignore loss
 
+            gc.collect()
+            log_mem(f"After diffusion step {step}")
+
             # Update x_l using Euler step
             # Add epsilon for stability, ensure t_hat broadcasts correctly [B, chunk_n_sample, 1, 1]
             delta = (x_noisy - x_denoised) / (
@@ -387,11 +394,11 @@ def sample_diffusion_training(
     sigma_size = torch.Size(sigma_size_list)
     sigma = noise_sampler(size=sigma_size, device=device).to(label_dict["coordinate"].dtype)
     if debug_logging:
-        print(f"[DEVICE-DEBUG][StageD] sample_diffusion_training: sigma.device={sigma.device}")
+        logger.info(f"[DEVICE-DEBUG][StageD] sample_diffusion_training: sigma.device={sigma.device}")
     # noise: [..., N_sample, N_atom, 3]
     noise = torch.randn_like(x_gt_augment, dtype=label_dict["coordinate"].dtype, device=device) * sigma[..., None, None]
     if debug_logging:
-        print(f"[DEVICE-DEBUG][StageD] sample_diffusion_training: noise.device={noise.device}")
+        logger.info(f"[DEVICE-DEBUG][StageD] sample_diffusion_training: noise.device={noise.device}")
 
     # Get denoising outputs [..., N_sample, N_atom, 3]
     if diffusion_chunk_size is None:

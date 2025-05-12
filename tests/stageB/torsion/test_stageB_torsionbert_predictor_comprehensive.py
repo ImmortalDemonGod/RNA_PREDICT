@@ -525,9 +525,9 @@ class TestStageBTorsionBertPredictorDimChecks:
              patch("transformers.AutoTokenizer.from_pretrained", return_value=DummyTokenizer()):
             predictor = StageBTorsionBertPredictor(cfg=test_cfg)
             predictor.predict_angles_from_sequence = raise_dim_error
-            with pytest.raises(RuntimeError, match="Cannot determine angle format") as excinfo:
+            with pytest.raises(RuntimeError, match=r"does not match expected dimension") as excinfo:
                 predictor("ACG")
-            assert "Cannot determine angle format" in str(excinfo.value), "[UNIQUE-ERR-TORSIONBERT-DIM-001] Did not raise expected error for shape mismatch."
+            assert "does not match expected dimension" in str(excinfo.value), "[UNIQUE-ERR-TORSIONBERT-DIM-001] Did not raise expected error for shape mismatch."
 
     def test_mocked_mismatch(self):
         """

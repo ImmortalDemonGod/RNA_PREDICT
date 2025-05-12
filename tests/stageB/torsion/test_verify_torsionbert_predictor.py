@@ -56,12 +56,16 @@ class TestStageBTorsionBertPredictorVerification:
 
         # Create a config
         cfg = OmegaConf.create({
-            "stageB_torsion": {
-                "model_name_or_path": "sayby/rna_torsionbert",
-                "device": "cpu",
-                "angle_mode": "sin_cos",
-                "num_angles": 7,
-                "max_length": 512
+            "model": {
+                "stageB": {
+                    "torsion_bert": {
+                        "model_name_or_path": "sayby/rna_torsionbert",
+                        "device": "cpu",
+                        "angle_mode": "sin_cos",
+                        "num_angles": 7,
+                        "max_length": 512
+                    }
+                }
             }
         })
 
@@ -98,12 +102,16 @@ class TestStageBTorsionBertPredictorVerification:
         try:
             # Create a config
             cfg = OmegaConf.create({
-                "stageB_torsion": {
-                    "model_name_or_path": "sayby/rna_torsionbert",
-                    "device": "cpu",
-                    "angle_mode": "sin_cos",
-                    "num_angles": 7,
-                    "max_length": 512
+                "model": {
+                    "stageB": {
+                        "torsion_bert": {
+                            "model_name_or_path": "sayby/rna_torsionbert",
+                            "device": "cpu",
+                            "angle_mode": "sin_cos",
+                            "num_angles": 7,
+                            "max_length": 512
+                        }
+                    }
                 }
             })
 
@@ -234,12 +242,16 @@ class TestStageBTorsionBertPredictorVerification:
         ):
             # Test with sin_cos mode
             cfg_sincos = OmegaConf.create({
-                "stageB_torsion": {
-                    "model_name_or_path": "dummy_path",
-                    "device": "cpu",
-                    "angle_mode": "sin_cos",
-                    "num_angles": 7,
-                    "max_length": 512
+                "model": {
+                    "stageB": {
+                        "torsion_bert": {
+                            "model_name_or_path": "dummy_path",
+                            "device": "cpu",
+                            "angle_mode": "sin_cos",
+                            "num_angles": 7,
+                            "max_length": 512
+                        }
+                    }
                 }
             })
             predictor_sincos = StageBTorsionBertPredictor(cfg=cfg_sincos)
@@ -261,12 +273,16 @@ class TestStageBTorsionBertPredictorVerification:
 
             # Test with radians mode
             cfg_radians = OmegaConf.create({
-                "stageB_torsion": {
-                    "model_name_or_path": "dummy_path",
-                    "device": "cpu",
-                    "angle_mode": "radians",
-                    "num_angles": 7,
-                    "max_length": 512
+                "model": {
+                    "stageB": {
+                        "torsion_bert": {
+                            "model_name_or_path": "dummy_path",
+                            "device": "cpu",
+                            "angle_mode": "radians",
+                            "num_angles": 7,
+                            "max_length": 512
+                        }
+                    }
                 }
             })
             predictor_radians = StageBTorsionBertPredictor(cfg=cfg_radians)
@@ -294,12 +310,16 @@ class TestStageBTorsionBertPredictorVerification:
 
             # Test with degrees mode
             cfg_degrees = OmegaConf.create({
-                "stageB_torsion": {
-                    "model_name_or_path": "dummy_path",
-                    "device": "cpu",
-                    "angle_mode": "degrees",
-                    "num_angles": 7,
-                    "max_length": 512
+                "model": {
+                    "stageB": {
+                        "torsion_bert": {
+                            "model_name_or_path": "dummy_path",
+                            "device": "cpu",
+                            "angle_mode": "degrees",
+                            "num_angles": 7,
+                            "max_length": 512
+                        }
+                    }
                 }
             })
             predictor_degrees = StageBTorsionBertPredictor(cfg=cfg_degrees)

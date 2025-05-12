@@ -1,4 +1,3 @@
-import torch
 from rna_predict.pipeline.stageB.pairwise.pairformer import MSABlock, MSAModule
 from rna_predict.conf.config_schema import MSAConfig
 
@@ -12,7 +11,7 @@ def test_msa_block():
             dropout=0.1,
             pair_dropout=0.25
         )
-        mb = MSABlock(cfg=cfg)
+        MSABlock(cfg=cfg)
         print("MSABlock initialized successfully!")
         return True
     except Exception as e:
@@ -36,7 +35,7 @@ def test_msa_module():
             input_feature_dims={"msa": 32, "has_deletion": 1, "deletion_value": 1},
             pair_dropout=0.25
         )
-        mm = MSAModule(minimal_cfg)
+        MSAModule(minimal_cfg)
         print("MSAModule initialized successfully!")
         return True
     except Exception as e:

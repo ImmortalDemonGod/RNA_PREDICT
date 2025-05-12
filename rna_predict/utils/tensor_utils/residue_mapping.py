@@ -13,7 +13,7 @@ from .types import ResidueAtomMap, STANDARD_RNA_ATOMS, logger
 
 
 def _prepare_sequence_and_counts(
-    sequence: Union[str, List[str]],
+    sequence: Union[str, List[str], None],
     atom_counts_map: Optional[Dict[str, int]] = None,
 ) -> Tuple[List[str], Dict[str, int], int]:
     """
@@ -26,11 +26,15 @@ def _prepare_sequence_and_counts(
     Returns:
         Tuple of (sequence_list, atom_counts_map, n_residues)
     """
-    # Convert sequence to list if it's a string
-    sequence_list = list(sequence) if isinstance(sequence, str) else sequence
-    n_residues = len(sequence_list)
+    # Handle missing sequence: defer to metadata branch later
+    if sequence is None:
+        sequence_list: List[str] = []
+        n_residues = 0
+    else:
+        sequence_list = list(sequence) if isinstance(sequence, str) else sequence
+        n_residues = len(sequence_list)
 
-    # Prepare atom_counts_map if not provided
+    # Prepare atom counts map: use default if not provided
     counts_map = atom_counts_map or {res_type: len(atoms) for res_type, atoms in STANDARD_RNA_ATOMS.items()}
 
     return sequence_list, counts_map, n_residues
@@ -82,16 +86,19 @@ def _convert_to_int_list(indices: List[Union[int, str]]) -> List[int]:
     if not indices:
         return []
     
-    if isinstance(indices[0], str):
-        try:
-            return [int(idx) for idx in indices]
-        except ValueError as e:
-            raise ValueError(f"Failed to convert string residue indices to integers: {e}")
+    result = []
+    for idx in indices:
+        if isinstance(idx, str):
+            try:
+                result.append(int(idx))
+            except ValueError as e:
+                raise ValueError(f"Failed to convert string residue index '{idx}' to integer: {e}")
+        elif isinstance(idx, int):
+            result.append(idx)
+        else:
+            raise ValueError(f"Residue index must be string or integer, got {type(idx)}")
     
-    if not all(isinstance(idx, int) for idx in indices):
-        raise ValueError("All residue indices must be integers after conversion")
-    
-    return [int(idx) for idx in indices]
+    return result
 
 
 def _populate_residue_atom_map(
@@ -331,7 +338,7 @@ def _create_residue_atom_map_from_counts(
 
 def _cast_residue_indices(
     residue_indices: Union[List[str], List[int], torch.Tensor]
-) -> Union[List[Union[int, str]], torch.Tensor]:
+) -> List[Union[int, str]]:
     """
     Cast residue indices to the expected type.
 
@@ -339,15 +346,15 @@ def _cast_residue_indices(
         residue_indices: List or tensor of residue indices
 
     Returns:
-        Residue indices in the expected type
+        List of residue indices as integers or strings
     """
     if isinstance(residue_indices, torch.Tensor):
-        return residue_indices
+        return residue_indices.tolist()  # Convert tensor to list
     return [x for x in residue_indices]  # Convert to List[Union[int, str]]
 
 
 def derive_residue_atom_map(
-    sequence: Union[str, List[str]],
+    sequence: Union[str, List[str], None],
     partial_coords: Optional[torch.Tensor] = None,  # Shape [B, N_atom, 3] or [N_atom, 3]
     atom_metadata: Optional[Dict[str, Union[List[str], List[int], torch.Tensor]]] = None,  # e.g., {'atom_names': ['P', ...], 'residue_indices': [0, 0, ... 1, ...]}
     atom_counts_map: Optional[Dict[str, int]] = None  # Fallback: {'A': 22, 'U': 20, ...} derived from STANDARD_RNA_ATOMS
@@ -388,20 +395,27 @@ def derive_residue_atom_map(
     # Prepare sequence and atom counts
     sequence_list, counts_map, n_residues = _prepare_sequence_and_counts(sequence, atom_counts_map)
 
+    # Method 1: Use atom_metadata if provided (most explicit and reliable)
+    if atom_metadata is not None and 'residue_indices' in atom_metadata:
+        residue_indices = atom_metadata['residue_indices']
+        # Derive number of residues from metadata if needed
+        if residue_indices:
+            if isinstance(residue_indices, torch.Tensor):
+                n_residues_meta = int(residue_indices.max().item()) + 1
+            else:
+                # Convert all indices to integers for max operation
+                int_indices = _convert_to_int_list(_cast_residue_indices(residue_indices))
+                n_residues_meta = max(int_indices) + 1
+        else:
+            n_residues_meta = n_residues
+        logger.info("Deriving residue-atom map from explicit atom metadata.")
+        return _derive_map_from_metadata(_cast_residue_indices(residue_indices), sequence_list or [], n_residues_meta)
+
     # If no residues, return empty map
     if n_residues == 0:
         logger.info("Empty sequence provided, returning empty residue-atom map.")
         return []
 
-    # Method 1: Use atom_metadata if provided (most explicit and reliable)
-    if atom_metadata is not None and 'residue_indices' in atom_metadata:
-        logger.info("Deriving residue-atom map from explicit atom metadata.")
-        residue_indices = atom_metadata['residue_indices']
-        logger.info(f"[DEBUG][StageD] atom_metadata present: len(atom_metadata['residue_indices'])={len(residue_indices)}")
-        logger.info(f"[DEBUG][StageD] sequence_list: {sequence_list}")
-        logger.info(f"[DEBUG][StageD] counts_map: {counts_map}")
-        logger.info(f"[DEBUG][StageD] n_residues: {n_residues}")
-        return _derive_map_from_metadata(_cast_residue_indices(residue_indices), sequence_list, n_residues)
     # Method 2: Use partial_coords shape and assume contiguous block ordering
     if partial_coords is not None:
         logger.info("Deriving residue-atom map from partial coordinates shape and sequence.")
@@ -419,3 +433,19 @@ def derive_residue_atom_map(
     expected_atom_counts = _calculate_expected_atom_counts(sequence_list, counts_map)
     logger.info(f"[DEBUG][StageD] expected_atom_counts: {expected_atom_counts}, sum={sum(expected_atom_counts)}")
     return _create_residue_atom_map_from_counts(expected_atom_counts)
+
+
+def _get_residue_id(residue_id: Union[str, int]) -> str:
+    """Convert residue ID to string format."""
+    return str(residue_id)
+
+
+def _format_residue_id(residue_id: Union[str, int]) -> str:
+    """Format residue ID for consistent comparison."""
+    return str(residue_id).strip()
+
+
+def get_residue_key(chain_id: str, residue_id: Union[str, int]) -> str:
+    """Generate a unique key for a residue based on chain ID and residue ID."""
+    formatted_id = _format_residue_id(residue_id)
+    return f"{chain_id}_{formatted_id}"

@@ -13,7 +13,6 @@ from typing import List, Optional, Dict, Any
 from rna_predict.pipeline.stageB.torsion.torsion_bert_predictor import StageBTorsionBertPredictor
 from rna_predict.pipeline.stageC.stage_c_reconstruction import run_stageC
 from rna_predict.utils.submission import coords_to_df, extract_atom, reshape_coords
-import snoop
 
 class RNAPredictor:
     """High-level interface for the RNA_PREDICT pipeline."""
@@ -46,7 +45,7 @@ class RNAPredictor:
             raise ValueError("torsion_bert_cfg must specify device in the Hydra config.")
         self.torsion_predictor = StageBTorsionBertPredictor(torsion_bert_cfg)
 
-    @snoop
+    #@snoop
     def predict_3d_structure(self, sequence: str) -> Dict[str, Any]:
         """
         Predicts the 3D structure of an RNA sequence using torsion angle prediction and reconstruction.

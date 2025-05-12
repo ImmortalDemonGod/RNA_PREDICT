@@ -6,7 +6,7 @@ atom pair operations in molecular representations.
 """
 
 from dataclasses import dataclass
-from typing import ClassVar, Optional, Tuple, TypeVar, Union
+from typing import ClassVar, Optional, Tuple, TypeVar, Union, Type
 
 import torch
 
@@ -33,7 +33,7 @@ class AtomPairConfig:
 
     @classmethod
     def from_tensors(
-        cls: type[T],
+        cls: Type[T],
         token_feats: torch.Tensor,
         atom_config: dict,
     ) -> T:

@@ -21,7 +21,7 @@ def main():
     """
     device = torch.device("mps:0" if torch.backends.mps.is_available() else "cpu")
     print("Using device:", device)
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, trust_remote_code=True)
+    AutoTokenizer.from_pretrained(MODEL_NAME, trust_remote_code=True)
     model = AutoModel.from_pretrained(MODEL_NAME, trust_remote_code=True)
     print("Model class:", model.__class__)
     print("Model config:", model.config)

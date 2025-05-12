@@ -38,7 +38,6 @@ def make_atom_embeddings(batch_size, seq_len, feature_dim):
     c_s = feature_dim * 6  # Single feature dimension
     c_s_inputs = feature_dim * 2  # Input feature dimension
     c_z = feature_dim * 2  # Pair feature dimension
-    c_atom = feature_dim  # Atom feature dimension
     c_element = 128  # Element feature dimension
     c_atom_name_chars = 256  # Atom name chars dimension
 
@@ -104,8 +103,6 @@ def make_stageD_config(batch_size, seq_len, feature_dim, debug_logging=False, ap
     c_atom = feature_dim
     c_atompair = feature_dim // 2
     c_noise_embedding = feature_dim
-    c_element = 128  # Element feature dimension
-    c_atom_name_chars = 256  # Atom name chars dimension
     ref_element_size = 32
     ref_atom_name_chars_size = 16
     profile_size = 32

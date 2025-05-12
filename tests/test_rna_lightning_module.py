@@ -20,13 +20,23 @@ config = OmegaConf.create({
             "lr": 0.001,
             "device": "cpu",  # Add explicit device parameter
             "dummy_mode": True,  # Enable dummy mode to avoid loading real model
-            "example_sequence_length": 10  # Add example sequence length for dummy mode
+            "example_sequence_length": 10,  # Add example sequence length for dummy mode
+            "min_seq_length": 1,  # Add required field
+            "model": {  # Add required model config
+                "num_hidden": 128,
+                "dropout": 0.1,
+                "batch_size": 1,
+                "lr": 0.001
+            }
         },
         "stageB": {
             "torsion_bert": {
                 "device": "cpu",  # Add explicit device parameter
-                "model_name_or_path": "dummy-path",  # Add model path
-                "debug_logging": True  # Enable debug logging
+                "init_from_scratch": True,  # Enable dummy mode
+                "debug_logging": True,  # Enable debug logging
+                "num_angles": 7,  # Add explicit num_angles
+                "max_length": 512,  # Add explicit max_length
+                "angle_mode": "sin_cos"  # Add explicit angle_mode
             },
             "pairformer": {
                 "device": "cpu",  # Add explicit device parameter
@@ -56,11 +66,12 @@ config = OmegaConf.create({
             "use_deepspeed_evo_attention": False,
             "use_lma": False,
             "inplace_safe": True,
-            "debug_logging": False,
+            "debug_logging": True,  # Enable debug logging
         },
         "stageD": {
             "enabled": True,
             "device": "cpu",
+            "debug_logging": True,  # Enable debug logging
             "diffusion": {
                 "enabled": True,
                 "device": "cpu",
@@ -96,14 +107,15 @@ config = OmegaConf.create({
                     "num_steps": 2,
                     "inplace_safe": True
                 },
-                "debug_logging": False
+                "debug_logging": True  # Enable debug logging
             }
         },
         "latent_merger": {
             "dim_angles": 7,
             "dim_s": 64,
             "dim_z": 32,
-            "output_dim": 128
+            "output_dim": 128,
+            "device": "cpu"  # Add explicit device parameter
         }
     },
 })

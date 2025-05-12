@@ -335,7 +335,8 @@ def test_broadcast_token_multisample_fix():
 
     # Create atom-to-residue mapping (each residue has 2 atoms)
     # [0,0,1,1,2,2,3,3,4,4] means atoms 0-1 belong to residue 0, atoms 2-3 to residue 1, etc.
-    atom_to_token_idx = torch.repeat_interleave(torch.arange(n_residues), atoms_per_residue).unsqueeze(0)  # [1, 10]
+    atom_to_token_idx = torch.repeat_interleave(torch.arange(n_residues), atoms_per_residue)
+    atom_to_token_idx = atom_to_token_idx.unsqueeze(0).unsqueeze(1).expand(1, 2, n_atoms)  # [1, 2, 10]
 
     # Test that broadcast_token_to_atom correctly handles the sample dimension
     result = broadcast_token_to_atom(x_token, atom_to_token_idx)
@@ -432,6 +433,7 @@ def test_multi_sample_shape_fix():
         # Call broadcast_token_to_atom with multi-sample token embeddings
         x_token = trunk_embeddings["s_trunk"]  # [1, 2, 5, 384]
         atom_to_token_idx = input_features["atom_to_token_idx"]  # [1, 10]
+        atom_to_token_idx = atom_to_token_idx.unsqueeze(1).expand(1, num_samples, n_atoms)  # [1, 2, 10]
 
         # This should correctly handle the sample dimension
         result = broadcast_token_to_atom(x_token, atom_to_token_idx)

@@ -1,0 +1,4 @@
+# Shared feature dimensions for RNA_PREDICT pipeline
+ref_element_size: 128
+ref_atom_name_chars_size: 256
+profile_size: 32

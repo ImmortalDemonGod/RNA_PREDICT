@@ -3,7 +3,7 @@ Feature processing utilities for the AtomAttentionEncoder.
 """
 
 import warnings
-from typing import Optional
+from typing import Optional, cast, Dict
 
 import torch
 
@@ -26,6 +26,7 @@ def _process_feature(
     Returns:
         Processed feature tensor or None if feature is invalid
     """
+    # Check if feature exists in dictionary
     if feature_name not in input_feature_dict:
         warnings.warn(f"Feature {feature_name} missing from input dictionary.")
         # Create a default tensor for the missing feature
@@ -50,6 +51,7 @@ def _process_feature(
                 n_atoms = atom_to_token_idx.shape[1]
 
         # Create default tensor based on feature name
+        default_tensor = None
         if feature_name == "ref_pos":
             default_tensor = torch.zeros((batch_size, n_atoms, 3), device=default_device)
         elif feature_name == "ref_charge":
@@ -63,8 +65,7 @@ def _process_feature(
         else:
             default_tensor = torch.zeros((batch_size, n_atoms, expected_dim), device=default_device)
 
-        # Add the default tensor to the input_feature_dict
-        # Use setitem method for TypedDict to avoid mypy errors
+        # Add the default tensor to the input_feature_dict using string literals
         if feature_name == "atom_to_token_idx":
             input_feature_dict["atom_to_token_idx"] = default_tensor
         elif feature_name == "ref_pos":
@@ -205,39 +206,39 @@ def extract_atom_features(
                 n_atoms = atom_to_token_idx.shape[1]
 
         # Create default features with appropriate shapes
+        # Use a regular dict for dynamic operations
+        feature_dict: Dict[str, torch.Tensor] = {}
         for feature_name, feature_dim in encoder.input_feature.items():
             if debug_logging:
                 print(f"[DEBUG][extract_atom_features] Creating default for {feature_name} with dim {feature_dim}")
             if feature_name == "ref_pos":
                 # Position tensor with shape [batch_size, n_atoms, 3]
                 default_tensor = torch.zeros((batch_size, n_atoms, 3), device=default_device)
-                # Use explicit key for TypedDict
-                input_feature_dict["ref_pos"] = default_tensor
+                feature_dict["ref_pos"] = default_tensor
                 features.append(default_tensor)
             elif feature_name == "ref_charge":
                 # Charge tensor with shape [batch_size, n_atoms, 1]
                 default_tensor = torch.zeros((batch_size, n_atoms, 1), device=default_device)
-                # Use explicit key for TypedDict
-                input_feature_dict["ref_charge"] = default_tensor
+                feature_dict["ref_charge"] = default_tensor
                 features.append(default_tensor)
             elif feature_name == "ref_mask":
                 # Mask tensor with shape [batch_size, n_atoms, 1]
                 default_tensor = torch.ones((batch_size, n_atoms, 1), device=default_device)
-                # Use explicit key for TypedDict
-                input_feature_dict["ref_mask"] = default_tensor
+                feature_dict["ref_mask"] = default_tensor
                 features.append(default_tensor)
             elif feature_name == "ref_element":
                 # Element tensor with shape [batch_size, n_atoms, feature_dim]
                 default_tensor = torch.zeros((batch_size, n_atoms, feature_dim), device=default_device)
-                # Use explicit key for TypedDict
-                input_feature_dict["ref_element"] = default_tensor
+                feature_dict["ref_element"] = default_tensor
                 features.append(default_tensor)
             elif feature_name == "ref_atom_name_chars":
                 # Atom name tensor with shape [batch_size, n_atoms, feature_dim]
                 default_tensor = torch.zeros((batch_size, n_atoms, feature_dim), device=default_device)
-                # Use explicit key for TypedDict
-                input_feature_dict["ref_atom_name_chars"] = default_tensor
+                feature_dict["ref_atom_name_chars"] = default_tensor
                 features.append(default_tensor)
+
+        # Update the TypedDict with the new values
+        input_feature_dict.update(cast(InputFeatureDict, feature_dict))
 
         # If we still have no features, raise an error
         if not features:
