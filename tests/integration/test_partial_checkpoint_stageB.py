@@ -2,8 +2,8 @@
 Integration test for Stage B (TorsionBERT + Pairformer) partial checkpointing using real Hydra config.
 Covers all partial checkpoint plan criteria and lessons learned from previous Hydra/config issues.
 """
-import os
 import hydra
+import pathlib
 import torch
 import pytest
 from omegaconf import OmegaConf
@@ -11,9 +11,9 @@ from rna_predict.pipeline.stageB.torsion.torsion_bert_predictor import StageBTor
 from rna_predict.pipeline.stageB.pairwise.pairformer_wrapper import PairformerWrapper
 from rna_predict.utils.checkpointing import save_trainable_checkpoint
 from rna_predict.utils.checkpoint import partial_load_state_dict
-import pathlib
-from hypothesis import given, strategies as st, settings
+from hydra.experimental import initialize_config_dir
 import tempfile
+from hypothesis import given, strategies as st, settings
 
 print("[DEBUG-CANARY] Top of test file")
 
@@ -23,64 +23,20 @@ print("[DEBUG-CANARY] Top of test file")
 @settings(max_examples=4, deadline=None)
 def test_stageB_partial_checkpoint_hydra(sequence):
     print("[DEBUG-ENTER-TEST] Entered test function")
-    # --- Compute config_path relative to test file dir ---
-    test_file_dir = os.path.dirname(__file__)
+    # Initialize Hydra using absolute config_dir
     project_root = pathlib.Path(__file__).resolve().parents[2]
     config_dir = project_root / "rna_predict" / "conf"
     if not config_dir.is_dir():
-        pytest.fail(f"[HYDRA-CONF-NOT-FOUND] Expected config dir at {config_dir}")
-    rel_config_path_from_test = os.path.relpath(config_dir, test_file_dir)
-    print(f"[DEBUG-HYDRA-CONF] rel_config_path_from_test: {rel_config_path_from_test}")
-
-    # --- Dynamic config_path logic with evidence-driven debugging ---
-    cwd = pathlib.Path(os.getcwd())
-    config_candidates = [cwd / "rna_predict" / "conf", cwd / "conf"]
-    config_paths = [rel_config_path_from_test, "rna_predict/conf", "conf"]
-    config_path_selected = None
-    hydra_exception = None
-
-    print(f"[DEBUG-HYDRA-CONF] Checking config candidates relative to CWD: {cwd}")
-    for candidate in config_candidates:
-        print(f"[DEBUG-HYDRA-CONF] Candidate: {candidate}, exists: {candidate.exists()}")
-        if candidate.exists():
-            print(f"[DEBUG-HYDRA-CONF] Contents of {candidate}:")
-            for item in candidate.iterdir():
-                print(f"  - {item} (is_file: {item.is_file()}, perms: {oct(item.stat().st_mode)})")
-
-    # Try all config paths for Hydra, catch and print exceptions
-    for config_path in config_paths:
-        try:
-            print(f"[DEBUG-HYDRA-CONF] Trying config_path: {config_path}")
-            # [HYDRA-PROJECT-RULE] Always use relative config path for Hydra initialization
-            with hydra.initialize(config_path="../../rna_predict/conf", job_name="test_partial_checkpoint_stageB", version_base=None):
-                cfg = hydra.compose(config_name="default")
-                stageB_cfg = cfg.model.stageB
-            config_path_selected = config_path
-            print(f"[DEBUG-HYDRA-CONF] SUCCESS with config_path: {config_path}")
-            break
-        except Exception as e:
-            print(f"[UNIQUE-ERR-HYDRA-CONF-TRY-{config_path}] Exception: {e}")
-            hydra_exception = e
-
-    if not config_path_selected:
-        # Print CWD and rna_predict directory contents for diagnosis
-        print("[UNIQUE-ERR-HYDRA-CONF-NOT-FOUND] Could not initialize Hydra with any config_path candidate.")
-        print("[DEBUG-HYDRA-CONF] CWD contents:")
-        for item in cwd.iterdir():
-            print(f"  - {item} (is_file: {item.is_file()}, perms: {oct(item.stat().st_mode)})")
-        rna_predict_dir = cwd / "rna_predict"
-        if rna_predict_dir.exists():
-            print("[DEBUG-HYDRA-CONF] rna_predict directory contents:")
-            for item in rna_predict_dir.iterdir():
-                print(f"  - {item} (is_file: {item.is_file()}, perms: {oct(item.stat().st_mode)})")
-        raise RuntimeError(f"[UNIQUE-ERR-HYDRA-CONF-NOT-FOUND] Could not initialize Hydra with any config_path candidate. Last exception: {hydra_exception}")
+        pytest.fail(f"Expected Hydra config dir at {config_dir}")
+    try:
+        with initialize_config_dir(config_dir=str(config_dir), job_name="test_stageB_partial_checkpoint_hydra"):
+            cfg = hydra.compose(config_name="default")
+            stageB_cfg = cfg.model.stageB
+    except Exception as e:
+        pytest.fail(f"Hydra initialization failed using initialize_config_dir with config_dir '{config_dir}': {e}")
 
     # Only allow valid RNA sequences
     sequence = ''.join([c for c in sequence if c in "ACGU"]) or "ACGUACGU"
-    # [HYDRA-PROJECT-RULE] Always use relative config path for Hydra initialization
-    with hydra.initialize(config_path="../../rna_predict/conf", job_name="test_partial_checkpoint_stageB", version_base=None):
-        cfg = hydra.compose(config_name="default")
-        stageB_cfg = cfg.model.stageB
     # --- Instantiate models ---
     torsion_bert = StageBTorsionBertPredictor(stageB_cfg.torsion_bert)
     pairformer = PairformerWrapper(stageB_cfg.pairformer)

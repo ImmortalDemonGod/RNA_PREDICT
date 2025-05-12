@@ -19,6 +19,7 @@ from rna_predict.pipeline.stageD.run_stageD import run_stageD
 from rna_predict.pipeline.stageA.adjacency.rfold_predictor import StageARFoldPredictor
 from rna_predict.pipeline.stageB.torsion.torsion_bert_predictor import StageBTorsionBertPredictor
 from rna_predict.pipeline.stageD.diffusion.protenix_diffusion_manager import ProtenixDiffusionManager
+from rna_predict.dataset.preprocessing.angle_utils import angles_rad_to_sin_cos
 
 # TODO: These modules need to be implemented or moved to the correct location
 # from rna_predict.models.latent_merger import LatentMerger
@@ -360,19 +361,20 @@ class RNALightningModule(L.LightningModule):
         torsion_angles = outB_torsion["torsion_angles"]
         if torsion_angles.device != self.device_:
             print(f"[DEVICE-PATCH][forward] Moving torsion_angles from {torsion_angles.device} to {self.device_}")
-            torsion_angles = torsion_angles.to(self.device_)
-        if hasattr(self, 'debug_logging') and self.debug_logging:
             logger.info(f"[DEVICE-DEBUG][forward] torsion_angles: device={torsion_angles.device}, shape={torsion_angles.shape}, dtype={torsion_angles.dtype}")
 
         outB_pairformer = self.stageB_pairformer.predict(sequence, adjacency=adj)
         s_emb = outB_pairformer[0]
         z_emb = outB_pairformer[1]
+        print(f"[DEBUG][FORWARD] s_emb shape after predict: {s_emb.shape}")
+        print(f"[DEBUG][FORWARD] sequence length: {len(sequence)}")
         if s_emb.device != self.device_:
             print(f"[DEVICE-PATCH][forward] Moving s_emb from {s_emb.device} to {self.device_}")
             s_emb = s_emb.to(self.device_)
         if z_emb.device != self.device_:
             print(f"[DEVICE-PATCH][forward] Moving z_emb from {z_emb.device} to {self.device_}")
             z_emb = z_emb.to(self.device_)
+        print(f"[DEBUG][FORWARD] s_emb shape before unsqueeze: {s_emb.shape}")
         if hasattr(self, 'debug_logging') and self.debug_logging:
             logger.info(f"[DEVICE-DEBUG][forward] s_emb: device={s_emb.device}, shape={s_emb.shape}, dtype={s_emb.dtype}")
             logger.info(f"[DEVICE-DEBUG][forward] z_emb: device={z_emb.device}, shape={z_emb.shape}, dtype={z_emb.dtype}")
@@ -438,6 +440,7 @@ class RNALightningModule(L.LightningModule):
             "unified_latent": unified_latent,
             # Add other outputs as needed
         }
+        print(f"[DEBUG][FORWARD] output['s_embeddings'] shape: {output.get('s_embeddings').shape}")
         # --- PROPAGATE atom_metadata and atom_count from Stage C if present ---
         if outC.get("atom_metadata") is not None:
             output["atom_metadata"] = outC["atom_metadata"]
@@ -455,6 +458,9 @@ class RNALightningModule(L.LightningModule):
         print("[NOISE-PRINT] Entered training_step")
         logger.debug("[DEBUG-ENTRY] Entered training_step")
         logger.debug("--- Checking batch devices upon entry to training_step ---")
+        # SYSTEMATIC FIX: Always run forward to get output dict for loss and bridging
+        output = self.forward(batch)
+
         if hasattr(self, 'debug_logging') and self.debug_logging:
             def check_batch_devices(obj, prefix):
                 if isinstance(obj, dict):
@@ -484,67 +490,46 @@ class RNALightningModule(L.LightningModule):
                     logger.info(f"[DEVICE-DEBUG][training_step][{name}] Parameter: {pname}, device: {getattr(param, 'device', 'NO DEVICE')}")
             log_param_devices(self.stageA, 'stageA')
             log_param_devices(self.stageB_torsion, 'stageB_torsion')
-            log_param_devices(self.stageB_pairformer, 'stageB_pairformer')
-            log_param_devices(self.stageC, 'stageC')
-            log_param_devices(self.stageD, 'stageD')
-            log_param_devices(self.latent_merger, 'latent_merger')
-
-        # Print requires_grad for all model parameters, gated by each stage's debug_logging config
-        def log_requires_grad(module, name, debug_logging):
-            if debug_logging:
-                logger.debug("[DEBUG][training_step] Model parameters requires_grad status for %s:", name)
-                for pname, param in module.named_parameters():
-                    logger.debug("  %s: requires_grad=%s", f"{name}.{pname}", param.requires_grad)
-        log_requires_grad(self.stageA, 'stageA', getattr(self.stageA, 'debug_logging', False))
-        log_requires_grad(self.stageB_torsion, 'stageB_torsion', getattr(self.stageB_torsion, 'debug_logging', False))
-        log_requires_grad(self.stageB_pairformer, 'stageB_pairformer', getattr(self.stageB_pairformer, 'debug_logging', False))
-        log_requires_grad(self.stageC, 'stageC', getattr(self.stageC, 'debug_logging', False))
-        log_requires_grad(self.stageD, 'stageD', getattr(self.stageD, 'debug_logging', False))
-        log_requires_grad(self.latent_merger, 'latent_merger', getattr(self.latent_merger, 'debug_logging', False))
-
-        # TEST HACK: Bypass full pipeline for StageD gradient flow test
-        if os.environ.get('PYTEST_CURRENT_TEST', '').startswith('test_run_stageD_basic'):
-            # Use dummy linear layer to generate differentiable 'coordinates'
-            dummy_out = self.forward(batch)
-            s_emb = dummy_out.get('s_embeddings')
-            bsz = s_emb.size(0)
-            flat = s_emb.view(bsz, -1)
-            inp = flat[:, :16]
-            pred = self._integration_test_dummy(inp)
-            stageD_result = {'coordinates': pred}
-            loss = pred.sum()
-            return {'loss': loss, 'stageD_result': stageD_result}
-
-        # --- Direct Angle Loss logic (Phase 1, Step 2) ---
-        output = self.forward(batch)
-        logger.debug("[DEBUG-LM] output.keys(): %s", list(output.keys()))
-
-        # Robust angle loss calculation and shape alignment
-        predicted_angles_sincos = output.get("torsion_angles", None)
-        true_angles_rad = batch.get("angles_true", None)
-        residue_mask = batch.get("attention_mask", None)
-        if residue_mask is None:
-            residue_mask = batch.get("residue_mask", None)
-            if residue_mask is None and true_angles_rad is not None:
-                residue_mask = torch.ones(true_angles_rad.shape[:2], dtype=torch.bool, device=true_angles_rad.device)
-        if predicted_angles_sincos is None or true_angles_rad is None or residue_mask is None:
-            logger.error(f"Missing required keys for angle loss: torsion_angles={predicted_angles_sincos is not None}, angles_true={true_angles_rad is not None}, mask={residue_mask is not None}")
             loss_angle = torch.tensor(0.0, device=self.device_, requires_grad=True)
         else:
-            # DEVICE PATCH: Ensure residue_mask is on self.device_
-            if residue_mask.device != self.device_:
-                print(f"[DEVICE-PATCH][training_step] Moving residue_mask from {residue_mask.device} to {self.device_}")
-                residue_mask = residue_mask.to(self.device_)
-            print(f"[DEVICE-PATCH][training_step] residue_mask device after move: {residue_mask.device}")
-            # Dynamically adapt to the number of predicted angles (and output dimension)
+            # Before loss calculation
+            output = self.forward(batch)
+            predicted_angles_sincos = output["torsion_angles"]
+            true_angles_rad = batch.get("angles_true", batch.get("angles", None))
+            residue_mask = batch.get("attention_mask", batch.get("ref_mask", None))
+            predicted_angles_sincos = output["torsion_angles"]
+            true_angles_sincos = angles_rad_to_sin_cos(batch["angles_true"])  # noqa: F823
+            residue_mask = batch["attention_mask"]
+            if hasattr(self, 'debug_logging') and self.debug_logging:
+                logger.info(f"[LOSS-DEBUG] predicted_angles_sincos device: {getattr(predicted_angles_sincos, 'device', None)}")
+                logger.info(f"[LOSS-DEBUG] true_angles_sincos device: {getattr(true_angles_sincos, 'device', None)}")
+                logger.info(f"[LOSS-DEBUG] residue_mask device: {getattr(residue_mask, 'device', None)}")
+            error_angle = torch.nn.functional.mse_loss(predicted_angles_sincos, true_angles_sincos, reduction='none')
+            if hasattr(self, 'debug_logging') and self.debug_logging:
+                logger.info(f"[LOSS-DEBUG] error_angle after mse_loss device: {getattr(error_angle, 'device', None)}")
+            mask_expanded = residue_mask.unsqueeze(-1).float()
+            if hasattr(self, 'debug_logging') and self.debug_logging:
+                logger.info(f"[LOSS-DEBUG] mask_expanded after float device: {getattr(mask_expanded, 'device', None)}")
+            masked_error_angle = error_angle * mask_expanded
+            if hasattr(self, 'debug_logging') and self.debug_logging:
+                logger.info(f"[LOSS-DEBUG] masked_error_angle after multiply device: {getattr(masked_error_angle, 'device', None)}")
+            num_valid_elements = mask_expanded.sum() * predicted_angles_sincos.shape[-1] + 1e-8
+            if hasattr(self, 'debug_logging') and self.debug_logging:
+                logger.info(f"[LOSS-DEBUG] num_valid_elements after sum device: {getattr(num_valid_elements, 'device', None)}")
+            loss_angle = masked_error_angle.sum() / num_valid_elements
+            if hasattr(self, 'debug_logging') and self.debug_logging:
+                logger.info(f"[LOSS-DEBUG] loss_angle after division device: {getattr(loss_angle, 'device', None)}")
+            # **** CRITICAL FIX: Move the final loss to the module's device ****
+            loss_angle = loss_angle.to(self.device_)
+            if hasattr(self, 'debug_logging') and self.debug_logging:
+                logger.info(f"[LOSS-DEBUG] loss_angle after to(self.device_) device: {getattr(loss_angle, 'device', None)}")
             # predicted_angles_sincos: [B, L, N*2] (N = num_angles)
             # true_angles_rad: [B, L, N]
             # Convert true angles to sin/cos pairs for N angles
-            from rna_predict.dataset.preprocessing.angle_utils import angles_rad_to_sin_cos
             num_predicted_features = predicted_angles_sincos.shape[-1]
             assert num_predicted_features % 2 == 0, f"Predicted torsion output last dim ({num_predicted_features}) should be even (sin/cos pairs)"
             num_predicted_angles = num_predicted_features // 2
-            true_angles_sincos = angles_rad_to_sin_cos(true_angles_rad)
+            true_angles_sincos = angles_rad_to_sin_cos(true_angles_rad)  # noqa: F823
             # DEVICE PATCH: Ensure both tensors are on self.device_
             if predicted_angles_sincos.device != self.device_:
                 print(f"[DEVICE-PATCH][training_step] Moving predicted_angles_sincos from {predicted_angles_sincos.device} to {self.device_}")
@@ -601,6 +586,24 @@ class RNALightningModule(L.LightningModule):
                 if hasattr(self, 'debug_logging') and self.debug_logging:
                     logger.info(f"[LOSS-DEBUG] loss_angle after to(self.device_) device: {getattr(loss_angle, 'device', None)}")
 
+                # SYSTEMATIC DEBUGGING: Print loss connectivity
+                print(f"[DEBUG][LOSS] loss_angle.requires_grad: {loss_angle.requires_grad}")
+                print(f"[DEBUG][LOSS] loss_angle.grad_fn: {loss_angle.grad_fn}")
+                # Try a backward pass on a clone of the loss to check gradient flow
+                try:
+                    self.zero_grad()
+                    loss_angle_clone = loss_angle.clone()
+                    loss_angle_clone.backward(retain_graph=True)
+                    grad_norms = {}
+                    for name, param in self.named_parameters():
+                        if param.grad is not None:
+                            grad_norms[name] = param.grad.norm().item()
+                        else:
+                            grad_norms[name] = None
+                    print(f"[DEBUG][LOSS] Grad norms after backward: {grad_norms}")
+                except Exception as e:
+                    print(f"[DEBUG][LOSS] Exception during backward: {e}")
+
         logger.debug(f"[DEBUG-LM] loss_angle value: {loss_angle.item()}, device: {loss_angle.device}")
 
         # --- Stage D Noise Generation and Input Preparation ---
@@ -640,8 +643,16 @@ class RNALightningModule(L.LightningModule):
         z_embeddings_res = z_embeddings_res.to(self.device_)
         atom_mask = atom_mask.to(self.device_)
         atom_to_token_idx = atom_to_token_idx.to(self.device_)
+        batch_size = batch["sequence"].shape[0] if hasattr(batch["sequence"], 'shape') else 1
+        print(f"[DEBUG][TRAINING_STEP] s_embeddings_res shape before unsqueeze: {s_embeddings_res.shape}")
+        # Always unsqueeze if dim==2 (to ensure [batch, num_residues, c_s])
         if s_embeddings_res.dim() == 2:
             s_embeddings_res = s_embeddings_res.unsqueeze(0)
+            print(f"[DEBUG][TRAINING_STEP] s_embeddings_res shape after unsqueeze: {s_embeddings_res.shape}")
+        # Assert correct shape
+        assert s_embeddings_res.dim() == 3, f"s_embeddings_res should be 3D, got {s_embeddings_res.shape}"
+        assert s_embeddings_res.shape[0] == batch_size, f"Batch size mismatch: expected {batch_size}, got {s_embeddings_res.shape[0]}"
+        print(f"[DEBUG][TRAINING_STEP] s_embeddings_res shape before bridging: {s_embeddings_res.shape}")
         if z_embeddings_res.dim() == 3:
             z_embeddings_res = z_embeddings_res.unsqueeze(0)
         if atom_mask.dim() == 1:
@@ -657,6 +668,9 @@ class RNALightningModule(L.LightningModule):
             "atom_metadata": batch.get("atom_metadata"),
         }
         input_features_for_bridge = {k: v for k, v in input_features_for_bridge.items() if v is not None}
+        print(f"[DEBUG][TRAINING_STEP] s_embeddings_res shape before bridging: {s_embeddings_res.shape}")
+        print(f"[DEBUG][TRAINING_STEP] sequence_list: {sequence_list}")
+        print(f"[DEBUG][TRAINING_STEP] expected residue count: {len(sequence_list[0]) if isinstance(sequence_list, list) else len(sequence_list)}")
         if hasattr(self, 'debug_logging') and self.debug_logging:
             logger.info(f"  s_embeddings_res shape: {s_embeddings_res.shape}, device: {s_embeddings_res.device}")
             logger.info(f"  z_embeddings_res shape: {z_embeddings_res.shape}, device: {z_embeddings_res.device}")
@@ -689,16 +703,27 @@ class RNALightningModule(L.LightningModule):
 
         # Prepare bridging input
         bridging_input = BridgingInput(
-            partial_coords=coords_true,  # Pass true coords for map derivation
+            partial_coords=coords_noisy,
             trunk_embeddings=trunk_embeddings_residue,
             input_features=input_features_for_bridge,
             sequence=sequence_list[0] if isinstance(sequence_list, list) else sequence_list  # Pass first sequence string
         )
         try:
+            # SYSTEMATIC DEBUGGING: Print all relevant shapes and sequence info before bridging
+            print("[DEBUG][BRIDGING] sequence:", sequence_list[0] if isinstance(sequence_list, list) else sequence_list)
+            print("[DEBUG][BRIDGING] len(sequence):", len(sequence_list[0]) if isinstance(sequence_list, list) else len(sequence_list))
+            print("[DEBUG][BRIDGING] s_embeddings_res shape:", s_embeddings_res.shape)
+            print("[DEBUG][BRIDGING] trunk_embeddings_residue['s_trunk'] shape:", trunk_embeddings_residue["s_trunk"].shape)
+            print("[DEBUG][BRIDGING] batch size:", batch_size)
+            # Print all shapes in trunk_embeddings_residue
+            for k, v in trunk_embeddings_residue.items():
+                if v is not None:
+                    print(f"[DEBUG][BRIDGING] trunk_embeddings_residue['{k}'] shape: {v.shape}")
+            # Call bridging
             _, bridged_trunk_embeddings, bridged_input_features = bridge_residue_to_atom(
-                bridging_input=bridging_input,
-                config=self.cfg,
-                debug_logging=self.debug_logging
+                bridging_input,
+                self.cfg,
+                debug_logging=getattr(self, 'debug_logging', False),
             )
             # Extract atom-level embeddings
             s_trunk_atom = bridged_trunk_embeddings["s_trunk"]
@@ -712,9 +737,9 @@ class RNALightningModule(L.LightningModule):
         except Exception as e:
             logger.error(f"Error during residue-to-atom bridging: {e}", exc_info=True)
             # Fallback: create zero tensors with expected ATOM shapes
-            n_atoms_padded = coords_true.shape[1]
+            n_atoms_padded = coords_noisy.shape[1]
             c_s = s_embeddings_res.shape[-1]
-            c_z = z_embeddings_res.shape[-1]
+            c_z = z_embeddings_res.shape[-1] if z_embeddings_res is not None else 8
             c_s_inputs = c_s
             s_trunk_atom = torch.zeros((batch_size, n_atoms_padded, c_s), device=self.device_)
             s_inputs_atom = torch.zeros((batch_size, n_atoms_padded, c_s_inputs), device=self.device_)

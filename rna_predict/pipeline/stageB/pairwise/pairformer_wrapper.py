@@ -42,6 +42,12 @@ class PairformerWrapper(nn.Module):
     Integrates Protenix's PairformerStack into our pipeline for global pairwise encoding.
     """
 
+    def _initialize_model(self):
+        """Initialize the Pairformer model."""
+        # Placeholder for model initialization
+        # This would be replaced with actual model loading code
+        pass
+
     def __init__(self, cfg: DictConfig):
         """
         Initializes the PairformerWrapper with configuration and prepares the PairformerStack model.
@@ -396,7 +402,6 @@ class PairformerWrapper(nn.Module):
             - single_embeddings: [L, dim_s] tensor of single-residue embeddings
             - pair_embeddings: [L, L, dim_z] tensor of pair embeddings
         """
-        # Log the input parameters
         logger.info(f"Predicting for sequence of length {len(sequence)}")
         if adjacency is not None:
             logger.info(f"Using provided adjacency matrix with shape {adjacency.shape}")
@@ -417,4 +422,6 @@ class PairformerWrapper(nn.Module):
                     z_emb = z_emb * adjacency.unsqueeze(-1)
                     logger.info("Initialized z_emb from adjacency matrix")
 
+        print(f"[DEBUG][PAIRFORMER] sequence: {sequence}")
+        print(f"[DEBUG][PAIRFORMER] s_emb.shape: {s_emb.shape}")
         return s_emb, z_emb

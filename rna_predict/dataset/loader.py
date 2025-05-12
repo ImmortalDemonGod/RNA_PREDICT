@@ -159,6 +159,13 @@ class RNADataset(Dataset):
             sample["adjacency"] = torch.zeros((self.max_res, self.max_res), device=self.device)
         if self.load_ang:
             sample["angles_true"] = self._load_angles(row, L)
+        else:
+            # Always provide angles_true as a dummy tensor if not loaded
+            # Shape: [max_res, N_ANGLES] (assume N_ANGLES=7, adjust if needed)
+            N_ANGLES = 7  # Update if your pipeline expects a different number
+            sample["angles_true"] = torch.zeros((self.max_res, N_ANGLES), dtype=torch.float32, device=self.device)
+        # Debug: log angles_true shape and device
+        print(f"[RNADataset][DEBUG] angles_true shape: {sample['angles_true'].shape}, device: {sample['angles_true'].device}")
         if self.verbose:
             print(f"[DEBUG][RNADataset.__getitem__] index={i}, sample keys={list(sample.keys())}")
             for k, v in sample.items():
