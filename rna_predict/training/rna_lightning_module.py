@@ -490,199 +490,92 @@ class RNALightningModule(L.LightningModule):
                     logger.info(f"[DEVICE-DEBUG][training_step][{name}] Parameter: {pname}, device: {getattr(param, 'device', 'NO DEVICE')}")
             log_param_devices(self.stageA, 'stageA')
             log_param_devices(self.stageB_torsion, 'stageB_torsion')
-            loss_angle = torch.tensor(0.0, device=self.device_, requires_grad=True)
+        # Compute angle loss (independent of debug_logging)
+        if 'angles_true' not in batch and hasattr(self, 'loss_angle'):
+            loss_angle = self.loss_angle
         else:
-            # Allow test override if angles_true missing in batch
-            if 'angles_true' not in batch and hasattr(self, 'loss_angle'):
-                loss_angle = self.loss_angle
+            output = self.forward(batch)
+            predicted_angles_sincos = output["torsion_angles"]
+            true_angles_rad = batch.get("angles_true", batch.get("angles", None))
+            true_angles_sincos = angles_rad_to_sin_cos(true_angles_rad)
+            residue_mask = batch.get("attention_mask", batch.get("ref_mask", None))
+            logger.debug(f"[LOSS-SHAPES] pred={predicted_angles_sincos.shape}, true={true_angles_sincos.shape}")
+            num_predicted_features = predicted_angles_sincos.shape[-1]
+            assert num_predicted_features % 2 == 0, f"Predicted torsion output last dim ({num_predicted_features}) should be even (sin/cos pairs)"
+            num_predicted_angles = num_predicted_features // 2
+            # DEVICE PATCH: Ensure both tensors are on self.device_
+            if predicted_angles_sincos.device != self.device_:
+                print(f"[DEVICE-PATCH][training_step] Moving predicted_angles_sincos from {predicted_angles_sincos.device} to {self.device_}")
+                predicted_angles_sincos = predicted_angles_sincos.to(self.device_)
+            if true_angles_sincos.device != self.device_:
+                print(f"[DEVICE-PATCH][training_step] Moving true_angles_sincos from {true_angles_sincos.device} to {self.device_}")
+                true_angles_sincos = true_angles_sincos.to(self.device_)
+            print(f"[TRAIN DEBUG] predicted_angles_sincos device: {predicted_angles_sincos.device}")
+            print(f"[TRAIN DEBUG] true_angles_sincos device: {true_angles_sincos.device}")
+            # Align feature dimension: slice or pad true_angles_sincos to match predicted
+            if true_angles_sincos.shape[-1] < num_predicted_features:
+                pad_feat = (0, num_predicted_features - true_angles_sincos.shape[-1])
+                true_angles_sincos = torch.nn.functional.pad(true_angles_sincos, pad_feat)
+            elif true_angles_sincos.shape[-1] > num_predicted_features:
+                true_angles_sincos = true_angles_sincos[..., :num_predicted_features]
+            # Ensure batch dimension for predictions
+            if predicted_angles_sincos.dim() == 2:
+                predicted_angles_sincos = predicted_angles_sincos.unsqueeze(0)  # [1, L, N*2]
+            # Align sequence length (pad or slice)
+            B, N_padded, D = true_angles_sincos.shape
+            L = predicted_angles_sincos.shape[1]
+            if L < N_padded:
+                pad = (0, 0, 0, N_padded - L)  # pad after the end
+                predicted_angles_sincos = torch.nn.functional.pad(predicted_angles_sincos, pad)
+            elif L > N_padded:
+                predicted_angles_sincos = predicted_angles_sincos[:, :N_padded, :]
+            # Now shapes should match: [B, N_padded, N*2]
+            if predicted_angles_sincos.shape != true_angles_sincos.shape:
+                logger.error(f"Shape mismatch for angle loss after alignment: Pred {predicted_angles_sincos.shape}, True {true_angles_sincos.shape}")
+                loss_angle = torch.tensor(0.0, device=self.device_, requires_grad=True)
             else:
-                # Regular pipeline mode with dictionary input
-                logger.debug("[DEBUG-LM] batch keys: %s", list(batch.keys()))
-                sequence = batch["sequence"][0]  # assumes batch size 1 for now
-                logger.debug("[DEBUG-LM] StageA input sequence: %s", sequence)
-                adj = batch['adjacency'].to(self.device_)
-
-                outB_torsion = self.stageB_torsion(sequence, adjacency=adj)
-                torsion_angles = outB_torsion["torsion_angles"]
-                if torsion_angles.device != self.device_:
-                    print(f"[DEVICE-PATCH][forward] Moving torsion_angles from {torsion_angles.device} to {self.device_}")
-                    logger.info(f"[DEVICE-DEBUG][forward] torsion_angles: device={torsion_angles.device}, shape={torsion_angles.shape}, dtype={torsion_angles.dtype}")
-
-                outB_pairformer = self.stageB_pairformer.predict(sequence, adjacency=adj)
-                s_emb = outB_pairformer[0]
-                z_emb = outB_pairformer[1]
-                print(f"[DEBUG][FORWARD] s_emb shape after predict: {s_emb.shape}")
-                print(f"[DEBUG][FORWARD] sequence length: {len(sequence)}")
-                if s_emb.device != self.device_:
-                    print(f"[DEVICE-PATCH][forward] Moving s_emb from {s_emb.device} to {self.device_}")
-                    s_emb = s_emb.to(self.device_)
-                if z_emb.device != self.device_:
-                    print(f"[DEVICE-PATCH][forward] Moving z_emb from {z_emb.device} to {self.device_}")
-                    z_emb = z_emb.to(self.device_)
-                print(f"[DEBUG][FORWARD] s_emb shape before unsqueeze: {s_emb.shape}")
-                if hasattr(self, 'debug_logging') and self.debug_logging:
-                    logger.info(f"[DEVICE-DEBUG][forward] s_emb: device={s_emb.device}, shape={s_emb.shape}, dtype={s_emb.dtype}")
-                    logger.info(f"[DEVICE-DEBUG][forward] z_emb: device={z_emb.device}, shape={z_emb.shape}, dtype={z_emb.dtype}")
-
-                # Additional: Check for .detach(), .cpu(), .numpy(), .clone(), .to(), or torch.no_grad() in this section
-                logger.debug("[DEBUG-LM][CHECK] About to call run_stageC with torsion_angles id: %s", id(torsion_angles))
-                outC = run_stageC(sequence=sequence, torsion_angles=torsion_angles, cfg=self.cfg)
-                logger.debug("[DEBUG-LM] run_stageC output keys: %s", list(outC.keys()))
-                logger.debug("[DEBUG-LM][POST-STAGEC] torsion_angles.requires_grad: %s", getattr(torsion_angles, 'requires_grad', None))
-                logger.debug("[DEBUG-LM][POST-STAGEC] torsion_angles.grad_fn: %s", getattr(torsion_angles, 'grad_fn', None))
-                logger.debug("[DEBUG-LM][POST-STAGEC] torsion_angles.device: %s", getattr(torsion_angles, 'device', None))
-                coords = outC["coords"]
-                logger.debug("[DEBUG-LM] coords shape: %s", getattr(coords, 'shape', None))
-                logger.debug("[DEBUG-LM] coords requires_grad: %s", getattr(coords, 'requires_grad', None))
-                logger.debug("[DEBUG-LM] coords grad_fn: %s", getattr(coords, 'grad_fn', None))
-                device = getattr(self.cfg, 'device', outB_pairformer[0].device)
-                coords = coords.to(device)
-                logger.debug("[DEBUG-LM] coords_init shape (after .to(device)): %s, dtype: %s, device: %s", coords.shape, coords.dtype, coords.device)
-                logger.debug("[DEBUG-LM] coords_init requires_grad (after .to(device)): %s", getattr(coords, 'requires_grad', None))
-                logger.debug("[DEBUG-LM] coords_init grad_fn (after .to(device)): %s", getattr(coords, 'grad_fn', None))
-                s_trunk = s_emb.unsqueeze(0)
-                z_trunk = z_emb.unsqueeze(0)
-                s_inputs = torch.zeros_like(s_trunk)
-                input_feature_dict = {
-                    "atom_to_token_idx": batch["atom_to_token_idx"],
-                    "ref_element": batch["ref_element"],
-                    "ref_atom_name_chars": batch["ref_atom_name_chars"],
-                }
-                input_feature_dict = self.move_to_device(input_feature_dict, device)
-                atom_metadata = outC.get("atom_metadata", None)
-                if atom_metadata is not None:
-                    override_input_features = dict(input_feature_dict)
-                    override_input_features["atom_metadata"] = self.move_to_device(atom_metadata, device)
-                else:
-                    override_input_features = input_feature_dict
-                self.debug_print_devices(override_input_features)
-                if hasattr(self, 'debug_logging') and self.debug_logging:
-                    logger.info(f"[DEBUG-LM] s_trunk shape: {s_trunk.shape}, dtype: {s_trunk.dtype}, device: {s_trunk.device}")
-                    logger.info(f"[DEBUG-LM] z_trunk shape: {z_trunk.shape}, dtype: {z_trunk.dtype}, device: {z_trunk.device}")
-                    logger.info(f"[DEBUG-LM] s_inputs shape: {s_inputs.shape}, dtype: {s_inputs.dtype}, device: {s_inputs.device}")
-
-                # --- Unified Latent Merger Integration ---
-                inputs = LatentInputs(
-                    adjacency=adj,
-                    angles=torsion_angles,
-                    s_emb=s_emb,
-                    z_emb=z_emb,
-                    partial_coords=coords,
-                )
-                unified_latent = self.latent_merger(inputs)
-                if hasattr(self, 'debug_logging') and self.debug_logging:
-                    logger.info(f"[DEBUG-LM] unified_latent shape: {unified_latent.shape if unified_latent is not None else None}")
-                # Stage D: Pass unified_latent as condition (update Stage D logic as needed)
-                # Example: self.stageD(coords, unified_latent, ...)
-                # TODO: Update Stage D to accept and use unified_latent
-                # Return outputs including unified_latent
-                output = {
-                    "adjacency": adj.to(self.device_),
-                    "torsion_angles": torsion_angles,
-                    "s_embeddings": s_emb,
-                    "z_embeddings": z_emb,
-                    "coords": coords,
-                    "unified_latent": unified_latent,
-                    # Add other outputs as needed
-                }
-                print(f"[DEBUG][FORWARD] output['s_embeddings'] shape: {output.get('s_embeddings').shape}")
-                # --- PROPAGATE atom_metadata and atom_count from Stage C if present ---
-                if outC.get("atom_metadata") is not None:
-                    output["atom_metadata"] = outC["atom_metadata"]
-                if outC.get("atom_count") is not None:
-                    output["atom_count"] = outC["atom_count"]
-                logger.debug("[DEBUG-LM-FORWARD-RETURN] Returning output with keys: %s", list(output.keys()))
-                if output.get("atom_metadata") is not None:
-                    logger.debug("[DEBUG-LM-FORWARD-RETURN] output['atom_metadata'] keys: %s", list(output['atom_metadata'].keys()))
-                else:
-                    logger.debug("[DEBUG-LM-FORWARD-RETURN] output['atom_metadata'] is None")
-                predicted_angles_sincos = output["torsion_angles"]
-                true_angles_rad = batch.get("angles_true", batch.get("angles", None))
-                residue_mask = batch.get("attention_mask", batch.get("ref_mask", None))
-                predicted_angles_sincos = output["torsion_angles"]
-                true_angles_sincos = angles_rad_to_sin_cos(batch["angles_true"])  # noqa: F823
-                residue_mask = batch["attention_mask"]
+                # Before loss calculation
                 if hasattr(self, 'debug_logging') and self.debug_logging:
                     logger.info(f"[LOSS-DEBUG] predicted_angles_sincos device: {getattr(predicted_angles_sincos, 'device', None)}")
                     logger.info(f"[LOSS-DEBUG] true_angles_sincos device: {getattr(true_angles_sincos, 'device', None)}")
                     logger.info(f"[LOSS-DEBUG] residue_mask device: {getattr(residue_mask, 'device', None)}")
-                num_predicted_features = predicted_angles_sincos.shape[-1]
-                assert num_predicted_features % 2 == 0, f"Predicted torsion output last dim ({num_predicted_features}) should be even (sin/cos pairs)"
-                num_predicted_angles = num_predicted_features // 2
-                true_angles_sincos = angles_rad_to_sin_cos(true_angles_rad)  # noqa: F823
-                # DEVICE PATCH: Ensure both tensors are on self.device_
-                if predicted_angles_sincos.device != self.device_:
-                    print(f"[DEVICE-PATCH][training_step] Moving predicted_angles_sincos from {predicted_angles_sincos.device} to {self.device_}")
-                    predicted_angles_sincos = predicted_angles_sincos.to(self.device_)
-                if true_angles_sincos.device != self.device_:
-                    print(f"[DEVICE-PATCH][training_step] Moving true_angles_sincos from {true_angles_sincos.device} to {self.device_}")
-                    true_angles_sincos = true_angles_sincos.to(self.device_)
-                print(f"[TRAIN DEBUG] predicted_angles_sincos device: {predicted_angles_sincos.device}")
-                print(f"[TRAIN DEBUG] true_angles_sincos device: {true_angles_sincos.device}")
-                # Align feature dimension: slice or pad true_angles_sincos to match predicted
-                if true_angles_sincos.shape[-1] < num_predicted_features:
-                    pad_feat = (0, num_predicted_features - true_angles_sincos.shape[-1])
-                    true_angles_sincos = torch.nn.functional.pad(true_angles_sincos, pad_feat)
-                elif true_angles_sincos.shape[-1] > num_predicted_features:
-                    true_angles_sincos = true_angles_sincos[..., :num_predicted_features]
-                # Ensure batch dimension for predictions
-                if predicted_angles_sincos.dim() == 2:
-                    predicted_angles_sincos = predicted_angles_sincos.unsqueeze(0)  # [1, L, N*2]
-                # Align sequence length (pad or slice)
-                B, N_padded, D = true_angles_sincos.shape
-                L = predicted_angles_sincos.shape[1]
-                if L < N_padded:
-                    pad = (0, 0, 0, N_padded - L)  # pad after the end
-                    predicted_angles_sincos = torch.nn.functional.pad(predicted_angles_sincos, pad)
-                elif L > N_padded:
-                    predicted_angles_sincos = predicted_angles_sincos[:, :N_padded, :]
-                # Now shapes should match: [B, N_padded, N*2]
-                if predicted_angles_sincos.shape != true_angles_sincos.shape:
-                    logger.error(f"Shape mismatch for angle loss after alignment: Pred {predicted_angles_sincos.shape}, True {true_angles_sincos.shape}")
-                    loss_angle = torch.tensor(0.0, device=self.device_, requires_grad=True)
-                else:
-                    # Before loss calculation
-                    if hasattr(self, 'debug_logging') and self.debug_logging:
-                        logger.info(f"[LOSS-DEBUG] predicted_angles_sincos device: {getattr(predicted_angles_sincos, 'device', None)}")
-                        logger.info(f"[LOSS-DEBUG] true_angles_sincos device: {getattr(true_angles_sincos, 'device', None)}")
-                        logger.info(f"[LOSS-DEBUG] residue_mask device: {getattr(residue_mask, 'device', None)}")
-                    error_angle = torch.nn.functional.mse_loss(predicted_angles_sincos, true_angles_sincos, reduction='none')
-                    if hasattr(self, 'debug_logging') and self.debug_logging:
-                        logger.info(f"[LOSS-DEBUG] error_angle after mse_loss device: {getattr(error_angle, 'device', None)}")
-                    mask_expanded = residue_mask.unsqueeze(-1).float()
-                    if hasattr(self, 'debug_logging') and self.debug_logging:
-                        logger.info(f"[LOSS-DEBUG] mask_expanded after float device: {getattr(mask_expanded, 'device', None)}")
-                    masked_error_angle = error_angle * mask_expanded
-                    if hasattr(self, 'debug_logging') and self.debug_logging:
-                        logger.info(f"[LOSS-DEBUG] masked_error_angle after multiply device: {getattr(masked_error_angle, 'device', None)}")
-                    num_valid_elements = mask_expanded.sum() * predicted_angles_sincos.shape[-1] + 1e-8
-                    if hasattr(self, 'debug_logging') and self.debug_logging:
-                        logger.info(f"[LOSS-DEBUG] num_valid_elements after sum device: {getattr(num_valid_elements, 'device', None)}")
-                    loss_angle = masked_error_angle.sum() / num_valid_elements
-                    if hasattr(self, 'debug_logging') and self.debug_logging:
-                        logger.info(f"[LOSS-DEBUG] loss_angle after division device: {getattr(loss_angle, 'device', None)}")
-                    # **** CRITICAL FIX: Move the final loss to the module's device ****
-                    loss_angle = loss_angle.to(self.device_)
-                    if hasattr(self, 'debug_logging') and self.debug_logging:
-                        logger.info(f"[LOSS-DEBUG] loss_angle after to(self.device_) device: {getattr(loss_angle, 'device', None)}")
+                error_angle = torch.nn.functional.mse_loss(predicted_angles_sincos, true_angles_sincos, reduction='none')
+                if hasattr(self, 'debug_logging') and self.debug_logging:
+                    logger.info(f"[LOSS-DEBUG] error_angle after mse_loss device: {getattr(error_angle, 'device', None)}")
+                mask_expanded = residue_mask.unsqueeze(-1).float()
+                if hasattr(self, 'debug_logging') and self.debug_logging:
+                    logger.info(f"[LOSS-DEBUG] mask_expanded after float device: {getattr(mask_expanded, 'device', None)}")
+                masked_error_angle = error_angle * mask_expanded
+                if hasattr(self, 'debug_logging') and self.debug_logging:
+                    logger.info(f"[LOSS-DEBUG] masked_error_angle after multiply device: {getattr(masked_error_angle, 'device', None)}")
+                num_valid_elements = mask_expanded.sum() * predicted_angles_sincos.shape[-1] + 1e-8
+                if hasattr(self, 'debug_logging') and self.debug_logging:
+                    logger.info(f"[LOSS-DEBUG] num_valid_elements after sum device: {getattr(num_valid_elements, 'device', None)}")
+                loss_angle = masked_error_angle.sum() / num_valid_elements
+                if hasattr(self, 'debug_logging') and self.debug_logging:
+                    logger.info(f"[LOSS-DEBUG] loss_angle after division device: {getattr(loss_angle, 'device', None)}")
+                # **** CRITICAL FIX: Move the final loss to the module's device ****
+                loss_angle = loss_angle.to(self.device_)
+                if hasattr(self, 'debug_logging') and self.debug_logging:
+                    logger.info(f"[LOSS-DEBUG] loss_angle after to(self.device_) device: {getattr(loss_angle, 'device', None)}")
 
-                    # SYSTEMATIC DEBUGGING: Print loss connectivity
-                    print(f"[DEBUG][LOSS] loss_angle.requires_grad: {loss_angle.requires_grad}")
-                    print(f"[DEBUG][LOSS] loss_angle.grad_fn: {loss_angle.grad_fn}")
-                    # Try a backward pass on a clone of the loss to check gradient flow
-                    try:
-                        self.zero_grad()
-                        loss_angle_clone = loss_angle.clone()
-                        loss_angle_clone.backward(retain_graph=True)
-                        grad_norms = {}
-                        for name, param in self.named_parameters():
-                            if param.grad is not None:
-                                grad_norms[name] = param.grad.norm().item()
-                            else:
-                                grad_norms[name] = None
-                        print(f"[DEBUG][LOSS] Grad norms after backward: {grad_norms}")
-                    except Exception as e:
-                        print(f"[DEBUG][LOSS] Exception during backward: {e}")
+                # SYSTEMATIC DEBUGGING: Print loss connectivity
+                print(f"[DEBUG][LOSS] loss_angle.requires_grad: {loss_angle.requires_grad}")
+                print(f"[DEBUG][LOSS] loss_angle.grad_fn: {loss_angle.grad_fn}")
+                # Try a backward pass on a clone of the loss to check gradient flow
+                try:
+                    self.zero_grad()
+                    loss_angle_clone = loss_angle.clone()
+                    loss_angle_clone.backward(retain_graph=True)
+                    grad_norms = {}
+                    for name, param in self.named_parameters():
+                        if param.grad is not None:
+                            grad_norms[name] = param.grad.norm().item()
+                        else:
+                            grad_norms[name] = None
+                    print(f"[DEBUG][LOSS] Grad norms after backward: {grad_norms}")
+                except Exception as e:
+                    print(f"[DEBUG][LOSS] Exception during backward: {e}")
 
         logger.debug(f"[DEBUG-LM] loss_angle value: {loss_angle.item()}, device: {loss_angle.device}")
         self.log("angle_loss", loss_angle, on_step=True, on_epoch=True, prog_bar=True)
