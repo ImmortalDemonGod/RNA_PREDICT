@@ -337,7 +337,7 @@ def run_full_pipeline(cfg: DictConfig) -> dict:
     Returns a dictionary of pipeline outputs.
     """
     # HYPOTHESIS DEBUG: Confirm entry and config values
-    logger.debug(f"[HYPOTHESIS] Entered run_full_pipeline")
+    logger.debug("[HYPOTHESIS] Entered run_full_pipeline")
     # Log key config parameters
     seq = getattr(cfg, 'sequence', None)
     idx = getattr(cfg.data, 'index_csv', None) if hasattr(cfg, 'data') else None

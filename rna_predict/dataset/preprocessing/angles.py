@@ -9,7 +9,6 @@ from Bio.PDB.MMCIFParser import MMCIFParser
 from Bio.PDB.PDBIO import PDBIO
 import MDAnalysis as mda  # type: ignore
 import snoop
-from typing import Optional, Literal
 from contextlib import nullcontext
 
 @snoop

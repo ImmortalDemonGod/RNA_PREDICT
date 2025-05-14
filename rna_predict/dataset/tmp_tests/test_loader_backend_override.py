@@ -1,7 +1,7 @@
 import pytest
 import torch
 import pandas as pd
-from omegaconf import OmegaConf, DictConfig
+from omegaconf import OmegaConf
 from rna_predict.dataset.loader import RNADataset
 import rna_predict.dataset.preprocessing.angles as angles_module
 
@@ -38,6 +38,6 @@ def test_load_angles_uses_extraction_backend(monkeypatch, cfg):
     # Instantiate dataset with angle loading enabled
     ds = RNADataset(cfg.data.index_csv, cfg, load_ang=True)
     # Access first item to trigger _load_angles
-    sample = ds[0]
+    ds[0]
     assert called.get('backend') == cfg.extraction_backend, \
         f"Expected backend '{cfg.extraction_backend}', got '{called.get('backend')}'"
