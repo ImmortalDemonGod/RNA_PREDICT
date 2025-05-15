@@ -42,12 +42,6 @@ class PairformerWrapper(nn.Module):
     Integrates Protenix's PairformerStack into our pipeline for global pairwise encoding.
     """
 
-    def _initialize_model(self):
-        """Initialize the Pairformer model."""
-        # Placeholder for model initialization
-        # This would be replaced with actual model loading code
-        pass
-
     def __init__(self, cfg: DictConfig):
         """
         Initializes the PairformerWrapper with configuration and prepares the PairformerStack model.
@@ -380,12 +374,6 @@ class PairformerWrapper(nn.Module):
                 logger.debug(f"z_adjusted device: {z_adjusted.device}, dtype: {z_adjusted.dtype}")
 
         return z_adjusted
-
-    def _initialize_model(self):
-        """Initialize the Pairformer model."""
-        # Placeholder for model initialization
-        # This would be replaced with actual model loading code
-        pass
 
     def predict(
         self, sequence: str, adjacency: Optional[torch.Tensor] = None

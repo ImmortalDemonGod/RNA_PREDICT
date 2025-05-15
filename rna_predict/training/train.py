@@ -1,3 +1,4 @@
+from typing import Optional, List, Union, Dict, Any, cast
 import pathlib
 import lightning as L
 import hydra
@@ -74,7 +75,7 @@ def main(cfg: DictConfig):
     # Get the original working directory (project root)
     original_cwd = hydra.utils.get_original_cwd()
     # Early ensure checkpoint directory exists so test always sees it
-    ckpt = cfg.training.checkpoint_dir
+    ckpt: str = str(cfg.training.checkpoint_dir)  # Explicitly cast to str
     # resolve absolute
     if not os.path.isabs(ckpt):
         ckpt = os.path.join(original_cwd, ckpt)
@@ -164,7 +165,7 @@ def main(cfg: DictConfig):
         cwd = os.getcwd()
         logger.info(f"[CHECKPOINT-DEBUG] Current working directory (os.getcwd()): {cwd}")
         logger.info(f"[CHECKPOINT-DEBUG] cfg.training.checkpoint_dir: {cfg.training.checkpoint_dir}")
-        resolved_ckpt_dir = pathlib.Path(cfg.training.checkpoint_dir)
+        resolved_ckpt_dir = pathlib.Path(str(cfg.training.checkpoint_dir))  # Explicitly cast to str
         if not resolved_ckpt_dir.is_absolute():
             resolved_ckpt_dir = pathlib.Path(cwd) / resolved_ckpt_dir
         logger.info(f"[CHECKPOINT-DEBUG] Resolved checkpoint directory absolute path: {resolved_ckpt_dir}")
@@ -172,7 +173,7 @@ def main(cfg: DictConfig):
         logger.info(f"[CHECKPOINT-DEBUG] Directory writable: {os.access(resolved_ckpt_dir.parent, os.W_OK)} (parent: {resolved_ckpt_dir.parent})")
         # Ensure checkpoint directory exists (use resolved absolute path)
         from pathlib import Path
-        ckpt_dir = Path(cfg.training.checkpoint_dir)
+        ckpt_dir: Path = Path(str(cfg.training.checkpoint_dir))  # Explicitly cast to str
         if not ckpt_dir.is_absolute():
             from os import getcwd
             ckpt_dir = Path(getcwd()) / ckpt_dir
