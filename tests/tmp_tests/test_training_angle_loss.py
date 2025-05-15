@@ -1,10 +1,7 @@
 import pytest
-from pytest import approx
 import torch
-import os
 from hydra import initialize_config_dir, compose
 from rna_predict.training.rna_lightning_module import RNALightningModule
-from rna_predict.conf.config_schema import TorsionBertConfig
 
 @pytest.fixture(scope="function")
 def cfg():

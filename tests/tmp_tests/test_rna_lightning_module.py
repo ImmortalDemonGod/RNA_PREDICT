@@ -1,15 +1,16 @@
+import os
+import sys
+from unittest.mock import MagicMock
+from hydra import compose, initialize_config_dir
+from rna_predict.training.rna_lightning_module import RNALightningModule
 import torch
 import pytest
-import os
+
 print(f"[DEBUG][CWD CONTENTS] {os.listdir(os.getcwd())}")
-import sys
 print(f"[DEBUG][sys.path] {sys.path}")
 print(f"[DEBUG][CONFIG_ABS] {os.path.abspath('rna_predict/conf')}")
 print(f"[DEBUG][TEST FILE ABS] {os.path.abspath(__file__)}")
 print(f"[DEBUG][CWD] Current working directory at test start: {os.getcwd()}")
-from unittest.mock import MagicMock
-from hydra import compose, initialize_config_dir
-from rna_predict.training.rna_lightning_module import RNALightningModule
 
 @pytest.fixture
 def hydra_cfg():
