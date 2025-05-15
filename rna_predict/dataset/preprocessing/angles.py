@@ -1,4 +1,4 @@
-from typing import Optional, Literal
+from typing import Optional, Literal, ContextManager
 import os
 import tempfile
 import numpy as np
@@ -460,10 +460,9 @@ def _extract_rna_torsions_dssr(
     """
     # Always convert CIF to PDB for DSSR, use original for PDB
     if structure_file.lower().endswith('.cif'):
-        mngr = TempFileManager(structure_file)
-        pdb_input_ctx = mngr
+        pdb_input_ctx: ContextManager[str] = TempFileManager(structure_file)
     else:
-        pdb_input_ctx = nullcontext(structure_file)
+        pdb_input_ctx: ContextManager[str] = nullcontext(structure_file)
     with pdb_input_ctx as dssr_input:
         # Run DSSR without chain filter; filter JSON output by chain below
         cmd = [_DSSR_BIN, f'-i={dssr_input}', '--json']
