@@ -1,13 +1,22 @@
 import torch
 import pytest
+import os
+print(f"[DEBUG][CWD CONTENTS] {os.listdir(os.getcwd())}")
+import sys
+print(f"[DEBUG][sys.path] {sys.path}")
+print(f"[DEBUG][CONFIG_ABS] {os.path.abspath('rna_predict/conf')}")
+print(f"[DEBUG][TEST FILE ABS] {os.path.abspath(__file__)}")
+print(f"[DEBUG][CWD] Current working directory at test start: {os.getcwd()}")
 from unittest.mock import MagicMock
-from hydra import compose, initialize
+from hydra import compose, initialize_config_dir
 from rna_predict.training.rna_lightning_module import RNALightningModule
 
 @pytest.fixture
 def hydra_cfg():
     # Use the real Hydra config system and the actual conf directory
-    with initialize(config_path="../../../rna_predict/conf", job_name="test_noise_and_bridging", version_base=None):
+    config_dir = "/Users/tomriddle1/RNA_PREDICT/rna_predict/conf"
+    print(f"[DEBUG][HYDRA] Using config_dir={config_dir}")
+    with initialize_config_dir(config_dir=config_dir, job_name="test_noise_and_bridging"):
         cfg = compose(config_name="default")
         # Override device for test isolation
         cfg.device = "cpu"
@@ -45,6 +54,8 @@ def make_dummy_batch(device, B=2, N_res=5, atoms_per_residue=2, C=8):
     assert all(len(lst) == N_atom for lst in residue_indices)
     return {
         'coords_true': coords_true,
+        'angles_true': torch.zeros(B, N_res, 3, dtype=torch.float32, device=device),
+        'adjacency_type': torch.zeros(B, N_res, N_res, dtype=torch.int64, device=device),
         'atom_mask': atom_mask,
         'atom_to_token_idx': atom_to_token_idx,
         'sequence': sequence,
@@ -68,6 +79,7 @@ def make_dummy_output(device, B=2, N_res=5, N_atom=5, C=8):
     return {
         's_embeddings': torch.randn(B, N_res, C, device=device),
         'z_embeddings': torch.randn(B, N_res, N_res, C, device=device),
+        'logits': torch.randn(B, N_res, 3, device=device),
     }
 
 def test_noise_and_bridging_runs(hydra_cfg):

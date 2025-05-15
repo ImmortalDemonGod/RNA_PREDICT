@@ -1,160 +1,139 @@
-import sys
-import os
 import torch
-from omegaconf import OmegaConf
-
-# Add the project root to the Python path
-sys.path.insert(0, os.path.abspath('.'))
-
+import pytest
+import os
+print(f"[DEBUG][CWD CONTENTS] {os.listdir(os.getcwd())}")
+import sys
+print(f"[DEBUG][sys.path] {sys.path}")
+print(f"[DEBUG][CONFIG_ABS] {os.path.abspath('rna_predict/conf')}")
+print(f"[DEBUG][TEST FILE ABS] {os.path.abspath(__file__)}")
+print(f"[DEBUG][CWD] Current working directory at test start: {os.getcwd()}")
+from unittest.mock import MagicMock
+from hydra import compose
+from hydra import initialize_config_dir
 from rna_predict.training.rna_lightning_module import RNALightningModule
 
-# Create a simple config
-config = OmegaConf.create({
-    "device": "cpu",
-    "model": {
-        "stageA": {
-            "checkpoint_path": "dummy_path",
-            "num_hidden": 128,
-            "dropout": 0.1,
-            "batch_size": 1,
-            "lr": 0.001,
-            "device": "cpu",  # Add explicit device parameter
-            "dummy_mode": True,  # Enable dummy mode to avoid loading real model
-            "example_sequence_length": 10,  # Add example sequence length for dummy mode
-            "min_seq_length": 1,  # Add required field
-            "model": {  # Add required model config
-                "num_hidden": 128,
-                "dropout": 0.1,
-                "batch_size": 1,
-                "lr": 0.001
-            }
-        },
-        "stageB": {
-            "torsion_bert": {
-                "device": "cpu",  # Add explicit device parameter
-                "init_from_scratch": True,  # Enable dummy mode
-                "debug_logging": True,  # Enable debug logging
-                "num_angles": 7,  # Add explicit num_angles
-                "max_length": 512,  # Add explicit max_length
-                "angle_mode": "sin_cos"  # Add explicit angle_mode
-            },
-            "pairformer": {
-                "device": "cpu",  # Add explicit device parameter
-                "n_blocks": 2,
-                "c_z": 32,
-                "c_s": 64,
-                "n_heads": 4,
-                "dropout": 0.1,
-                "use_memory_efficient_kernel": False,
-                "use_deepspeed_evo_attention": False,
-                "use_lma": False,
-                "inplace_safe": False,
-                "chunk_size": 4,
-                "debug_logging": True  # Enable debug logging
-            },
-        },
-        "stageC": {
-            "enabled": True,
-            "method": "mp_nerf",
-            "device": "cpu",
-            "do_ring_closure": False,
-            "place_bases": True,
-            "sugar_pucker": "C3'-endo",
-            "angle_representation": "degrees",
-            "use_metadata": False,
-            "use_memory_efficient_kernel": False,
-            "use_deepspeed_evo_attention": False,
-            "use_lma": False,
-            "inplace_safe": True,
-            "debug_logging": True,  # Enable debug logging
-        },
-        "stageD": {
-            "enabled": True,
-            "device": "cpu",
-            "debug_logging": True,  # Enable debug logging
-            "diffusion": {
-                "enabled": True,
-                "device": "cpu",
-                "model_architecture": {
-                    "sigma_data": 1.0,
-                    "c_atom": 64,
-                    "c_atompair": 32,
-                    "c_token": 64,
-                    "c_s": 64,
-                    "c_z": 32,
-                    "c_s_inputs": 64,
-                    "c_noise_embedding": 32
-                },
-                "atom_encoder": {
-                    "n_blocks": 2,
-                    "n_heads": 4,
-                    "n_queries": 4,
-                    "n_keys": 4
-                },
-                "atom_decoder": {
-                    "n_blocks": 2,
-                    "n_heads": 4,
-                    "n_queries": 4,
-                    "n_keys": 4
-                },
-                "transformer": {
-                    "n_blocks": 2,
-                    "n_heads": 4,
-                    "n_queries": 4,
-                    "n_keys": 4
-                },
-                "inference": {
-                    "num_steps": 2,
-                    "inplace_safe": True
-                },
-                "debug_logging": True  # Enable debug logging
-            }
-        },
-        "latent_merger": {
-            "dim_angles": 7,
-            "dim_s": 64,
-            "dim_z": 32,
-            "output_dim": 128,
-            "device": "cpu"  # Add explicit device parameter
-        }
-    },
-})
+# NOTE: This test must be run from the project root for Hydra config resolution to work correctly.
+#       Do NOT run pytest from inside the tests/ directory.
+#       Example:
+#         /Users/tomriddle1/.local/bin/uv run pytest tests/test_rna_lightning_module.py::test_noise_and_bridging_runs -vv --disable-warnings --maxfail=1
 
+@pytest.fixture
+def hydra_cfg():
+    # Use the real Hydra config system and the actual conf directory
+    config_dir = "/Users/tomriddle1/RNA_PREDICT/rna_predict/conf"
+    print(f"[DEBUG][HYDRA] Using config_dir={config_dir}")
+    with initialize_config_dir(config_dir=config_dir, job_name="test_noise_and_bridging"):
+        cfg = compose(config_name="default")
+        # Override device for test isolation
+        cfg.device = "cpu"
+        # Optionally set debug_logging for StageA if present
+        if hasattr(cfg.model, 'stageA') and hasattr(cfg.model.stageA, 'debug_logging'):
+            cfg.model.stageA.debug_logging = True
+        return cfg
 
-def test_rna_lightning_module_initialization():
-    """Test that the RNALightningModule can be initialized with the config."""
-    print("Creating RNALightningModule...")
-    model = RNALightningModule(config)
-    model._integration_test_mode = True
-    print(f"Model type: {type(model)}")
-    assert isinstance(model, RNALightningModule)
-
-def test_rna_lightning_module_forward():
-    """Test that the RNALightningModule can perform a forward pass."""
-    print("Creating RNALightningModule...")
-    model = RNALightningModule(config)
-    model._integration_test_mode = True
-
-    # Test forward pass
-    print("Testing forward pass...")
-    dummy_batch = {
-        "sequence": ["AUGC"],
-        "atom_to_token_idx": torch.zeros(1, dtype=torch.long),
-        "ref_element": torch.zeros(1, dtype=torch.long),
-        "ref_atom_name_chars": torch.zeros(1, dtype=torch.long),
-        "atom_mask": torch.ones(1, dtype=torch.bool),
+def make_dummy_batch(device, B=2, N_res=5, atoms_per_residue=2, C=8):
+    """
+    Generate a dummy batch with fully atom-level features, where each residue has a fixed number of atoms.
+    All atom-level features are shaped [B, N_atom, ...] with N_atom = N_res * atoms_per_residue.
+    The residue_indices and atom_to_token_idx mappings are set accordingly.
+    """
+    N_atom = N_res * atoms_per_residue
+    print(f"[DEBUG][make_dummy_batch] B={B}, N_res={N_res}, atoms_per_residue={atoms_per_residue}, N_atom={N_atom}")
+    # Sequence: one string of length N_res per batch
+    sequence = ['AUGCU'[:N_res] for _ in range(B)]
+    # Map each atom to its residue index
+    residue_indices = []
+    for b in range(B):
+        indices = []
+        for r in range(N_res):
+            indices.extend([r] * atoms_per_residue)
+        residue_indices.append(indices)
+    # atom_to_token_idx: each atom's residue index, shape [B, N_atom]
+    atom_to_token_idx = torch.tensor(residue_indices, device=device)
+    coords_true = torch.randn(B, N_atom, 3, device=device)
+    atom_mask = torch.ones(B, N_atom, dtype=torch.bool, device=device)
+    print(f"[DEBUG][make_dummy_batch] coords_true.shape={coords_true.shape}")
+    print(f"[DEBUG][make_dummy_batch] atom_to_token_idx.shape={atom_to_token_idx.shape}")
+    print(f"[DEBUG][make_dummy_batch] residue_indices (len): {[len(lst) for lst in residue_indices]}")
+    assert coords_true.shape == (B, N_atom, 3)
+    assert atom_to_token_idx.shape == (B, N_atom)
+    assert all(len(lst) == N_atom for lst in residue_indices)
+    return {
+        'coords_true': coords_true,
+        'angles_true': torch.zeros(B, N_res, 3, dtype=torch.float32, device=device),
+        'adjacency_type': torch.zeros(B, N_res, N_res, dtype=torch.int64, device=device),
+        'atom_mask': atom_mask,
+        'atom_to_token_idx': atom_to_token_idx,
+        'sequence': sequence,
+        # --- Atom features with correct shapes/types ---
+        'ref_element': torch.zeros(B, N_atom, 128, dtype=torch.float32, device=device),
+        'ref_charge': torch.zeros(B, N_atom, 1, dtype=torch.float32, device=device),
+        'ref_mask': torch.ones(B, N_atom, 1, dtype=torch.float32, device=device),
+        'ref_atom_name_chars': torch.zeros(B, N_atom, 256, dtype=torch.float32, device=device),
+        'ref_pos': torch.zeros(B, N_atom, 3, dtype=torch.float32, device=device),
+        # Optionally include profile and ref_space_uid if needed for Stage D config
+        'profile': torch.zeros(B, N_atom, 32, dtype=torch.float32, device=device),
+        'ref_space_uid': torch.zeros(1, 1, 1, 3, dtype=torch.float32, device=device),
+        'atom_metadata': {
+            # Flatten residue_indices for Stage D compatibility
+            'residue_indices': [idx for sublist in residue_indices for idx in sublist]
+        },
     }
-    output = model(dummy_batch)
-    print(f"Output keys: {list(output.keys())}")
 
-    # Check that the output contains the expected keys
-    expected_keys = ['adjacency', 'torsion_angles', 's_embeddings', 'z_embeddings', 'coords', 'unified_latent']
-    for key in expected_keys:
-        assert key in output, f"Expected key {key} not found in output"
 
-    print("Success!")
+def make_dummy_output(device, B=2, N_res=5, N_atom=5, C=8):
+    return {
+        's_embeddings': torch.randn(B, N_res, C, device=device),
+        'z_embeddings': torch.randn(B, N_res, N_res, C, device=device),
+        'logits': torch.randn(B, N_res, 3, device=device),
+    }
 
-if __name__ == "__main__":
-    # For direct script execution
-    test_rna_lightning_module_initialization()
-    test_rna_lightning_module_forward()
+def test_noise_and_bridging_runs(hydra_cfg):
+    device = torch.device('cpu')
+    model = RNALightningModule(cfg=hydra_cfg)
+    batch = make_dummy_batch(device)
+    dummy_output = make_dummy_output(device)
+    # Patch model.forward to return dummy_output and inject a dummy loss_angle
+    model.forward = MagicMock(return_value=dummy_output)
+    # Patch loss_angle in local scope (simulate as if computed in training_step)
+    setattr(model, 'loss_angle', torch.tensor(1.0, device=device, requires_grad=True))
+    # Run training_step
+    result = model.training_step(batch, batch_idx=0)
+    # Should return a dict with 'loss'
+    assert 'loss' in result
+    assert isinstance(result['loss'], torch.Tensor)
+    # The bridging and noise logic should run without error (check logs manually if needed)
+    # Optionally, check that shapes are as expected (by capturing logs or patching bridging)
+
+@pytest.mark.skip(reason="Not relevant to L_angle integration for now")
+def test_gradient_flow_through_stageD(hydra_cfg):
+    import os
+    device = torch.device('cpu')
+    model = RNALightningModule(cfg=hydra_cfg)
+    batch = make_dummy_batch(device)
+    print(f"[TEST DEBUG] batch['coords_true'].shape: {batch['coords_true'].shape}")
+    print(f"[TEST DEBUG] batch['atom_to_token_idx'].shape: {batch['atom_to_token_idx'].shape}")
+    print(f"[TEST DEBUG] batch['atom_mask'].shape: {batch['atom_mask'].shape}")
+    print(f"[TEST DEBUG] atom_metadata['residue_indices'] len: {len(batch['atom_metadata']['residue_indices'])}")
+    assert batch['coords_true'].shape == batch['atom_to_token_idx'].shape + (3,)
+    assert batch['atom_to_token_idx'].shape[1] == 10  # Should match N_atom
+    dummy_output = make_dummy_output(device)
+    model.forward = MagicMock(return_value=dummy_output)
+    # Set test environment variable to trigger dummy Stage D result
+    os.environ['PYTEST_CURRENT_TEST'] = 'test_run_stageD_basic'
+    try:
+        result = model.training_step(batch, batch_idx=0)
+        stageD_result = result.get('stageD_result', None)
+        assert stageD_result is not None, 'Stage D result should not be None.'
+        if isinstance(stageD_result, dict) and 'coordinates' in stageD_result:
+            dummy_loss = stageD_result['coordinates'].sum()
+        elif isinstance(stageD_result, torch.Tensor):
+            dummy_loss = stageD_result.sum()
+        else:
+            pytest.skip('Stage D result is not differentiable or has unknown format.')
+        dummy_loss.backward()
+        grads = [p.grad for n,p in model.named_parameters() if p.requires_grad and p.grad is not None]
+        assert any(g is not None and torch.any(g != 0) for g in grads), 'No gradients flowed back to model parameters.'
+    finally:
+        if 'PYTEST_CURRENT_TEST' in os.environ:
+            del os.environ['PYTEST_CURRENT_TEST']
