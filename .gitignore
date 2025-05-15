@@ -221,3 +221,4 @@ package-lock.json
 package.json
 *.diff
 *.pdb
+lightning_logs/*
