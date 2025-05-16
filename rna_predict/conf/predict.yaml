@@ -14,3 +14,9 @@ checkpoint_path: null  # To be set on CLI or in script
 # device: cpu  # or mps/cuda as needed
 
 # Add any other prediction-specific overrides here
+
+prediction:
+  repeats: 5  # Number of structures per sequence
+  residue_atom_choice: 0  # Atom index to use for submission (0 = 'P')
+  enable_stochastic_inference_for_submission: true  # Enable MC dropout for unique outputs
+  # submission_seeds: [42, 101, 2024, 7, 1991]  # Optional: reproducible seeds for each repeat
