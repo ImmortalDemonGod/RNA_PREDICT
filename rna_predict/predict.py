@@ -81,33 +81,127 @@ class RNAPredictor:
         print("[DEBUG] stageC_full_config['model'] keys:", list(stageC_full_config['model'].keys()))
         return run_stageC(cfg=stageC_full_config, sequence=sequence, torsion_angles=torsion_angles)
 
-    def predict_submission(self, sequence: str, prediction_repeats: Optional[int] = None, residue_atom_choice: Optional[int] = None) -> pd.DataFrame:
+    def predict_submission(self, sequence: str, prediction_repeats: Optional[int] = None, residue_atom_choice: Optional[int] = None, repeat_seeds: Optional[list] = None) -> pd.DataFrame:
+        import logging
+        import random
+        import numpy as np
+        logger = logging.getLogger("rna_predict.predict_submission")
+
+        def set_all_seeds(seed):
+            random.seed(seed)
+            np.random.seed(seed)
+            import torch
+            torch.manual_seed(seed)
+            if torch.cuda.is_available():
+                torch.cuda.manual_seed_all(seed)
+
         if not sequence:
             repeats = prediction_repeats if prediction_repeats is not None else self.default_repeats
-            return coords_to_df("", torch.empty(0, 3, device=self.device), repeats)
-        result = self.predict_3d_structure(sequence)
-        coords = result["coords"]
-        if coords.dim() == 2 and coords.shape[0] != len(sequence):
-            repeats = prediction_repeats if prediction_repeats is not None else self.default_repeats
-            base_data = {
-                "ID": range(1, coords.shape[0] + 1),
-                "resname": ["X"] * coords.shape[0],
-                "resid": range(1, coords.shape[0] + 1)
-            }
-            coords_np = coords.detach().cpu().numpy()
-            for i in range(1, repeats + 1):
-                base_data[f"x_{i}"] = coords_np[:, 0]
-                base_data[f"y_{i}"] = coords_np[:, 1]
-                base_data[f"z_{i}"] = coords_np[:, 2]
-            df = pd.DataFrame(base_data)
+            df = coords_to_df("", torch.empty(0, 3, device=self.device), repeats)
+            import os
+            if os.environ.get("DEBUG_PREDICT_SUBMISSION") == "1":
+                print("[DEBUG] predict_submission DataFrame shape:", df.shape)
+                print("[DEBUG] predict_submission DataFrame columns:", list(df.columns))
+                print("[DEBUG] predict_submission DataFrame head:\n", df.head())
+            logger.warning(f"[DEBUG] Returning DataFrame shape: {df.shape}, columns: {list(df.columns)}")
             return df
-        coords = reshape_coords(coords, len(sequence))
+
         repeats = prediction_repeats if prediction_repeats is not None else self.default_repeats
-        atom_choice = residue_atom_choice if residue_atom_choice is not None else self.default_atom_choice
-        if coords.dim() != 3 or atom_choice < 0 or atom_choice >= coords.shape[1]:
-            raise IndexError(f"Invalid residue_atom_choice {atom_choice} for coords shape {coords.shape} (expected shape [N, atoms, 3])")
-        atom_coords = extract_atom(coords, atom_choice)
-        return coords_to_df(sequence, atom_coords, repeats)
+        results = []
+        atom_names = None
+        residue_indices = None
+        for i in range(repeats):
+            seed = repeat_seeds[i] if repeat_seeds and i < len(repeat_seeds) else None
+            if seed is not None:
+                set_all_seeds(seed)
+            result = self.predict_3d_structure(sequence)
+            coords = reshape_coords(result['coords'], len(sequence))
+            # Select atom coords
+            if coords.dim() == 3:
+                atom_choice = residue_atom_choice if residue_atom_choice is not None else self.default_atom_choice
+                if atom_choice < 0 or atom_choice >= coords.shape[1]:
+                    raise IndexError(f"Invalid residue_atom_choice {atom_choice} for coords shape {coords.shape}")
+                atom_coords = extract_atom(coords, atom_choice).detach().cpu()
+            elif coords.dim() == 2:
+                atom_coords = coords.detach().cpu()
+            else:
+                raise ValueError(f"Unexpected coords shape: {coords.shape}")
+            results.append(atom_coords)
+            # Save atom metadata from first repeat
+            if atom_names is None or residue_indices is None:
+                atom_metadata = result.get('atom_metadata') or {}
+                atom_names = atom_metadata.get('atom_names', ['P'] * atom_coords.shape[0])
+                residue_indices = atom_metadata.get('residue_indices', list(range(atom_coords.shape[0])))
+                atom_names = atom_names[:atom_coords.shape[0]]
+                residue_indices = residue_indices[:atom_coords.shape[0]]
+
+        n_atoms = results[0].shape[0] if results else 0
+        base_data = {
+            'ID': list(range(1, n_atoms + 1)),
+            'resname': [sequence[i] for i in residue_indices],
+            'resid': [i + 1 for i in residue_indices],
+        }
+        # Coordinate columns for each repeat
+        for i, atom_coords in enumerate(results):
+            base_data[f'x_{i+1}'] = atom_coords[:, 0].tolist()
+            base_data[f'y_{i+1}'] = atom_coords[:, 1].tolist()
+            base_data[f'z_{i+1}'] = atom_coords[:, 2].tolist()
+        return pd.DataFrame(base_data)
+
+    def predict_submission_original(self, sequence: str, prediction_repeats: Optional[int] = None, residue_atom_choice: Optional[int] = None, repeat_seeds: Optional[list] = None) -> pd.DataFrame:
+        import logging
+        import random
+        import numpy as np
+        logger = logging.getLogger("rna_predict.predict_submission")
+        if not sequence:
+            repeats = prediction_repeats if prediction_repeats is not None else self.default_repeats
+            df = coords_to_df("", torch.empty(0, 3, device=self.device), repeats)
+            import os
+            if os.environ.get("DEBUG_PREDICT_SUBMISSION") == "1":
+                print("[DEBUG] predict_submission DataFrame shape:", df.shape)
+                print("[DEBUG] predict_submission DataFrame columns:", list(df.columns))
+                print("[DEBUG] predict_submission DataFrame head:\n", df.head())
+            logger.warning(f"[DEBUG] Returning DataFrame shape: {df.shape}, columns: {list(df.columns)}")
+            return df
+        
+        # Single predict_3d_structure call
+        result = self.predict_3d_structure(sequence)
+        coords = reshape_coords(result['coords'], len(sequence))
+        # Select atom coords
+        if coords.dim() == 3:
+            atom_choice = residue_atom_choice if residue_atom_choice is not None else self.default_atom_choice
+            if atom_choice < 0 or atom_choice >= coords.shape[1]:
+                raise IndexError(f"Invalid residue_atom_choice {atom_choice} for coords shape {coords.shape}")
+            atom_coords = extract_atom(coords, atom_choice).detach().cpu()
+        elif coords.dim() == 2:
+            atom_coords = coords.detach().cpu()
+        else:
+            raise ValueError(f"Unexpected coords shape: {coords.shape}")
+
+        n_atoms = atom_coords.shape[0]
+        # Metadata fallback
+        atom_metadata = result.get('atom_metadata') or {}
+        atom_names = atom_metadata.get('atom_names', ['P'] * n_atoms)
+        residue_indices = atom_metadata.get('residue_indices', list(range(n_atoms)))
+        atom_names = atom_names[:n_atoms]
+        residue_indices = residue_indices[:n_atoms]
+
+        # Build DataFrame
+        base_data = {
+            'ID': list(range(1, n_atoms + 1)),
+            'resname': [sequence[i] for i in residue_indices],
+            'resid': [i + 1 for i in residue_indices],
+        }
+        # Coordinate columns
+        x_vals = atom_coords[:, 0].tolist()
+        y_vals = atom_coords[:, 1].tolist()
+        z_vals = atom_coords[:, 2].tolist()
+        repeats = prediction_repeats if prediction_repeats is not None else self.default_repeats
+        for i in range(1, repeats + 1):
+            base_data[f'x_{i}'] = x_vals
+            base_data[f'y_{i}'] = y_vals
+            base_data[f'z_{i}'] = z_vals
+        return pd.DataFrame(base_data)
 
 
 def load_partial_checkpoint(model, checkpoint_path):

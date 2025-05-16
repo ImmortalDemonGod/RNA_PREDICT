@@ -378,6 +378,13 @@ class TestPredictSubmission(unittest.TestCase):
         if hasattr(self.predictor.torsion_predictor, 'model'):
             self.predictor.torsion_predictor.model.forward = types.MethodType(dummy_forward, self.predictor.torsion_predictor.model)
 
+        # configure predict_3d_structure mock to return coords tensor of shape [total_atoms, 3]
+        # using module-level torch and STANDARD_RNA_ATOMS imported at file top
+        def fake_predict3d(self_arg, sequence):
+            total_atoms = sum(len(STANDARD_RNA_ATOMS.get(res, [])) for res in sequence)
+            return {"coords": torch.zeros((total_atoms, 3))}
+        mock_predict_3d.side_effect = fake_predict3d
+
     @staticmethod
     def minimal_stageC_config(**overrides):
         """Helper to create a minimal valid StageCConfig using structured config."""

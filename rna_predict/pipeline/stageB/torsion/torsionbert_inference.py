@@ -94,6 +94,15 @@ class DummyTorsionBertAutoModel(nn.Module):
             if self.debug_logging:
                 logger.info(f"[DEBUG-DUMMY] Special case for num_angles=16, output shape: {output.shape}")
 
+        # Introduce randomness in training mode for stochastic predictions ONLY if allowed by env
+        import os
+        allow_random = os.environ.get('DUMMY_TORSIONBERT_ALLOW_RANDOM', '0') == '1'
+        if self.training and allow_random:
+            output = torch.rand_like(output)
+        elif self.training and not allow_random:
+            if self.debug_logging:
+                logger.warning("[DUMMY-TORSIONBERT] Training mode randomness is DISABLED in production/inference (DUMMY_TORSIONBERT_ALLOW_RANDOM not set)")
+        
         if self.side_effect and isinstance(inputs, dict) and "input_ids" in inputs and "attention_mask" in inputs:
             return self.side_effect(inputs["input_ids"], inputs["attention_mask"])
         if self.debug_logging:
@@ -118,11 +127,8 @@ class DummyTorsionBertAutoModel(nn.Module):
         if self.debug_logging:
             logger.info(f"[DEBUG-DUMMY] Caller function: {caller_function}")
 
-        # If called from test_forward_logits, return a dictionary
-        if caller_function == 'test_forward_logits':
-            return {"logits": output, "last_hidden_state": output}
-        # Otherwise, return an object with attributes
-        return type("obj", (object,), {"logits": output, "last_hidden_state": output})()
+        # Always return a dict with both 'logits' and 'last_hidden_state' keys
+        return {"logits": output, "last_hidden_state": output}
 
 
 class TorsionBertModel(nn.Module):
@@ -293,31 +299,25 @@ class TorsionBertModel(nn.Module):
             if self.debug_logging:
                 logger.info(f"[DEBUG-TORSIONBERT-FORWARD] outputs.last_hidden_state shape: {getattr(outputs.last_hidden_state, 'shape', None)}")
 
-        # Extract logits and last_hidden_state from outputs
-        if isinstance(outputs, dict):
-            if self.debug_logging:
-                logger.info(f"[DEBUG-TORSIONBERT-FORWARD] outputs dict keys: {list(outputs.keys())}")
-            logits = outputs.get("logits", None)
-            last_hidden_state = outputs.get("last_hidden_state", logits)
-        else:
-            # Extract from object attributes
-            logits = getattr(outputs, "logits", None)
-            last_hidden_state = getattr(outputs, "last_hidden_state", logits)
-
-        # Return based on self.return_dict flag
+        # Return outputs respecting return_dict flag
         if self.return_dict:
-            # Return a dictionary with 'logits' key
-            return {"logits": logits, "last_hidden_state": last_hidden_state}
+            # Return as dict
+            if isinstance(outputs, dict):
+                return outputs
+            else:
+                # Convert object outputs to dict
+                data = {}
+                if hasattr(outputs, "logits"):
+                    data["logits"] = outputs.logits
+                if hasattr(outputs, "last_hidden_state"):
+                    data["last_hidden_state"] = outputs.last_hidden_state
+                return data
         else:
-            # Return an object with .logits and .last_hidden_state attributes
-            class OutputObj:
-                def __init__(self):
-                    self.logits = None
-                    self.last_hidden_state = None
-            out_obj = OutputObj()
-            out_obj.logits = logits
-            out_obj.last_hidden_state = last_hidden_state
-            return out_obj
+            # Return as object
+            if isinstance(outputs, dict):
+                from types import SimpleNamespace
+                return SimpleNamespace(**outputs)
+            return outputs
 
     def _preprocess_sequence(self, rna_sequence: str) -> tuple[str, int]:
         """

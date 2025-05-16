@@ -17,18 +17,27 @@ def minimal_torsion_cfg():
                     'angle_mode': 'sin_cos',
                     'num_angles': 7,
                     'max_length': 32,
-                    'init_from_scratch': True  # Use dummy model for speed
+                    'init_from_scratch': False
                 }
             },
             'stageC': {
                 'enabled': True,
+                'method': 'mp_nerf',
+                'do_ring_closure': False,
+                'place_bases': True,
+                'sugar_pucker': "C3'-endo",
                 'device': 'cpu',
-                'angle_mode': 'sin_cos',
-                'num_angles': 7,
-                'max_length': 32,
-                'init_from_scratch': True
+                'debug_logging': True,
+                'angle_representation': 'degrees',
+                'use_metadata': False,
+                'use_memory_efficient_kernel': False,
+                'use_deepspeed_evo_attention': False,
+                'use_lma': False,
+                'inplace_safe': False,
+                'chunk_size': None
             }
         },
+        'run_stageD': False,
         'default_repeats': 5,
         'default_atom_choice': 0
     })
@@ -47,6 +56,11 @@ def test_stochastic_predict_submission(minimal_torsion_cfg, seed_mode):
     if mode == "unique":
         # All repeats should be different
         diffs = [np.any(np.not_equal(coords[i], coords[j])) for i in range(5) for j in range(i+1,5)]
+        print(f"coords.shape: {coords.shape}")
+        print(f"diffs: {diffs}")
+        for i in range(5):
+            for j in range(i+1,5):
+                print(f"np.not_equal(coords[{i}], coords[{j}]):", np.not_equal(coords[i], coords[j]).sum())
         assert all(diffs), "Some repeats are not unique!"
     elif mode == "identical":
         # All repeats should be identical

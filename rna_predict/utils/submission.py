@@ -19,30 +19,18 @@ def reshape_coords(coords: Tensor, num_residues: int) -> Tensor:
     Raises:
         ValueError: If coords shape cannot be normalized to [N, atoms, 3] and is not flat [total_atoms, 3]
     """
-    if coords.dim() == 2 and coords.shape[0] == num_residues:
-        # Shape [N, 3] -> [N, 1, 3] (single atom per residue)
-        return coords.unsqueeze(1)
-
-    if coords.dim() == 2 and coords.shape[0] == num_residues * 3:
-        # Legacy shape [N*3, 3] -> [N, 3, 3] (three atoms per residue)
-        return coords.view(num_residues, 3, 3)
-
+    # If 2D and equal to one coord per residue, treat as uniform [N,1,3]
     if coords.dim() == 2:
-        atoms_per_res = coords.shape[0] // num_residues
-        if coords.shape[0] % num_residues == 0:
-            try:
-                return coords.view(num_residues, atoms_per_res, 3)
-            except RuntimeError:
-                pass  # Fall through to ragged
-        # Variable atom count per residue: return flat, let downstream handle mapping
-        return coords  # shape [total_atoms, 3]
-
-    if coords.dim() == 3:
+        if coords.shape[0] == num_residues:
+            return coords.unsqueeze(1)
+        # Otherwise flat variable-atom case: leave as [total_atoms,3]
         return coords
 
-    raise ValueError(
-        f"Shape mismatch: cannot reshape coords {coords.shape} for {num_residues} residues."
-    )
+    if coords.dim() == 3:
+        # Already per-residue atom coords [N, atoms, 3]
+        return coords
+
+    raise ValueError(f"Shape mismatch: coords have unsupported dims {coords.shape} for {num_residues} residues.")
 
 
 def extract_atom(coords: Tensor, atom_idx: int) -> Tensor:
