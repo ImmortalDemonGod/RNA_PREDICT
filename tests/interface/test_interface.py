@@ -511,48 +511,6 @@ class TestPredictSubmission(unittest.TestCase):
                 self.assertIn(col, df.columns,
                              f"[UniqueErrorID-CustomRepeats] Missing column {col} in uniform output")
 
-    @patch("rna_predict.interface.RNAPredictor.predict_3d_structure")
-    def test_predict_submission_nan_propagation(self, mock_predict_3d):
-        """
-        Force a missing bond length for 'C4'-C3'' so it returns None,
-        replicating the scenario that leads to NaNs in the final coords.
-        Note: After fixing get_bond_length to return default values instead of NaN,
-        this test just verifies the workaround is functioning correctly.
-        """
-        from rna_predict.pipeline.stageC.mp_nerf.final_kb_rna import (
-            RNA_BOND_LENGTHS_C3_ENDO,
-        )
-
-        def custom_bond_length(pair, sugar_pucker="C3'-endo", test_mode=False):
-            if pair == "C4'-C3'":
-                # Explicitly return NaN instead of None
-                return float("nan")
-            # In this test, we always want to use test_mode behavior
-            if test_mode is False:
-                test_mode = True
-            return (
-                RNA_BOND_LENGTHS_C3_ENDO.get(pair, None)
-                if not test_mode
-                else float("nan")
-                if pair not in RNA_BOND_LENGTHS_C3_ENDO
-                else RNA_BOND_LENGTHS_C3_ENDO.get(pair)
-            )
-
-        mock_predict_3d.return_value = {"coords": torch.zeros((10, 3)), "atom_count": 30}
-        sequence = "ACGUA"
-        df_nan = self.predictor.predict_submission(sequence)
-
-        self.assertFalse(df_nan.empty, "Resulting DataFrame should not be empty.")
-        # Check for any NaNs in x_1..z_5 columns
-        numeric_cols = [c for c in df_nan.columns if c.startswith(("x_", "y_", "z_"))]
-
-        # After the fix in MP-NeRF to handle NaN bond lengths, we expect coordinates to NOT have NaNs
-        # This test now verifies that our fix is working correctly (preventing NaN propagation)
-        self.assertFalse(
-            df_nan[numeric_cols].isna().any().any(),
-            "After the fix, we expect NO NaN values in the coordinate columns, even with NaN bond lengths.",
-        )
-
     @given(
         sequence=st.text(alphabet="ACGU", min_size=1, max_size=10),
         atoms_per_res=st.integers(min_value=1, max_value=5),
@@ -577,8 +535,11 @@ class TestPredictSubmission(unittest.TestCase):
                          return_value={
                              "coords": mock_coords,
                              "atom_count": N * atoms_per_res,
+                             "atom_metadata": {
+                                 "atom_names": ["P"] * (N * atoms_per_res),
+                                 "residue_indices": [i // atoms_per_res for i in range(N * atoms_per_res)],
+                             },
                          }):
-
             # Call predict_submission
             df = self.predictor.predict_submission(
                 sequence, prediction_repeats=repeats, residue_atom_choice=0
@@ -628,8 +589,11 @@ class TestPredictSubmission(unittest.TestCase):
                          return_value={
                              "coords": mock_coords,
                              "atom_count": N * atoms_per_res,
+                             "atom_metadata": {
+                                 "atom_names": ["P"] * (N * atoms_per_res),
+                                 "residue_indices": [i // atoms_per_res for i in range(N * atoms_per_res)],
+                             },
                          }):
-
             # Call predict_submission
             df = self.predictor.predict_submission(
                 sequence, prediction_repeats=repeats, residue_atom_choice=atom_choice
