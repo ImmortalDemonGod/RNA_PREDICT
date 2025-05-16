@@ -46,7 +46,7 @@ class RNAPredictor:
         self.torsion_predictor = StageBTorsionBertPredictor(torsion_bert_cfg)
 
     #@snoop
-    def predict_3d_structure(self, sequence: str) -> Dict[str, Any]:
+    def predict_3d_structure(self, sequence: str, stochastic_pass: bool = False, seed: Optional[int] = None) -> Dict[str, Any]:
         """
         Predicts the 3D structure of an RNA sequence using torsion angle prediction and reconstruction.
         
@@ -65,7 +65,7 @@ class RNAPredictor:
                 "coords_3d": torch.empty((0, 0, 3), device=self.device),
                 "atom_count": 0,
             }
-        torsion_output = self.torsion_predictor(sequence)
+        torsion_output = self.torsion_predictor(sequence, stochastic_pass=stochastic_pass, seed=seed)
         torsion_angles = torsion_output["torsion_angles"]
         from omegaconf import OmegaConf
         # Construct config with model.stageC for run_stageC
@@ -82,10 +82,19 @@ class RNAPredictor:
         return run_stageC(cfg=stageC_full_config, sequence=sequence, torsion_angles=torsion_angles)
 
     def predict_submission(self, sequence: str, prediction_repeats: Optional[int] = None, residue_atom_choice: Optional[int] = None, repeat_seeds: Optional[list] = None) -> pd.DataFrame:
+        """
+        Generate a submission DataFrame with multiple unique structure predictions using stochastic inference if enabled in config.
+        """
         import logging
         import random
         import numpy as np
         logger = logging.getLogger("rna_predict.predict_submission")
+
+        # Read stochastic config from Hydra
+        enable_stochastic = False
+        if hasattr(self, 'prediction_config'):
+            enable_stochastic = getattr(self.prediction_config, 'enable_stochastic_inference_for_submission', False)
+        repeats = prediction_repeats if prediction_repeats is not None else getattr(self, 'default_repeats', 5)
 
         def set_all_seeds(seed):
             random.seed(seed)
@@ -96,7 +105,6 @@ class RNAPredictor:
                 torch.cuda.manual_seed_all(seed)
 
         if not sequence:
-            repeats = prediction_repeats if prediction_repeats is not None else self.default_repeats
             df = coords_to_df("", torch.empty(0, 3, device=self.device), repeats)
             import os
             if os.environ.get("DEBUG_PREDICT_SUBMISSION") == "1":
@@ -106,15 +114,23 @@ class RNAPredictor:
             logger.warning(f"[DEBUG] Returning DataFrame shape: {df.shape}, columns: {list(df.columns)}")
             return df
 
-        repeats = prediction_repeats if prediction_repeats is not None else self.default_repeats
         results = []
         atom_names = None
         residue_indices = None
         for i in range(repeats):
-            seed = repeat_seeds[i] if repeat_seeds and i < len(repeat_seeds) else None
-            if seed is not None:
+            # Determine seed for this repeat if stochastic enabled
+            seed = None
+            if enable_stochastic:
+                if repeat_seeds and i < len(repeat_seeds):
+                    seed = repeat_seeds[i]
+                else:
+                    seed = i  # Use index as seed for reproducibility
                 set_all_seeds(seed)
-            result = self.predict_3d_structure(sequence)
+            elif repeat_seeds and i < len(repeat_seeds):
+                seed = repeat_seeds[i]
+                set_all_seeds(seed)
+            # Run prediction with stochastic_pass and seed
+            result = self.predict_3d_structure(sequence, stochastic_pass=enable_stochastic, seed=seed)
             coords = reshape_coords(result['coords'], len(sequence))
             # Select atom coords
             if coords.dim() == 3:
@@ -150,8 +166,6 @@ class RNAPredictor:
 
     def predict_submission_original(self, sequence: str, prediction_repeats: Optional[int] = None, residue_atom_choice: Optional[int] = None, repeat_seeds: Optional[list] = None) -> pd.DataFrame:
         import logging
-        import random
-        import numpy as np
         logger = logging.getLogger("rna_predict.predict_submission")
         if not sequence:
             repeats = prediction_repeats if prediction_repeats is not None else self.default_repeats

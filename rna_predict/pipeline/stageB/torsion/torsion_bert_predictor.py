@@ -435,7 +435,7 @@ class StageBTorsionBertPredictor(nn.Module):
                 "attention_mask": torch.ones((1, len(sequence) or 1), dtype=torch.long, device=self.device)
             }
 
-    def predict_angles_from_sequence(self, sequence: str) -> torch.Tensor:
+    def predict_angles_from_sequence(self, sequence: str, stochastic_pass: bool = False, seed: Optional[int] = None) -> torch.Tensor:
         """
         Predicts torsion angles for a single RNA sequence using the loaded TorsionBERT model.
         
@@ -453,7 +453,27 @@ class StageBTorsionBertPredictor(nn.Module):
             for each residue in the sequence.
         """
         if self.debug_logging:
-            logger.debug(f"[UNIQUE-DEBUG-STAGEB-TORSIONBERT-PREDICT] Predicting angles for sequence of length {len(sequence)}")
+            logger.debug(f"[UNIQUE-DEBUG-STAGEB-TORSIONBERT-PREDICT] Predicting angles for sequence of length {len(sequence)} | stochastic_pass={stochastic_pass} | seed={seed}")
+
+        # --- Stochastic inference logic ---
+        original_mode = self.model.training if hasattr(self.model, 'training') else None
+        try:
+            if stochastic_pass:
+                if seed is not None:
+                    torch.manual_seed(seed)
+                    if self.debug_logging:
+                        logger.info(f"[STOCHASTIC-INFERENCE] TorsionBERT seed set to {seed} for this pass.")
+                if hasattr(self.model, 'train'):
+                    self.model.train()
+                    if self.debug_logging:
+                        logger.info("[STOCHASTIC-INFERENCE] TorsionBERT model set to train() mode for MC dropout.")
+            else:
+                if hasattr(self.model, 'eval'):
+                    self.model.eval()
+        except Exception as e:
+            logger.warning(f"[STOCHASTIC-INFERENCE] Error setting model mode or seed: {e}")
+
+        # End stochastic logic
 
         if not sequence:
             logger.warning("Empty sequence provided, returning empty tensor.")
@@ -716,7 +736,7 @@ class StageBTorsionBertPredictor(nn.Module):
             # Should not happen due to initial check, but as safeguard
             raise ValueError(f"Invalid conversion mode: {mode}")
 
-    def __call__(self, sequence: str, adjacency=None, **kwargs: Any) -> Dict[str, torch.Tensor]:
+    def __call__(self, sequence: str, adjacency=None, stochastic_pass: bool = False, seed: Optional[int] = None, **kwargs: Any) -> Dict[str, torch.Tensor]:
         """
         Predicts RNA torsion angles for a given sequence and returns them in the configured format.
         
@@ -777,7 +797,7 @@ class StageBTorsionBertPredictor(nn.Module):
                 logger.debug(f"[DEBUG-PREDICTOR] Received additional kwargs: {kwargs}, but they are not used")
 
         # Predict raw outputs (likely sin/cos pairs)
-        raw_predictions = self.predict_angles_from_sequence(sequence) # Shape [N, output_dim]
+        raw_predictions = self.predict_angles_from_sequence(sequence, stochastic_pass=stochastic_pass, seed=seed) # Shape [N, output_dim]
         if self.debug_logging:
             logger.debug(f"[DEBUG-PREDICTOR] Raw predictions shape: {raw_predictions.shape}")
         # Don't print debug info when debug_logging is False
