@@ -7,6 +7,15 @@ from hydra.core.config_store import ConfigStore
 from rna_predict.pipeline.stageD.config import NoiseScheduleConfig, SamplingConfig
 
 @dataclass
+class PredictionConfig:
+    repeats: int = field(default=5, metadata={"help": "Number of structure repeats for stochastic inference"})
+    residue_atom_choice: int = field(default=1, metadata={"help": "Which atom to use for output (default 1)"})
+    enable_stochastic_inference_for_submission: bool = field(
+        default=False,
+        metadata={"help": "Enable MC dropout/stochastic inference for submission"}
+    )
+
+@dataclass
 class DeviceConfig:
     """Configuration for device management and fallback behavior."""
     primary: str = field(
@@ -99,6 +108,7 @@ class DimensionsConfig:
 
 # Register configs with Hydra's config store
 cs = ConfigStore.instance()
+cs.store(group="prediction", name="default", node=PredictionConfig)
 
 def register_configs() -> None:
     """Register all configurations with Hydra's config store for validation."""

@@ -32,9 +32,9 @@ class RNAPredictor:
         if not hasattr(cfg, "model") or not hasattr(cfg.model, "stageC"):
             raise ValueError("Configuration must contain model.stageC section")
         self.stageC_config = cfg.model.stageC
-        self.prediction_config = getattr(cfg, "prediction", {})
-        self.default_repeats = getattr(self.prediction_config, "repeats", 5)
-        self.default_atom_choice = getattr(self.prediction_config, "residue_atom_choice", 1)
+        self.prediction_config = cfg.prediction  # Now a structured config
+        self.default_repeats = self.prediction_config.repeats
+        self.default_atom_choice = self.prediction_config.residue_atom_choice
         if hasattr(cfg, 'model') and hasattr(cfg.model, 'stageB') and hasattr(cfg.model.stageB, 'torsion_bert'):
             torsion_bert_cfg = cfg.model.stageB.torsion_bert
         else:
@@ -91,10 +91,9 @@ class RNAPredictor:
         logger = logging.getLogger("rna_predict.predict_submission")
 
         # Read stochastic config from Hydra
-        enable_stochastic = False
-        if hasattr(self, 'prediction_config'):
-            enable_stochastic = getattr(self.prediction_config, 'enable_stochastic_inference_for_submission', False)
-        repeats = prediction_repeats if prediction_repeats is not None else getattr(self, 'default_repeats', 5)
+        enable_stochastic = self.prediction_config.enable_stochastic_inference_for_submission
+        logger.info(f"[DEBUG-CONFIG-PROPAGATION] enable_stochastic_inference_for_submission={enable_stochastic} (from config), passing as stochastic_pass={enable_stochastic}")
+        repeats = prediction_repeats if prediction_repeats is not None else self.default_repeats
 
         def set_all_seeds(seed):
             random.seed(seed)
@@ -243,32 +242,30 @@ def batch_predict(predictor: RNAPredictor, sequences: List[str], output_dir: str
     results = []
     for i, seq in enumerate(sequences):
         print(f"[DEBUG][batch_predict] seq type: {type(seq)}, value: {seq}")
-        out = predictor.predict_3d_structure(seq)
-        # --- Save as .pt for internal/debugging (optional, can remove if not wanted) ---
-        torch.save(out, os.path.join(output_dir, f"prediction_{i}.pt"))
-        # --- Save as CSV: atom-level coordinates ---
-        coords = out["coords"]
-        atom_metadata = out.get("atom_metadata", {})
-        atom_names = atom_metadata.get("atom_names", ["?"] * coords.shape[0])
-        residue_indices = atom_metadata.get("residue_indices", [None] * coords.shape[0])
-        import pandas as pd
-        df = pd.DataFrame({
-            "atom_name": atom_names,
-            "residue_index": residue_indices,
-            "x": coords[:, 0].detach().cpu().numpy(),
-            "y": coords[:, 1].detach().cpu().numpy(),
-            "z": coords[:, 2].detach().cpu().numpy(),
-        })
-        df.to_csv(os.path.join(output_dir, f"prediction_{i}.csv"), index=False)
-        # --- Save as PDB ---
-        def write_pdb(df, pdb_path):
-            with open(pdb_path, "w") as f:
-                for idx, row in df.iterrows():
-                    atom = row["atom_name"]
-                    res_idx = row["residue_index"] if row["residue_index"] is not None else 1
-                    f.write(f"ATOM  {idx+1:5d} {atom:>4} RNA A{res_idx:4d}    {row['x']:8.3f}{row['y']:8.3f}{row['z']:8.3f}  1.00  0.00           {atom[0]:>2}\n")
-        write_pdb(df, os.path.join(output_dir, f"prediction_{i}.pdb"))
-        results.append({"index": i, "atom_count": out["atom_count"]})
+        submission_df = predictor.predict_submission(seq)
+        # Save each repeat's coordinates as separate CSV and PDB files
+        n_repeats = (submission_df.shape[1] - 3) // 3  # x/y/z per repeat, columns are: ID, resname, resid, x_1, y_1, z_1, ...
+        for rep in range(n_repeats):
+            x_col = f"x_{rep+1}"
+            y_col = f"y_{rep+1}"
+            z_col = f"z_{rep+1}"
+            rep_df = submission_df[["ID", "resname", "resid", x_col, y_col, z_col]].copy()
+            rep_df.rename(columns={x_col: "x", y_col: "y", z_col: "z"}, inplace=True)
+            csv_path = os.path.join(output_dir, f"prediction_{i}_repeat_{rep+1}.csv")
+            rep_df.to_csv(csv_path, index=False)
+            # Save as PDB
+            def write_pdb(df, pdb_path):
+                with open(pdb_path, "w") as f:
+                    for idx, row in df.iterrows():
+                        atom = row["resname"]
+                        res_idx = row["resid"]
+                        f.write(f"ATOM  {idx+1:5d} {atom:>4} RNA A{res_idx:4d}    {row['x']:8.3f}{row['y']:8.3f}{row['z']:8.3f}  1.00  0.00           {atom[0]:>2}\n")
+            pdb_path = os.path.join(output_dir, f"prediction_{i}_repeat_{rep+1}.pdb")
+            write_pdb(rep_df, pdb_path)
+        # For summary, use atom count from first repeat
+        atom_count = rep_df.shape[0] if n_repeats > 0 else 0
+        results.append({"index": i, "atom_count": atom_count, "repeats": n_repeats})
+
     pd.DataFrame(results).to_csv(os.path.join(output_dir, "summary.csv"), index=False)
 
 
