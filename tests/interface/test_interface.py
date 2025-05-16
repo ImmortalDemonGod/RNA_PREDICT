@@ -352,15 +352,36 @@ class TestPredictSubmission(unittest.TestCase):
             os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
         else:
             torch.use_deterministic_algorithms(True)
-        # Patch: Use minimal valid Hydra config
-        minimal_cfg = OmegaConf.create({
-            "device": "cpu",
-            "model": {
-                "stageC": OmegaConf.to_container(self.minimal_stageC_config(method="mp_nerf", enabled=True, do_ring_closure=True, place_bases=True, sugar_pucker="C3'-endo", angle_representation="sin_cos", use_metadata=False, use_memory_efficient_kernel=False, use_deepspeed_evo_attention=False, use_lma=False, inplace_safe=False)),
-                "stageB": {"torsion_bert": {"dummy": True, "debug_logging": False, "model_name_or_path": "dummy-path", "device": "cpu"}}
-            },
-            "prediction": {"repeats": 5, "residue_atom_choice": 0}
-        })
+        # Build config via Hydra compose for tests
+        from hydra import initialize_config_dir, compose
+        # Initialize Hydra with absolute config_dir for tests
+        with initialize_config_dir(config_dir="/Users/tomriddle1/RNA_PREDICT/rna_predict/conf", version_base="1.1", job_name="test_predict"):
+            minimal_cfg = compose(
+                config_name="predict",
+                overrides=[
+                    "device=cpu",
+                    # Stage C overrides
+                    "model.stageC.method=mp_nerf",
+                    "model.stageC.enabled=true",
+                    "model.stageC.do_ring_closure=true",
+                    "model.stageC.place_bases=true",
+                    "model.stageC.sugar_pucker=\"C3'-endo\"",  # Wrap sugar_pucker in quotes to satisfy Hydra override grammar
+                    "model.stageC.angle_representation=sin_cos",
+                    "model.stageC.use_metadata=false",
+                    "model.stageC.use_memory_efficient_kernel=false",
+                    "model.stageC.use_deepspeed_evo_attention=false",
+                    "model.stageC.use_lma=false",
+                    "model.stageC.inplace_safe=false",
+                    # Stage B overrides
+                    "model.stageB.torsion_bert.model_name_or_path=dummy-path",
+                    "model.stageB.torsion_bert.device=cpu",
+                    "model.stageB.torsion_bert.debug_logging=false",
+                    # Prediction overrides
+                    "prediction.repeats=5",
+                    "prediction.residue_atom_choice=0",
+                    "prediction.enable_stochastic_inference_for_submission=false",
+                ],
+            )
 
         # Mock the Hugging Face model loading to avoid network calls
         with patch("transformers.AutoModel.from_pretrained"), \
@@ -627,16 +648,35 @@ class TestPredictSubmissionParametricShapes(unittest.TestCase):
     """
 
     def setUp(self):
-        # Patch: Use minimal valid Hydra config
-        minimal_cfg = OmegaConf.create({
-            "device": "cpu",
-            "model": {
-                "stageC": OmegaConf.to_container(self.minimal_stageC_config(method="mp_nerf", enabled=True, do_ring_closure=True, place_bases=True, sugar_pucker="C3'-endo", angle_representation="sin_cos", use_metadata=False, use_memory_efficient_kernel=False, use_deepspeed_evo_attention=False, use_lma=False, inplace_safe=False)),
-                "stageB": {"torsion_bert": {"dummy": True, "debug_logging": False, "model_name_or_path": "dummy-path", "device": "cpu"}}
-            },
-            "prediction": {"repeats": 5, "residue_atom_choice": 0}
-        })
-
+        # Use Hydra config composition for minimal config (Hydra best practice)
+        from hydra import initialize_config_dir, compose
+        with initialize_config_dir(config_dir="/Users/tomriddle1/RNA_PREDICT/rna_predict/conf", version_base="1.1", job_name="test_predict_parametric_shapes"):
+            minimal_cfg = compose(
+                config_name="predict",
+                overrides=[
+                    "device=cpu",
+                    # Stage C overrides
+                    "model.stageC.method=mp_nerf",
+                    "model.stageC.enabled=true",
+                    "model.stageC.do_ring_closure=true",
+                    "model.stageC.place_bases=true",
+                    "model.stageC.sugar_pucker=\"C3'-endo\"",
+                    "model.stageC.angle_representation=sin_cos",
+                    "model.stageC.use_metadata=false",
+                    "model.stageC.use_memory_efficient_kernel=false",
+                    "model.stageC.use_deepspeed_evo_attention=false",
+                    "model.stageC.use_lma=false",
+                    "model.stageC.inplace_safe=false",
+                    # Stage B overrides
+                    "model.stageB.torsion_bert.model_name_or_path=dummy-path",
+                    "model.stageB.torsion_bert.device=cpu",
+                    "model.stageB.torsion_bert.debug_logging=false",
+                    # Prediction overrides
+                    "prediction.repeats=5",
+                    "prediction.residue_atom_choice=0",
+                    "prediction.enable_stochastic_inference_for_submission=false",
+                ],
+            )
         # Mock the Hugging Face model loading to avoid network calls
         with patch("transformers.AutoModel.from_pretrained"), \
              patch("transformers.AutoTokenizer.from_pretrained"):
@@ -700,7 +740,11 @@ class TestPredictSubmissionParametricShapes(unittest.TestCase):
                     self.assertEqual(len(df), N, "Rows must match number of residues.")
                 # Columns: ID, resname, resid + repeats*(x,y,z) => 3 + 3*repeats total
                 self.assertEqual(df.shape[1], 3 + (3 * repeats))
-                mock_p3d.assert_called_once_with(seq)
+                # Assert predict_3d_structure called exactly 'repeats' times with the same sequence
+                self.assertEqual(mock_p3d.call_count, repeats)
+                for call in mock_p3d.call_args_list:
+                    # Accept any kwargs, but first arg must be seq
+                    self.assertEqual(call[0][0], seq)
             except Exception as e:
                 print(f"[ERROR] Exception in test_forced_coord_shapes: {e}")
                 raise

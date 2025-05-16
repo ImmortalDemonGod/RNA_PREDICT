@@ -1,46 +1,52 @@
 import pytest
 import numpy as np
-from omegaconf import OmegaConf
+from hydra import initialize_config_dir, compose
 
 from rna_predict.predict import RNAPredictor
 
 @pytest.fixture
 def minimal_torsion_cfg():
-    # Minimal config for RNAPredictor streamline mode
-    return OmegaConf.create({
-        'device': 'cpu',
-        'model': {
-            'stageB': {
-                'torsion_bert': {
-                    'model_name_or_path': 'sayby/rna_torsionbert',
-                    'device': 'cpu',
-                    'angle_mode': 'sin_cos',
-                    'num_angles': 7,
-                    'max_length': 32,
-                    'init_from_scratch': False
-                }
-            },
-            'stageC': {
-                'enabled': True,
-                'method': 'mp_nerf',
-                'do_ring_closure': False,
-                'place_bases': True,
-                'sugar_pucker': "C3'-endo",
-                'device': 'cpu',
-                'debug_logging': True,
-                'angle_representation': 'degrees',
-                'use_metadata': False,
-                'use_memory_efficient_kernel': False,
-                'use_deepspeed_evo_attention': False,
-                'use_lma': False,
-                'inplace_safe': False,
-                'chunk_size': None
-            }
-        },
-        'run_stageD': False,
-        'default_repeats': 5,
-        'default_atom_choice': 0
-    })
+    # Minimal Hydra-composed config for RNAPredictor streamline mode
+    with initialize_config_dir(config_dir="/Users/tomriddle1/RNA_PREDICT/rna_predict/conf", version_base="1.1", job_name="test_torsion"):
+        cfg = compose(
+            config_name="predict",
+            overrides=[
+                "device=cpu",
+                "model.stageB.torsion_bert.model_name_or_path=sayby/rna_torsionbert",
+                "model.stageB.torsion_bert.device=cpu",
+                "model.stageB.torsion_bert.angle_mode=sin_cos",
+                "model.stageB.torsion_bert.num_angles=7",
+                "model.stageB.torsion_bert.max_length=32",
+                "model.stageB.torsion_bert.init_from_scratch=false",
+                "model.stageC.enabled=true",
+                "model.stageC.method=mp_nerf",
+                "model.stageC.do_ring_closure=false",
+                "model.stageC.place_bases=true",
+                # Value contains special char, wrap in quotes per Hydra override grammar
+                "model.stageC.sugar_pucker=\"C3'-endo\"",
+                "model.stageC.device=cpu",
+                "model.stageC.debug_logging=true",
+                "model.stageC.angle_representation=degrees",
+                "model.stageC.use_metadata=false",
+                "model.stageC.use_memory_efficient_kernel=false",
+                "model.stageC.use_deepspeed_evo_attention=false",
+                "model.stageC.use_lma=false",
+                "model.stageC.inplace_safe=false",
+                "model.stageC.chunk_size=null",
+                "run_stageD=false",
+            ],
+        )
+    # Patch StageBTorsionBertPredictor to return random torsion angles for stochastic behavior
+    from rna_predict.pipeline.stageB.torsion.torsion_bert_predictor import StageBTorsionBertPredictor
+    def dummy_call(self, sequence, stochastic_pass=False, seed=None):
+        import torch
+        n = len(sequence)
+        dim = 14
+        if seed is not None:
+            torch.manual_seed(seed)
+        return {"torsion_angles": torch.randn(n, dim)}
+    StageBTorsionBertPredictor.__call__ = dummy_call
+    return cfg
 
 @pytest.mark.parametrize("seed_mode", [
     (None, "unique"),

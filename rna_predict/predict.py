@@ -32,7 +32,10 @@ class RNAPredictor:
         if not hasattr(cfg, "model") or not hasattr(cfg.model, "stageC"):
             raise ValueError("Configuration must contain model.stageC section")
         self.stageC_config = cfg.model.stageC
-        self.prediction_config = cfg.prediction  # Now a structured config
+        # Prediction config retrieved via Hydra structured config
+        if not hasattr(cfg, "prediction"):
+            raise ValueError("Configuration must contain prediction section")
+        self.prediction_config = cfg.prediction
         self.default_repeats = self.prediction_config.repeats
         self.default_atom_choice = self.prediction_config.residue_atom_choice
         if hasattr(cfg, 'model') and hasattr(cfg.model, 'stageB') and hasattr(cfg.model.stageB, 'torsion_bert'):
