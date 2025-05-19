@@ -224,6 +224,8 @@ def predictor_fixture(
     Sets up the predictor with a mock tokenizer and a dummy model using 16 angles and 'degrees'
     angle mode, enabling debug logging for diagnostic output.
     """
+    import hydra
+    hydra.core.global_hydra.GlobalHydra.instance().clear()
     from omegaconf import DictConfig
     # Build a minimal config matching what StageBTorsionBertPredictor expects
     cfg = DictConfig({

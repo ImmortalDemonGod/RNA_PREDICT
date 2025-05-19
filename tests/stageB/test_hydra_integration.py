@@ -5,6 +5,7 @@ import pytest
 import torch
 from omegaconf import OmegaConf
 from hypothesis import given, strategies as st, settings, HealthCheck
+import os
 
 from rna_predict.pipeline.stageB.torsion.torsion_bert_predictor import StageBTorsionBertPredictor
 from rna_predict.pipeline.stageB.pairwise.pairformer_wrapper import PairformerWrapper
@@ -144,55 +145,63 @@ def test_stageB_pairformer_hydra_config(
 
 def test_stageB_torsion_bert_default_config(monkeypatch):
     """Test that TorsionBERT uses default configuration values when not specified."""
-    # Mock the AutoTokenizer and AutoModel to avoid actual model loading
-    import transformers
-    import torch
-    from unittest.mock import MagicMock
+    original_env_var = os.environ.get("ALLOW_NUM_ANGLES_7_FOR_TESTS")
+    os.environ["ALLOW_NUM_ANGLES_7_FOR_TESTS"] = "1"
+    try:
+        # Mock the AutoTokenizer and AutoModel to avoid actual model loading
+        import transformers
+        import torch
+        from unittest.mock import MagicMock
 
-    # Create dummy tokenizer class (not a MagicMock)
-    class DummyTokenizer:
-        def __call__(self, *args, **kwargs):
-            return {"input_ids": torch.zeros((1, 8), dtype=torch.long), "attention_mask": torch.ones((1, 8), dtype=torch.long)}
+        # Create dummy tokenizer class (not a MagicMock)
+        class DummyTokenizer:
+            def __call__(self, *args, **kwargs):
+                return {"input_ids": torch.zeros((1, 8), dtype=torch.long), "attention_mask": torch.ones((1, 8), dtype=torch.long)}
 
-    mock_tokenizer = DummyTokenizer()
-    mock_model = MagicMock()
+        mock_tokenizer = DummyTokenizer()
+        mock_model = MagicMock()
 
-    # Patch the from_pretrained methods
-    monkeypatch.setattr(transformers.AutoTokenizer, "from_pretrained", lambda *args, **kwargs: mock_tokenizer)
-    monkeypatch.setattr(transformers.AutoModel, "from_pretrained", lambda *args, **kwargs: mock_model)
+        # Patch the from_pretrained methods
+        monkeypatch.setattr(transformers.AutoTokenizer, "from_pretrained", lambda *args, **kwargs: mock_tokenizer)
+        monkeypatch.setattr(transformers.AutoModel, "from_pretrained", lambda *args, **kwargs: mock_model)
 
-    # Create a test configuration with minimal fields but including all required ones
-    test_config = OmegaConf.create({
-        "model": {
-            "stageB": {
-                "torsion_bert": {
-                    "model_name_or_path": "sayby/rna_torsionbert",
-                    "device": "cpu",
-                    "angle_mode": "sin_cos",
-                    "num_angles": 7,
-                    "max_length": 512,
-                    "checkpoint_path": None,
-                    "lora": {
-                        "enabled": False,
-                        "r": 8,
-                        "alpha": 16,
-                        "dropout": 0.1,
-                        "target_modules": []
+        # Create a test configuration with minimal fields but including all required ones
+        test_config = OmegaConf.create({
+            "model": {
+                "stageB": {
+                    "torsion_bert": {
+                        "model_name_or_path": "sayby/rna_torsionbert",
+                        "device": "cpu",
+                        "angle_mode": "sin_cos",
+                        "num_angles": 7,
+                        "max_length": 512,
+                        "checkpoint_path": None,
+                        "lora": {
+                            "enabled": False,
+                            "r": 8,
+                            "alpha": 16,
+                            "dropout": 0.1,
+                            "target_modules": []
+                        }
                     }
                 }
             }
-        }
-    })
+        })
 
-    # Initialize the predictor with the config
-    predictor = StageBTorsionBertPredictor(test_config)
+        # Initialize the predictor with the config
+        predictor = StageBTorsionBertPredictor(test_config)
 
-    # Verify that values were applied
-    assert predictor.model_name_or_path == "sayby/rna_torsionbert"
-    assert predictor.device == torch.device("cpu")
-    assert predictor.angle_mode == "sin_cos"
-    assert predictor.num_angles == 7
-    assert predictor.max_length == 512
+        # Verify that values were applied
+        assert predictor.model_name_or_path == "sayby/rna_torsionbert"
+        assert predictor.device == torch.device("cpu")
+        assert predictor.angle_mode == "sin_cos"
+        assert predictor.num_angles == 7
+        assert predictor.max_length == 512
+    finally:
+        if original_env_var is None:
+            del os.environ["ALLOW_NUM_ANGLES_7_FOR_TESTS"]
+        else:
+            os.environ["ALLOW_NUM_ANGLES_7_FOR_TESTS"] = original_env_var
 
 
 def test_stageB_missing_config_section():

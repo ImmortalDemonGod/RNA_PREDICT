@@ -20,7 +20,6 @@ import pytest
 from hypothesis import given, strategies as st, settings, HealthCheck
 import torch
 from omegaconf import OmegaConf
-import random
 import os
 
 from rna_predict.conf.config_schema import StageCConfig
@@ -356,67 +355,51 @@ class TestPredictSubmission(unittest.TestCase):
     @patch("rna_predict.interface.RNAPredictor.predict_3d_structure")
     def setUp(self, mock_predict_3d):
         """Instantiate a RNAPredictor for repeated usage."""
-        random.seed(42)
-        torch.manual_seed(42)
-        if torch.cuda.is_available():
-            torch.cuda.manual_seed_all(42)
-            torch.use_deterministic_algorithms(True)
-            os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
-        else:
-            torch.use_deterministic_algorithms(True)
-        # Build config via Hydra compose for tests
-        from hydra import initialize_config_dir, compose
-        # Initialize Hydra with absolute config_dir for tests
-        with initialize_config_dir(config_dir="/Users/tomriddle1/RNA_PREDICT/rna_predict/conf", version_base="1.1", job_name="test_predict"):
-            minimal_cfg = compose(
-                config_name="predict",
-                overrides=[
-                    "device=cpu",
-                    # Stage C overrides
-                    "model.stageC.method=mp_nerf",
-                    "model.stageC.enabled=true",
-                    "model.stageC.do_ring_closure=true",
-                    "model.stageC.place_bases=true",
-                    "model.stageC.sugar_pucker=\"C3'-endo\"",  # Wrap sugar_pucker in quotes to satisfy Hydra override grammar
-                    "model.stageC.angle_representation=sin_cos",
-                    "model.stageC.use_metadata=false",
-                    "model.stageC.use_memory_efficient_kernel=false",
-                    "model.stageC.use_deepspeed_evo_attention=false",
-                    "model.stageC.use_lma=false",
-                    "model.stageC.inplace_safe=false",
-                    # Stage B overrides
-                    "model.w.torsion_bert.model_name_or_path=dummy-path",
-                    "model.stageB.torsion_bert.device=cpu",
-                    "model.stageB.torsion_bert.debug_logging=false",
-                    # Prediction overrides
-                    "prediction.repeats=5",
-                    "prediction.residue_atom_choice=0",
-                    "prediction.enable_stochastic_inference_for_submission=false",
-                ],
-            )
-
-        # Mock the Hugging Face model loading to avoid network calls
-        with patch("transformers.AutoModel.from_pretrained"), \
-             patch("transformers.AutoTokenizer.from_pretrained"):
+        self.original_env_var_torsion = os.environ.get("ALLOW_NUM_ANGLES_7_FOR_TESTS")
+        os.environ["ALLOW_NUM_ANGLES_7_FOR_TESTS"] = "1"
+        
+        # Patch StageB's __init__ to avoid loading actual models
+        # This ensures that RNAPredictor can be initialized quickly
+        # without needing the TorsionBert model files.
+        with patch("rna_predict.pipeline.stageB.torsion.torsion_bert_predictor.StageBTorsionBertPredictor.__init__", return_value=None):
+            minimal_cfg = OmegaConf.create({
+                "device": "cpu",
+                "model": {
+                    "stageC": OmegaConf.to_container(self.minimal_stageC_config(method="mp_nerf", enabled=True, do_ring_closure=True, place_bases=True, sugar_pucker="C3'-endo", angle_representation="sin_cos", use_metadata=False, use_memory_efficient_kernel=False, use_deepspeed_evo_attention=False, use_lma=False, inplace_safe=False)),
+                    "stageB": {"torsion_bert": {
+                        "dummy": True, # Ensure dummy model path logic might be hit
+                        "debug_logging": False,
+                        "model_name_or_path": "dummy-model-for-interface-test", # Use a distinct dummy path
+                        "device": "cpu",
+                        "num_angles": 16, # This is non-standard, might interact with dummy model logic
+                        "angle_mode": "sin_cos",
+                        "max_length": 512
+                    }}
+                },
+                "prediction": {
+                    "repeats": 5, 
+                    "residue_atom_choice": 0,
+                    "enable_stochastic_inference_for_submission": False # Add missing key
+                }
+            })
             self.predictor = RNAPredictor(minimal_cfg)
-        # Patch the torsion_predictor's model.forward to accept any kwargs and return a dummy tensor
-        import types
-        def dummy_forward(*args, **kwargs):
-            import torch
-            seq_len = kwargs.get('input_ids', torch.zeros((1,))).shape[0] if 'input_ids' in kwargs else 1
-            output_dim = 7  # or whatever is expected by the pipeline
-            dummy_tensor = torch.zeros((1, seq_len, output_dim))
-            return types.SimpleNamespace(last_hidden_state=dummy_tensor)
-        # Defensive: Only patch if model exists
-        if hasattr(self.predictor.torsion_predictor, 'model'):
-            self.predictor.torsion_predictor.model.forward = types.MethodType(dummy_forward, self.predictor.torsion_predictor.model)
 
-        # configure predict_3d_structure mock to return coords tensor of shape [total_atoms, 3]
-        # using module-level torch and STANDARD_RNA_ATOMS imported at file top
-        def fake_predict3d(self_arg, sequence):
-            total_atoms = sum(len(STANDARD_RNA_ATOMS.get(res, [])) for res in sequence)
-            return {"coords": torch.zeros((total_atoms, 3))}
-        mock_predict_3d.side_effect = fake_predict3d
+        self.predictor.predict_3d_structure = mock_predict_3d
+        mock_predict_3d.side_effect = self.fake_predict3d
+
+    def tearDown(self):
+        """Reset environment variables after each test if they were set in setUp."""
+        if hasattr(self, 'original_env_var_torsion'):
+            if self.original_env_var_torsion is None:
+                if "ALLOW_NUM_ANGLES_7_FOR_TESTS" in os.environ:
+                    del os.environ["ALLOW_NUM_ANGLES_7_FOR_TESTS"]
+            else:
+                os.environ["ALLOW_NUM_ANGLES_7_FOR_TESTS"] = self.original_env_var_torsion
+
+    # Mocked behavior for predict_3d_structure
+    def fake_predict3d(self, sequence, *args, **kwargs):
+        total_atoms = sum(len(STANDARD_RNA_ATOMS.get(res, [])) for res in sequence)
+        return {"coords": torch.zeros((total_atoms, 3))}
 
     @staticmethod
     def minimal_stageC_config(**overrides):
@@ -708,7 +691,7 @@ class TestPredictSubmissionParametricShapes(unittest.TestCase):
         seq=valid_rna_sequences.filter(lambda s: len(s) > 0),  # non-empty
         shape_type=coords_shape_type,
         atoms_per_res=atoms_per_res_strategy,
-        repeats=st.integers(min_value=1, max_value=3),
+        repeats=st.integers(min_value=1, max_value=3)
     )
     @settings(
         deadline=None,  # Disable deadline for this flaky test
