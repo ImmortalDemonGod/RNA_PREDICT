@@ -154,10 +154,15 @@ class RNAPredictor:
                 residue_indices = residue_indices[:atom_coords.shape[0]]
 
         n_atoms = results[0].shape[0] if results else 0
+
+        # Clamp residue_indices to valid range
+        valid_indices = [i if i < len(sequence) else len(sequence)-1 for i in residue_indices]
+        if any(i >= len(sequence) for i in residue_indices):
+            print(f"[WARN] Clamped out-of-range residue_indices: {residue_indices} (sequence len={len(sequence)})")
         base_data = {
             'ID': list(range(1, n_atoms + 1)),
-            'resname': [sequence[i] for i in residue_indices],
-            'resid': [i + 1 for i in residue_indices],
+            'resname': [sequence[i] for i in valid_indices],
+            'resid': [i + 1 for i in valid_indices],
         }
         # Coordinate columns for each repeat
         for i, atom_coords in enumerate(results):

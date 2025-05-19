@@ -57,3 +57,9 @@ training:
   batch_size: 32     # Default training batch size
   limit_train_batches: 1  # Default number of training batches per epoch (for quick tests)
   streamline_mode: true  # When true, run only TorsionBERT -> Stage C for streamlined training
+
+# Minimal prediction section for Hydra completeness
+prediction:
+  repeats: 5
+  residue_atom_choice: 0
+  enable_stochastic_inference_for_submission: false

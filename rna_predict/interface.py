@@ -14,6 +14,9 @@ __all__ = ['RNAPredictor']
 @hydra.main(version_base=None, config_path="conf", config_name="default")
 def main(cfg: DictConfig) -> None:
     """Main function to demonstrate RNAPredictor using Hydra configuration."""
+    print("--- [DEBUG] Hydra Config at startup ---")
+    print(OmegaConf.to_yaml(cfg))
+    print("--- [END DEBUG] ---")
     print("Configuration loaded by Hydra:")
     print(OmegaConf.to_yaml(cfg))
     print("-" * 30)

@@ -13,6 +13,13 @@ class DummyTorsionBertAutoModel(nn.Module):
     """Dummy model for testing that returns tensors with correct shape."""
 
     def __init__(self, num_angles: int = 7):
+        import os
+        import traceback
+        print(f"[DEBUG-DUMMY-INIT] DummyTorsionBertAutoModel constructed with num_angles={num_angles}")
+        traceback.print_stack(limit=5)
+        # Global assertion: fail if num_angles==7 during pytest runs
+        if num_angles == 7 and os.environ.get("PYTEST_CURRENT_TEST"):
+            raise AssertionError("DummyTorsionBertAutoModel instantiated with num_angles=7 during pytest run. This indicates a patching or config failure.")
         """
         Initializes a dummy TorsionBert model for testing, simulating output shapes and HuggingFace model attributes.
         
@@ -32,6 +39,8 @@ class DummyTorsionBertAutoModel(nn.Module):
         self.debug_logging = False
 
     def forward(self, inputs: Any) -> Any:
+        # DEBUG: Instrumentation for test failure analysis
+        print(f"[DEBUG-DUMMY-FWD] num_angles={self.num_angles}")
         """Forward pass that returns a tensor with correct shape. Accepts dict or str for test robustness.
 
         Args:
@@ -49,6 +58,9 @@ class DummyTorsionBertAutoModel(nn.Module):
                 "str" if isinstance(inputs, str) else
                 "fallback"
             ))
+        # Additional debug: print angle_mode if possible
+        angle_mode = getattr(self, 'angle_mode', None)
+        print(f"[DEBUG-DUMMY-FWD] angle_mode={angle_mode}")
         # Always match output shape to input sequence length for integration tests
         if isinstance(inputs, dict):
             if "input_ids" in inputs:
@@ -108,6 +120,12 @@ class DummyTorsionBertAutoModel(nn.Module):
         if self.debug_logging:
             logger.info(f"[DEBUG-DUMMY] DummyTorsionBertAutoModel.forward output shape: {output.shape}")
 
+        # DEBUG: Print the output shape
+        print(f"[DEBUG-DUMMY-FWD] output.shape={output.shape}")
+        # If angle_mode is degrees or radians, warn if shape is not (batch, seq_len, num_angles)
+        angle_mode = getattr(self, 'angle_mode', None)
+        if angle_mode in ('degrees', 'radians') and output.shape[-1] != self.num_angles:
+            print(f"[DEBUG-DUMMY-FWD][WARN] Output shape mismatch for mode={angle_mode}: expected last dim {self.num_angles}, got {output.shape[-1]}")
         # For test_forward_logits, we need to return a dictionary
         # For other tests, we need to return an object with attributes
         # We can detect this by checking the caller's stack frame
