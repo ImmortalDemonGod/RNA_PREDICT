@@ -1,6 +1,6 @@
+import pytest
 import torch
 from omegaconf import OmegaConf
-import pytest
 from unittest.mock import patch
 from rna_predict.pipeline.stageB.torsion.torsionbert_inference import DummyTorsionBertAutoModel
 from rna_predict.pipeline.stageB.torsion.torsion_bert_predictor import StageBTorsionBertPredictor
@@ -72,9 +72,7 @@ def test_predictor_forward_dummy():
     assert out.shape[1] == cfg.num_angles * 2  # Robust to test config
 
 
-import pytest
 
-@pytest.mark.skip(reason="Not compatible with module-scoped dummy patch; run separately without patching to test real model + LoRA integration.")
 def test_lora_real_model():
     """
     Integration test: LoRA should be applied to a real HuggingFace TorsionBERT model.

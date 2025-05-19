@@ -34,7 +34,7 @@ import pytest
 import torch
 from omegaconf import OmegaConf
 import os
-from hypothesis import given, settings, strategies as st, HealthCheck
+from hypothesis import given, settings, strategies as st
 
 # Import the component to test
 from rna_predict.pipeline.stageB.torsion.torsion_bert_predictor import (

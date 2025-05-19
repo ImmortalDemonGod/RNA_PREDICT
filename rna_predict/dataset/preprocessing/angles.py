@@ -462,7 +462,7 @@ def _extract_rna_torsions_dssr(
     if structure_file.lower().endswith('.cif'):
         pdb_input_ctx: ContextManager[str] = TempFileManager(structure_file)
     else:
-        pdb_input_ctx: ContextManager[str] = nullcontext(structure_file)
+        pdb_input_ctx = nullcontext(structure_file)
     with pdb_input_ctx as dssr_input:
         # Run DSSR without chain filter; filter JSON output by chain below
         cmd = [_DSSR_BIN, f'-i={dssr_input}', '--json']

@@ -457,7 +457,7 @@ class StageBTorsionBertPredictor(nn.Module):
             logger.debug(f"[UNIQUE-DEBUG-STAGEB-TORSIONBERT-PREDICT] Predicting angles for sequence of length {len(sequence)} | stochastic_pass={stochastic_pass} | seed={seed}")
 
         # --- Stochastic inference logic ---
-        original_mode = self.model.training if hasattr(self.model, 'training') else None
+        self.model.training if hasattr(self.model, 'training') else None
         try:
             if stochastic_pass:
                 if seed is not None:
