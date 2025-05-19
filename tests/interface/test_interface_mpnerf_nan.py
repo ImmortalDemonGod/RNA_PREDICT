@@ -49,6 +49,7 @@ class TestRNAPredictorMpNerfNaN(unittest.TestCase):
             # Use memory-efficient settings
             cfg = OmegaConf.create({
                 "device": self.device,
+                "prediction": {"repeats": 1, "residue_atom_choice": 0, "enable_stochastic_inference_for_submission": False},  # Added required keys for Hydra compliance
                 "model": {
                     "stageB": {
                         "torsion_bert": {

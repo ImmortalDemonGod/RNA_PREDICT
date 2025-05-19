@@ -543,6 +543,12 @@ class TestStageBTorsionBertPredictor:
         """
         try:
             print(f"[DEBUG-SHORT-SEQ-TEST] Testing sequence: '{seq}' (length: {len(seq)})")
+            # Debug print: try to access config from predictor_fixture
+            try:
+                cfg = predictor_fixture.cfg
+                print(f"[DEBUG-SHORT-SEQ-TEST] predictor_fixture.cfg: num_angles={getattr(cfg, 'num_angles', 'N/A')}, angle_mode={getattr(cfg, 'angle_mode', 'N/A')}")
+            except Exception as e:
+                print(f"[DEBUG-SHORT-SEQ-TEST] Unable to access config from predictor_fixture: {e}")
             result = predictor_fixture(seq)
             angles = result["torsion_angles"]
             print(f"[DEBUG-SHORT-SEQ-TEST] Output shape: {angles.shape}")
