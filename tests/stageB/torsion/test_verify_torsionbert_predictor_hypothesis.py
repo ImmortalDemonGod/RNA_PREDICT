@@ -180,6 +180,7 @@ class TestStageBTorsionBertPredictorVerification:
             angle_mode=angle_mode,
             num_angles=num_angles
         )
+        print(f"[DEBUG-VERIFY-TEST] test_output_validation: num_angles={getattr(mock_predictor, 'num_angles', 'N/A')}, angle_mode={getattr(mock_predictor, 'angle_mode', 'N/A')}")
 
         # Call the predictor
         result = mock_predictor(sequence)
@@ -260,6 +261,8 @@ class TestStageBTorsionBertPredictorVerification:
         """
         # Create a predictor with the specified angle mode
         mock_predictor = mock_predictor_factory(angle_mode=angle_mode)
+        print(f"[DEBUG-VERIFY-TEST] test_angle_mode_conversion: num_angles={getattr(mock_predictor, 'num_angles', 'N/A')}, angle_mode={getattr(mock_predictor, 'angle_mode', 'N/A')}")
+        print(f"[DEBUG-VERIFY-TEST] test_angle_mode_conversion: num_angles={{getattr(mock_predictor, 'num_angles', 'N/A')}}, angle_mode={{getattr(mock_predictor, 'angle_mode', 'N/A')}}")
 
         # Call the predictor
         result = mock_predictor(sequence)

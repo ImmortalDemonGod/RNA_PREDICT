@@ -73,7 +73,13 @@ class TestRNAPredictorInitialization(unittest.TestCase):
             "device": "cpu",
             "model": {
                 "stageC": OmegaConf.to_container(self.minimal_stageC_config(method="mp_nerf", enabled=True, do_ring_closure=True, place_bases=True, sugar_pucker="C3'-endo", angle_representation="sin_cos", use_metadata=False, use_memory_efficient_kernel=False, use_deepspeed_evo_attention=False, use_lma=False, inplace_safe=False)),
-                "stageB": {"torsion_bert": {"dummy": True, "debug_logging": False, "model_name_or_path": "dummy-path", "device": "cpu"}}
+                "stageB": {"torsion_bert": {
+    "dummy": True,
+    "debug_logging": False,
+    "model_name_or_path": "dummy-path",
+    "device": "cpu",
+    "num_angles": 16
+}}
             },
             "prediction": {"repeats": 5, "residue_atom_choice": 0}
         })
@@ -197,7 +203,13 @@ class TestPredict3DStructure(unittest.TestCase):
             "device": "cpu",
             "model": {
                 "stageC": OmegaConf.to_container(self.minimal_stageC_config(method="mp_nerf", enabled=True, do_ring_closure=True, place_bases=True, sugar_pucker="C3'-endo", angle_representation="sin_cos", use_metadata=False, use_memory_efficient_kernel=False, use_deepspeed_evo_attention=False, use_lma=False, inplace_safe=False)),
-                "stageB": {"torsion_bert": {"dummy": True, "debug_logging": False, "model_name_or_path": "dummy-path", "device": "cpu"}}
+                "stageB": {"torsion_bert": {
+    "dummy": True,
+    "debug_logging": False,
+    "model_name_or_path": "dummy-path",
+    "device": "cpu",
+    "num_angles": 16
+}}
             },
             "prediction": {"repeats": 5, "residue_atom_choice": 0}
         })
@@ -373,7 +385,7 @@ class TestPredictSubmission(unittest.TestCase):
                     "model.stageC.use_lma=false",
                     "model.stageC.inplace_safe=false",
                     # Stage B overrides
-                    "model.stageB.torsion_bert.model_name_or_path=dummy-path",
+                    "model.w.torsion_bert.model_name_or_path=dummy-path",
                     "model.stageB.torsion_bert.device=cpu",
                     "model.stageB.torsion_bert.debug_logging=false",
                     # Prediction overrides
@@ -801,7 +813,7 @@ def test_stageC_requires_do_ring_closure(present, expected_error):
         "device": "cpu",
         "model": {
             "stageC": OmegaConf.to_container(stageC_config),
-            "stageB": {"torsion_bert": {"dummy": True, "debug_logging": False, "model_name_or_path": "dummy-path", "device": "cpu"}}
+            "stageB": {"torsion_bert": {"dummy": True, "debug_logging": False, "model_name_or_path": "dummy-path", "device": "cpu", "num_angles": 5}}
         },
         "prediction": {"repeats": 5, "residue_atom_choice": 0}
     })
