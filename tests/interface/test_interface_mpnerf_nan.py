@@ -33,6 +33,7 @@ class TestRNAPredictorMpNerfNaN(unittest.TestCase):
         Memory optimization settings are enabled to reduce memory usage.
         """
         import gc
+        from hydra import initialize_config_dir, compose # Import Hydra utilities
 
         # Force garbage collection before setup
         gc.collect()
@@ -42,42 +43,38 @@ class TestRNAPredictorMpNerfNaN(unittest.TestCase):
             f"\n[Test Setup] Initializing RNAPredictor with mp_nerf on device: {self.device}"
         )
         try:
-            # Create a proper Hydra configuration object
-            from omegaconf import OmegaConf
-
-            # Create a configuration with all the necessary sections
-            # Use memory-efficient settings
-            cfg = OmegaConf.create({
-                "device": self.device,
-                "prediction": {"repeats": 1, "residue_atom_choice": 0, "enable_stochastic_inference_for_submission": False},  # Added required keys for Hydra compliance
-                "model": {
-                    "stageB": {
-                        "torsion_bert": {
-                            "model_name_or_path": "sayby/rna_torsionbert",
-                            "device": self.device,
-                            "angle_mode": "degrees",
-                            "num_angles": 7,
-                            "max_length": 64  # Reduced from 512 to save memory
-                        }
-                    },
-                    "stageC": {
-                        "enabled": True,
-                        "method": "mp_nerf",
-                        "device": self.device,
-                        "do_ring_closure": False,
-                        "place_bases": True,
-                        "sugar_pucker": "C3'-endo",
-                        "angle_representation": "degrees",
-                        "use_metadata": False,
-                        # Memory optimization settings
-                        "use_memory_efficient_kernel": True,  # Enable memory-efficient kernel
-                        "use_deepspeed_evo_attention": False,
-                        "use_lma": True,  # Enable linear memory attention
-                        "inplace_safe": True,
-                        "debug_logging": False  # Disable debug logging to reduce memory usage
-                    }
-                }
-            })
+            # Initialize Hydra with absolute config_dir for tests
+            with initialize_config_dir(config_dir="/Users/tomriddle1/RNA_PREDICT/rna_predict/conf", version_base="1.1", job_name="test_mpnerf_nan"):
+                cfg = compose(
+                    config_name="predict", # Assuming 'predict.yaml' or a base config that includes model structure
+                    overrides=[
+                        f"device={self.device}",
+                        # Stage C overrides for mp_nerf and memory optimization
+                        "model.stageC.enabled=true",
+                        "model.stageC.method=mp_nerf",
+                        f"model.stageC.device={self.device}",
+                        "model.stageC.do_ring_closure=false", # From original manual config
+                        "model.stageC.place_bases=true",
+                        "model.stageC.sugar_pucker=\"C3'-endo\"",
+                        "model.stageC.angle_representation=degrees",
+                        "model.stageC.use_metadata=false",
+                        "model.stageC.use_memory_efficient_kernel=true",
+                        "model.stageC.use_deepspeed_evo_attention=false", # Explicitly false
+                        "model.stageC.use_lma=true",
+                        "model.stageC.inplace_safe=true",
+                        "model.stageC.debug_logging=false",
+                        # Stage B overrides (using actual model as in original manual config)
+                        "model.stageB.torsion_bert.model_name_or_path=sayby/rna_torsionbert",
+                        f"model.stageB.torsion_bert.device={self.device}",
+                        "model.stageB.torsion_bert.angle_mode=degrees",
+                        "model.stageB.torsion_bert.num_angles=7",
+                        "model.stageB.torsion_bert.max_length=64",
+                        # Prediction overrides (minimal for this test's purpose)
+                        "prediction.repeats=1",
+                        "prediction.residue_atom_choice=0",
+                        "prediction.enable_stochastic_inference_for_submission=false",
+                    ]
+                )
 
             # Initialize with the configuration object
             self.predictor = RNAPredictor(cfg)
@@ -90,8 +87,9 @@ class TestRNAPredictorMpNerfNaN(unittest.TestCase):
             )
 
             # Set default values for prediction to minimize memory usage
-            self.predictor.default_repeats = 1
-            self.predictor.default_atom_choice = 0
+            # These are now set via Hydra overrides, but keeping if direct modification is intended post-init
+            # self.predictor.default_repeats = 1 
+            # self.predictor.default_atom_choice = 0
 
         except Exception as e:
             # Fail setup if predictor initialization fails (e.g., model download issue)
