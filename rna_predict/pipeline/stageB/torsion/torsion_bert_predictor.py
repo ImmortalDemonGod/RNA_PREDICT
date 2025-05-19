@@ -325,6 +325,7 @@ class StageBTorsionBertPredictor(nn.Module):
             # If model is mocked (for testing), replace with dummy model
             from unittest.mock import MagicMock
             if isinstance(self.model, MagicMock):
+                print(f"[DEBUG-INSTRUMENT] DummyTorsionBertAutoModel about to be constructed. self.num_angles={self.num_angles}, cfg={cfg}")
                 self.model = DummyTorsionBertAutoModel(num_angles=self.num_angles).to(self.device)
 
             is_test_mode = os.environ.get('PYTEST_CURRENT_TEST') is not None
