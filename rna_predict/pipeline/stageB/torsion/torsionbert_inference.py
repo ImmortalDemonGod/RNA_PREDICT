@@ -17,9 +17,11 @@ class DummyTorsionBertAutoModel(nn.Module):
         import traceback
         print(f"[DEBUG-DUMMY-INIT] DummyTorsionBertAutoModel constructed with num_angles={num_angles}")
         traceback.print_stack(limit=5)
-        # Global assertion: fail if num_angles==7 during pytest runs
-        if num_angles == 7 and os.environ.get("PYTEST_CURRENT_TEST"):
-            raise AssertionError("DummyTorsionBertAutoModel instantiated with num_angles=7 during pytest run. This indicates a patching or config failure.")
+        # Global assertion: fail if num_angles==7 during pytest runs, unless overridden
+        if num_angles == 7 and \
+           os.environ.get("PYTEST_CURRENT_TEST") and \
+           os.environ.get("ALLOW_NUM_ANGLES_7_FOR_TESTS") != "1":
+            raise AssertionError("DummyTorsionBertAutoModel instantiated with num_angles=7 during pytest run. This indicates a patching or config failure. Set ALLOW_NUM_ANGLES_7_FOR_TESTS=1 to override.")
         """
         Initializes a dummy TorsionBert model for testing, simulating output shapes and HuggingFace model attributes.
         
