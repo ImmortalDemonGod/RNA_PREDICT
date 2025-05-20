@@ -225,3 +225,6 @@ lightning_logs/*
 dssr-torsions.txt
 .gitignore
 .gitignore
+dssr-2ndstrs.dbn
+dssr-2ndstrs.bpseq
+dssr-2ndstrs.ct
