@@ -1,0 +1,1503 @@
+8.6s 1 [INFO] /kaggle/requirements/input_requirements.txt not found – nothing to clean.
+8.8s 2 
+8.8s 3 📂  Listing the first two levels of /kaggle/input …
+8.8s 4 
+8.8s 5 /kaggle/input/lightning-utilities-0-14-3
+8.8s 6 /kaggle/input/lightning-utilities-0-14-3/lightning_utilities-0.11.6-py3-none-any.whl
+8.8s 7 /kaggle/input/lightning-utilities-0-14-3/lightning_utilities-0.11.2-py3-none-any.whl
+8.8s 8 /kaggle/input/omegaconf-2-3-0
+8.8s 9 /kaggle/input/omegaconf-2-3-0/omegaconf-2.3.0-py3-none-any.whl
+8.8s 10 /kaggle/input/dearpygui-2-0-0
+8.8s 11 /kaggle/input/dearpygui-2-0-0/dearpygui-2.0.0-cp310-cp310-manylinux1_x86_64.whl
+8.8s 12 /kaggle/input/cosmic-ray
+8.8s 13 /kaggle/input/cosmic-ray/cosmic_ray-8.4.1-py3-none-any.whl
+8.8s 14 /kaggle/input/pathspec-0-12-1
+8.8s 15 /kaggle/input/pathspec-0-12-1/pathspec-0.12.1-py3-none-any.whl
+8.8s 16 /kaggle/input/numpy-1-24-3
+8.8s 17 /kaggle/input/numpy-1-24-3/numpy-1.24.3-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+8.8s 18 /kaggle/input/rna-structure-predict
+8.8s 19 /kaggle/input/rna-structure-predict/rna_predict-1.0.0-py3-none-any.whl
+8.8s 20 /kaggle/input/rna-structure-predict/rna_predict-0.1.0-py3-none-any.whl
+8.8s 21 /kaggle/input/rna-structure-predict/rna_predict-0.1.3-py3-none-any.whl
+8.8s 22 /kaggle/input/rna-structure-predict/rna_predict-2.0.1-py3-none-any.whl
+8.8s 23 /kaggle/input/rna-structure-predict/rna_predict-0.1.1-py3-none-any.whl
+8.8s 24 /kaggle/input/rna-structure-predict/rna_predict-2.0.0-py3-none-any.whl
+8.8s 25 /kaggle/input/rna-structure-predict/rna_predict-0.1.2-py3-none-any.whl
+8.8s 26 /kaggle/input/kaggle-api
+8.8s 27 /kaggle/input/kaggle-api/kaggle.json
+8.8s 28 /kaggle/input/pyscreeze-1-0-1
+8.8s 29 /kaggle/input/pyscreeze-1-0-1/pyscreeze-1.0.1
+8.8s 30 /kaggle/input/pymsgbox-1-0-9
+8.8s 31 /kaggle/input/pymsgbox-1-0-9/PyMsgBox-1.0.9
+8.8s 32 /kaggle/input/rdkit-2025-3-2
+8.8s 33 /kaggle/input/rdkit-2025-3-2/rdkit-2025.3.2-cp311-cp311-manylinux_2_28_x86_64.whl
+8.8s 34 /kaggle/input/transformers-4-51-3
+8.8s 35 /kaggle/input/transformers-4-51-3/transformers-4.51.3-py3-none-any.whl
+8.8s 36 /kaggle/input/dna-bert-rna
+8.8s 37 /kaggle/input/dna-bert-rna/DNA_bert_3
+8.8s 38 /kaggle/input/ml-collections-1-1-0
+8.8s 39 /kaggle/input/ml-collections-1-1-0/ml_collections-1.1.0-py3-none-any.whl
+8.8s 40 /kaggle/input/biopython-1-85
+8.8s 41 /kaggle/input/biopython-1-85/biopython-1.85-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+8.8s 42 /kaggle/input/scipy-1-10-1-cp310
+8.8s 43 /kaggle/input/scipy-1-10-1-cp310/scipy-1.10.1-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+8.8s 44 /kaggle/input/griddataformats-1-0-2
+8.8s 45 /kaggle/input/griddataformats-1-0-2/GridDataFormats-1.0.2-py3-none-any.whl
+8.8s 46 /kaggle/input/mdanalysis-2-9-0
+8.8s 47 /kaggle/input/mdanalysis-2-9-0/mdanalysis-2.9.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+8.8s 48 /kaggle/input/hf-xet-1-1-1
+8.8s 49 /kaggle/input/hf-xet-1-1-1/hf_xet-1.1.1-cp37-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+8.8s 50 /kaggle/input/datasets-3-6-0
+8.8s 51 /kaggle/input/datasets-3-6-0/datasets-3.6.0-py3-none-any.whl
+8.8s 52 /kaggle/input/pytorch-lightning
+8.8s 53 /kaggle/input/pytorch-lightning/pytorch_lightning-2.5.0.post0-py3-none-any.whl
+8.8s 54 /kaggle/input/pillow-11-2-1-cp310
+8.8s 55 /kaggle/input/pillow-11-2-1-cp310/pillow-11.2.1-cp310-cp310-manylinux_2_28_x86_64.whl
+8.8s 56 /kaggle/input/black-25-1-0-cp311-cp311
+8.8s 57 /kaggle/input/black-25-1-0-cp311-cp311/black-25.1.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_28_x86_64.whl
+8.8s 58 /kaggle/input/black-25-1-0-cp311-cp311/black-25.1.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_28_x86_64.whl
+8.8s 59 /kaggle/input/rna-torsion-bert-checkpoint-base
+8.8s 60 /kaggle/input/rna-torsion-bert-checkpoint-base/kaggle
+8.8s 61 /kaggle/input/pyautogui-0-9-54
+8.8s 62 /kaggle/input/pyautogui-0-9-54/PyAutoGUI-0.9.54
+8.8s 63 /kaggle/input/ruff-0-11-9
+8.8s 64 /kaggle/input/ruff-0-11-9/ruff-0.11.9-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+8.8s 65 /kaggle/input/isort-6-0-1
+8.8s 66 /kaggle/input/isort-6-0-1/isort-6.0.1-py3-none-any.whl
+8.8s 67 /kaggle/input/tqdm-4-67-1
+8.8s 68 /kaggle/input/tqdm-4-67-1/tqdm-4.67.1-py3-none-any.whl
+8.8s 69 /kaggle/input/stanford-rna-3d-folding
+8.8s 70 /kaggle/input/stanford-rna-3d-folding/MSA
+8.8s 71 /kaggle/input/stanford-rna-3d-folding/sample_submission.csv
+8.8s 72 /kaggle/input/stanford-rna-3d-folding/validation_sequences.csv
+8.8s 73 /kaggle/input/stanford-rna-3d-folding/MSA_v2
+8.8s 74 /kaggle/input/stanford-rna-3d-folding/test_sequences.csv
+8.8s 75 /kaggle/input/stanford-rna-3d-folding/train_labels.v2.csv
+8.8s 76 /kaggle/input/stanford-rna-3d-folding/validation_labels.csv
+8.8s 77 /kaggle/input/stanford-rna-3d-folding/train_labels.csv
+8.8s 78 /kaggle/input/stanford-rna-3d-folding/train_sequences.csv
+8.8s 79 /kaggle/input/stanford-rna-3d-folding/PDB_RNA
+8.8s 80 /kaggle/input/stanford-rna-3d-folding/train_sequences.v2.csv
+8.8s 81 /kaggle/input/huggingface-hub
+8.8s 82 /kaggle/input/huggingface-hub/huggingface_hub-0.31.1-py3-none-any.whl
+8.8s 83 /kaggle/input/py-cpuinfo
+8.8s 84 /kaggle/input/py-cpuinfo/py_cpuinfo-9.0.0-py3-none-any.whl
+8.8s 85 /kaggle/input/mda-xdrlib-0-2-0
+8.8s 86 /kaggle/input/mda-xdrlib-0-2-0/mda_xdrlib-0.2.0-py3-none-any.whl
+8.8s 87 /kaggle/input/pygetwindow-0-0-9
+8.8s 88 /kaggle/input/pygetwindow-0-0-9/PyGetWindow-0.0.9
+8.8s 89 /kaggle/input/mmtf-python-1-1-3
+8.8s 90 /kaggle/input/mmtf-python-1-1-3/mmtf_python-1.1.3-py2.py3-none-any.whl
+8.8s 91 /kaggle/input/pandas-2-2-3-cp310
+8.8s 92 /kaggle/input/pandas-2-2-3-cp310/pandas-2.2.3-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+8.8s 93 /kaggle/input/block-sparse-wheels
+8.8s 94 /kaggle/input/block-sparse-wheels/block_sparse_attn-0.0.1cu118torch2.0cxx11abiTRUE-cp310-cp310-linux_x86_64.whl
+8.8s 95 /kaggle/input/exit-codes-1-3-0
+8.8s 96 /kaggle/input/exit-codes-1-3-0/exit_codes-1.3.0-py2.py3-none-any.whl
+8.8s 97 /kaggle/input/pytest-8-3-4
+8.8s 98 /kaggle/input/pytest-8-3-4/pytest-8.3.4-py3-none-any.whl
+8.8s 99 /kaggle/input/protenix-0-4-6
+8.8s 100 /kaggle/input/protenix-0-4-6/protenix-0.4.6-py3-none-any.whl
+8.8s 101 /kaggle/input/protenix-0-4-6/Protenix-0.4.6
+8.8s 102 /kaggle/input/seaborn-0-12-2
+8.8s 103 /kaggle/input/seaborn-0-12-2/seaborn-0.12.2-py3-none-any.whl
+8.8s 104 /kaggle/input/hydra-core-132whl
+8.8s 105 /kaggle/input/hydra-core-132whl/hydra_core-1.3.2-py3-none-any.whl
+8.8s 106 /kaggle/input/mrcfile-1-5-4
+8.8s 107 /kaggle/input/mrcfile-1-5-4/mrcfile-1.5.4-py2.py3-none-any.whl
+8.8s 108 /kaggle/input/mouseinfo-0-1-3
+8.8s 109 /kaggle/input/mouseinfo-0-1-3/MouseInfo-0.1.3
+8.8s 110 /kaggle/input/hypothesis-6-131-15
+8.8s 111 /kaggle/input/hypothesis-6-131-15/hypothesis-6.131.15-py3-none-any.whl
+8.8s 112 /kaggle/input/anybadge-1-16-0
+8.8s 113 /kaggle/input/anybadge-1-16-0/anybadge-1.16.0-py3-none-any.whl
+8.8s 114 /kaggle/input/anybadge-1-16-0/anybadge-1.16.0
+8.8s 115 /kaggle/input/mss-10-0-0
+8.8s 116 /kaggle/input/mss-10-0-0/mss-10.0.0-py3-none-any.whl
+8.8s 117 /kaggle/input/lxml-5-4-0-cp310
+8.8s 118 /kaggle/input/lxml-5-4-0-cp310/lxml-5.4.0-cp310-cp310-manylinux_2_28_x86_64.whl
+8.8s 119 /kaggle/input/einops-0-8-1
+8.8s 120 /kaggle/input/einops-0-8-1/einops-0.8.1-py3-none-any.whl
+8.8s 121 
+8.8s 122 ✅  Done.
+8.8s 123 
+151.0s 124 ✅  Offline wheel install phase complete.
+151.0s 125 ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+151.0s 126 albucore 0.0.19 requires numpy>=1.24.4, but you have numpy 1.24.3 which is incompatible.
+151.0s 127 albumentations 1.4.20 requires numpy>=1.24.4, but you have numpy 1.24.3 which is incompatible.
+151.0s 128 bayesian-optimization 2.0.3 requires numpy>=1.25, but you have numpy 1.24.3 which is incompatible.
+151.0s 129 featuretools 1.31.0 requires numpy>=1.25.0, but you have numpy 1.24.3 which is incompatible.
+151.0s 130 langchain 0.3.12 requires async-timeout<5.0.0,>=4.0.0; python_version < "3.11", but you have async-timeout 5.0.1 which is incompatible.
+151.0s 131 mkl-fft 1.3.8 requires numpy<1.27.0,>=1.26.4, but you have numpy 1.24.3 which is incompatible.
+151.0s 132 mkl-random 1.2.4 requires numpy<1.27.0,>=1.26.4, but you have numpy 1.24.3 which is incompatible.
+151.0s 133 mkl-umath 0.1.1 requires numpy<1.27.0,>=1.26.4, but you have numpy 1.24.3 which is incompatible.
+151.0s 134 mlxtend 0.23.3 requires scikit-learn>=1.3.1, but you have scikit-learn 1.2.2 which is incompatible.
+151.0s 135 pandas-gbq 0.25.0 requires google-api-core<3.0.0dev,>=2.10.2, but you have google-api-core 1.34.1 which is incompatible.
+151.0s 136 plotnine 0.14.4 requires matplotlib>=3.8.0, but you have matplotlib 3.7.5 which is incompatible.
+151.0s 137 pymc 5.19.1 requires numpy>=1.25.0, but you have numpy 1.24.3 which is incompatible.
+151.0s 138 tensorflow-decision-forests 1.10.0 requires tensorflow==2.17.0, but you have tensorflow 2.17.1 which is incompatible.
+151.0s 139 woodwork 0.31.0 requires numpy>=1.25.0, but you have numpy 1.24.3 which is incompatible.
+151.0s 140 ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+151.0s 141 albumentations 1.4.20 requires numpy>=1.24.4, but you have numpy 1.24.3 which is incompatible.
+151.0s 142 bayesian-optimization 2.0.3 requires numpy>=1.25, but you have numpy 1.24.3 which is incompatible.
+151.0s 143 featuretools 1.31.0 requires numpy>=1.25.0, but you have numpy 1.24.3 which is incompatible.
+151.0s 144 kaggle-environments 1.16.11 requires scipy>=1.11.2, but you have scipy 1.10.1 which is incompatible.
+151.0s 145 mlxtend 0.23.3 requires scikit-learn>=1.3.1, but you have scikit-learn 1.2.2 which is incompatible.
+151.0s 146 plotnine 0.14.4 requires matplotlib>=3.8.0, but you have matplotlib 3.7.5 which is incompatible.
+151.0s 147 pymc 5.19.1 requires numpy>=1.25.0, but you have numpy 1.24.3 which is incompatible.
+151.0s 148 scikit-image 0.25.0 requires scipy>=1.11.2, but you have scipy 1.10.1 which is incompatible.
+151.0s 149 woodwork 0.31.0 requires numpy>=1.25.0, but you have numpy 1.24.3 which is incompatible.
+151.0s 150 ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+151.0s 151 kaggle-environments 1.16.11 requires scipy>=1.11.2, but you have scipy 1.10.1 which is incompatible.
+151.2s 152 
+151.2s 153 === [System Information] ===
+151.2s 154 
+151.2s 155 [Python Version]
+151.2s 156 3.10.12 (main, Nov  6 2024, 20:22:13) [GCC 11.4.0]
+151.2s 157 
+151.2s 158 [Kernel and OS Information]
+151.2s 159 Linux 865af09af888 6.6.56+ #1 SMP PREEMPT_DYNAMIC Sun Nov 10 10:07:59 UTC 2024 x86_64 x86_64 x86_64 GNU/Linux
+151.2s 160 
+151.2s 161 [CPU Information]
+151.2s 162 Architecture:                         x86_64
+151.2s 163 CPU op-mode(s):                       32-bit, 64-bit
+151.2s 164 Address sizes:                        48 bits physical, 48 bits virtual
+151.2s 165 Byte Order:                           Little Endian
+151.2s 166 CPU(s):                               4
+151.2s 167 On-line CPU(s) list:                  0-3
+151.2s 168 Vendor ID:                            AuthenticAMD
+151.2s 169 Model name:                           AMD EPYC 7B12
+151.2s 170 CPU family:                           23
+151.2s 171 Model:                                49
+151.2s 172 Thread(s) per core:                   2
+151.2s 173 Core(s) per socket:                   2
+151.2s 174 Socket(s):                            1
+151.2s 175 Stepping:                             0
+151.2s 176 BogoMIPS:                             4499.99
+151.2s 177 Flags:                                fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm constant_tsc rep_good nopl nonstop_tsc cpuid extd_apicid tsc_known_freq pni pclmulqdq ssse3 fma cx16 sse4_1 sse4_2 x2apic movbe popcnt aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw topoext ssbd ibrs ibpb stibp vmmcall fsgsbase tsc_adjust bmi1 avx2 smep bmi2 rdseed adx smap clflushopt clwb sha_ni xsaveopt xsavec xgetbv1 clzero xsaveerptr arat npt nrip_save umip rdpid
+151.2s 178 Hypervisor vendor:                    KVM
+151.2s 179 Virtualization type:                  full
+151.2s 180 L1d cache:                            64 KiB (2 instances)
+151.2s 181 L1i cache:                            64 KiB (2 instances)
+151.2s 182 L2 cache:                             1 MiB (2 instances)
+151.2s 183 L3 cache:                             16 MiB (1 instance)
+151.2s 184 NUMA node(s):                         1
+151.2s 185 NUMA node0 CPU(s):                    0-3
+151.2s 186 Vulnerability Gather data sampling:   Not affected
+151.2s 187 Vulnerability Itlb multihit:          Not affected
+151.2s 188 Vulnerability L1tf:                   Not affected
+151.2s 189 Vulnerability Mds:                    Not affected
+151.2s 190 Vulnerability Meltdown:               Not affected
+151.2s 191 Vulnerability Mmio stale data:        Not affected
+151.2s 192 Vulnerability Reg file data sampling: Not affected
+151.2s 193 Vulnerability Retbleed:               Mitigation; untrained return thunk; SMT enabled with STIBP protection
+151.2s 194 Vulnerability Spec rstack overflow:   Mitigation; Safe RET
+151.2s 195 Vulnerability Spec store bypass:      Mitigation; Speculative Store Bypass disabled via prctl
+151.2s 196 Vulnerability Spectre v1:             Mitigation; usercopy/swapgs barriers and __user pointer sanitization
+151.2s 197 Vulnerability Spectre v2:             Mitigation; Retpolines; IBPB conditional; STIBP always-on; RSB filling; PBRSB-eIBRS Not affected; BHI Not affected
+151.2s 198 Vulnerability Srbds:                  Not affected
+151.2s 199 Vulnerability Tsx async abort:        Not affected
+151.2s 200 
+151.2s 201 [Memory Information]
+151.2s 202 total        used        free      shared  buff/cache   available
+151.2s 203 Mem:            31Gi       569Mi        21Gi       0.0Ki       9.1Gi        30Gi
+151.2s 204 Swap:             0B          0B          0B
+151.2s 205 
+151.2s 206 [Disk Information]
+151.2s 207 NAME    MAJ:MIN RM   SIZE RO TYPE MOUNTPOINTS
+151.2s 208 loop0     7:0    0    96G  0 loop
+151.2s 209 loop1     7:1    0    20G  0 loop /etc/secrets/kaggle
+151.2s 210 /kaggle/working
+151.2s 211 /kaggle/input
+151.2s 212 /kaggle/lib
+151.2s 213 /kaggle/huggingface
+151.2s 214 /kaggle/nbdev
+151.2s 215 /kaggle/src
+151.2s 216 sda       8:0    0   128G  0 disk
+151.2s 217 ├─sda1    8:1    0 123.8G  0 part
+151.2s 218 ├─sda2    8:2    0    16M  0 part
+151.2s 219 ├─sda3    8:3    0     2G  0 part
+151.2s 220 ├─sda4    8:4    0    16M  0 part
+151.2s 221 ├─sda5    8:5    0     2G  0 part
+151.2s 222 ├─sda6    8:6    0   512B  0 part
+151.2s 223 ├─sda7    8:7    0   512B  0 part
+151.2s 224 ├─sda8    8:8    0    16M  0 part
+151.2s 225 ├─sda9    8:9    0   512B  0 part
+151.2s 226 ├─sda10   8:10   0   512B  0 part
+151.2s 227 ├─sda11   8:11   0     8M  0 part
+151.2s 228 └─sda12   8:12   0    32M  0 part
+151.2s 229 sdb       8:16   0     8T  1 disk
+151.2s 230 
+151.2s 231 === [End of System Information] ===
+151.2s 232 
+151.2s 233 [INFO] Making sure Seaborn is installed…
+151.2s 234 
+161.1s 235 
+161.1s 236 [INFO] Copied block-sparse-attn wheel to working dir.
+161.1s 237 [INFO] Installing block-sparse-attn (no deps)…
+161.1s 238 
+169.8s 239 
+169.8s 240 [INFO] Installing rna_predict 1.0.0 …
+169.8s 241 
+185.7s 242 ERROR: Could not install packages due to an OSError: Cannot move a directory '/usr/local/lib/python3.10/dist-packages/.' into itself '/usr/local/lib/python3.10/dist-packages/~.'.
+185.7s 243 
+185.7s 244 
+185.7s 245 [INFO] Installing hydra-core from /kaggle/input/hydra-core-132whl/hydra_core-1.3.2-py3-none-any.whl …
+185.7s 246 
+186.6s 247 
+186.6s 248 === [Final Package Versions] ===
+189.6s 249 Name: torch
+189.6s 250 Version: 2.5.1+cu121
+189.6s 251 Summary: Tensors and Dynamic neural networks in Python with strong GPU acceleration
+189.6s 252 Home-page: https://pytorch.org/
+189.6s 253 Author: PyTorch Team
+189.6s 254 Author-email: packages@pytorch.org
+189.6s 255 License: BSD-3-Clause
+189.6s 256 Location: /usr/local/lib/python3.10/dist-packages
+189.6s 257 Requires: filelock, fsspec, jinja2, networkx, sympy, typing-extensions
+189.6s 258 Required-by: accelerate, block-sparse-attn, easyocr, fastai, kornia, peft, protenix, pytorch-ignite, pytorch-lightning, rna-predict, sentence-transformers, stable-baselines3, timm, torchaudio, torchmetrics, torchvision
+192.6s 259 Name: block-sparse-attn
+192.6s 260 Version: 0.0.1
+192.6s 261 Summary: Block Sparse Attention
+192.6s 262 Home-page: https://github.com/mit-han-lab/Block-Sparse-Attention
+192.6s 263 Author: Junxian Guo
+192.6s 264 Author-email: junxian@mit.edu
+192.6s 265 License:
+192.6s 266 Location: /usr/local/lib/python3.10/dist-packages
+192.6s 267 Requires: einops, ninja, packaging, torch
+192.6s 268 Required-by:
+195.5s 269 Name: rna-predict
+195.5s 270 Version: 2.0.1
+195.5s 271 Summary: Add your description here
+195.5s 272 Home-page:
+195.5s 273 Author:
+195.5s 274 Author-email:
+195.5s 275 License: This is free and unencumbered software released into the public domain.
+195.5s 276 
+195.5s 277 Anyone is free to copy, modify, publish, use, compile, sell, or
+195.5s 278 distribute this software, either in source code form or as a compiled
+195.5s 279 binary, for any purpose, commercial or non-commercial, and by any
+195.5s 280 means.
+195.5s 281 
+195.5s 282 In jurisdictions that recognize copyright laws, the author or authors
+195.5s 283 of this software dedicate any and all copyright interest in the
+195.5s 284 software to the public domain. We make this dedication for the benefit
+195.5s 285 of the public at large and to the detriment of our heirs and
+195.5s 286 successors. We intend this dedication to be an overt act of
+195.5s 287 relinquishment in perpetuity of all present and future rights to this
+195.5s 288 software under copyright law.
+195.5s 289 
+195.5s 290 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+195.5s 291 EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+195.5s 292 MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+195.5s 293 IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+195.5s 294 OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+195.5s 295 ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+195.5s 296 OTHER DEALINGS IN THE SOFTWARE.
+195.5s 297 
+195.5s 298 For more information, please refer to <https://unlicense.org>
+195.5s 299 
+195.5s 300 Location: /usr/local/lib/python3.10/dist-packages
+195.5s 301 Requires: biopython, black, cosmic-ray, datasets, dearpygui, einops, hydra-core, hypothesis, isort, lightning, lxml, mdanalysis, mss, omegaconf, opencv-python, Pillow, protenix, pyautogui, pytest, ruff, tensorboard, torch, transformers
+195.5s 302 Required-by:
+198.6s 303 Name: hydra-core
+198.6s 304 Version: 1.3.2
+198.6s 305 Summary: A framework for elegantly configuring complex applications
+198.6s 306 Home-page: https://github.com/facebookresearch/hydra
+198.6s 307 Author: Omry Yadan
+198.6s 308 Author-email: omry@fb.com
+198.6s 309 License: MIT
+198.6s 310 Location: /usr/local/lib/python3.10/dist-packages
+198.6s 311 Requires: antlr4-python3-runtime, omegaconf, packaging
+198.6s 312 Required-by: rna-predict
+201.9s 313 Name: numpy
+201.9s 314 Version: 1.24.3
+201.9s 315 Summary: Fundamental package for array computing in Python
+201.9s 316 Home-page: https://www.numpy.org
+201.9s 317 Author: Travis E. Oliphant et al.
+201.9s 318 Author-email:
+201.9s 319 License: BSD-3-Clause
+201.9s 320 Location: /usr/local/lib/python3.10/dist-packages
+201.9s 321 Requires:
+201.9s 322 Required-by: accelerate, albucore, albumentations, arviz, astropy, autograd, bayesian-optimization, bigframes, biopython, blis, blosc2, bokeh, Boruta, Bottleneck, bqplot, Cartopy, catboost, category_encoders, cesium, chex, clarabel, cmdstanpy, contourpy, cudf-cu12, cufflinks, cuml-cu12, cupy-cuda12x, cuvs-cu12, cvxpy, dask-cuda, dask-cudf-cu12, datascience, datasets, datashader, db-dtypes, deap, diffusers, dipy, dopamine_rl, easyocr, eli5, fasttext, featuretools, flax, folium, fury, geemap, gensim, geopandas, GridDataFormats, gym, gymnasium, h5py, hep_ml, holoviews, hyperopt, ibis-framework, ImageHash, imageio, imbalanced-learn, imgaug, ipympl, jax, jaxlib, kaggle-environments, keras, keras-core, keras-hub, langchain, langid, libpysal, librosa, lightgbm, lime, matplotlib, matplotlib-venn, MDAnalysis, missingno, mizani, mkl-fft, mkl-random, mkl-umath, ml-dtypes, mlcrate, mlxtend, mne, moviepy, mrcfile, music21, nibabel, nilearn, numba, numexpr, nx-cugraph-cu12, onnx, opencv-contrib-python, opencv-python, opencv-python-headless, optax, optuna, orbax-checkpoint, osqp, pandas, pandas-gbq, pandas-stubs, pandasql, patsy, peft, pettingzoo, phik, plotly-express, plotnine, prophet, protenix, pycocotools, pydegensac, pyemd, pyerfa, pyLDAvis, pylibraft-cu12, pymc, pymc3, pyogrio, pytensor, python-louvain, PyUpSet, PyWavelets, qdldl, rmm-cu12, scikit-image, scikit-learn, scikit-learn-intelex, scikit-optimize, scikit-surprise, scipy, scs, seaborn, shap, shapely, Shimmy, sklearn-pandas, soxr, spacy, stable-baselines3, stanio, statsmodels, stumpy, tables, tensorboard, tensorflow, tensorflow-datasets, tensorflow-hub, tensorflow-probability, tensorflow_decision_forests, tensorstore, Theano, Theano-PyMC, thinc, tifffile, torchmetrics, torchtune, torchvision, TPOT, transformers, treelite, trx-python, tsfresh, ucx-py-cu12, ucxx-cu12, visions, wavio, woodwork, wordcloud, xarray, xarray-einstats, xgboost, ydata-profiling, ydf, yellowbrick, yfinance
+204.7s 323 Name: scipy
+204.7s 324 Version: 1.10.1
+204.7s 325 Summary: Fundamental algorithms for scientific computing in Python
+204.7s 326 Home-page: https://scipy.org/
+204.7s 327 Author:
+204.7s 328 Author-email:
+204.7s 329 License: Copyright (c) 2001-2002 Enthought, Inc. 2003-2022, SciPy Developers.
+204.7s 330 All rights reserved.
+204.7s 331 
+204.7s 332 Redistribution and use in source and binary forms, with or without
+204.7s 333 modification, are permitted provided that the following conditions
+204.7s 334 are met:
+204.7s 335 
+204.7s 336 1. Redistributions of source code must retain the above copyright
+204.7s 337 notice, this list of conditions and the following disclaimer.
+204.7s 338 
+204.7s 339 2. Redistributions in binary form must reproduce the above
+204.7s 340 copyright notice, this list of conditions and the following
+204.7s 341 disclaimer in the documentation and/or other materials provided
+204.7s 342 with the distribution.
+204.7s 343 
+204.7s 344 3. Neither the name of the copyright holder nor the names of its
+204.7s 345 contributors may be used to endorse or promote products derived
+204.7s 346 from this software without specific prior written permission.
+204.7s 347 
+204.7s 348 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+204.7s 349 "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+204.7s 350 LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+204.7s 351 A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+204.7s 352 OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+204.7s 353 SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+204.7s 354 LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+204.7s 355 DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+204.7s 356 THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+204.7s 357 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+204.7s 358 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+204.7s 359 
+204.7s 360 ----
+204.7s 361 
+204.7s 362 This binary distribution of SciPy also bundles the following software:
+204.7s 363 
+204.7s 364 
+204.7s 365 Name: OpenBLAS
+204.7s 366 Files: .libs/libopenb*.so
+204.7s 367 Description: bundled as a dynamically linked library
+204.7s 368 Availability: https://github.com/xianyi/OpenBLAS/
+204.7s 369 License: 3-clause BSD
+204.7s 370 Copyright (c) 2011-2014, The OpenBLAS Project
+204.7s 371 All rights reserved.
+204.7s 372 
+204.7s 373 Redistribution and use in source and binary forms, with or without
+204.7s 374 modification, are permitted provided that the following conditions are
+204.7s 375 met:
+204.7s 376 
+204.7s 377 1. Redistributions of source code must retain the above copyright
+204.7s 378 notice, this list of conditions and the following disclaimer.
+204.7s 379 
+204.7s 380 2. Redistributions in binary form must reproduce the above copyright
+204.7s 381 notice, this list of conditions and the following disclaimer in
+204.7s 382 the documentation and/or other materials provided with the
+204.7s 383 distribution.
+204.7s 384 3. Neither the name of the OpenBLAS project nor the names of
+204.7s 385 its contributors may be used to endorse or promote products
+204.7s 386 derived from this software without specific prior written
+204.7s 387 permission.
+204.7s 388 
+204.7s 389 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+204.7s 390 AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+204.7s 391 IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+204.7s 392 ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+204.7s 393 LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+204.7s 394 DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+204.7s 395 SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+204.7s 396 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+204.7s 397 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
+204.7s 398 USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+204.7s 399 
+204.7s 400 
+204.7s 401 Name: LAPACK
+204.7s 402 Files: .libs/libopenb*.so
+204.7s 403 Description: bundled in OpenBLAS
+204.7s 404 Availability: https://github.com/xianyi/OpenBLAS/
+204.7s 405 License 3-clause BSD
+204.7s 406 Copyright (c) 1992-2013 The University of Tennessee and The University
+204.7s 407 of Tennessee Research Foundation.  All rights
+204.7s 408 reserved.
+204.7s 409 Copyright (c) 2000-2013 The University of California Berkeley. All
+204.7s 410 rights reserved.
+204.7s 411 Copyright (c) 2006-2013 The University of Colorado Denver.  All rights
+204.7s 412 reserved.
+204.7s 413 
+204.7s 414 $COPYRIGHT$
+204.7s 415 
+204.7s 416 Additional copyrights may follow
+204.7s 417 
+204.7s 418 $HEADER$
+204.7s 419 
+204.7s 420 Redistribution and use in source and binary forms, with or without
+204.7s 421 modification, are permitted provided that the following conditions are
+204.7s 422 met:
+204.7s 423 
+204.7s 424 - Redistributions of source code must retain the above copyright
+204.7s 425 notice, this list of conditions and the following disclaimer.
+204.7s 426 
+204.7s 427 - Redistributions in binary form must reproduce the above copyright
+204.7s 428 notice, this list of conditions and the following disclaimer listed
+204.7s 429 in this license in the documentation and/or other materials
+204.7s 430 provided with the distribution.
+204.7s 431 
+204.7s 432 - Neither the name of the copyright holders nor the names of its
+204.7s 433 contributors may be used to endorse or promote products derived from
+204.7s 434 this software without specific prior written permission.
+204.7s 435 
+204.7s 436 The copyright holders provide no reassurances that the source code
+204.7s 437 provided does not infringe any patent, copyright, or any other
+204.7s 438 intellectual property rights of third parties.  The copyright holders
+204.7s 439 disclaim any liability to any recipient for claims brought against
+204.7s 440 recipient by any third party for infringement of that parties
+204.7s 441 intellectual property rights.
+204.7s 442 
+204.7s 443 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+204.7s 444 "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+204.7s 445 LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+204.7s 446 A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+204.7s 447 OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+204.7s 448 SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+204.7s 449 LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+204.7s 450 DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+204.7s 451 THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+204.7s 452 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+204.7s 453 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+204.7s 454 
+204.7s 455 
+204.7s 456 Name: GCC runtime library
+204.7s 457 Files: .libs/libgfortran*.so
+204.7s 458 Description: dynamically linked to files compiled with gcc
+204.7s 459 Availability: https://gcc.gnu.org/viewcvs/gcc/
+204.7s 460 License: GPLv3 + runtime exception
+204.7s 461 Copyright (C) 2002-2017 Free Software Foundation, Inc.
+204.7s 462 
+204.7s 463 Libgfortran is free software; you can redistribute it and/or modify
+204.7s 464 it under the terms of the GNU General Public License as published by
+204.7s 465 the Free Software Foundation; either version 3, or (at your option)
+204.7s 466 any later version.
+204.7s 467 
+204.7s 468 Libgfortran is distributed in the hope that it will be useful,
+204.7s 469 but WITHOUT ANY WARRANTY; without even the implied warranty of
+204.7s 470 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+204.7s 471 GNU General Public License for more details.
+204.7s 472 
+204.7s 473 Under Section 7 of GPL version 3, you are granted additional
+204.7s 474 permissions described in the GCC Runtime Library Exception, version
+204.7s 475 3.1, as published by the Free Software Foundation.
+204.7s 476 
+204.7s 477 You should have received a copy of the GNU General Public License and
+204.7s 478 a copy of the GCC Runtime Library Exception along with this program;
+204.7s 479 see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+204.7s 480 <http://www.gnu.org/licenses/>.
+204.7s 481 
+204.7s 482 ----
+204.7s 483 
+204.7s 484 Full text of license texts referred to above follows (that they are
+204.7s 485 listed below does not necessarily imply the conditions apply to the
+204.7s 486 present binary release):
+204.7s 487 
+204.7s 488 ----
+204.7s 489 
+204.7s 490 GCC RUNTIME LIBRARY EXCEPTION
+204.7s 491 
+204.7s 492 Version 3.1, 31 March 2009
+204.7s 493 
+204.7s 494 Copyright (C) 2009 Free Software Foundation, Inc. <http://fsf.org/>
+204.7s 495 
+204.7s 496 Everyone is permitted to copy and distribute verbatim copies of this
+204.7s 497 license document, but changing it is not allowed.
+204.7s 498 
+204.7s 499 This GCC Runtime Library Exception ("Exception") is an additional
+204.7s 500 permission under section 7 of the GNU General Public License, version
+204.7s 501 3 ("GPLv3"). It applies to a given file (the "Runtime Library") that
+204.7s 502 bears a notice placed by the copyright holder of the file stating that
+204.7s 503 the file is governed by GPLv3 along with this Exception.
+204.7s 504 
+204.7s 505 When you use GCC to compile a program, GCC may combine portions of
+204.7s 506 certain GCC header files and runtime libraries with the compiled
+204.7s 507 program. The purpose of this Exception is to allow compilation of
+204.7s 508 non-GPL (including proprietary) programs to use, in this way, the
+204.7s 509 header files and runtime libraries covered by this Exception.
+204.7s 510 
+204.7s 511 0. Definitions.
+204.7s 512 
+204.7s 513 A file is an "Independent Module" if it either requires the Runtime
+204.7s 514 Library for execution after a Compilation Process, or makes use of an
+204.7s 515 interface provided by the Runtime Library, but is not otherwise based
+204.7s 516 on the Runtime Library.
+204.7s 517 
+204.7s 518 "GCC" means a version of the GNU Compiler Collection, with or without
+204.7s 519 modifications, governed by version 3 (or a specified later version) of
+204.7s 520 the GNU General Public License (GPL) with the option of using any
+204.7s 521 subsequent versions published by the FSF.
+204.7s 522 
+204.7s 523 "GPL-compatible Software" is software whose conditions of propagation,
+204.7s 524 modification and use would permit combination with GCC in accord with
+204.7s 525 the license of GCC.
+204.7s 526 
+204.7s 527 "Target Code" refers to output from any compiler for a real or virtual
+204.7s 528 target processor architecture, in executable form or suitable for
+204.7s 529 input to an assembler, loader, linker and/or execution
+204.7s 530 phase. Notwithstanding that, Target Code does not include data in any
+204.7s 531 format that is used as a compiler intermediate representation, or used
+204.7s 532 for producing a compiler intermediate representation.
+204.7s 533 
+204.7s 534 The "Compilation Process" transforms code entirely represented in
+204.7s 535 non-intermediate languages designed for human-written code, and/or in
+204.7s 536 Java Virtual Machine byte code, into Target Code. Thus, for example,
+204.7s 537 use of source code generators and preprocessors need not be considered
+204.7s 538 part of the Compilation Process, since the Compilation Process can be
+204.7s 539 understood as starting with the output of the generators or
+204.7s 540 preprocessors.
+204.7s 541 
+204.7s 542 A Compilation Process is "Eligible" if it is done using GCC, alone or
+204.7s 543 with other GPL-compatible software, or if it is done without using any
+204.7s 544 work based on GCC. For example, using non-GPL-compatible Software to
+204.7s 545 optimize any GCC intermediate representations would not qualify as an
+204.7s 546 Eligible Compilation Process.
+204.7s 547 
+204.7s 548 1. Grant of Additional Permission.
+204.7s 549 
+204.7s 550 You have permission to propagate a work of Target Code formed by
+204.7s 551 combining the Runtime Library with Independent Modules, even if such
+204.7s 552 propagation would otherwise violate the terms of GPLv3, provided that
+204.7s 553 all Target Code was generated by Eligible Compilation Processes. You
+204.7s 554 may then convey such a combination under terms of your choice,
+204.7s 555 consistent with the licensing of the Independent Modules.
+204.7s 556 
+204.7s 557 2. No Weakening of GCC Copyleft.
+204.7s 558 
+204.7s 559 The availability of this Exception does not imply any general
+204.7s 560 presumption that third-party software is unaffected by the copyleft
+204.7s 561 requirements of the license of GCC.
+204.7s 562 
+204.7s 563 ----
+204.7s 564 
+204.7s 565 GNU GENERAL PUBLIC LICENSE
+204.7s 566 Version 3, 29 June 2007
+204.7s 567 
+204.7s 568 Copyright (C) 2007 Free Software Foundation, Inc. <http://fsf.org/>
+204.7s 569 Everyone is permitted to copy and distribute verbatim copies
+204.7s 570 of this license document, but changing it is not allowed.
+204.7s 571 
+204.7s 572 Preamble
+204.7s 573 
+204.7s 574 The GNU General Public License is a free, copyleft license for
+204.7s 575 software and other kinds of works.
+204.7s 576 
+204.7s 577 The licenses for most software and other practical works are designed
+204.7s 578 to take away your freedom to share and change the works.  By contrast,
+204.7s 579 the GNU General Public License is intended to guarantee your freedom to
+204.7s 580 share and change all versions of a program--to make sure it remains free
+204.7s 581 software for all its users.  We, the Free Software Foundation, use the
+204.7s 582 GNU General Public License for most of our software; it applies also to
+204.7s 583 any other work released this way by its authors.  You can apply it to
+204.7s 584 your programs, too.
+204.7s 585 
+204.7s 586 When we speak of free software, we are referring to freedom, not
+204.7s 587 price.  Our General Public Licenses are designed to make sure that you
+204.7s 588 have the freedom to distribute copies of free software (and charge for
+204.7s 589 them if you wish), that you receive source code or can get it if you
+204.7s 590 want it, that you can change the software or use pieces of it in new
+204.7s 591 free programs, and that you know you can do these things.
+204.7s 592 
+204.7s 593 To protect your rights, we need to prevent others from denying you
+204.7s 594 these rights or asking you to surrender the rights.  Therefore, you have
+204.7s 595 certain responsibilities if you distribute copies of the software, or if
+204.7s 596 you modify it: responsibilities to respect the freedom of others.
+204.7s 597 
+204.7s 598 For example, if you distribute copies of such a program, whether
+204.7s 599 gratis or for a fee, you must pass on to the recipients the same
+204.7s 600 freedoms that you received.  You must make sure that they, too, receive
+204.7s 601 or can get the source code.  And you must show them these terms so they
+204.7s 602 know their rights.
+204.7s 603 
+204.7s 604 Developers that use the GNU GPL protect your rights with two steps:
+204.7s 605 (1) assert copyright on the software, and (2) offer you this License
+204.7s 606 giving you legal permission to copy, distribute and/or modify it.
+204.7s 607 
+204.7s 608 For the developers' and authors' protection, the GPL clearly explains
+204.7s 609 that there is no warranty for this free software.  For both users' and
+204.7s 610 authors' sake, the GPL requires that modified versions be marked as
+204.7s 611 changed, so that their problems will not be attributed erroneously to
+204.7s 612 authors of previous versions.
+204.7s 613 
+204.7s 614 Some devices are designed to deny users access to install or run
+204.7s 615 modified versions of the software inside them, although the manufacturer
+204.7s 616 can do so.  This is fundamentally incompatible with the aim of
+204.7s 617 protecting users' freedom to change the software.  The systematic
+204.7s 618 pattern of such abuse occurs in the area of products for individuals to
+204.7s 619 use, which is precisely where it is most unacceptable.  Therefore, we
+204.7s 620 have designed this version of the GPL to prohibit the practice for those
+204.7s 621 products.  If such problems arise substantially in other domains, we
+204.7s 622 stand ready to extend this provision to those domains in future versions
+204.7s 623 of the GPL, as needed to protect the freedom of users.
+204.7s 624 
+204.7s 625 Finally, every program is threatened constantly by software patents.
+204.7s 626 States should not allow patents to restrict development and use of
+204.7s 627 software on general-purpose computers, but in those that do, we wish to
+204.7s 628 avoid the special danger that patents applied to a free program could
+204.7s 629 make it effectively proprietary.  To prevent this, the GPL assures that
+204.7s 630 patents cannot be used to render the program non-free.
+204.7s 631 
+204.7s 632 The precise terms and conditions for copying, distribution and
+204.7s 633 modification follow.
+204.7s 634 
+204.7s 635 TERMS AND CONDITIONS
+204.7s 636 
+204.7s 637 0. Definitions.
+204.7s 638 
+204.7s 639 "This License" refers to version 3 of the GNU General Public License.
+204.7s 640 
+204.7s 641 "Copyright" also means copyright-like laws that apply to other kinds of
+204.7s 642 works, such as semiconductor masks.
+204.7s 643 
+204.7s 644 "The Program" refers to any copyrightable work licensed under this
+204.7s 645 License.  Each licensee is addressed as "you".  "Licensees" and
+204.7s 646 "recipients" may be individuals or organizations.
+204.7s 647 
+204.7s 648 To "modify" a work means to copy from or adapt all or part of the work
+204.7s 649 in a fashion requiring copyright permission, other than the making of an
+204.7s 650 exact copy.  The resulting work is called a "modified version" of the
+204.7s 651 earlier work or a work "based on" the earlier work.
+204.7s 652 
+204.7s 653 A "covered work" means either the unmodified Program or a work based
+204.7s 654 on the Program.
+204.7s 655 
+204.7s 656 To "propagate" a work means to do anything with it that, without
+204.7s 657 permission, would make you directly or secondarily liable for
+204.7s 658 infringement under applicable copyright law, except executing it on a
+204.7s 659 computer or modifying a private copy.  Propagation includes copying,
+204.7s 660 distribution (with or without modification), making available to the
+204.7s 661 public, and in some countries other activities as well.
+204.7s 662 
+204.7s 663 To "convey" a work means any kind of propagation that enables other
+204.7s 664 parties to make or receive copies.  Mere interaction with a user through
+204.7s 665 a computer network, with no transfer of a copy, is not conveying.
+204.7s 666 
+204.7s 667 An interactive user interface displays "Appropriate Legal Notices"
+204.7s 668 to the extent that it includes a convenient and prominently visible
+204.7s 669 feature that (1) displays an appropriate copyright notice, and (2)
+204.7s 670 tells the user that there is no warranty for the work (except to the
+204.7s 671 extent that warranties are provided), that licensees may convey the
+204.7s 672 work under this License, and how to view a copy of this License.  If
+204.7s 673 the interface presents a list of user commands or options, such as a
+204.7s 674 menu, a prominent item in the list meets this criterion.
+204.7s 675 
+204.7s 676 1. Source Code.
+204.7s 677 
+204.7s 678 The "source code" for a work means the preferred form of the work
+204.7s 679 for making modifications to it.  "Object code" means any non-source
+204.7s 680 form of a work.
+204.7s 681 
+204.7s 682 A "Standard Interface" means an interface that either is an official
+204.7s 683 standard defined by a recognized standards body, or, in the case of
+204.7s 684 interfaces specified for a particular programming language, one that
+204.7s 685 is widely used among developers working in that language.
+204.7s 686 
+204.7s 687 The "System Libraries" of an executable work include anything, other
+204.7s 688 than the work as a whole, that (a) is included in the normal form of
+204.7s 689 packaging a Major Component, but which is not part of that Major
+204.7s 690 Component, and (b) serves only to enable use of the work with that
+204.7s 691 Major Component, or to implement a Standard Interface for which an
+204.7s 692 implementation is available to the public in source code form.  A
+204.7s 693 "Major Component", in this context, means a major essential component
+204.7s 694 (kernel, window system, and so on) of the specific operating system
+204.7s 695 (if any) on which the executable work runs, or a compiler used to
+204.7s 696 produce the work, or an object code interpreter used to run it.
+204.7s 697 
+204.7s 698 The "Corresponding Source" for a work in object code form means all
+204.7s 699 the source code needed to generate, install, and (for an executable
+204.7s 700 work) run the object code and to modify the work, including scripts to
+204.7s 701 control those activities.  However, it does not include the work's
+204.7s 702 System Libraries, or general-purpose tools or generally available free
+204.7s 703 programs which are used unmodified in performing those activities but
+204.7s 704 which are not part of the work.  For example, Corresponding Source
+204.7s 705 includes interface definition files associated with source files for
+204.7s 706 the work, and the source code for shared libraries and dynamically
+204.7s 707 linked subprograms that the work is specifically designed to require,
+204.7s 708 such as by intimate data communication or control flow between those
+204.7s 709 subprograms and other parts of the work.
+204.7s 710 
+204.7s 711 The Corresponding Source need not include anything that users
+204.7s 712 can regenerate automatically from other parts of the Corresponding
+204.7s 713 Source.
+204.7s 714 
+204.7s 715 The Corresponding Source for a work in source code form is that
+204.7s 716 same work.
+204.7s 717 
+204.7s 718 2. Basic Permissions.
+204.7s 719 
+204.7s 720 All rights granted under this License are granted for the term of
+204.7s 721 copyright on the Program, and are irrevocable provided the stated
+204.7s 722 conditions are met.  This License explicitly affirms your unlimited
+204.7s 723 permission to run the unmodified Program.  The output from running a
+204.7s 724 covered work is covered by this License only if the output, given its
+204.7s 725 content, constitutes a covered work.  This License acknowledges your
+204.7s 726 rights of fair use or other equivalent, as provided by copyright law.
+204.7s 727 
+204.7s 728 You may make, run and propagate covered works that you do not
+204.7s 729 convey, without conditions so long as your license otherwise remains
+204.7s 730 in force.  You may convey covered works to others for the sole purpose
+204.7s 731 of having them make modifications exclusively for you, or provide you
+204.7s 732 with facilities for running those works, provided that you comply with
+204.7s 733 the terms of this License in conveying all material for which you do
+204.7s 734 not control copyright.  Those thus making or running the covered works
+204.7s 735 for you must do so exclusively on your behalf, under your direction
+204.7s 736 and control, on terms that prohibit them from making any copies of
+204.7s 737 your copyrighted material outside their relationship with you.
+204.7s 738 
+204.7s 739 Conveying under any other circumstances is permitted solely under
+204.7s 740 the conditions stated below.  Sublicensing is not allowed; section 10
+204.7s 741 makes it unnecessary.
+204.7s 742 
+204.7s 743 3. Protecting Users' Legal Rights From Anti-Circumvention Law.
+204.7s 744 
+204.7s 745 No covered work shall be deemed part of an effective technological
+204.7s 746 measure under any applicable law fulfilling obligations under article
+204.7s 747 11 of the WIPO copyright treaty adopted on 20 December 1996, or
+204.7s 748 similar laws prohibiting or restricting circumvention of such
+204.7s 749 measures.
+204.7s 750 
+204.7s 751 When you convey a covered work, you waive any legal power to forbid
+204.7s 752 circumvention of technological measures to the extent such circumvention
+204.7s 753 is effected by exercising rights under this License with respect to
+204.7s 754 the covered work, and you disclaim any intention to limit operation or
+204.7s 755 modification of the work as a means of enforcing, against the work's
+204.7s 756 users, your or third parties' legal rights to forbid circumvention of
+204.7s 757 technological measures.
+204.7s 758 
+204.7s 759 4. Conveying Verbatim Copies.
+204.7s 760 
+204.7s 761 You may convey verbatim copies of the Program's source code as you
+204.7s 762 receive it, in any medium, provided that you conspicuously and
+204.7s 763 appropriately publish on each copy an appropriate copyright notice;
+204.7s 764 keep intact all notices stating that this License and any
+204.7s 765 non-permissive terms added in accord with section 7 apply to the code;
+204.7s 766 keep intact all notices of the absence of any warranty; and give all
+204.7s 767 recipients a copy of this License along with the Program.
+204.7s 768 
+204.7s 769 You may charge any price or no price for each copy that you convey,
+204.7s 770 and you may offer support or warranty protection for a fee.
+204.7s 771 
+204.7s 772 5. Conveying Modified Source Versions.
+204.7s 773 
+204.7s 774 You may convey a work based on the Program, or the modifications to
+204.7s 775 produce it from the Program, in the form of source code under the
+204.7s 776 terms of section 4, provided that you also meet all of these conditions:
+204.7s 777 
+204.7s 778 a) The work must carry prominent notices stating that you modified
+204.7s 779 it, and giving a relevant date.
+204.7s 780 
+204.7s 781 b) The work must carry prominent notices stating that it is
+204.7s 782 released under this License and any conditions added under section
+204.7s 783 7.  This requirement modifies the requirement in section 4 to
+204.7s 784 "keep intact all notices".
+204.7s 785 
+204.7s 786 c) You must license the entire work, as a whole, under this
+204.7s 787 License to anyone who comes into possession of a copy.  This
+204.7s 788 License will therefore apply, along with any applicable section 7
+204.7s 789 additional terms, to the whole of the work, and all its parts,
+204.7s 790 regardless of how they are packaged.  This License gives no
+204.7s 791 permission to license the work in any other way, but it does not
+204.7s 792 invalidate such permission if you have separately received it.
+204.7s 793 
+204.7s 794 d) If the work has interactive user interfaces, each must display
+204.7s 795 Appropriate Legal Notices; however, if the Program has interactive
+204.7s 796 interfaces that do not display Appropriate Legal Notices, your
+204.7s 797 work need not make them do so.
+204.7s 798 
+204.7s 799 A compilation of a covered work with other separate and independent
+204.7s 800 works, which are not by their nature extensions of the covered work,
+204.7s 801 and which are not combined with it such as to form a larger program,
+204.7s 802 in or on a volume of a storage or distribution medium, is called an
+204.7s 803 "aggregate" if the compilation and its resulting copyright are not
+204.7s 804 used to limit the access or legal rights of the compilation's users
+204.7s 805 beyond what the individual works permit.  Inclusion of a covered work
+204.7s 806 in an aggregate does not cause this License to apply to the other
+204.7s 807 parts of the aggregate.
+204.7s 808 
+204.7s 809 6. Conveying Non-Source Forms.
+204.7s 810 
+204.7s 811 You may convey a covered work in object code form under the terms
+204.7s 812 of sections 4 and 5, provided that you also convey the
+204.7s 813 machine-readable Corresponding Source under the terms of this License,
+204.7s 814 in one of these ways:
+204.7s 815 
+204.7s 816 a) Convey the object code in, or embodied in, a physical product
+204.7s 817 (including a physical distribution medium), accompanied by the
+204.7s 818 Corresponding Source fixed on a durable physical medium
+204.7s 819 customarily used for software interchange.
+204.7s 820 
+204.7s 821 b) Convey the object code in, or embodied in, a physical product
+204.7s 822 (including a physical distribution medium), accompanied by a
+204.7s 823 written offer, valid for at least three years and valid for as
+204.7s 824 long as you offer spare parts or customer support for that product
+204.7s 825 model, to give anyone who possesses the object code either (1) a
+204.7s 826 copy of the Corresponding Source for all the software in the
+204.7s 827 product that is covered by this License, on a durable physical
+204.7s 828 medium customarily used for software interchange, for a price no
+204.7s 829 more than your reasonable cost of physically performing this
+204.7s 830 conveying of source, or (2) access to copy the
+204.7s 831 Corresponding Source from a network server at no charge.
+204.7s 832 
+204.7s 833 c) Convey individual copies of the object code with a copy of the
+204.7s 834 written offer to provide the Corresponding Source.  This
+204.7s 835 alternative is allowed only occasionally and noncommercially, and
+204.7s 836 only if you received the object code with such an offer, in accord
+204.7s 837 with subsection 6b.
+204.7s 838 
+204.7s 839 d) Convey the object code by offering access from a designated
+204.7s 840 place (gratis or for a charge), and offer equivalent access to the
+204.7s 841 Corresponding Source in the same way through the same place at no
+204.7s 842 further charge.  You need not require recipients to copy the
+204.7s 843 Corresponding Source along with the object code.  If the place to
+204.7s 844 copy the object code is a network server, the Corresponding Source
+204.7s 845 may be on a different server (operated by you or a third party)
+204.7s 846 that supports equivalent copying facilities, provided you maintain
+204.7s 847 clear directions next to the object code saying where to find the
+204.7s 848 Corresponding Source.  Regardless of what server hosts the
+204.7s 849 Corresponding Source, you remain obligated to ensure that it is
+204.7s 850 available for as long as needed to satisfy these requirements.
+204.7s 851 
+204.7s 852 e) Convey the object code using peer-to-peer transmission, provided
+204.7s 853 you inform other peers where the object code and Corresponding
+204.7s 854 Source of the work are being offered to the general public at no
+204.7s 855 charge under subsection 6d.
+204.7s 856 
+204.7s 857 A separable portion of the object code, whose source code is excluded
+204.7s 858 from the Corresponding Source as a System Library, need not be
+204.7s 859 included in conveying the object code work.
+204.7s 860 
+204.7s 861 A "User Product" is either (1) a "consumer product", which means any
+204.7s 862 tangible personal property which is normally used for personal, family,
+204.7s 863 or household purposes, or (2) anything designed or sold for incorporation
+204.7s 864 into a dwelling.  In determining whether a product is a consumer product,
+204.7s 865 doubtful cases shall be resolved in favor of coverage.  For a particular
+204.7s 866 product received by a particular user, "normally used" refers to a
+204.7s 867 typical or common use of that class of product, regardless of the status
+204.7s 868 of the particular user or of the way in which the particular user
+204.7s 869 actually uses, or expects or is expected to use, the product.  A product
+204.7s 870 is a consumer product regardless of whether the product has substantial
+204.7s 871 commercial, industrial or non-consumer uses, unless such uses represent
+204.7s 872 the only significant mode of use of the product.
+204.7s 873 
+204.7s 874 "Installation Information" for a User Product means any methods,
+204.7s 875 procedures, authorization keys, or other information required to install
+204.7s 876 and execute modified versions of a covered work in that User Product from
+204.7s 877 a modified version of its Corresponding Source.  The information must
+204.7s 878 suffice to ensure that the continued functioning of the modified object
+204.7s 879 code is in no case prevented or interfered with solely because
+204.7s 880 modification has been made.
+204.7s 881 
+204.7s 882 If you convey an object code work under this section in, or with, or
+204.7s 883 specifically for use in, a User Product, and the conveying occurs as
+204.7s 884 part of a transaction in which the right of possession and use of the
+204.7s 885 User Product is transferred to the recipient in perpetuity or for a
+204.7s 886 fixed term (regardless of how the transaction is characterized), the
+204.7s 887 Corresponding Source conveyed under this section must be accompanied
+204.7s 888 by the Installation Information.  But this requirement does not apply
+204.7s 889 if neither you nor any third party retains the ability to install
+204.7s 890 modified object code on the User Product (for example, the work has
+204.7s 891 been installed in ROM).
+204.7s 892 
+204.7s 893 The requirement to provide Installation Information does not include a
+204.7s 894 requirement to continue to provide support service, warranty, or updates
+204.7s 895 for a work that has been modified or installed by the recipient, or for
+204.7s 896 the User Product in which it has been modified or installed.  Access to a
+204.7s 897 network may be denied when the modification itself materially and
+204.7s 898 adversely affects the operation of the network or violates the rules and
+204.7s 899 protocols for communication across the network.
+204.7s 900 
+204.7s 901 Corresponding Source conveyed, and Installation Information provided,
+204.7s 902 in accord with this section must be in a format that is publicly
+204.7s 903 documented (and with an implementation available to the public in
+204.7s 904 source code form), and must require no special password or key for
+204.7s 905 unpacking, reading or copying.
+204.7s 906 
+204.7s 907 7. Additional Terms.
+204.7s 908 
+204.7s 909 "Additional permissions" are terms that supplement the terms of this
+204.7s 910 License by making exceptions from one or more of its conditions.
+204.7s 911 Additional permissions that are applicable to the entire Program shall
+204.7s 912 be treated as though they were included in this License, to the extent
+204.7s 913 that they are valid under applicable law.  If additional permissions
+204.7s 914 apply only to part of the Program, that part may be used separately
+204.7s 915 under those permissions, but the entire Program remains governed by
+204.7s 916 this License without regard to the additional permissions.
+204.7s 917 
+204.7s 918 When you convey a copy of a covered work, you may at your option
+204.7s 919 remove any additional permissions from that copy, or from any part of
+204.7s 920 it.  (Additional permissions may be written to require their own
+204.7s 921 removal in certain cases when you modify the work.)  You may place
+204.7s 922 additional permissions on material, added by you to a covered work,
+204.7s 923 for which you have or can give appropriate copyright permission.
+204.7s 924 
+204.7s 925 Notwithstanding any other provision of this License, for material you
+204.7s 926 add to a covered work, you may (if authorized by the copyright holders of
+204.7s 927 that material) supplement the terms of this License with terms:
+204.7s 928 
+204.7s 929 a) Disclaiming warranty or limiting liability differently from the
+204.7s 930 terms of sections 15 and 16 of this License; or
+204.7s 931 
+204.7s 932 b) Requiring preservation of specified reasonable legal notices or
+204.7s 933 author attributions in that material or in the Appropriate Legal
+204.7s 934 Notices displayed by works containing it; or
+204.7s 935 
+204.7s 936 c) Prohibiting misrepresentation of the origin of that material, or
+204.7s 937 requiring that modified versions of such material be marked in
+204.7s 938 reasonable ways as different from the original version; or
+204.7s 939 
+204.7s 940 d) Limiting the use for publicity purposes of names of licensors or
+204.7s 941 authors of the material; or
+204.7s 942 
+204.7s 943 e) Declining to grant rights under trademark law for use of some
+204.7s 944 trade names, trademarks, or service marks; or
+204.7s 945 
+204.7s 946 f) Requiring indemnification of licensors and authors of that
+204.7s 947 material by anyone who conveys the material (or modified versions of
+204.7s 948 it) with contractual assumptions of liability to the recipient, for
+204.7s 949 any liability that these contractual assumptions directly impose on
+204.7s 950 those licensors and authors.
+204.7s 951 
+204.7s 952 All other non-permissive additional terms are considered "further
+204.7s 953 restrictions" within the meaning of section 10.  If the Program as you
+204.7s 954 received it, or any part of it, contains a notice stating that it is
+204.7s 955 governed by this License along with a term that is a further
+204.7s 956 restriction, you may remove that term.  If a license document contains
+204.7s 957 a further restriction but permits relicensing or conveying under this
+204.7s 958 License, you may add to a covered work material governed by the terms
+204.7s 959 of that license document, provided that the further restriction does
+204.7s 960 not survive such relicensing or conveying.
+204.7s 961 
+204.7s 962 If you add terms to a covered work in accord with this section, you
+204.7s 963 must place, in the relevant source files, a statement of the
+204.7s 964 additional terms that apply to those files, or a notice indicating
+204.7s 965 where to find the applicable terms.
+204.7s 966 
+204.7s 967 Additional terms, permissive or non-permissive, may be stated in the
+204.7s 968 form of a separately written license, or stated as exceptions;
+204.7s 969 the above requirements apply either way.
+204.7s 970 
+204.7s 971 8. Termination.
+204.7s 972 
+204.7s 973 You may not propagate or modify a covered work except as expressly
+204.7s 974 provided under this License.  Any attempt otherwise to propagate or
+204.7s 975 modify it is void, and will automatically terminate your rights under
+204.7s 976 this License (including any patent licenses granted under the third
+204.7s 977 paragraph of section 11).
+204.7s 978 
+204.7s 979 However, if you cease all violation of this License, then your
+204.7s 980 license from a particular copyright holder is reinstated (a)
+204.7s 981 provisionally, unless and until the copyright holder explicitly and
+204.7s 982 finally terminates your license, and (b) permanently, if the copyright
+204.7s 983 holder fails to notify you of the violation by some reasonable means
+204.7s 984 prior to 60 days after the cessation.
+204.7s 985 
+204.7s 986 Moreover, your license from a particular copyright holder is
+204.7s 987 reinstated permanently if the copyright holder notifies you of the
+204.7s 988 violation by some reasonable means, this is the first time you have
+204.7s 989 received notice of violation of this License (for any work) from that
+204.7s 990 copyright holder, and you cure the violation prior to 30 days after
+204.7s 991 your receipt of the notice.
+204.7s 992 
+204.7s 993 Termination of your rights under this section does not terminate the
+204.7s 994 licenses of parties who have received copies or rights from you under
+204.7s 995 this License.  If your rights have been terminated and not permanently
+204.7s 996 reinstated, you do not qualify to receive new licenses for the same
+204.7s 997 material under section 10.
+204.7s 998 
+204.7s 999 9. Acceptance Not Required for Having Copies.
+204.7s 1000 
+204.7s 1001 You are not required to accept this License in order to receive or
+204.7s 1002 run a copy of the Program.  Ancillary propagation of a covered work
+204.7s 1003 occurring solely as a consequence of using peer-to-peer transmission
+204.7s 1004 to receive a copy likewise does not require acceptance.  However,
+204.7s 1005 nothing other than this License grants you permission to propagate or
+204.7s 1006 modify any covered work.  These actions infringe copyright if you do
+204.7s 1007 not accept this License.  Therefore, by modifying or propagating a
+204.7s 1008 covered work, you indicate your acceptance of this License to do so.
+204.7s 1009 
+204.7s 1010 10. Automatic Licensing of Downstream Recipients.
+204.7s 1011 
+204.7s 1012 Each time you convey a covered work, the recipient automatically
+204.7s 1013 receives a license from the original licensors, to run, modify and
+204.7s 1014 propagate that work, subject to this License.  You are not responsible
+204.7s 1015 for enforcing compliance by third parties with this License.
+204.7s 1016 
+204.7s 1017 An "entity transaction" is a transaction transferring control of an
+204.7s 1018 organization, or substantially all assets of one, or subdividing an
+204.7s 1019 organization, or merging organizations.  If propagation of a covered
+204.7s 1020 work results from an entity transaction, each party to that
+204.7s 1021 transaction who receives a copy of the work also receives whatever
+204.7s 1022 licenses to the work the party's predecessor in interest had or could
+204.7s 1023 give under the previous paragraph, plus a right to possession of the
+204.7s 1024 Corresponding Source of the work from the predecessor in interest, if
+204.7s 1025 the predecessor has it or can get it with reasonable efforts.
+204.7s 1026 
+204.7s 1027 You may not impose any further restrictions on the exercise of the
+204.7s 1028 rights granted or affirmed under this License.  For example, you may
+204.7s 1029 not impose a license fee, royalty, or other charge for exercise of
+204.7s 1030 rights granted under this License, and you may not initiate litigation
+204.7s 1031 (including a cross-claim or counterclaim in a lawsuit) alleging that
+204.7s 1032 any patent claim is infringed by making, using, selling, offering for
+204.7s 1033 sale, or importing the Program or any portion of it.
+204.7s 1034 
+204.7s 1035 11. Patents.
+204.7s 1036 
+204.7s 1037 A "contributor" is a copyright holder who authorizes use under this
+204.7s 1038 License of the Program or a work on which the Program is based.  The
+204.7s 1039 work thus licensed is called the contributor's "contributor version".
+204.7s 1040 
+204.7s 1041 A contributor's "essential patent claims" are all patent claims
+204.7s 1042 owned or controlled by the contributor, whether already acquired or
+204.7s 1043 hereafter acquired, that would be infringed by some manner, permitted
+204.7s 1044 by this License, of making, using, or selling its contributor version,
+204.7s 1045 but do not include claims that would be infringed only as a
+204.7s 1046 consequence of further modification of the contributor version.  For
+204.7s 1047 purposes of this definition, "control" includes the right to grant
+204.7s 1048 patent sublicenses in a manner consistent with the requirements of
+204.7s 1049 this License.
+204.7s 1050 
+204.7s 1051 Each contributor grants you a non-exclusive, worldwide, royalty-free
+204.7s 1052 patent license under the contributor's essential patent claims, to
+204.7s 1053 make, use, sell, offer for sale, import and otherwise run, modify and
+204.7s 1054 propagate the contents of its contributor version.
+204.7s 1055 
+204.7s 1056 In the following three paragraphs, a "patent license" is any express
+204.7s 1057 agreement or commitment, however denominated, not to enforce a patent
+204.7s 1058 (such as an express permission to practice a patent or covenant not to
+204.7s 1059 sue for patent infringement).  To "grant" such a patent license to a
+204.7s 1060 party means to make such an agreement or commitment not to enforce a
+204.7s 1061 patent against the party.
+204.7s 1062 
+204.7s 1063 If you convey a covered work, knowingly relying on a patent license,
+204.7s 1064 and the Corresponding Source of the work is not available for anyone
+204.7s 1065 to copy, free of charge and under the terms of this License, through a
+204.7s 1066 publicly available network server or other readily accessible means,
+204.7s 1067 then you must either (1) cause the Corresponding Source to be so
+204.7s 1068 available, or (2) arrange to deprive yourself of the benefit of the
+204.7s 1069 patent license for this particular work, or (3) arrange, in a manner
+204.7s 1070 consistent with the requirements of this License, to extend the patent
+204.7s 1071 license to downstream recipients.  "Knowingly relying" means you have
+204.7s 1072 actual knowledge that, but for the patent license, your conveying the
+204.7s 1073 covered work in a country, or your recipient's use of the covered work
+204.7s 1074 in a country, would infringe one or more identifiable patents in that
+204.7s 1075 country that you have reason to believe are valid.
+204.7s 1076 
+204.7s 1077 If, pursuant to or in connection with a single transaction or
+204.7s 1078 arrangement, you convey, or propagate by procuring conveyance of, a
+204.7s 1079 covered work, and grant a patent license to some of the parties
+204.7s 1080 receiving the covered work authorizing them to use, propagate, modify
+204.7s 1081 or convey a specific copy of the covered work, then the patent license
+204.7s 1082 you grant is automatically extended to all recipients of the covered
+204.7s 1083 work and works based on it.
+204.7s 1084 
+204.7s 1085 A patent license is "discriminatory" if it does not include within
+204.7s 1086 the scope of its coverage, prohibits the exercise of, or is
+204.7s 1087 conditioned on the non-exercise of one or more of the rights that are
+204.7s 1088 specifically granted under this License.  You may not convey a covered
+204.7s 1089 work if you are a party to an arrangement with a third party that is
+204.7s 1090 in the business of distributing software, under which you make payment
+204.7s 1091 to the third party based on the extent of your activity of conveying
+204.7s 1092 the work, and under which the third party grants, to any of the
+204.7s 1093 parties who would receive the covered work from you, a discriminatory
+204.7s 1094 patent license (a) in connection with copies of the covered work
+204.7s 1095 conveyed by you (or copies made from those copies), or (b) primarily
+204.7s 1096 for and in connection with specific products or compilations that
+204.7s 1097 contain the covered work, unless you entered into that arrangement,
+204.7s 1098 or that patent license was granted, prior to 28 March 2007.
+204.7s 1099 
+204.7s 1100 Nothing in this License shall be construed as excluding or limiting
+204.7s 1101 any implied license or other defenses to infringement that may
+204.7s 1102 otherwise be available to you under applicable patent law.
+204.7s 1103 
+204.7s 1104 12. No Surrender of Others' Freedom.
+204.7s 1105 
+204.7s 1106 If conditions are imposed on you (whether by court order, agreement or
+204.7s 1107 otherwise) that contradict the conditions of this License, they do not
+204.7s 1108 excuse you from the conditions of this License.  If you cannot convey a
+204.7s 1109 covered work so as to satisfy simultaneously your obligations under this
+204.7s 1110 License and any other pertinent obligations, then as a consequence you may
+204.7s 1111 not convey it at all.  For example, if you agree to terms that obligate you
+204.7s 1112 to collect a royalty for further conveying from those to whom you convey
+204.7s 1113 the Program, the only way you could satisfy both those terms and this
+204.7s 1114 License would be to refrain entirely from conveying the Program.
+204.7s 1115 
+204.7s 1116 13. Use with the GNU Affero General Public License.
+204.7s 1117 
+204.7s 1118 Notwithstanding any other provision of this License, you have
+204.7s 1119 permission to link or combine any covered work with a work licensed
+204.7s 1120 under version 3 of the GNU Affero General Public License into a single
+204.7s 1121 combined work, and to convey the resulting work.  The terms of this
+204.7s 1122 License will continue to apply to the part which is the covered work,
+204.7s 1123 but the special requirements of the GNU Affero General Public License,
+204.7s 1124 section 13, concerning interaction through a network will apply to the
+204.7s 1125 combination as such.
+204.7s 1126 
+204.7s 1127 14. Revised Versions of this License.
+204.7s 1128 
+204.7s 1129 The Free Software Foundation may publish revised and/or new versions of
+204.7s 1130 the GNU General Public License from time to time.  Such new versions will
+204.7s 1131 be similar in spirit to the present version, but may differ in detail to
+204.7s 1132 address new problems or concerns.
+204.7s 1133 
+204.7s 1134 Each version is given a distinguishing version number.  If the
+204.7s 1135 Program specifies that a certain numbered version of the GNU General
+204.7s 1136 Public License "or any later version" applies to it, you have the
+204.7s 1137 option of following the terms and conditions either of that numbered
+204.7s 1138 version or of any later version published by the Free Software
+204.7s 1139 Foundation.  If the Program does not specify a version number of the
+204.7s 1140 GNU General Public License, you may choose any version ever published
+204.7s 1141 by the Free Software Foundation.
+204.7s 1142 
+204.7s 1143 If the Program specifies that a proxy can decide which future
+204.7s 1144 versions of the GNU General Public License can be used, that proxy's
+204.7s 1145 public statement of acceptance of a version permanently authorizes you
+204.7s 1146 to choose that version for the Program.
+204.7s 1147 
+204.7s 1148 Later license versions may give you additional or different
+204.7s 1149 permissions.  However, no additional obligations are imposed on any
+204.7s 1150 author or copyright holder as a result of your choosing to follow a
+204.7s 1151 later version.
+204.7s 1152 
+204.7s 1153 15. Disclaimer of Warranty.
+204.7s 1154 
+204.7s 1155 THERE IS NO WARRANTY FOR THE PROGRAM, TO THE EXTENT PERMITTED BY
+204.7s 1156 APPLICABLE LAW.  EXCEPT WHEN OTHERWISE STATED IN WRITING THE COPYRIGHT
+204.7s 1157 HOLDERS AND/OR OTHER PARTIES PROVIDE THE PROGRAM "AS IS" WITHOUT WARRANTY
+204.7s 1158 OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING, BUT NOT LIMITED TO,
+204.7s 1159 THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+204.7s 1160 PURPOSE.  THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE PROGRAM
+204.7s 1161 IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU ASSUME THE COST OF
+204.7s 1162 ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
+204.7s 1163 
+204.7s 1164 16. Limitation of Liability.
+204.7s 1165 
+204.7s 1166 IN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW OR AGREED TO IN WRITING
+204.7s 1167 WILL ANY COPYRIGHT HOLDER, OR ANY OTHER PARTY WHO MODIFIES AND/OR CONVEYS
+204.7s 1168 THE PROGRAM AS PERMITTED ABOVE, BE LIABLE TO YOU FOR DAMAGES, INCLUDING ANY
+204.7s 1169 GENERAL, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE
+204.7s 1170 USE OR INABILITY TO USE THE PROGRAM (INCLUDING BUT NOT LIMITED TO LOSS OF
+204.7s 1171 DATA OR DATA BEING RENDERED INACCURATE OR LOSSES SUSTAINED BY YOU OR THIRD
+204.7s 1172 PARTIES OR A FAILURE OF THE PROGRAM TO OPERATE WITH ANY OTHER PROGRAMS),
+204.7s 1173 EVEN IF SUCH HOLDER OR OTHER PARTY HAS BEEN ADVISED OF THE POSSIBILITY OF
+204.7s 1174 SUCH DAMAGES.
+204.7s 1175 
+204.7s 1176 17. Interpretation of Sections 15 and 16.
+204.7s 1177 
+204.7s 1178 If the disclaimer of warranty and limitation of liability provided
+204.7s 1179 above cannot be given local legal effect according to their terms,
+204.7s 1180 reviewing courts shall apply local law that most closely approximates
+204.7s 1181 an absolute waiver of all civil liability in connection with the
+204.7s 1182 Program, unless a warranty or assumption of liability accompanies a
+204.7s 1183 copy of the Program in return for a fee.
+204.7s 1184 
+204.7s 1185 END OF TERMS AND CONDITIONS
+204.7s 1186 
+204.7s 1187 How to Apply These Terms to Your New Programs
+204.7s 1188 
+204.7s 1189 If you develop a new program, and you want it to be of the greatest
+204.7s 1190 possible use to the public, the best way to achieve this is to make it
+204.7s 1191 free software which everyone can redistribute and change under these terms.
+204.7s 1192 
+204.7s 1193 To do so, attach the following notices to the program.  It is safest
+204.7s 1194 to attach them to the start of each source file to most effectively
+204.7s 1195 state the exclusion of warranty; and each file should have at least
+204.7s 1196 the "copyright" line and a pointer to where the full notice is found.
+204.7s 1197 
+204.7s 1198 <one line to give the program's name and a brief idea of what it does.>
+204.7s 1199 Copyright (C) <year>  <name of author>
+204.7s 1200 
+204.7s 1201 This program is free software: you can redistribute it and/or modify
+204.7s 1202 it under the terms of the GNU General Public License as published by
+204.7s 1203 the Free Software Foundation, either version 3 of the License, or
+204.7s 1204 (at your option) any later version.
+204.7s 1205 
+204.7s 1206 This program is distributed in the hope that it will be useful,
+204.7s 1207 but WITHOUT ANY WARRANTY; without even the implied warranty of
+204.7s 1208 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+204.7s 1209 GNU General Public License for more details.
+204.7s 1210 
+204.7s 1211 You should have received a copy of the GNU General Public License
+204.7s 1212 along with this program.  If not, see <http://www.gnu.org/licenses/>.
+204.7s 1213 
+204.7s 1214 Also add information on how to contact you by electronic and paper mail.
+204.7s 1215 
+204.7s 1216 If the program does terminal interaction, make it output a short
+204.7s 1217 notice like this when it starts in an interactive mode:
+204.7s 1218 
+204.7s 1219 <program>  Copyright (C) <year>  <name of author>
+204.7s 1220 This program comes with ABSOLUTELY NO WARRANTY; for details type `show w'.
+204.7s 1221 This is free software, and you are welcome to redistribute it
+204.7s 1222 under certain conditions; type `show c' for details.
+204.7s 1223 
+204.7s 1224 The hypothetical commands `show w' and `show c' should show the appropriate
+204.7s 1225 parts of the General Public License.  Of course, your program's commands
+204.7s 1226 might be different; for a GUI interface, you would use an "about box".
+204.7s 1227 
+204.7s 1228 You should also get your employer (if you work as a programmer) or school,
+204.7s 1229 if any, to sign a "copyright disclaimer" for the program, if necessary.
+204.7s 1230 For more information on this, and how to apply and follow the GNU GPL, see
+204.7s 1231 <http://www.gnu.org/licenses/>.
+204.7s 1232 
+204.7s 1233 The GNU General Public License does not permit incorporating your program
+204.7s 1234 into proprietary programs.  If your program is a subroutine library, you
+204.7s 1235 may consider it more useful to permit linking proprietary applications with
+204.7s 1236 the library.  If this is what you want to do, use the GNU Lesser General
+204.7s 1237 Public License instead of this License.  But first, please read
+204.7s 1238 <http://www.gnu.org/philosophy/why-not-lgpl.html>.
+204.7s 1239 Location: /usr/local/lib/python3.10/dist-packages
+204.7s 1240 Requires: numpy
+204.7s 1241 Required-by: albumentations, arviz, bayesian-optimization, Boruta, catboost, category_encoders, cesium, clarabel, cuml-cu12, cvxpy, datascience, datashader, dipy, easyocr, eli5, fastai, featuretools, fury, gensim, GridDataFormats, hep_ml, hyperopt, ImageHash, imbalanced-learn, imgaug, jax, jaxlib, kaggle-environments, libpysal, librosa, lightgbm, lime, matplotlib-venn, MDAnalysis, missingno, mizani, mlxtend, mne, nilearn, osqp, phik, plotly-express, plotnine, protenix, pyLDAvis, pymc, pymc3, pytensor, qdldl, scikit-image, scikit-learn, scikit-optimize, scikit-plot, scikit-surprise, scs, sentence-transformers, shap, sklearn-pandas, statsmodels, stumpy, Theano, Theano-PyMC, TPOT, treelite, tsfresh, woodwork, xarray-einstats, xgboost, ydata-profiling, yellowbrick
+207.6s 1242 Name: scikit-learn
+207.6s 1243 Version: 1.2.2
+207.6s 1244 Summary: A set of python modules for machine learning and data mining
+207.6s 1245 Home-page: http://scikit-learn.org
+207.6s 1246 Author:
+207.6s 1247 Author-email:
+207.6s 1248 License: new BSD
+207.6s 1249 Location: /usr/local/lib/python3.10/dist-packages
+207.6s 1250 Requires: joblib, numpy, scipy, threadpoolctl
+207.6s 1251 Required-by: bayesian-optimization, bigframes, Boruta, category_encoders, cesium, eli5, fastai, hep_ml, imbalanced-learn, librosa, lime, mlxtend, nilearn, protenix, pyLDAvis, rgf-python, scikit-learn-intelex, scikit-optimize, scikit-plot, sentence-transformers, shap, sklearn-pandas, TPOT, tsfresh, woodwork, yellowbrick
+210.0s 1252 Name: seaborn
+210.0s 1253 Version: 0.12.2
+210.0s 1254 Summary: Statistical data visualization
+210.0s 1255 Home-page:
+210.0s 1256 Author:
+210.0s 1257 Author-email: Michael Waskom <mwaskom@gmail.com>
+210.0s 1258 License:
+210.0s 1259 Location: /usr/local/lib/python3.10/dist-packages
+210.0s 1260 Requires: matplotlib, numpy, pandas
+210.0s 1261 Required-by: missingno, ydata-profiling
+210.0s 1262 === [End of Final Package Versions] ===
+210.0s 1263 
+245.6s 1264 Processing /kaggle/input/hydra-core-132whl/hydra_core-1.3.2-py3-none-any.whl
+245.6s 1265 Installing collected packages: hydra-core
+245.6s 1266 Attempting uninstall: hydra-core
+245.6s 1267 Found existing installation: hydra-core 1.3.2
+245.6s 1268 Uninstalling hydra-core-1.3.2:
+245.6s 1269 Successfully uninstalled hydra-core-1.3.2
+245.6s 1270 Successfully installed hydra-core-1.3.2
+249.0s 1271 2025-05-16 00:04:33.950091: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:485] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+249.2s 1272 2025-05-16 00:04:34.208789: E external/local_xla/xla/stream_executor/cuda/cuda_dnn.cc:8454] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+249.3s 1273 2025-05-16 00:04:34.285908: E external/local_xla/xla/stream_executor/cuda/cuda_blas.cc:1452] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+260.7s 1274 [2025-05-16 00:04:45][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][INFO] - Initializing StageBTorsionBertPredictor...
+260.7s 1275 [2025-05-16 00:04:45][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][INFO] - [MEMORY-LOG][StageB] Memory usage: 1850.80 MB
+269.1s 1276 [2025-05-16 00:04:54][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][INFO] - [LoRA] LoRA not applied (missing PEFT, config, or disabled). All params trainable.
+269.1s 1277 [2025-05-16 00:04:54][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][INFO] - TorsionBERT model and tokenizer loaded successfully.
+269.3s 1278 [DEBUG][predict_3d_structure] sequence type: <class 'str'>, value: ACGUACGU
+274.7s 1279 [2025-05-16 00:04:59][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][WARNING] - Output dim 7 matches num_angles 7. Assuming model outputs degrees directly. Verify model's output format.
+274.7s 1280 [2025-05-16 00:04:59][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][WARNING] - Values look like radians, converting to degrees.
+274.7s 1281 [2025-05-16 00:04:59][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - [DEBUG][StageC] stage_cfg.device: cpu (type: <class 'str'>)
+274.7s 1282 [2025-05-16 00:04:59][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - [DEBUG][StageC] Full stage_cfg: {'enabled': True, 'method': 'mp_nerf', 'device': 'cpu', 'do_ring_closure': True, 'place_bases': True, 'sugar_pucker': "C3'-endo", 'angle_representation': 'degrees', 'use_metadata': False, 'use_memory_efficient_kernel': False, 'use_deepspeed_evo_attention': False, 'use_lma': False, 'inplace_safe': True, 'debug_logging': False}
+274.7s 1283 [2025-05-16 00:04:59][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - [DEBUG][StageC] OmegaConf resolved device: cpu
+274.9s 1284 [2025-05-16 00:04:59][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - StageC completed: sequence=ACGUACGU, residues=8, atoms=170, coords_shape=torch.Size([170, 3]), device=cpu, elapsed_time=0.04s
+274.9s 1285 [DEBUG] type(stageC_full_config): <class 'omegaconf.dictconfig.DictConfig'>
+274.9s 1286 [DEBUG] stageC_full_config keys: ['model']
+274.9s 1287 [DEBUG] stageC_full_config['model'] keys: ['stageC']
+274.9s 1288 ID resname  resid        x_1        y_1        z_1
+274.9s 1289 0   1       A      1  13.774000  39.026001  15.251000
+274.9s 1290 1   2       C      2  17.900242  38.058277  16.242161
+274.9s 1291 2   3       G      3  15.329541  37.968117  21.286165
+274.9s 1292 3   4       U      4  14.186682  35.409931  23.826689
+274.9s 1293 4   5       A      5  16.129946  33.316463  25.268147
+274.9s 1294 [2025-05-16 00:04:59][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][INFO] - [DEBUG-PROPAGATION][StageB-TorsionBert] self.debug_logging resolved to: False
+274.9s 1295 [2025-05-16 00:04:59][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][INFO] - [DEBUG-PROPAGATION][StageB-TorsionBert] config subtree used: None, None, None
+274.9s 1296 [2025-05-16 00:04:59][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][INFO] - [DEBUG-PROPAGATION][StageB-TorsionBert] full config: {'model_name_or_path': '/kaggle/working/rna_torsionBERT', 'device': 'cpu', 'angle_mode': 'degrees', 'num_angles': 7, 'max_length': 512}
+274.9s 1297 [2025-05-16 00:04:59][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][INFO] - [DEBUG-STAGEB-TORSIONBERT-CONFIG-FULL] Full cfg received: {'model_name_or_path': '/kaggle/working/rna_torsionBERT', 'device': 'cpu', 'angle_mode': 'degrees', 'num_angles': 7, 'max_length': 512}
+274.9s 1298 [2025-05-16 00:04:59][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][INFO] - [DEBUG-STAGEB-TORSIONBERT-CONFIG] Used cfg.device
+274.9s 1299 [2025-05-16 00:04:59][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][INFO] - [DEBUG-STAGEB-TORSIONBERT-CONFIG] Resolved device in config: cpu
+274.9s 1300 [2025-05-16 00:04:59][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][INFO] - [DEBUG-STAGEB-TORSIONBERT-CONFIG] Using direct attributes
+274.9s 1301 [2025-05-16 00:04:59][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][INFO] - [DEBUG-STAGEB-TORSIONBERT-CONFIG] Resolved configuration: model_name_or_path=/kaggle/working/rna_torsionBERT, angle_mode=degrees, num_angles=7, max_length=512
+274.9s 1302 
+274.9s 1303 === Toy sanity-check ===
+274.9s 1304 [2025-05-16 00:04:59][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][INFO] - Initializing StageBTorsionBertPredictor...
+274.9s 1305 [2025-05-16 00:04:59][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][INFO] - [MEMORY-LOG][StageB] Memory usage: 2614.23 MB
+275.2s 1306 [2025-05-16 00:05:00][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][INFO] - [LoRA] LoRA not applied (missing PEFT, config, or disabled). All params trainable.
+275.2s 1307 [2025-05-16 00:05:00][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][INFO] - TorsionBERT model and tokenizer loaded successfully.
+275.4s 1308 [DEBUG][predict_3d_structure] sequence type: <class 'str'>, value: ACGUACGU
+275.9s 1309 [2025-05-16 00:05:00][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][WARNING] - Output dim 7 matches num_angles 7. Assuming model outputs degrees directly. Verify model's output format.
+275.9s 1310 [2025-05-16 00:05:00][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][WARNING] - Values look like radians, converting to degrees.
+275.9s 1311 [2025-05-16 00:05:00][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - [DEBUG][StageC] stage_cfg.device: cpu (type: <class 'str'>)
+275.9s 1312 [2025-05-16 00:05:00][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - [DEBUG][StageC] Full stage_cfg: {'enabled': True, 'method': 'mp_nerf', 'device': 'cpu', 'do_ring_closure': True, 'place_bases': True, 'sugar_pucker': "C3'-endo", 'angle_representation': 'degrees', 'use_metadata': False, 'use_memory_efficient_kernel': False, 'use_deepspeed_evo_attention': False, 'use_lma': False, 'inplace_safe': True, 'debug_logging': False}
+275.9s 1313 [2025-05-16 00:05:00][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - [DEBUG][StageC] OmegaConf resolved device: cpu
+276.0s 1314 [2025-05-16 00:05:01][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - StageC completed: sequence=ACGUACGU, residues=8, atoms=170, coords_shape=torch.Size([170, 3]), device=cpu, elapsed_time=0.03s
+276.1s 1315 [2025-05-16 00:05:01][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][INFO] - [DEBUG-PROPAGATION][StageB-TorsionBert] self.debug_logging resolved to: False
+276.1s 1316 [2025-05-16 00:05:01][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][INFO] - [DEBUG-PROPAGATION][StageB-TorsionBert] config subtree used: None, None, None
+276.1s 1317 [2025-05-16 00:05:01][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][INFO] - [DEBUG-PROPAGATION][StageB-TorsionBert] full config: {'model_name_or_path': '/kaggle/working/rna_torsionBERT', 'device': 'cpu', 'angle_mode': 'degrees', 'num_angles': 7, 'max_length': 512}
+276.1s 1318 [2025-05-16 00:05:01][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][INFO] - [DEBUG-STAGEB-TORSIONBERT-CONFIG-FULL] Full cfg received: {'model_name_or_path': '/kaggle/working/rna_torsionBERT', 'device': 'cpu', 'angle_mode': 'degrees', 'num_angles': 7, 'max_length': 512}
+276.1s 1319 [2025-05-16 00:05:01][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][INFO] - [DEBUG-STAGEB-TORSIONBERT-CONFIG] Used cfg.device
+276.1s 1320 [2025-05-16 00:05:01][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][INFO] - [DEBUG-STAGEB-TORSIONBERT-CONFIG] Resolved device in config: cpu
+276.1s 1321 [2025-05-16 00:05:01][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][INFO] - [DEBUG-STAGEB-TORSIONBERT-CONFIG] Using direct attributes
+276.1s 1322 [2025-05-16 00:05:01][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][INFO] - [DEBUG-STAGEB-TORSIONBERT-CONFIG] Resolved configuration: model_name_or_path=/kaggle/working/rna_torsionBERT, angle_mode=degrees, num_angles=7, max_length=512
+276.1s 1323 [2025-05-16 00:05:01][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][INFO] - Initializing StageBTorsionBertPredictor...
+276.1s 1324 [2025-05-16 00:05:01][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][INFO] - [MEMORY-LOG][StageB] Memory usage: 2973.76 MB
+276.1s 1325 [DEBUG] type(stageC_full_config): <class 'omegaconf.dictconfig.DictConfig'>
+276.1s 1326 [DEBUG] stageC_full_config keys: ['model']
+276.1s 1327 [DEBUG] stageC_full_config['model'] keys: ['stageC']
+276.1s 1328 ID resname  resid        x_1        y_1        z_1        x_2  \
+276.1s 1329 0  TOY_1       A      1  13.774000  39.026001  15.251000  13.774000
+276.1s 1330 1  TOY_2       C      2  17.779230  37.970974  16.242161  17.779230
+276.1s 1331 2  TOY_3       G      3  16.522217  35.651066  21.294838  16.522217
+276.1s 1332 3  TOY_4       U      4  18.497864  37.725395  23.481884  18.497864
+276.1s 1333 4  TOY_5       A      5  16.062193  36.142426  24.553535  16.062193
+276.1s 1334 
+276.1s 1335 y_2        z_2
+276.1s 1336 0  39.026001  15.251000
+276.1s 1337 1  37.970974  16.242161
+276.1s 1338 2  35.651066  21.294838
+276.1s 1339 3  37.725395  23.481884
+276.1s 1340 4  36.142426  24.553535
+276.4s 1341 [2025-05-16 00:05:01][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][INFO] - [LoRA] LoRA not applied (missing PEFT, config, or disabled). All params trainable.
+276.4s 1342 [2025-05-16 00:05:01][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][INFO] - TorsionBERT model and tokenizer loaded successfully.
+276.6s 1343 [DEBUG][predict_3d_structure] sequence type: <class 'str'>, value: GGGGGCCACAGCAGAAGCGUUCACGUCGCAGCCCCUGUCAGCCAUUGCACUCCGGCUGCGAAUUCUGCU
+277.1s 1344 [2025-05-16 00:05:02][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][WARNING] - Output dim 7 matches num_angles 7. Assuming model outputs degrees directly. Verify model's output format.
+277.1s 1345 [2025-05-16 00:05:02][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][WARNING] - Values look like radians, converting to degrees.
+277.1s 1346 [2025-05-16 00:05:02][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - [DEBUG][StageC] stage_cfg.device: cpu (type: <class 'str'>)
+277.1s 1347 [2025-05-16 00:05:02][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - [DEBUG][StageC] Full stage_cfg: {'enabled': True, 'method': 'mp_nerf', 'device': 'cpu', 'do_ring_closure': True, 'place_bases': True, 'sugar_pucker': "C3'-endo", 'angle_representation': 'degrees', 'use_metadata': False, 'use_memory_efficient_kernel': False, 'use_deepspeed_evo_attention': False, 'use_lma': False, 'inplace_safe': True, 'debug_logging': False}
+277.1s 1348 [2025-05-16 00:05:02][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - [DEBUG][StageC] OmegaConf resolved device: cpu
+277.3s 1349 [DEBUG] type(stageC_full_config): <class 'omegaconf.dictconfig.DictConfig'>
+277.3s 1350 [DEBUG] stageC_full_config keys: ['model']
+277.3s 1351 [DEBUG] stageC_full_config['model'] keys: ['stageC']
+277.8s 1352 [2025-05-16 00:05:02][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - StageC completed: sequence=GGGGGCCACAGCAGAAGCGUUCACGUCGCAGCCCCUGUCAGCCAUUGCACUCCGGCUGCGAAUUCUGCU, residues=69, atoms=1464, coords_shape=torch.Size([1464, 3]), device=cpu, elapsed_time=0.23s
+278.1s 1353 [DEBUG][predict_3d_structure] sequence type: <class 'str'>, value: GGGGGCCACAGCAGAAGCGUUCACGUCGCGGCCCCUGUCAGCCAUUGCACUCCGGCUGCGAAUUCUGCU
+278.5s 1354 [2025-05-16 00:05:03][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][WARNING] - Output dim 7 matches num_angles 7. Assuming model outputs degrees directly. Verify model's output format.
+278.5s 1355 [2025-05-16 00:05:03][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][WARNING] - Values look like radians, converting to degrees.
+278.5s 1356 [2025-05-16 00:05:03][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - [DEBUG][StageC] stage_cfg.device: cpu (type: <class 'str'>)
+278.5s 1357 [2025-05-16 00:05:03][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - [DEBUG][StageC] Full stage_cfg: {'enabled': True, 'method': 'mp_nerf', 'device': 'cpu', 'do_ring_closure': True, 'place_bases': True, 'sugar_pucker': "C3'-endo", 'angle_representation': 'degrees', 'use_metadata': False, 'use_memory_efficient_kernel': False, 'use_deepspeed_evo_attention': False, 'use_lma': False, 'inplace_safe': True, 'debug_logging': False}
+278.5s 1358 [2025-05-16 00:05:03][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - [DEBUG][StageC] OmegaConf resolved device: cpu
+278.7s 1359 [DEBUG] type(stageC_full_config): <class 'omegaconf.dictconfig.DictConfig'>
+278.7s 1360 [DEBUG] stageC_full_config keys: ['model']
+278.7s 1361 [DEBUG] stageC_full_config['model'] keys: ['stageC']
+279.3s 1362 [2025-05-16 00:05:04][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - StageC completed: sequence=GGGGGCCACAGCAGAAGCGUUCACGUCGCGGCCCCUGUCAGCCAUUGCACUCCGGCUGCGAAUUCUGCU, residues=69, atoms=1465, coords_shape=torch.Size([1465, 3]), device=cpu, elapsed_time=0.24s
+279.6s 1363 [DEBUG][predict_3d_structure] sequence type: <class 'str'>, value: CGCCCGGAUAGCUCAGUCGGUAGAGCAGCGGCUAAAACAGCUCUGGGGUUGUACCCACCCCAGAGGCCCACGUGGCGGCUAGUACUCCGGUAUUGCGGUACCCUUGUACGCCUGUUUUAGCCGCGGGUCCAGGGUUCAAGUCCCUGUUCGGGCGCCA
+280.0s 1364 [2025-05-16 00:05:05][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][WARNING] - Output dim 7 matches num_angles 7. Assuming model outputs degrees directly. Verify model's output format.
+280.0s 1365 [2025-05-16 00:05:05][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][WARNING] - Values look like radians, converting to degrees.
+280.1s 1366 [2025-05-16 00:05:05][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - [DEBUG][StageC] stage_cfg.device: cpu (type: <class 'str'>)
+280.1s 1367 [2025-05-16 00:05:05][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - [DEBUG][StageC] Full stage_cfg: {'enabled': True, 'method': 'mp_nerf', 'device': 'cpu', 'do_ring_closure': True, 'place_bases': True, 'sugar_pucker': "C3'-endo", 'angle_representation': 'degrees', 'use_metadata': False, 'use_memory_efficient_kernel': False, 'use_deepspeed_evo_attention': False, 'use_lma': False, 'inplace_safe': True, 'debug_logging': False}
+280.1s 1368 [2025-05-16 00:05:05][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - [DEBUG][StageC] OmegaConf resolved device: cpu
+280.3s 1369 [DEBUG] type(stageC_full_config): <class 'omegaconf.dictconfig.DictConfig'>
+280.3s 1370 [DEBUG] stageC_full_config keys: ['model']
+280.3s 1371 [DEBUG] stageC_full_config['model'] keys: ['stageC']
+281.9s 1372 [2025-05-16 00:05:06][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - StageC completed: sequence=CGCCCGGAUAGCUCAGUCGGUAGAGCAGCGGCUAAAACAGCUCUGGGGUUGUACCCACCCCAGAGGCCCACGUGGCGGCUAGUACUCCGGUAUUGCGGUACCCUUGUACGCCUGUUUUAGCCGCGGGUCCAGGGUUCAAGUCCCUGUUCGGGCGCCA, residues=157, atoms=3339, coords_shape=torch.Size([3339, 3]), device=cpu, elapsed_time=0.54s
+282.2s 1373 [DEBUG][predict_3d_structure] sequence type: <class 'str'>, value: UUGGGUUCCCUCACCCCAAUCAUAAAAAGG
+282.6s 1374 [2025-05-16 00:05:07][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][WARNING] - Output dim 7 matches num_angles 7. Assuming model outputs degrees directly. Verify model's output format.
+282.6s 1375 [2025-05-16 00:05:07][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][WARNING] - Values look like radians, converting to degrees.
+282.7s 1376 [2025-05-16 00:05:07][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - [DEBUG][StageC] stage_cfg.device: cpu (type: <class 'str'>)
+282.7s 1377 [2025-05-16 00:05:07][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - [DEBUG][StageC] Full stage_cfg: {'enabled': True, 'method': 'mp_nerf', 'device': 'cpu', 'do_ring_closure': True, 'place_bases': True, 'sugar_pucker': "C3'-endo", 'angle_representation': 'degrees', 'use_metadata': False, 'use_memory_efficient_kernel': False, 'use_deepspeed_evo_attention': False, 'use_lma': False, 'inplace_safe': True, 'debug_logging': False}
+282.7s 1378 [2025-05-16 00:05:07][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - [DEBUG][StageC] OmegaConf resolved device: cpu
+282.8s 1379 [DEBUG] type(stageC_full_config): <class 'omegaconf.dictconfig.DictConfig'>
+282.8s 1380 [DEBUG] stageC_full_config keys: ['model']
+282.8s 1381 [DEBUG] stageC_full_config['model'] keys: ['stageC']
+283.0s 1382 [2025-05-16 00:05:07][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - StageC completed: sequence=UUGGGUUCCCUCACCCCAAUCAUAAAAAGG, residues=30, atoms=633, coords_shape=torch.Size([633, 3]), device=cpu, elapsed_time=0.10s
+283.2s 1383 [DEBUG][predict_3d_structure] sequence type: <class 'str'>, value: GGAAUCUCGCCCGAUGUUCGCAUCGGGAUUUGCAGGUCCAUGGAUUACACCAUGCAACGCAGACCUGUAGAUGCCACGCUAGCCGUGGUGAGGGUCGGGUCCAGAUGUCAUUCGACUUUAACGCGCCUAAGCGUUGAAGGCGUGUUAGAGCAGAUAGUUCGCUAUCUGGGGAGCCUGUUCGCAGGCUCAGGAGCCUUCGGGCUCCUAGCGCUAUUACCCCGGACACCACCGGGCAGACAAGUAAUGGUGCUCCUCGAAUGACUUCUGUUGAGUAGAGUGUGGGCUCCGCGGCUAGUGUGCACCUUAGCGGUGAAUGUCUGACACCGUUAAGGUGGUUACUCUUCGGAGUAACGCCGAGAUUCC
+283.7s 1384 [2025-05-16 00:05:08][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][WARNING] - Output dim 7 matches num_angles 7. Assuming model outputs degrees directly. Verify model's output format.
+283.7s 1385 [2025-05-16 00:05:08][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][WARNING] - Values look like radians, converting to degrees.
+283.7s 1386 [2025-05-16 00:05:08][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - [DEBUG][StageC] stage_cfg.device: cpu (type: <class 'str'>)
+283.7s 1387 [2025-05-16 00:05:08][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - [DEBUG][StageC] Full stage_cfg: {'enabled': True, 'method': 'mp_nerf', 'device': 'cpu', 'do_ring_closure': True, 'place_bases': True, 'sugar_pucker': "C3'-endo", 'angle_representation': 'degrees', 'use_metadata': False, 'use_memory_efficient_kernel': False, 'use_deepspeed_evo_attention': False, 'use_lma': False, 'inplace_safe': True, 'debug_logging': False}
+283.7s 1388 [2025-05-16 00:05:08][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - [DEBUG][StageC] OmegaConf resolved device: cpu
+283.9s 1389 [DEBUG] type(stageC_full_config): <class 'omegaconf.dictconfig.DictConfig'>
+283.9s 1390 [DEBUG] stageC_full_config keys: ['model']
+283.9s 1391 [DEBUG] stageC_full_config['model'] keys: ['stageC']
+287.8s 1392 [2025-05-16 00:05:12][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - StageC completed: sequence=GGAAUCUCGCCCGAUGUUCGCAUCGGGAUUUGCAGGUCCAUGGAUUACACCAUGCAACGCAGACCUGUAGAUGCCACGCUAGCCGUGGUGAGGGUCGGGUCCAGAUGUCAUUCGACUUUAACGCGCCUAAGCGUUGAAGGCGUGUUAGAGCAGAUAGUUCGCUAUCUGGGGAGCCUGUUCGCAGGCUCAGGAGCCUUCGGGCUCCUAGCGCUAUUACCCCGGACACCACCGGGCAGACAAGUAAUGGUGCUCCUCGAAUGACUUCUGUUGAGUAGAGUGUGGGCUCCGCGGCUAGUGUGCACCUUAGCGGUGAAUGUCUGACACCGUUAAGGUGGUUACUCUUCGGAGUAACGCCGAGAUUCC, residues=363, atoms=7736, coords_shape=torch.Size([7736, 3]), device=cpu, elapsed_time=1.30s
+288.2s 1393 [DEBUG][predict_3d_structure] sequence type: <class 'str'>, value: GGAAUAUCGUCAUGGUGAUUCGUCACCAUGAGGCUAGAUCUCAUAUCUAGCGCUUUCGAGCGCUAGAGUCCUUAUCUAGCCGGUUUAUACUUUCGAGUGUGAACCCGAUAUUCCGCGGAUCACUAUGAGUCGUUCGCGGCUCAUAGUCCGGCUCAAAGGACAUCAUGGCCUGUUCGCAGGUUGUGAUUAUGAGUGAGCCGGGUAAGGCAUACCGUUCGCGGUAUGUCUUACGAUCCGC
+288.7s 1394 [2025-05-16 00:05:13][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][WARNING] - Output dim 7 matches num_angles 7. Assuming model outputs degrees directly. Verify model's output format.
+288.7s 1395 [2025-05-16 00:05:13][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][WARNING] - Values look like radians, converting to degrees.
+288.7s 1396 [2025-05-16 00:05:13][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - [DEBUG][StageC] stage_cfg.device: cpu (type: <class 'str'>)
+288.7s 1397 [2025-05-16 00:05:13][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - [DEBUG][StageC] Full stage_cfg: {'enabled': True, 'method': 'mp_nerf', 'device': 'cpu', 'do_ring_closure': True, 'place_bases': True, 'sugar_pucker': "C3'-endo", 'angle_representation': 'degrees', 'use_metadata': False, 'use_memory_efficient_kernel': False, 'use_deepspeed_evo_attention': False, 'use_lma': False, 'inplace_safe': True, 'debug_logging': False}
+288.7s 1398 [2025-05-16 00:05:13][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - [DEBUG][StageC] OmegaConf resolved device: cpu
+288.9s 1399 [DEBUG] type(stageC_full_config): <class 'omegaconf.dictconfig.DictConfig'>
+288.9s 1400 [DEBUG] stageC_full_config keys: ['model']
+288.9s 1401 [DEBUG] stageC_full_config['model'] keys: ['stageC']
+291.3s 1402 [2025-05-16 00:05:16][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - StageC completed: sequence=GGAAUAUCGUCAUGGUGAUUCGUCACCAUGAGGCUAGAUCUCAUAUCUAGCGCUUUCGAGCGCUAGAGUCCUUAUCUAGCCGGUUUAUACUUUCGAGUGUGAACCCGAUAUUCCGCGGAUCACUAUGAGUCGUUCGCGGCUCAUAGUCCGGCUCAAAGGACAUCAUGGCCUGUUCGCAGGUUGUGAUUAUGAGUGAGCCGGGUAAGGCAUACCGUUCGCGGUAUGUCUUACGAUCCGC, residues=238, atoms=5050, coords_shape=torch.Size([5050, 3]), device=cpu, elapsed_time=0.83s
+291.6s 1403 [DEBUG][predict_3d_structure] sequence type: <class 'str'>, value: GGAUACGUCUACGCUCAGUGACGGACUCUCUUCGGAGAGUCUGACAUCCGAACCAUACACGGAUGUGCCUCGCCGAACAGUCUACGGCGAGCUUAAGCGCUGGGGACGCCCAACGCAUCACAAAGACUGAGUGAUGAACCAGAAGUAUGGACUGGUUGCGUUGGUGGAGACGGUCGGGUCCAGUUCGCUGUCGAGUAGAGUGUGGGCUCCAUCGACGCCGCUUUAAGGUCCCCAAUCGUGGCGUGUCGGCCUGCUUCGGCAGGCACUGGCGCCGGGACCUUGAAGAGAUGAGAUUUCGAUCUCAUCUUUGGGUGUCUCUGGUGCUUGAGGGCCCUGUGUUCGCACAGGGCCGCUCACUGGGUGUGGACGUAUCC
+292.1s 1404 [2025-05-16 00:05:17][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][WARNING] - Output dim 7 matches num_angles 7. Assuming model outputs degrees directly. Verify model's output format.
+292.1s 1405 [2025-05-16 00:05:17][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][WARNING] - Values look like radians, converting to degrees.
+292.1s 1406 [2025-05-16 00:05:17][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - [DEBUG][StageC] stage_cfg.device: cpu (type: <class 'str'>)
+292.1s 1407 [2025-05-16 00:05:17][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - [DEBUG][StageC] Full stage_cfg: {'enabled': True, 'method': 'mp_nerf', 'device': 'cpu', 'do_ring_closure': True, 'place_bases': True, 'sugar_pucker': "C3'-endo", 'angle_representation': 'degrees', 'use_metadata': False, 'use_memory_efficient_kernel': False, 'use_deepspeed_evo_attention': False, 'use_lma': False, 'inplace_safe': True, 'debug_logging': False}
+292.1s 1408 [2025-05-16 00:05:17][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - [DEBUG][StageC] OmegaConf resolved device: cpu
+292.3s 1409 [DEBUG] type(stageC_full_config): <class 'omegaconf.dictconfig.DictConfig'>
+292.3s 1410 [DEBUG] stageC_full_config keys: ['model']
+292.3s 1411 [DEBUG] stageC_full_config['model'] keys: ['stageC']
+296.3s 1412 [2025-05-16 00:05:21][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - StageC completed: sequence=GGAUACGUCUACGCUCAGUGACGGACUCUCUUCGGAGAGUCUGACAUCCGAACCAUACACGGAUGUGCCUCGCCGAACAGUCUACGGCGAGCUUAAGCGCUGGGGACGCCCAACGCAUCACAAAGACUGAGUGAUGAACCAGAAGUAUGGACUGGUUGCGUUGGUGGAGACGGUCGGGUCCAGUUCGCUGUCGAGUAGAGUGUGGGCUCCAUCGACGCCGCUUUAAGGUCCCCAAUCGUGGCGUGUCGGCCUGCUUCGGCAGGCACUGGCGCCGGGACCUUGAAGAGAUGAGAUUUCGAUCUCAUCUUUGGGUGUCUCUGGUGCUUGAGGGCCCUGUGUUCGCACAGGGCCGCUCACUGGGUGUGGACGUAUCC, residues=374, atoms=7983, coords_shape=torch.Size([7983, 3]), device=cpu, elapsed_time=1.30s
+296.7s 1413 [DEBUG][predict_3d_structure] sequence type: <class 'str'>, value: GGGAGAGUACUAUUCAGAUGCAGACCGCAAGUUCAGAGCGGUUUGCAUCUAGGGUACGUUUUCGAACGUAUCCUCCGACUAAGUGUAUUCGUAUACUUAGUGCCUUGUGCCUGCUUCGGCAGGCAUGACCCAAAUGUGCCUUUCGGGGCACAUUUCCGGUCAUCCAAGUUCGCUUGGGUGAUGCGGGCGUAUAGGUUCGUCUAUACGUCCGCGUUUUCCGAGAAGAGGUAACUCGGGAAACCGGUCCACGUGACAAAGGUAGAGUUACGUGGAGGGAGCAGCUGCAAAGGGAUAAUGCAGUUGCUGGCUGGAUGCCAGAACUCACGACUGGCAUCUACGGGGAUGGUGCUCUCCCAAUUCUCCAUUUACCGCCGAAUCGACCCCAACGUGAGAGGGGUCGGUUCCCCGAGCAUAGACCAAUAUCCCAGGUUUAUGCUCCCCAACGCUGGACGAACUACCUACGUCUAGCGUUCCGGCAAAUGAGUCAAUACCUCAGACUUAUUUGCGGUGCCUGAGCCUAAACUGAACAUGGGUUCAGGCAUCUUGGCUCCAGUUCGCUGGAGCCGACGGUAGCGCUGCGUUCGCGCAGUGCUAGGGAGCAUCCGUUUUCGAGCGGAUGCUGGGCGGUUGCCUGUUCGCAGGCAAUCGGGCCUACUCAUGAUUCGUCAUGAGUGGUGACAGCGUGAUGUUCGCAUUACGCUGUCGGGUAGAUGGAGAAUU
+297.2s 1414 [2025-05-16 00:05:22][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][ERROR] - [UNIQUE-ERR-TORSIONBERT-BRIDGE-PAD] Output too short: padded from 511 to 720
+297.2s 1415 [2025-05-16 00:05:22][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][WARNING] - Output dim 7 matches num_angles 7. Assuming model outputs degrees directly. Verify model's output format.
+297.2s 1416 [2025-05-16 00:05:22][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][WARNING] - Values look like radians, converting to degrees.
+297.2s 1417 [2025-05-16 00:05:22][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - [DEBUG][StageC] stage_cfg.device: cpu (type: <class 'str'>)
+297.2s 1418 [2025-05-16 00:05:22][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - [DEBUG][StageC] Full stage_cfg: {'enabled': True, 'method': 'mp_nerf', 'device': 'cpu', 'do_ring_closure': True, 'place_bases': True, 'sugar_pucker': "C3'-endo", 'angle_representation': 'degrees', 'use_metadata': False, 'use_memory_efficient_kernel': False, 'use_deepspeed_evo_attention': False, 'use_lma': False, 'inplace_safe': True, 'debug_logging': False}
+297.2s 1419 [2025-05-16 00:05:22][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - [DEBUG][StageC] OmegaConf resolved device: cpu
+297.4s 1420 [DEBUG] type(stageC_full_config): <class 'omegaconf.dictconfig.DictConfig'>
+297.4s 1421 [DEBUG] stageC_full_config keys: ['model']
+297.4s 1422 [DEBUG] stageC_full_config['model'] keys: ['stageC']
+305.9s 1423 [2025-05-16 00:05:30][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - StageC completed: sequence=GGGAGAGUACUAUUCAGAUGCAGACCGCAAGUUCAGAGCGGUUUGCAUCUAGGGUACGUUUUCGAACGUAUCCUCCGACUAAGUGUAUUCGUAUACUUAGUGCCUUGUGCCUGCUUCGGCAGGCAUGACCCAAAUGUGCCUUUCGGGGCACAUUUCCGGUCAUCCAAGUUCGCUUGGGUGAUGCGGGCGUAUAGGUUCGUCUAUACGUCCGCGUUUUCCGAGAAGAGGUAACUCGGGAAACCGGUCCACGUGACAAAGGUAGAGUUACGUGGAGGGAGCAGCUGCAAAGGGAUAAUGCAGUUGCUGGCUGGAUGCCAGAACUCACGACUGGCAUCUACGGGGAUGGUGCUCUCCCAAUUCUCCAUUUACCGCCGAAUCGACCCCAACGUGAGAGGGGUCGGUUCCCCGAGCAUAGACCAAUAUCCCAGGUUUAUGCUCCCCAACGCUGGACGAACUACCUACGUCUAGCGUUCCGGCAAAUGAGUCAAUACCUCAGACUUAUUUGCGGUGCCUGAGCCUAAACUGAACAUGGGUUCAGGCAUCUUGGCUCCAGUUCGCUGGAGCCGACGGUAGCGCUGCGUUCGCGCAGUGCUAGGGAGCAUCCGUUUUCGAGCGGAUGCUGGGCGGUUGCCUGUUCGCAGGCAAUCGGGCCUACUCAUGAUUCGUCAUGAGUGGUGACAGCGUGAUGUUCGCAUUACGCUGUCGGGUAGAUGGAGAAUU, residues=720, atoms=15337, coords_shape=torch.Size([15337, 3]), device=cpu, elapsed_time=3.06s
+306.4s 1424 [DEBUG][predict_3d_structure] sequence type: <class 'str'>, value: GGACACGAGUAACUCGUCUAUCUUCUGCAGGCUGCUUACGGUUUCGUCCGUGUUGCAGCCGAUCAUCAGCACAUCUAGGUUUCGUCCGGGUGUGACCGAAAGGUAAGAUGGAGAGCCUUGUCCC
+306.9s 1425 [2025-05-16 00:05:31][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][WARNING] - Output dim 7 matches num_angles 7. Assuming model outputs degrees directly. Verify model's output format.
+306.9s 1426 [2025-05-16 00:05:31][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][WARNING] - Values look like radians, converting to degrees.
+306.9s 1427 [2025-05-16 00:05:31][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - [DEBUG][StageC] stage_cfg.device: cpu (type: <class 'str'>)
+306.9s 1428 [2025-05-16 00:05:31][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - [DEBUG][StageC] Full stage_cfg: {'enabled': True, 'method': 'mp_nerf', 'device': 'cpu', 'do_ring_closure': True, 'place_bases': True, 'sugar_pucker': "C3'-endo", 'angle_representation': 'degrees', 'use_metadata': False, 'use_memory_efficient_kernel': False, 'use_deepspeed_evo_attention': False, 'use_lma': False, 'inplace_safe': True, 'debug_logging': False}
+306.9s 1429 [2025-05-16 00:05:31][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - [DEBUG][StageC] OmegaConf resolved device: cpu
+307.1s 1430 [DEBUG] type(stageC_full_config): <class 'omegaconf.dictconfig.DictConfig'>
+307.1s 1431 [DEBUG] stageC_full_config keys: ['model']
+307.1s 1432 [DEBUG] stageC_full_config['model'] keys: ['stageC']
+308.3s 1433 [2025-05-16 00:05:33][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - StageC completed: sequence=GGACACGAGUAACUCGUCUAUCUUCUGCAGGCUGCUUACGGUUUCGUCCGUGUUGCAGCCGAUCAUCAGCACAUCUAGGUUUCGUCCGGGUGUGACCGAAAGGUAAGAUGGAGAGCCUUGUCCC, residues=124, atoms=2633, coords_shape=torch.Size([2633, 3]), device=cpu, elapsed_time=0.44s
+308.6s 1434 [DEBUG][predict_3d_structure] sequence type: <class 'str'>, value: GGAGCAUCGUGUCUCAAGUGCUUCACGGUCACAAUAUACCGUUUCGUCGGGUGCGUGGCAAUUCGGUGCACAUCAUGUCUUUCGUGGCUGGUGUGGCUCCUCAAGGUGCGAGGGGCAAGUAUAGAGCAGAGCUCC
+309.1s 1435 [2025-05-16 00:05:34][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][WARNING] - Output dim 7 matches num_angles 7. Assuming model outputs degrees directly. Verify model's output format.
+309.1s 1436 [2025-05-16 00:05:34][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][WARNING] - Values look like radians, converting to degrees.
+309.1s 1437 [2025-05-16 00:05:34][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - [DEBUG][StageC] stage_cfg.device: cpu (type: <class 'str'>)
+309.1s 1438 [2025-05-16 00:05:34][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - [DEBUG][StageC] Full stage_cfg: {'enabled': True, 'method': 'mp_nerf', 'device': 'cpu', 'do_ring_closure': True, 'place_bases': True, 'sugar_pucker': "C3'-endo", 'angle_representation': 'degrees', 'use_metadata': False, 'use_memory_efficient_kernel': False, 'use_deepspeed_evo_attention': False, 'use_lma': False, 'inplace_safe': True, 'debug_logging': False}
+309.1s 1439 [2025-05-16 00:05:34][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - [DEBUG][StageC] OmegaConf resolved device: cpu
+309.3s 1440 [DEBUG] type(stageC_full_config): <class 'omegaconf.dictconfig.DictConfig'>
+309.3s 1441 [DEBUG] stageC_full_config keys: ['model']
+309.3s 1442 [DEBUG] stageC_full_config['model'] keys: ['stageC']
+310.6s 1443 [2025-05-16 00:05:35][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - StageC completed: sequence=GGAGCAUCGUGUCUCAAGUGCUUCACGGUCACAAUAUACCGUUUCGUCGGGUGCGUGGCAAUUCGGUGCACAUCAUGUCUUUCGUGGCUGGUGUGGCUCCUCAAGGUGCGAGGGGCAAGUAUAGAGCAGAGCUCC, residues=135, atoms=2879, coords_shape=torch.Size([2879, 3]), device=cpu, elapsed_time=0.47s
+310.9s 1444 [DEBUG][predict_3d_structure] sequence type: <class 'str'>, value: GCGUACAGGGAACACGCAACCCCGAAGGAUCGGGGAAGGGACGUCGCCAGGGAGGCGAUUCCAUCAGGAUGAUGACGAGGGACUGAAGAGUGGGCGGGGUAAUACCCCGCCCCUUUUU
+311.4s 1445 [2025-05-16 00:05:36][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][WARNING] - Output dim 7 matches num_angles 7. Assuming model outputs degrees directly. Verify model's output format.
+311.4s 1446 [2025-05-16 00:05:36][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][WARNING] - Values look like radians, converting to degrees.
+311.4s 1447 [2025-05-16 00:05:36][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - [DEBUG][StageC] stage_cfg.device: cpu (type: <class 'str'>)
+311.4s 1448 [2025-05-16 00:05:36][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - [DEBUG][StageC] Full stage_cfg: {'enabled': True, 'method': 'mp_nerf', 'device': 'cpu', 'do_ring_closure': True, 'place_bases': True, 'sugar_pucker': "C3'-endo", 'angle_representation': 'degrees', 'use_metadata': False, 'use_memory_efficient_kernel': False, 'use_deepspeed_evo_attention': False, 'use_lma': False, 'inplace_safe': True, 'debug_logging': False}
+311.4s 1449 [2025-05-16 00:05:36][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - [DEBUG][StageC] OmegaConf resolved device: cpu
+311.6s 1450 [DEBUG] type(stageC_full_config): <class 'omegaconf.dictconfig.DictConfig'>
+311.6s 1451 [DEBUG] stageC_full_config keys: ['model']
+311.6s 1452 [DEBUG] stageC_full_config['model'] keys: ['stageC']
+312.7s 1453 [2025-05-16 00:05:37][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - StageC completed: sequence=GCGUACAGGGAACACGCAACCCCGAAGGAUCGGGGAAGGGACGUCGCCAGGGAGGCGAUUCCAUCAGGAUGAUGACGAGGGACUGAAGAGUGGGCGGGGUAAUACCCCGCCCCUUUUU, residues=118, atoms=2547, coords_shape=torch.Size([2547, 3]), device=cpu, elapsed_time=0.42s
+313.0s 1454 [DEBUG][predict_3d_structure] sequence type: <class 'str'>, value: GCGUACAGGGAACACGCAACCCCGAAGGAUCGGGGAAGGGACGUCGCCAGGGAGGCGAUUCCAUCAGGAUGAUGACGAGGGACUGAAGAGUGGGCGGGGUAAUACCCCGCCCCUUUUU
+313.5s 1455 [2025-05-16 00:05:38][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][WARNING] - Output dim 7 matches num_angles 7. Assuming model outputs degrees directly. Verify model's output format.
+313.5s 1456 [2025-05-16 00:05:38][rna_predict.pipeline.stageB.torsion.torsion_bert_predictor][WARNING] - Values look like radians, converting to degrees.
+313.5s 1457 [2025-05-16 00:05:38][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - [DEBUG][StageC] stage_cfg.device: cpu (type: <class 'str'>)
+313.5s 1458 [2025-05-16 00:05:38][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - [DEBUG][StageC] Full stage_cfg: {'enabled': True, 'method': 'mp_nerf', 'device': 'cpu', 'do_ring_closure': True, 'place_bases': True, 'sugar_pucker': "C3'-endo", 'angle_representation': 'degrees', 'use_metadata': False, 'use_memory_efficient_kernel': False, 'use_deepspeed_evo_attention': False, 'use_lma': False, 'inplace_safe': True, 'debug_logging': False}
+313.5s 1459 [2025-05-16 00:05:38][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - [DEBUG][StageC] OmegaConf resolved device: cpu
+313.7s 1460 [DEBUG] type(stageC_full_config): <class 'omegaconf.dictconfig.DictConfig'>
+313.7s 1461 [DEBUG] stageC_full_config keys: ['model']
+313.7s 1462 [DEBUG] stageC_full_config['model'] keys: ['stageC']
+314.8s 1463 [2025-05-16 00:05:39][rna_predict.pipeline.stageC.stage_c_reconstruction][INFO] - StageC completed: sequence=GCGUACAGGGAACACGCAACCCCGAAGGAUCGGGGAAGGGACGUCGCCAGGGAGGCGAUUCCAUCAGGAUGAUGACGAGGGACUGAAGAGUGGGCGGGGUAAUACCCCGCCCCUUUUU, residues=118, atoms=2547, coords_shape=torch.Size([2547, 3]), device=cpu, elapsed_time=0.41s
+315.0s 1464 All done! Submit 'submission.csv' to the competition.
+315.0s 1465 
+315.0s 1466 📂  Listing the first two levels of /kaggle/working …
+315.0s 1467 
+315.0s 1468 /kaggle/working/rna_torsionBERT
+315.0s 1469 /kaggle/working/__notebook__.ipynb
+315.0s 1470 /kaggle/working/zhihan1996
+315.0s 1471 /kaggle/working/zhihan1996/DNA_bert_3
+315.0s 1472 /kaggle/working/block_sparse_attn-0.0.1+cu118torch2.0-cp310-cp310-linux_x86_64.whl
+315.0s 1473 /kaggle/working/submission.csv
+315.0s 1474 
+315.0s 1475 ✅  Done.
+315.0s 1476 
+315.1s 1477 
+315.1s 1478 ━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+315.1s 1479 Expected rows        : 2,515
+315.1s 1480 submission.csv rows  : 2,515
+315.1s 1481 Duplicate 'ID' rows : 0
+315.1s 1482 
+315.1s 1483 ━━ ID reconciliation ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+315.1s 1484 IDs missing from submission : 0
+315.1s 1485 Unexpected extra IDs        : 0
+315.1s 1486 
+315.1s 1487 ━━ Per-sequence coverage ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+315.1s 1488 Sequences with wrong #rows : 0
+315.1s 1489 
+315.1s 1490 ━━ Column sanity ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+315.1s 1491 Missing required columns   : 0
+315.1s 1492 
+315.1s 1493 ✅  Sanity check finished.
+320.7s 1494 /usr/local/lib/python3.10/dist-packages/traitlets/traitlets.py:2915: FutureWarning: --Exporter.preprocessors=["remove_papermill_header.RemovePapermillHeader"] for containers is deprecated in traitlets 5.0. You can pass `--Exporter.preprocessors item` ... multiple times to add items to a list.
+320.7s 1495 warn(
+320.7s 1496 [NbConvertApp] Converting notebook __notebook__.ipynb to notebook
+321.1s 1497 [NbConvertApp] Writing 228937 bytes to __notebook__.ipynb
+322.4s 1498 /usr/local/lib/python3.10/dist-packages/traitlets/traitlets.py:2915: FutureWarning: --Exporter.preprocessors=["nbconvert.preprocessors.ExtractOutputPreprocessor"] for containers is deprecated in traitlets 5.0. You can pass `--Exporter.preprocessors item` ... multiple times to add items to a list.
+322.4s 1499 warn(
+322.5s 1500 [NbConvertApp] Converting notebook __notebook__.ipynb to html
+323.4s 1501 [NbConvertApp] Support files will be in __results___files/
+323.4s 1502 [NbConvertApp] Making directory __results___files
+323.4s 1503 [NbConvertApp] Writing 575900 bytes to __results__.html
