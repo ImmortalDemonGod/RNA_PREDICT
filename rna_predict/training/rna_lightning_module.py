@@ -174,9 +174,9 @@ class RNALightningModule(L.LightningModule):
 
     def _instantiate_pipeline(self, cfg):
         """
-        Instantiates all pipeline stages and supporting modules using the provided configuration.
+        Initializes all RNA_PREDICT pipeline stages and supporting modules using the provided configuration.
         
-        Initializes each stage of the RNA_PREDICT pipeline as module attributes, ensuring all components are constructed on the explicitly specified device. Handles checkpoint directory creation, downloading, and extraction for Stage A if required. Validates the presence of essential configuration keys and raises errors for missing components. Aggregates all stages into a ModuleDict for unified parameter management.
+        Creates and configures each pipeline stage as a module attribute, ensuring correct device placement and handling checkpoint management for Stage A. Validates required configuration keys, raises errors for missing components, and aggregates all stages into a ModuleDict for unified parameter management.
         """
         logger.debug("[DEBUG-LM] torch.cuda.is_available(): %s", torch.cuda.is_available())
         logger.debug("[DEBUG-LM] torch.backends.mps.is_available(): %s", getattr(torch.backends, 'mps', None) and torch.backends.mps.is_available())
@@ -290,15 +290,15 @@ class RNALightningModule(L.LightningModule):
     ##@snoop
     def forward(self, batch, **kwargs):
         """
-        Runs a forward pass through the full RNA_PREDICT pipeline for a given batch.
+        Runs a forward pass through the RNA_PREDICT pipeline for a given batch.
         
-        In integration test mode, returns dummy outputs matching the expected structure. Otherwise, processes the input batch through all pipeline stages: predicts torsion angles and embeddings, reconstructs 3D coordinates, merges latent representations, and returns a dictionary containing all intermediate and final outputs. Ensures all tensors are placed on the configured device and propagates atom metadata if available.
+        In integration test mode, returns dummy outputs with the expected structure. In normal mode, processes the input batch through all pipeline stages: predicts torsion angles and embeddings, reconstructs 3D coordinates, merges latent representations, and returns a dictionary containing intermediate and final outputs. Ensures all tensors are placed on the configured device and propagates atom metadata and atom count if available.
         
         Args:
-            batch: Input data containing sequence, adjacency, and required features.
+            batch: Input data containing at least 'sequence' and 'adjacency' keys.
         
         Returns:
-            A dictionary with keys including 'adjacency', 'torsion_angles', 's_embeddings', 'z_embeddings', 'coords', 'unified_latent', and optionally 'atom_metadata' and 'atom_count'.
+            A dictionary with keys including 'adjacency', 'torsion_angles', 's_embeddings', 'z_embeddings', 'coords', 'unified_latent', and, if present, 'atom_metadata' and 'atom_count'.
         """
         logger.debug("[DEBUG-ENTRY] Entered forward")
         
@@ -471,6 +471,11 @@ class RNALightningModule(L.LightningModule):
     ##@snoop
     def training_step(self, batch, batch_idx):
         # Early exit to skip forward when Stage D is disabled
+        """
+        Performs a single training step, computing loss and managing the full RNA_PREDICT pipeline.
+        
+        Runs the forward pass, computes torsion angle loss, and, if enabled, prepares and executes Stage D with noise injection and residue-to-atom bridging. Supports streamlined training mode combining torsion and coordinate losses. Handles device placement, tensor alignment, and robust error fallback for missing or malformed batch data. Returns a dictionary containing the computed loss and, if applicable, Stage D results.
+        """
         if not self.cfg.run_stageD:
             # Early exit: zero loss with gradient path through all model parameters
             loss_override = sum((p.sum() - p.sum()) for p in self.parameters())
@@ -484,6 +489,11 @@ class RNALightningModule(L.LightningModule):
 
         if hasattr(self, 'debug_logging') and self.debug_logging:
             def check_batch_devices(obj, prefix):
+                """
+                Recursively logs the device placement of all tensors within a nested structure.
+                
+                Traverses dictionaries, lists, and tuples, logging the device of each tensor found, with a prefix indicating its location in the structure.
+                """
                 if isinstance(obj, dict):
                     for k, v in obj.items():
                         check_batch_devices(v, f"{prefix}.{k}")
@@ -507,6 +517,13 @@ class RNALightningModule(L.LightningModule):
                         print_tensor_devices(v, f"{prefix}[{i}]")
             print_tensor_devices(batch, "batch")
             def log_param_devices(module, name):
+                """
+                Logs the device placement of all parameters within a given module.
+                
+                Args:
+                    module: The module whose parameters' devices will be logged.
+                    name: A label used to identify the module in the log output.
+                """
                 for pname, param in module.named_parameters(recurse=True):
                     logger.info(f"[DEVICE-DEBUG][training_step][{name}] Parameter: {pname}, device: {getattr(param, 'device', 'NO DEVICE')}")
             log_param_devices(self.stageA, 'stageA')

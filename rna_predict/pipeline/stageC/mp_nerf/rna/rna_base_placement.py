@@ -22,17 +22,19 @@ def place_rna_bases(
     debug_logging: bool = False,
 ) -> torch.Tensor:
     """
-    Place base atoms for each residue in the RNA sequence.
-
+    Generates 3D coordinates for all atoms (backbone and base) of each residue in an RNA sequence.
+    
+    Given backbone atom coordinates and an RNA sequence, this function computes the positions of all atoms—including both backbone and base atoms—for each residue, using geometric constraints and connectivity information. It performs robust error checking for unknown residues, NaN values, and degenerate reference configurations, and handles special placement logic for phosphate oxygen atoms. The output tensor contains the full atomic coordinates for the entire RNA sequence.
+    
     Args:
-        backbone_coords: Tensor of shape [L, B, 3] containing backbone coordinates
-        seq: RNA sequence
-        angles_mask: Tensor of shape [2, L, B] containing angle masks
-        device: Device to place tensors on
-        debug_logging: Flag to control debug print statements
-
+        backbone_coords: Tensor of shape [L, B, 3] containing backbone atom coordinates for L residues.
+        seq: RNA sequence string.
+        angles_mask: Tensor of shape [2, L, B] containing angle masks (not directly used in placement).
+        device: Device identifier for tensor placement.
+        debug_logging: If True, enables debug print statements.
+    
     Returns:
-        Tensor of shape [L, max_atoms, 3] containing all atom coordinates
+        Tensor of shape [L, max_atoms, 3] containing coordinates for all atoms (backbone and base) for each residue.
     """
     # Validate input
     if not isinstance(backbone_coords, torch.Tensor):

@@ -24,8 +24,7 @@ def convert_cif_to_pdb(cif_file):
     """
     Converts a CIF structure file to a temporary PDB file.
     
-    Parses the input CIF file and writes its structure to a new temporary PDB file.
-    Returns the path to the generated PDB file.
+    Parses the given CIF file and writes its structure to a newly created temporary PDB file. Returns the path to the generated PDB file.
     """
     parser = MMCIFParser(QUIET=True)
     structure = parser.get_structure("mmcif_structure", cif_file)
@@ -38,6 +37,11 @@ def convert_cif_to_pdb(cif_file):
 
 
 def get_first_chain_id(structure_file):
+    """
+    Returns the first valid chain identifier from a PDB or CIF structure file.
+    
+    If the input file is in CIF format, it is temporarily converted to PDB before extracting chain IDs. Chain identifiers are collected from both chainIDs and segids attributes. Returns None if no valid chain ID is found or if the file cannot be processed.
+    """
     import os
     _, ext = os.path.splitext(structure_file)
     ext = ext.lower()
@@ -70,6 +74,11 @@ def get_first_chain_id(structure_file):
 
 
 def test_torsion_angle_extraction_speed_and_memory():
+    """
+    Benchmarks the speed and memory usage of RNA torsion angle extraction on example structure files.
+    
+    Iterates over all example PDB and CIF files, determines the first valid chain ID, and measures the execution time and, if available, peak memory usage of the `extract_rna_torsions` function using the 'mdanalysis' backend. Prints per-file and summary statistics, including extraction times, memory usage, and counts of successful and failed extractions.
+    """
     times = []
     peak_mems = []
     successes = 0

@@ -26,11 +26,9 @@ class TestRNAPredictorMpNerfNaN(unittest.TestCase):
 
     def setUp(self):
         """
-        Set up the RNAPredictor with mp_nerf enabled for Stage C.
-        Uses the default TorsionBERT model path ('sayby/rna_torsionbert').
-        Tests run on CPU for portability unless CUDA is explicitly available and desired.
-
-        Memory optimization settings are enabled to reduce memory usage.
+        Initializes the RNAPredictor with Stage C configured to use the 'mp_nerf' method.
+        
+        Sets up the test environment with Hydra-based configuration, enabling memory optimization and specifying model parameters for reproducible testing. Ensures the predictor is ready for tests that check for NaN or infinite values in predicted RNA coordinates.
         """
         import gc
         from hydra import initialize_config_dir, compose # Import Hydra utilities

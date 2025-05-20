@@ -124,7 +124,7 @@ class TestStageBTorsionBertPredictorVerification:
 
     def test_instantiation(self, mock_predictor):
         """
-        Verify successful instantiation of StageBTorsionBertPredictor.
+        Tests that the StageBTorsionBertPredictor can be instantiated with the expected configuration and attributes.
         """
         original_env_var = os.environ.get("ALLOW_NUM_ANGLES_7_FOR_TESTS")
         os.environ["ALLOW_NUM_ANGLES_7_FOR_TESTS"] = "1"
@@ -148,7 +148,9 @@ class TestStageBTorsionBertPredictorVerification:
     @pytest.mark.skip(reason="Flaky in full suite: skipping until stable")
     def test_callable_interface(self, mock_predictor):
         """
-        Property-based: Verify callable functionality via __call__(sequence, adjacency=None) method, with unique error codes.
+        Property-based test verifying the predictor's callable interface with sequence and optional adjacency.
+        
+        This test checks that calling the predictor with a random RNA sequence (and optionally an adjacency matrix) returns a dictionary containing a "torsion_angles" tensor of the expected shape. Unique error codes are used for assertion failures to aid debugging.
         """
         original_env_var = os.environ.get("ALLOW_NUM_ANGLES_7_FOR_TESTS")
         os.environ["ALLOW_NUM_ANGLES_7_FOR_TESTS"] = "1"
@@ -158,6 +160,11 @@ class TestStageBTorsionBertPredictorVerification:
                 use_adjacency=st.booleans()
             )
             def check_callable(sequence, use_adjacency):
+                """
+                Checks that the mock predictor's callable interface returns valid output for a given sequence.
+                
+                Calls the mock predictor with or without an adjacency matrix and asserts that the output is a dictionary containing a "torsion_angles" tensor of the expected shape.
+                """
                 try:
                     if use_adjacency and len(sequence) > 0:
                         adjacency = torch.zeros((len(sequence), len(sequence)))
@@ -183,13 +190,22 @@ class TestStageBTorsionBertPredictorVerification:
     @pytest.mark.skip(reason="Flaky in full suite: skipping until stable")
     def test_output_validation(self, mock_predictor):
         """
-        Property-based: Validate the output of the predictor with unique error codes.
+        Validates that the predictor's output for random RNA sequences is a dictionary containing a torsion angle tensor of correct shape and value range.
+        
+        This property-based test checks that the output tensor has shape `[sequence_length, 14]`, contains no NaN or Inf values, and, for `sin_cos` mode, all values are within [-1, 1]. Unique error codes are used for assertion failures.
         """
         original_env_var = os.environ.get("ALLOW_NUM_ANGLES_7_FOR_TESTS")
         os.environ["ALLOW_NUM_ANGLES_7_FOR_TESTS"] = "1"
         try:
             @given(st.text(alphabet="ACGU", min_size=1, max_size=16))
             def check_output(sequence):
+                """
+                Validates the output of the mock_predictor for a given RNA sequence.
+                
+                Checks that the output is a dictionary containing a "torsion_angles" tensor of shape
+                (sequence length, 14), with values in the range [-1, 1] for "sin_cos" mode, and ensures
+                there are no NaN or Inf values. Fails the test with a unique error code if any check fails.
+                """
                 try:
                     result = mock_predictor(sequence)
                 except Exception as e:
@@ -215,13 +231,27 @@ class TestStageBTorsionBertPredictorVerification:
 
     def test_functional_end_to_end(self, mock_predictor):
         """
-        Property-based: Execute predictor with test sequences to verify end-to-end operation, with unique error codes.
+        Runs property-based end-to-end tests on the predictor using random RNA sequences.
+        
+        For each generated list of RNA sequences, verifies that the predictor returns a dictionary
+        containing a "torsion_angles" tensor of the correct shape for each sequence. Unique error
+        codes are included in assertion messages for easier debugging.
         """
         original_env_var = os.environ.get("ALLOW_NUM_ANGLES_7_FOR_TESTS")
         os.environ["ALLOW_NUM_ANGLES_7_FOR_TESTS"] = "1"
         try:
             @given(sequences=st.lists(st.text(alphabet="ACGU", min_size=1, max_size=16), min_size=1, max_size=6))
             def check_end_to_end(sequences):
+                """
+                Runs end-to-end validation of the mock predictor on a list of RNA sequences.
+                
+                For each sequence, calls the mock predictor and asserts that the output is a dictionary
+                containing a "torsion_angles" key with a tensor of shape (sequence length, 14).
+                Fails the test with a unique error code if any assertion or prediction fails.
+                
+                Args:
+                    sequences: List of RNA sequences to test.
+                """
                 for seq in sequences:
                     try:
                         result = mock_predictor(seq)
@@ -242,12 +272,9 @@ class TestStageBTorsionBertPredictorVerification:
     @pytest.mark.skip(reason="Flaky in full suite: skipping until stable")
     def test_angle_mode_conversion(self):
         """
-        Test that the angle_mode parameter correctly affects the output shape and values.
-
-        This test verifies that the StageBTorsionBertPredictor correctly handles different angle modes
-        and performs the appropriate conversions between sin/cos pairs and angle values in radians or degrees.
-
-        # ERROR_ID: TORSIONBERT_ANGLE_MODE_CONVERSION
+        Verifies that the angle_mode parameter determines the output tensor shape for each mode.
+        
+        This test checks that StageBTorsionBertPredictor produces output tensors with the correct dimensions for 'sin_cos', 'radians', and 'degrees' angle modes, ensuring proper conversion and handling of torsion angle representations.
         """
         original_env_var = os.environ.get("ALLOW_NUM_ANGLES_7_FOR_TESTS")
         os.environ["ALLOW_NUM_ANGLES_7_FOR_TESTS"] = "1"
@@ -363,20 +390,9 @@ class TestStageBTorsionBertPredictorVerification:
     @settings(deadline=300000) # Set a 5-minute deadline for this test
     def test_real_model_if_available(self, real_predictor):
         """
-        Test with the real model if it's available.
-        This test will be skipped if the model can't be loaded.
-
-        Note: This test is currently skipped because it hangs or takes too long to run.
-        The issue might be related to the TorsionBERT model availability or
-        the test environment. Further investigation is needed.
-
-        Possible issues:
-        1. The model 'sayby/rna_torsionbert' is not available or accessible
-        2. Network connectivity issues when trying to download the model
-        3. Memory limitations when loading the model
-        4. Timeout issues during model initialization
-
-        [ERR-TORSIONBERT-TIMEOUT-001]
+        Tests the real StageBTorsionBertPredictor model on a sample RNA sequence if available.
+        
+        If the real model cannot be loaded, the test is skipped. Validates that the output is a dictionary containing a "torsion_angles" tensor with the correct shape and no NaN or Inf values. The expected output shape depends on the angle mode.
         """
         if real_predictor is None:
             pytest.skip("Real model not available")

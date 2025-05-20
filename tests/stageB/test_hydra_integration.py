@@ -144,7 +144,14 @@ def test_stageB_pairformer_hydra_config(
 
 
 def test_stageB_torsion_bert_default_config(monkeypatch):
-    """Test that TorsionBERT uses default configuration values when not specified."""
+    """
+    Tests that StageBTorsionBertPredictor correctly applies default configuration values,
+    including when `num_angles` is set to 7 and the relevant environment variable is enabled.
+    
+    Temporarily sets the `ALLOW_NUM_ANGLES_7_FOR_TESTS` environment variable to allow
+    testing with `num_angles=7`, mocks model and tokenizer loading, and verifies that
+    the predictor's attributes match the provided minimal configuration.
+    """
     original_env_var = os.environ.get("ALLOW_NUM_ANGLES_7_FOR_TESTS")
     os.environ["ALLOW_NUM_ANGLES_7_FOR_TESTS"] = "1"
     try:
@@ -156,6 +163,12 @@ def test_stageB_torsion_bert_default_config(monkeypatch):
         # Create dummy tokenizer class (not a MagicMock)
         class DummyTokenizer:
             def __call__(self, *args, **kwargs):
+                """
+                Returns a dummy input dictionary with zeroed input IDs and an attention mask of ones.
+                
+                Returns:
+                    dict: A dictionary containing 'input_ids' and 'attention_mask' tensors.
+                """
                 return {"input_ids": torch.zeros((1, 8), dtype=torch.long), "attention_mask": torch.ones((1, 8), dtype=torch.long)}
 
         mock_tokenizer = DummyTokenizer()
@@ -205,7 +218,9 @@ def test_stageB_torsion_bert_default_config(monkeypatch):
 
 
 def test_stageB_missing_config_section():
-    """Test that appropriate error is raised when config section is missing."""
+    """
+    Tests that initializing StageBTorsionBertPredictor or PairformerWrapper with a config missing required sections raises a ValueError with the expected error message.
+    """
     # Create a config without the required section
     test_config = OmegaConf.create({
         "model": {

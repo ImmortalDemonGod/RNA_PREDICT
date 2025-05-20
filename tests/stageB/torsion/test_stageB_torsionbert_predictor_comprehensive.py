@@ -511,9 +511,17 @@ class TestStageBTorsionBertPredictorDimChecks:
 
     def test_shape_mismatch_raises(self):
         """
-        Test that a shape mismatch raises a RuntimeError with unique error code.
+        Tests that a shape mismatch in predicted angles raises a RuntimeError with a unique error code.
+        
+        This test replaces the predictor's angle prediction method to return a tensor with an odd number of columns, ensuring that the predictor detects the mismatch and raises the expected error.
         """
         def raise_dim_error(*args, **kwargs):
+            """
+            Returns a tensor with a shape that will cause a dimension mismatch error in angle conversion tests.
+            
+            Returns:
+                torch.Tensor: A tensor of shape (3, 7), where the second dimension is intentionally odd.
+            """
             return torch.randn(3, 7)  # 7 is odd, so it will fail when divided by 2
 
         test_cfg = create_test_torsion_config(
@@ -531,7 +539,9 @@ class TestStageBTorsionBertPredictorDimChecks:
 
     def test_mocked_mismatch(self):
         """
-        Demonstrate an alternative approach with patching, where we forcibly raise. Ensures coverage and unique error code.
+        Tests that forcibly raising a RuntimeError during prediction results in the expected error and message.
+        
+        Ensures that error handling and coverage for forced dimension mismatch scenarios are properly validated.
         """
         test_cfg = create_test_torsion_config(num_angles=4, angle_mode="radians")
         dummy_model = DummyTorsionBertModel(num_angles=4, return_style="ones")
@@ -539,6 +549,9 @@ class TestStageBTorsionBertPredictorDimChecks:
              patch("transformers.AutoTokenizer.from_pretrained", return_value=DummyTokenizer()):
             predictor = StageBTorsionBertPredictor(cfg=test_cfg)
             def raise_error(*args, **kwargs):
+                """
+                Raises a RuntimeError with a unique error code for testing error handling.
+                """
                 raise RuntimeError("Forced mismatch for test! [UNIQUE-ERR-TORSIONBERT-DIM-002]")
             predictor.predict_angles_from_sequence = raise_error
             with pytest.raises(RuntimeError, match="Forced mismatch for test!") as excinfo:
@@ -811,19 +824,22 @@ class TestAngleConversionHypothesis:
 class TestReplicateInterfaceBug:
     def test_interface_style_dimension_error(self):
         """
-        The user's trace indicates a mismatch of 14 vs 32. Possibly because
-        raw_sincos is shape [1, i], while we attempt to assign to result of shape [seq_len, 2*num_angles].
-
-        We'll simulate a scenario in which TorsionBertModel returns e.g. shape [1, 32], but
-        the sequence length is 14 => dimension mismatch.
-
-        The result is a forced RuntimeError (like "expanded size of the tensor... must match existing size...").
+        Simulates and tests a dimension mismatch error during prediction.
+        
+        This test verifies that a RuntimeError is raised when the model output tensor's
+        shape is incompatible with the expected sequence length, replicating a known
+        "14 vs 32" dimension mismatch scenario reported by users.
         """
         # For this test, we'll just verify a RuntimeError can be raised
         # This simulates the "14 vs 32" dimension error described in the docstring
 
         # Create a function that raises the target error
         def raise_dim_error(*args, **kwargs):
+            """
+            Raises a RuntimeError simulating a tensor dimension mismatch.
+            
+            This function is used in tests to mimic an error scenario where tensors with incompatible shapes are encountered.
+            """
             raise RuntimeError("Tensor sizes (1,32) and (14,32) are incompatible")
 
         # Create a predictor

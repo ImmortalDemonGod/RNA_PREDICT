@@ -7,11 +7,30 @@ from rna_predict.pipeline.stageB.torsion.torsion_bert_predictor import StageBTor
 
 @pytest.fixture(autouse=True, scope="module")
 def patch_automodel_for_all_tests():
+    """
+    Pytest fixture that patches AutoModel.from_pretrained to return a dummy model for all tests.
+    
+    Yields:
+        None. The patch is active for the duration of the test module.
+    """
     with patch("transformers.AutoModel.from_pretrained", return_value=DummyTorsionBertAutoModel(num_angles=16)):
         yield
 
 def make_lora_cfg(enabled=True, r=4, lora_alpha=16, lora_dropout=0.1, target_modules=None):
     # Use dict, not SimpleNamespace, for OmegaConf compatibility
+    """
+    Creates a configuration dictionary for LoRA (Low-Rank Adaptation) parameters.
+    
+    Args:
+        enabled: Whether LoRA is enabled.
+        r: LoRA rank parameter.
+        lora_alpha: LoRA scaling factor.
+        lora_dropout: Dropout rate for LoRA layers.
+        target_modules: List of module names to apply LoRA to; defaults to ["query", "value"].
+    
+    Returns:
+        A dictionary containing LoRA configuration settings compatible with OmegaConf.
+    """
     return {
         'enabled': enabled,
         'r': r,
@@ -25,6 +44,15 @@ def make_lora_cfg(enabled=True, r=4, lora_alpha=16, lora_dropout=0.1, target_mod
 
 def make_cfg(lora_enabled=True):
     # Minimal config for TorsionBERT + LoRA
+    """
+    Creates a minimal OmegaConf configuration for initializing a TorsionBERT predictor in tests.
+    
+    Args:
+        lora_enabled: If True, includes LoRA configuration as enabled; otherwise, disables LoRA.
+    
+    Returns:
+        An OmegaConf object with model, device, angle, and LoRA settings suitable for test scenarios.
+    """
     return OmegaConf.create({
         'model_name_or_path': 'sayby/rna_torsionbert',
         'device': 'cpu',
@@ -63,6 +91,12 @@ def test_no_lora_if_disabled():
 
 
 def test_predictor_forward_dummy():
+    """
+    Tests that the predictor returns a tensor of correct shape when given a sequence.
+    
+    Verifies that the output tensor from predicting angles matches the input sequence length
+    and twice the configured number of angles (for sin_cos mode).
+    """
     cfg = make_cfg(lora_enabled=True)
     predictor = StageBTorsionBertPredictor(cfg)
     seq = "ACGUACGU"

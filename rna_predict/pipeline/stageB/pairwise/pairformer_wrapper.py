@@ -46,7 +46,7 @@ class PairformerWrapper(nn.Module):
         """
         Initializes the PairformerWrapper with configuration and prepares the PairformerStack model.
         
-        Parses and validates the provided Hydra configuration, extracts or constructs the pairformer model configuration, and ensures all required parameters are present. Enforces explicit device specification and moves the model to the configured device. Adjusts the pair embedding dimension to a multiple of 16 for compatibility, sets up logging, and optionally freezes model parameters or prepares for LoRA integration if enabled. Logs memory usage and configuration details for debugging and monitoring.
+        Parses and validates the provided Hydra configuration, extracts or constructs the pairformer model configuration, and ensures all required parameters are present. Enforces explicit device specification and moves the model to the configured device. Adjusts the pair embedding dimension to a multiple of 16 for compatibility, sets up logging, and optionally freezes model parameters or prepares for LoRA integration if enabled.
         
         Raises:
             ValueError: If required configuration sections or device specification are missing.
@@ -335,16 +335,9 @@ class PairformerWrapper(nn.Module):
 
     def adjust_z_dimensions(self, z: torch.Tensor) -> torch.Tensor:
         """
-        Adjust the dimensions of the pair representation tensor to match c_z_adjusted.
-
-        This is a utility method that can be called externally to ensure tensor dimensions
-        are compatible with the Pairformer's requirements.
-
-        Args:
-            z: Pair representation tensor [batch, N, N, c_z]
-
-        Returns:
-            torch.Tensor: Adjusted pair representation tensor [batch, N, N, c_z_adjusted]
+        Adjusts the last dimension of the pair representation tensor to match the required c_z_adjusted size.
+        
+        Pads with zeros or truncates as needed to ensure compatibility with the Pairformer model.
         """
         # Log input tensor information
         if self.debug_logging:
@@ -379,16 +372,18 @@ class PairformerWrapper(nn.Module):
         self, sequence: str, adjacency: Optional[torch.Tensor] = None
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
-        Predict RNA structure using the Pairformer model.
-
+        Generates dummy single and pair embeddings for an RNA sequence using the Pairformer model.
+        
+        If an adjacency matrix is provided and matches the sequence length, the pair embeddings are optionally initialized using the adjacency information, depending on configuration.
+        
         Args:
-            sequence: RNA sequence string
-            adjacency: Optional adjacency matrix tensor
-
+            sequence: RNA sequence as a string.
+            adjacency: Optional adjacency matrix tensor of shape [L, L], where L is the sequence length.
+        
         Returns:
-            Tuple of (single_embeddings, pair_embeddings)
-            - single_embeddings: [L, dim_s] tensor of single-residue embeddings
-            - pair_embeddings: [L, L, dim_z] tensor of pair embeddings
+            A tuple containing:
+                - Single-residue embeddings tensor of shape [L, c_s].
+                - Pairwise embeddings tensor of shape [L, L, c_z].
         """
         logger.info(f"Predicting for sequence of length {len(sequence)}")
         if adjacency is not None:

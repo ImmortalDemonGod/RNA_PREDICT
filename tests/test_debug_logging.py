@@ -968,9 +968,9 @@ def test_stageD_debug_logging_hypothesis(debug_val: bool, atom_metadata: Dict[st
 ])
 def test_stageB_debug_logging_substages(_unused_stage, substage, expected_msg, caplog):
     """
-    Tests that enabling debug logging for Stage B substages ("pairformer" and "torsion_bert") results in the expected debug or info log messages.
+    Tests that enabling debug logging for Stage B substages ("pairformer" and "torsion_bert") produces the expected log messages.
     
-    Configures the appropriate logger and Hydra/OmegaConf configuration for the specified substage, instantiates the substage class, and verifies that the expected debug message appears in the captured logs. Asserts correct debug_logging override and provides detailed diagnostic output on failure.
+    Configures the logger and Hydra configuration for the specified substage, instantiates the substage class, and verifies that the expected debug or info message appears in the captured logs. Temporarily sets environment variables as needed and provides detailed diagnostics on failure.
     """
     from omegaconf import OmegaConf
     import logging

@@ -342,9 +342,9 @@ class RNADataset(Dataset):
     #@snoop
     def _load_angles(self, row, L):
         """
-        Extracts and processes RNA torsion angles for a given structure row.
+        Extracts and processes RNA torsion angles for a given structure and chain.
         
-        Attempts to extract up to seven torsion angles (alpha, beta, gamma, delta, epsilon, zeta, chi) for the specified structure and chain using the configured backend. The resulting tensor is padded or truncated to match the maximum number of residues and columns, with any NaN values replaced by zeros. If extraction fails or data is missing, returns a zero tensor of shape (max_res, 7).
+        Attempts to extract up to seven torsion angles (alpha, beta, gamma, delta, epsilon, zeta, chi) for the specified structure file and chain using the configured backend. The resulting tensor is padded or truncated to match the maximum number of residues, with any NaN values replaced by zeros. If extraction fails or data is missing, returns a zero tensor of shape (max_res, 7).
         
         Args:
             row: Metadata row containing structure and chain information.
@@ -366,17 +366,9 @@ class RNADataset(Dataset):
             def get_field(r, key, default=None):
                 # Try dict-like
                 """
-                Retrieves a value for a given key from an object supporting dict, attribute, or index access.
+                Retrieves a value for a given key from an object using dict, attribute, or index access.
                 
-                Attempts to access the value in the following order: dictionary-style (`get` method), attribute access, and index/key access (e.g., for numpy records). Returns the first non-None value found, or the specified default if none is found.
-                
-                Args:
-                    r: The object to retrieve the value from.
-                    key: The key or attribute name to look up.
-                    default: The value to return if the key is not found or is None.
-                
-                Returns:
-                    The value associated with the key, or the default if not found.
+                Attempts to obtain the value in the following order: dictionary-style (`get` method), attribute access, and index/key access. Returns the first non-None value found, or the specified default if none is found.
                 """
                 if hasattr(r, 'get'):
                     val = r.get(key, None)

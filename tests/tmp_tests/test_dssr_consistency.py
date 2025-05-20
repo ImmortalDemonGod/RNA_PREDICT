@@ -32,7 +32,9 @@ def test_synthetic_pdb_dssr_direct(angle_set, expected_dim):
 ])
 def test_synthetic_pdb_dssr_matches_mdanalysis(angle_set, expected_dim):
     """
-    Test that DSSR output matches MDAnalysis output on synthetic PDB.
+    Compares RNA torsion angles extracted by DSSR and MDAnalysis backends on a synthetic PDB.
+    
+    Ensures both extraction methods produce non-null, shape-consistent outputs for the specified angle set. For the 'canonical' angle set, verifies that NaN positions match exactly and that numeric differences between corresponding angles are below a 0.5 radian threshold. For the 'full' angle set, checks that both outputs contain at least some finite values.
     """
     a1 = extract_rna_torsions(SYN_PDB, CHAIN, backend='dssr', angle_set=angle_set)
     a2 = extract_rna_torsions(SYN_PDB, CHAIN, backend='mdanalysis', angle_set=angle_set)

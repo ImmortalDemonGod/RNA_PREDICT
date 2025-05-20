@@ -7,6 +7,12 @@ from rna_predict.predict import RNAPredictor
 @pytest.fixture
 def minimal_torsion_cfg():
     # Minimal Hydra-composed config for RNAPredictor streamline mode
+    """
+    Creates a minimal Hydra configuration for RNAPredictor in streamline mode with CPU and torsion BERT settings, and patches the torsion predictor to return random torsion angles for stochastic testing.
+    
+    Returns:
+        The composed Hydra configuration object with patched torsion angle prediction behavior.
+    """
     with initialize_config_dir(config_dir="/Users/tomriddle1/RNA_PREDICT/rna_predict/conf", version_base="1.1", job_name="test_torsion"):
         cfg = compose(
             config_name="predict",
@@ -39,6 +45,18 @@ def minimal_torsion_cfg():
     # Patch StageBTorsionBertPredictor to return random torsion angles for stochastic behavior
     from rna_predict.pipeline.stageB.torsion.torsion_bert_predictor import StageBTorsionBertPredictor
     def dummy_call(self, sequence, stochastic_pass=False, seed=None):
+        """
+        Generates random torsion angles for a given RNA sequence.
+        
+        Args:
+            sequence: The RNA sequence for which to generate torsion angles.
+            stochastic_pass: Unused; present for interface compatibility.
+            seed: Optional random seed for reproducibility.
+        
+        Returns:
+            A dictionary with a single key "torsion_angles" containing a tensor of shape
+            (sequence length, 14) with random values.
+        """
         import torch
         n = len(sequence)
         dim = 14
@@ -54,6 +72,14 @@ def minimal_torsion_cfg():
     ([1,2,3,4,5], "reproducible")
 ])
 def test_stochastic_predict_submission(minimal_torsion_cfg, seed_mode):
+    """
+    Tests that RNAPredictor's stochastic predictions behave as expected under different seeding modes.
+    
+    Runs multiple prediction repeats on a short RNA sequence using various seed configurations and asserts that:
+    - Without seeds, all repeats produce unique outputs.
+    - With identical seeds, all repeats produce identical outputs.
+    - With distinct seeds, predictions are reproducible when rerun with the same seeds.
+    """
     seeds, mode = seed_mode
     predictor = RNAPredictor(minimal_torsion_cfg)
     sequence = "AUGCU"  # Short test sequence

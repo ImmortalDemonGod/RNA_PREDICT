@@ -16,6 +16,11 @@ pytest.skip("Skipping heavy loader error test to avoid OOM", allow_module_level=
 
 def test_lightning_combined_loader_error():
     # Start memory profiling
+    """
+    Integration test for RNA data loading and model training with memory profiling.
+    
+    This test verifies the end-to-end pipeline of loading RNA data, initializing the model, and running a training step using PyTorch Lightning, while tracking memory usage at each stage. Memory statistics are printed after each major component is created and after training, with a final report of the top memory-consuming lines.
+    """
     tracemalloc.start()
     
     dict_cfg = {

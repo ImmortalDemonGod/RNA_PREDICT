@@ -67,6 +67,11 @@ def run_python_file(file_path, output_file, extra_args=None):
 
 def main():
     # Debug: print current working directory
+    """
+    Coordinates the execution of multiple RNA pipeline stages and related scripts, aggregating their outputs.
+    
+    This function verifies configuration paths, defines a standardized test sequence, and sequentially runs a set of pipeline stage scripts and additional scripts. It passes configuration overrides as needed, captures and appends each script's output to a combined output file, and logs skipped or failed executions. At the end, it prints a summary of the overall pipeline run and the location of the aggregated output file.
+    """
     print(f"[HYDRA DEBUG] CWD: {os.getcwd()}")
     print(f"[HYDRA DEBUG] __file__: {__file__}")
     # Get the path to the rna_predict directory

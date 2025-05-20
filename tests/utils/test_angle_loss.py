@@ -27,6 +27,11 @@ def test_angle_loss_no_mask(pred, target, mask, expected):
 
 
 def test_angle_loss_with_mask():
+    """
+    Tests that angle_loss computes the loss only over masked elements.
+    
+    Verifies that the loss is calculated using only the elements selected by the boolean mask and matches the expected value.
+    """
     pred = torch.tensor([[[1.0, 2.0], [3.0, 4.0]]])
     target = torch.tensor([[[2.0, 4.0], [3.0, 0.0]]])
     # mask only first residue

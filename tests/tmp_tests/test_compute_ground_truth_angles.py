@@ -21,9 +21,9 @@ def test_compute_ground_truth_angles_cli(filename, chain_id):
     """
     Tests the CLI of compute_ground_truth_angles.py for correct output file generation.
     
-    Runs the script with specified input file and chain ID, verifies successful execution,
-    checks that output angle tensor files are created, and asserts that each tensor has
-    the expected shape and contains at least one non-NaN angle value.
+    Runs the script with the given input directory and chain ID, verifies successful execution,
+    checks that output angle tensor files are created, and asserts that each tensor has the
+    expected 2D shape with 7 columns and contains at least one non-NaN angle value.
     """
     with tempfile.TemporaryDirectory() as outdir:
         print(f"[DEBUG] Using SCRIPT path: {SCRIPT}")
@@ -59,9 +59,9 @@ def test_compute_ground_truth_angles_cli(filename, chain_id):
 ])
 def test_compute_ground_truth_angles_cli_parametrized(filename, chain_id, angle_set, expected_dim):
     """
-    Tests the CLI of compute_ground_truth_angles.py with various angle sets and validates output tensors.
+    Tests the CLI of compute_ground_truth_angles.py with different angle sets and verifies output tensors.
     
-    Runs the script with specified input file, chain ID, and angle set, then checks that output files are generated and that each tensor has the expected number of columns and contains at least one non-NaN value.
+    Runs the script with the specified input file, chain ID, and angle set, then asserts that output files are created, each tensor has the expected number of columns, and at least one angle value is not NaN.
     """
     with tempfile.TemporaryDirectory() as outdir:
         result = run([
@@ -84,9 +84,9 @@ def test_compute_ground_truth_angles_cli_parametrized(filename, chain_id, angle_
 def test_main_empty_input(tmp_path):
     # Prepare empty input dir
     """
-    Tests that the main function handles an empty input directory without errors and produces no output files.
+    Tests the main function with an empty input directory to ensure no errors occur and no output files are created.
     
-    Creates empty input and output directories, simulates CLI arguments, and verifies that the output directory remains empty after execution.
+    Creates empty input and output directories, simulates CLI arguments, invokes the main function, and asserts that the output directory remains empty after execution.
     """
     input_dir = tmp_path / "inputs"
     input_dir.mkdir()
@@ -102,6 +102,9 @@ def test_main_empty_input(tmp_path):
     assert not any(output_dir.iterdir())
 
 def test_main_invalid_args(monkeypatch):
+    """
+    Tests that the main function exits with SystemExit when required CLI arguments are missing.
+    """
     import sys
     sys_argv_backup = sys.argv[:]
     sys.argv = ["script"] # missing required args

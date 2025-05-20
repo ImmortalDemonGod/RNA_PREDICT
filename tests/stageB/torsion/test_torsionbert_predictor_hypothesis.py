@@ -178,7 +178,11 @@ class TestTorsionBertPredictorHypothesis:
     @settings(max_examples=20, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture])
     @pytest.mark.skip(reason="Flaky in full suite: skipping until stable")
     def test_angle_mode_conversion(self, sequence, angle_mode):
-        """Test that the angle_mode parameter correctly affects the output."""
+        """
+        Verifies that the angle_mode parameter determines the output shape and value range of predicted torsion angles.
+        
+        For 'sin_cos' mode, asserts the output tensor has shape (N, 14). For 'radians' or 'degrees', asserts shape (N, 7) and checks that values fall within the expected range for each mode.
+        """
         if not sequence:
             return  # Skip empty sequences
 
@@ -232,7 +236,11 @@ class TestTorsionBertPredictorHypothesis:
     @settings(max_examples=10, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture])
     @pytest.mark.skip(reason="Flaky in full suite: skipping until stable")
     def test_multiple_sequences(self, sequences):
-        """Test that the predictor works correctly with multiple sequences."""
+        """
+        Tests the predictor's ability to process and return valid outputs for multiple RNA sequences.
+        
+        For each non-empty sequence, verifies that the output dictionary contains a tensor of the correct shape, with all values in the expected range and no NaN or Inf values.
+        """
         # Create a config
         cfg = OmegaConf.create({
             "model": {

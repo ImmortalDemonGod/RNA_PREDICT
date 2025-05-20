@@ -6,6 +6,11 @@ from rna_predict.training.rna_lightning_module import RNALightningModule
 @pytest.fixture(scope="function")
 def cfg():
     # Initialize Hydra with absolute config directory
+    """
+    Creates and returns a Hydra configuration object for testing with specific overrides.
+    
+    Initializes Hydra using an absolute configuration directory and applies overrides to disable stageD and its debug logging. Prints debug information about the structure of the stageB and torsion_bert configuration sections.
+    """
     with initialize_config_dir(config_dir="/Users/tomriddle1/RNA_PREDICT/rna_predict/conf", version_base=None, job_name="test_training_angle_loss"):
         cfg = compose(config_name="default", overrides=["run_stageD=false", "model.stageD.debug_logging=false"])
     print("DEBUG: type(cfg.model['stageB']) =", type(cfg.model['stageB']))
@@ -16,7 +21,12 @@ def cfg():
 
 @pytest.fixture
 def dummy_batch():
-    """Create a dummy batch for testing."""
+    """
+    Creates a dummy batch of RNA data with zeroed tensors for testing.
+    
+    Returns:
+        dict: A batch dictionary containing a single RNA sequence, zeroed angle and coordinate tensors, and a zeroed adjacency matrix.
+    """
     # Create a dummy batch with a sequence of length 4
     batch = {
         "sequence": ["ACGU"],  # Single sequence of length 4
@@ -28,6 +38,11 @@ def dummy_batch():
 
 @pytest.mark.parametrize("seed", [0, 42])
 def test_angle_loss_and_gradients_with_seed(cfg, dummy_batch, seed):
+    """
+    Tests that the RNALightningModule computes zero angle loss and valid gradients on dummy input with a fixed seed.
+    
+    Verifies that the training step returns a scalar loss tensor close to zero, backward propagation works, and gradients are properly computed and finite for all parameters, especially in the stageB_torsion submodule.
+    """
     torch.manual_seed(seed)
     model = RNALightningModule(cfg)
     # Move model to configured device
@@ -68,7 +83,11 @@ def test_angle_loss_and_gradients_with_seed(cfg, dummy_batch, seed):
 
 @pytest.mark.parametrize("batch_idx", [0])
 def test_angle_loss_with_batch_idx(cfg, dummy_batch, batch_idx):
-    """Test that the angle loss is computed correctly for different batch indices."""
+    """
+    Verifies that the model's angle loss computation returns a near-zero scalar tensor for a dummy batch and specified batch index.
+    
+    Ensures the training step output is a dictionary containing a scalar loss tensor close to zero when provided with zeroed input data.
+    """
     # Use the full Hydra config
     model = RNALightningModule(cfg)
     

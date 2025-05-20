@@ -86,7 +86,11 @@ def mock_forward_last_hidden(self, inputs: Dict[str, Tensor]) -> Any:
 # ----------------------------------------------------------------------
 @pytest.fixture(scope="module")
 def mock_tokenizer() -> Any:
-    """Dummy tokenizer that returns fixed-size tensors, not a MagicMock."""
+    """
+    Creates a dummy tokenizer that returns fixed-size input and attention mask tensors.
+    
+    The returned tokenizer raises a ValueError if the input is None or an empty sequence.
+    """
     class DummyTokenizer:
         def __call__(self, text, **kwargs):
             print(f"[DEBUG-TOKENIZER-INPUT] Received text: '{text}' (repr: {repr(text)})")
@@ -108,10 +112,9 @@ def mock_tokenizer() -> Any:
 @pytest.fixture(scope="module") # Restore module scope
 def model_with_logits(mock_tokenizer: Any) -> TorsionBertModel:
     """
-    Creates a TorsionBertModel fixture configured to return logits for testing.
+    Provides a pytest fixture that returns a TorsionBertModel configured to output logits.
     
-    This fixture patches the tokenizer and model loading to use mock implementations,
-    ensuring the returned TorsionBertModel produces logits output for test scenarios.
+    This fixture sets up environment variables and patches tokenizer and model loading to use mock implementations, ensuring the returned TorsionBertModel produces logits for use in tests.
     """
     print("[DEBUG-FIXTURE] Setting up model_with_logits fixture")
     print(f"[DEBUG-FIXTURE] mock_tokenizer type: {type(mock_tokenizer)}")
@@ -162,11 +165,11 @@ def model_with_logits(mock_tokenizer: Any) -> TorsionBertModel:
 @pytest.fixture
 def model_with_last_hidden(mock_tokenizer: Any) -> TorsionBertModel:
     """
-    Creates a TorsionBertModel fixture configured to return last_hidden_state outputs.
+    Creates a TorsionBertModel fixture that returns outputs with a last_hidden_state attribute.
     
-    This fixture patches the tokenizer and model loading to use mock objects, ensuring
-    the returned TorsionBertModel instance operates in a controlled test environment
-    with `return_dict=False` for last_hidden_state output mode.
+    This fixture patches the tokenizer and model loading to use mock objects, configures the
+    environment to allow 7 angles, and ensures the TorsionBertModel operates in a controlled
+    test environment with return_dict set to False for last_hidden_state output mode.
     """
     print("[DEBUG-FIXTURE] Setting up model_with_last_hidden fixture")
     print(f"[DEBUG-FIXTURE] mock_tokenizer type: {type(mock_tokenizer)}")
@@ -219,10 +222,11 @@ def predictor_fixture(
     mock_tokenizer: Any,
 ) -> StageBTorsionBertPredictor:
     """
-    Pytest fixture that creates a StageBTorsionBertPredictor configured for integration tests.
+    Pytest fixture that provides a StageBTorsionBertPredictor configured for integration testing.
     
-    Sets up the predictor with a mock tokenizer and a dummy model using 16 angles and 'degrees'
-    angle mode, enabling debug logging for diagnostic output.
+    Initializes the predictor with a mock tokenizer and a dummy model set to 16 angles in 'degrees'
+    mode, with debug logging enabled. Ensures Hydra's global state is cleared to prevent test
+    contamination.
     """
     import hydra
     hydra.core.global_hydra.GlobalHydra.instance().clear()
@@ -524,8 +528,9 @@ class TestTorsionBertModel:
     @pytest.mark.parametrize("invalid_model_path", [None, 123, ""])
     def test_invalid_model_path(self, invalid_model_path) -> None:
         """
-        Passing invalid model paths should fall back to using a dummy model
-        instead of raising an exception. This test verifies that behavior.
+        Tests that providing an invalid model path causes TorsionBertModel to fall back to a dummy model instead of raising an exception.
+        
+        Ensures that when both the tokenizer and model loading fail with an OSError, the model attribute is set to an instance of DummyTorsionBertAutoModel.
         """
         import os # Add import for os module
         original_env_var_val = os.environ.pop("ALLOW_NUM_ANGLES_7_FOR_TESTS", None)
@@ -571,10 +576,10 @@ class TestStageBTorsionBertPredictor:
     @pytest.mark.skip(reason="Flaky: skipping until stable")
     def test_short_seq_hypothesis(self, predictor_fixture: StageBTorsionBertPredictor, seq: str) -> None:
         """
-        Hypothesis-based test for short sequences (length 3-4). Ensures output shape matches sequence length and num_angles.
-
-        Note: We use min_size=3 because sequences shorter than 3 characters are expected to raise an error
-        in the tokenizer as per the mock_tokenizer fixture implementation.
+        Tests that predicting torsion angles for short RNA sequences (length 3–4) returns an output tensor with shape matching the sequence length and expected number of angles.
+        
+        Raises:
+            ValueError: If the sequence is shorter than 3 characters, as enforced by the tokenizer.
         """
         try:
             print(f"[DEBUG-SHORT-SEQ-TEST] Testing sequence: '{seq}' (length: {len(seq)})")
@@ -608,7 +613,11 @@ class TestStageBTorsionBertPredictor:
     @pytest.mark.skip(reason="Flaky in full suite: skipping until stable")
     def test_normal_seq(self, predictor_fixture: StageBTorsionBertPredictor, seq: str) -> None:
         """
-        Property-based test: For a normal 4-letter sequence, output shape must be [4, 16].
+        Tests that predicting torsion angles for a 4-residue sequence returns an output of shape (4, 16).
+        
+        Args:
+            predictor_fixture: A predictor configured for 16 angles in degrees mode.
+            seq: An RNA sequence of length 4.
         """
         result = predictor_fixture(seq)
         angles = result["torsion_angles"]
@@ -622,7 +631,14 @@ class TestStageBTorsionBertPredictor:
     @pytest.mark.skip(reason="Flaky in full suite: skipping until stable")
     def test_various_lengths(self, predictor_fixture: StageBTorsionBertPredictor, seq: str) -> None:
         """
-        Property-based test: For any sequence length, output shape must be [len(seq), 16].
+        Tests that the predictor returns torsion angles with shape (len(seq), 16) for sequences of length at least 3.
+        
+        Args:
+            predictor_fixture: Predictor instance for generating torsion angle outputs.
+            seq: RNA sequence to predict angles for.
+        
+        Raises:
+            AssertionError: If the output tensor shape does not match (len(seq), 16).
         """
         from hypothesis import assume
         assume(len(seq) >= 3)
@@ -640,8 +656,9 @@ class TestStageBTorsionBertPredictor:
         self, predictor_fixture: StageBTorsionBertPredictor
     ) -> None:
         """
-        If the same sequence is passed multiple times, ensure shape is consistent
-        and no crash occurs. This is a minimal check for consistency.
+        Verifies that repeated predictions with the same RNA sequence produce outputs of consistent shape without errors.
+        
+        Ensures that calling the predictor multiple times with identical input yields tensors of shape (8, 16) for the 'torsion_angles' key, confirming output consistency and stability.
         """
         seq = "ACGUACGU"
         out1 = predictor_fixture(seq)
@@ -661,12 +678,9 @@ class TestStageBTorsionBertPredictor:
     @pytest.mark.skip(reason="Flaky in full suite: skipping until stable")
     def test_angle_mode_conversion(self, mock_tokenizer, seq: str, angle_mode: str) -> None:
         """
-        Property-based test: Verify that different angle modes produce outputs with appropriate value ranges.
-
-        Args:
-            predictor_fixture: The predictor fixture
-            seq: Random RNA sequence
-            angle_mode: Angle representation mode (sin_cos, degrees, radians)
+        Tests that predictions for different angle modes have correct shapes and value ranges.
+        
+        Verifies that the output tensor from the predictor matches the input sequence length, has the expected number of angle columns, contains only finite values, and that values fall within the expected range for the specified angle mode ('sin_cos', 'degrees', or 'radians').
         """
         import os # Add import for os module
         from hypothesis import assume

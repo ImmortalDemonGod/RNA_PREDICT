@@ -8,6 +8,12 @@ from rna_predict.dataset.preprocessing.angle_utils import angles_rad_to_sin_cos
 @pytest.fixture(scope="function")
 def cfg():
     # Load default config with StageD enabled
+    """
+    Loads and returns the default configuration with StageD enabled for testing.
+    
+    Returns:
+        The configuration object with StageD activated and debug logging disabled.
+    """
     with initialize_config_dir(config_dir="/Users/tomriddle1/RNA_PREDICT/rna_predict/conf", version_base=None, job_name="test_angle_loss_mse_branch"):
         cfg = compose(config_name="default")
     # Ensure StageD is on to test angle-loss branch
@@ -18,6 +24,11 @@ def cfg():
 @pytest.fixture(scope="function")
 def dummy_batch(cfg):
     # Build a minimal batch with zero true angles
+    """
+    Creates a minimal dummy batch dictionary for testing RNA angle and coordinate prediction.
+    
+    The batch simulates a single RNA sequence of length 3 with zero-valued true angles and associated tensors, matching the expected input structure for the model's training step.
+    """
     L = 3  # residues
     # angles_true shape [B, L, num_angles]
     num_angles = cfg.model.stageB.torsion_bert.num_angles
@@ -40,12 +51,28 @@ def dummy_batch(cfg):
 
 def test_angle_loss_mse_branch(cfg, dummy_batch):
     # Force skip StageD execution after angle loss
+    """
+    Tests that the angle loss MSE branch computes zero loss and propagates gradients when predictions match true angles.
+    
+    This test monkeypatches the model's forward method to return predicted torsion angles identical to the true angles (in sin/cos form), ensuring the loss is zero. It verifies that the loss is a scalar tensor near zero and that gradients flow to the StageB torsion parameters during the backward pass.
+    """
     os.environ['PYTEST_CURRENT_TEST'] = 'test_noise_and_bridging_runs'
     device = torch.device(cfg.device)
     model = RNALightningModule(cfg)
     model.to(device)
     # Monkeypatch forward to produce zero predicted angles
     def fake_forward(batch):
+        """
+        Simulates a model forward pass by returning predicted torsion angles matching the true angles.
+        
+        The predicted angles are constructed to be identical to the true angles (in sine-cosine form), with an added zero-gradient term to ensure gradient flow through the model's StageB torsion parameters. Embedding outputs are set to None.
+        
+        Args:
+            batch: A dictionary containing the key 'angles_true' with true angle values.
+        
+        Returns:
+            A dictionary with predicted torsion angles, and None for embedding outputs.
+        """
         true = batch['angles_true']
         # convert true angles to sin/cos pairs
         true_sincos = angles_rad_to_sin_cos(true)

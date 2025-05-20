@@ -7,12 +7,12 @@ import csv
 @pytest.mark.skip(reason="Flaky in full suite: skipping until stable")
 def test_train_with_angle_supervision(tmp_path):
     """
-    Runs an integration test for the training pipeline with angle supervision enabled.
+    Integration test for the RNA training pipeline with angle supervision enabled.
     
-    This test executes the training script via a subprocess with specific configuration overrides, captures the output logs, and verifies that angle loss computation occurs and checkpoints are saved. It asserts successful training completion, checks for expected debug messages, and confirms that checkpoint files are created in the reported directory.
+    Creates a minimal synthetic dataset and runs the training script as a subprocess with configuration overrides for angle supervision, model dimensions, and memory optimization. Captures and prints output logs, asserts successful training completion, and verifies that the checkpoint directory is created in the temporary path.
     
     Args:
-        tmp_path: Temporary directory provided by pytest for storing log output.
+        tmp_path: Temporary directory provided by pytest for storing test artifacts.
     """
     # Create a minimal test dataset
     test_data_dir = os.path.join(tmp_path, "test_data")

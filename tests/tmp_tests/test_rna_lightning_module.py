@@ -15,6 +15,11 @@ print(f"[DEBUG][CWD] Current working directory at test start: {os.getcwd()}")
 @pytest.fixture
 def hydra_cfg():
     # Use the real Hydra config system and the actual conf directory
+    """
+    Initializes and composes the Hydra configuration for testing.
+    
+    Sets the configuration directory, overrides the device to CPU, and enables debug logging for StageA if available. Returns the composed configuration object for use in tests.
+    """
     config_dir = "/Users/tomriddle1/RNA_PREDICT/rna_predict/conf"
     print(f"[DEBUG][HYDRA] Using config_dir={config_dir}")
     with initialize_config_dir(config_dir=config_dir, job_name="test_noise_and_bridging"):
@@ -28,9 +33,19 @@ def hydra_cfg():
 
 def make_dummy_batch(device, B=2, N_res=5, atoms_per_residue=2, C=8):
     """
-    Generate a dummy batch with fully atom-level features, where each residue has a fixed number of atoms.
-    All atom-level features are shaped [B, N_atom, ...] with N_atom = N_res * atoms_per_residue.
-    The residue_indices and atom_to_token_idx mappings are set accordingly.
+    Creates a dummy batch of RNA data with atom-level features for testing.
+    
+    Each batch contains random coordinates, atom-to-residue mappings, sequence strings, and reference features with consistent shapes. All atom-level features are sized according to the number of residues and atoms per residue. The returned dictionary is suitable for use as input to RNA model training or evaluation routines.
+    
+    Args:
+        device: The device on which to allocate tensors.
+        B: Batch size.
+        N_res: Number of residues per sequence.
+        atoms_per_residue: Number of atoms per residue.
+        C: Feature dimension for certain reference features.
+    
+    Returns:
+        A dictionary containing coordinates, angles, adjacency matrix, atom masks, atom-to-token indices, sequence strings, atom-level reference features, and metadata.
     """
     N_atom = N_res * atoms_per_residue
     print(f"[DEBUG][make_dummy_batch] B={B}, N_res={N_res}, atoms_per_residue={atoms_per_residue}, N_atom={N_atom}")
@@ -77,6 +92,19 @@ def make_dummy_batch(device, B=2, N_res=5, atoms_per_residue=2, C=8):
 
 
 def make_dummy_output(device, B=2, N_res=5, N_atom=5, C=8):
+    """
+    Creates a dictionary of random tensors simulating model output for testing.
+    
+    Args:
+        device: The device on which to allocate the tensors.
+        B: Batch size.
+        N_res: Number of residues per sample.
+        N_atom: Number of atoms per sample (not used in output shapes).
+        C: Embedding dimension.
+    
+    Returns:
+        A dictionary containing random tensors for 's_embeddings', 'z_embeddings', and 'logits'.
+    """
     return {
         's_embeddings': torch.randn(B, N_res, C, device=device),
         'z_embeddings': torch.randn(B, N_res, N_res, C, device=device),
@@ -84,6 +112,12 @@ def make_dummy_output(device, B=2, N_res=5, N_atom=5, C=8):
     }
 
 def test_noise_and_bridging_runs(hydra_cfg):
+    """
+    Tests that the model's training step executes noise and bridging logic without error.
+    
+    Instantiates the RNALightningModule with a Hydra config, injects dummy input and output data,
+    mocks the forward pass, and verifies that the training step returns a dictionary containing a loss tensor.
+    """
     device = torch.device('cpu')
     model = RNALightningModule(cfg=hydra_cfg)
     batch = make_dummy_batch(device)
@@ -102,6 +136,14 @@ def test_noise_and_bridging_runs(hydra_cfg):
 
 @pytest.mark.skip(reason="Not relevant to L_angle integration for now")
 def test_gradient_flow_through_stageD(hydra_cfg):
+    """
+    Tests that gradients flow through Stage D computations in the RNALightningModule.
+    
+    This test verifies that the Stage D output of the model is differentiable by running
+    a training step with dummy data, summing the Stage D result, and checking that
+    gradients propagate back to at least one model parameter. The test is skipped if
+    the Stage D result is not in a differentiable format.
+    """
     import os
     device = torch.device('cpu')
     model = RNALightningModule(cfg=hydra_cfg)

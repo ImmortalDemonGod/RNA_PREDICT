@@ -58,13 +58,21 @@ class TestStageBTorsionBertPredictorVerification:
     @pytest.fixture
     def mock_predictor_factory(self):
         """
-        Fixture to create a factory function for mock StageBTorsionBertPredictor instances.
+        Creates a factory function that generates mock StageBTorsionBertPredictor instances for testing.
+        
+        The returned factory produces predictors with configurable model parameters, using dummy tokenizer and model objects, and a stubbed prediction method that returns random angle tensors consistent with the specified angle mode and number of angles.
         """
         import torch
         from rna_predict.pipeline.stageB.torsion.torsion_bert_predictor import StageBTorsionBertPredictor
 
         class DummyTokenizer:
             def __call__(self, *args, **kwargs):
+                """
+                Simulates a model call by returning dummy input IDs and attention mask tensors.
+                
+                Returns:
+                    A dictionary with "input_ids" and "attention_mask" keys, each mapped to a tensor of shape (1, 8).
+                """
                 N = 8
                 return {"input_ids": torch.zeros((1, N), dtype=torch.long), "attention_mask": torch.ones((1, N), dtype=torch.long)}
 
@@ -80,6 +88,11 @@ class TestStageBTorsionBertPredictorVerification:
             max_length=512
         ):
             # Initialize Hydra
+            """
+            Creates a mock StageBTorsionBertPredictor instance with configurable parameters for testing.
+            
+            Initializes Hydra to compose a configuration with specified overrides, patches model and tokenizer loading to use dummy objects, and replaces the predictor's angle prediction method with a dummy function that returns random tensors matching the configured angle mode and number of angles. Used to isolate tests from actual model dependencies.
+            """
             with hydra.initialize_config_dir(config_dir="/Users/tomriddle1/RNA_PREDICT/rna_predict/conf", job_name="test_torsion_bert", version_base=None):
                 # Compose configuration with overrides
                 overrides = [
@@ -105,6 +118,17 @@ class TestStageBTorsionBertPredictorVerification:
                 
                 # Keep the dummy prediction logic for testing purposes
                 def dummy_predict_angles_from_sequence(seq, *args, **kwargs):
+                    """
+                    Generates a dummy tensor of torsion angles for a given sequence based on the predictor's angle mode.
+                    
+                    The output tensor shape and value range depend on the current angle mode:
+                    - "sin_cos": shape [sequence_length, 2 * num_angles], values in [-1, 1].
+                    - "radians": shape [sequence_length, num_angles], values in [-π, π].
+                    - "degrees": shape [sequence_length, num_angles], values in [-180, 180].
+                    
+                    Raises:
+                        ValueError: If the angle mode is unrecognized.
+                    """
                     n = len(seq)
                     # Use predictor's angle_mode and num_angles as they are now set from hydra config
                     current_angle_mode = predictor.angle_mode 
@@ -158,7 +182,8 @@ class TestStageBTorsionBertPredictorVerification:
     @pytest.mark.skip(reason="Flaky in full suite: skipping until stable")
     def test_callable_interface(self, mock_predictor_factory, sequence, include_adjacency):
         """
-        Property-based test: Verify callable functionality with various sequences and optional adjacency.
+        Tests that the predictor can be called with RNA sequences and optional adjacency matrices,
+        and returns a dictionary containing a 'torsion_angles' tensor.
         """
         # Create a mock predictor with default parameters
         mock_predictor = mock_predictor_factory()
@@ -189,7 +214,14 @@ class TestStageBTorsionBertPredictorVerification:
     @pytest.mark.skip(reason="Flaky in full suite: skipping until stable")
     def test_output_validation(self, mock_predictor_factory, sequence, angle_mode, num_angles):
         """
-        Property-based test: Validate the output format and values with various configurations.
+        Validates that the predictor's output dictionary and torsion angle tensor conform to expected
+        format, shape, and value ranges for various angle modes and configurations.
+        
+        Args:
+            mock_predictor_factory: Factory fixture to create a mock StageBTorsionBertPredictor.
+            sequence: RNA sequence input as a string.
+            angle_mode: Output angle representation mode ("sin_cos", "radians", or "degrees").
+            num_angles: Number of torsion angles predicted per residue.
         """
         # Create a mock predictor with the given parameters
         mock_predictor = mock_predictor_factory(
@@ -274,7 +306,9 @@ class TestStageBTorsionBertPredictorVerification:
     @pytest.mark.skip(reason="Flaky in full suite: skipping until stable")
     def test_angle_mode_conversion(self, mock_predictor_factory, angle_mode, sequence):
         """
-        Property-based test: Verify angle mode conversion works correctly.
+        Tests that the predictor outputs torsion angles in the correct shape and value range for each angle mode.
+        
+        Verifies that for 'sin_cos' mode, the output tensor has twice the number of columns as angles and all values are within [-1, 1]. For 'radians' and 'degrees' modes, checks that the output has one column per angle and values are within the expected physical ranges.
         """
         # Create a predictor with the specified angle_mode
         mock_predictor = mock_predictor_factory(angle_mode=angle_mode)
