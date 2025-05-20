@@ -83,7 +83,7 @@ def main(cfg: DictConfig):
     try:
         contents = os.listdir(ckpt)
     except Exception as e:
-        contents = f"<error listing dir: {e}>"
+        contents = [f"<error listing dir: {e}>"]
     logger.info(f"[CHECKPOINT-DEBUG] Post-mkdir checkpoint dir: {ckpt}, contents: {contents}")
     project_root = pathlib.Path(original_cwd)
     logger.debug("[DEBUG] Original working directory: %s", original_cwd)
@@ -199,10 +199,11 @@ def main(cfg: DictConfig):
             )
             trainer.fit(model, dl)
             # DEBUG: List checkpoint directory contents after training
+            post_contents = []
             try:
                 post_contents = os.listdir(ckpt)
             except Exception as e:
-                post_contents = f"<error listing dir: {e}>"
+                post_contents = [f"<error listing dir: {e}>"]
             logger.info(f"[CHECKPOINT-DEBUG] After training contents of {ckpt}: {post_contents}")
             logger.info(f"[CHECKPOINT-DEBUG] Training completed. Checkpoints should be saved to: {checkpoint_callback.dirpath}")
         except Exception as train_exc:
