@@ -228,3 +228,6 @@ dssr-torsions.txt
 dssr-2ndstrs.dbn
 dssr-2ndstrs.bpseq
 dssr-2ndstrs.ct
+
+# External projects
+auto-type-annotate/
