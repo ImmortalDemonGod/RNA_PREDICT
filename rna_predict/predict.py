@@ -150,12 +150,16 @@ class RNAPredictor:
                 atom_metadata = result.get('atom_metadata') or {}
                 atom_names = atom_metadata.get('atom_names', ['P'] * atom_coords.shape[0])
                 residue_indices = atom_metadata.get('residue_indices', list(range(atom_coords.shape[0])))
+                if residue_indices is None:
+                    residue_indices = list(range(atom_coords.shape[0]))
                 atom_names = atom_names[:atom_coords.shape[0]]
                 residue_indices = residue_indices[:atom_coords.shape[0]]
 
         n_atoms = results[0].shape[0] if results else 0
 
         # Clamp residue_indices to valid range
+        if residue_indices is None:
+            residue_indices = list(range(atom_coords.shape[0]))
         valid_indices = [i if i < len(sequence) else len(sequence)-1 for i in residue_indices]
         if any(i >= len(sequence) for i in residue_indices):
             print(f"[WARN] Clamped out-of-range residue_indices: {residue_indices} (sequence len={len(sequence)})")
@@ -165,10 +169,11 @@ class RNAPredictor:
             'resid': [i + 1 for i in valid_indices],
         }
         # Coordinate columns for each repeat
-        for i, atom_coords in enumerate(results):
-            base_data[f'x_{i+1}'] = atom_coords[:, 0].tolist()
-            base_data[f'y_{i+1}'] = atom_coords[:, 1].tolist()
-            base_data[f'z_{i+1}'] = atom_coords[:, 2].tolist()
+        if results is not None:
+            for i, atom_coords in enumerate(results):
+                base_data[f'x_{i+1}'] = atom_coords[:, 0].tolist()
+                base_data[f'y_{i+1}'] = atom_coords[:, 1].tolist()
+                base_data[f'z_{i+1}'] = atom_coords[:, 2].tolist()
         return pd.DataFrame(base_data)
 
     def predict_submission_original(self, sequence: str, prediction_repeats: Optional[int] = None, residue_atom_choice: Optional[int] = None, repeat_seeds: Optional[list] = None) -> pd.DataFrame:
