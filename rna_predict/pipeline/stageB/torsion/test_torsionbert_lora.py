@@ -7,11 +7,29 @@ from rna_predict.pipeline.stageB.torsion.torsion_bert_predictor import StageBTor
 
 @pytest.fixture(autouse=True, scope="module")
 def patch_automodel_for_all_tests():
+    """
+    Pytest fixture that patches AutoModel.from_pretrained to return a dummy TorsionBERT model.
+    
+    This fixture ensures all tests use a consistent dummy model with 16 angles instead of loading real models.
+    """
     with patch("transformers.AutoModel.from_pretrained", return_value=DummyTorsionBertAutoModel(num_angles=16)):
         yield
 
 def make_lora_cfg(enabled=True, r=4, lora_alpha=16, lora_dropout=0.1, target_modules=None):
     # Use dict, not SimpleNamespace, for OmegaConf compatibility
+    """
+    Creates a configuration dictionary for LoRA (Low-Rank Adaptation) parameters.
+    
+    Args:
+        enabled: Whether LoRA is enabled.
+        r: LoRA rank parameter.
+        lora_alpha: LoRA scaling factor.
+        lora_dropout: Dropout probability for LoRA layers.
+        target_modules: List of module names to apply LoRA to; defaults to ["query", "value"].
+    
+    Returns:
+        A dictionary containing LoRA configuration settings compatible with OmegaConf.
+    """
     return {
         'enabled': enabled,
         'r': r,
@@ -25,6 +43,15 @@ def make_lora_cfg(enabled=True, r=4, lora_alpha=16, lora_dropout=0.1, target_mod
 
 def make_cfg(lora_enabled=True):
     # Minimal config for TorsionBERT + LoRA
+    """
+    Creates a minimal OmegaConf configuration for initializing a TorsionBERT predictor with optional LoRA settings.
+    
+    Args:
+        lora_enabled: If True, includes LoRA configuration in the returned config.
+    
+    Returns:
+        An OmegaConf object containing model, device, angle, and LoRA parameters for testing.
+    """
     return OmegaConf.create({
         'model_name_or_path': 'sayby/rna_torsionbert',
         'device': 'cpu',
@@ -63,6 +90,11 @@ def test_no_lora_if_disabled():
 
 
 def test_predictor_forward_dummy():
+    """
+    Tests that the predictor returns a tensor of correct shape when given a sample RNA sequence.
+    
+    Verifies that the output is a torch.Tensor with the first dimension matching the sequence length and the second dimension equal to twice the configured number of angles, reflecting sine-cosine encoding.
+    """
     cfg = make_cfg(lora_enabled=True)
     predictor = StageBTorsionBertPredictor(cfg)
     seq = "ACGUACGU"

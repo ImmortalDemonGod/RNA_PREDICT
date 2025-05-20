@@ -7,17 +7,20 @@ from torch import Tensor
 
 
 def reshape_coords(coords: Tensor, num_residues: int) -> Tensor:
-    """Reshape coordinates to standard [N, atoms, 3] format, or return flat if variable atom counts.
-
+    """
+    Reshapes a coordinate tensor to [N, atoms, 3] format or returns it unchanged for variable atom counts.
+    
+    If the input tensor is 2D with the first dimension equal to the number of residues, it is reshaped to [N, 1, 3]. If the input is 2D with a different first dimension, it is assumed to represent a flat list of atoms and is returned as-is. If the input is already 3D, it is returned unchanged.
+    
     Args:
-        coords: Input coordinates tensor of shape [N, 3], [N*atoms, 3], or [N, atoms, 3]
-        num_residues: Number of residues (N) expected in reshaped tensor
-
+        coords: Coordinate tensor of shape [N, 3], [total_atoms, 3], or [N, atoms, 3].
+        num_residues: The expected number of residues (N).
+    
     Returns:
-        Tensor of shape [N, atoms, 3] where atoms is inferred from input shape, or [total_atoms, 3] if variable atoms
-
+        A tensor of shape [N, atoms, 3] or [total_atoms, 3], depending on input.
+    
     Raises:
-        ValueError: If coords shape cannot be normalized to [N, atoms, 3] and is not flat [total_atoms, 3]
+        ValueError: If the input tensor shape is not compatible with these formats.
     """
     # If 2D and equal to one coord per residue, treat as uniform [N,1,3]
     if coords.dim() == 2:
@@ -34,17 +37,18 @@ def reshape_coords(coords: Tensor, num_residues: int) -> Tensor:
 
 
 def extract_atom(coords: Tensor, atom_idx: int) -> Tensor:
-    """Extract coordinates for a specific atom from each residue.
-
+    """
+    Extracts the coordinates of a specified atom from each residue in a coordinate tensor.
+    
     Args:
-        coords: Input coordinates tensor of shape [N, atoms, 3]
-        atom_idx: Index of atom to extract from each residue
-
+        coords: A tensor of shape [N, atoms, 3] representing residue atom coordinates.
+        atom_idx: The index of the atom to extract from each residue.
+    
     Returns:
-        Tensor of shape [N, 3] containing selected atom coordinates
-
+        A tensor of shape [N, 3] containing the coordinates of the selected atom for each residue.
+    
     Raises:
-        IndexError: If atom_idx is out of bounds
+        IndexError: If atom_idx is not a valid atom index for the input tensor.
     """
     try:
         return coords[:, atom_idx, :]

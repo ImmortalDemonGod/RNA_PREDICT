@@ -6,9 +6,9 @@ from rna_predict.pipeline.stageA.input_embedding.current.primitives.attention_ba
 
 def test_adaptive_layernorm_valid_broadcast():
     """
-    Test that when shapes are broadcast-compatible, conditioning is applied without warnings 
-    and the output shape is as expected.
-    We simulate a scenario where 'a' has an extra singleton dimension that should be squeezed.
+    Verifies that adaptive layer normalization applies conditioning without warnings when input and conditioning tensors have broadcast-compatible shapes.
+    
+    This test checks that no "Skipping adaptive layernorm conditioning" warning is raised and that the output shape matches the expected broadcasted shape when the input tensor has an extra singleton dimension.
     """
     B, N, c_a, c_s = 2, 10, 128, 64
     adaln = AdaptiveLayerNorm(c_a=c_a, c_s=c_s)
@@ -40,9 +40,9 @@ def test_adaptive_layernorm_valid_broadcast():
     assert out.shape == expected_shape, f"Unexpected output shape: {out.shape}. Expected {expected_shape}"
 def test_adaptive_layernorm_incompatible_features():
     """
-    Test that when inputs are incompatible in their non-broadcastable spatial dimensions,
-    the conditioning fails. For example, if 'a' has shape [B, 1, N, c_a] but 's' has shape [B, N-1, c_s],
-    torch.broadcast_tensors should raise a RuntimeError.
+    Verifies that adaptive layer normalization conditioning fails with a RuntimeError when input tensors have incompatible spatial dimensions that cannot be broadcast.
+    
+    This test constructs input and conditioning tensors with mismatched spatial dimensions and asserts that attempting to broadcast them raises a RuntimeError, confirming correct error handling for non-broadcastable shapes.
     """
     B, N, c_a, c_s = 1, 8, 128, 64
     adaln = AdaptiveLayerNorm(c_a=c_a, c_s=c_s)
@@ -73,10 +73,9 @@ def test_adaptive_layernorm_incompatible_features():
 
 def test_adaptive_layernorm_edge_extra_dims():
     """
-    Test that when both inputs have extra dimensions that are broadcastable,
-    the conditioning is applied correctly and the extra dimensions are preserved.
-    For example, if 'a' has shape [B, S, N, c_a] and 's' has shape [B, S, N, c_s], 
-    then the output should have shape [B, S, N, c_a].
+    Verifies that adaptive layer normalization correctly applies conditioning when both input tensors have matching extra dimensions, ensuring the output preserves these dimensions.
+    
+    This test checks that when both the input tensor `a` and the conditioning tensor `s` include an additional sample dimension, the conditioning operation produces an output with the expected shape, confirming that extra dimensions are maintained.
     """
     B, S, N, c_a, c_s = 1, 3, 16, 128, 64
     adaln = AdaptiveLayerNorm(c_a=c_a, c_s=c_s)

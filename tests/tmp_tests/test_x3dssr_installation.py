@@ -7,7 +7,17 @@ import subprocess
 import sys
 
 def test_dssr_installation(dssr_path="x3dna-dssr"):
-    """Test if X3DNA-DSSR is installed and working correctly."""
+    """
+    Checks whether the X3DNA-DSSR executable is available and functioning.
+    
+    Attempts to run the specified DSSR executable with the '--version' flag to verify installation and basic operability.
+    
+    Args:
+        dssr_path: Path to the X3DNA-DSSR executable. Defaults to 'x3dna-dssr'.
+    
+    Returns:
+        True if the executable is found and runs successfully; False otherwise.
+    """
     try:
         # Try to run DSSR with the --version flag
         result = subprocess.run(

@@ -8,6 +8,15 @@ import rna_predict.dataset.preprocessing.angles as angles_module
 @ pytest.fixture(scope="function")
 def cfg(tmp_path):
     # Minimal Hydra config with necessary data and global extraction_backend
+    """
+    Creates a minimal Hydra configuration and index CSV for testing RNA dataset loading.
+    
+    Args:
+        tmp_path: Temporary directory path provided by pytest for file creation.
+    
+    Returns:
+        A Hydra configuration object with dataset parameters and a reference to a generated index CSV file.
+    """
     cfg_dict = {
         "device": "cpu",
         "data": {
@@ -32,9 +41,19 @@ def cfg(tmp_path):
 
 def test_load_angles_uses_extraction_backend(monkeypatch, cfg):
     # Monkeypatch extract_rna_torsions to capture the backend used
+    """
+    Tests that the RNADataset uses the configured extraction backend when loading RNA torsion angles.
+    
+    This test monkeypatches the angle extraction and atom parsing functions to intercept the backend argument and avoid file I/O. It verifies that the backend passed to the extraction function matches the global extraction_backend specified in the configuration.
+    """
     called = {}
     def fake_extract(*args, **kwargs):
         # Capture backend used in extraction
+        """
+        Mocks the RNA torsion angle extraction function, recording the backend used.
+        
+        Records the 'backend' keyword argument in the shared 'called' dictionary and returns a zero tensor shaped (max_residues, 7).
+        """
         called['backend'] = kwargs.get('backend')
         return torch.zeros((cfg.data.max_residues, 7), dtype=torch.float32)
     monkeypatch.setattr(angles_module, "extract_rna_torsions", fake_extract)

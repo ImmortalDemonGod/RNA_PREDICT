@@ -4,9 +4,9 @@ from rna_predict.pipeline.stageA.input_embedding.current.primitives.attention_ba
 
 def test_adaptive_layernorm_broadcast_mismatch_fixed():
     """
-    Test AdaptiveLayerNorm with broadcastable shape mismatch.
-    With the fix (Option A), this should now apply conditioning
-    without warnings and produce a different output than the input.
+    Tests that AdaptiveLayerNorm correctly applies conditioning when input and conditioning tensors have broadcastable but mismatched shapes.
+    
+    Verifies that no warnings about skipping conditioning are raised, the output differs from the input, and gradients propagate through both inputs.
     """
     B = 1        # Batch size
     N = 24       # Number of tokens/atoms

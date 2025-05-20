@@ -37,12 +37,9 @@ def parse_args():
 
 def main():
     """
-    Processes RNA structure files to extract and save ground truth torsion angles.
+    Extracts RNA torsion angles from structure files and saves them as PyTorch tensors.
     
-    Iterates over PDB or CIF files in the input directory, extracts RNA torsion angles
-    for a specified chain and angle set using the selected backend, and saves the
-    results as PyTorch tensors in the output directory. Files that fail extraction
-    are reported.
+    Iterates over PDB or CIF files in the input directory, extracts torsion angles for a specified RNA chain and angle set using the selected backend, and saves the results as `.pt` files in the output directory. Supports optional override of chain ID and backend via Hydra configuration. Reports files that fail extraction.
     """
     args = parse_args()
     print(f"[DEBUG] Parsed args: {args}")

@@ -333,8 +333,9 @@ def run_stage_d(
 
 def run_full_pipeline(cfg: DictConfig) -> dict:
     """
-    Orchestrates the RNA prediction pipeline (Stages A, B, C, and D).
-    Returns a dictionary of pipeline outputs.
+    Runs the complete RNA prediction pipeline, executing Stages A through D and returning all intermediate and final outputs.
+    
+    The function validates configuration, manages device selection, and orchestrates each pipeline stage: adjacency prediction (A), torsion angle and embedding generation (B), coordinate reconstruction (C), and optional diffusion refinement (D). It handles empty input sequences, missing metadata, and optional latent merging, returning a dictionary containing all relevant outputs, including adjacency matrices, embeddings, coordinates, atom metadata, and final refined coordinates.
     """
     # HYPOTHESIS DEBUG: Confirm entry and config values
     logger.debug("[HYPOTHESIS] Entered run_full_pipeline")

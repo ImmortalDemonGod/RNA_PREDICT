@@ -111,7 +111,11 @@ cs = ConfigStore.instance()
 cs.store(group="prediction", name="default", node=PredictionConfig)
 
 def register_configs() -> None:
-    """Register all configurations with Hydra's config store for validation."""
+    """
+    Registers all configuration dataclasses with Hydra's ConfigStore for structured configuration management and validation.
+    
+    This function adds each configuration schema to the ConfigStore under appropriate groups and names, enabling structured configuration loading and validation throughout the RNA prediction pipeline.
+    """
     cs.store(name="rna_config_schema", node=RNAConfig)
     cs.store(group="device_management", name="default", node=DeviceConfig)
     cs.store(group="model", name="dimensions", node=DimensionsConfig)

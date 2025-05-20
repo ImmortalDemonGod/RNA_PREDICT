@@ -16,6 +16,14 @@ CONF_DIR = Path(__file__).resolve().parents[2] / "rna_predict" / "conf"
 def test_gradient_flow_through_stageD(batch_size, n_res, c_s):
     # Set up a minimal config using Hydra (adjust config group as needed)
     # Initialize Hydra from absolute conf directory
+    """
+    Tests that gradients propagate through all inputs of the run_stageD pipeline.
+    
+    Runs the run_stageD function with dummy RNA sequence data and model configuration,
+    then verifies that all input tensors receive gradients after a backward pass.
+    Asserts output shape correctness and confirms differentiability of the pipeline
+    by checking that gradients are present for all relevant input tensors.
+    """
     with initialize_config_dir(config_dir=str(CONF_DIR), version_base=None):
         cfg = compose(config_name="default")
         # Optionally override config values for a minimal test

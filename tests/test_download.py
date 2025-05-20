@@ -11,7 +11,12 @@ import urllib.error
 from rna_predict.pipeline.stageA.run_stageA import download_file
 
 def test_download_succeeds_after_retries():
-    """Test that download_file retries on failure and eventually succeeds."""
+    """
+    Tests that download_file retries after failures and succeeds on a subsequent attempt.
+    
+    Simulates network errors on the first two download attempts and verifies that
+    download_file retries the correct number of times before completing successfully.
+    """
     # Create a temporary directory and file path
     test_dir = tempfile.mkdtemp(prefix="download_test_")
     test_file_path = os.path.join(test_dir, "test_file.bin")

@@ -18,10 +18,10 @@ class RNAPredictor:
     """High-level interface for the RNA_PREDICT pipeline."""
     def __init__(self, cfg: DictConfig) -> None:
         """
-        Initializes the RNAPredictor with configuration for model inference.
+        Initializes the RNAPredictor with the provided configuration for RNA structure inference.
         
         Args:
-            cfg: Hydra DictConfig containing model, device, and prediction parameters.
+            cfg: Hydra DictConfig containing required sections for model, prediction, and device settings.
         
         Raises:
             ValueError: If required configuration sections or fields are missing.
@@ -51,12 +51,14 @@ class RNAPredictor:
     #@snoop
     def predict_3d_structure(self, sequence: str, stochastic_pass: bool = False, seed: Optional[int] = None) -> Dict[str, Any]:
         """
-        Predicts the 3D structure of an RNA sequence using torsion angle prediction and reconstruction.
+        Predicts the 3D atomic structure of an RNA sequence.
         
-        If the input sequence is empty, returns empty coordinate tensors and zero atom count. Otherwise, predicts torsion angles, prepares the configuration for stage C reconstruction, and generates 3D coordinates and related outputs.
+        If the sequence is empty, returns empty coordinate tensors and zero atom count. Otherwise, predicts torsion angles (optionally using stochastic inference and a random seed), prepares the reconstruction configuration, and generates 3D coordinates and related outputs.
         
         Args:
-            sequence: RNA sequence string to predict the structure for.
+            sequence: RNA sequence to predict the structure for.
+            stochastic_pass: If True, enables stochastic inference for torsion angle prediction.
+            seed: Optional random seed for reproducibility during stochastic inference.
         
         Returns:
             A dictionary containing predicted coordinates, 3D coordinates, and atom count.
@@ -86,7 +88,16 @@ class RNAPredictor:
 
     def predict_submission(self, sequence: str, prediction_repeats: Optional[int] = None, residue_atom_choice: Optional[int] = None, repeat_seeds: Optional[list] = None) -> pd.DataFrame:
         """
-        Generate a submission DataFrame with multiple unique structure predictions using stochastic inference if enabled in config.
+        Generates a DataFrame containing multiple predicted RNA 3D structures for a given sequence, supporting stochastic inference and reproducible seeding.
+        
+        Args:
+            sequence: RNA sequence to predict.
+            prediction_repeats: Number of prediction repeats to perform. If None, uses the default from config.
+            residue_atom_choice: Index of the atom to extract per residue. If None, uses the default from config.
+            repeat_seeds: Optional list of seeds for each repeat to ensure reproducibility.
+        
+        Returns:
+            A pandas DataFrame with atom IDs, residue names, residue indices, and x/y/z coordinates for each prediction repeat.
         """
         import logging
         import random
@@ -99,6 +110,12 @@ class RNAPredictor:
         repeats = prediction_repeats if prediction_repeats is not None else self.default_repeats
 
         def set_all_seeds(seed):
+            """
+            Sets the random seed for Python, NumPy, and PyTorch to ensure reproducible results.
+            
+            Args:
+            	seed: The seed value to use for all random number generators.
+            """
             random.seed(seed)
             np.random.seed(seed)
             import torch
@@ -177,6 +194,20 @@ class RNAPredictor:
         return pd.DataFrame(base_data)
 
     def predict_submission_original(self, sequence: str, prediction_repeats: Optional[int] = None, residue_atom_choice: Optional[int] = None, repeat_seeds: Optional[list] = None) -> pd.DataFrame:
+        """
+        Generates a DataFrame of predicted atom coordinates for an RNA sequence, replicating a single prediction across multiple repeats.
+        
+        If the input sequence is empty, returns an empty DataFrame with the appropriate structure for the specified number of repeats. Otherwise, predicts 3D atom coordinates once and duplicates the result for each repeat. The DataFrame includes atom IDs, residue names, residue indices, and x/y/z coordinates for each repeat.
+        
+        Args:
+            sequence: RNA sequence to predict.
+            prediction_repeats: Number of repeats to include in the output DataFrame. If not provided, uses the default from configuration.
+            residue_atom_choice: Index of the atom to extract per residue if multiple atoms are present. If not provided, uses the default from configuration.
+            repeat_seeds: Ignored in this method; included for interface compatibility.
+        
+        Returns:
+            pd.DataFrame: DataFrame containing atom metadata and repeated coordinate columns for each prediction repeat.
+        """
         import logging
         logger = logging.getLogger("rna_predict.predict_submission")
         if not sequence:
@@ -231,6 +262,16 @@ class RNAPredictor:
 
 
 def load_partial_checkpoint(model, checkpoint_path):
+    """
+    Loads model parameters from a checkpoint, updating only matching keys and shapes.
+    
+    Args:
+        model: The model instance to update.
+        checkpoint_path: Path to the checkpoint file.
+    
+    Returns:
+        The model with updated parameters from the checkpoint.
+    """
     checkpoint = torch.load(checkpoint_path, map_location='cpu')
     state_dict = checkpoint.get('state_dict', checkpoint)
     model_state = model.state_dict()
@@ -242,14 +283,14 @@ def load_partial_checkpoint(model, checkpoint_path):
 
 def batch_predict(predictor: RNAPredictor, sequences: List[str], output_dir: str):
     """
-    Generates 3D structure predictions for a batch of RNA sequences and saves results.
+    Generates and saves 3D structure predictions for a batch of RNA sequences.
     
-    For each input sequence, predicts its 3D structure using the provided predictor, then saves the output in three formats: a PyTorch tensor file (.pt), a CSV file with atom coordinates, and a PDB file. Also writes a summary CSV with metadata for all predictions.
+    For each input sequence, predicts multiple 3D structure repeats using the provided predictor. Saves each repeat's atom coordinates as separate CSV and PDB files in the specified output directory. Also writes a summary CSV with metadata for all predictions, including atom counts and number of repeats per sequence.
     
     Args:
-        predictor: An RNAPredictor instance used for structure prediction.
-        sequences: List of RNA sequences to process.
-        output_dir: Directory where prediction outputs will be saved.
+        predictor: RNAPredictor instance used for structure prediction.
+        sequences: List of RNA sequences to predict.
+        output_dir: Directory to save prediction outputs.
     """
     os.makedirs(output_dir, exist_ok=True)
     results = []
@@ -268,6 +309,13 @@ def batch_predict(predictor: RNAPredictor, sequences: List[str], output_dir: str
             rep_df.to_csv(csv_path, index=False)
             # Save as PDB
             def write_pdb(df, pdb_path):
+                """
+                Writes atom coordinates and metadata from a DataFrame to a PDB file in ATOM record format.
+                
+                Args:
+                    df: DataFrame containing columns 'resname', 'resid', 'x', 'y', and 'z' for each atom.
+                    pdb_path: Path to the output PDB file.
+                """
                 with open(pdb_path, "w") as f:
                     for idx, row in df.iterrows():
                         atom = row["resname"]
