@@ -62,17 +62,6 @@ def install_wheels():
         except subprocess.CalledProcessError:
             print(f"[WARN] install failed → skipped: {pkg}")
 
-def symlink_models():
-    # Example: symlink TorsionBERT weights to expected location
-    # Extend as needed for other models/checkpoints
-    src = pathlib.Path("/kaggle/input/rna-torsionbert/rna_torsionBERT")
-    dst = pathlib.Path("/kaggle/working/rna_torsionBERT")
-    if src.is_dir() and not dst.exists():
-        try:
-            os.symlink(src, dst, target_is_directory=True)
-            print(f"[INFO] Symlinked {src} → {dst}")
-        except Exception as e:
-            print(f"[WARN] Failed to symlink {src} → {dst}: {e}")
 
 def set_offline_env_vars():
     os.environ.update({
@@ -114,6 +103,31 @@ def print_kaggle_input_tree():
                 print(f"    {sub}")
     print("\n✅  Done.\n")
 
+def symlink_torsionbert_checkpoint():
+    src = pathlib.Path("/kaggle/input/rna-torsion-bert-checkpoint-base/kaggle/working/rna_torsionBERT")
+    dst = pathlib.Path("/kaggle/working/rna_torsionBERT")
+    if src.exists() and not dst.exists():
+        try:
+            dst.symlink_to(src)
+            print(f"[INFO] Created symlink: {dst} → {src}")
+        except OSError as e:
+            print(f"[WARN] Failed to create symlink: {e}")
+
+def symlink_dnabert_checkpoint():
+    src = pathlib.Path("/kaggle/input/dna-bert-checkpoint-base/kaggle/working/dna_bert")
+    dst = pathlib.Path("/kaggle/working/dna_bert")
+    if src.exists() and not dst.exists():
+        try:
+            dst.symlink_to(src)
+            print(f"[INFO] Created symlink: {dst} → {src}")
+        except OSError as e:
+            print(f"[WARN] Failed to create symlink: {e}")
+
+def patch_transformers_for_local():
+    import transformers
+    transformers.file_utils = lambda x: x
+    transformers.modeling_utils = lambda x: x
+    transformers.tokenization_utils = lambda x: x
 
 def setup_kaggle_environment():
     if not is_kaggle():
@@ -121,8 +135,10 @@ def setup_kaggle_environment():
     print("[INFO] Detected Kaggle environment. Running Kaggle-specific setup...")
     clean_requirements()
     install_wheels()
-    symlink_models()
+    symlink_torsionbert_checkpoint()
+    symlink_dnabert_checkpoint()
     set_offline_env_vars()
+    patch_transformers_for_local()
 
     # --- block-sparse-attn wheel logic ---
     # TODO: Move these paths to config
@@ -147,7 +163,7 @@ def setup_kaggle_environment():
             print("       Continue without it if your code doesn’t need it.")
     else:
         print("[WARN] block-sparse-attn wheel not found in /kaggle/input – skipped.")
-
+{{ ... }}
     # --- rna_predict wheel install ---
     # TODO: Move version to config
     RNA_PREDICT_VERSION = "2.0.3"

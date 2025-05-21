@@ -84,12 +84,13 @@ from rna_predict.kaggle.data_utils import load_kaggle_data
 
 logging.info("Cell 2 complete: Data loaded and assigned.")
 
+from rna_predict.kaggle.kaggle_env import set_offline_env_vars, symlink_torsionbert_checkpoint, symlink_dna_bert_checkpoint, monkey_patch_transformers
 
-from rna_predict.kaggle.kaggle_env import set_offline_env_vars, symlink_torsionbert_checkpoint
-
-# Set up HuggingFace offline environment and symlink checkpoint before anything else
+# Set up HuggingFace offline environment and symlink checkpoints before anything else
 set_offline_env_vars()
 symlink_torsionbert_checkpoint()
+symlink_dna_bert_checkpoint()
+monkey_patch_transformers()
 
 # Cell: RNA Prediction with TorsionBERT  (offline-ready)
 # ------------------------------------------------------
@@ -97,52 +98,6 @@ import pandas as pd, torch, os, logging, sys, transformers
 from omegaconf import OmegaConf
 from functools import partial
 
-DNA_BERT_SRC = "/kaggle/input/dna-bert-rna/DNA_bert_3"
-DNA_BERT_DST = "/kaggle/working/zhihan1996/DNA_bert_3"   # path hard-coded in torsionBERT
-if not os.path.exists(DNA_BERT_DST):
-    os.makedirs("/kaggle/working/zhihan1996", exist_ok=True)
-    os.symlink(DNA_BERT_SRC, DNA_BERT_DST)
-
-# ╔══════════════════════════════════════════════════════════════════════╗
-# 2) FORCE OFFLINE MODE  +  MAP zhihan1996/* IDs → local folders
-# ╚══════════════════════════════════════════════════════════════════════╝
-os.environ.update({
-    "HF_HUB_OFFLINE":      "1",
-    "HF_DATASETS_OFFLINE": "1",
-    "TRANSFORMERS_OFFLINE":"1",
-    "HF_HOME":             "/kaggle/working",
-    "TRANSFORMERS_CACHE":  "/kaggle/working"
-})
-def _localize(repo,*a,**kw):
-    """
-    Redirect zhihan1996/DNA_bert_* to local paths and
-    force local_files_only for every HF load.
-    """
-    if isinstance(repo,str) and repo.startswith("zhihan1996/DNA_bert_"):
-        repo = "/kaggle/working/" + repo
-    kw["local_files_only"] = True
-    return repo,a,kw
-# robust monkey-patch (handles partials, repeated patching, etc.)
-for _cls in ("AutoConfig","AutoTokenizer","AutoModel"):
-    obj      = getattr(transformers, _cls)
-    base_cls = obj.func if isinstance(obj, partial) else obj
-    if not hasattr(base_cls, "from_pretrained"):
-        continue
-    _orig = base_cls.from_pretrained
-    def _wrap(repo,*a,__o=_orig,**kw):
-        repo,a,kw = _localize(repo,*a,**kw)
-        return __o(repo,*a,**kw)
-    base_cls.from_pretrained = _wrap
-
-# accept DNA-Bert-3 custom config
-try:
-    from importlib import import_module
-    custom_conf = import_module(
-        "transformers_modules.DNA_bert_3.configuration_bert"
-    ).BertConfig
-    transformers.models.bert.modeling_bert.BertModel.config_class = custom_conf
-except Exception as e:
-    logging.warning(f"[WARN] DNA_Bert_3 config patch skipped: {e}")
 
 # ╔══════════════════════════════════════════════════════════════════════╗
 # 3) LOGGING & tiny shell helper
