@@ -114,8 +114,8 @@ def symlink_torsionbert_checkpoint():
             print(f"[WARN] Failed to create symlink: {e}")
 
 def symlink_dnabert_checkpoint():
-    src = pathlib.Path("/kaggle/input/dna-bert-checkpoint-base/kaggle/working/dna_bert")
-    dst = pathlib.Path("/kaggle/working/dna_bert")
+    src = pathlib.Path("/kaggle/input/dna-bert-rna/DNA_bert_3")
+    dst = pathlib.Path("/kaggle/working/zhihan1996/DNA_bert_3")
     if src.exists() and not dst.exists():
         try:
             dst.symlink_to(src)
@@ -124,10 +124,37 @@ def symlink_dnabert_checkpoint():
             print(f"[WARN] Failed to create symlink: {e}")
 
 def patch_transformers_for_local():
+    """
+    Monkey-patch transformers to redirect zhihan1996/DNA_bert_* to local paths and force local_files_only.
+    Also patches custom config for DNA_Bert_3 if present.
+    """
     import transformers
-    transformers.file_utils = lambda x: x
-    transformers.modeling_utils = lambda x: x
-    transformers.tokenization_utils = lambda x: x
+    from functools import partial
+    import logging
+    def _localize(repo,*a,**kw):
+        if isinstance(repo,str) and repo.startswith("zhihan1996/DNA_bert_"):
+            repo = "/kaggle/working/" + repo
+        kw["local_files_only"] = True
+        return repo,a,kw
+    for _cls in ("AutoConfig","AutoTokenizer","AutoModel"):
+        obj      = getattr(transformers, _cls)
+        base_cls = obj.func if isinstance(obj, partial) else obj
+        if not hasattr(base_cls, "from_pretrained"):
+            continue
+        _orig = base_cls.from_pretrained
+        def _wrap(repo,*a,__o=_orig,**kw):
+            repo,a,kw = _localize(repo,*a,**kw)
+            return __o(repo,*a,**kw)
+        base_cls.from_pretrained = _wrap
+    # Patch custom config for DNA_Bert_3 if present
+    try:
+        from importlib import import_module
+        custom_conf = import_module(
+            "transformers_modules.DNA_bert_3.configuration_bert"
+        ).BertConfig
+        transformers.models.bert.modeling_bert.BertModel.config_class = custom_conf
+    except Exception as e:
+        logging.warning(f"[WARN] DNA_Bert_3 config patch skipped: {e}")
 
 def setup_kaggle_environment():
     if not is_kaggle():
