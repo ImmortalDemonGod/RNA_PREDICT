@@ -190,7 +190,7 @@ def setup_kaggle_environment():
             print("       Continue without it if your code doesn’t need it.")
     else:
         print("[WARN] block-sparse-attn wheel not found in /kaggle/input – skipped.")
-{{ ... }}
+
     # --- rna_predict wheel install ---
     # TODO: Move version to config
     RNA_PREDICT_VERSION = "2.0.3"
@@ -202,15 +202,14 @@ def setup_kaggle_environment():
     else:
         print(f"[WARN] {rnapred_whl} not found – skipped.")
 
-    # --- hydra-core wheel install ---
-    HYDRA_DIR = "/kaggle/input/hydra-core-132whl"  # TODO: move to config
+    # --- Hydra wheel install ---
+    HYDRA_DIR = "/kaggle/input/hydra-core-132whl"
     if os.path.isdir(HYDRA_DIR):
-        wheels = [f for f in os.listdir(HYDRA_DIR) if f.endswith(".whl")]
-        if wheels:
-            for whl in wheels:
-                whl_path = os.path.join(HYDRA_DIR, whl)
-                print(f"\n[INFO] Installing hydra-core from {whl_path} …\n")
-                subprocess.run([sys.executable, "-m", "pip", "install", "--no-deps", "--quiet", whl_path], check=True)
+        whl_files = list(pathlib.Path(HYDRA_DIR).glob("*.whl"))
+        if whl_files:
+            for whl_path in whl_files:
+                print(f"[INFO] Installing {whl_path} …")
+                subprocess.run([sys.executable, "-m", "pip", "install", "--no-deps", "--quiet", str(whl_path)], check=True)
         else:
             print(f"[WARN] No .whl files found in {HYDRA_DIR} – skipped.")
     else:
