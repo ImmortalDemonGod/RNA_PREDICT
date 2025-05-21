@@ -85,24 +85,17 @@ from rna_predict.kaggle.data_utils import load_kaggle_data
 logging.info("Cell 2 complete: Data loaded and assigned.")
 
 
-# %%
-!HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 HF_HOME=/kaggle/working TRANSFORMERS_CACHE=/kaggle/working ln -sf /kaggle/input/rna-torsion-bert-checkpoint-base/kaggle/working/rna_torsionBERT /kaggle/working/rna_torsionBERT
+from rna_predict.kaggle.kaggle_env import set_offline_env_vars, symlink_torsionbert_checkpoint
 
-# %%
+# Set up HuggingFace offline environment and symlink checkpoint before anything else
+set_offline_env_vars()
+symlink_torsionbert_checkpoint()
+
 # Cell: RNA Prediction with TorsionBERT  (offline-ready)
 # ------------------------------------------------------
 import pandas as pd, torch, os, logging, sys, transformers
 from omegaconf import OmegaConf
 from functools import partial
-
-# ╔══════════════════════════════════════════════════════════════════════╗
-# 1) LINK LOCAL CHECKPOINTS ▸ rna_torsionBERT  &  DNA_Bert_3
-# ╚══════════════════════════════════════════════════════════════════════╝
-if not os.path.exists("/kaggle/working/rna_torsionBERT"):
-    os.symlink(
-        "/kaggle/input/rna-torsion-bert-checkpoint-base/kaggle/working/rna_torsionBERT",
-        "/kaggle/working/rna_torsionBERT"
-    )
 
 DNA_BERT_SRC = "/kaggle/input/dna-bert-rna/DNA_bert_3"
 DNA_BERT_DST = "/kaggle/working/zhihan1996/DNA_bert_3"   # path hard-coded in torsionBERT
