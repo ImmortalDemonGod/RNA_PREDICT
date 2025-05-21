@@ -20,97 +20,7 @@ print_kaggle_input_tree()
 # NOTE: Wheel installation is now handled by setup_kaggle_environment() in Python.
 # This bash block is retained for manual/fallback use or inspection, but is not required for normal operation.
 # ---
-# %%bash
-# # Cell : offline installs that match the *current* wheel set (lean version)
-# # -----------------------------------------------------------------------
-# set -euo pipefail
-#
-# # ── let pip look inside EVERY sub-folder of /kaggle/input ───────────────
-# WHEEL_ROOT="/kaggle/input"
-# FIND_LINKS_ARGS=""
-# for d in "$WHEEL_ROOT" "$WHEEL_ROOT"/*; do
-#   FIND_LINKS_ARGS+=" --find-links $d"
-# done
-#
-# p () {                 # quiet install; warn (don’t die) if something fails
-#   # shellcheck disable=SC2086
-#   pip install --no-index $FIND_LINKS_ARGS --quiet "$@" \
-#   || echo "[WARN] install failed → skipped: $*"
-# }
-#
-# # ────────────────────────────────────────────────────────────────────────
-# # 1) Core scientific stack
-# # ────────────────────────────────────────────────────────────────────────
-# p numpy==1.24.3
-# p pandas==2.2.3
-# p scipy==1.10.1
-# p tqdm==4.67.1
-# p seaborn==0.12.2
-# p biopython==1.85
-# p torch               # pre-installed in the Kaggle image
-#
-# # ────────────────────────────────────────────────────────────────────────
-# # 2)  ML / NLP stack
-# # ────────────────────────────────────────────────────────────────────────
-# p huggingface_hub==0.31.1      # needs hf-xet (you already uploaded)
-# p transformers==4.51.3
-# p pytorch_lightning==2.5.0.post0   # gives us Lightning-core features
-#
-# # ────────────────────────────────────────────────────────────────────────
-# # 3)  Extra deps *rna_predict* really imports
-# # ────────────────────────────────────────────────────────────────────────
-# p lightning-utilities==0.11.2  # comes with PL wheel but list explicitly
-# p datasets==3.6.0
-# p einops==0.8.1
-# p hypothesis==6.131.15
-# p black==25.1.0                # needs pathspec 0.12.1 → you uploaded both
-# p pathspec==0.12.1
-# p isort==6.0.1
-# p ruff==0.11.9
-# p mss==10.0.0
-# p mdanalysis==2.9.0
-# p mmtf-python==1.1.3
-# p GridDataFormats==1.0.2
-# p mrcfile==1.5.4
-# p lxml==5.4.0
-# p dearpygui==2.0.0
-# p py-cpuinfo==9.0.0
-# p Pillow                        # pillow-11-2-1 wheel present
-# p exit-codes==1.3.0             # small helper used by HF-Hub 0.31+
-#
-# # ────────────────────────────────────────────────────────────────────────
-# # 4)  Config utilities
-# # ────────────────────────────────────────────────────────────────────────
-# p hydra-core==1.3.2
-# p omegaconf==2.3.0
-# p ml_collections==1.1.0         # required by Protenix
-#
-# # ────────────────────────────────────────────────────────────────────────
-# # 5)  rna-predict itself  (no-deps so nothing reaches PyPI)
-# # ────────────────────────────────────────────────────────────────────────
-# pip install --no-index --no-deps --quiet \
-#   /kaggle/input/rna-structure-predict/rna_predict-2.0.3-py3-none-any.whl
-#
-# # ────────────────────────────────────────────────────────────────────────
-# # 6)  Protenix 0.4.6  (wheel, but ignore its heavy deps like RDKit)
-# # ────────────────────────────────────────────────────────────────────────
-# pip install --no-index --no-deps --quiet \
-#   /kaggle/input/protenix-0-4-6/protenix-0.4.6-py3-none-any.whl \
-#   || echo "[WARN] Protenix wheel install failed."
-#
-# # ────────────────────────────────────────────────────────────────────────
-# # 7)  Runtime shim: make “import lightning” point to pytorch_lightning
-# # ────────────────────────────────────────────────────────────────────────
-# python - <<'PY'
-# import sys, importlib, types
-# try:
-#     import pytorch_lightning as pl
-#     sys.modules.setdefault("lightning", pl)
-# except ImportError:
-#     print("[WARN] pytorch_lightning missing – shim not created")
-# PY
-#
-# echo "✅  Offline wheel install phase complete."
+
 
 # %%
 # ---
@@ -376,19 +286,7 @@ Retrain each coordinate model on all data (X_full, y_*_full).
 # TODO: get_best_xgb removed in cleanup pass 1
 
 
-logging.info("Retraining final model for X coordinate...")
-#model_x = get_best_xgb(best_params_x)
-#model_x.fit(X_full, y_x_full)
 
-logging.info("Retraining final model for Y coordinate...")
-#model_y = get_best_xgb(best_params_y)
-#model_y.fit(X_full, y_y_full)
-
-logging.info("Retraining final model for Z coordinate...")
-#model_z = get_best_xgb(best_params_z)
-#model_z.fit(X_full, y_z_full)
-
-logging.info("Cell 9 complete: Final models trained.")
 
 # %%
 """
