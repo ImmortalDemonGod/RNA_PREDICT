@@ -159,38 +159,20 @@ logging.basicConfig(
 logging.info("Cell 1 complete: Libraries imported and logging initialized.")
 
 
-# %%
-"""
-Cell 2: DATA IMPORT
--------------------
-Here, we read in train/validation/test CSVs and a sample submission from the Kaggle environment.
-Adjust the paths if needed for your environment.
-"""
 
-# Example file paths
-TRAIN_SEQUENCES_PATH = "/kaggle/input/stanford-rna-3d-folding/train_sequences.csv"
-TRAIN_LABELS_PATH    = "/kaggle/input/stanford-rna-3d-folding/train_labels.csv"
-VALID_SEQUENCES_PATH = "/kaggle/input/stanford-rna-3d-folding/validation_sequences.csv"
-VALID_LABELS_PATH    = "/kaggle/input/stanford-rna-3d-folding/validation_labels.csv"
-TEST_SEQUENCES_PATH  = "/kaggle/input/stanford-rna-3d-folding/test_sequences.csv"
-SAMPLE_SUB_PATH      = "/kaggle/input/stanford-rna-3d-folding/sample_submission.csv"
+from rna_predict.kaggle.data_utils import load_kaggle_data
 
-try:
-    train_sequences = pd.read_csv(TRAIN_SEQUENCES_PATH)
-    train_labels = pd.read_csv(TRAIN_LABELS_PATH)
-    validation_sequences = pd.read_csv(VALID_SEQUENCES_PATH)
-    validation_labels = pd.read_csv(VALID_LABELS_PATH)
-    test_sequences = pd.read_csv(TEST_SEQUENCES_PATH)
-    sample_submission = pd.read_csv(SAMPLE_SUB_PATH)
+# Call the data loader at the notebook's data import step
+(
+    train_sequences,
+    train_labels,
+    validation_sequences,
+    validation_labels,
+    test_sequences,
+    sample_submission,
+) = load_kaggle_data()
 
-    logging.info("Cell 2 complete: Data loaded successfully.")
-except Exception as e:
-    logging.error(f"Error loading data: {e}")
-    sys.exit(1)
-
-logging.info(f"train_sequences: {train_sequences.shape}, train_labels: {train_labels.shape}")
-logging.info(f"validation_sequences: {validation_sequences.shape}, validation_labels: {validation_labels.shape}")
-logging.info(f"test_sequences: {test_sequences.shape}, sample_submission: {sample_submission.shape}")
+logging.info("Cell 2 complete: Data loaded and assigned.")
 
 # %%
 """
