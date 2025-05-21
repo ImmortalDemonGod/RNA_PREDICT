@@ -83,6 +83,23 @@ def set_offline_env_vars():
     })
     print("[INFO] Set HuggingFace offline environment variables.")
 
+def print_system_info():
+    """Prints Python, OS, CPU, memory, and disk info for diagnostics."""
+    import sys, subprocess
+    print("\n=== [System Information] ===")
+    print("\n[Python Version]")
+    print(sys.version)
+    print("\n[Kernel and OS Information]")
+    subprocess.run(["uname", "-a"])
+    print("\n[CPU Information]")
+    subprocess.run(["lscpu"])
+    print("\n[Memory Information]")
+    subprocess.run(["free", "-mh"])
+    print("\n[Disk Information]")
+    subprocess.run(["lsblk"])
+    print("\n=== [End of System Information] ===\n")
+
+
 def setup_kaggle_environment():
     if not is_kaggle():
         return
@@ -91,4 +108,64 @@ def setup_kaggle_environment():
     install_wheels()
     symlink_models()
     set_offline_env_vars()
+
+    # --- block-sparse-attn wheel logic ---
+    # TODO: Move these paths to config
+    BLOCK_SPARSE_WHEEL_IN = (
+        "/kaggle/input/block-sparse-wheels/"
+        "block_sparse_attn-0.0.1cu118torch2.0cxx11abiTRUE-"
+        "cp310-cp310-linux_x86_64.whl"
+    )
+    BLOCK_SPARSE_WHEEL_OUT = (
+        "/kaggle/working/"
+        "block_sparse_attn-0.0.1+cu118torch2.0-"
+        "cp310-cp310-linux_x86_64.whl"
+    )
+    if os.path.exists(BLOCK_SPARSE_WHEEL_IN):
+        try:
+            shutil.copyfile(BLOCK_SPARSE_WHEEL_IN, BLOCK_SPARSE_WHEEL_OUT)
+            print("\n[INFO] Copied block-sparse-attn wheel to working dir.")
+            print("[INFO] Installing block-sparse-attn (no deps)…\n")
+            subprocess.run([sys.executable, "-m", "pip", "install", "--no-deps", "--quiet", BLOCK_SPARSE_WHEEL_OUT], check=True)
+        except Exception as e:
+            print(f"[WARN] Could not copy/install block-sparse wheel: {e}")
+            print("       Continue without it if your code doesn’t need it.")
+    else:
+        print("[WARN] block-sparse-attn wheel not found in /kaggle/input – skipped.")
+
+    # --- rna_predict wheel install ---
+    # TODO: Move version to config
+    RNA_PREDICT_VERSION = "2.0.3"
+    rnapred_whl = f"/kaggle/input/rna-structure-predict/" \
+                  f"rna_predict-{RNA_PREDICT_VERSION}-py3-none-any.whl"
+    if os.path.exists(rnapred_whl):
+        print(f"\n[INFO] Installing rna_predict {RNA_PREDICT_VERSION} …\n")
+        subprocess.run([sys.executable, "-m", "pip", "install", "--no-deps", "--quiet", rnapred_whl], check=True)
+    else:
+        print(f"[WARN] {rnapred_whl} not found – skipped.")
+
+    # --- hydra-core wheel install ---
+    HYDRA_DIR = "/kaggle/input/hydra-core-132whl"  # TODO: move to config
+    if os.path.isdir(HYDRA_DIR):
+        wheels = [f for f in os.listdir(HYDRA_DIR) if f.endswith(".whl")]
+        if wheels:
+            for whl in wheels:
+                whl_path = os.path.join(HYDRA_DIR, whl)
+                print(f"\n[INFO] Installing hydra-core from {whl_path} …\n")
+                subprocess.run([sys.executable, "-m", "pip", "install", "--no-deps", "--quiet", whl_path], check=True)
+        else:
+            print(f"[WARN] No .whl files found in {HYDRA_DIR} – skipped.")
+    else:
+        print(f"[WARN] {HYDRA_DIR} not found – skipped.")
+
+    # --- Final package versions ---
+    print("\n=== [Final Package Versions] ===")
+    for pkg in [
+        "torch", "block-sparse-attn", "rna-predict",
+        "hydra-core", "numpy", "scipy", "scikit-learn", "seaborn"
+    ]:
+        subprocess.run([sys.executable, "-m", "pip", "show", pkg])
+    print("=== [End of Final Package Versions] ===\n")
+
     print("[INFO] Kaggle environment setup complete.")
+
