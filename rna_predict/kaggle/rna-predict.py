@@ -5,26 +5,8 @@ from rna_predict.kaggle.kaggle_env import setup_kaggle_environment
 
 setup_kaggle_environment()
 
-import pathlib, shutil, re, textwrap, sys, os
-
-REQ_PATH = pathlib.Path("/kaggle/requirements/input_requirements.txt")
-if REQ_PATH.is_file():
-    cleaned_lines = []
-    for line in REQ_PATH.read_text().splitlines():
-        line = line.strip()
-        if not line or line.startswith("#"):
-            continue                    # ← drop blanks / comments
-        if not line.startswith("pip install"):
-            # keep it but comment it out so the helper ignores it
-            line = f"# {line}"
-        cleaned_lines.append(line)
-
-    REQ_PATH.write_text("\n".join(cleaned_lines) + ("\n" if cleaned_lines else ""))
-
-    print(f"[INFO] requirements cleaned – {len(cleaned_lines)} valid "
-          f"pip-install line(s) kept.")
-else:
-    print(f"[INFO] {REQ_PATH} not found – nothing to clean.")
+import pathlib, sys, os  # Only keep what's actually used below
+# (Requirements cleaning is now handled by setup_kaggle_environment())
 
 # %%
 # Cell: show what’s inside every mounted Kaggle dataset  🔍 (Python version)
@@ -148,109 +130,16 @@ print_kaggle_input_tree()
 # Cell: ALL-IN-ONE Environment Setup  (no uninstalls, no online pip)
 # ---
 
-import sys, subprocess, shutil, os, platform
+from rna_predict.kaggle.kaggle_env import setup_kaggle_environment, print_system_info
 
-def run_and_print(cmd):
-    res = subprocess.run(cmd, capture_output=True, text=True)
-    print(res.stdout, end="")
-    if res.stderr:
-        print(res.stderr, end="")
+# Run all Kaggle/offline environment setup (includes wheels, symlinks, offline vars, etc.)
+setup_kaggle_environment()
 
-# ══════ 1)  System information (unchanged) ════════════════════════════════
-print("\n=== [System Information] ===")
+# Print system diagnostics (Python, OS, CPU, memory, disk)
+print_system_info()
 
-print("\n[Python Version]")
-print(sys.version)
-
-print("\n[Kernel and OS Information]")
-run_and_print(["uname", "-a"])
-
-print("\n[CPU Information]")
-run_and_print(["lscpu"])
-
-print("\n[Memory Information]")
-run_and_print(["free", "-mh"])
-
-print("\n[Disk Information]")
-run_and_print(["lsblk"])
-
-print("\n=== [End of System Information] ===\n")
-
-# ══════ 2)  USER CONFIG  ══════════════════════════════════════════════════
-RNA_PREDICT_VERSION   = "2.0.3"
-BLOCK_SPARSE_WHEEL_IN = (
-    "/kaggle/input/block-sparse-wheels/"
-    "block_sparse_attn-0.0.1cu118torch2.0cxx11abiTRUE-"
-    "cp310-cp310-linux_x86_64.whl"
-)
-# PEP 440-compliant rename (Torch version tag trimmed)
-BLOCK_SPARSE_WHEEL_OUT = (
-    "/kaggle/working/"
-    "block_sparse_attn-0.0.1+cu118torch2.0-"
-    "cp310-cp310-linux_x86_64.whl"
-)
-
-# ══════ 3)  Environment-fix helper  ═══════════════════════════════════════
-def setup_environment():
-    """
-    ① Ensure Seaborn (and its deps) is present
-    ② Copy & install block_sparse_attn wheel   ← optional; see note below
-    ③ Install rna_predict
-    ④ Install hydra-core from local wheel
-    ⑤ Show final versions of key packages
-    """
-    # ① Make sure Seaborn is available –
-    #    Kaggle base image already has 0.12.2 but we pin it explicitly:
-    print("[INFO] Making sure Seaborn is installed…\n")
-    run_and_print(["pip", "install", "--quiet", "seaborn==0.12.2"])
-
-    # ② Copy & (optionally) install block_sparse_attn
-    if os.path.exists(BLOCK_SPARSE_WHEEL_IN):
-        try:
-            shutil.copyfile(BLOCK_SPARSE_WHEEL_IN, BLOCK_SPARSE_WHEEL_OUT)
-            print("\n[INFO] Copied block-sparse-attn wheel to working dir.")
-            print("[INFO] Installing block-sparse-attn (no deps)…\n")
-            run_and_print(["pip", "install", "--no-deps", "--quiet", BLOCK_SPARSE_WHEEL_OUT])
-        except Exception as e:
-            print(f"[WARN] Could not copy/install block-sparse wheel: {e}")
-            print("       Continue without it if your code doesn’t need it.")
-    else:
-        print("[WARN] block-sparse-attn wheel not found in /kaggle/input – skipped.")
-
-    # ③ Install rna_predict (pure-py, so --no-deps is fine)
-    rnapred_whl = f"/kaggle/input/rna-structure-predict/" \
-                  f"rna_predict-{RNA_PREDICT_VERSION}-py3-none-any.whl"
-    if os.path.exists(rnapred_whl):
-        print(f"\n[INFO] Installing rna_predict {RNA_PREDICT_VERSION} …\n")
-        run_and_print(["pip", "install", "--no-deps", "--quiet", rnapred_whl])
-    else:
-        print(f"[WARN] {rnapred_whl} not found – skipped.")
-
-    # ④ Install hydra-core from local wheel
-    HYDRA_DIR = "/kaggle/input/hydra-core-132whl"
-    if os.path.isdir(HYDRA_DIR):
-        wheels = [f for f in os.listdir(HYDRA_DIR) if f.endswith(".whl")]
-        if wheels:
-            for whl in wheels:
-                whl_path = os.path.join(HYDRA_DIR, whl)
-                print(f"\n[INFO] Installing hydra-core from {whl_path} …\n")
-                run_and_print(["pip", "install", "--no-deps", "--quiet", whl_path])
-        else:
-            print(f"[WARN] No .whl files found in {HYDRA_DIR} – skipped.")
-    else:
-        print(f"[WARN] {HYDRA_DIR} not found – skipped.")
-
-    # ⑤ Show final versions
-    print("\n=== [Final Package Versions] ===")
-    for pkg in [
-        "torch", "block-sparse-attn", "rna-predict",
-        "hydra-core", "numpy", "scipy", "scikit-learn", "seaborn"
-    ]:
-        run_and_print(["pip", "show", pkg])
-    print("=== [End of Final Package Versions] ===\n")
-
-# ══════ 4)  Run it  ═══════════════════════════════════════════════════════
-setup_environment()
+# TODO: All hardcoded paths and version strings below should be moved to config for Hydra integration.
+# (Keep marking with # TODO as you modularize further.)
 
 # %%
 # -*- coding: utf-8 -*-
