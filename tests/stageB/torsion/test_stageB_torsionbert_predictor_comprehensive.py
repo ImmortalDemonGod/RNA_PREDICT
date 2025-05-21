@@ -513,7 +513,7 @@ class TestStageBTorsionBertPredictorDimChecks:
         """
         Test that a shape mismatch raises a RuntimeError with unique error code.
         """
-        def raise_dim_error(*_):
+        def raise_dim_error(*args, **kwargs):
             return torch.randn(3, 7)  # 7 is odd, so it will fail when divided by 2
 
         test_cfg = create_test_torsion_config(
@@ -538,7 +538,7 @@ class TestStageBTorsionBertPredictorDimChecks:
         with patch("transformers.AutoModel.from_pretrained", return_value=dummy_model), \
              patch("transformers.AutoTokenizer.from_pretrained", return_value=DummyTokenizer()):
             predictor = StageBTorsionBertPredictor(cfg=test_cfg)
-            def raise_error(*_):
+            def raise_error(*args, **kwargs):
                 raise RuntimeError("Forced mismatch for test! [UNIQUE-ERR-TORSIONBERT-DIM-002]")
             predictor.predict_angles_from_sequence = raise_error
             with pytest.raises(RuntimeError, match="Forced mismatch for test!") as excinfo:
@@ -823,7 +823,7 @@ class TestReplicateInterfaceBug:
         # This simulates the "14 vs 32" dimension error described in the docstring
 
         # Create a function that raises the target error
-        def raise_dim_error(*_):
+        def raise_dim_error(*args, **kwargs):
             raise RuntimeError("Tensor sizes (1,32) and (14,32) are incompatible")
 
         # Create a predictor

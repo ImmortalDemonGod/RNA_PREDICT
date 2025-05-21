@@ -130,7 +130,8 @@ dmypy.json
 # templates
 .github/templates/*
 .aider*
-github_automation_output/*
+#github_automation_output/*
+github_automation_output
 log.txt
 uv.lock
 docs/.DS_Store
@@ -163,8 +164,8 @@ outputs/
 *.output
 
 # TEMPORARY: allow .log files for debugging
-#*.log
-#*.log* 
+*.log
+*.log* 
 
 # Added by Claude Task Master
 # Logs
@@ -218,3 +219,15 @@ scripts/**/.env
 tmp_zip_clean/
 package-lock.json
 package.json
+*.diff
+*.pdb
+lightning_logs/*
+dssr-torsions.txt
+.gitignore
+.gitignore
+dssr-2ndstrs.dbn
+dssr-2ndstrs.bpseq
+dssr-2ndstrs.ct
+
+# External projects
+auto-type-annotate/

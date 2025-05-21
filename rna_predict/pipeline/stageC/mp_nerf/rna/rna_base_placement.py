@@ -179,7 +179,10 @@ def place_rna_bases(
                             break
                 if ref3 is None:
                     # Create a third reference offset from ref1
-                    ref3 = ref1 + torch.tensor([0.0, 1.0, 0.0], device=device)
+                    if ref1 is not None:
+                        ref3 = ref1 + torch.tensor([0.0, 1.0, 0.0], device=device)
+                    else:
+                        ref3 = torch.tensor([0.0, 1.0, 0.0], device=device)
                     ref_names.append('artificial_offset')
                 # Log the chosen references
                 logger.debug(f"[DEBUG-NAN-REFS] {atom_name} residue {i}: ref1={ref1}, ref2={ref2}, ref3={ref3}, ref_names={ref_names}")
@@ -216,7 +219,10 @@ def place_rna_bases(
                             logger.error(f"[UNIQUE-ERR-RNA-NAN-FALLBACK] Perpendicular vector is near zero for {atom_name} at residue {i}, using default [1,0,0]")
                             perp = v1.new_tensor([1.0, 0.0, 0.0])
                         perp = perp / torch.norm(perp)
-                        ref3 = ref1 + perp
+                        if ref1 is not None:
+                            ref3 = ref1 + perp
+                        else:
+                            ref3 = perp
                         unique_refs[2] = "artificial"
                         collinear = False
                 # --- NAN DEBUG ---

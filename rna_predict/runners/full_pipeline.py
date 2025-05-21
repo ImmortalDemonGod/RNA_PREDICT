@@ -21,7 +21,7 @@ from rna_predict.pipeline.stageD.run_stageD import run_stageD
 from rna_predict.utils.tensor_utils.embedding import residue_to_atoms
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
+logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 # Stage A
@@ -336,6 +336,15 @@ def run_full_pipeline(cfg: DictConfig) -> dict:
     Orchestrates the RNA prediction pipeline (Stages A, B, C, and D).
     Returns a dictionary of pipeline outputs.
     """
+    # HYPOTHESIS DEBUG: Confirm entry and config values
+    logger.debug("[HYPOTHESIS] Entered run_full_pipeline")
+    # Log key config parameters
+    seq = getattr(cfg, 'sequence', None)
+    idx = getattr(cfg.data, 'index_csv', None) if hasattr(cfg, 'data') else None
+    t_idx = getattr(cfg, 'data_index', None)
+    logger.debug(f"[HYPOTHESIS] cfg.sequence: {seq}")
+    logger.debug(f"[HYPOTHESIS] cfg.data.index_csv: {idx}")
+    logger.debug(f"[HYPOTHESIS] cfg.data_index (test_data): {t_idx}")
     # Device validation (Hydra best practice)
     if not (hasattr(cfg, 'device') and (isinstance(cfg.device, str) or isinstance(cfg.device, torch.device))):
         logger.error(f"Invalid device config: {getattr(cfg, 'device', None)} (type: {type(getattr(cfg, 'device', None))}) - Defaulting to 'cpu'.")

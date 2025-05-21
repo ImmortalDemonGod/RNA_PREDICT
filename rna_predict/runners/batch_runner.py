@@ -162,8 +162,14 @@ def main():
             all_success = False # Mark overall run as failed if any file is skipped
             continue # Move to the next file
 
-        print(f"Running {os.path.relpath(file_path, PROJECT_ROOT)}...") # Use relative path for cleaner console output
-        success = run_python_file(file_path, output_file)
+        # Patch: Pass config overrides to interface.py for Hydra completeness
+        if os.path.basename(file_path) == "interface.py":
+            extra_args = [f"test_data.sequence={test_sequence}", "prediction.repeats=5", "prediction.residue_atom_choice=0"]
+            print(f"Running {os.path.relpath(file_path, PROJECT_ROOT)} with args: {extra_args}...")
+            success = run_python_file(file_path, output_file, extra_args)
+        else:
+            print(f"Running {os.path.relpath(file_path, PROJECT_ROOT)}...")
+            success = run_python_file(file_path, output_file)
         if success:
             print(f"Successfully ran {os.path.relpath(file_path, PROJECT_ROOT)}")
         else:

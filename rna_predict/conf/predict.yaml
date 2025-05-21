@@ -1,5 +1,7 @@
 defaults:
   - default
+  - _self_
+  - prediction: default
 fast_dev_run: false
 limit_n: null
 

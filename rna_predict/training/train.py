@@ -74,11 +74,17 @@ def main(cfg: DictConfig):
     # Get the original working directory (project root)
     original_cwd = hydra.utils.get_original_cwd()
     # Early ensure checkpoint directory exists so test always sees it
-    ckpt = cfg.training.checkpoint_dir
+    ckpt: str = str(cfg.training.checkpoint_dir)  # Explicitly cast to str
     # resolve absolute
     if not os.path.isabs(ckpt):
         ckpt = os.path.join(original_cwd, ckpt)
     os.makedirs(ckpt, exist_ok=True)
+    # DEBUG: Verify checkpoint dir creation and contents immediately after mkdir
+    try:
+        contents = os.listdir(ckpt)
+    except Exception as e:
+        contents = [f"<error listing dir: {e}>"]
+    logger.info(f"[CHECKPOINT-DEBUG] Post-mkdir checkpoint dir: {ckpt}, contents: {contents}")
     project_root = pathlib.Path(original_cwd)
     logger.debug("[DEBUG] Original working directory: %s", original_cwd)
 
@@ -158,7 +164,7 @@ def main(cfg: DictConfig):
         cwd = os.getcwd()
         logger.info(f"[CHECKPOINT-DEBUG] Current working directory (os.getcwd()): {cwd}")
         logger.info(f"[CHECKPOINT-DEBUG] cfg.training.checkpoint_dir: {cfg.training.checkpoint_dir}")
-        resolved_ckpt_dir = pathlib.Path(cfg.training.checkpoint_dir)
+        resolved_ckpt_dir = pathlib.Path(str(cfg.training.checkpoint_dir))  # Explicitly cast to str
         if not resolved_ckpt_dir.is_absolute():
             resolved_ckpt_dir = pathlib.Path(cwd) / resolved_ckpt_dir
         logger.info(f"[CHECKPOINT-DEBUG] Resolved checkpoint directory absolute path: {resolved_ckpt_dir}")
@@ -166,14 +172,15 @@ def main(cfg: DictConfig):
         logger.info(f"[CHECKPOINT-DEBUG] Directory writable: {os.access(resolved_ckpt_dir.parent, os.W_OK)} (parent: {resolved_ckpt_dir.parent})")
         # Ensure checkpoint directory exists (use resolved absolute path)
         from pathlib import Path
-        ckpt_dir = Path(cfg.training.checkpoint_dir)
+        ckpt_dir: Path = Path(str(cfg.training.checkpoint_dir))  # Explicitly cast to str
         if not ckpt_dir.is_absolute():
             from os import getcwd
             ckpt_dir = Path(getcwd()) / ckpt_dir
         ckpt_dir.mkdir(parents=True, exist_ok=True)
         # Add ModelCheckpoint callback
         checkpoint_callback = ModelCheckpoint(
-            dirpath=cfg.training.checkpoint_dir,
+            # Use resolved absolute path to ensure checkpoints land in original project directory
+            dirpath=ckpt,
             save_top_k=1,
             monitor=None,  # No validation metric for now
             save_last=True
@@ -181,13 +188,23 @@ def main(cfg: DictConfig):
         logger.info(f"[CHECKPOINT-DEBUG] About to start training with checkpoint dir: {checkpoint_callback.dirpath}")
         try:
             trainer = L.Trainer(
+                # Ensure Lightning uses project root for outputs
+                default_root_dir=original_cwd,
                 callbacks=[checkpoint_callback],
-                max_epochs=1,  # Run at least one epoch
-                # FIX: Use cfg.device for accelerator, and set devices accordingly
+                max_epochs=cfg.training.epochs,
+                limit_train_batches=cfg.training.limit_train_batches,
+                # Use cfg.device for accelerator, and set devices accordingly
                 accelerator=cfg.device,
                 devices=1 if cfg.device in ['mps', 'cuda'] else cfg.training.devices
             )
             trainer.fit(model, dl)
+            # DEBUG: List checkpoint directory contents after training
+            post_contents = []
+            try:
+                post_contents = os.listdir(ckpt)
+            except Exception as e:
+                post_contents = [f"<error listing dir: {e}>"]
+            logger.info(f"[CHECKPOINT-DEBUG] After training contents of {ckpt}: {post_contents}")
             logger.info(f"[CHECKPOINT-DEBUG] Training completed. Checkpoints should be saved to: {checkpoint_callback.dirpath}")
         except Exception as train_exc:
             logger.error(f"[CHECKPOINT-ERROR] Exception during training/checkpoint saving: {train_exc}", exc_info=True)

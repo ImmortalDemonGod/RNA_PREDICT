@@ -1047,6 +1047,11 @@ def test_stageB_debug_logging_substages(_unused_stage, substage, expected_msg, c
     else:
         raise ValueError(f"Unknown Stage B substage: {substage}")
 
+    original_env_var_torsion = None
+    if substage == "torsion_bert":
+        original_env_var_torsion = os.environ.get("ALLOW_NUM_ANGLES_7_FOR_TESTS")
+        os.environ["ALLOW_NUM_ANGLES_7_FOR_TESTS"] = "1"
+
     try:
         # Import and instantiate the correct substage
         if substage == "pairformer":
@@ -1072,6 +1077,11 @@ def test_stageB_debug_logging_substages(_unused_stage, substage, expected_msg, c
         root_logger.removeHandler(stream_handler)
         root_logger.setLevel(original_level)
         log_stream.close()
+        if substage == "torsion_bert" and original_env_var_torsion is not None:
+            os.environ["ALLOW_NUM_ANGLES_7_FOR_TESTS"] = original_env_var_torsion
+        elif substage == "torsion_bert" and original_env_var_torsion is None:
+            if "ALLOW_NUM_ANGLES_7_FOR_TESTS" in os.environ:
+                 del os.environ["ALLOW_NUM_ANGLES_7_FOR_TESTS"]
 
     # Now check for the expected log in caplog
     # First, check if the expected message is in any of the log records
@@ -1114,3 +1124,6 @@ def test_stageB_debug_logging_substages(_unused_stage, substage, expected_msg, c
             f"Captured messages: {caplog.messages}\n"
             f"Full log dump:\n{debug_dump}"
         )
+
+
+# --- Stage C Debug Logging Tests ---

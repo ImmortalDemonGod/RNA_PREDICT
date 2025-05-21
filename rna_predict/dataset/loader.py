@@ -357,8 +357,11 @@ class RNADataset(Dataset):
         import torch
         n_angles = 7  # Number of torsion angles (alpha, beta, gamma, delta, epsilon, zeta, chi)
         try:
+            # Use global extraction_backend from Hydra, fallback to old data.angle_backend for compatibility
+            backend = getattr(self.cfg, 'extraction_backend', None) or getattr(self.cfg.data, 'angle_backend', 'mdanalysis')
+            print(f"[DEBUG][RNADataset._load_angles] Using backend: {backend}")
+
             # NOTE: All angles must be in radians for downstream use. If adding a backend (e.g., DSSR) that returns degrees, convert to radians here.
-            backend = getattr(self.cfg.data, 'angle_backend', 'mdanalysis')
             # Robustly extract chain_id and pdb_path for both dict and numpy record
             def get_field(r, key, default=None):
                 # Try dict-like
