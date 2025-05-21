@@ -11,20 +11,7 @@ import pathlib, sys, os  # Only keep what's actually used below
 # %%
 # Cell: show what’s inside every mounted Kaggle dataset  🔍 (Python version)
 # --------------------------------------------------------
-def print_kaggle_input_tree():
-    """Pythonic replacement for bash cell: lists first two levels of /kaggle/input."""
-    import pathlib
-    input_root = pathlib.Path("/kaggle/input")
-    print("\n📂  Listing the first two levels of /kaggle/input …\n")
-    if not input_root.exists():
-        print("[WARN] /kaggle/input does not exist!")
-        return
-    for item in sorted(input_root.iterdir()):
-        print(f"  {item}")
-        if item.is_dir():
-            for sub in sorted(item.iterdir()):
-                print(f"    {sub}")
-    print("\n✅  Done.\n")
+from rna_predict.kaggle.kaggle_env import print_kaggle_input_tree
 
 print_kaggle_input_tree()
 
@@ -159,7 +146,8 @@ import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split, KFold
 from sklearn.impute import SimpleImputer
 from sklearn.metrics import mean_squared_error
-from xgboost import XGBRegressor
+# TODO: XGBoost import removed in cleanup pass 1
+# from xgboost import XGBRegressor
 
 
 # Logging
@@ -387,30 +375,10 @@ from sklearn.model_selection import KFold, RandomizedSearchCV
 import numpy as np
 
 # Example hyperparameter grid (you can expand as needed)
-param_dist = {
-    'learning_rate': [0.03, 0.05, 0.1],
-    'max_depth': [6, 10, 15],
-    'n_estimators': [500, 800, 1000],
-    'subsample': [0.7, 0.9, 1.0],
-    'colsample_bytree': [0.7, 0.9, 1.0]
-}
+# TODO: param_dist removed in cleanup pass 1
 
-def run_random_search(X, y, param_dist, n_iter=5, cv_splits=3):
-    """Simple RandomizedSearchCV for an XGBRegressor using GPU in XGBoost >= 2.0."""
-    xgb = XGBRegressor(tree_method='hist', device='cuda', random_state=42)
-    rsearch = RandomizedSearchCV(
-        estimator=xgb,
-        param_distributions=param_dist,
-        n_iter=n_iter,
-        scoring='neg_mean_squared_error',
-        cv=cv_splits,
-        verbose=1,
-        random_state=42
-    )
-    rsearch.fit(X, y)
-    best_model = rsearch.best_estimator_
-    logging.info(f"Best params: {rsearch.best_params_}, Best CV Score: {rsearch.best_score_}")
-    return best_model, rsearch.best_params_
+# TODO: run_random_search removed in cleanup pass 1
+
 
 logging.info("Starting hyperparam search for X coordinate.")
 #best_model_x, best_params_x = run_random_search(X_full, y_x_full, param_dist, n_iter=5, cv_splits=3)
@@ -431,17 +399,8 @@ Use the best hyperparams for each coordinate found in CV.
 Retrain each coordinate model on all data (X_full, y_*_full).
 """
 
-def get_best_xgb(params):
-    """ Return an XGBRegressor with the given params, using GPU. """
-    # Here we override or add 'tree_method' to ensure GPU usage
-    # We can also specify predictor='gpu_predictor' to accelerate inference on GPU
-    model = XGBRegressor(
-        **params,
-        tree_method='hist',   # or tree_method=params.get('tree_method', 'hist')
-        device='cuda',        # ensures GPU usage
-        random_state=42
-    )
-    return model
+# TODO: get_best_xgb removed in cleanup pass 1
+
 
 logging.info("Retraining final model for X coordinate...")
 #model_x = get_best_xgb(best_params_x)

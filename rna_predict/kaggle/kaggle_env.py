@@ -99,6 +99,21 @@ def print_system_info():
     subprocess.run(["lsblk"])
     print("\n=== [End of System Information] ===\n")
 
+def print_kaggle_input_tree():
+    """Pythonic replacement for bash cell: lists first two levels of /kaggle/input."""
+    import pathlib
+    input_root = pathlib.Path("/kaggle/input")
+    print("\n📂  Listing the first two levels of /kaggle/input …\n")
+    if not input_root.exists():
+        print("[WARN] /kaggle/input does not exist!")
+        return
+    for item in sorted(input_root.iterdir()):
+        print(f"  {item}")
+        if item.is_dir():
+            for sub in sorted(item.iterdir()):
+                print(f"    {sub}")
+    print("\n✅  Done.\n")
+
 
 def setup_kaggle_environment():
     if not is_kaggle():
