@@ -74,7 +74,8 @@ def set_offline_env_vars():
 
 def print_system_info():
     """Prints Python, OS, CPU, memory, and disk info for diagnostics."""
-    import sys, subprocess
+    import sys
+    import subprocess
     print("\n=== [System Information] ===")
     print("\n[Python Version]")
     print(sys.version)
@@ -225,4 +226,3 @@ def setup_kaggle_environment():
     print("=== [End of Final Package Versions] ===\n")
 
     print("[INFO] Kaggle environment setup complete.")
-

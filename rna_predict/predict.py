@@ -9,10 +9,13 @@ from omegaconf import DictConfig
 import pandas as pd
 import os
 from typing import List, Optional, Dict, Any
+import logging # Added import
 
 from rna_predict.pipeline.stageB.torsion.torsion_bert_predictor import StageBTorsionBertPredictor
 from rna_predict.pipeline.stageC.stage_c_reconstruction import run_stageC
 from rna_predict.utils.submission import coords_to_df, extract_atom, reshape_coords
+
+logger = logging.getLogger(__name__) # Added logger initialization
 
 class RNAPredictor:
     """High-level interface for the RNA_PREDICT pipeline."""
@@ -84,97 +87,217 @@ class RNAPredictor:
         print("[DEBUG] stageC_full_config['model'] keys:", list(stageC_full_config['model'].keys()))
         return run_stageC(cfg=stageC_full_config, sequence=sequence, torsion_angles=torsion_angles)
 
+    def _extract_per_residue_coords_from_result(self, result: dict, sequence: str, atom_choice: int) -> torch.Tensor:
+        """
+        Processes raw coordinates from a single predict_3d_structure result to extract
+        one set of [x, y, z] coordinates per residue in the sequence.
+
+        Handles:
+        - Flat input coordinates (e.g., [N_total_atoms, 3]) by selecting 'P' atom or fallback.
+        - Reshaped input coordinates (e.g., [L, n_atoms_per_res, 3]).
+        - Ensures output tensor is always [len(sequence), 3].
+        - Fills with NaNs for residues entirely missing from input data.
+        
+        Args:
+            result: Output dictionary from self.predict_3d_structure.
+            sequence: The RNA sequence string (to determine L).
+            atom_choice: Default atom index to pick if coords are [L, n_atoms_per_res, 3].
+
+        Returns:
+            torch.Tensor: Coordinates of shape [len(sequence), 3] on CPU.
+        """
+        coords_raw = result['coords']
+        metadata = result.get('atom_metadata', {})
+        atom_names_meta = metadata.get('atom_names', [])
+        residue_indices_meta = metadata.get('residue_indices', []) # 0-based
+        sequence_len = len(sequence)
+
+        # Ensure coords_raw is detached before potential numpy conversion or further processing
+        if coords_raw.requires_grad:
+            coords_raw = coords_raw.detach()
+
+        final_per_residue_coords = torch.full((sequence_len, 3), float('nan'), dtype=coords_raw.dtype, device='cpu')
+
+        # Determine if we need to process flat coordinates
+        needs_flat_processing = (coords_raw.dim() == 2 and coords_raw.shape[0] != sequence_len)
+
+        if not needs_flat_processing:
+            # Try reshaping first; this might also lead to flat processing if reshape fails
+            coords_reshaped = reshape_coords(coords_raw, sequence_len)
+
+            if coords_reshaped.dim() == 2 and coords_reshaped.shape[0] != sequence_len:
+                logger.warning(
+                    f"""[COORD_EXTRACTION] reshape_coords resulted in flat coordinates ({coords_reshaped.shape}) 
+                    that are not per-residue for sequence length {sequence_len}. Switching to flat processing logic."""
+                )
+                coords_raw = coords_reshaped # Update coords_raw to be the output of failed reshape
+                needs_flat_processing = True
+            elif coords_reshaped.dim() == 3:
+                if atom_choice < 0 or atom_choice >= coords_reshaped.shape[1]:
+                    raise IndexError(f"Invalid atom_choice {atom_choice} for reshaped coords shape {coords_reshaped.shape}")
+                final_per_residue_coords = extract_atom(coords_reshaped, atom_choice).cpu()
+                needs_flat_processing = False # Successfully processed
+            elif coords_reshaped.dim() == 2: # Assumed to be [sequence_len, 3]
+                final_per_residue_coords = coords_reshaped.cpu()
+                needs_flat_processing = False # Successfully processed
+            else:
+                raise ValueError(f"Unexpected coords shape after reshape: {coords_reshaped.shape}")
+        
+        if needs_flat_processing:
+            logger.info(f"""[COORD_EXTRACTION] 
+                Processing flat coordinates of shape {coords_raw.shape} 
+                for sequence length {sequence_len}.""")
+            if not atom_names_meta or not residue_indices_meta:
+                logger.error(
+                    f"""[COORD_EXTRACTION_ERROR] 
+                    Missing atom metadata (names or indices) for flat coordinates. 
+                    Shape was {coords_raw.shape}, seq_len {sequence_len}. 
+                    Output for this repeat will be NaNs."""
+                )
+                # final_per_residue_coords is already NaNs, so we can return
+                return final_per_residue_coords
+
+            if len(atom_names_meta) != coords_raw.shape[0] or len(residue_indices_meta) != coords_raw.shape[0]:
+                logger.error(
+                    f"""[COORD_EXTRACTION_ERROR] 
+                    Metadata length mismatch with flat coordinates. 
+                    Names: {len(atom_names_meta)}, 
+                    Indices: {len(residue_indices_meta)}, 
+                    Coords: {coords_raw.shape[0]}. 
+                    Cannot reliably select atoms. 
+                    Output for this repeat will be NaNs."""
+                )
+                return final_per_residue_coords
+
+            # Ensure coords_raw is on CPU for numpy conversion if not already
+            coords_raw_cpu = coords_raw.cpu()
+            tmp_df = pd.DataFrame({
+                "atom_name": atom_names_meta,
+                "res0": residue_indices_meta, # 0-based residue index
+                "x": coords_raw_cpu[:, 0].numpy(),
+                "y": coords_raw_cpu[:, 1].numpy(),
+                "z": coords_raw_cpu[:, 2].numpy(),
+            })
+
+            for i in range(sequence_len):
+                residue_atoms = tmp_df[tmp_df["res0"] == i]
+                if residue_atoms.empty:
+                    logger.warning(f"[COORD_EXTRACTION] No atoms found for residue index {i} in flat data. Coords will be NaN.")
+                    continue # NaN already in final_per_residue_coords[i]
+
+                p_atom = residue_atoms[residue_atoms["atom_name"] == "P"]
+                if not p_atom.empty:
+                    chosen_atom_series = p_atom.iloc[0]
+                else:
+                    chosen_atom_series = residue_atoms.iloc[0] # Fallback to first atom for this residue
+                
+                final_per_residue_coords[i, 0] = chosen_atom_series["x"]
+                final_per_residue_coords[i, 1] = chosen_atom_series["y"]
+                final_per_residue_coords[i, 2] = chosen_atom_series["z"]
+        
+        # Validate shape before returning
+        if final_per_residue_coords.shape[0] != sequence_len or final_per_residue_coords.shape[1] != 3:
+            # This should not happen if logic is correct, but as a safeguard:
+            logger.error(f"[COORD_EXTRACTION_CRITICAL] Final selected coords shape {final_per_residue_coords.shape} is not [{sequence_len}, 3]. Returning NaNs.")
+            return torch.full((sequence_len, 3), float('nan'), dtype=coords_raw.dtype, device='cpu')
+            
+        return final_per_residue_coords.to(dtype=torch.float32) # Ensure consistent float32 output
+
     def predict_submission(self, sequence: str, prediction_repeats: Optional[int] = None, residue_atom_choice: Optional[int] = None, repeat_seeds: Optional[list] = None) -> pd.DataFrame:
         """
         Generate a submission DataFrame with multiple unique structure predictions using stochastic inference if enabled in config.
+        Ensures one row per residue in the output DataFrame.
         """
         import logging
         import random
         import numpy as np
-        logger = logging.getLogger("rna_predict.predict_submission")
+        # logger for this method specifically
+        method_logger = logging.getLogger("rna_predict.RNAPredictor.predict_submission") 
 
         # Read stochastic config from Hydra
         enable_stochastic = self.prediction_config.enable_stochastic_inference_for_submission
-        logger.info(f"[DEBUG-CONFIG-PROPAGATION] enable_stochastic_inference_for_submission={enable_stochastic} (from config), passing as stochastic_pass={enable_stochastic}")
+        method_logger.info(f"Stochastic inference for submission: {enable_stochastic}")
         repeats = prediction_repeats if prediction_repeats is not None else self.default_repeats
+        current_atom_choice = residue_atom_choice if residue_atom_choice is not None else self.default_atom_choice
 
-        def set_all_seeds(seed):
-            random.seed(seed)
-            np.random.seed(seed)
-            import torch
-            torch.manual_seed(seed)
+        def set_all_seeds(seed_val):
+            random.seed(seed_val)
+            np.random.seed(seed_val)
+            torch.manual_seed(seed_val)
             if torch.cuda.is_available():
-                torch.cuda.manual_seed_all(seed)
+                torch.cuda.manual_seed_all(seed_val)
 
         if not sequence:
-            df = coords_to_df("", torch.empty(0, 3, device=self.device), repeats)
-            import os
-            if os.environ.get("DEBUG_PREDICT_SUBMISSION") == "1":
-                print("[DEBUG] predict_submission DataFrame shape:", df.shape)
-                print("[DEBUG] predict_submission DataFrame columns:", list(df.columns))
-                print("[DEBUG] predict_submission DataFrame head:\n", df.head())
-            logger.warning(f"[DEBUG] Returning DataFrame shape: {df.shape}, columns: {list(df.columns)}")
-            return df
+            method_logger.warning("Empty sequence provided. Returning empty DataFrame with submission columns.")
+            # Create an empty DataFrame with expected columns for an empty sequence
+            cols = ['ID', 'resname', 'resid']
+            for r_idx in range(1, repeats + 1):
+                cols.extend([f'x_{r_idx}', f'y_{r_idx}', f'z_{r_idx}'])
+            return pd.DataFrame(columns=cols)
 
-        results = []
-        atom_names = None
-        residue_indices = None
+        results_coords_list = [] # List to store [L,3] tensors for each repeat
+        
         for i in range(repeats):
-            # Determine seed for this repeat if stochastic enabled
-            seed = None
+            seed_for_repeat = None
             if enable_stochastic:
                 if repeat_seeds and i < len(repeat_seeds):
-                    seed = repeat_seeds[i]
+                    seed_for_repeat = repeat_seeds[i]
                 else:
-                    seed = i  # Use index as seed for reproducibility
-                set_all_seeds(seed)
-            elif repeat_seeds and i < len(repeat_seeds):
-                seed = repeat_seeds[i]
-                set_all_seeds(seed)
-            # Run prediction with stochastic_pass and seed
-            result = self.predict_3d_structure(sequence, stochastic_pass=enable_stochastic, seed=seed)
-            coords = reshape_coords(result['coords'], len(sequence))
-            # Select atom coords
-            if coords.dim() == 3:
-                atom_choice = residue_atom_choice if residue_atom_choice is not None else self.default_atom_choice
-                if atom_choice < 0 or atom_choice >= coords.shape[1]:
-                    raise IndexError(f"Invalid residue_atom_choice {atom_choice} for coords shape {coords.shape}")
-                atom_coords = extract_atom(coords, atom_choice).detach().cpu()
-            elif coords.dim() == 2:
-                atom_coords = coords.detach().cpu()
+                    seed_for_repeat = i # Default seed progression
+                method_logger.info(f"Repeat {i+1}/{repeats} with seed: {seed_for_repeat}")
+                set_all_seeds(seed_for_repeat)
+            elif repeat_seeds and i < len(repeat_seeds): # Seeds provided but stochastic disabled, still use them
+                seed_for_repeat = repeat_seeds[i]
+                method_logger.info(f"Repeat {i+1}/{repeats} with provided seed (stochastic disabled): {seed_for_repeat}")
+                set_all_seeds(seed_for_repeat)
             else:
-                raise ValueError(f"Unexpected coords shape: {coords.shape}")
-            results.append(atom_coords)
-            # Save atom metadata from first repeat
-            if atom_names is None or residue_indices is None:
-                atom_metadata = result.get('atom_metadata') or {}
-                atom_names = atom_metadata.get('atom_names', ['P'] * atom_coords.shape[0])
-                residue_indices = atom_metadata.get('residue_indices', list(range(atom_coords.shape[0])))
-                if residue_indices is None:
-                    residue_indices = list(range(atom_coords.shape[0]))
-                atom_names = atom_names[:atom_coords.shape[0]]
-                residue_indices = residue_indices[:atom_coords.shape[0]]
+                method_logger.info(f"Repeat {i+1}/{repeats} (deterministic or default seed).")
 
-        n_atoms = results[0].shape[0] if results else 0
+            # Run prediction for one repeat
+            prediction_result = self.predict_3d_structure(sequence, stochastic_pass=enable_stochastic, seed=seed_for_repeat)
+            
+            # Process coordinates to ensure [len(sequence), 3]
+            per_residue_coords_for_repeat = self._extract_per_residue_coords_from_result(
+                prediction_result, 
+                sequence, 
+                current_atom_choice
+            )
+            results_coords_list.append(per_residue_coords_for_repeat)
 
-        # Clamp residue_indices to valid range
-        if residue_indices is None:
-            residue_indices = list(range(atom_coords.shape[0]))
-        valid_indices = [i if i < len(sequence) else len(sequence)-1 for i in residue_indices]
-        if any(i >= len(sequence) for i in residue_indices):
-            print(f"[WARN] Clamped out-of-range residue_indices: {residue_indices} (sequence len={len(sequence)})")
+        # Construct the final DataFrame - now guaranteed one row per residue
+        sequence_len = len(sequence)
         base_data = {
-            'ID': list(range(1, n_atoms + 1)),
-            'resname': [sequence[i] for i in valid_indices],
-            'resid': [i + 1 for i in valid_indices],
+            'ID': list(range(1, sequence_len + 1)),
+            'resname': list(sequence), # Each character in sequence is a resname
+            'resid': list(range(1, sequence_len + 1)), # Residue IDs are 1-based
         }
-        # Coordinate columns for each repeat
-        if results is not None:
-            for i, atom_coords in enumerate(results):
-                base_data[f'x_{i+1}'] = atom_coords[:, 0].tolist()
-                base_data[f'y_{i+1}'] = atom_coords[:, 1].tolist()
-                base_data[f'z_{i+1}'] = atom_coords[:, 2].tolist()
-        return pd.DataFrame(base_data)
+
+        if not results_coords_list: # Should not happen if repeats > 0 and sequence not empty
+            method_logger.warning("No coordinate results generated. Returning base DataFrame.")
+            return pd.DataFrame(base_data)
+
+        for i, atom_coords_tensor in enumerate(results_coords_list):
+            if atom_coords_tensor.shape[0] != sequence_len:
+                method_logger.error(
+                    f"""Repeat {i+1} produced coords of shape {atom_coords_tensor.shape} 
+                    instead of expected [{sequence_len}, 3]. Submission might be misaligned."""
+                )
+                # Fill with NaNs to maintain DataFrame structure if a repeat failed badly
+                base_data[f'x_{i+1}'] = [float('nan')] * sequence_len
+                base_data[f'y_{i+1}'] = [float('nan')] * sequence_len
+                base_data[f'z_{i+1}'] = [float('nan')] * sequence_len
+            else:
+                base_data[f'x_{i+1}'] = atom_coords_tensor[:, 0].tolist()
+                base_data[f'y_{i+1}'] = atom_coords_tensor[:, 1].tolist()
+                base_data[f'z_{i+1}'] = atom_coords_tensor[:, 2].tolist()
+        
+        final_df = pd.DataFrame(base_data)
+        if os.environ.get("DEBUG_PREDICT_SUBMISSION") == "1":
+            method_logger.info(f"[DEBUG] predict_submission final DataFrame shape: {final_df.shape}")
+            method_logger.info(f"[DEBUG] predict_submission final DataFrame columns: {list(final_df.columns)}")
+            method_logger.info(f"[DEBUG] predict_submission final DataFrame head:\n{final_df.head()}")
+
+        return final_df
 
     def predict_submission_original(self, sequence: str, prediction_repeats: Optional[int] = None, residue_atom_choice: Optional[int] = None, repeat_seeds: Optional[list] = None) -> pd.DataFrame:
         import logging

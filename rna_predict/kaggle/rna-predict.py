@@ -8,13 +8,12 @@ import itertools
 import textwrap
 import numpy as np
 import pandas as pd
-import torch
 import logging
 import seaborn as sns
 import matplotlib.pyplot as plt
 from functools import partial
 from transformers import *
-from omegaconf import OmegaConf
+# from omegaconf import OmegaConf # Removed: Unused
 from sklearn.model_selection import train_test_split, KFold
 from sklearn.impute import SimpleImputer
 from sklearn.metrics import mean_squared_error
@@ -28,8 +27,6 @@ from rna_predict.kaggle.kaggle_env import (
     patch_transformers_for_local
 )
 from rna_predict.kaggle.data_utils import load_kaggle_data
-from rna_predict.interface import RNAPredictor
-from rna_predict.utils.submission import coords_to_df, extract_atom, reshape_coords
 
 setup_kaggle_environment()
 
@@ -83,20 +80,7 @@ Cell 1: ENVIRONMENT SETUP & LOGGING
 # =======================
 # Imports (Standard Library)
 # =======================
-import os
-import sys
-import pathlib
-import itertools
-import textwrap
-import numpy as np
-import pandas as pd
-import torch
-from omegaconf import OmegaConf
-from rna_predict.kaggle.data_utils import load_kaggle_data
-from rna_predict.interface import RNAPredictor
-from rna_predict.utils.submission import coords_to_df, extract_atom, reshape_coords
 
-import logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(message)s',
@@ -157,108 +141,6 @@ predictor = create_predictor()
 
 # %%
 # ────────────────────────────────────────────────────────────────────────────
-# PATCH ▸ guarantee predict_submission returns ONE ROW per residue  ✅
-#         • works both when Stage C gives [L, atoms, 3]  OR  [N_atoms, 3]
-#         • keeps all original columns created by coords_to_df
-# ────────────────────────────────────────────────────────────────────────────
-
-
-
-log = logging.getLogger("rna_predict.patch.flat2res")
-
-def _predict_submission_patched(
-    self,
-    sequence: str,
-    prediction_repeats: int | None = None,
-    residue_atom_choice: int | None = None,
-):
-    """
-    Collapses per-atom coordinates → one canonical atom per residue.
-    • Prefers phosphate (“P”); falls back to first atom per residue.
-    • Always returns exactly len(sequence) rows, preserving coords_to_df schema.
-    """
-    # ── original prologue ────────────────────────────────────────────────
-    result      = self.predict_3d_structure(sequence)
-    coords_flat = result["coords"]                       # 2-D [N_atoms, 3]
-
-    # 🔧 NEW: make it a plain tensor so .numpy() is allowed
-    if coords_flat.requires_grad:                        # ← the bug-fix
-        coords_flat = coords_flat.detach()
-
-    metadata        = result.get("atom_metadata", {})
-    atom_names      = metadata.get("atom_names", [])
-    residue_indices = metadata.get("residue_indices", [])
-
-    repeats  = prediction_repeats if prediction_repeats is not None else self.default_repeats
-    atom_idx = residue_atom_choice if residue_atom_choice is not None else self.default_atom_choice
-
-    # ────────────────────────────────────────────────────────────────────
-    # ❶  FLAT-COORDS PATH   (Stage C returned [N_atoms, 3])
-    # ────────────────────────────────────────────────────────────────────
-    if coords_flat.dim() == 2 and coords_flat.shape[0] != len(sequence):
-        if not atom_names or not residue_indices:
-            log.error("[flat-coords] missing atom metadata → falling back to legacy per-atom output")
-            base = {
-                "ID":      range(1, len(coords_flat) + 1),
-                "resname": ["X"] * len(coords_flat),
-                "resid":   range(1, len(coords_flat) + 1),
-            }
-            df = pd.DataFrame(base)
-            for i in range(1, repeats + 1):
-                df[[f"{ax}_{i}" for ax in "xyz"]] = coords_flat.cpu().numpy()
-            return df
-
-        tmp = pd.DataFrame({
-            "atom_name": atom_names,
-            "res0":      residue_indices,       # 0-based residue index
-            "x": coords_flat[:, 0].cpu().numpy(),
-            "y": coords_flat[:, 1].cpu().numpy(),
-            "z": coords_flat[:, 2].cpu().numpy(),
-        })
-
-        # pick one atom per residue (prefer P)
-        picked = (tmp[tmp.atom_name == "P"]
-                  .drop_duplicates("res0", keep="first")
-                  .sort_values("res0"))
-        if len(picked) != len(sequence):        # fallback if some P’s missing
-            log.warning("[flat-coords] P-selection gave %d/%d rows – using first atom fallback",
-                        len(picked), len(sequence))
-            picked = (tmp.groupby("res0", as_index=False)
-                         .first()
-                         .sort_values("res0"))
-
-        per_res_coords = torch.tensor(
-            picked[["x", "y", "z"]].values,
-            dtype=coords_flat.dtype,
-            device=coords_flat.device,
-        )
-
-        return coords_to_df(sequence, per_res_coords, repeats)
-
-    # ────────────────────────────────────────────────────────────────────
-    # ❷  ORIGINAL “reshaped” PATH  (Stage C returned [L, atoms, 3])
-    # ────────────────────────────────────────────────────────────────────
-    coords = reshape_coords(coords_flat, len(sequence))
-    if coords.dim() == 2 and coords.shape[0] != len(sequence):
-        # reshape failed → treat as flat once more
-        log.warning("[reshape_coords] produced flat coords – rerouting through flat-coords logic.")
-        result["coords"] = coords
-        return _predict_submission_patched(self, sequence, prediction_repeats, residue_atom_choice)
-
-    atom_coords = extract_atom(coords, atom_idx)
-    return coords_to_df(sequence, atom_coords, repeats)
-
-# install the patch (simple attribute assignment is enough)
-RNAPredictor.predict_submission = _predict_submission_patched
-log.info("✓ RNAPredictor.predict_submission patched (flat-coords fix)")
-
-# %%
-toy = create_predictor().predict_submission("ACGUACGU", prediction_repeats=1)
-assert len(toy) == 8            # ✅ one row per residue
-print(toy.head())
-
-# %%
-# ────────────────────────────────────────────────────────────────────────
 # 6) PREDICTION UTILITIES  ● de-duplication / aggregation safeguard  ✅
 # -----------------------------------------------------------------------
 # NOTE: This cell REPLACES the previous buggy version.
@@ -384,7 +266,9 @@ print("All done! Submit 'submission.csv' to the competition.")
 
 # 
 
-import pathlib, sys, os
+import pathlib
+import sys
+import os
 print("\n📂  Listing the first two levels of /kaggle/working …\n")
 working_root = pathlib.Path("/kaggle/working")
 if working_root.exists():
@@ -399,7 +283,10 @@ print("\n✅  Done.\n")
 # Cell : sanity-check submission.csv against test_sequences.csv  ✅
 # ----------------------------------------------------------------
 
-import pandas as pd, pathlib, textwrap, sys, itertools, numpy as np
+import pandas as pd
+import pathlib
+import textwrap
+import sys
 TEST_CSV = "/kaggle/input/stanford-rna-3d-folding/test_sequences.csv"
 SUB_CSV  = "submission.csv"
 TOL      = 1.0  # Å – treat coords within ±1 Å as identical
@@ -515,5 +402,3 @@ for sid, frac in per_seq_unique.head(5).items():
     print(f"  {sid:<6}: {frac:6.1%} rows diversified")
 
 print("\n✅  Sanity check finished.")
-
-
