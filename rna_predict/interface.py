@@ -13,7 +13,11 @@ __all__ = ['RNAPredictor']
 
 @hydra.main(version_base=None, config_path="conf", config_name="default")
 def main(cfg: DictConfig) -> None:
-    """Main function to demonstrate RNAPredictor using Hydra configuration."""
+    """
+    Runs the RNAPredictor pipeline using a Hydra-managed configuration.
+    
+    Prints the loaded configuration for debugging, resolves the RNA sequence to use, initializes the predictor, runs the prediction, displays the result, and saves the output to a CSV file. Raises a ValueError if predictor initialization or prediction fails.
+    """
     print("--- [DEBUG] Hydra Config at startup ---")
     print(OmegaConf.to_yaml(cfg))
     print("--- [END DEBUG] ---")

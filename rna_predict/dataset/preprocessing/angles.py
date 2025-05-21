@@ -20,12 +20,9 @@ def extract_rna_torsions(
     **kwargs
 ) -> Optional[np.ndarray]:
     """
-    Extracts RNA torsion angles from a structure file for a specified chain.
+    Extracts RNA torsion angles for a specified chain from a structure file.
     
-    Given a PDB or mmCIF file, computes either the canonical set of 7 RNA torsion
-    angles (alpha, beta, gamma, delta, epsilon, zeta, chi) or an extended set of
-    14 angles (including ribose and pseudo-torsions) for each residue in the
-    selected chain, using the specified backend.
+    Given a PDB or mmCIF file, computes either the canonical set of 7 RNA torsion angles (alpha, beta, gamma, delta, epsilon, zeta, chi) or an extended set of 14 angles (including ribose and pseudo-torsions) for each residue in the selected chain, using the specified backend ("dssr" or "mdanalysis").
     
     Args:
         structure_file: Path to the RNA structure file (.pdb or .cif).
@@ -34,8 +31,7 @@ def extract_rna_torsions(
         angle_set: "canonical" for 7 angles, or "full" for 14 angles.
     
     Returns:
-        A NumPy array of shape [L, 7] or [L, 14] with torsion angles in radians
-        for each residue, or None if extraction fails.
+        A NumPy array of shape [L, 7] or [L, 14] with torsion angles in radians for each residue, or None if extraction fails.
     """
     print(f"[DEBUG] extract_rna_torsions called with: structure_file={structure_file}, chain_id={chain_id}, backend={backend}, angle_set={angle_set}")
     if backend == "mdanalysis":
@@ -387,17 +383,17 @@ class TempFileManager:
 
 def _extract_rna_torsions_mdanalysis(structure_file: str, chain_id: str, angle_set: str = "canonical") -> Optional[np.ndarray]:
     """
-    Extracts RNA torsion angles from a structure file for a specified chain using MDAnalysis.
+    Extracts RNA torsion angles for a specified chain from a structure file using MDAnalysis.
     
-    Loads the structure, selects the specified chain (with fallback if necessary), and computes torsion angles for each residue. Returns a NumPy array of shape [L, 7] for canonical angles or [L, 14] for the full angle set, with angles in radians and np.nan for missing values. Returns None if loading or selection fails.
+    Loads the structure, selects the target chain (with fallback if necessary), and computes torsion angles for each residue. Returns a NumPy array of shape [L, 7] for canonical angles or [L, 14] for the full angle set, with angles in radians and np.nan for missing values. Returns None if the structure cannot be loaded or the chain cannot be selected.
     
     Args:
         structure_file: Path to the PDB or mmCIF structure file.
-        chain_id: Chain identifier to extract torsions from.
+        chain_id: Identifier of the chain to extract torsions from.
         angle_set: "canonical" for 7 standard angles, "full" for 14 angles including ribose and pseudo-torsions.
     
     Returns:
-        NumPy array of torsion angles (shape [L, 7] or [L, 14]), or None on failure.
+        NumPy array of torsion angles (shape [L, 7] or [L, 14]), or None if extraction fails.
     """
     print(f"[DEBUG] _extract_rna_torsions_mdanalysis called with: {structure_file}, chain_id={chain_id}, angle_set={angle_set}")
     with TempFileManager(structure_file) as mda_file:
@@ -455,8 +451,17 @@ def _extract_rna_torsions_dssr(
     **kwargs
 ) -> Optional[np.ndarray]:
     """
-    Extract RNA torsion angles via DSSR CLI JSON output,
-    converting mmCIF to PDB if needed.
+    Extracts RNA torsion angles from a structure file using the DSSR command-line tool.
+    
+    Converts mmCIF files to PDB format if necessary, runs DSSR to obtain torsion angles in JSON format, and filters results by the specified chain. Returns a NumPy array of torsion angles (in radians) for each nucleotide in the chain, or None if extraction fails.
+    
+    Args:
+        structure_file: Path to the input PDB or mmCIF file.
+        chain_id: Chain identifier to extract torsions from.
+        angle_set: Either "canonical" (7 angles) or "full" (14 angles).
+    
+    Returns:
+        NumPy array of shape (N, 7) or (N, 14) with torsion angles in radians, or None on failure.
     """
     # Always convert CIF to PDB for DSSR, use original for PDB
     if structure_file.lower().endswith('.cif'):

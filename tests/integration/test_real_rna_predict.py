@@ -7,6 +7,11 @@ from hydra import initialize_config_dir, compose
 @pytest.mark.slow
 def test_real_rna_prediction_plausibility():
     # Force use of real model (bypass dummy logic)
+    """
+    Tests that the real RNAPredictor model produces plausible 3D backbone phosphorus atom coordinates for a short RNA sequence.
+    
+    The test ensures that predicted backbone P atom bond lengths are within a physically reasonable range and that no NaN values are present in the coordinates. It fails if atom metadata is inaccessible or if no backbone P atoms are found.
+    """
     os.environ["FORCE_REAL_MODEL"] = "1"
     # Load Hydra config from absolute directory using experimental API
     conf_dir = "/Users/tomriddle1/RNA_PREDICT/rna_predict/conf"

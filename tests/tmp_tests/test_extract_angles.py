@@ -19,6 +19,9 @@ def test_extract_rna_torsions_wrong_backend():
 
 def test_extract_rna_torsions_dssr_backend_file_not_found():
     # DSSR backend should return None for nonexistent files
+    """
+    Tests that the DSSR backend returns None when the input file does not exist.
+    """
     result = extract_rna_torsions("not_a_file.pdb", backend="dssr")
     assert result is None, "Expected None for DSSR backend when file not found"
 
@@ -28,9 +31,9 @@ def test_extract_rna_torsions_file_not_found():
 def test_extract_rna_torsions_chain_not_found(tmp_path):
     # Use a real file but a bogus chain
     """
-    Tests extract_rna_torsions when a non-existent chain ID is requested from a real CIF file.
+    Tests extract_rna_torsions behavior when a non-existent chain ID is requested from a real CIF file.
     
-    If the structure contains only one chain or segment, verifies that fallback returns real torsion data (not None, with at least some valid values). If multiple chains or segments exist, asserts that the result is either None or an array of all NaN values.
+    If the structure contains only one chain or segment, verifies that fallback logic returns valid torsion data. If multiple chains or segments exist, asserts that the result is either None or an array of all NaN values.
     """
     example = os.path.join(EXAMPLES_DIR, "1a34_1_B.cif")
     result = extract_rna_torsions(example, chain_id="Z")
@@ -54,7 +57,7 @@ def test_extract_rna_torsions_chain_not_found(tmp_path):
 
 def test_extract_rna_torsions_empty_file(tmp_path):
     """
-    Tests that extract_rna_torsions returns None for an empty PDB file input.
+    Verifies that extract_rna_torsions returns None when given an empty PDB file.
     """
     empty = tmp_path / "empty.pdb"
     empty.write_text("")
@@ -68,9 +71,9 @@ def test_extract_rna_torsions_empty_file(tmp_path):
 ])
 def test_extract_rna_torsions_smoke(filename, chain_id, expected_shape):
     """
-    Smoke test for extract_rna_torsions ensuring valid output shape and angle values.
+    Smoke-tests RNA torsion angle extraction for correct output shape and value range.
     
-    Verifies that extracting RNA torsion angles from the given file and chain ID produces a non-None array of the expected shape, with each row containing at least one non-NaN value. Confirms all angles are finite or NaN and within the valid range of [-π, π].
+    Checks that extracting torsion angles from the specified file and chain yields a non-None array of the expected shape, with at least one valid (non-NaN) angle per residue. Ensures all angles are finite or NaN and lie within [-π, π].
     """
     path = os.path.join(EXAMPLES_DIR, filename)
     angles = extract_rna_torsions(path, chain_id=chain_id, backend="mdanalysis")
@@ -110,9 +113,9 @@ def test_extract_rna_torsions_smoke(filename, chain_id, expected_shape):
 ])
 def test_extract_rna_torsions_parametrized(filename, chain_id, angle_set, expected_shape):
     """
-    Parametrized test verifying RNA torsion angle extraction for various files, chain IDs, and angle sets.
+    Parametrized test for RNA torsion angle extraction across files, chain IDs, and angle sets.
     
-    Asserts that the output array has the expected shape and dimensionality, contains at least one non-NaN angle per row, all values are finite or NaN, and all angles are within the valid range of [-π, π].
+    Verifies that the extracted angle array has the expected shape and dimensionality, contains at least one non-NaN angle per residue, all values are finite or NaN, and all angles are within the valid range of [-π, π].
     """
     path = os.path.join(EXAMPLES_DIR, filename)
     angles = extract_rna_torsions(path, chain_id=chain_id, backend="mdanalysis", angle_set=angle_set)
@@ -143,7 +146,9 @@ def test_extract_rna_torsions_parametrized(filename, chain_id, angle_set, expect
 ])
 def test_extract_rna_torsions_dssr_parametrized(filename, chain_id, angle_set, expected_shape):
     """
-    Smoke test for DSSR backend: canonical and full angle sets.
+    Tests that the DSSR backend extracts RNA torsion angles with the correct shape and value range for canonical and full angle sets.
+    
+    Skips the test if DSSR cannot extract the requested angle set for the given file. Verifies that the output is a NumPy array of the expected shape, contains at least one non-NaN angle per residue, and that all angle values are finite or NaN and within [-π, π] ± 1e-3.
     """
     path = os.path.join(EXAMPLES_DIR, filename)
     angles = extract_rna_torsions(path, chain_id=chain_id, backend="dssr", angle_set=angle_set)
@@ -164,7 +169,7 @@ def test_extract_rna_torsions_dssr_parametrized(filename, chain_id, angle_set, e
 
 def test_extract_rna_torsions_missing_atoms_nan():
     """
-    Tests that extracting RNA torsions from a file with missing ribose or pseudotorsion atoms produces NaNs in the corresponding columns, while canonical angle columns retain some valid values.
+    Verifies that missing ribose or pseudotorsion atoms in an RNA structure file result in NaNs in the corresponding torsion angle columns, while canonical angle columns retain valid values.
     """
     # Use synthetic_cppc_0000001.pdb, which is likely to have missing atoms in some residues
     path = os.path.join(EXAMPLES_DIR, "synthetic_cppc_0000001.pdb")
@@ -186,20 +191,32 @@ def test_extract_rna_torsions_missing_atoms_nan():
 )
 def test_extract_rna_torsions_property_invalid_inputs(chain_id, backend, bogus_path):
     # Should always return None or raise for invalid files
+    """
+    Tests that extract_rna_torsions returns None or an empty array for invalid file paths or chain IDs.
+    """
     result = extract_rna_torsions(bogus_path, chain_id=chain_id, backend=backend)
     assert result is None or (isinstance(result, np.ndarray) and result.size == 0)
 
 # --- 100% coverage: error/fallback/edge-case tests ---
 def test__load_universe_invalid(monkeypatch):
+    """
+    Tests that _load_universe returns None when the MDAnalysis Universe constructor fails.
+    """
     import rna_predict.dataset.preprocessing.angles as angles
     # Simulate MDAnalysis failure
     class DummyUniverse:
         def __init__(self, *a, **kw):
+            """
+            Raises an exception upon instantiation to prevent object creation.
+            """
             raise Exception("fail")
     monkeypatch.setattr(angles.mda, "Universe", DummyUniverse)
     assert angles._load_universe("badfile.pdb") is None
 
 def test__select_chain_with_fallback_no_chain():
+    """
+    Tests that _select_chain_with_fallback returns None when no chains or nucleic atoms are present.
+    """
     from rna_predict.dataset.preprocessing.angles import _select_chain_with_fallback
     class DummyAtoms:
         chainIDs = []
@@ -207,39 +224,72 @@ def test__select_chain_with_fallback_no_chain():
     class DummyUniverse:
         atoms = DummyAtoms()
         def select_atoms(self, query):
+            """
+            Returns a dummy chain object in response to an atom selection query.
+            """
             return DummyChain()
     class DummyChain:
-        def __len__(self): return 0
+        def __len__(self): """
+Returns the length of the object, always zero.
+"""
+return 0
     u = DummyUniverse()
     # Should return None when no chain and no nucleic atoms
     assert _select_chain_with_fallback(u, "Z") is None
 
 def test__chi_torsion_missing_atoms():
+    """
+    Tests that _chi_torsion returns NaN when all required atoms are missing from the residue.
+    """
     from rna_predict.dataset.preprocessing.angles import _chi_torsion
     class DummyRes:
-        def __init__(self, atoms): self.atoms = atoms
+        def __init__(self, atoms): """
+Initializes the object with a collection of atoms.
+
+Args:
+    atoms: The atom group or list to associate with the instance.
+"""
+self.atoms = atoms
     class DummyAtoms:
-        def select_atoms(self, name): return DummySel()
+        def select_atoms(self, name): """
+Returns a dummy atom selection object for the given atom name.
+"""
+return DummySel()
     class DummySel:
         positions = []
-        def __bool__(self): return False
-        def __len__(self): return 0
+        def __bool__(self): """
+Always returns False when evaluating the object in a boolean context.
+"""
+return False
+        def __len__(self): """
+Returns the length of the object, always zero.
+"""
+return 0
     res = DummyRes(DummyAtoms())
     # All atoms missing, should return nan
     assert np.isnan(_chi_torsion(res))
 
 def test_TempFileManager_context(monkeypatch, tmp_path):
     """
-    Tests the TempFileManager context manager for proper temporary file handling.
+    Tests the TempFileManager context manager for correct temporary file creation and cleanup.
     
-    Simulates CIF-to-PDB conversion, verifies that the context yields the expected file path,
-    and checks that the temporary file is deleted after exiting the context or that no temp file was used.
+    Simulates CIF-to-PDB conversion, verifies the yielded file path, and ensures the temporary
+    file is deleted after exiting the context or confirms that no temporary file was used.
     """
     import rna_predict.dataset.preprocessing.angles as angles
     # Simulate .cif file conversion
     dummy_pdb = tmp_path / "dummy.pdb"
     dummy_pdb.write_text("ATOM\n")
     def fake_convert_cif_to_pdb(cif):
+        """
+        Mocks CIF-to-PDB conversion by returning the path to a dummy PDB file.
+        
+        Args:
+            cif: Path to the input CIF file (unused).
+        
+        Returns:
+            The string path to the dummy PDB file.
+        """
         return str(dummy_pdb)
     monkeypatch.setattr(angles, "_convert_cif_to_pdb", fake_convert_cif_to_pdb)
     mgr = angles.TempFileManager("foo.cif")
@@ -250,9 +300,9 @@ def test_TempFileManager_context(monkeypatch, tmp_path):
 
 def test__convert_cif_to_pdb_invalid(monkeypatch, tmp_path):
     """
-    Tests that _convert_cif_to_pdb raises an appropriate exception when MMCIFParser fails.
+    Tests that _convert_cif_to_pdb raises an exception if MMCIFParser fails during CIF-to-PDB conversion.
     
-    Verifies that a ValueError, RuntimeError, or IOError is raised if the CIF parser encounters an error during conversion.
+    Ensures that a ValueError, RuntimeError, or IOError is raised when the parser encounters an error.
     """
     import rna_predict.dataset.preprocessing.angles as angles
     # Patch parser to throw a specific exception instead of generic Exception

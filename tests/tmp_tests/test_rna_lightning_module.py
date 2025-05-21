@@ -15,6 +15,11 @@ print(f"[DEBUG][CWD] Current working directory at test start: {os.getcwd()}")
 @pytest.fixture
 def hydra_cfg():
     # Use the real Hydra config system and the actual conf directory
+    """
+    Initializes and returns a Hydra configuration object for testing.
+    
+    Overrides the device to CPU and enables debug logging for StageA if available.
+    """
     config_dir = "/Users/tomriddle1/RNA_PREDICT/rna_predict/conf"
     print(f"[DEBUG][HYDRA] Using config_dir={config_dir}")
     with initialize_config_dir(config_dir=config_dir, job_name="test_noise_and_bridging"):
@@ -28,9 +33,9 @@ def hydra_cfg():
 
 def make_dummy_batch(device, B=2, N_res=5, atoms_per_residue=2, C=8):
     """
-    Generate a dummy batch with fully atom-level features, where each residue has a fixed number of atoms.
-    All atom-level features are shaped [B, N_atom, ...] with N_atom = N_res * atoms_per_residue.
-    The residue_indices and atom_to_token_idx mappings are set accordingly.
+    Creates a dummy batch of atom-level features for testing RNA models.
+    
+    Each batch contains synthetic data with configurable batch size, residue count, atoms per residue, and feature dimension. The returned dictionary includes coordinates, masks, sequence strings, atom-to-residue mappings, and placeholder tensors for atom features and metadata, ensuring correct shapes for model input.
     """
     N_atom = N_res * atoms_per_residue
     print(f"[DEBUG][make_dummy_batch] B={B}, N_res={N_res}, atoms_per_residue={atoms_per_residue}, N_atom={N_atom}")
@@ -77,6 +82,19 @@ def make_dummy_batch(device, B=2, N_res=5, atoms_per_residue=2, C=8):
 
 
 def make_dummy_output(device, B=2, N_res=5, N_atom=5, C=8):
+    """
+    Creates a dummy model output dictionary with random embeddings and logits.
+    
+    Args:
+        device: The device on which to allocate the tensors.
+        B: Batch size.
+        N_res: Number of residues per sample.
+        N_atom: Number of atoms per sample (not directly used in output shapes).
+        C: Feature dimension.
+    
+    Returns:
+        A dictionary containing random tensors for 's_embeddings', 'z_embeddings', and 'logits' with appropriate shapes for model testing.
+    """
     return {
         's_embeddings': torch.randn(B, N_res, C, device=device),
         'z_embeddings': torch.randn(B, N_res, N_res, C, device=device),
@@ -84,6 +102,11 @@ def make_dummy_output(device, B=2, N_res=5, N_atom=5, C=8):
     }
 
 def test_noise_and_bridging_runs(hydra_cfg):
+    """
+    Tests that the RNALightningModule's training step executes without error when noise and bridging logic are involved.
+    
+    This test uses a dummy batch and output, mocks the model's forward pass, and verifies that the training step returns a dictionary containing a tensor loss.
+    """
     device = torch.device('cpu')
     model = RNALightningModule(cfg=hydra_cfg)
     batch = make_dummy_batch(device)
@@ -102,6 +125,12 @@ def test_noise_and_bridging_runs(hydra_cfg):
 
 @pytest.mark.skip(reason="Not relevant to L_angle integration for now")
 def test_gradient_flow_through_stageD(hydra_cfg):
+    """
+    Tests that gradients flow through the Stage D output of RNALightningModule during training.
+    
+    This test verifies that the Stage D result produced by the model's training step is differentiable
+    and that a backward pass on its output propagates gradients to at least one model parameter.
+    """
     import os
     device = torch.device('cpu')
     model = RNALightningModule(cfg=hydra_cfg)

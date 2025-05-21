@@ -10,7 +10,12 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 
 def debug_adaptive_layernorm():
-    """Debug the AdaptiveLayerNorm class with different sequence lengths."""
+    """
+    Runs a series of tests on the AdaptiveLayerNorm class with varying input sequence lengths.
+    
+    This function creates an AdaptiveLayerNorm instance and tests its behavior with input tensors
+    of different sequence lengths, printing the result shape or any errors encountered.
+    """
     print("Creating AdaptiveLayerNorm instance...")
     adaln = AdaptiveLayerNorm(c_a=768, c_s=384)
     

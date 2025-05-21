@@ -64,8 +64,9 @@ class TestRNAPredictorInitialization(unittest.TestCase):
 
     def test_init_defaults(self):
         """
-        Test that default arguments successfully initialize.
-        Checks device auto-detection (cpu/cuda), torsion predictor, and stageC_method.
+        Tests that RNAPredictor initializes correctly with default arguments.
+        
+        Verifies device auto-detection, torsion predictor instantiation, and correct assignment of the stageC method in the configuration.
         """
         # Patch: Use minimal valid Hydra config
         minimal_cfg = OmegaConf.create({
@@ -194,8 +195,9 @@ class TestPredict3DStructure(unittest.TestCase):
 
     def setUp(self):
         """
-        Create a fresh RNAPredictor instance for each test,
-        ensuring consistent device usage (CPU) to avoid GPU complications.
+        Sets up a fresh RNAPredictor instance with a minimal valid configuration on CPU for each test.
+        
+        Ensures that external model loading is mocked to prevent network calls and that device usage is consistent across tests.
         """
         # Patch: Use minimal valid Hydra config
         minimal_cfg = OmegaConf.create({
@@ -354,7 +356,13 @@ class TestPredictSubmission(unittest.TestCase):
 
     @patch("rna_predict.interface.RNAPredictor.predict_3d_structure")
     def setUp(self, mock_predict_3d):
-        """Instantiate a RNAPredictor for repeated usage."""
+        """
+        Sets up the test environment and initializes a RNAPredictor instance with a minimal configuration.
+        
+        This method patches environment variables and model initialization to avoid loading actual models,
+        allowing for fast and isolated testing. It also replaces the predictor's 3D structure prediction
+        method with a mock for controlled test outputs.
+        """
         self.original_env_var_torsion = os.environ.get("ALLOW_NUM_ANGLES_7_FOR_TESTS")
         os.environ["ALLOW_NUM_ANGLES_7_FOR_TESTS"] = "1"
         
@@ -388,7 +396,11 @@ class TestPredictSubmission(unittest.TestCase):
         mock_predict_3d.side_effect = self.fake_predict3d
 
     def tearDown(self):
-        """Reset environment variables after each test if they were set in setUp."""
+        """
+        Restores the original state of the ALLOW_NUM_ANGLES_7_FOR_TESTS environment variable after each test.
+        
+        If the variable was unset before the test, it is removed; otherwise, it is reset to its original value.
+        """
         if hasattr(self, 'original_env_var_torsion'):
             if self.original_env_var_torsion is None:
                 if "ALLOW_NUM_ANGLES_7_FOR_TESTS" in os.environ:
@@ -398,12 +410,32 @@ class TestPredictSubmission(unittest.TestCase):
 
     # Mocked behavior for predict_3d_structure
     def fake_predict3d(self, sequence, *args, **kwargs):
+        """
+        Simulates 3D coordinate prediction for an RNA sequence by returning zero-valued coordinates.
+        
+        Args:
+        	sequence: The RNA sequence for which to generate coordinates.
+        
+        Returns:
+        	A dictionary with a "coords" key containing a tensor of shape (total_atoms, 3),
+        	where total_atoms is the sum of standard atom counts for each residue in the sequence.
+        """
         total_atoms = sum(len(STANDARD_RNA_ATOMS.get(res, [])) for res in sequence)
         return {"coords": torch.zeros((total_atoms, 3))}
 
     @staticmethod
     def minimal_stageC_config(**overrides):
-        """Helper to create a minimal valid StageCConfig using structured config."""
+        """
+        Creates a minimal valid StageCConfig for testing, with optional overrides.
+        
+        All configurations are set to default values except for the device, which is forced to 'cpu' to ensure compatibility in test environments. Additional configuration values can be overridden by passing keyword arguments.
+        
+        Args:
+            **overrides: Configuration fields to override in the base StageCConfig.
+        
+        Returns:
+            An OmegaConf structured config object representing the StageCConfig.
+        """
         base = StageCConfig()
         # Always set device to 'cpu' for tests to avoid CUDA errors
         setattr(base, "device", "cpu")
@@ -495,9 +527,9 @@ class TestPredictSubmission(unittest.TestCase):
     @settings(deadline=None)
     def test_predict_submission_custom_repeats(self, sequence, repeats):
         """
-        Property-based test: For a valid sequence, output DataFrame shape should match total atom count (flat)
-        or residue count (uniform), and columns should be correct for custom repeats.
-        Tests with different sequences and repeat counts.
+        Verifies that the DataFrame output from predict_submission has correct shape and columns for varying sequences and custom repeat counts.
+        
+        Checks that the number of rows matches the expected atom or residue count and that all coordinate columns for each repeat are present.
         """
         if not sequence:  # Skip empty sequences
             return
@@ -535,8 +567,9 @@ class TestPredictSubmission(unittest.TestCase):
     @settings(deadline=None)
     def test_predict_submission_nan_handling(self, sequence, atoms_per_res, repeats):
         """
-        Property-based test: If predict_3d_structure returns NaN coords, they should appear in the submission DataFrame.
-        Tests with different sequences, atom counts, and repeats.
+        Tests that NaN coordinates from predict_3d_structure are correctly propagated to the submission DataFrame.
+        
+        This property-based test verifies that when predict_3d_structure returns all-NaN coordinates for a given sequence, atom count, and repeat count, the resulting DataFrame from predict_submission contains NaN values in at least one coordinate column.
         """
         if not sequence:  # Skip empty sequences
             return
@@ -584,9 +617,9 @@ class TestPredictSubmission(unittest.TestCase):
     @settings(deadline=None)
     def test_predict_submission_numerical_validity(self, sequence, atoms_per_res, repeats, atom_choice):
         """
-        Property-based test: If predict_3d_structure returns valid numerical coords,
-        the submission DataFrame should contain only finite values.
-        Tests with different sequences, atom counts, repeats, and atom choices.
+        Verifies that the submission DataFrame contains only finite coordinate values when valid numerical coordinates are returned by predict_3d_structure.
+        
+        This property-based test checks various sequences, atom counts, repeat counts, and atom choices, ensuring that all coordinate columns in the output DataFrame have finite values.
         """
         if not sequence:  # Skip empty sequences
             return
@@ -644,6 +677,10 @@ class TestPredictSubmissionParametricShapes(unittest.TestCase):
 
     def setUp(self):
         # Use Hydra config composition for minimal config (Hydra best practice)
+        """
+        Sets up the test environment with a minimal Hydra-composed configuration and initializes
+        an RNAPredictor instance with mocked model loading to avoid external dependencies.
+        """
         from hydra import initialize_config_dir, compose
         with initialize_config_dir(config_dir="/Users/tomriddle1/RNA_PREDICT/rna_predict/conf", version_base="1.1", job_name="test_predict_parametric_shapes"):
             minimal_cfg = compose(
@@ -700,7 +737,9 @@ class TestPredictSubmissionParametricShapes(unittest.TestCase):
     )
     def test_forced_coord_shapes(self, seq, shape_type, atoms_per_res, repeats):
         """
-        Force run_stageC to return specific shapes, verifying correct reshaping or error handling.
+        Tests that predict_submission correctly handles various coordinate tensor shapes and repeat counts.
+        
+        Forces predict_3d_structure to return coordinates in different shapes—single-atom per residue, flat per-atom, and per-residue atoms—and verifies that the resulting DataFrame has the expected number of rows and columns. Also checks that predict_3d_structure is called the correct number of times with the input sequence.
         """
         N = len(seq)
         # Construct coords based on shape_type
@@ -777,7 +816,13 @@ def test_rnapredictor_requires_stageC(cfg):
     ]
 )
 def test_stageC_requires_do_ring_closure(present, expected_error):
-    """Test that ValidationError is raised if do_ring_closure is missing from stageC config."""
+    """
+    Tests that a ValidationError is raised if 'do_ring_closure' is missing from the stageC config.
+    
+    Args:
+        present: Whether the 'do_ring_closure' attribute is present in the config.
+        expected_error: Whether a ValidationError is expected to be raised.
+    """
     from omegaconf import OmegaConf
     import pytest
     from omegaconf.errors import ValidationError
@@ -837,7 +882,10 @@ def test_stageC_requires_do_ring_closure(present, expected_error):
 @pytest.mark.skip(reason="Flaky in full suite: skipping until stable")
 def test_stageb_torsionbert_config_structure_property(config_dict):
     """
-    Property-based test: StageBTorsionBertPredictor should raise unique error if config is missing model.stageB.torsion_bert.
+    Tests that StageBTorsionBertPredictor raises a unique error if the config is missing model.stageB.torsion_bert.
+    
+    Args:
+        config_dict: Configuration dictionary potentially missing the required torsion_bert section.
     """
     # Only pass configs that are guaranteed NOT to have model.stageB.torsion_bert
     if not ("model" in config_dict and isinstance(config_dict["model"], dict) and "stageB" in config_dict["model"] and isinstance(config_dict["model"]["stageB"], dict) and "torsion_bert" in config_dict["model"]["stageB"]):

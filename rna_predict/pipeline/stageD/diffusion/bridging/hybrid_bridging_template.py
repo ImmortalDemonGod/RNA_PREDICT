@@ -49,31 +49,27 @@ def hybrid_bridging_sparse_to_dense(
     debug_logging: bool = False,
 ):
     """
-    Bridges the architectural mismatch between Stage C (sparse atom output) and Stage D (dense atom input).
-
-    This function transforms the sparse atom representation produced by Stage C (shape: [batch_size, n_residues, n_sparse_atoms, feature_dim])
-    into the dense atom representation expected by Stage D (shape: [batch_size, n_residues, canonical_atom_count, feature_dim]).
-    It uses a residue-to-atom mapping to place each sparse atom in its canonical position, and generates a mask indicating valid atoms.
-
+    Converts sparse atom features from Stage C into dense atom features and a validity mask for Stage D.
+    
+    Supports both flat sparse input ([batch_size, total_sparse_atoms, feature_dim]) and per-residue sparse input ([batch_size, n_residues, sparse_atoms_per_res, feature_dim]). Uses a residue-to-canonical atom mapping to place sparse features into their canonical positions, filling missing atoms with a specified value and generating a boolean mask indicating valid atoms.
+    
     Args:
-        stage_c_output (torch.Tensor): Sparse atom features from Stage C, shape [batch_size, n_residues, n_sparse_atoms, feature_dim].
-        residue_atom_map (np.ndarray or torch.Tensor): Mapping from (residue, sparse_atom_idx) to canonical atom index.
-        n_residues (int): Number of residues in the batch.
-        canonical_atom_count (int): Number of canonical atom positions per residue (dense count, e.g. 44).
-        feature_dim (int): Feature dimension for each atom.
-        batch_size (int): Batch size.
-        fill_value (float, optional): Value to fill for missing atoms. Defaults to 0.0.
-        device (torch.device, optional): Device to use. Defaults to None.
-        debug_logging (bool, optional): If True, enables debug logging. Defaults to False.
-
+        stage_c_output: Sparse atom features from Stage C, either flat or per-residue format.
+        residue_atom_map: List mapping each residue to its canonical atom indices.
+        n_residues: Number of residues.
+        canonical_atom_count: Number of canonical atom positions per residue.
+        feature_dim: Feature dimension for each atom.
+        batch_size: Batch size.
+        fill_value: Value to use for missing atoms.
+        device: Device for output tensors.
+        debug_logging: If True, enables detailed debug logging.
+    
     Returns:
-        dense_atoms (torch.Tensor): Dense atom tensor, shape [batch_size, n_residues, canonical_atom_count, feature_dim].
-        mask (torch.Tensor): Boolean mask indicating which atoms are valid, shape [batch_size, n_residues, canonical_atom_count].
-
-    Rationale:
-        Stage C outputs a sparse set of atoms for efficiency and model design reasons, but Stage D's diffusion model
-        expects a dense atom layout. This bridging function maps the sparse output into the dense format, enabling
-        seamless integration between the two stages without loss of information or excessive memory use.
+        dense_atoms: Dense atom tensor of shape [batch_size, n_residues, canonical_atom_count, feature_dim].
+        mask: Boolean tensor indicating valid atoms, shape [batch_size, n_residues, canonical_atom_count].
+    
+    Raises:
+        ValueError: If the flat sparse input size does not match the mapping sum, or if the input tensor has an unsupported dimension.
     """
     # Systematic debug: log input shapes and mapping
     debug_print_hybrid_bridging_inputs(

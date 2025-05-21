@@ -19,7 +19,11 @@ CHAIN = 'B'
 ])
 def test_synthetic_pdb_dssr_direct(angle_set, expected_dim):
     """
-    Test that DSSR directly extracts angles from synthetic PDB.
+    Tests that direct extraction of RNA torsion angles from a synthetic PDB using DSSR returns a 2D NumPy array with the expected number of angles per residue.
+    
+    Args:
+        angle_set: The set of torsion angles to extract ('canonical' or 'full').
+        expected_dim: The expected number of angles per residue for the given angle set.
     """
     arr = _extract_rna_torsions_dssr(SYN_PDB, CHAIN, angle_set)
     assert isinstance(arr, np.ndarray)
@@ -32,7 +36,9 @@ def test_synthetic_pdb_dssr_direct(angle_set, expected_dim):
 ])
 def test_synthetic_pdb_dssr_matches_mdanalysis(angle_set, expected_dim):
     """
-    Test that DSSR output matches MDAnalysis output on synthetic PDB.
+    Checks that RNA torsion angles extracted from a synthetic PDB using DSSR and MDAnalysis backends are consistent.
+    
+    Compares the outputs of both backends for the specified angle set, verifying shape equality and, for the 'canonical' set, that NaN positions match and numeric differences are within a 0.5 radian tolerance. For the 'full' set, ensures both outputs contain finite values.
     """
     a1 = extract_rna_torsions(SYN_PDB, CHAIN, backend='dssr', angle_set=angle_set)
     a2 = extract_rna_torsions(SYN_PDB, CHAIN, backend='mdanalysis', angle_set=angle_set)

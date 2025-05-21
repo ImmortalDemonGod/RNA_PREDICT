@@ -13,6 +13,14 @@ class DummyTorsionBertAutoModel(nn.Module):
     """Dummy model for testing that returns tensors with correct shape."""
 
     def __init__(self, num_angles: int = 7):
+        """
+        Initializes a dummy TorsionBert model for testing purposes.
+        
+        Creates a model that simulates output tensor shapes and mimics HuggingFace model API attributes, including a config object and a dummy parameter to ensure compatibility with code expecting real models.
+        
+        Args:
+            num_angles: Number of torsion angles to simulate in the output (default is 7).
+        """
         import os
         import traceback
         print(f"[DEBUG-DUMMY-INIT] DummyTorsionBertAutoModel constructed with num_angles={num_angles}")
@@ -40,6 +48,11 @@ class DummyTorsionBertAutoModel(nn.Module):
 
     def forward(self, inputs: Any) -> Any:
         # DEBUG: Instrumentation for test failure analysis
+        """
+        Simulates a forward pass, returning dummy output tensors with correct shapes for testing.
+        
+        Accepts either a dictionary of input tensors (typically with 'input_ids') or a string sequence, and returns a dictionary containing 'logits' and 'last_hidden_state' keys with zero or random tensors shaped according to the input and the configured number of angles. Handles special cases for missing or unexpected input types, supports stochastic output in training mode if enabled by environment variable, and can invoke a side effect function if provided.
+        """
         print(f"[DEBUG-DUMMY-FWD] num_angles={self.num_angles}")
         """Forward pass that returns a tensor with correct shape. Accepts dict or str for test robustness.
 
@@ -248,16 +261,16 @@ class TorsionBertModel(nn.Module):
         return self.model.config
 
     def forward(self, inputs: Dict[str, torch.Tensor]) -> Any:
-        """Forward pass through the model.
-
+        """
+        Runs a forward pass through the model with device management and flexible output format.
+        
+        Moves input tensors to the appropriate device, executes the model, and returns outputs as either a dictionary or an object, depending on the `return_dict` flag. Automatically falls back to CPU if device errors occur.
+        
         Args:
-            inputs: Dictionary of input tensors
-
+            inputs: Dictionary of input tensors.
+        
         Returns:
-            If self.return_dict is True, returns a dictionary with 'logits' key.
-            Otherwise, returns an object with .logits and .last_hidden_state attributes.
-
-        # ERROR_ID: TORSIONBERT_FORWARD_RETURN_TYPE
+            Model outputs as a dictionary if `return_dict` is True, or as an object with attributes otherwise.
         """
         if self.debug_logging:
             logger.info(f"[DEBUG-TORSIONBERT-FORWARD] Input type: {type(inputs)}, keys: {list(inputs.keys()) if isinstance(inputs, dict) else 'N/A'}")
@@ -339,13 +352,13 @@ class TorsionBertModel(nn.Module):
 
     def _preprocess_sequence(self, rna_sequence: str) -> tuple[str, int]:
         """
-        Preprocess the RNA sequence by converting to uppercase and replacing U with T.
-
+        Converts an RNA sequence to uppercase and replaces all 'U' with 'T'.
+        
         Args:
-            rna_sequence: Input RNA sequence
-
+            rna_sequence: The input RNA sequence.
+        
         Returns:
-            Tuple of (processed sequence, sequence length)
+            A tuple containing the processed sequence and its length.
         """
         seq = rna_sequence.upper().replace("U", "T")
         return seq, len(seq)

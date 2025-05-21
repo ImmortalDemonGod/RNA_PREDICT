@@ -7,6 +7,11 @@ from rna_predict.training.rna_lightning_module import RNALightningModule
 @pytest.fixture
 def hydra_cfg():
     # Hypothesis-driven fix: use initialize_config_dir for absolute paths
+    """
+    Initializes and returns a Hydra configuration object for testing.
+    
+    The configuration is composed from a specified directory, set to use the CPU device, and populated with default noise schedule and model architecture parameters required for RNA prediction model tests.
+    """
     abs_conf = "/Users/tomriddle1/RNA_PREDICT/rna_predict/conf"
     with initialize_config_dir(config_dir=abs_conf, version_base=None):
         cfg = compose(config_name="default")
@@ -44,6 +49,11 @@ def hydra_cfg():
 @pytest.mark.flaky(reruns=3)
 @pytest.mark.skip(reason="Test is flaky and needs investigation")
 def test_sample_noise_level_shape_and_device(hydra_cfg):
+    """
+    Tests that the noise level sampling method returns a tensor of correct shape, device, and value range.
+    
+    Verifies that the sampled noise levels from the model are positive, match the requested batch size, are on the CPU, and fall within the configured minimum and maximum noise schedule bounds.
+    """
     model = RNALightningModule(cfg=hydra_cfg)
     batch_size = 7
     sigma_t = model._sample_noise_level(batch_size)
@@ -56,6 +66,11 @@ def test_sample_noise_level_shape_and_device(hydra_cfg):
 @pytest.mark.flaky(reruns=3)
 @pytest.mark.skip(reason="Test is flaky and needs investigation")
 def test_add_noise_shapes_and_broadcasting(hydra_cfg):
+    """
+    Tests that the model's noise addition method correctly handles tensor shapes and broadcasting.
+    
+    Verifies that adding noise to a batch of coordinate tensors produces outputs with the expected shapes, ensures the noisy coordinates differ from the originals, and checks device consistency.
+    """
     model = RNALightningModule(cfg=hydra_cfg)
     batch_size = 4
     N_atom = 10
@@ -71,6 +86,11 @@ def test_add_noise_shapes_and_broadcasting(hydra_cfg):
 @pytest.mark.flaky(reruns=3)
 @pytest.mark.skip(reason="Test is flaky and needs investigation")
 def test_add_noise_empty_tensor(hydra_cfg):
+    """
+    Tests that adding noise to empty coordinate tensors returns correctly shaped, zero-filled outputs.
+    
+    Verifies that the model's noise addition method handles empty input tensors by returning outputs matching the input shapes, with noisy coordinates equal to the originals and noise tensors filled with zeros.
+    """
     model = RNALightningModule(cfg=hydra_cfg)
     coords_true = torch.empty(0, 5, 3)
     sigma_t = torch.empty(0)
@@ -83,6 +103,10 @@ def test_add_noise_empty_tensor(hydra_cfg):
 @pytest.mark.flaky(reruns=3)
 @pytest.mark.skip(reason="Test is flaky and needs investigation")
 def test_sample_noise_level_extreme_sigma(hydra_cfg):
+    """
+    Tests that noise levels sampled with extreme minimum and maximum sigma values
+    are within the specified bounds.
+    """
     hydra_cfg.model.stageD.diffusion.noise_schedule.s_min = 1e-8
     hydra_cfg.model.stageD.diffusion.noise_schedule.s_max = 1e2
     model = RNALightningModule(cfg=hydra_cfg)

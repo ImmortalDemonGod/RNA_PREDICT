@@ -21,10 +21,10 @@ register_configs()
 def main(cfg: DictConfig):
     # SYSTEMATIC HYDRA INTERPOLATION DEBUGGING PATCH
     """
-    Main training entry point for the RNA prediction model using Hydra configuration.
+    Main entry point for training the RNA prediction model with Hydra configuration.
     
-    Loads and resolves configuration, prepares dataset and DataLoader, initializes the model,
-    sets up checkpointing, and runs training with PyTorch Lightning. Handles device selection,
+    Resolves and validates configuration, prepares the dataset and DataLoader, initializes the model,
+    sets up checkpointing, and runs training using PyTorch Lightning. Handles device selection,
     debug logging, and error reporting for configuration and data loading issues.
     
     Args:
