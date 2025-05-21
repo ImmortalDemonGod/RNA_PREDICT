@@ -4,10 +4,6 @@
 import os
 import sys
 import pathlib
-import itertools
-import textwrap
-import numpy as np
-import pandas as pd
 import logging
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -26,7 +22,8 @@ from rna_predict.kaggle.kaggle_env import (
     symlink_dnabert_checkpoint,
     patch_transformers_for_local
 )
-from rna_predict.kaggle.data_utils import load_kaggle_data, collapse_to_one_row_per_residue, process_test_sequences, auto_column
+from rna_predict.kaggle.data_utils import load_kaggle_data, collapse_to_one_row_per_residue, process_test_sequences
+from rna_predict.kaggle.submission_validator import run_sanity_checks
 
 setup_kaggle_environment()
 
@@ -163,8 +160,13 @@ print(toy_comp.head())
 # ╚══════════════════════════════════════════════════════════════════════╝
 if os.path.exists(TEST_SEQS) and os.path.exists(SAMPLE_SUB):
     process_test_sequences(TEST_SEQS, SAMPLE_SUB, OUTPUT_CSV, batch=1)
+    # Call the new sanity checker
+    if pathlib.Path(OUTPUT_CSV).exists(): # Ensure submission file was created
+        run_sanity_checks(TEST_SEQS, OUTPUT_CSV)
+    else:
+        logging.error(f"Submission file {OUTPUT_CSV} not found after processing. Skipping sanity checks.")
 else:
-    logging.warning("Test CSVs missing – adjust paths or upload files.")
+    logging.warning("Test CSVs missing – adjust paths or upload files. Skipping processing and sanity checks.")
 
 
 
@@ -201,121 +203,3 @@ if working_root.exists():
             for sub in sorted(item.iterdir()):
                 print(f"    {sub}")
 print("\n✅  Done.\n")
-
-# 
-# Cell : sanity-check submission.csv against test_sequences.csv  ✅
-# ----------------------------------------------------------------
-
-import pandas as pd
-import pathlib
-import textwrap
-import sys
-TEST_CSV = "/kaggle/input/stanford-rna-3d-folding/test_sequences.csv"
-SUB_CSV  = "submission.csv"
-TOL      = 1.0  # Å – treat coords within ±1 Å as identical
-
-# ── 0)  helpers ─────────────────────────────────────────────────────────
-def preview(s, n=5):
-    lst = list(s)
-    return ", ".join(lst[:n]) + (" …" if len(lst) > n else "")
-
-# ── 1)  load / basic info ───────────────────────────────────────────────
-for f in (TEST_CSV, SUB_CSV):
-    if not pathlib.Path(f).is_file():
-        sys.exit(f"[ERROR] {f} not found!")
-
-test_sequences = pd.read_csv(TEST_CSV)
-submission     = pd.read_csv(SUB_CSV)
-
-id_col_test = auto_column(test_sequences, ["ID", "id", "seq_id", "sequence_id"])
-id_col_sub  = auto_column(submission,     ["ID", "id", "seq_id", "sequence_id"])
-
-# ── 2)  expected vs actual rows ─────────────────────────────────────────
-expected_rows = test_sequences["sequence"].str.len().sum()
-print("\n━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-print(f"Expected rows        : {expected_rows:,}")
-print(f"submission.csv rows  : {len(submission):,}")
-dupes = submission[id_col_sub].duplicated().sum()
-print(f"Duplicate {id_col_sub!r} rows : {dupes:,}")
-
-# ── 3)  build the *full* ID set   "<sequenceID>_<resIdx>"  ─────────────
-full_id_set = {
-    f"{sid}_{idx}"
-    for sid, seq in zip(test_sequences[id_col_test], test_sequences["sequence"])
-    for idx in range(1, len(seq) + 1)
-}
-sub_id_set = set(submission[id_col_sub].astype(str))
-
-missing = full_id_set - sub_id_set
-extra   = sub_id_set  - full_id_set
-
-print("\n━━ ID reconciliation ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-print(f"IDs missing from submission : {len(missing):,}")
-print(f"Unexpected extra IDs        : {len(extra):,}")
-if missing: print("  → first few missing :", preview(missing))
-if extra:   print("  → first few extras  :", preview(extra))
-
-# ── 4)  per-sequence coverage (how many residues per sequence?) ────────
-seq_len = test_sequences.set_index(id_col_test)["sequence"].str.len()
-
-# **FIXED LINE BELOW** – use expand=True to ensure a 1-D Series (avoids ndarray shape (n, 3))
-prefixes = (
-    submission[id_col_sub]
-    .astype(str)
-    .str.rsplit("_", n=1, expand=True)[0]   # returns a Series, not a nested ndarray
-)
-
-coverage = prefixes.value_counts().reindex(seq_len.index).fillna(0).astype(int)
-bad_cov  = coverage[coverage != seq_len]
-
-print("\n━━ Per-sequence coverage ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-print(f"Sequences with wrong #rows : {len(bad_cov):,}")
-if len(bad_cov):
-    print("  id  | expected | got")
-    for sid, got in itertools.islice(bad_cov.items(), 5):
-        print(f" {sid:<6}| {seq_len[sid]:>8} | {got}")
-
-# ── 5)  column sanity ───────────────────────────────────────────────────
-REQ_COLS = ["ID", "resname", "resid"] + [f"{ax}_{i}" for i in range(1, 6) for ax in "xyz"]
-missing_cols = [c for c in REQ_COLS if c not in submission.columns]
-
-print("\n━━ Column sanity ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-print(f"Missing required columns   : {len(missing_cols)}")
-if missing_cols:
-    print(textwrap.fill(", ".join(missing_cols), width=88))
-
-# ── 6)  structure-repeat uniqueness ────────────────────────────────────
-trip_cols = np.array([[f"{ax}_{i}" for ax in "xyz"] for i in range(1, 6)])
-coords = submission[trip_cols.flatten()].values.reshape(len(submission), 5, 3)
-
-def unique_triplet_count(row):
-    """Return #unique (x,y,z) triplets in a 5×3 slice."""
-    uniq = []
-    for v in row:
-        if not any(np.allclose(v, u, atol=TOL) for u in uniq):
-            uniq.append(v)
-    return len(uniq)
-
-# 👉 replace apply_along_axis with a 1-liner list-comprehension  ✅
-uniq_counts = np.array([unique_triplet_count(row) for row in coords])
-
-all_identical = (uniq_counts == 1).sum()
-truly_unique  = (uniq_counts > 1).sum()
-
-print("\n━━ Structure-repeat uniqueness ━━━━━━━━━━━━━━━━━━━━━━━━━━")
-print(f"Rows where 5 structures are identical : {all_identical:,}")
-print(f"Rows with ≥2 distinct triplets         : {truly_unique:,}")
-
-# Per-sequence share of unique repeats
-sub_seq_id = prefixes.to_numpy()   # 1-D array of sequence IDs
-per_seq_unique = (
-    pd.Series(uniq_counts > 1, index=sub_seq_id)
-      .groupby(level=0).mean()
-      .sort_values(ascending=False)
-)
-
-print("\nTop 5 sequences with most unique repeats:")
-for sid, frac in per_seq_unique.head(5).items():
-    print(f"  {sid:<6}: {frac:6.1%} rows diversified")
-
-print("\n✅  Sanity check finished.")
