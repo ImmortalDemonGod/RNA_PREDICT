@@ -26,7 +26,7 @@ from rna_predict.kaggle.kaggle_env import (
     symlink_dnabert_checkpoint,
     patch_transformers_for_local
 )
-from rna_predict.kaggle.data_utils import load_kaggle_data, collapse_to_one_row_per_residue, process_test_sequences
+from rna_predict.kaggle.data_utils import load_kaggle_data, collapse_to_one_row_per_residue, process_test_sequences, auto_column
 
 setup_kaggle_environment()
 
@@ -215,12 +215,6 @@ SUB_CSV  = "submission.csv"
 TOL      = 1.0  # Å – treat coords within ±1 Å as identical
 
 # ── 0)  helpers ─────────────────────────────────────────────────────────
-def auto_col(df, pref):
-    for c in pref:
-        if c in df.columns:
-            return c
-    return df.columns[0]
-
 def preview(s, n=5):
     lst = list(s)
     return ", ".join(lst[:n]) + (" …" if len(lst) > n else "")
@@ -233,8 +227,8 @@ for f in (TEST_CSV, SUB_CSV):
 test_sequences = pd.read_csv(TEST_CSV)
 submission     = pd.read_csv(SUB_CSV)
 
-id_col_test = auto_col(test_sequences, ["ID", "id", "seq_id", "sequence_id"])
-id_col_sub  = auto_col(submission,     ["ID", "id", "seq_id", "sequence_id"])
+id_col_test = auto_column(test_sequences, ["ID", "id", "seq_id", "sequence_id"])
+id_col_sub  = auto_column(submission,     ["ID", "id", "seq_id", "sequence_id"])
 
 # ── 2)  expected vs actual rows ─────────────────────────────────────────
 expected_rows = test_sequences["sequence"].str.len().sum()
