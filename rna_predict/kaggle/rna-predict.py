@@ -380,16 +380,8 @@ import numpy as np
 # TODO: run_random_search removed in cleanup pass 1
 
 
-logging.info("Starting hyperparam search for X coordinate.")
-#best_model_x, best_params_x = run_random_search(X_full, y_x_full, param_dist, n_iter=5, cv_splits=3)
-
-logging.info("Starting hyperparam search for Y coordinate.")
-#best_model_y, best_params_y = run_random_search(X_full, y_y_full, param_dist, n_iter=5, cv_splits=3)
-
-logging.info("Starting hyperparam search for Z coordinate.")
-#best_model_z, best_params_z = run_random_search(X_full, y_z_full, param_dist, n_iter=5, cv_splits=3)
-
-logging.info("Cell 8 complete: RandomizedSearchCV best params found.")
+# TODO: This cell previously performed XGBoost hyperparam search (RandomizedSearchCV),
+# but all related code has now been removed. Candidate for full removal or repurposing.
 
 # %%
 """
