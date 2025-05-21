@@ -1,17 +1,45 @@
 # %%
 # Cell : clean auto-generated requirements file  (run FIRST!)
 # -----------------------------------------------------------
-from rna_predict.kaggle.kaggle_env import setup_kaggle_environment
+import os
+import sys
+import pathlib
+import itertools
+import textwrap
+import numpy as np
+import pandas as pd
+import torch
+import logging
+import seaborn as sns
+import matplotlib.pyplot as plt
+from functools import partial
+from transformers import *
+from omegaconf import OmegaConf
+from sklearn.model_selection import train_test_split, KFold
+from sklearn.impute import SimpleImputer
+from sklearn.metrics import mean_squared_error
+from rna_predict.kaggle.kaggle_env import (
+    setup_kaggle_environment,
+    print_kaggle_input_tree,
+    print_system_info,
+    set_offline_env_vars,
+    symlink_torsionbert_checkpoint,
+    symlink_dnabert_checkpoint,
+    patch_transformers_for_local
+)
+from rna_predict.kaggle.data_utils import load_kaggle_data
+from rna_predict.interface import RNAPredictor
+from rna_predict.utils.submission import coords_to_df, extract_atom, reshape_coords
 
 setup_kaggle_environment()
 
-import pathlib, sys, os  # Only keep what's actually used below
+
 # (Requirements cleaning is now handled by setup_kaggle_environment())
 
 # %%
 # Cell: show what’s inside every mounted Kaggle dataset  🔍 (Python version)
 # --------------------------------------------------------
-from rna_predict.kaggle.kaggle_env import print_kaggle_input_tree
+
 
 print_kaggle_input_tree()
 
@@ -27,7 +55,7 @@ print_kaggle_input_tree()
 # Cell: ALL-IN-ONE Environment Setup  (no uninstalls, no online pip)
 # ---
 
-from rna_predict.kaggle.kaggle_env import setup_kaggle_environment, print_system_info
+
 
 # Run all Kaggle/offline environment setup (includes wheels, symlinks, offline vars, etc.)
 setup_kaggle_environment()
@@ -44,23 +72,39 @@ print_system_info()
 Cell 1: ENVIRONMENT SETUP & LOGGING
 -----------------------------------
 """
-import os
-import sys
-import logging
-import numpy as np
-import pandas as pd
-import seaborn as sns
-import matplotlib.pyplot as plt
+
+
+
+
+
+
+
 
 # Machine Learning Libraries
-from sklearn.model_selection import train_test_split, KFold
-from sklearn.impute import SimpleImputer
-from sklearn.metrics import mean_squared_error
+
+
+
 # TODO: XGBoost import removed in cleanup pass 1
 # from xgboost import XGBRegressor
 
 
-# Logging
+# =======================
+# Imports (Standard Library)
+# =======================
+import os
+import sys
+import pathlib
+import itertools
+import textwrap
+import numpy as np
+import pandas as pd
+import torch
+from omegaconf import OmegaConf
+from rna_predict.kaggle.data_utils import load_kaggle_data
+from rna_predict.interface import RNAPredictor
+from rna_predict.utils.submission import coords_to_df, extract_atom, reshape_coords
+
+import logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(message)s',
@@ -70,7 +114,7 @@ logging.info("Cell 1 complete: Libraries imported and logging initialized.")
 
 
 
-from rna_predict.kaggle.data_utils import load_kaggle_data
+
 
 # Call the data loader at the notebook's data import step
 (
@@ -84,19 +128,23 @@ from rna_predict.kaggle.data_utils import load_kaggle_data
 
 logging.info("Cell 2 complete: Data loaded and assigned.")
 
-from rna_predict.kaggle.kaggle_env import set_offline_env_vars, symlink_torsionbert_checkpoint, symlink_dna_bert_checkpoint, monkey_patch_transformers
+
 
 # Set up HuggingFace offline environment and symlink checkpoints before anything else
 set_offline_env_vars()
 symlink_torsionbert_checkpoint()
-symlink_dna_bert_checkpoint()
-monkey_patch_transformers()
+symlink_dnabert_checkpoint()
+patch_transformers_for_local()
 
 # Cell: RNA Prediction with TorsionBERT  (offline-ready)
 # ------------------------------------------------------
-import pandas as pd, torch, os, logging, sys, transformers
-from omegaconf import OmegaConf
-from functools import partial
+
+
+
+
+
+
+
 
 
 # ╔══════════════════════════════════════════════════════════════════════╗
@@ -104,33 +152,16 @@ from functools import partial
 # ╚══════════════════════════════════════════════════════════════════════╝
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s | %(levelname)s | %(message)s")
-def run_and_print(cmd):
-    import subprocess, shlex, textwrap
-    res = subprocess.run(cmd if isinstance(cmd,list) else shlex.split(cmd),
-                         capture_output=True, text=True)
-    if res.stdout: print(res.stdout, end="")
-    if res.stderr: print("STDERR:", textwrap.shorten(res.stderr,400), end="")
-    return res
-
-# ╔══════════════════════════════════════════════════════════════════════╗
-# 4) ENSURE hydra-core (local wheel) – omegaconf already present
-# ╚══════════════════════════════════════════════════════════════════════╝
-run_and_print([
-    "pip","install","--no-index","--no-deps","--force-reinstall",
-    "/kaggle/input/hydra-core-132whl/hydra_core-1.3.2-py3-none-any.whl"
-])
-
-
 
 # %%
 # ╔══════════════════════════════════════════════════════════════════════╗
 # 5) RNAPredictor CONFIG (Hydra best practices, stochastic inference)
 # ╚══════════════════════════════════════════════════════════════════════╝
-from rna_predict.interface import RNAPredictor
+
 # Import OmegaConf and torch if not already imported in the cell
-from omegaconf import OmegaConf
-import torch
-import logging # Ensure logging is imported if you use logger.info
+
+
+ # Ensure logging is imported if you use logger.info
 
 TEST_SEQS  = "/kaggle/input/stanford-rna-3d-folding/test_sequences.csv"
 SAMPLE_SUB = "/kaggle/input/stanford-rna-3d-folding/sample_submission.csv"
@@ -227,9 +258,8 @@ predictor = create_predictor()
 #         • works both when Stage C gives [L, atoms, 3]  OR  [N_atoms, 3]
 #         • keeps all original columns created by coords_to_df
 # ────────────────────────────────────────────────────────────────────────────
-import logging, torch, pandas as pd
-from rna_predict.interface import RNAPredictor
-from rna_predict.utils.submission import coords_to_df, extract_atom, reshape_coords
+
+
 
 log = logging.getLogger("rna_predict.patch.flat2res")
 
@@ -331,9 +361,9 @@ print(toy.head())
 # NOTE: This cell REPLACES the previous buggy version.
 # Fix: drop existing "ID" column before inserting the new one.
 # -----------------------------------------------------------------------
-import numpy as np
-import pandas as pd
-import logging
+
+
+
 
 
 def _auto_column(df: pd.DataFrame, pref: list[str]) -> str:
@@ -507,22 +537,24 @@ Suggestions for further improvement:
 logging.info("Notebook complete. Good luck on the leaderboard!")
 print("All done! Submit 'submission.csv' to the competition.")
 
-# %%
-%%bash
-# Cell: show what’s inside every mounted Kaggle dataset  🔍
-# --------------------------------------------------------
-echo -e "\n📂  Listing the first two levels of /kaggle/working …\n"
+# 
 
-# Change depth (-maxdepth) if you want more or fewer levels
-find /kaggle/working -maxdepth 2 -mindepth 1 -print | sed 's|^|  |'
+import pathlib, sys, os
+print("\n📂  Listing the first two levels of /kaggle/working …\n")
+working_root = pathlib.Path("/kaggle/working")
+if working_root.exists():
+    for item in sorted(working_root.iterdir()):
+        print(f"  {item}")
+        if item.is_dir():
+            for sub in sorted(item.iterdir()):
+                print(f"    {sub}")
+print("\n✅  Done.\n")
 
-echo -e "\n✅  Done.\n"
-
-# %%
+# 
 # Cell : sanity-check submission.csv against test_sequences.csv  ✅
 # ----------------------------------------------------------------
-import pandas as pd, pathlib, textwrap, sys, itertools, numpy as np
 
+import pandas as pd, pathlib, textwrap, sys, itertools, numpy as np
 TEST_CSV = "/kaggle/input/stanford-rna-3d-folding/test_sequences.csv"
 SUB_CSV  = "submission.csv"
 TOL      = 1.0  # Å – treat coords within ±1 Å as identical
