@@ -1,6 +1,9 @@
 # %%
 # Cell : clean auto-generated requirements file  (run FIRST!)
 # -----------------------------------------------------------
+from rna_predict.kaggle.kaggle_env import setup_kaggle_environment
+setup_kaggle_environment()
+
 import pathlib, shutil, re, textwrap, sys, os
 
 REQ_PATH = pathlib.Path("/kaggle/requirements/input_requirements.txt")
