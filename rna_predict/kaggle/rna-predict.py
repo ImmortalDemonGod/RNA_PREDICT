@@ -73,15 +73,7 @@ Cell 1: ENVIRONMENT SETUP & LOGGING
 -----------------------------------
 """
 
-
-
-
-
-
-
-
 # Machine Learning Libraries
-
 
 
 # TODO: XGBoost import removed in cleanup pass 1
@@ -113,9 +105,6 @@ logging.basicConfig(
 logging.info("Cell 1 complete: Libraries imported and logging initialized.")
 
 
-
-
-
 # Call the data loader at the notebook's data import step
 (
     train_sequences,
@@ -138,13 +127,6 @@ patch_transformers_for_local()
 
 # Cell: RNA Prediction with TorsionBERT  (offline-ready)
 # ------------------------------------------------------
-
-
-
-
-
-
-
 
 
 # ╔══════════════════════════════════════════════════════════════════════╗
@@ -282,8 +264,6 @@ print(toy.head())
 # NOTE: This cell REPLACES the previous buggy version.
 # Fix: drop existing "ID" column before inserting the new one.
 # -----------------------------------------------------------------------
-
-
 
 
 
