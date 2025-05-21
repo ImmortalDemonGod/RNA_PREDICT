@@ -167,87 +167,8 @@ TEST_SEQS  = "/kaggle/input/stanford-rna-3d-folding/test_sequences.csv"
 SAMPLE_SUB = "/kaggle/input/stanford-rna-3d-folding/sample_submission.csv"
 OUTPUT_CSV = "submission.csv"
 
-def create_predictor():
-    """Instantiate RNAPredictor with local checkpoints & GPU/CPU autodetect, matching Hydra config structure."""
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    logging.info(f"Device: {device}") # Assuming logging is configured
-    cfg = OmegaConf.create({
-        # Top-level keys consistent with a full Hydra config (e.g., default.yaml)
-        "device": device,
-        "seed": 42, # Good for reproducibility if used by models
-        "atoms_per_residue": 44, # Standard value
-        "extraction_backend": "dssr", # Or "mdanalysis" as needed
-
-        "pipeline": { # General pipeline settings
-            "verbose": True,
-            "save_intermediates": True,
-            # output_dir is usually set by Hydra's run directory or overridden
-        },
-
-        "prediction": { # Prediction-specific settings
-            "repeats": 5,
-            "residue_atom_choice": 0,
-            "enable_stochastic_inference_for_submission": True, # CRITICAL: Ensures unique predictions
-            # "submission_seeds": [42, 101, 2024, 7, 1991],  # Optional: for reproducible stochastic runs
-        },
-
-        "model": {
-            # ── Stage B: torsion-angle prediction ──────────────────────────
-            "stageB": {
-                "torsion_bert": {
-                    "model_name_or_path": "/kaggle/working/rna_torsionBERT", # Path to local TorsionBERT model
-                    "device": device,
-                    "angle_mode": "degrees",   # CHANGED: Set to "degrees" for consistency with StageC
-                                               # This ensures StageBTorsionBertPredictor outputs angles in degrees.
-                    "num_angles": 7,
-                    "max_length": 512,
-                    "checkpoint_path": None,   # Can be overridden if a specific checkpoint is needed
-                    "debug_logging": True,     # Set to False if logs are too verbose
-                    "init_from_scratch": False, # Assumes using pretrained TorsionBERT
-                    "lora": {                  # LoRA config (currently disabled)
-                        "enabled": False,
-                        "r": 8,
-                        "alpha": 16,
-                        "dropout": 0.1,
-                        "target_modules": ["query", "value"],
-                    },
-                }
-                # Pairformer config would go here if used: "pairformer": { ... }
-            },
-            # ── Stage C: 3D reconstruction (MP-NeRF) ──────────────────────
-            "stageC": {
-                "enabled": True,
-                "method": "mp_nerf",
-                "do_ring_closure": False,       # Consistent with default.yaml; notebook log showed True, adjust if needed.
-                "place_bases": True,
-                "sugar_pucker": "C3'-endo",
-                "device": device,
-                "debug_logging": True,          # Set to False if logs are too verbose
-                "angle_representation": "degrees", # StageC expects angles in degrees from StageB
-                "use_metadata": False,
-                "use_memory_efficient_kernel": False,
-                "use_deepspeed_evo_attention": False,
-                "use_lma": False,
-                "inplace_safe": False,          # Consistent with default.yaml; notebook log showed True.
-                "chunk_size": None,
-            },
-            # ── Stage D: Diffusion refinement (minimal placeholder) ────────
-            # Add full StageD config if it's actively used in this notebook
-            "stageD": {
-                "enabled": False, # Set to True if StageD is part of this specific notebook's pipeline
-                "mode": "inference",
-                "device": device,
-                "debug_logging": True,
-                # Placeholder for other essential StageD keys if enabled:
-                # "ref_element_size": 128,
-                # "ref_atom_name_chars_size": 256,
-                # "profile_size": 32,
-                # "model_architecture": { ... },
-                # "diffusion": { ... }
-            },
-        }
-    })
-    return RNAPredictor(cfg)
+# Import create_predictor from the new config module
+from rna_predict.kaggle.predictor_config import create_predictor
 
 # Usage example:
 predictor = create_predictor()
@@ -460,63 +381,7 @@ if os.path.exists(TEST_SEQS) and os.path.exists(SAMPLE_SUB):
 else:
     logging.warning("Test CSVs missing – adjust paths or upload files.")
 
-# %%
-"""
-Cell 11: GENERATE PREDICTIONS & BUILD SUBMISSION
-------------------------------------------------
-We'll predict (x_1, y_1, z_1) for each residue, 
-then replicate those coordinates for structures x_2..z_5.
-Finally, we'll align with sample_submission and save submission.csv.
-"""
 
-# Predict x_1, y_1, z_1
-#test_pred_x = model_x.predict(test_merged_imputed)
-#test_pred_y = model_y.predict(test_merged_imputed)
-#test_pred_z = model_z.predict(test_merged_imputed)
-
-# Build submission from test_clean_df
-#submission = test_clean_df.copy()
-
-# Add predicted coords for structure 1
-#submission['x_1'] = test_pred_x
-#submission['y_1'] = test_pred_y
-#submission['z_1'] = test_pred_z
-
-# For simplicity, replicate for structures 2..5
-#for i in [2,3,4,5]:
-#    submission[f'x_{i}'] = test_pred_x
-#    submission[f'y_{i}'] = test_pred_y
-#    submission[f'z_{i}'] = test_pred_z
-
-# Adjust ID format: ID + "_" + resid
-#submission['ID'] = submission['ID'] + "_"  + submission['resid'].astype(str)
-
-# Reorder columns to match sample_submission
-#final_cols = list(sample_submission.columns)  # ID, resname, resid, x_1..z_5
-#submission = submission[['ID','resname','resid',
-#                         'x_1','y_1','z_1',
-#                         'x_2','y_2','z_2',
-#                         'x_3','y_3','z_3',
-#                         'x_4','y_4','z_4',
-#                         'x_5','y_5','z_5']]
-
-# Merge with sample_submission to match row order
-#sample_submission['sort_order'] = range(len(sample_submission))
-#submission_merged = pd.merge(
-#    submission,
-#    sample_submission[['ID','sort_order']],
-#    on='ID',
-#    how='left'
-#).sort_values('sort_order').drop(columns='sort_order')
-
-# This is our final submission dataframe
-#submission_df = submission_merged.copy()
-
-# Save to CSV
-#submission_df.to_csv("submission.csv", index=False)
-#logging.info("submission.csv created successfully.")
-
-#print("Cell 11 complete: Submission file saved. Ready to submit!")
 
 # %%
 # Cell 12: CONCLUSIONS & NEXT STEPS
