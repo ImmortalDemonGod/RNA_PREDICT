@@ -75,25 +75,59 @@ def set_offline_env_vars():
 def print_system_info():
     """Prints Python, OS, CPU, memory, and disk info for diagnostics."""
     import sys
+    import platform
     import subprocess
     print("\n=== [System Information] ===")
     print("\n[Python Version]")
     print(sys.version)
-    print("\n[Kernel and OS Information]")
+    
+    os_type = platform.system()
+    print(f"\n[Kernel and OS Information ({os_type})]")
     subprocess.run(["uname", "-a"])
+
     print("\n[CPU Information]")
-    subprocess.run(["lscpu"])
+    try:
+        if os_type == "Linux":
+            subprocess.run(["lscpu"])
+        elif os_type == "Darwin": 
+            subprocess.run(["sysctl", "-n", "machdep.cpu.brand_string"])
+            subprocess.run(["sysctl", "hw.ncpu"])
+        else:
+            print(f"CPU info command not available for OS: {os_type}")
+    except FileNotFoundError:
+        print(f"CPU info command not found for {os_type}.")
+
     print("\n[Memory Information]")
-    subprocess.run(["free", "-mh"])
+    try:
+        if os_type == "Linux":
+            subprocess.run(["free", "-mh"])
+        elif os_type == "Darwin":
+            subprocess.run(["top", "-l", "1", "-s", "0" , "-o", "mem", "-n", "5"])
+            # More detailed: subprocess.run(["vm_stat"])
+        else:
+            print(f"Memory info command not available for OS: {os_type}")
+    except FileNotFoundError:
+        print(f"Memory info command not found for {os_type}.")
+
     print("\n[Disk Information]")
-    subprocess.run(["lsblk"])
+    try:
+        if os_type == "Linux":
+            subprocess.run(["lsblk"])
+        elif os_type == "Darwin":
+            subprocess.run(["df", "-h"])
+            # More detailed: subprocess.run(["diskutil", "list"])
+        else:
+            print(f"Disk info command not available for OS: {os_type}")
+    except FileNotFoundError:
+        print(f"Disk info command not found for {os_type}.")
+
     print("\n=== [End of System Information] ===\n")
 
 def print_kaggle_input_tree():
     """Pythonic replacement for bash cell: lists first two levels of /kaggle/input."""
     import pathlib
     input_root = pathlib.Path("/kaggle/input")
-    print("\n📂  Listing the first two levels of /kaggle/input …\n")
+    print("\n  Listing the first two levels of /kaggle/input …\n")
     if not input_root.exists():
         print("[WARN] /kaggle/input does not exist!")
         return
@@ -102,7 +136,7 @@ def print_kaggle_input_tree():
         if item.is_dir():
             for sub in sorted(item.iterdir()):
                 print(f"    {sub}")
-    print("\n✅  Done.\n")
+    print("\n  Done.\n")
 
 def symlink_torsionbert_checkpoint():
     src = pathlib.Path("/kaggle/input/rna-torsion-bert-checkpoint-base/kaggle/working/rna_torsionBERT")
