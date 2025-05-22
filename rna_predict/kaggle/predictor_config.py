@@ -1,108 +1,75 @@
-import torch
 import logging
-import pathlib
-from omegaconf import OmegaConf
-from rna_predict.interface import RNAPredictor
+import torch
+from omegaconf import OmegaConf, DictConfig # Ensure DictConfig is imported
+
+from rna_predict.predict import RNAPredictor
 from rna_predict.kaggle.kaggle_env import is_kaggle
 
-TEST_SEQS  = "/kaggle/input/stanford-rna-3d-folding/test_sequences.csv"
-SAMPLE_SUB = "/kaggle/input/stanford-rna-3d-folding/sample_submission.csv"
-OUTPUT_CSV = "submission.csv"
+# Configure logging for this module
+logger = logging.getLogger(__name__)
 
-def create_predictor():
-    """Instantiate RNAPredictor with local checkpoints & GPU/CPU autodetect, matching Hydra config structure."""
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    logging.info(f"Device: {device}") # Assuming logging is configured
+def create_predictor(cfg: DictConfig) -> RNAPredictor:
+    """
+    Creates and returns an RNAPredictor instance, configured by the provided
+    Hydra DictConfig (cfg) and adapted for the Kaggle environment if necessary.
 
-    # Determine execution environment and set model paths accordingly
-    IS_KAGGLE_ENVIRONMENT = is_kaggle()
-    if IS_KAGGLE_ENVIRONMENT:
-        # Path for Kaggle (symlinked in kaggle_env.py)
-        torsion_bert_model_path = "/kaggle/working/rna_torsionBERT"
-        logging.info(f"Kaggle environment: TorsionBERT path set to {torsion_bert_model_path}")
+    Args:
+        cfg (DictConfig): The main Hydra configuration object, expected to have
+                          sections like 'model' and 'prediction'.
+
+    Returns:
+        RNAPredictor: An instance of the RNA predictor.
+    """
+    logger.info("Creating RNAPredictor instance...")
+
+    # Create a mutable copy of the config for predictor-specific adjustments
+    # This ensures that the original cfg object passed to the main script is not modified.
+    final_predictor_conf = OmegaConf.create(OmegaConf.to_container(cfg, resolve=True))
+
+    # Resolve TorsionBERT model path and device, adapting for Kaggle environment
+    if is_kaggle():
+        torsion_bert_model_path_resolved = "/kaggle/input/rna-predict-dependencies/TorsionBERT_ckpt"
+        logger.info(f"Kaggle environment detected. Using TorsionBERT path: {torsion_bert_model_path_resolved}")
+        # In Kaggle, this resolved path is a specific checkpoint
+        final_predictor_conf.model.stageB.torsion_bert.checkpoint_path = torsion_bert_model_path_resolved
+        final_predictor_conf.model.stageB.torsion_bert.model_name_or_path = torsion_bert_model_path_resolved
     else:
-        # Local environment: Use the project's local kaggle/working/rna_torsionBERT directory
-        PROJECT_ROOT = pathlib.Path(__file__).resolve().parents[2] # rna_predict/kaggle -> RNA_PREDICT
-        torsion_bert_model_path = PROJECT_ROOT / "kaggle" / "working" / "rna_torsionBERT"
-        
-        # Ensure the local model directory exists (it should, as confirmed by ls)
-        torsion_bert_model_path.mkdir(parents=True, exist_ok=True) # Should be harmless if it exists
-        logging.info(f"Local environment: TorsionBERT path set to {torsion_bert_model_path}")
+        # Local environment logic
+        custom_override_path = cfg.model.get("torsion_bert_model_path", None)
+        if custom_override_path:
+            logger.info(f"Local environment. Using custom TorsionBERT path from cfg.model.torsion_bert_model_path: {custom_override_path}")
+            final_predictor_conf.model.stageB.torsion_bert.checkpoint_path = custom_override_path
+            final_predictor_conf.model.stageB.torsion_bert.model_name_or_path = custom_override_path
+        else:
+            # No custom override, use defaults already in final_predictor_conf.model.stageB.torsion_bert
+            # (model_name_or_path="sayby/rna_torsionbert", checkpoint_path=None)
+            logger.info(f"Local environment. Using default TorsionBERT configuration: "
+                        f"model_name_or_path='{final_predictor_conf.model.stageB.torsion_bert.model_name_or_path}', "
+                        f"checkpoint_path='{final_predictor_conf.model.stageB.torsion_bert.checkpoint_path}'")
+            # No changes needed to final_predictor_conf.model.stageB.torsion_bert paths here as defaults are already set.
 
-    cfg = OmegaConf.create({
-        # Top-level keys consistent with a full Hydra config (e.g., default.yaml)
-        "device": device,
-        "seed": 42, # Good for reproducibility if used by models
-        "atoms_per_residue": 44, # Standard value
-        "extraction_backend": "dssr", # Or "mdanalysis" as needed
+    # Resolve device
+    default_device = "cuda" if torch.cuda.is_available() else "cpu"
+    device_resolved = cfg.model.get("device", default_device)
+    logger.info(f"Using device: {device_resolved}")
+    final_predictor_conf.model.device = device_resolved
 
-        "pipeline": { # General pipeline settings
-            "verbose": True,
-            "save_intermediates": True,
-            # output_dir is usually set by Hydra's run directory or overridden
-        },
-
-        "prediction": { # Prediction-specific settings
-            "repeats": 5,
-            "residue_atom_choice": 0,
-            "enable_stochastic_inference_for_submission": True, # CRITICAL: Ensures unique predictions
-            # "submission_seeds": [42, 101, 2024, 7, 1991],  # Optional: for reproducible stochastic runs
-        },
-
-        "model": {
-            # ── Stage B: torsion-angle prediction ──────────────────────────
-            "stageB": {
-                "torsion_bert": {
-                    "model_name_or_path": str(torsion_bert_model_path), # Path to local TorsionBERT model
-                    "device": device,
-                    "angle_mode": "degrees",   # CHANGED: Set to "degrees" for consistency with StageC
-                                               # This ensures StageBTorsionBertPredictor outputs angles in degrees.
-                    "num_angles": 7,
-                    "max_length": 512,
-                    "checkpoint_path": None,   # Can be overridden if a specific checkpoint is needed
-                    "debug_logging": True,     # Set to False if logs are too verbose
-                    "init_from_scratch": False, # Assumes using pretrained TorsionBERT
-                    "lora": {                  # LoRA config (currently disabled)
-                        "enabled": False,
-                        "r": 8,
-                        "alpha": 16,
-                        "dropout": 0.1,
-                        "target_modules": ["query", "value"],
-                    },
-                }
-                # Pairformer config would go here if used: "pairformer": { ... }
-            },
-            # ── Stage C: 3D reconstruction (MP-NeRF) ──────────────────────
-            "stageC": {
-                "enabled": True,
-                "method": "mp_nerf",
-                "do_ring_closure": False,       # Consistent with default.yaml; notebook log showed True, adjust if needed.
-                "place_bases": True,
-                "sugar_pucker": "C3'-endo",
-                "device": device,
-                "debug_logging": True,          # Set to False if logs are too verbose
-                "angle_representation": "degrees", # StageC expects angles in degrees from StageB
-                "use_metadata": False,
-                "use_memory_efficient_kernel": False,
-                "use_deepspeed_evo_attention": False,
-                "use_lma": False,
-                "inplace_safe": False,          # Consistent with default.yaml; notebook log showed True.
-                "chunk_size": None,
-            },
-            # ── Stage D: Diffusion refinement (minimal placeholder) ────────
-            # Add full StageD config if it's actively used in this notebook
-            "stageD": {
-                "enabled": False, # Set to True if StageD is part of this specific notebook's pipeline
-                "mode": "inference",
-                "device": device,
-                "debug_logging": True,
-                # Placeholder for other essential StageD keys if enabled:
-                # "ref_element_size": 128,
-                # "ref_atom_name_chars_size": 256,
-                # "profile_size": 32,
-                # "model_architecture": { ... },
-                # "diffusion": { ... }
-            },
-        }
+    # Ensure prediction settings for diverse outputs are explicitly set for Kaggle.
+    # This overrides any incoming config and restores the previous behavior shown in the git diff.
+    final_predictor_conf.prediction = OmegaConf.create({
+        "repeats": 5,
+        "residue_atom_choice": 0, # Default from previous configuration
+        "enable_stochastic_inference_for_submission": True,
+        "submission_seeds": [42, 101, 2024, 7, 1991], # Optional: for reproducible stochastic runs
     })
-    return RNAPredictor(cfg)
+
+    # Log the final configuration being passed to RNAPredictor
+    logger.debug(f"RNAPredictor configuration: {OmegaConf.to_yaml(final_predictor_conf)}")
+
+    try:
+        predictor = RNAPredictor(final_predictor_conf) # Pass as positional argument
+        logger.info("RNAPredictor instance created successfully.")
+        return predictor
+    except Exception as e:
+        logger.error(f"Error creating RNAPredictor: {e}", exc_info=True)
+        raise # Re-raise the exception to be caught by the caller
