@@ -22,7 +22,7 @@ def unique_triplet_count(row, tolerance: float):
             uniq.append(v)
     return len(uniq)
 
-def run_sanity_checks(test_csv_path: str, submission_csv_path: str, tolerance: float = 1.0):
+def run_sanity_checks(test_csv_path: str, submission_csv_path: str, tolerance: float = 1e-5):
     """
     Performs a series of sanity checks on a submission.csv file against a test_sequences.csv file.
     """
