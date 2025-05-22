@@ -1,7 +1,6 @@
 import logging
 import pandas as pd
 import numpy as np
-from rna_predict.kaggle.predictor_config import create_predictor
 import pathlib
 from rna_predict.kaggle.kaggle_env import is_kaggle
 
@@ -117,13 +116,23 @@ def collapse_to_one_row_per_residue(df_raw: pd.DataFrame, seq_id: str) -> pd.Dat
     return df[["ID", "resname", "resid"] + coord_cols]
 
 
-def process_test_sequences(test_csv: str, sample_csv: str, out_csv: str, *, batch: int = 1):
-    """Generate submission file after collapsing predictions."""
+def process_test_sequences(predictor, test_csv: str, sample_csv: str, out_csv: str, *, batch: int = 1):
+    """
+    Process test sequences and generate a submission file.
 
+    Args:
+        predictor: An initialized RNAPredictor instance.
+        test_csv (str): Path to the test sequences CSV file.
+        sample_csv (str): Path to the sample submission CSV file.
+        out_csv (str): Path where the output submission CSV will be saved.
+        batch (int, optional): Batch size for processing sequences. Defaults to 1.
+
+    Returns:
+        pd.DataFrame: The resulting DataFrame that was saved to CSV.
+    """
     df_test = pd.read_csv(test_csv)
+    df_sample = pd.read_csv(sample_csv)
     logging.info("Loaded %d sequences", len(df_test))
-
-    predictor = create_predictor()
 
     id_col  = auto_column(df_test, ["id", "ID", "seq_id", "sequence_id"])
     seq_col = auto_column(df_test, ["sequence", "Sequence", "seq", "SEQ"])
