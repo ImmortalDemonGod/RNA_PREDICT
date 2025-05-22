@@ -1,6 +1,32 @@
 # rna-predict.py
 
 # ==============================================================================
+# HOW TO RUN THIS SCRIPT
+# ==============================================================================
+# This script can operate in two main modes, controlled by the `mode` parameter
+# in the Hydra configuration:
+#
+# 1. Training Mode (`mode=train`):
+#    Executes the training pipeline defined in `rna_predict.training.train.py`.
+#    Example:
+#    /Users/tomriddle1/.local/bin/uv run rna_predict/kaggle/rna-predict.py --config-path /Users/tomriddle1/RNA_PREDICT/rna_predict/conf --config-name default mode=train data.index_csv=rna_predict/dataset/examples/your_training_data_index.csv training.epochs=10
+#
+# 2. Prediction/Inference Mode (default, or `mode=predict`):
+#    Generates a `submission.csv` file for Kaggle by processing `test_sequences.csv`.
+#    This is the default behavior if `mode` is not specified or set to `predict`.
+#    Example (using default mode):
+#    /Users/tomriddle1/.local/bin/uv run rna_predict/kaggle/rna-predict.py --config-path /Users/tomriddle1/RNA_PREDICT/rna_predict/conf --config-name default
+#    Example (explicitly setting mode=predict):
+#    /Users/tomriddle1/.local/bin/uv run rna_predict/kaggle/rna-predict.py --config-path /Users/tomriddle1/RNA_PREDICT/rna_predict/conf --config-name default mode=predict
+#
+# Note: 
+# - Ensure `/Users/tomriddle1/.local/bin/uv` is the correct path to your `uv` executable.
+# - The `--config-path` should point to your Hydra configuration directory.
+# - You can override any configuration parameters from `default.yaml` or other config files
+#   by appending them to the command (e.g., `data.batch_size=16`).
+# ==============================================================================
+
+# ==============================================================================
 # IMPORTS
 # ==============================================================================
 import os
