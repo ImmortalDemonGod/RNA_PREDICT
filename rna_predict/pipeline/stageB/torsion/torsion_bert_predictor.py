@@ -596,6 +596,17 @@ class StageBTorsionBertPredictor(nn.Module):
                     logger.debug(f"[DEBUG-PREDICTOR] outputs.last_hidden_state shape: {getattr(outputs.last_hidden_state, 'shape', None)}")
             # Don't print debug info when debug_logging is False
 
+            # --- DIVERSITY DEBUG: Log logits sum and seed ---
+            # (This helps check if stochastic inference is working)
+            if stochastic_pass:
+                logits = None
+                if hasattr(outputs, 'logits') and outputs.logits is not None:
+                    logits = outputs.logits
+                elif isinstance(outputs, dict) and 'logits' in outputs:
+                    logits = outputs['logits']
+                if logits is not None:
+                    seed_to_log = seed if seed is not None else "N/A"
+                    logger.info(f"[DEBUG-LOGITS] Seed: {seed_to_log}, Logits sum: {logits.sum().item()}, Stochastic: {stochastic_pass}")
             # Extract logits from the output
             angle_preds = None
             if isinstance(outputs, dict) and "logits" in outputs:
@@ -765,11 +776,6 @@ class StageBTorsionBertPredictor(nn.Module):
                 output_dim = self.num_angles * 2
             else:
                 output_dim = self.num_angles
-
-            # Special case for tests: If num_angles is 16, ensure output shape is [N, 16]
-            # This is needed for the TestStageBTorsionBertPredictor tests in test_torsionbert.py
-            if self.num_angles == 16 and self.angle_mode == "degrees":
-                output_dim = 16
 
             if self.debug_logging:
                 logger.info(f"[DEBUG-DUMMY-MODE] Using output_dim={output_dim} for num_angles={self.num_angles} in {self.angle_mode} mode")
