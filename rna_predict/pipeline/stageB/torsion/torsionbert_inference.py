@@ -194,13 +194,25 @@ class TorsionBertModel(nn.Module):
         try:
             if self.debug_logging:
                 logger.info(f"[DEBUG-INIT] Attempting to load tokenizer from model_path: '{model_path}'")
-            self.tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
+            logging.info(f"[DEBUG-TORSIONBERT-INFER] Loading tokenizer from {model_path} with repo_type='local', local_files_only=True")
+            self.tokenizer = AutoTokenizer.from_pretrained(
+                model_path,
+                trust_remote_code=True,
+                repo_type="local",
+                local_files_only=True
+            )
             if self.debug_logging:
                 logger.info(f"[DEBUG-INIT] Tokenizer loaded successfully: {type(self.tokenizer)}")
 
             if self.debug_logging:
                 logger.info(f"[DEBUG-INIT] Attempting to load model from model_path: '{model_path}'")
-            self.model = AutoModel.from_pretrained(model_path, trust_remote_code=True)
+            logging.info(f"[DEBUG-TORSIONBERT-INFER] Loading model from {model_path} with repo_type='local', local_files_only=True")
+            self.model = AutoModel.from_pretrained(
+                model_path,
+                trust_remote_code=True,
+                repo_type="local",
+                local_files_only=True
+            )
             if self.debug_logging:
                 logger.info(f"[DEBUG-INIT] Model loaded successfully: {type(self.model)}")
                 logger.info(f"[DEVICE-DEBUG][stageB_torsion] After model load, param device: {next(self.model.parameters()).device}")

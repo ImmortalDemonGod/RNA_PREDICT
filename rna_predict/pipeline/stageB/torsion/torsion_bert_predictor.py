@@ -286,8 +286,20 @@ class StageBTorsionBertPredictor(nn.Module):
             self.model = DummyTorsionBertAutoModel(num_angles=self.num_angles).to(self.device)
         else:
             try:
-                self.tokenizer = AutoTokenizer.from_pretrained(self.model_name_or_path, trust_remote_code=True)
-                self.model = AutoModel.from_pretrained(self.model_name_or_path, trust_remote_code=True)
+                logging.info(f"[DEBUG-TORSIONBERT] Loading tokenizer from {self.model_name_or_path} with repo_type='local', local_files_only=True")
+                self.tokenizer = AutoTokenizer.from_pretrained(
+                    self.model_name_or_path,
+                    trust_remote_code=True,
+                    repo_type="local",
+                    local_files_only=True
+                )
+                logging.info(f"[DEBUG-TORSIONBERT] Loading model from {self.model_name_or_path} with repo_type='local', local_files_only=True")
+                self.model = AutoModel.from_pretrained(
+                    self.model_name_or_path,
+                    trust_remote_code=True,
+                    repo_type="local",
+                    local_files_only=True
+                )
                 if self.debug_logging:
                     logger.info(f"[DEVICE-DEBUG][stageB_torsion] Model class before to(device): {self.model.__class__}")
                     logger.info(f"[DEVICE-DEBUG][stageB_torsion] Model config before to(device): {self.model.config}")
