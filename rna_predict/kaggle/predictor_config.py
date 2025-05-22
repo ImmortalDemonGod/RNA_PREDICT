@@ -28,7 +28,8 @@ def create_predictor(cfg: DictConfig) -> RNAPredictor:
 
     # Resolve TorsionBERT model path and device, adapting for Kaggle environment
     if is_kaggle():
-        torsion_bert_model_path_resolved = "/kaggle/input/rna-predict-dependencies/TorsionBERT_ckpt"
+        import os
+        torsion_bert_model_path_resolved = os.environ.get("TOR_BERT_CKPT", "/kaggle/working/rna_torsionBERT")
         logger.info(f"Kaggle environment detected. Using TorsionBERT path: {torsion_bert_model_path_resolved}")
         # In Kaggle, this resolved path is a specific checkpoint
         final_predictor_conf.model.stageB.torsion_bert.checkpoint_path = torsion_bert_model_path_resolved
