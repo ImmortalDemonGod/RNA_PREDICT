@@ -286,20 +286,35 @@ class StageBTorsionBertPredictor(nn.Module):
             self.model = DummyTorsionBertAutoModel(num_angles=self.num_angles).to(self.device)
         else:
             try:
-                logging.info(f"[DEBUG-TORSIONBERT] Loading tokenizer from {self.model_name_or_path} with repo_type='local', local_files_only=True")
-                self.tokenizer = AutoTokenizer.from_pretrained(
-                    self.model_name_or_path,
-                    trust_remote_code=True,
-                    repo_type="local",
-                    local_files_only=True
-                )
-                logging.info(f"[DEBUG-TORSIONBERT] Loading model from {self.model_name_or_path} with repo_type='local', local_files_only=True")
-                self.model = AutoModel.from_pretrained(
-                    self.model_name_or_path,
-                    trust_remote_code=True,
-                    repo_type="local",
-                    local_files_only=True
-                )
+                def is_local_path(path):
+                    import os
+                    return os.path.exists(path)
+                if is_local_path(self.model_name_or_path):
+                    logging.info(f"[DEBUG-TORSIONBERT] Loading tokenizer from local path: {self.model_name_or_path} with local_files_only=True")
+                    self.tokenizer = AutoTokenizer.from_pretrained(
+                        self.model_name_or_path,
+                        trust_remote_code=True,
+                        local_files_only=True
+                    )
+                else:
+                    logging.info(f"[DEBUG-TORSIONBERT] Loading tokenizer from hub id: {self.model_name_or_path}")
+                    self.tokenizer = AutoTokenizer.from_pretrained(
+                        self.model_name_or_path,
+                        trust_remote_code=True
+                    )
+                if is_local_path(self.model_name_or_path):
+                    logging.info(f"[DEBUG-TORSIONBERT] Loading model from local path: {self.model_name_or_path} with local_files_only=True")
+                    self.model = AutoModel.from_pretrained(
+                        self.model_name_or_path,
+                        trust_remote_code=True,
+                        local_files_only=True
+                    )
+                else:
+                    logging.info(f"[DEBUG-TORSIONBERT] Loading model from hub id: {self.model_name_or_path}")
+                    self.model = AutoModel.from_pretrained(
+                        self.model_name_or_path,
+                        trust_remote_code=True
+                    )
                 if self.debug_logging:
                     logger.info(f"[DEVICE-DEBUG][stageB_torsion] Model class before to(device): {self.model.__class__}")
                     logger.info(f"[DEVICE-DEBUG][stageB_torsion] Model config before to(device): {self.model.config}")
