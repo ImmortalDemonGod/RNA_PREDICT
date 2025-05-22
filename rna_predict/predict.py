@@ -10,6 +10,7 @@ import pandas as pd
 import os
 from typing import List, Optional, Dict, Any
 import logging # Added import
+import numpy as np # Add this import
 
 from rna_predict.pipeline.stageB.torsion.torsion_bert_predictor import StageBTorsionBertPredictor
 from rna_predict.pipeline.stageC.stage_c_reconstruction import run_stageC
@@ -191,9 +192,10 @@ class RNAPredictor:
                 else:
                     chosen_atom_series = residue_atoms.iloc[0] # Fallback to first atom for this residue
                 
-                final_per_residue_coords[i, 0] = chosen_atom_series["x"]
-                final_per_residue_coords[i, 1] = chosen_atom_series["y"]
-                final_per_residue_coords[i, 2] = chosen_atom_series["z"]
+                # Extract as numpy array, ensure float32, then convert to tensor of the target dtype
+                xyz_numpy = chosen_atom_series[["x", "y", "z"]].values.astype(np.float32)
+                xyz_tensor = torch.tensor(xyz_numpy, dtype=final_per_residue_coords.dtype)
+                final_per_residue_coords[i] = xyz_tensor
         
         # Validate shape before returning
         if final_per_residue_coords.shape[0] != sequence_len or final_per_residue_coords.shape[1] != 3:
