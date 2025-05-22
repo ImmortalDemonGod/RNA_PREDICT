@@ -35,6 +35,17 @@ if cfg is None or not hasattr(cfg, 'device'):
     print("[ERROR] Config loading failed or device key missing. Check your config files and Hydra setup.")
     sys.exit(1)
 
+# --- Debug logging: print full config and prediction section ---
+try:
+    from omegaconf import OmegaConf
+    print("\n[DEBUG] Full loaded config:\n" + OmegaConf.to_yaml(cfg))
+    if hasattr(cfg, 'prediction'):
+        print("[DEBUG] Prediction config section:\n" + OmegaConf.to_yaml(cfg.prediction))
+    else:
+        print("[DEBUG] No 'prediction' section in config!")
+except Exception as e:
+    print(f"[DEBUG] Could not print config: {e}")
+
 # Instantiate predictor
 predictor = RNAPredictor(cfg)
 
