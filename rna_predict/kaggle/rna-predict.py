@@ -284,3 +284,6 @@ def main(cfg: DictConfig):
 
 if __name__ == "__main__":
     main()
+
+#/Users/tomriddle1/.local/bin/uv run rna_predict/kaggle/rna-predict.py --config-path /Users/tomriddle1/RNA_PREDICT/rna_predict/conf --config-name default mode=train > /Users/tomriddle1/RNA_PREDICT/outputs/kaggle_run_training_mode.log 2>&1
+#

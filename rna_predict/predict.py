@@ -30,6 +30,17 @@ class RNAPredictor:
         Raises:
             ValueError: If required configuration sections or fields are missing.
         """
+        # --- Debug logging: print full config and prediction section ---
+        try:
+            from omegaconf import OmegaConf
+            logger.info("[DEBUG] RNAPredictor received config:\n" + OmegaConf.to_yaml(cfg))
+            if hasattr(cfg, 'prediction'):
+                logger.info("[DEBUG] RNAPredictor prediction config section:\n" + OmegaConf.to_yaml(cfg.prediction))
+            else:
+                logger.info("[DEBUG] No 'prediction' section in config!")
+        except Exception as e:
+            logger.info(f"[DEBUG] Could not print config in RNAPredictor.__init__: {e}")
+
         self.device = cfg.device
         if isinstance(self.device, str):
             self.device = torch.device(self.device)
@@ -218,9 +229,16 @@ class RNAPredictor:
 
         # Read stochastic config from Hydra
         enable_stochastic = self.prediction_config.enable_stochastic_inference_for_submission
-        method_logger.info(f"Stochastic inference for submission: {enable_stochastic}")
+        method_logger.info(f"[DEBUG] Stochastic inference for submission: {enable_stochastic}")
         repeats = prediction_repeats if prediction_repeats is not None else self.default_repeats
         current_atom_choice = residue_atom_choice if residue_atom_choice is not None else self.default_atom_choice
+        method_logger.info(f"[DEBUG] prediction_repeats: {prediction_repeats}, repeats used: {repeats}")
+        method_logger.info(f"[DEBUG] residue_atom_choice: {residue_atom_choice}, atom_choice used: {current_atom_choice}")
+        if hasattr(self.prediction_config, 'submission_seeds'):
+            method_logger.info(f"[DEBUG] submission_seeds from config: {self.prediction_config.submission_seeds}")
+        else:
+            method_logger.info("[DEBUG] No submission_seeds in prediction config!")
+        method_logger.info(f"[DEBUG] repeat_seeds argument: {repeat_seeds}")
 
         def set_all_seeds(seed_val):
             random.seed(seed_val)
@@ -244,18 +262,21 @@ class RNAPredictor:
             if enable_stochastic:
                 if repeat_seeds and i < len(repeat_seeds):
                     seed_for_repeat = repeat_seeds[i]
+                elif hasattr(self.prediction_config, 'submission_seeds') and i < len(self.prediction_config.submission_seeds):
+                    seed_for_repeat = self.prediction_config.submission_seeds[i]
                 else:
                     seed_for_repeat = i # Default seed progression
-                method_logger.info(f"Repeat {i+1}/{repeats} with seed: {seed_for_repeat}")
+                method_logger.info(f"[DEBUG] Repeat {i+1}/{repeats} with seed: {seed_for_repeat} (stochastic enabled)")
                 set_all_seeds(seed_for_repeat)
             elif repeat_seeds and i < len(repeat_seeds): # Seeds provided but stochastic disabled, still use them
                 seed_for_repeat = repeat_seeds[i]
-                method_logger.info(f"Repeat {i+1}/{repeats} with provided seed (stochastic disabled): {seed_for_repeat}")
+                method_logger.info(f"[DEBUG] Repeat {i+1}/{repeats} with provided seed (stochastic disabled): {seed_for_repeat}")
                 set_all_seeds(seed_for_repeat)
             else:
-                method_logger.info(f"Repeat {i+1}/{repeats} (deterministic or default seed).")
+                method_logger.info(f"[DEBUG] Repeat {i+1}/{repeats} (deterministic or default seed).")
 
             # Run prediction for one repeat
+            method_logger.info(f"[DEBUG] Calling predict_3d_structure with stochastic_pass={enable_stochastic}, seed={seed_for_repeat}")
             prediction_result = self.predict_3d_structure(sequence, stochastic_pass=enable_stochastic, seed=seed_for_repeat)
             
             # Process coordinates to ensure [len(sequence), 3]
@@ -300,6 +321,7 @@ class RNAPredictor:
             method_logger.info(f"[DEBUG] predict_submission final DataFrame head:\n{final_df.head()}")
 
         return final_df
+
 
     def predict_submission_original(self, sequence: str, prediction_repeats: Optional[int] = None, residue_atom_choice: Optional[int] = None, repeat_seeds: Optional[list] = None) -> pd.DataFrame:
         import logging
