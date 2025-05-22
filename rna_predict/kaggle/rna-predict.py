@@ -8,11 +8,14 @@ import sys
 import pathlib
 import logging
 
+import hydra
+from omegaconf import DictConfig
+
 from rna_predict.kaggle.kaggle_env import (
     setup_kaggle_environment,
     print_kaggle_input_tree,
+    is_kaggle,
     print_system_info,
-    is_kaggle
 )
 from rna_predict.kaggle.data_utils import (
     load_kaggle_data, 
@@ -21,6 +24,13 @@ from rna_predict.kaggle.data_utils import (
 )
 from rna_predict.kaggle.submission_validator import run_sanity_checks
 from rna_predict.kaggle.predictor_config import create_predictor
+
+try:
+    from rna_predict.training.train import execute_training_run
+    TRAINING_MODULE_AVAILABLE = True
+except ImportError as e:
+    logging.warning(f"Could not import training module/function 'rna_predict.training.train.execute_training_run': {e}. Training mode will not be available.")
+    TRAINING_MODULE_AVAILABLE = False
 
 # ==============================================================================
 # GLOBAL CONSTANTS & PATH SETUP
@@ -57,7 +67,7 @@ OUTPUT_CSV_PATH = BASE_WORKING_ROOT / "submission.csv"
 # ==============================================================================
 # LOGGING SETUP
 # ==============================================================================
-def setup_logging():
+def setup_logging(cfg: DictConfig = None):
     """Configures basic logging for the script."""
     logging.basicConfig(
         level=logging.INFO,
@@ -86,7 +96,7 @@ def perform_environment_setup_and_diagnostics():
     print_system_info()
     logging.info("Environment setup and diagnostics complete.")
 
-def verify_data_availability():
+def verify_data_availability(cfg: DictConfig):
     """Loads Kaggle data to ensure it's accessible, though not all parts are used directly."""
     logging.info("Verifying data availability by attempting to load Kaggle data...")
     try:
@@ -96,18 +106,18 @@ def verify_data_availability():
         logging.error(f"Error during load_kaggle_data: {e}. Data might not be available as expected.")
         # Depending on severity, might want to sys.exit()
 
-def initialize_rna_predictor():
+def initialize_rna_predictor(cfg: DictConfig):
     """Initializes and returns the RNA predictor instance."""
     logging.info("Initializing RNA predictor...")
     try:
-        predictor = create_predictor()
+        predictor = create_predictor(cfg)
         logging.info("RNA predictor initialized successfully.")
         return predictor
     except Exception as e:
         logging.error(f"Failed to initialize RNA predictor: {e}")
         sys.exit("Exiting due to predictor initialization failure.") 
 
-def run_toy_sanity_check_with_predictor(predictor):
+def run_toy_sanity_check_with_predictor(predictor, cfg: DictConfig):
     """Runs a small sanity check using the provided predictor."""
     if not predictor:
         logging.warning("Predictor not available, skipping toy sanity check.")
@@ -124,7 +134,7 @@ def run_toy_sanity_check_with_predictor(predictor):
         logging.error(f"Error during toy sanity check: {e}")
     logging.info("Toy sanity-check complete.")
 
-def process_full_test_set_and_validate(predictor):
+def process_full_test_set_and_validate(predictor, cfg: DictConfig):
     """
     Processes the full test set to generate submission.csv using the predictor,
     and then runs sanity checks on the generated file.
@@ -141,6 +151,7 @@ def process_full_test_set_and_validate(predictor):
 
         try:
             process_test_sequences(
+                predictor,               # Pass the initialized predictor
                 TEST_SEQS_PATH,          # Correct: positional argument for test_csv
                 SAMPLE_SUB_PATH,       # Correct: positional argument for sample_csv
                 OUTPUT_CSV_PATH,       # Correct: positional argument for out_csv
@@ -165,7 +176,7 @@ def process_full_test_set_and_validate(predictor):
         logging.warning(f"{missing_files_msg.strip()}. Full test set processing and sanity checks skipped.")
     logging.info("Full test set processing stage finished.")
 
-def display_conclusions():
+def display_conclusions(cfg: DictConfig = None):
     """Displays concluding messages and original notebook's suggestions."""
     logging.info("Displaying script conclusions...")
     conclusion_text = """
@@ -189,7 +200,7 @@ def display_conclusions():
     else:
         print(f"Submission file '{OUTPUT_CSV_PATH}' was not generated. Check logs for errors.")
 
-def list_working_directory_contents_final():
+def list_working_directory_contents_final(cfg: DictConfig = None):
     """Lists the contents of the working directory at the end of the script."""
     logging.info(f"Listing final contents of {BASE_WORKING_ROOT} directory...")
     # working_root = pathlib.Path("/kaggle/working") # Old line
@@ -215,26 +226,61 @@ def list_working_directory_contents_final():
         logging.warning(f"Directory {BASE_WORKING_ROOT} does not exist or is not accessible.")
     print("\n✅ File listing complete.\n")
 
+def run_training_pipeline(cfg: DictConfig):
+    """Runs the training pipeline using the provided Hydra configuration."""
+    if not TRAINING_MODULE_AVAILABLE:
+        logging.error("Training module is not available. Cannot proceed with training. Please check import errors.")
+        sys.exit(1)
+
+    logging.info("Starting training pipeline...")
+    try:
+        # Ensure data paths in cfg are appropriate for Kaggle training if running on Kaggle
+        # This might involve modifying cfg or having specific Kaggle configs for training data.
+        if is_kaggle():
+            logging.info("Kaggle environment detected for training. Ensure 'data' config points to /kaggle/input/ for training data.")
+            # Example: cfg.data.train_csv = "/kaggle/input/stanford-rna-3d-folding/train_sequences.csv"
+            # Example: cfg.data.val_csv = "/kaggle/input/stanford-rna-3d-folding/val_sequences.csv" # if you have one
+            # Ensure hydra.run.dir or equivalent output path is /kaggle/working/
+            if not cfg.hydra.run.dir.startswith("/kaggle/working"):
+                logging.warning(f"Hydra run dir {cfg.hydra.run.dir} is not in /kaggle/working/. Model outputs might not be saved correctly on Kaggle.")
+                # Consider forcing it: cfg.hydra.run.dir = f"/kaggle/working/{cfg.hydra.job.name}/{cfg.hydra.job.id}" or similar
+        
+        # Call the main training function from your training module
+        execute_training_run(cfg) # Pass the full config
+        logging.info("Training pipeline completed successfully.")
+    except Exception as e:
+        logging.error(f"Error during training pipeline: {e}", exc_info=True)
+        sys.exit("Exiting due to training pipeline failure.")
+
 # ==============================================================================
 # MAIN EXECUTION BLOCK
 # ==============================================================================
-def main():
+@hydra.main(config_path="../conf", config_name="default", version_base=None)
+def main(cfg: DictConfig):
     """Main function to orchestrate the script's execution flow."""
-    setup_logging()
+    setup_logging(cfg)
     
     perform_environment_setup_and_diagnostics()
     
-    verify_data_availability() 
+    # For now, data verification might be specific to predict mode
+    # We'll need to adjust this based on cfg.mode later
+    if cfg.get("mode", "predict") == "predict":
+        verify_data_availability(cfg) 
     
-    predictor = initialize_rna_predictor()
+    predictor = initialize_rna_predictor(cfg)
     
-    run_toy_sanity_check_with_predictor(predictor)
-    
-    process_full_test_set_and_validate(predictor)
-    
-    display_conclusions()
-    
-    list_working_directory_contents_final()
+    # This part is prediction-specific, will be conditional later
+    if cfg.get("mode", "predict") == "predict":
+        run_toy_sanity_check_with_predictor(predictor, cfg)
+        process_full_test_set_and_validate(predictor, cfg)
+        display_conclusions(cfg)
+        list_working_directory_contents_final(cfg)
+    elif cfg.mode == "train":
+        logging.info("Training mode selected.")
+        run_training_pipeline(cfg)
+    else:
+        logging.error(f"Unknown mode: {cfg.mode}")
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
