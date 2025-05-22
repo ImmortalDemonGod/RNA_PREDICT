@@ -1,37 +1,73 @@
-import sys
 import logging
 import pandas as pd
 import numpy as np
 from rna_predict.kaggle.predictor_config import create_predictor
+import pathlib
+from rna_predict.kaggle.kaggle_env import is_kaggle
 
-def load_kaggle_data():
+# Configure basic logging
+logging.basicConfig(level=logging.INFO, format='%(levelname)s:%(name)s:%(message)s')
+logger = logging.getLogger(__name__)
+
+def load_kaggle_data(target_sequences_path=None, sample_submission_path=None):
     """
-    Loads train, validation, test, and sample submission CSVs from Kaggle paths.
+    Loads the Kaggle competition data (train, test, sample submission).
+
+    Args:
+        target_sequences_path (str, optional): Path to the test sequences CSV.
+            If None, defaults to the standard Kaggle path.
+        sample_submission_path (str, optional): Path to the sample submission CSV.
+            If None, defaults to the standard Kaggle path.
+
     Returns:
-        train_sequences, train_labels, validation_sequences, validation_labels, test_sequences, sample_submission
-    Raises SystemExit on failure.
+        tuple: (train_df, test_df, sample_submission_df)
     """
-    TRAIN_SEQUENCES_PATH = "/kaggle/input/stanford-rna-3d-folding/train_sequences.csv"
-    TRAIN_LABELS_PATH    = "/kaggle/input/stanford-rna-3d-folding/train_labels.csv"
-    VALID_SEQUENCES_PATH = "/kaggle/input/stanford-rna-3d-folding/validation_sequences.csv"
-    VALID_LABELS_PATH    = "/kaggle/input/stanford-rna-3d-folding/validation_labels.csv"
-    TEST_SEQUENCES_PATH  = "/kaggle/input/stanford-rna-3d-folding/test_sequences.csv"
-    SAMPLE_SUB_PATH      = "/kaggle/input/stanford-rna-3d-folding/sample_submission.csv"
     try:
-        train_sequences = pd.read_csv(TRAIN_SEQUENCES_PATH)
-        train_labels = pd.read_csv(TRAIN_LABELS_PATH)
-        validation_sequences = pd.read_csv(VALID_SEQUENCES_PATH)
-        validation_labels = pd.read_csv(VALID_LABELS_PATH)
-        test_sequences = pd.read_csv(TEST_SEQUENCES_PATH)
-        sample_submission = pd.read_csv(SAMPLE_SUB_PATH)
-        logging.info("Data loaded successfully.")
+        # Determine execution environment
+        IS_KAGGLE_ENVIRONMENT = is_kaggle()
+
+        # Define base paths based on environment
+        if IS_KAGGLE_ENVIRONMENT:
+            BASE_INPUT_ROOT = pathlib.Path("/kaggle/input")
+            # Specific dataset path for Kaggle
+            BASE_INPUT_PATH = BASE_INPUT_ROOT / "stanford-rna-3d-folding"
+            logger.info("Kaggle environment detected for data loading.")
+        else:
+            # Local environment: CSV Data from external drive
+            BASE_INPUT_ROOT_EXTERNAL_DRIVE = pathlib.Path("/Volumes/Totallynotaharddrive/RNA_structure_PREDICT/kaggle/")
+            BASE_INPUT_PATH = BASE_INPUT_ROOT_EXTERNAL_DRIVE / "stanford-rna-3d-folding"
+            
+            # The directory is expected to exist on the external drive
+            logger.info(f"Local environment detected. CSV Data input path: {BASE_INPUT_PATH}")
+
+        # Define default paths using the determined base path
+        default_train_path = BASE_INPUT_PATH / "train_sequences.csv"
+        default_test_path = BASE_INPUT_PATH / "test_sequences.csv"
+        default_sample_sub_path = BASE_INPUT_PATH / "sample_submission.csv"
+
+        # Use provided paths or defaults
+        train_path = default_train_path # train_sequences.csv is always loaded from default
+        test_path = pathlib.Path(target_sequences_path) if target_sequences_path else default_test_path
+        sample_sub_path = pathlib.Path(sample_submission_path) if sample_submission_path else default_sample_sub_path
+
+        logger.info(f"Loading train data from: {train_path}")
+        train_df = pd.read_csv(train_path)
+        
+        logger.info(f"Loading test data from: {test_path}")
+        test_df = pd.read_csv(test_path)
+        
+        logger.info(f"Loading sample submission from: {sample_sub_path}")
+        sample_submission_df = pd.read_csv(sample_sub_path)
+        
+        logger.info("Data loaded successfully.")
+        return train_df, test_df, sample_submission_df
+    except FileNotFoundError as e:
+        logger.error(f"Error loading data: {e}")
+        # Re-raise the exception so the calling script can handle it if needed
+        raise
     except Exception as e:
-        logging.error(f"Error loading data: {e}")
-        sys.exit(1)
-    logging.info(f"train_sequences: {train_sequences.shape}, train_labels: {train_labels.shape}")
-    logging.info(f"validation_sequences: {validation_sequences.shape}, validation_labels: {validation_labels.shape}")
-    logging.info(f"test_sequences: {test_sequences.shape}, sample_submission: {sample_submission.shape}")
-    return train_sequences, train_labels, validation_sequences, validation_labels, test_sequences, sample_submission
+        logger.error(f"An unexpected error occurred during data loading: {e}")
+        raise
 
 
 def auto_column(df: pd.DataFrame, pref: list[str]) -> str:
