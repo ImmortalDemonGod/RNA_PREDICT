@@ -227,8 +227,20 @@ def setup_kaggle_environment():
         print("[WARN] block-sparse-attn wheel not found in /kaggle/input – skipped.")
 
     # --- rna_predict wheel install ---
-    # TODO: Move version to config
-    RNA_PREDICT_VERSION = "2.0.3"
+    # Read version dynamically
+    try:
+        version_file_path = pathlib.Path(__file__).resolve().parent.parent / "VERSION"
+        if version_file_path.is_file():
+            RNA_PREDICT_VERSION = version_file_path.read_text().strip()
+            if not RNA_PREDICT_VERSION:
+                raise ValueError("VERSION file is empty.")
+            print(f"[INFO] Read rna_predict version {RNA_PREDICT_VERSION} from {version_file_path.name}")
+        else:
+            raise FileNotFoundError(f"VERSION file not found at {version_file_path}")
+    except Exception as e:
+        print(f"[WARN] Could not read RNA_PREDICT_VERSION from VERSION file: {e}. Defaulting to 2.0.3 (this might be incorrect).")
+        RNA_PREDICT_VERSION = "2.0.3" # Fallback, though ideally this shouldn't be hit if packaged correctly
+
     rnapred_whl = f"/kaggle/input/rna-structure-predict/" \
                   f"rna_predict-{RNA_PREDICT_VERSION}-py3-none-any.whl"
     if os.path.exists(rnapred_whl):
