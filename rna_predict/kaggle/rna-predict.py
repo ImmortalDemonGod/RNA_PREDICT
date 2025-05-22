@@ -5,13 +5,14 @@
 # ==============================================================================
 import os
 import sys
-import pathlib 
+import pathlib
 import logging
 
 from rna_predict.kaggle.kaggle_env import (
     setup_kaggle_environment,
     print_kaggle_input_tree,
-    print_system_info
+    print_system_info,
+    is_kaggle
 )
 from rna_predict.kaggle.data_utils import (
     load_kaggle_data, 
@@ -22,11 +23,36 @@ from rna_predict.kaggle.submission_validator import run_sanity_checks
 from rna_predict.kaggle.predictor_config import create_predictor
 
 # ==============================================================================
-# GLOBAL CONSTANTS
+# GLOBAL CONSTANTS & PATH SETUP
 # ==============================================================================
-TEST_SEQS_PATH = "/kaggle/input/stanford-rna-3d-folding/test_sequences.csv"
-SAMPLE_SUB_PATH = "/kaggle/input/stanford-rna-3d-folding/sample_submission.csv"
-OUTPUT_CSV_PATH = "submission.csv"
+
+# Determine execution environment
+IS_KAGGLE_ENVIRONMENT = is_kaggle()
+
+# Define base paths based on environment
+if IS_KAGGLE_ENVIRONMENT:
+    BASE_INPUT_ROOT = pathlib.Path("/kaggle/input")
+    BASE_WORKING_ROOT = pathlib.Path("/kaggle/working")
+    # Specific dataset path for Kaggle
+    BASE_INPUT_PATH = BASE_INPUT_ROOT / "stanford-rna-3d-folding"
+else:
+    # Local environment:
+    # CSV Data from external drive
+    BASE_INPUT_ROOT_EXTERNAL_DRIVE = pathlib.Path("/Volumes/Totallynotaharddrive/RNA_structure_PREDICT/kaggle/")
+    BASE_INPUT_PATH = BASE_INPUT_ROOT_EXTERNAL_DRIVE / "stanford-rna-3d-folding"
+    
+    # Working directory remains local to the project
+    PROJECT_ROOT = pathlib.Path(__file__).resolve().parents[2]
+    BASE_WORKING_ROOT = PROJECT_ROOT / "outputs" / "kaggle_working"
+
+    # No need to create BASE_INPUT_PATH as it's on the external drive and expected to exist
+    BASE_WORKING_ROOT.mkdir(parents=True, exist_ok=True)
+    logging.info(f"Local environment detected. CSV Data input path: {BASE_INPUT_PATH}")
+    logging.info(f"Local environment detected. Working path: {BASE_WORKING_ROOT}")
+
+TEST_SEQS_PATH = BASE_INPUT_PATH / "test_sequences.csv"
+SAMPLE_SUB_PATH = BASE_INPUT_PATH / "sample_submission.csv"
+OUTPUT_CSV_PATH = BASE_WORKING_ROOT / "submission.csv"
 
 # ==============================================================================
 # LOGGING SETUP
@@ -51,6 +77,9 @@ def perform_environment_setup_and_diagnostics():
     setup_kaggle_environment()
     
     logging.info("Displaying Kaggle input file tree...")
+    # print_kaggle_input_tree() will try /kaggle/input by default.
+    # For local, it will warn that /kaggle/input doesn't exist, which is acceptable for now.
+    # If we want it to list BASE_INPUT_ROOT locally, kaggle_env.py would need changes.
     print_kaggle_input_tree()
     
     logging.info("Displaying system information...")
@@ -112,11 +141,10 @@ def process_full_test_set_and_validate(predictor):
 
         try:
             process_test_sequences(
-                test_sequences_path=TEST_SEQS_PATH,
-                sample_submission_path=SAMPLE_SUB_PATH,
-                output_csv_path=OUTPUT_CSV_PATH,
-                predictor_instance=predictor,
-                batch_size_override=1 
+                TEST_SEQS_PATH,          # Correct: positional argument for test_csv
+                SAMPLE_SUB_PATH,       # Correct: positional argument for sample_csv
+                OUTPUT_CSV_PATH,       # Correct: positional argument for out_csv
+                batch=1                # Correct: keyword argument 'batch'
             )
 
             if pathlib.Path(OUTPUT_CSV_PATH).exists():
@@ -161,14 +189,13 @@ def display_conclusions():
     else:
         print(f"Submission file '{OUTPUT_CSV_PATH}' was not generated. Check logs for errors.")
 
-
 def list_working_directory_contents_final():
-    """Lists the contents of the /kaggle/working directory at the end of the script."""
-    logging.info("Listing final contents of /kaggle/working directory...")
-    working_root = pathlib.Path("/kaggle/working")
-    print("\n📂 Final listing of /kaggle/working (up to two levels deep):")
-    if working_root.exists() and working_root.is_dir():
-        for item_count, item in enumerate(sorted(working_root.iterdir())):
+    """Lists the contents of the working directory at the end of the script."""
+    logging.info(f"Listing final contents of {BASE_WORKING_ROOT} directory...")
+    # working_root = pathlib.Path("/kaggle/working") # Old line
+    print(f"\n📂 Final listing of {BASE_WORKING_ROOT} (up to two levels deep):")
+    if BASE_WORKING_ROOT.exists() and BASE_WORKING_ROOT.is_dir():
+        for item_count, item in enumerate(sorted(BASE_WORKING_ROOT.iterdir())):
             print(f"  └── {item.name}")
             if item.is_dir():
                 for sub_item_count, sub_item in enumerate(sorted(item.iterdir())):
@@ -179,10 +206,13 @@ def list_working_directory_contents_final():
             if item_count >= 20: 
                 print("  └── ... (more items)")
                 break
-        if item_count == 0 and not any(working_root.iterdir()):
+        # Check if item_count was initialized (i.e., loop ran at least once)
+        if 'item_count' in locals() and item_count == 0 and not any(BASE_WORKING_ROOT.iterdir()):
+             print("  └── (empty)")
+        elif 'item_count' not in locals() and not any(BASE_WORKING_ROOT.iterdir()): # handles empty dir before loop
              print("  └── (empty)")
     else:
-        logging.warning(f"Directory {working_root} does not exist or is not accessible.")
+        logging.warning(f"Directory {BASE_WORKING_ROOT} does not exist or is not accessible.")
     print("\n✅ File listing complete.\n")
 
 # ==============================================================================
