@@ -18,7 +18,7 @@ register_configs()
 # Use a relative config path instead of absolute
 @hydra.main(config_path="/Users/tomriddle1/RNA_PREDICT/rna_predict/conf", config_name="default.yaml", version_base="1.1")
 ####@snoop
-def main(cfg: DictConfig):
+def execute_training_run(cfg: DictConfig):
     # SYSTEMATIC HYDRA INTERPOLATION DEBUGGING PATCH
     """
     Main training entry point for the RNA prediction model using Hydra configuration.
@@ -211,6 +211,11 @@ def main(cfg: DictConfig):
         logger.info("[CHECKPOINT-DEBUG] End of main training block reached.")
     except Exception as e:
         logger.error("[ERROR] Exception during dataset/dataloader setup: %r", e, exc_info=True)
+
+# New main function to keep train.py runnable as a script
+@hydra.main(config_path="/Users/tomriddle1/RNA_PREDICT/rna_predict/conf", config_name="default.yaml", version_base="1.1")
+def main(cfg: DictConfig):
+    execute_training_run(cfg)
 
 if __name__ == "__main__":
     main()
