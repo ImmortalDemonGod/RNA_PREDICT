@@ -1,7 +1,9 @@
 import torch
 import logging
+import pathlib
 from omegaconf import OmegaConf
 from rna_predict.interface import RNAPredictor
+from rna_predict.kaggle.kaggle_env import is_kaggle
 
 TEST_SEQS  = "/kaggle/input/stanford-rna-3d-folding/test_sequences.csv"
 SAMPLE_SUB = "/kaggle/input/stanford-rna-3d-folding/sample_submission.csv"
@@ -11,6 +13,22 @@ def create_predictor():
     """Instantiate RNAPredictor with local checkpoints & GPU/CPU autodetect, matching Hydra config structure."""
     device = "cuda" if torch.cuda.is_available() else "cpu"
     logging.info(f"Device: {device}") # Assuming logging is configured
+
+    # Determine execution environment and set model paths accordingly
+    IS_KAGGLE_ENVIRONMENT = is_kaggle()
+    if IS_KAGGLE_ENVIRONMENT:
+        # Path for Kaggle (symlinked in kaggle_env.py)
+        torsion_bert_model_path = "/kaggle/working/rna_torsionBERT"
+        logging.info(f"Kaggle environment: TorsionBERT path set to {torsion_bert_model_path}")
+    else:
+        # Local environment: Use the project's local kaggle/working/rna_torsionBERT directory
+        PROJECT_ROOT = pathlib.Path(__file__).resolve().parents[2] # rna_predict/kaggle -> RNA_PREDICT
+        torsion_bert_model_path = PROJECT_ROOT / "kaggle" / "working" / "rna_torsionBERT"
+        
+        # Ensure the local model directory exists (it should, as confirmed by ls)
+        torsion_bert_model_path.mkdir(parents=True, exist_ok=True) # Should be harmless if it exists
+        logging.info(f"Local environment: TorsionBERT path set to {torsion_bert_model_path}")
+
     cfg = OmegaConf.create({
         # Top-level keys consistent with a full Hydra config (e.g., default.yaml)
         "device": device,
@@ -35,7 +53,7 @@ def create_predictor():
             # ── Stage B: torsion-angle prediction ──────────────────────────
             "stageB": {
                 "torsion_bert": {
-                    "model_name_or_path": "/kaggle/working/rna_torsionBERT", # Path to local TorsionBERT model
+                    "model_name_or_path": str(torsion_bert_model_path), # Path to local TorsionBERT model
                     "device": device,
                     "angle_mode": "degrees",   # CHANGED: Set to "degrees" for consistency with StageC
                                                # This ensures StageBTorsionBertPredictor outputs angles in degrees.
