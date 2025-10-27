@@ -41,7 +41,7 @@ jobs:
           echo "pip-audit JSON results saved to pip_audit_results.json."
 
       - name: Upload pip-audit results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: pip-audit-results
           path: pip_audit_results.json
