@@ -7,38 +7,6 @@
 
 ---
 
-### 📦 Installation
-
-Install from PyPI:
-
-```bash
-pip install rna_predict
-```
-
----
-
-### 🚩 Usage
-
-**Basic Python Usage:**
-
-```python
-from rna_predict import BaseClass
-from rna_predict import base_function
-
-BaseClass().base_method()
-base_function()
-```
-
-**Command Line Interface:**
-
-```bash
-python -m rna_predict
-# or simply
-rna_predict
-```
-
----
-
 ### 🚀 RNA_PREDICT Inference Pipeline: Running Predictions
 
 #### 🔥 Recommended Command (with Explanation)
