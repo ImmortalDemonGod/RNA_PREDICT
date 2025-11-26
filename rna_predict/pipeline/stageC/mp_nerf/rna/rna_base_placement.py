@@ -271,7 +271,7 @@ def place_rna_bases(
                     torsion_angle_val = torch.tensor(torsion_angle, dtype=torch.float32, device=device)
                 logger.debug(f"[DEBUG-PLACEMENT] Calling calculate_atom_position(OP1/OP2) with types: bond_length={type(bond_length_val)}, bond_angle={type(bond_angle_val)}, torsion_angle={type(torsion_angle_val)}")
                 try:
-                    pos = calculate_atom_position(ref3, ref2, bond_length_val, bond_angle_val, torsion_angle_val, device)
+                    pos = calculate_atom_position(ref3, ref2, ref1, bond_length_val, bond_angle_val, torsion_angle_val, device)
                     if isinstance(pos, torch.Tensor) and torch.isnan(pos).any():
                         logger.error(f"[UNIQUE-ERR-RNA-NAN-POS] Atom placement produced NaN for {atom_name} at residue {i} (refs={unique_refs}, sep12={sep12}, sep13={sep13}, sep23={sep23}) in seq {seq}. Skipping placement.")
                         continue  # Skip placement if output is NaN
@@ -328,7 +328,7 @@ def place_rna_bases(
             prev1 = placed_atoms[prev_atoms[-1]]
             prev2 = placed_atoms[prev_atoms[-2]]
             try:
-                pos = calculate_atom_position(prev2, prev1, bond_length_val, bond_angle_tensor, torsion_angle_tensor, device)
+                pos = calculate_atom_position(prev2, prev1, ref_atom, bond_length_val, bond_angle_tensor, torsion_angle_tensor, device)
             except Exception as e:
                 logger.error(f"[DEBUG] Residue {i} base {base}: Atom '{atom_name}' placement failed with error: {e}")
                 continue
