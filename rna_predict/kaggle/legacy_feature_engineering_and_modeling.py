@@ -184,7 +184,6 @@ We'll do a simplified KFold cross-validation for each coordinate
 to get a sense of good hyperparams, then train final models.
 """
 
-from sklearn.model_selection import KFold, RandomizedSearchCV
 
 # Example hyperparameter grid (you can expand as needed)
 # TODO: param_dist removed in cleanup pass 1
