@@ -378,12 +378,20 @@ class RNAPredictor:
 
 
 def load_partial_checkpoint(model, checkpoint_path):
+    import logging
+    logger = logging.getLogger("rna_predict.checkpoint")
     checkpoint = torch.load(checkpoint_path, map_location='cpu')
     state_dict = checkpoint.get('state_dict', checkpoint)
     model_state = model.state_dict()
+    # --- Debug: print first 10 keys from both dicts ---
+    logger.info(f"[CHECKPOINT-DEBUG] Checkpoint state_dict keys (first 10): {list(state_dict.keys())[:10]}")
+    logger.info(f"[CHECKPOINT-DEBUG] Model state_dict keys (first 10): {list(model_state.keys())[:10]}")
     filtered = {k: v for k, v in state_dict.items() if k in model_state and v.shape == model_state[k].shape}
+    logger.info(f"[CHECKPOINT-LOAD] Loading checkpoint from: {checkpoint_path}")
+    logger.info(f"[CHECKPOINT-LOAD] Keys loaded: {list(filtered.keys())[:10]} ... total: {len(filtered)}")
     model_state.update(filtered)
     model.load_state_dict(model_state, strict=False)
+    logger.info("[CHECKPOINT-LOAD] Model state_dict updated with checkpoint.")
     return model
 
 
@@ -525,6 +533,9 @@ def main(cfg: DictConfig):
     predictor = RNAPredictor(cfg)
     if checkpoint_path:
         predictor.torsion_predictor = load_partial_checkpoint(predictor.torsion_predictor, checkpoint_path)
+        print(f"[CHECKPOINT-LOAD] Successfully loaded checkpoint from: {checkpoint_path}")
+    else:
+        print("[CHECKPOINT-LOAD] No checkpoint path provided; using default/random weights.")
     batch_predict(predictor, sequences, output_dir)
     print(f"Predictions saved to {output_dir}")
 
