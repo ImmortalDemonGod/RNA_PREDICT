@@ -776,6 +776,15 @@ class StageCConfig:
     chunk_size: Optional[int] = None
     debug_logging: bool = True
 
+    def __post_init__(self):
+        """Validate sugar_pucker configuration."""
+        valid_puckers = ["C3'-endo", "C2'-endo"]
+        if self.sugar_pucker not in valid_puckers:
+            raise ValueError(
+                f"Invalid sugar_pucker state: '{self.sugar_pucker}'. "
+                f"Must be one of {valid_puckers}."
+            )
+
 @dataclass
 class StageDInferenceConfig:
     """Configuration for Stage D inference."""
