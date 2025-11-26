@@ -131,7 +131,7 @@ def process_test_sequences(predictor, test_csv: str, sample_csv: str, out_csv: s
         pd.DataFrame: The resulting DataFrame that was saved to CSV.
     """
     df_test = pd.read_csv(test_csv)
-    df_sample = pd.read_csv(sample_csv)
+    pd.read_csv(sample_csv)
     logging.info("Loaded %d sequences", len(df_test))
 
     id_col  = auto_column(df_test, ["id", "ID", "seq_id", "sequence_id"])
