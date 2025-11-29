@@ -56,12 +56,6 @@ uv run rna_predict/predict.py \
 
 ---
 
-### 🛠️ Development
-
-Refer to the [CONTRIBUTING.md](CONTRIBUTING.md) file.
-
----
-
 ### 📚 RNA 3D Structure Prediction
 
 #### 🎯 Introduction & Motivation
