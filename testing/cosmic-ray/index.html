@@ -1,0 +1,6978 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.0">
+    
+    
+      
+        <title>Cosmic ray - rna_predict</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.618322db.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#file-docssourcehow-tosdistributorrst" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="rna_predict" class="md-header__button md-logo" aria-label="rna_predict" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            rna_predict
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Cosmic ray
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="rna_predict" class="md-nav__button md-logo" aria-label="rna_predict" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    rna_predict
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_1" id="__nav_2_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/getting_started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/getting_started/windows_compatibility_plan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Windows Compatibility
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2" id="__nav_2_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Best Practices
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Best Practices
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/best_practices/code_quality_best_practices/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Code Quality
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2_2" id="__nav_2_2_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Testing
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/best_practices/testing/test_coverage_strategy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Coverage Strategy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/best_practices/testing/progressive_coverage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Progressive Coverage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/best_practices/testing/test_generation_prompt/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Generation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2_3" id="__nav_2_2_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Debugging
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Debugging
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/best_practices/debugging/comprehensive_debugging_guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comprehensive Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pipeline
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Pipeline
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_1" id="__nav_3_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Overview
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/overview/core_framework/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core Framework
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/overview/Integrated_RNA_3D_Prediction_Pipeline_Final_Comprehensive_Design/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comprehensive Design
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/overview/full_pipeline_specification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Full Specification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/overview/Multi_Stage_Implementation_Plan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Multi-Stage Plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Integration
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Integration
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/integration/Integrated_RNA_3D_Prediction_Pipeline_Final_Comprehensive_Design/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/integration/full_pipeline_specification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Full Specification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2_3" id="__nav_3_2_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hydra Integration
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_3_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Hydra Integration
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/integration/hydra_integration/hydra_tutorial/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorial
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/integration/hydra_integration/hydra_integration_gap_analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gap Analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/integration/hydra_integration/hydra_integration_master_document/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Master Document
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2_3_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2_3_4" id="__nav_3_2_3_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Components
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_3_2_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Components
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/integration/hydra_integration/components/stageA/StageA_2D_Adjacency/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage A
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/integration/hydra_integration/components/stageB/StageB_Torsion_Pairwise/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage B
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/integration/hydra_integration/components/stageC/StageC_3D_Reconstruction/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage C
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/integration/hydra_integration/components/stageD/StageD_Diffusion_Refinement/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage D
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/integration/hydra_integration/components/unified_latent/UnifiedLatentMerger/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unified Latent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_3" id="__nav_3_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage A
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Stage A
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/stageA/StageA_RFold/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/stageA/RFold_code/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RFold Code
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/stageA/RFold_paper/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RFold Paper
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/stageA/rfold-demo/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Demo
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/stageA/stage_a_extra/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Extra Notes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_4" id="__nav_3_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage B
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Stage B
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/stageB/Stage_B/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_4_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_4_2" id="__nav_3_4_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TorsionBERT
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_3_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    TorsionBERT
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/stageB/torsionBert/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/stageB/torsionbert_code/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Code
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/stageB/torsionBert_full_paper/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Paper
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_5" id="__nav_3_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage C
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Stage C
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/stageC/Stage_C/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/stageC/Integrated_RNA_Geometry_and_3D_Reconstruction/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Geometry & Reconstruction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/stageC/Unified, Comprehensive Plan for Integrating MP-NeRF into Stage C.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MP-NeRF Integration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/stageC/mp_nerf/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MP-NeRF Details
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_6" id="__nav_3_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unified Latent
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Unified Latent
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/unified_latent/Perceiver_IO/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Perceiver IO
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/Energy_Minimization_%26_Molecular_Dynamics_%28MD%29_for_RNA_Structure_Refinement/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Energy & MD
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_8" id="__nav_3_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Testing
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/test_time_scaling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Time Scaling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_9" id="__nav_3_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Kaggle
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Kaggle
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/kaggle_info/kaggle_competition/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Competition
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/kaggle_info/M2_Plan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    M2 Plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_1" id="__nav_4_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Advanced Methods
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Advanced Methods
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_1_1" id="__nav_4_1_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AlphaFold 3
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_4_1_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_1_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AlphaFold 3
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/advanced_methods/af3/AF3_paper/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Paper
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/advanced_methods/af3/AlphaFold3_progress/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Progress
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/advanced_methods/af3/Pairwise_Distance_Based_Prediction/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Distance Prediction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_1_2" id="__nav_4_1_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Diffusion
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_4_1_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_1_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Diffusion
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/advanced_methods/diffusion/s4_diffusion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    S4 Diffusion
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/advanced_methods/diffusion/test_time_scaling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Time Scaling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/advanced_methods/isosteric_substitutions/RNA_isostericity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Isosteric Substitutions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_2" id="__nav_4_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    External Literature
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    External Literature
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/external_lit/2d_structure_prediction_papers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2D Structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/external_lit/RNA_papers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RNA Papers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_3" id="__nav_4_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Residue Atom Bridging
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Residue Atom Bridging
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/residue_atom_bridging/audit_report/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Audit Report
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/residue_atom_bridging/design_spec/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design Spec
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/residue_atom_bridging/documentation_draft/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Documentation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/residue_atom_bridging/implementation_notes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Implementation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/residue_atom_bridging/refactoring_plan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Refactoring
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/residue_atom_bridging/bridging_caveats_guidelines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guidelines
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_4" id="__nav_4_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Torsion Calculations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Torsion Calculations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/torsion_calculations/torsion_angles_intro/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Introduction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/torsion_calculations/Standard_Bond_Lengths_and_Angles_in_RNA_Nucleotides/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bond Lengths & Angles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/torsion_calculations/Torsion_Angles_3D_Coordinates_RNA_Structure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3D Coordinates
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/torsion_calculations/torsion_angle_Latent_Manifold_Representation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Latent Manifold
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#file-docssourcehow-tosdistributorrst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /docs/source/how-tos/distributor.rst
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#file-docssourcehow-tosfiltersrst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /docs/source/how-tos/filters.rst
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#using-filters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Using filters
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#filters-included-with-cosmic-ray" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Filters included with Cosmic Ray
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Filters included with Cosmic Ray">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cr-filter-operators" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cr-filter-operators
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cr-filter-pragma" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cr-filter-pragma
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cr-filter-git" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cr-filter-git
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#external-filters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        External filters
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="External filters">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cosmic-ray-spor-filter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cosmic-ray-spor-filter
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#file-docssourcehow-tosimplementationrst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /docs/source/how-tos/implementation.rst
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#implementation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implementation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Implementation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#file-docssourcehow-tosindexrst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /docs/source/how-tos/index.rst
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#file-docssourcehow-tosoperatorsrst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /docs/source/how-tos/operators.rst
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mutation-operators" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mutation Operators
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Mutation Operators">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#implementation-details" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implementation details
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#implementing-an-operator" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implementing an operator
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#operator-provider-plugins" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Operator provider plugins
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a-full-example-numberreplacer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A full example: NumberReplacer
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#file-docssourcereferenceapicosmic_rayastrst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /docs/source/reference/api/cosmic_ray.ast.rst
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cosmic_rayast-package" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cosmic_ray.ast package
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="cosmic_ray.ast package">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#submodules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Submodules
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cosmic_rayastast_query-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cosmic_ray.ast.ast_query module
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#module-contents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Module contents
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#file-docssourcereferenceapicosmic_raycommandsrst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /docs/source/reference/api/cosmic_ray.commands.rst
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cosmic_raycommands-package" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cosmic_ray.commands package
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="cosmic_ray.commands package">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#submodules_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Submodules
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cosmic_raycommandsexecute-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cosmic_ray.commands.execute module
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cosmic_raycommandsinit-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cosmic_ray.commands.init module
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cosmic_raycommandsnew_config-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cosmic_ray.commands.new_config module
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#module-contents_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Module contents
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#file-docssourcereferenceapicosmic_raydistributionrst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /docs/source/reference/api/cosmic_ray.distribution.rst
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cosmic_raydistribution-package" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cosmic_ray.distribution package
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="cosmic_ray.distribution package">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#submodules_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Submodules
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cosmic_raydistributiondistributor-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cosmic_ray.distribution.distributor module
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cosmic_raydistributionhttp-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cosmic_ray.distribution.http module
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cosmic_raydistributionlocal-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cosmic_ray.distribution.local module
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#module-contents_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Module contents
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#file-docssourcereferenceapicosmic_rayoperatorsrst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /docs/source/reference/api/cosmic_ray.operators.rst
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cosmic_rayoperators-package" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cosmic_ray.operators package
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="cosmic_ray.operators package">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#submodules_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Submodules
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cosmic_rayoperatorsbinary_operator_replacement-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cosmic_ray.operators.binary_operator_replacement module
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cosmic_rayoperatorsboolean_replacer-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cosmic_ray.operators.boolean_replacer module
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cosmic_rayoperatorsbreak_continue-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cosmic_ray.operators.break_continue module
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cosmic_rayoperatorscomparison_operator_replacement-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cosmic_ray.operators.comparison_operator_replacement module
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cosmic_rayoperatorsexception_replacer-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cosmic_ray.operators.exception_replacer module
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cosmic_rayoperatorskeyword_replacer-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cosmic_ray.operators.keyword_replacer module
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cosmic_rayoperatorsno_op-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cosmic_ray.operators.no_op module
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cosmic_rayoperatorsnumber_replacer-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cosmic_ray.operators.number_replacer module
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cosmic_rayoperatorsoperator-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cosmic_ray.operators.operator module
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cosmic_rayoperatorsprovider-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cosmic_ray.operators.provider module
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cosmic_rayoperatorsremove_decorator-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cosmic_ray.operators.remove_decorator module
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cosmic_rayoperatorsunary_operator_replacement-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cosmic_ray.operators.unary_operator_replacement module
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cosmic_rayoperatorsutil-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cosmic_ray.operators.util module
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cosmic_rayoperatorszero_iteration_for_loop-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cosmic_ray.operators.zero_iteration_for_loop module
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#module-contents_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Module contents
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#file-docssourcereferenceapicosmic_rayrst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /docs/source/reference/api/cosmic_ray.rst
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cosmic_ray-package" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cosmic_ray package
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="cosmic_ray package">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#subpackages" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Subpackages
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#submodules_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Submodules
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cosmic_raycli-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cosmic_ray.cli module
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cosmic_rayconfig-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cosmic_ray.config module
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cosmic_rayexceptions-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cosmic_ray.exceptions module
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cosmic_raymodules-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cosmic_ray.modules module
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cosmic_raymutating-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cosmic_ray.mutating module
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cosmic_rayplugins-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cosmic_ray.plugins module
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cosmic_rayprogress-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cosmic_ray.progress module
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cosmic_raytesting-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cosmic_ray.testing module
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cosmic_raytiming-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cosmic_ray.timing module
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cosmic_rayversion-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cosmic_ray.version module
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cosmic_raywork_db-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cosmic_ray.work_db module
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cosmic_raywork_item-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cosmic_ray.work_item module
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#module-contents_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Module contents
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#file-docssourcereferenceapicosmic_raytoolsfiltersrst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /docs/source/reference/api/cosmic_ray.tools.filters.rst
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cosmic_raytoolsfilters-package" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cosmic_ray.tools.filters package
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="cosmic_ray.tools.filters package">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#submodules_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Submodules
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cosmic_raytoolsfiltersfilter_app-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cosmic_ray.tools.filters.filter_app module
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cosmic_raytoolsfiltersgit-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cosmic_ray.tools.filters.git module
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cosmic_raytoolsfiltersoperators_filter-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cosmic_ray.tools.filters.operators_filter module
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cosmic_raytoolsfilterspragma_no_mutate-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cosmic_ray.tools.filters.pragma_no_mutate module
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#module-contents_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Module contents
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#file-docssourcereferenceapicosmic_raytoolsrst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /docs/source/reference/api/cosmic_ray.tools.rst
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cosmic_raytools-package" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cosmic_ray.tools package
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="cosmic_ray.tools package">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#subpackages_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Subpackages
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#submodules_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Submodules
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cosmic_raytoolsbadge-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cosmic_ray.tools.badge module
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cosmic_raytoolshtml-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cosmic_ray.tools.html module
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cosmic_raytoolshttp_workers-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cosmic_ray.tools.http_workers module
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cosmic_raytoolsreport-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cosmic_ray.tools.report module
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cosmic_raytoolssurvival_rate-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cosmic_ray.tools.survival_rate module
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cosmic_raytoolsxml-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cosmic_ray.tools.xml module
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#module-contents_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Module contents
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#file-docssourcereferenceapimodulesrst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /docs/source/reference/api/modules.rst
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cosmic-ray-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cosmic Ray API
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Cosmic Ray API">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#file-docssourcereferencebadgerst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /docs/source/reference/badge.rst
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#command" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Command
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#file-docssourcereferencecommandsrst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /docs/source/reference/commands.rst
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Commands
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Commands">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#details-of-common-commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Details of Common Commands
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#concurrency" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Concurrency
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Concurrency">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#file-docssourcereferencecontinuous_integrationrst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /docs/source/reference/continuous_integration.rst
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#automated-release-deployment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Automated release deployment
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Automated release deployment">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#releasing-a-new-version" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Releasing a new version
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#file-docssourcereferenceindexrst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /docs/source/reference/index.rst
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#file-docssourcereferencetestsrst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /docs/source/reference/tests.rst
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tests
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Tests">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pytest-suite" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        pytest suite
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-adam-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The "adam" tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-full-test-suite" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The full test suite
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#file-docssourcetutorialsdistributedindexrst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /docs/source/tutorials/distributed/index.rst
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-http-distributor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The HTTP distributor
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The HTTP distributor">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a-sample-project" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A sample project
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#starting-a-worker" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Starting a worker
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#running-the-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running the tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#concurrent-execution-with-multiple-workers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Concurrent execution with multiple workers
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Concurrent execution with multiple workers">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#distinct-copies-of-the-code" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Distinct copies of the code
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#starting-the-workers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Starting the workers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#update-the-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Update the configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#running-the-tests_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running the tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cr-http-workers-a-tool-for-starting-workers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cr-http-workers: A tool for starting workers
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="cr-http-workers: A tool for starting workers">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#preparing-the-git-repository" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Preparing the git repository
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#running-the-workers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running the workers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#running-the-tests_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running the tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Limitations
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#alternatives-to-httpdistributor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Alternatives to HttpDistributor
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Alternatives to HttpDistributor">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#file-docssourcetutorialsintroindexrst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /docs/source/tutorials/intro/index.rst
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#installation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Installation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Installation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#installation-from-source" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Installation from source
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#source-module-and-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Source module and tests
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#creating-a-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Creating a configuration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Creating a configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-new-config-command" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The new-config command
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#create-a-session-and-baseline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Create a session and baseline
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Create a session and baseline">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#initializing-a-session" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Initializing a session
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#baselining" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Baselining
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#examining-the-session-with-cr-report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Examining the session with cr-report
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#execution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Execution
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Execution">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#committing-before-exec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Committing before exec
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reporting-the-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reporting the results
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Reporting the results">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#html-reports" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HTML reports
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#file-docssourceconceptsrst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /docs/source/concepts.rst
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#operators" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Operators
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#distributors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Distributors
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configurations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configurations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sessions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sessions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Sessions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#initializing-sessions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Initializing sessions
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#test-suite" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test suite
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Test suite">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#executing-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Executing tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#viewing-the-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Viewing the results
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#test-commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test commands
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#timeouts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Timeouts
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Timeouts">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#file-docssourceindexrst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /docs/source/index.rst
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cosmic-ray-mutation-testing-for-python" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cosmic Ray: mutation testing for Python
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#contents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Contents
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#indices-and-tables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Indices and tables
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Indices and tables">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#file-docssourcetheoryrst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /docs/source/theory.rst
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#theory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Theory
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Theory">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#file-testsresourcesfast_testsreadmemd" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /tests/resources/fast_tests/README.md
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#file-contributingrst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /CONTRIBUTING.rst
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#getting-started" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Getting Started
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#making-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Making Changes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#making-trivial-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Making Trivial Changes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Making Trivial Changes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Documentation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#submitting-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Submitting Changes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#additional-resources" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Additional Resources
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Additional Resources">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#file-readmerst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /README.rst
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cosmic-ray-mutation-testing-for-python_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cosmic Ray: mutation testing for Python
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Cosmic Ray: mutation testing for Python">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#contributing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Contributing
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<p>Directory Structure:</p>
+<p>└── ./
+    ├── docs
+    │   └── source
+    │       ├── how-tos
+    │       │   ├── distributor.rst
+    │       │   ├── filters.rst
+    │       │   ├── implementation.rst
+    │       │   ├── index.rst
+    │       │   └── operators.rst
+    │       ├── reference
+    │       │   ├── api
+    │       │   │   ├── cosmic_ray.ast.rst
+    │       │   │   ├── cosmic_ray.commands.rst
+    │       │   │   ├── cosmic_ray.distribution.rst
+    │       │   │   ├── cosmic_ray.operators.rst
+    │       │   │   ├── cosmic_ray.rst
+    │       │   │   ├── cosmic_ray.tools.filters.rst
+    │       │   │   ├── cosmic_ray.tools.rst
+    │       │   │   └── modules.rst
+    │       │   ├── badge.rst
+    │       │   ├── commands.rst
+    │       │   ├── continuous_integration.rst
+    │       │   ├── index.rst
+    │       │   └── tests.rst
+    │       ├── tutorials
+    │       │   ├── distributed
+    │       │   │   └── index.rst
+    │       │   └── intro
+    │       │       └── index.rst
+    │       ├── concepts.rst
+    │       ├── index.rst
+    │       └── theory.rst
+    ├── tests
+    │   └── resources
+    │       └── fast_tests
+    │           └── README.md
+    ├── CONTRIBUTING.rst
+    └── README.rst</p>
+<hr />
+<h2 id="file-docssourcehow-tosdistributorrst">File: /docs/source/how-tos/distributor.rst</h2>
+<p>============
+Distributors
+============</p>
+<p><strong>TODO</strong>: Explain how to create a distributor.</p>
+<hr />
+<h2 id="file-docssourcehow-tosfiltersrst">File: /docs/source/how-tos/filters.rst</h2>
+<p>=======
+Filters
+=======</p>
+<p>The <code>cosmic-ray init</code> commands scans a module for all possible mutations, but we don't always want to execute all of
+these. For example, we may know that some of these mutations will result in <em>equivalent mutants</em>, so we need a way to
+prevent these mutations from actually being run.</p>
+<p>To account for this, Cosmic Ray includes a number of <em>filters</em>. Filters are nothing more than programs - generally small
+ones - that modify a session in some way, often by marking certains mutations as "skipped", thereby preventing them from
+running. The name "filter" is actually a bit misleading since these programs could modify a session in ways other than
+simply skipping some mutations. In practice, though, the need to skip certain tests is by far the most common use of
+these programs.</p>
+<h1 id="using-filters">Using filters</h1>
+<p>Generally speaking, filters will be run immediately after running <code>cosmic-ray init</code>. It's up to you to decide which to
+run, and often they will be run along with <code>init</code> in a batch script or CI configuration.</p>
+<p>For example, if you wanted to apply the <code>cr-filter-pragma</code> filter to your session, you could do something like this:</p>
+<p>.. code-block:: bash</p>
+<p>cosmic-ray init cr.conf session.sqlite
+  cr-filter-pragma session.sqlite</p>
+<p>The <code>init</code> would first create a session where <em>all</em> mutation would be run, and then the <code>cr-filter-pragma</code> call
+would mark as skipped all mutations which are on a line with the pragma comment.</p>
+<h1 id="filters-included-with-cosmic-ray">Filters included with Cosmic Ray</h1>
+<p>Cosmic Ray comes with a number of filters. Remember, though, that they are nothing more than simple programs that modify
+a session in some way; it should be straightforward to write your own filters should the need arise.</p>
+<h2 id="cr-filter-operators">cr-filter-operators</h2>
+<p><code>cr-filter-operators</code> allows you to filter out operators according to their names. You provide the filter with a set
+of regular expressions, and any Cosmic Ray operator who's name matches a one of these expressions will be skipped
+entirely.</p>
+<p>The configuration is provided through a TOML file such as a standard Cosmic Ray configuration. The expressions must be
+in a list at the key "cosmic-ray.filters.operators-filter.exclude-operators". Here's an example:</p>
+<p>.. code-block:: toml</p>
+<p>[cosmic-ray.filters.operators-filter]
+  exclude-operators = [
+    "core/ReplaceComparisonOperator_Is(Not)?<em>(Not)?(Eq|[LG]tE?)",
+    "core/ReplaceComparisonOperator</em>(Not)?(Eq|[LG]tE?)_Is(Not)?",
+    "core/ReplaceComparisonOperator_LtE_Eq",
+    "core/ReplaceComparisonOperator_Lt_NotEq",
+  ]</p>
+<p>The first regular expression here is skipping the following operators:</p>
+<ul>
+<li>core/ReplaceComparisonOperator_Is_Eq</li>
+<li>core/ReplaceComparisonOperator_Is_Lt</li>
+<li>core/ReplaceComparisonOperator_Is_LtE</li>
+<li>core/ReplaceComparisonOperator_Is_Gt</li>
+<li>core/ReplaceComparisonOperator_Is_GtE</li>
+<li>core/ReplaceComparisonOperator_Is_NotEq</li>
+<li>core/ReplaceComparisonOperator_Is_NotLt</li>
+<li>core/ReplaceComparisonOperator_Is_NotLtE</li>
+<li>core/ReplaceComparisonOperator_Is_NotGt</li>
+<li>core/ReplaceComparisonOperator_Is_NotGtE</li>
+<li>core/ReplaceComparisonOperator_IsNot_Eq</li>
+<li>core/ReplaceComparisonOperator_IsNot_Lt</li>
+<li>core/ReplaceComparisonOperator_IsNot_LtE</li>
+<li>core/ReplaceComparisonOperator_IsNot_Gt</li>
+<li>core/ReplaceComparisonOperator_IsNot_GtE</li>
+<li>core/ReplaceComparisonOperator_IsNot_NotEq</li>
+<li>core/ReplaceComparisonOperator_IsNot_NotLt</li>
+<li>core/ReplaceComparisonOperator_IsNot_NotLtE</li>
+<li>core/ReplaceComparisonOperator_IsNot_NotGt</li>
+<li>core/ReplaceComparisonOperator_IsNot_NotGtE</li>
+</ul>
+<p>While all of the entries in <code>operators-filter.exclude-operators</code> are treated as regular expressions, you don't need to
+us "fancy" regular expression features in them. As in the last two entries in the example above, you can do matching
+against an exact string; these are still regular expressions, albeit simple ones.</p>
+<p>For a list of all operators in your Cosmic Ray installation, run <code>cosmic-ray operators</code>.</p>
+<h2 id="cr-filter-pragma">cr-filter-pragma</h2>
+<p>The <code>cr-filter-pragma</code> filter looks for lines in your source code containing the comment "# pragma: no mutate". Any
+mutation in a session that would mutate such a line is skipped.</p>
+<h2 id="cr-filter-git">cr-filter-git</h2>
+<p>The <code>cr-filter-git</code> filter looks for edited or new lines from the given git branch. Any mutation in a session that
+would mutate other lines is skipped.</p>
+<p>By default the <code>master</code> branch is used, but you could define another one like this:</p>
+<p>.. code-block:: toml</p>
+<p>[cosmic-ray.filters.git-filter]
+  branch = "rolling"</p>
+<h1 id="external-filters">External filters</h1>
+<p>Other filters are defined in separate projects.</p>
+<h2 id="cosmic-ray-spor-filter">cosmic-ray-spor-filter</h2>
+<p>The <code>cosmic-ray-spor-filter</code> filter modifies a session by skipping mutations which are indicated in a <code>spor
+&lt;https://github.com/abingham/spor&gt;</code>_ anchored metadata repository. In short, <code>spor</code> provides a way to associated
+arbitrary metadata with ranges of code, and this metadata is stored outside of the code. As your code changes, <code>spor</code>
+has algorithms to update the metadata (and its association with the code) automatically.</p>
+<p>Get more details at <code>the project page &lt;https://github.com/abingham/cosmic-ray-spor-filter&gt;</code>_.</p>
+<hr />
+<h2 id="file-docssourcehow-tosimplementationrst">File: /docs/source/how-tos/implementation.rst</h2>
+<h1 id="implementation">Implementation</h1>
+<p>Cosmic Ray works by parsing the module under test (MUT) and its submodules into
+abstract syntax trees using <code>parso &lt;https://github.com/davidhalter/parso&gt;</code>_. It
+walks the parse trees produced by parso, allowing mutation operators to modify
+or delete them. These modified parse trees are then turned back into code which
+is written to disk for use in a test run.</p>
+<p>For each individual mutation, Cosmic Ray applies a mutation to the code on disk.
+It then uses user-supplied test commands to run tests against mutated code.</p>
+<p>In effect, the mutation testing algorithm is something like this:</p>
+<p>.. code:: python</p>
+<div class="highlight"><pre><span></span><code>for mod in modules_under_test:
+    for op in mutation_operators:
+        for site in mutation_sites(op, mod):
+            mutant_ast = mutate_ast(op, mod, site)
+            write_to_disk(mutant_ast)
+
+            try:
+                if discover_and_run_tests():
+                    print(&#39;Oh no! The mutant survived!&#39;)
+                else:
+                    print(&#39;The mutant was killed.&#39;)
+            except Exception:
+                print(&#39;The mutant was incompetent.&#39;)
+</code></pre></div>
+<p>Obviously this can result in a lot of tests, and it can take some time
+if your test suite is large and/or slow.</p>
+<hr />
+<h2 id="file-docssourcehow-tosindexrst">File: /docs/source/how-tos/index.rst</h2>
+<p>=======
+How-tos
+=======</p>
+<p>.. toctree::
+   :maxdepth: 1</p>
+<p>filters
+   distributor
+   implementation
+   operators</p>
+<hr />
+<h2 id="file-docssourcehow-tosoperatorsrst">File: /docs/source/how-tos/operators.rst</h2>
+<h1 id="mutation-operators">Mutation Operators</h1>
+<p>In Cosmic Ray we use <em>mutation operators</em> to implement the various forms
+of mutation that we support. For each specific kind of mutation –
+constant replacement, break/continue swaps, and so forth – there is an
+operator class that knows how to create that mutation from un-mutated
+code.</p>
+<h2 id="implementation-details">Implementation details</h2>
+<p>Cosmic Ray relies on <code>parso &lt;https://github.com/davidhalter/parso&gt;</code>_ to parse
+Python code into trees. Cosmic Ray operators work directly on this tree, and the
+results of modifying this tree are written to disk for each mutation.</p>
+<p>Each operator is ultimately a subclass of
+<code>cosmic_ray.operators.operator.Operator</code>. We pass operators to various
+parse-tree <em>visitors</em> that let the operator view and modify the tree. When an
+operator reports that it can potentially modify a part of the tree, Cosmic Ray
+notes this and, later, asks the operator to actually perform this mutation.</p>
+<h2 id="implementing-an-operator">Implementing an operator</h2>
+<p>To implement a new operator you need to create a subclass of
+<code>cosmic_ray.operators.operator.Operator</code>. The first method an operator must implement
+is <code>Operator.mutation_positions()</code> which tells Cosmic Ray how the operator could mutate
+a particular parse-tree node.</p>
+<p>Second, an operator subclass must implement <code>Operator.mutate()</code> which actually mutates
+a parse-tree node.</p>
+<p>Finally, an operator must implement the class method <code>Operator.examples()</code>.
+This provides a set of before and after code snippets showing how the operator
+works. These examples are used in the test suite and potentially for
+documenation purposes. An operator can choose to provide no examples simply by
+returning an empty iterable from <code>examples</code>, though we may decide to check
+for an absence of examples in the future. In any case, it's good form to provide
+examples.</p>
+<p>In both cases, the operator implementation works directly with the <code>parso</code>
+parse tree objects.</p>
+<h2 id="operator-provider-plugins">Operator provider plugins</h2>
+<p>Cosmic Ray is designed to be extended with arbitrary operators provided by
+users. It dynamically discovers operators at runtime using the <code>stevedore</code>
+plugin system which relies on the <code>setuptools</code> <code>entry_points</code> concept.</p>
+<p>Rather than having individual plugins for each operator, Cosmic Ray lets users
+specify <em>operator provider</em> plugins. An operator provider can supply any number
+of operators to Cosmic Ray. At a high level, Cosmic Ray finds all of the
+operators available to it by iterating over the operator provider plugins, and
+for each of those iterating over the operators that it exposes.</p>
+<p>The operator provider API is very simple:</p>
+<p>.. code-block:: python</p>
+<div class="highlight"><pre><span></span><code>class OperatorProvider:
+    def __iter__(self):
+        &quot;The sequence of operator names that this provider supplies&quot;
+        pass
+
+    def __getitem__(self, name):
+        &quot;Get an operator class by name.&quot;
+        pass
+</code></pre></div>
+<p>In other words, a provider must have a (locally) unique name for each operator
+it provides, it must provide an iterator over those names, and it must allow
+Cosmic Ray to look up operator classes by name.</p>
+<p>To make a new operator provider available to Cosmic Ray you need to create a
+<code>cosmic_ray.operator_providers</code> entry point; this is generally done in
+<code>setup.py</code>. We'll show an example of how to do this later.</p>
+<p>Operator naming
+~~~~~~~~~~~~~~~</p>
+<p>All operators in Cosmic Ray have a unique name for any given session. The name
+of an operator is based on two elements:</p>
+<ol>
+<li>The name of the <code>operator_provider</code> entry point (i.e. as specified in
+   <code>setup.py</code>)</li>
+<li>The name that the provider associates with the operator.</li>
+</ol>
+<p>The full name of an operator is simply the provider's name and the operator's
+name joined with "/". For example, if the provider's name was "widget_corp" and
+the operator's name was "add_whitespace", the full name of the operator would be
+"widget_corp/add_whitespace".</p>
+<h2 id="a-full-example-numberreplacer">A full example: <code>NumberReplacer</code></h2>
+<p>One of the operators bundled with Cosmic Ray is implemented with the clas
+<code>cosmic_ray.operators.number_replacer.NumberReplacer</code>. This operator looks for
+<code>Num</code> nodes (number literals in source code) and replaces them with new
+<code>Num</code> nodes that have a different numeric value. To demonstrate how to create
+a mutation operator and provider, we'll step through how to create that operator
+in a new package called <code>example</code>.</p>
+<p>Creating the operator class
+~~~~~~~~~~~~~~~~~~~~~~~~~~~</p>
+<p>The initial layout for our package is like this:</p>
+<p>.. code-block:: text</p>
+<div class="highlight"><pre><span></span><code>setup.py
+example/
+  __init__.py
+</code></pre></div>
+<p><code>__init__.py</code> is empty and <code>setup.py</code> has very minimal content:</p>
+<p>.. code-block:: python</p>
+<div class="highlight"><pre><span></span><code>from setuptools import setup
+
+setup(
+    name=&#39;example&#39;,
+    version=&#39;0.1.0&#39;,
+)
+</code></pre></div>
+<p>The first thing we need to do is create a new Python source file to hold
+our new operator. Create a file named <code>number_replacer.py</code> in the
+<code>example</code> directory. It has the following contents:</p>
+<p>.. code-block:: python</p>
+<div class="highlight"><pre><span></span><code>from cosmic_ray.operators.operator import Operator
+import parso
+
+class NumberReplacer(Operator):
+    &quot;&quot;&quot;An operator that modifies numeric constants.&quot;&quot;&quot;
+
+    def mutation_positions(self, node):
+        if isinstance(node, parso.python.tree.Number):
+            yield (node.start_pos, node.end_pos)
+
+    def mutate(self, node, index):
+        &quot;&quot;&quot;Modify the numeric value on `node`.&quot;&quot;&quot;
+
+        assert isinstance(node, parso.python.tree.Number)
+
+        val = eval(node.value) + 1
+        return parso.python.tree.Number(&#39; &#39; + str(val), node.start_pos)
+</code></pre></div>
+<p>Let's step through this line-by-line. We first import <code>Operator</code> because we need to inherit from it:</p>
+<p>.. code-block:: python</p>
+<div class="highlight"><pre><span></span><code>from cosmic_ray.operators.operator import Operator
+</code></pre></div>
+<p>We then import <code>parso</code> because we need to use it to create mutated nodes:</p>
+<p>.. code-block:: python</p>
+<div class="highlight"><pre><span></span><code>import parso
+</code></pre></div>
+<p>We define our new operator by creating a subclass of <code>Operator</code> called
+<code>NumberReplacer</code>:</p>
+<p>.. code-block:: python</p>
+<div class="highlight"><pre><span></span><code>class NumberReplacer(Operator):
+</code></pre></div>
+<p>The <code>mutate_positions</code> method is called whenever Cosmic Ray needs to know if an operator can mutate a particular
+node. We implement ours to report a single mutation at each "number":</p>
+<p>.. code-block:: python</p>
+<div class="highlight"><pre><span></span><code>def mutation_positions(self, node):
+    if isinstance(node, parso.python.tree.Number):
+        yield (node.start_pos, node.end_pos)
+</code></pre></div>
+<p>Finally we implement <code>Operator.mutate()</code> which is called to actually
+perform the mutation. <code>mutate()</code> should return one of:</p>
+<ul>
+<li><code>None</code> if the <code>node</code> argument should be removed from the tree, or</li>
+<li>a new <code>parso</code> node to replace the original one</li>
+</ul>
+<p>In this case, we simply create a new <code>Number</code> node with a new value and
+return it:</p>
+<p>.. code-block:: python</p>
+<div class="highlight"><pre><span></span><code>def mutate(self, node, index):
+    &quot;&quot;&quot;Modify the numeric value on `node`.&quot;&quot;&quot;
+
+    assert isinstance(node, parso.python.tree.Number)
+
+    val = eval(node.value) + 1
+    return parso.python.tree.Number(&#39; &#39; + str(val), node.start_pos)
+</code></pre></div>
+<p>That's all there is to it. This mutation operator is now ready to be
+applied to any code you want to test.</p>
+<p>However, before it can really be used, you need to make it available as
+a plugin.</p>
+<p>Creating the provider
+~~~~~~~~~~~~~~~~~~~~~</p>
+<p>In order to expose our operator to Cosmic Ray we need to create an operator
+provider plugin. In the case of a single operator like ours, the provider
+implementation is very simple. We'll put the implementation in
+<code>example/provider.py</code>:</p>
+<p>.. code-block:: python</p>
+<div class="highlight"><pre><span></span><code># example/provider.py
+
+from .number_replacer import NumberReplacer
+
+class Provider:
+    _operators = {&#39;number-replacer&#39;: NumberReplacer}
+
+    def __iter__(self):
+        return iter(Provider._operators)
+
+    def __getitem__(self, name):
+        return Provider._operators[name]
+</code></pre></div>
+<p>Creating the plugin
+~~~~~~~~~~~~~~~~~~~</p>
+<p>In order to make your operator available to Cosmic Ray as a plugin, you
+need to define a new <code>cosmic_ray.operator_providers</code> entry point. This is
+generally done through <code>setup.py</code>, which is what we'll do here.</p>
+<p>Modify <code>setup.py</code> with a new <code>entry_points</code> argument to <code>setup()</code>:</p>
+<p>.. code-block:: python</p>
+<div class="highlight"><pre><span></span><code>setup(
+    . . .
+    entry_points={
+        &#39;cosmic_ray.operator_providers&#39;: [
+            &#39;example = example.provider:Provider&#39;
+        ]
+    })
+</code></pre></div>
+<p>Now when Cosmic Ray queries the <code>cosmic_ray.operator_providers</code> entry point it
+will see your provider - and hence your operator - along with all of the others.</p>
+<hr />
+<h2 id="file-docssourcereferenceapicosmic_rayastrst">File: /docs/source/reference/api/cosmic_ray.ast.rst</h2>
+<h1 id="cosmic_rayast-package">cosmic_ray.ast package</h1>
+<h2 id="submodules">Submodules</h2>
+<h2 id="cosmic_rayastast_query-module">cosmic_ray.ast.ast_query module</h2>
+<p>.. automodule:: cosmic_ray.ast.ast_query
+   :members:
+   :undoc-members:
+   :show-inheritance:</p>
+<h2 id="module-contents">Module contents</h2>
+<p>.. automodule:: cosmic_ray.ast
+   :members:
+   :undoc-members:
+   :show-inheritance:</p>
+<hr />
+<h2 id="file-docssourcereferenceapicosmic_raycommandsrst">File: /docs/source/reference/api/cosmic_ray.commands.rst</h2>
+<h1 id="cosmic_raycommands-package">cosmic_ray.commands package</h1>
+<h2 id="submodules_1">Submodules</h2>
+<h2 id="cosmic_raycommandsexecute-module">cosmic_ray.commands.execute module</h2>
+<p>.. automodule:: cosmic_ray.commands.execute
+   :members:
+   :undoc-members:
+   :show-inheritance:</p>
+<h2 id="cosmic_raycommandsinit-module">cosmic_ray.commands.init module</h2>
+<p>.. automodule:: cosmic_ray.commands.init
+   :members:
+   :undoc-members:
+   :show-inheritance:</p>
+<h2 id="cosmic_raycommandsnew_config-module">cosmic_ray.commands.new_config module</h2>
+<p>.. automodule:: cosmic_ray.commands.new_config
+   :members:
+   :undoc-members:
+   :show-inheritance:</p>
+<h2 id="module-contents_1">Module contents</h2>
+<p>.. automodule:: cosmic_ray.commands
+   :members:
+   :undoc-members:
+   :show-inheritance:</p>
+<hr />
+<h2 id="file-docssourcereferenceapicosmic_raydistributionrst">File: /docs/source/reference/api/cosmic_ray.distribution.rst</h2>
+<h1 id="cosmic_raydistribution-package">cosmic_ray.distribution package</h1>
+<h2 id="submodules_2">Submodules</h2>
+<h2 id="cosmic_raydistributiondistributor-module">cosmic_ray.distribution.distributor module</h2>
+<p>.. automodule:: cosmic_ray.distribution.distributor
+   :members:
+   :undoc-members:
+   :show-inheritance:</p>
+<h2 id="cosmic_raydistributionhttp-module">cosmic_ray.distribution.http module</h2>
+<p>.. automodule:: cosmic_ray.distribution.http
+   :members:
+   :undoc-members:
+   :show-inheritance:</p>
+<h2 id="cosmic_raydistributionlocal-module">cosmic_ray.distribution.local module</h2>
+<p>.. automodule:: cosmic_ray.distribution.local
+   :members:
+   :undoc-members:
+   :show-inheritance:</p>
+<h2 id="module-contents_2">Module contents</h2>
+<p>.. automodule:: cosmic_ray.distribution
+   :members:
+   :undoc-members:
+   :show-inheritance:</p>
+<hr />
+<h2 id="file-docssourcereferenceapicosmic_rayoperatorsrst">File: /docs/source/reference/api/cosmic_ray.operators.rst</h2>
+<h1 id="cosmic_rayoperators-package">cosmic_ray.operators package</h1>
+<h2 id="submodules_3">Submodules</h2>
+<h2 id="cosmic_rayoperatorsbinary_operator_replacement-module">cosmic_ray.operators.binary_operator_replacement module</h2>
+<p>.. automodule:: cosmic_ray.operators.binary_operator_replacement
+   :members:
+   :undoc-members:
+   :show-inheritance:</p>
+<h2 id="cosmic_rayoperatorsboolean_replacer-module">cosmic_ray.operators.boolean_replacer module</h2>
+<p>.. automodule:: cosmic_ray.operators.boolean_replacer
+   :members:
+   :undoc-members:
+   :show-inheritance:</p>
+<h2 id="cosmic_rayoperatorsbreak_continue-module">cosmic_ray.operators.break_continue module</h2>
+<p>.. automodule:: cosmic_ray.operators.break_continue
+   :members:
+   :undoc-members:
+   :show-inheritance:</p>
+<h2 id="cosmic_rayoperatorscomparison_operator_replacement-module">cosmic_ray.operators.comparison_operator_replacement module</h2>
+<p>.. automodule:: cosmic_ray.operators.comparison_operator_replacement
+   :members:
+   :undoc-members:
+   :show-inheritance:</p>
+<h2 id="cosmic_rayoperatorsexception_replacer-module">cosmic_ray.operators.exception_replacer module</h2>
+<p>.. automodule:: cosmic_ray.operators.exception_replacer
+   :members:
+   :undoc-members:
+   :show-inheritance:</p>
+<h2 id="cosmic_rayoperatorskeyword_replacer-module">cosmic_ray.operators.keyword_replacer module</h2>
+<p>.. automodule:: cosmic_ray.operators.keyword_replacer
+   :members:
+   :undoc-members:
+   :show-inheritance:</p>
+<h2 id="cosmic_rayoperatorsno_op-module">cosmic_ray.operators.no_op module</h2>
+<p>.. automodule:: cosmic_ray.operators.no_op
+   :members:
+   :undoc-members:
+   :show-inheritance:</p>
+<h2 id="cosmic_rayoperatorsnumber_replacer-module">cosmic_ray.operators.number_replacer module</h2>
+<p>.. automodule:: cosmic_ray.operators.number_replacer
+   :members:
+   :undoc-members:
+   :show-inheritance:</p>
+<h2 id="cosmic_rayoperatorsoperator-module">cosmic_ray.operators.operator module</h2>
+<p>.. automodule:: cosmic_ray.operators.operator
+   :members:
+   :undoc-members:
+   :show-inheritance:</p>
+<h2 id="cosmic_rayoperatorsprovider-module">cosmic_ray.operators.provider module</h2>
+<p>.. automodule:: cosmic_ray.operators.provider
+   :members:
+   :undoc-members:
+   :show-inheritance:</p>
+<h2 id="cosmic_rayoperatorsremove_decorator-module">cosmic_ray.operators.remove_decorator module</h2>
+<p>.. automodule:: cosmic_ray.operators.remove_decorator
+   :members:
+   :undoc-members:
+   :show-inheritance:</p>
+<h2 id="cosmic_rayoperatorsunary_operator_replacement-module">cosmic_ray.operators.unary_operator_replacement module</h2>
+<p>.. automodule:: cosmic_ray.operators.unary_operator_replacement
+   :members:
+   :undoc-members:
+   :show-inheritance:</p>
+<h2 id="cosmic_rayoperatorsutil-module">cosmic_ray.operators.util module</h2>
+<p>.. automodule:: cosmic_ray.operators.util
+   :members:
+   :undoc-members:
+   :show-inheritance:</p>
+<h2 id="cosmic_rayoperatorszero_iteration_for_loop-module">cosmic_ray.operators.zero_iteration_for_loop module</h2>
+<p>.. automodule:: cosmic_ray.operators.zero_iteration_for_loop
+   :members:
+   :undoc-members:
+   :show-inheritance:</p>
+<h2 id="module-contents_3">Module contents</h2>
+<p>.. automodule:: cosmic_ray.operators
+   :members:
+   :undoc-members:
+   :show-inheritance:</p>
+<hr />
+<h2 id="file-docssourcereferenceapicosmic_rayrst">File: /docs/source/reference/api/cosmic_ray.rst</h2>
+<h1 id="cosmic_ray-package">cosmic_ray package</h1>
+<h2 id="subpackages">Subpackages</h2>
+<p>.. toctree::</p>
+<p>cosmic_ray.ast
+   cosmic_ray.commands
+   cosmic_ray.distribution
+   cosmic_ray.operators
+   cosmic_ray.tools</p>
+<h2 id="submodules_4">Submodules</h2>
+<h2 id="cosmic_raycli-module">cosmic_ray.cli module</h2>
+<p>.. automodule:: cosmic_ray.cli
+   :members:
+   :undoc-members:
+   :show-inheritance:</p>
+<h2 id="cosmic_rayconfig-module">cosmic_ray.config module</h2>
+<p>.. automodule:: cosmic_ray.config
+   :members:
+   :undoc-members:
+   :show-inheritance:</p>
+<h2 id="cosmic_rayexceptions-module">cosmic_ray.exceptions module</h2>
+<p>.. automodule:: cosmic_ray.exceptions
+   :members:
+   :undoc-members:
+   :show-inheritance:</p>
+<h2 id="cosmic_raymodules-module">cosmic_ray.modules module</h2>
+<p>.. automodule:: cosmic_ray.modules
+   :members:
+   :undoc-members:
+   :show-inheritance:</p>
+<h2 id="cosmic_raymutating-module">cosmic_ray.mutating module</h2>
+<p>.. automodule:: cosmic_ray.mutating
+   :members:
+   :undoc-members:
+   :show-inheritance:</p>
+<h2 id="cosmic_rayplugins-module">cosmic_ray.plugins module</h2>
+<p>.. automodule:: cosmic_ray.plugins
+   :members:
+   :undoc-members:
+   :show-inheritance:</p>
+<h2 id="cosmic_rayprogress-module">cosmic_ray.progress module</h2>
+<p>.. automodule:: cosmic_ray.progress
+   :members:
+   :undoc-members:
+   :show-inheritance:</p>
+<h2 id="cosmic_raytesting-module">cosmic_ray.testing module</h2>
+<p>.. automodule:: cosmic_ray.testing
+   :members:
+   :undoc-members:
+   :show-inheritance:</p>
+<h2 id="cosmic_raytiming-module">cosmic_ray.timing module</h2>
+<p>.. automodule:: cosmic_ray.timing
+   :members:
+   :undoc-members:
+   :show-inheritance:</p>
+<h2 id="cosmic_rayversion-module">cosmic_ray.version module</h2>
+<p>.. automodule:: cosmic_ray.version
+   :members:
+   :undoc-members:
+   :show-inheritance:</p>
+<h2 id="cosmic_raywork_db-module">cosmic_ray.work_db module</h2>
+<p>.. automodule:: cosmic_ray.work_db
+   :members:
+   :undoc-members:
+   :show-inheritance:</p>
+<h2 id="cosmic_raywork_item-module">cosmic_ray.work_item module</h2>
+<p>.. automodule:: cosmic_ray.work_item
+   :members:
+   :undoc-members:
+   :show-inheritance:</p>
+<h2 id="module-contents_4">Module contents</h2>
+<p>.. automodule:: cosmic_ray
+   :members:
+   :undoc-members:
+   :show-inheritance:</p>
+<hr />
+<h2 id="file-docssourcereferenceapicosmic_raytoolsfiltersrst">File: /docs/source/reference/api/cosmic_ray.tools.filters.rst</h2>
+<h1 id="cosmic_raytoolsfilters-package">cosmic_ray.tools.filters package</h1>
+<h2 id="submodules_5">Submodules</h2>
+<h2 id="cosmic_raytoolsfiltersfilter_app-module">cosmic_ray.tools.filters.filter_app module</h2>
+<p>.. automodule:: cosmic_ray.tools.filters.filter_app
+   :members:
+   :undoc-members:
+   :show-inheritance:</p>
+<h2 id="cosmic_raytoolsfiltersgit-module">cosmic_ray.tools.filters.git module</h2>
+<p>.. automodule:: cosmic_ray.tools.filters.git
+   :members:
+   :undoc-members:
+   :show-inheritance:</p>
+<h2 id="cosmic_raytoolsfiltersoperators_filter-module">cosmic_ray.tools.filters.operators_filter module</h2>
+<p>.. automodule:: cosmic_ray.tools.filters.operators_filter
+   :members:
+   :undoc-members:
+   :show-inheritance:</p>
+<h2 id="cosmic_raytoolsfilterspragma_no_mutate-module">cosmic_ray.tools.filters.pragma_no_mutate module</h2>
+<p>.. automodule:: cosmic_ray.tools.filters.pragma_no_mutate
+   :members:
+   :undoc-members:
+   :show-inheritance:</p>
+<h2 id="module-contents_5">Module contents</h2>
+<p>.. automodule:: cosmic_ray.tools.filters
+   :members:
+   :undoc-members:
+   :show-inheritance:</p>
+<hr />
+<h2 id="file-docssourcereferenceapicosmic_raytoolsrst">File: /docs/source/reference/api/cosmic_ray.tools.rst</h2>
+<h1 id="cosmic_raytools-package">cosmic_ray.tools package</h1>
+<h2 id="subpackages_1">Subpackages</h2>
+<p>.. toctree::</p>
+<p>cosmic_ray.tools.filters</p>
+<h2 id="submodules_6">Submodules</h2>
+<h2 id="cosmic_raytoolsbadge-module">cosmic_ray.tools.badge module</h2>
+<p>.. automodule:: cosmic_ray.tools.badge
+   :members:
+   :undoc-members:
+   :show-inheritance:</p>
+<h2 id="cosmic_raytoolshtml-module">cosmic_ray.tools.html module</h2>
+<p>.. automodule:: cosmic_ray.tools.html
+   :members:
+   :undoc-members:
+   :show-inheritance:</p>
+<h2 id="cosmic_raytoolshttp_workers-module">cosmic_ray.tools.http_workers module</h2>
+<p>.. automodule:: cosmic_ray.tools.http_workers
+   :members:
+   :undoc-members:
+   :show-inheritance:</p>
+<h2 id="cosmic_raytoolsreport-module">cosmic_ray.tools.report module</h2>
+<p>.. automodule:: cosmic_ray.tools.report
+   :members:
+   :undoc-members:
+   :show-inheritance:</p>
+<h2 id="cosmic_raytoolssurvival_rate-module">cosmic_ray.tools.survival_rate module</h2>
+<p>.. automodule:: cosmic_ray.tools.survival_rate
+   :members:
+   :undoc-members:
+   :show-inheritance:</p>
+<h2 id="cosmic_raytoolsxml-module">cosmic_ray.tools.xml module</h2>
+<p>.. automodule:: cosmic_ray.tools.xml
+   :members:
+   :undoc-members:
+   :show-inheritance:</p>
+<h2 id="module-contents_6">Module contents</h2>
+<p>.. automodule:: cosmic_ray.tools
+   :members:
+   :undoc-members:
+   :show-inheritance:</p>
+<hr />
+<h2 id="file-docssourcereferenceapimodulesrst">File: /docs/source/reference/api/modules.rst</h2>
+<h1 id="cosmic-ray-api">Cosmic Ray API</h1>
+<p>.. toctree::
+   :maxdepth: 4</p>
+<p>cosmic_ray</p>
+<hr />
+<h2 id="file-docssourcereferencebadgerst">File: /docs/source/reference/badge.rst</h2>
+<p>=====
+Badge
+=====</p>
+<p>Utility to generate badge useful to decorate your preferred
+Continuous Integration system (github, gitlab, ...).
+The badge indicate the percentage of failing migrations.</p>
+<p>This utility is based on <code>anybadge &lt;https://github.com/jongracecox/anybadge&gt;</code>__.</p>
+<h1 id="command">Command</h1>
+<p>::</p>
+<p>cr-badge [--config <config_file>]  <badge_file> <session-file></p>
+<h1 id="configuration">Configuration</h1>
+<p>::</p>
+<p>[cosmic-ray.badge]
+ label = "mutation"
+ format = "%.2f %%"</p>
+<p>[cosmic-ray.badge.thresholds]
+ 50  = 'red'
+ 70  = 'orange'
+ 100 = 'yellow'
+ 101 = 'green'</p>
+<hr />
+<h2 id="file-docssourcereferencecommandsrst">File: /docs/source/reference/commands.rst</h2>
+<h1 id="commands">Commands</h1>
+<p>TODO: This is pretty wildly out of date! Perhaps we can use value-add to do this.</p>
+<h2 id="details-of-common-commands">Details of Common Commands</h2>
+<p>Most Cosmic Ray commands use a verb-options pattern, similar to how git
+does things.</p>
+<p>Possible verbs are:</p>
+<ul>
+<li><code>exec &lt;#exec&gt;</code>__</li>
+<li>help</li>
+<li><code>init &lt;#init&gt;</code>__</li>
+<li>load</li>
+<li>new-config</li>
+<li>operators</li>
+<li><code>dump &lt;#dump&gt;</code>__</li>
+<li>run</li>
+<li>worker</li>
+<li>apply</li>
+<li>baseline</li>
+</ul>
+<p>Detailed information on each command can be found by running
+<code>cosmic-ray help &lt;command&gt;</code> in the terminal.</p>
+<p>Cosmic Ray also installs a few other separate commands for producing
+various kinds of reports. These commands are:</p>
+<ul>
+<li>cr-report: provides a report on the status of a session</li>
+<li>cr-rate: prints the survival rate of a session</li>
+<li>cr-html: prints an HTML report on a session</li>
+</ul>
+<p>Verbosity: Getting more Feedback when Running
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~</p>
+<p>The base command, <code>cosmic-ray</code>, has a single option: <code>--verbose</code>.
+The <code>--verbose</code> option changes the internal logging level from
+<code>WARN</code> to <code>INFO</code> and thus prints more information to the terminal.</p>
+<p>When used with <code>init</code>, <code>--verbose</code> will list how long it took to
+create the mutation list and will also list which modules were found:</p>
+<p>.. code:: shell</p>
+<div class="highlight"><pre><span></span><code>(.venv-pyerf) ~/PyErf$ cosmic-ray --verbose init --baseline=2 test_session pyerf -- pyerf/tests
+INFO:root:timeout = 0.259958 seconds
+INFO:root:Modules discovered: [&#39;pyerf.tests&#39;, &#39;pyerf.tests.test_pyerf&#39;, &#39;pyerf.pyerf&#39;, &#39;pyerf&#39;, &#39;pyerf.__about__&#39;]
+(.venv-pyerf) C:\dev\PyErf&gt;cosmic-ray --verbose init --baseline=2 test_session pyerf --exclude-modules=.*tests.* -- pyerf/tests
+INFO:root:timeout = 0.239948 seconds
+INFO:root:Modules discovered: [&#39;pyerf.pyerf&#39;, &#39;pyerf&#39;, &#39;pyerf.__about__&#39;]
+</code></pre></div>
+<p>When used with <code>exec</code>, <code>--verbose</code> displays which mutation is
+currently being tested:</p>
+<p>.. code:: shell</p>
+<div class="highlight"><pre><span></span><code>(.venv-pyerf) ~/PyErf$ cosmic-ray --verbose exec test_session
+INFO:cosmic_ray.tasks.worker:executing: [&#39;cosmic-ray&#39;, &#39;worker&#39;, &#39;pyerf.pyerf&#39;, &#39;number_replacer&#39;, &#39;0&#39;, &#39;unittest&#39;, &#39;--&#39;, &#39;pyerf/tests&#39;]
+INFO:cosmic_ray.tasks.worker:executing: [&#39;cosmic-ray&#39;, &#39;worker&#39;, &#39;pyerf.pyerf&#39;, &#39;number_replacer&#39;, &#39;1&#39;, &#39;unittest&#39;, &#39;--&#39;, &#39;pyerf/tests&#39;]
+INFO:cosmic_ray.tasks.worker:executing: [&#39;cosmic-ray&#39;, &#39;worker&#39;, &#39;pyerf.pyerf&#39;, &#39;number_replacer&#39;, &#39;2&#39;, &#39;unittest&#39;, &#39;--&#39;, &#39;pyerf/tests&#39;]
+INFO:cosmic_ray.tasks.worker:executing: [&#39;cosmic-ray&#39;, &#39;worker&#39;, &#39;pyerf.pyerf&#39;, &#39;number_replacer&#39;, &#39;3&#39;, &#39;unittest&#39;, &#39;--&#39;, &#39;pyerf/tests&#39;]
+INFO:cosmic_ray.tasks.worker:executing: [&#39;cosmic-ray&#39;, &#39;worker&#39;, &#39;pyerf.pyerf&#39;, &#39;number_replacer&#39;, &#39;4&#39;, &#39;unittest&#39;, &#39;--&#39;, &#39;pyerf/tests&#39;]
+INFO:cosmic_ray.tasks.worker:executing: [&#39;cosmic-ray&#39;, &#39;worker&#39;, &#39;pyerf.pyerf&#39;, &#39;number_replacer&#39;, &#39;5&#39;, &#39;unittest&#39;, &#39;--&#39;, &#39;pyerf/tests&#39;]
+INFO:cosmic_ray.tasks.worker:executing: [&#39;cosmic-ray&#39;, &#39;worker&#39;, &#39;pyerf.pyerf&#39;, &#39;number_replacer&#39;, &#39;6&#39;, &#39;unittest&#39;, &#39;--&#39;, &#39;pyerf/tests&#39;]
+</code></pre></div>
+<p>The <code>--verbose</code> option does not add any additional information to the
+<code>dump</code> verb.</p>
+<p>Command: init
+~~~~~~~~~~~~~</p>
+<p>The <code>init</code> verb creates a list of mutations to apply to the source
+code. It has the following optional arguments:</p>
+<ul>
+<li><code>--no-local-import</code>: Allow importing module from the current
+   directory.</li>
+</ul>
+<p>The <code>init</code> verb use following entries from the configuration file:</p>
+<ul>
+<li><code>[cosmic-ray] excluded-modules = []</code>: Exclude modules matching those glob
+  patterns from mutation. Use <code>glob.glob</code> syntax.</li>
+</ul>
+<p>Sample for django projects:</p>
+<p>::</p>
+<p>excluded-modules = ["<em>/tests/</em>", "<em>/migrations/</em>"]</p>
+<p>As mentioned in
+:ref:<code>here &lt;note_separation_test_code&gt;</code>,
+test directory can be handled via the <code>excluded-modules</code> option.</p>
+<p>The list of files that will be mutate effectively can be show by running
+<code>cosmic-ray init</code> with INFO debug level:</p>
+<p>::</p>
+<p>cosmic-ray init -v INFO</p>
+<p>Command: exec
+~~~~~~~~~~~~~</p>
+<p>The <code>exec</code> command is what actually runs the mutation testing.</p>
+<p>Command: dump
+~~~~~~~~~~~~~</p>
+<p>The <code>dump</code> command writes a detailed JSON representation of a session
+to stdout.</p>
+<p>.. code:: shell</p>
+<div class="highlight"><pre><span></span><code>$ cosmic-ray dump test_session
+{&quot;data&quot;: [&quot;&lt;TestReport &#39;test_project/tests/test_adam.py::Tests::test_bool_if&#39; when=&#39;call&#39; outcome=&#39;failed&#39;&gt;&quot;], &quot;test_outcome&quot;: &quot;killed&quot;, &quot;worker_outcome&quot;: &quot;normal&quot;, &quot;diff&quot;: [&quot;--- mutation diff ---&quot;, &quot;--- a/Users/sixtynorth/projects/sixty-north/cosmic-ray/test_project/adam.py&quot;, &quot;+++ b/Users/sixtynorth/projects/sixty-north/cosmic-ray/test_project/adam.py&quot;, &quot;@@ -20,7 +20,7 @@&quot;, &quot;     return (not object())&quot;, &quot; &quot;, &quot; def bool_if():&quot;, &quot;-    if object():&quot;, &quot;+    if (not object()):&quot;, &quot;         return True&quot;, &quot;     raise Exception(&#39;bool_if() failed&#39;)&quot;, &quot; &quot;], &quot;module&quot;: &quot;adam&quot;, &quot;operator&quot;: &quot;cosmic_ray.operators.boolean_replacer.AddNot&quot;, &quot;occurrence&quot;: 0, &quot;line_number&quot;: 32, &quot;command_line&quot;: [&quot;cosmic-ray&quot;, &quot;worker&quot;, &quot;adam&quot;, &quot;add_not&quot;, &quot;0&quot;, &quot;pytest&quot;, &quot;--&quot;, &quot;-x&quot;, &quot;tests&quot;], &quot;job_id&quot;: &quot;c2bb71e6203d44f6af42a7ee35cb5df9&quot;}
+. . .
+</code></pre></div>
+<p><code>dump</code> is designed to allow users to develop their own reports. To do
+this, you need a program which reads a series of JSON structures from
+stdin.</p>
+<h1 id="concurrency">Concurrency</h1>
+<p>Note that most Cosmic Ray commands can be safely executed while <code>exec</code> is
+running. One exception is <code>init</code> since that will rewrite the work manifest.</p>
+<p>For example, you can run <code>cr-report</code> on a session while that session is being
+executed. This will tell you what progress has been made.</p>
+<hr />
+<h2 id="file-docssourcereferencecontinuous_integrationrst">File: /docs/source/reference/continuous_integration.rst</h2>
+<p>========================
+ Continuous Integration
+========================</p>
+<p>Cosmic Ray has a continuous integration system based on <code>Travis
+&lt;https://travis-ci.org&gt;</code>__. Whenever we push new changes to our github
+repository, travis runs a set of tests. These :doc:<code>tests &lt;tests&gt;</code> include
+low-level unit tests, end-to-end integration tests, static analysis (e.g.
+linting), and testing documentation builds. Generally speaking, these tests are
+run on all versions of Python which we support.</p>
+<h1 id="automated-release-deployment">Automated release deployment</h1>
+<p>Cosmic Ray also has an automated release deployment scheme. Whenever you push
+changes to <code>the release
+branch &lt;https://github.com/sixty-north/cosmic-ray/tree/release&gt;</code>__, travis attempts
+to make a new release. This process involves determining the release version by
+reading <code>cosmic_ray/version.py</code>, creating and uploading PyPI distributions, and
+creating new release tags in git.</p>
+<h2 id="releasing-a-new-version">Releasing a new version</h2>
+<p>As described above, the release process for Cosmic Ray is largely automatic. In
+order to do a new release, you simply need to:</p>
+<ol>
+<li>Bump the version with <code>bumpversion</code>.</li>
+<li>Push it to <code>master</code> on github.</li>
+<li>Push the changes to the <code>release</code> branch on github.</li>
+</ol>
+<p>Once the push is made to <code>release</code>, the automated release system will take over.</p>
+<p>Note that only the Python 3.6 travis build will attempt to make a release
+deployment. So to see the progress of your release, check the output for that
+build.</p>
+<hr />
+<h2 id="file-docssourcereferenceindexrst">File: /docs/source/reference/index.rst</h2>
+<p>=========
+Reference
+=========</p>
+<p>.. toctree::
+   :maxdepth: 1</p>
+<p>api/modules
+   commands
+   tests
+   continuous_integration
+   badge</p>
+<hr />
+<h2 id="file-docssourcereferencetestsrst">File: /docs/source/reference/tests.rst</h2>
+<h1 id="tests">Tests</h1>
+<p>Cosmic Ray has a number of test suites to help ensure that it works. To
+install the necessary dependencies for testing, run:</p>
+<p>::</p>
+<div class="highlight"><pre><span></span><code>pip install -e .[dev,test]
+</code></pre></div>
+<h2 id="pytest-suite"><code>pytest</code> suite</h2>
+<p>The first suite is a <code>pytest &lt;http://pytest.org/&gt;</code>__ test suite that
+validates some if its internals. You can run that like this:</p>
+<p>::</p>
+<div class="highlight"><pre><span></span><code>pytest tests/test_suite
+</code></pre></div>
+<h2 id="the-adam-tests">The "adam" tests</h2>
+<p>There is also a set of tests which verify the various mutation
+operators. These tests comprise a specially prepared body of code,
+<code>adam.py</code>, and a full-coverage test-suite. The idea here is that
+Cosmic Ray should be 100% lethal against the mutants of <code>adam.py</code> or
+there's a problem.</p>
+<p>We have "adam" configurations for each of the
+test-runner/execution-engine combinations. For example, the
+configuration which uses <code>unittest</code> and the <code>local</code> execution
+engine is in <code>test_project/cosmic-ray.unittest.local.conf</code>.</p>
+<p>To run an "adam" test, first switch to the <code>test_project</code> directory:</p>
+<p>::</p>
+<div class="highlight"><pre><span></span><code>cd tests/example_project
+</code></pre></div>
+<p>Then initialize a new session using one of the configurations. Here's an
+example using the <code>pytest</code>/<code>local</code> configuration:</p>
+<p>::</p>
+<div class="highlight"><pre><span></span><code>cosmic-ray init cosmic-ray.pytest.local.conf pytest-local.sqlite
+</code></pre></div>
+<p>(Note that if you were going to use the <code>celery4</code> engine instead, you
+need to make sure that celery workers were running.)</p>
+<p>Execute the session like this:</p>
+<p>::</p>
+<div class="highlight"><pre><span></span><code>cosmic-ray exec pytest-local.sqlite
+</code></pre></div>
+<p>Finally, view the results of this test with <code>dump</code> and <code>cr-report</code>:</p>
+<p>::</p>
+<div class="highlight"><pre><span></span><code>cr-report pytest-local.sqlite
+</code></pre></div>
+<p>You should see a 0% survival rate at the end of the report.</p>
+<h2 id="the-full-test-suite">The full test suite</h2>
+<p>While the "adam" tests verify the various mutation operators in Cosmic
+Ray, the full test suite comprises a few more tests for other behaviors
+and functionality. To run all of these tests, it's often simplest to use tox. Just run::</p>
+<div class="highlight"><pre><span></span><code>$ tox
+</code></pre></div>
+<p>at the root of the project.</p>
+<hr />
+<h2 id="file-docssourcetutorialsdistributedindexrst">File: /docs/source/tutorials/distributed/index.rst</h2>
+<p>==================================================
+Tutorial: Distributed, concurrent mutation testing
+==================================================</p>
+<p>One of the main practical challenges to mutation testing is that it can
+take a long time. Even on moderately sized projects, you might need
+millions of individual mutations and test runs. This can be prohibitive
+to run on a single system.</p>
+<p>One way to cope with these long runtimes is to parallelize the mutation and
+testing procedures. Fortunately, mutation testing is <code>embarassingly parallel in
+nature &lt;https://en.wikipedia.org/wiki/Embarrassingly_parallel&gt;</code>__, so we can
+apply some relatively simple techniques to get really nice scaling up of the
+work. To support parallel execution of mutation testing runs, Cosmic Ray has the
+notion of <em>distributors</em> which can control where and how tests are run.
+Different distributors can run tests in different contexts: in parallel on a single
+machine, by distributing them across a message bus, or perhaps by spawning test
+runs on cloud systems.</p>
+<h1 id="the-http-distributor">The HTTP distributor</h1>
+<p>Cosmic Ray includes :class:<code>cosmic_ray.distributors.http.HttpDistributor</code>, a distributor which allows you to send
+mutation-and-test requests to workers running locally or remotely. You can run as many of these workers as you 
+want, thereby making it possible to run as many mutations in parallel as you want. </p>
+<p>Each worker is a small HTTP server, listening for requests from the <code>exec</code> command to perform a mutation and test. Each worker handlers
+only one mutation request at a time. Critically, each worker has its own copy of the code under test, meaning that it can make mutations
+to that copy of the code without interfering with other workers.</p>
+<p>You need to make sure that workers are running prior to running the <code>exec</code> command. <code>exec</code> doesn't have any support
+for starting workers. The major configuration involved with the HTTP distributor is telling <code>exec</code> where there workers
+are listening.</p>
+<h2 id="a-sample-project">A sample project</h2>
+<p>To demonstrate <code>HttpDistributor</code> we'll need a sample module and test suite. We'll use a very simple set
+of code, as we did in :ref:<code>the basic tutorial &lt;basic tutorial&gt;</code>.</p>
+<p>Create a new directory to hold this code. We'll refer to this directory as <code>ROOT</code>.</p>
+<p>Create the file <code>ROOT/mod.py</code> with these contents:</p>
+<p>.. literalinclude:: mod.1.py</p>
+<p>Then create <code>ROOT/test_mod.py</code> with these contents:</p>
+<p>.. literalinclude:: test_mod.1.py</p>
+<p>Finally, we'll create a configuration, <code>ROOT/config.toml</code>:</p>
+<p>.. literalinclude:: config.1.toml
+    :linenos:</p>
+<p>This config is similar to others that we've looked at, with the major difference that it specifies the use of the 'http'
+distributor rather than 'local'. On line 8 we set "cosmic-ray.distributor.name" to "http". </p>
+<p>Then on line 11 we set the "cosmic-ray.distributor.http.worker-urls" setting to a list containing a URL. This is the
+address at which a <em>worker</em> will be listening for mutation requests. This configuration only specifies a single worker,
+but we can put as many workers here as we want.</p>
+<h2 id="starting-a-worker">Starting a worker</h2>
+<p>Before Cosmic Ray can send requests to a worker, we need to start it. From the <code>ROOT</code> directory, start a worker using the
+<code>http-worker</code> command:</p>
+<p>.. code-block:: bash</p>
+<div class="highlight"><pre><span></span><code>cd $ROOT
+cosmic-ray --verbosity INFO http-worker --port 9876
+</code></pre></div>
+<p>The <code>--verbosity INFO</code> argument configures the worker's logging to show more messages than normal. The <code>--port 9876</code>
+argument instructs it to listen for requests on port 9876, the same port we specified in the 'worker-urls' list in our
+configuration. The worker will tell you that it's waiting to process requests on port 9876:</p>
+<p>.. code-block:: bash</p>
+<div class="highlight"><pre><span></span><code>======== Running on http://0.0.0.0:9876 ========
+(Press CTRL+C to quit)
+</code></pre></div>
+<p>Note that your worker must be running in the same directory as you would normally run the tests from. In this case, we're
+expecting the tests to be run in <code>$ROOT</code>, so make sure your worker is running in that directory. Generally speaking,
+the worker doesn't do much more than mutate the code on disk and run the test command you've specified in your config.</p>
+<h2 id="running-the-tests">Running the tests</h2>
+<p>We need to leave the worker running in its own terminal, so for these next steps you'll need to start a new terminal.</p>
+<p>First we need to initialize a new Cosmic Ray session:</p>
+<p>.. code-block:: bash</p>
+<div class="highlight"><pre><span></span><code>cd $ROOT
+cosmic-ray init config.toml session.sqlite
+</code></pre></div>
+<p>Once the session is created, we can execute the tests:</p>
+<p>.. code-block:: bash</p>
+<div class="highlight"><pre><span></span><code>cosmic-ray exec config.toml session.sqlite
+</code></pre></div>
+<p>This should execute very quickly. The most important thing to note is that our worker process is where the mutation
+and testing actually occurred. If you switch back to the terminal hosting your worker, you should see that it 
+produced output something like this:</p>
+<p>.. code-block:: bash</p>
+<div class="highlight"><pre><span></span><code>[05/16/21 11:31:10] INFO     INFO:cosmic_ray.mutating:Applying mutation: path=mod.py,                                mutating.py:111
+                             op=&lt;cosmic_ray.operators.number_replacer.NumberReplacer object at 0x10d2b9550&gt;,                        
+                             occurrence=1                                                                                           
+                    INFO     INFO:cosmic_ray.testing:Running test (timeout=10.0): python -m unittest test_mod.py       testing.py:36
+                    INFO     INFO:aiohttp.access:::1 [16/May/2021:09:31:10 +0000] &quot;POST / HTTP/1.1&quot; 200 899 &quot;-&quot;       web_log.py:206
+                             &quot;Python/3.7 aiohttp/3.7.4.post0&quot;                                                                       
+                    INFO     INFO:cosmic_ray.mutating:Applying mutation: path=mod.py,                                mutating.py:111
+                             op=&lt;cosmic_ray.operators.number_replacer.NumberReplacer object at 0x10d4cdf60&gt;,                        
+                             occurrence=0                                                                                           
+                    INFO     INFO:cosmic_ray.testing:Running test (timeout=10.0): python -m unittest test_mod.py       testing.py:36
+[05/16/21 11:31:11] INFO     INFO:aiohttp.access:::1 [16/May/2021:09:31:10 +0000] &quot;POST / HTTP/1.1&quot; 200 899 &quot;-&quot;       web_log.py:206
+                             &quot;Python/3.7 aiohttp/3.7.4.post0&quot;
+</code></pre></div>
+<p>Congratulations! You've just performed your first distributed mutation testing with Cosmic Ray. There are other details
+you need to consider when scaling beyond a single worker, but this small example covers the most important elements:
+setting up the configuration and starting a worker.</p>
+<p>At this point you can kill the worker you started earlier.</p>
+<h1 id="concurrent-execution-with-multiple-workers">Concurrent execution with multiple workers</h1>
+<p>In the previous example we only ran a single worker process, so from a concurrency point of view this was no different from 
+using the 'local' distributor. Before we can run multiple workers, though, we need to consider what resources each worker 
+requires. Ultimately, each worker needs two things:</p>
+<ul>
+<li>An HTTP endpoint</li>
+<li>A copy of the code under test that it can modify</li>
+</ul>
+<p>In this example we'll create the unique endpoints by giving each worker its own port. In principle, though, workers may be
+running on entirely different machines on a network.</p>
+<h2 id="distinct-copies-of-the-code">Distinct copies of the code</h2>
+<p>As mentioned earlier, Cosmic Ray mutation works by actually modifying the code on disk. As such, multiple workers can't
+share a single copy of the code; their mutations would interfere with one another. So we need to make sure each worker
+has a copy of the code under test.</p>
+<p>For this example, we'll manually copy the files around:</p>
+<p>.. code-block:: bash</p>
+<div class="highlight"><pre><span></span><code>cd $ROOT
+mkdir worker1
+cp mod.py worker1
+cp test_mod.py worker1
+mkdir worker2
+cp mod.py worker2
+cp test_mod.py worker2
+</code></pre></div>
+<p>Now the directories <code>worker1</code> and <code>worker2</code> contain separate copies of the code under test.</p>
+<h2 id="starting-the-workers">Starting the workers</h2>
+<p>Now we can start the workers. Remember that each will run in its own terminal. In one terminal, start the first worker:</p>
+<p>.. code-block:: bash</p>
+<div class="highlight"><pre><span></span><code>cd $ROOT/worker1
+cosmic-ray --verbosity INFO http-worker --port 9876
+</code></pre></div>
+<p>Then in another terminal start a second worker:</p>
+<p>.. code-block:: bash</p>
+<div class="highlight"><pre><span></span><code>cd $ROOT/worker2
+cosmic-ray --verbosity INFO http-worker --port 9877
+</code></pre></div>
+<p>Note that the workers are using different ports.</p>
+<h2 id="update-the-configuration">Update the configuration</h2>
+<p>To tell Cosmic Ray to use both of these workers, we need to update our configuration. Edit <code>config.toml</code> to specify
+both workers URLs:</p>
+<p>.. literalinclude:: config.2.toml
+    :linenos:
+    :emphasize-lines: 11</p>
+<p>On line 11 we now list the endpoints for both workers.</p>
+<h2 id="running-the-tests_1">Running the tests</h2>
+<p>We're now ready to run the tests. Go back to <code>ROOT</code> and re-initialize your session:</p>
+<p>.. code-block:: bash</p>
+<div class="highlight"><pre><span></span><code>cd $ROOT
+cosmic-ray init config.toml session.sqlite
+</code></pre></div>
+<p>Finally, we can execute the tests:</p>
+<p>.. code-block:: bash</p>
+<div class="highlight"><pre><span></span><code>cosmic-ray exec config.toml session.sqlite
+</code></pre></div>
+<p>If you run <code>cr-report</code> you should see that two tests were run and that there were no survivors:</p>
+<p>.. code-block:: bash</p>
+<div class="highlight"><pre><span></span><code>$ cr-report session.sqlite
+e4e56a71a059466f861d62c987988efe mod.py core/NumberReplacer 0
+worker outcome: normal, test outcome: killed
+7820da3f68cd40a7b60d69506e87c4aa mod.py core/NumberReplacer 1
+worker outcome: normal, test outcome: killed
+total jobs: 2
+complete: 2 (100.00%)
+surviving mutants: 0 (0.00%)
+</code></pre></div>
+<p>Likewise, if you look at the terminals for your two workers, you should see that they each received a request to perform
+a mutation test.</p>
+<p>That's really all there is to distributed mutation testing with <code>HttpDistributor</code>. You simply start as many workers as you
+need, specifying their endpoints in your configuration. </p>
+<p>.. important::</p>
+<div class="highlight"><pre><span></span><code>At this point you should kill the workers you started.
+</code></pre></div>
+<h1 id="cr-http-workers-a-tool-for-starting-workers">cr-http-workers: A tool for starting workers</h1>
+<p>It's extremely common for the code under test (and the tests themselves) to be in a git repository. As such, a simple
+way to create the isolated copies of the code that each worker requires is to clone this git repository. Once the
+mutation testing is done, these clones can be deleted.</p>
+<p>To simplify this process Cosmic Ray provides <code>cr-http-workers</code>. This program reads your configuration to
+determine how many workers to start, and you provide it with a git repository to clone. For each 'worker-url' in your
+configuration it will clone the git repository and start a worker in that clone. You can then run <code>exec</code> to distribute
+work to those workers. Once the testing is over, you can kill <code>cr-http-workers</code> and it will clean up the workers and
+their clones.</p>
+<h2 id="preparing-the-git-repository">Preparing the git repository</h2>
+<p>To use <code>cr-http-workers</code> we first need a git repository, so we'll create one from our existing code. </p>
+<p>.. note::</p>
+<div class="highlight"><pre><span></span><code>You should first delete the ``worker1`` and ``worker2`` directories if they still exist. This isn&#39;t critical, but it
+might be confusing to leave them around.
+</code></pre></div>
+<p>Here's how to initialize the git repository:</p>
+<p>.. code-block:: bash</p>
+<div class="highlight"><pre><span></span><code>cd $ROOT
+git init
+git add mod.py 
+git add test_mod.py
+git commit -a -m &quot;initialized repo&quot;
+</code></pre></div>
+<h2 id="running-the-workers">Running the workers</h2>
+<p>Once the git repo is initialized, we can start the workers:</p>
+<p>.. code-block:: bash</p>
+<div class="highlight"><pre><span></span><code>cr-http-workers config.toml .
+</code></pre></div>
+<p>This tell <code>cr-http-workers</code> to read <code>config.toml</code> to determine the worker endpoints. The second argument, ".", tells
+it to clone the git repository in the current directory. In practice this repo URL will often be hosted elsewhere (e.g.
+github), but for our purposes we'll just work with the local repo.</p>
+<p>This will start both workers processes, and the output from those workers will be shown in the output from
+<code>cr-http-workers</code>.</p>
+<h2 id="running-the-tests_2">Running the tests</h2>
+<p>Once the workers are running, running the tests just involves the standard <code>init</code> and <code>exec</code> commands:</p>
+<p>.. code-block:: bash</p>
+<div class="highlight"><pre><span></span><code>cd $ROOT
+cosmic-ray init config.toml session.sqlite
+cosmic-ray exec config.toml session.sqlite
+</code></pre></div>
+<p>Remember that you'll need to run this in another terminal.</p>
+<p>Once the tests complete you can kill the <code>cr-http-workers</code> process. There's not much more to it than that!</p>
+<h2 id="limitations">Limitations</h2>
+<p>The main limitation of <code>cr-http-workers</code> is that it can only start workers on your local machine. If you want to run
+workers on other machines, you'll need to use some other mechanism. But very often, being able to run multiple workers
+on a single machine is a huge gain for mutation testing. Mutation testing time will scale down linearly with the number
+of workers you run, so running 4 workers on your system will - within certain limits - let you run your mutation testing
+4 times faster.</p>
+<h1 id="alternatives-to-httpdistributor">Alternatives to HttpDistributor</h1>
+<p>If <code>HttpDistributor</code> doesn't meet your needs, Cosmic Ray allows you to write your own distributor and use it as a
+plugin. You might want to write a distributor plugin using <code>Celery
+&lt;https://docs.celeryproject.org/en/stable/getting-started/introduction.html&gt;</code>_, for example, to take advantage of its
+sophisticated message bus.</p>
+<hr />
+<h2 id="file-docssourcetutorialsintroindexrst">File: /docs/source/tutorials/intro/index.rst</h2>
+<p>.. _basic tutorial:</p>
+<p>====================
+Tutorial: The basics
+====================</p>
+<p>This tutorial will walk you through the steps needed to install, configure, and run Cosmic
+Ray. </p>
+<h1 id="installation">Installation</h1>
+<p>First you'll need to install Cosmic Ray. The simplest (and generally best) way to do this is with <code>pip</code>:</p>
+<p>.. code-block:: bash</p>
+<div class="highlight"><pre><span></span><code>pip install cosmic-ray
+</code></pre></div>
+<p>You'll generally want to do this in a virtual environment, but it's not required.</p>
+<h2 id="installation-from-source">Installation from source</h2>
+<p>If you need to install Cosmic Ray from source, first change to the directorying containing <code>setup.py</code>. Then run::</p>
+<div class="highlight"><pre><span></span><code>pip install .
+</code></pre></div>
+<p>Or, if you want to <code>install from source in "editable" mode &lt;https://pip.pypa.io/en/stable/cli/pip_install/#cmdoption-e&gt;</code>_, you can use the <code>`-e</code> flag::</p>
+<div class="highlight"><pre><span></span><code>pip install -e .
+</code></pre></div>
+<h1 id="source-module-and-tests">Source module and tests</h1>
+<p>Mutation testing works by making small mutations to the <em>code under test</em> (CUT) and then running a test suite
+over the mutated code. For this tutorial, then, we'll need to create our CUT and a test suite for it.</p>
+<p>You should create a new directory which will contain the CUT, the tests, and eventually the Cosmic Ray data.
+For the rest of this tutorial we'll refer to this new directory as <code>ROOT</code> (or <code>$ROOT</code> if we're showing shell code). </p>
+<p>Now create the file <code>ROOT/mod.py</code> with these contents:</p>
+<p>.. literalinclude:: mod.1.py</p>
+<p>This file contains your code under test, i.e. the code that Cosmic Ray will mutate. It's clearly very simple, and it has
+very few opportunities for mutation, but it's sufficient for this tutorial. In fact, having simple code like this will
+make it easier to see what Cosmic Ray is doing without getting bogged down by scale.</p>
+<p>Next create the file <code>ROOT/test_mod.py</code> with these contents:</p>
+<p>.. literalinclude:: test_mod.1.py</p>
+<p>This contains the test suite for <code>mod.py</code>. Cosmic Ray will not mutate this code. Rather, it will run this test suite
+for every mutation that it creates.</p>
+<p>Before moving on, let's make sure that the test suite works correctly:</p>
+<p>.. code-block:: bash</p>
+<div class="highlight"><pre><span></span><code>python -m unittest test_mod.py
+</code></pre></div>
+<p>This should show that all tests pass:</p>
+<p>.. code-block:: bash</p>
+<div class="highlight"><pre><span></span><code>.
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+OK
+</code></pre></div>
+<p>If you see one test passing like this, then you're ready to continue!</p>
+<h1 id="creating-a-configuration">Creating a configuration</h1>
+<p>Before you do run any mutation tests, you need to create a <em>configuration</em>.
+A configuration is a <code>TOML &lt;https://toml.io/&gt;</code>_ file that specifies the modules you want to mutate, the
+test scripts to use, and so forth. A configuration is used to create a <em>session</em>,
+something we'll look at in the next section.</p>
+<h2 id="the-new-config-command">The <code>new-config</code> command</h2>
+<p>You can create a configuration by hand if you want. In fact, you'll generally
+need to edit them by hand to get the exact configuration you need. But you can
+create an initial configuration using the <code>new-config</code> command. This will ask
+you a series of questions and construct a new configuration based on your
+answers.</p>
+<p>To create your config for this tutorial, do this:</p>
+<p>.. code-block:: bash</p>
+<div class="highlight"><pre><span></span><code>cd $ROOT
+cosmic-ray new-config tutorial.toml
+</code></pre></div>
+<p>This will ask you a series of questions. Answer them like this:</p>
+<p>.. code-block:: text</p>
+<div class="highlight"><pre><span></span><code>[?] Top-level module path: mod.py
+[?] Test execution timeout (seconds): 10
+[?] Test command: python -m unittest test_mod.py
+-- MENU: Distributor --
+  (0) http
+  (1) local
+[?] Enter menu selection: 1
+</code></pre></div>
+<p>This will create the file <code>tutorial.toml</code> with these contents:</p>
+<p>.. literalinclude:: tutorial.toml.1
+    :linenos:
+    :language: toml</p>
+<p>Configuration contents
+~~~~~~~~~~~~~~~~~~~~~~</p>
+<p>Let's examine the contents of this file before moving on. On line 1 we define the 'cosmic-ray' key in the TOML
+structure; this key will contain all Cosmic Ray configuration information.</p>
+<p>On line 2 we set the 'module-path' key to the string "mod.py":</p>
+<p>.. literalinclude:: tutorial.toml.1
+    :lines: 2
+    :language: toml</p>
+<p>This tells Cosmic Ray that we're going to be mutating the module in the file <code>mod.py</code>. Every Cosmic Ray configuration
+refers to a single top-level module that will be mutated, and in this case we're telling Cosmic Ray to mutate the
+<code>mod</code> module, contained in the file <code>mod.py</code>.</p>
+<p>.. note::</p>
+<div class="highlight"><pre><span></span><code>The &#39;module-path&#39; is a *path* to a file or directory, not the name of the module of package. If it&#39;s a file then
+Cosmic Ray will treat it as a single module, but if it&#39;s a directory then Cosmic Ray will treat it as a package.
+
+When working on a package, Cosmic Ray will apply mutations to all submodules in the package.
+
+Additionally, the &#39;module-path&#39; can be a list of directories or files: `module-path = [&quot;file1.py&quot;, &quot;some_directory&quot;]`
+</code></pre></div>
+<p>Line 3 tells Cosmic Ray the maximium amount of time to let a test run before it's considered a failure:</p>
+<p>.. literalinclude:: tutorial.toml.1
+    :lines: 3
+    :language: toml</p>
+<p>In this case, we're telling Cosmic Ray to kill a test if it runs longer than 10 seconds. This timeout is important because
+some mutations can cause the tests to go into an infinite loop. Without timeout we'd never exit the test! It's important to 
+set this timeout such that it's long enough for all legitimate tests.</p>
+<p>Next, line 4 tells Cosmic Ray which modules to exclude from mutation:</p>
+<p>.. literalinclude:: tutorial.toml.1
+    :lines: 4
+    :language: toml</p>
+<p>In this case we're not excluding any, but there may be times when you need to skip certain modules, e.g. because 
+you know that you don't have sufficient tests for them at the moment. This parameter expects glob-patterns, so to exclude
+files that end with <code>_test.py</code> recursively for example, you would add <code>"**/*_test.py"</code>.</p>
+<p>Line 5 is one of the most critical lines in the configuration. This tells Cosmic Ray how to run your test suite:</p>
+<p>.. literalinclude:: tutorial.toml.1
+    :lines: 5
+    :language: toml</p>
+<p>In this case, our test suite uses the standard <code>unittest testing framework
+&lt;https://docs.python.org/3/library/unittest.html&gt;</code>_, and the tests are in the file <code>test_mod.py</code>.</p>
+<p>The last two lines tell Cosmic Ray which "distributor" to use:</p>
+<p>.. literalinclude:: tutorial.toml.1
+    :lines: 7-8
+    :language: toml</p>
+<p>A distributor controls how mutation jobs are assigned to one or more workers so that they can (potentially) run in
+parallel. In this case we're using the default 'local' distributor which only runs one mutation at a time. There are
+other, more sophisticated distributors which we discuss elsewhere.</p>
+<h1 id="create-a-session-and-baseline">Create a session and baseline</h1>
+<p>Cosmic Ray uses a notion of <em>sessions</em> to encompass a full mutation testing
+suite. Since mutation testing runs can take a long time, and since you might
+need to stop and start them, sessions store data about the progress of a run.</p>
+<p>.. note::</p>
+<div class="highlight"><pre><span></span><code>Most Cosmic Ray commands allow you to increase their &quot;verbosity&quot; via the command line. This will make them print out
+more information about what they&#39;re doing.
+
+Try adding &quot;--verbosity INFO&quot; to the command you run if you more details about
+what&#39;s going on!
+</code></pre></div>
+<h2 id="initializing-a-session">Initializing a session</h2>
+<p>The first step in a full testing run, then, is to initialize a session:</p>
+<p>.. code-block:: bash</p>
+<div class="highlight"><pre><span></span><code>cosmic-ray init tutorial.toml tutorial.sqlite
+</code></pre></div>
+<p>.. note::</p>
+<div class="highlight"><pre><span></span><code>This command prepares all the mutations that will later be applied to code.
+As such, its execution time is proportional to the amount of code and
+the code complexitly. You can expect about 15-30s per 1kloc.
+</code></pre></div>
+<p>This will create a database file called <code>tutorial.sqlite</code>. There is a record in the database for each mutation that
+Cosmic Ray will perform, and Cosmic Ray will associate testing results with these records as it executes.</p>
+<p>When does <code>init</code> need to be run?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~</p>
+<p><code>init</code> completely rewrites the session file you tell it to use, so you should not re-run <code>init</code> on a session that
+contains any results that you want to keep. At the same time, if you change your configuration in a way that alters
+which tests are run and which mutations are made, then you should re-initialize your session.</p>
+<p>Generally speaking, if you change the 'module-path', 'timeout', 'excluded-modules', or 'test-command' parts of your
+configuration, or if you change any of the filters you use, then you need to re-initialize your session and start over.
+Any of these changes can affect the operations that the subsequent <code>exec</code> command will run.</p>
+<p>Similarly, you need to create a new session with <code>init</code> whenever your code-under-test or your tests themselves change.
+This is necessary because changes to the CUT will affect which mutations are made and changes to the tests affect which
+tests are run.</p>
+<h2 id="baselining">Baselining</h2>
+<p>Before running the full mutation suite, it's important to make sure that the test suite passes in the absence of any
+mutations. If the test suite does <em>not</em> pass in the absence of mutations, then the results of the mutation testing are
+essentially useless.</p>
+<p>You can use the <code>baseline</code> command to check that the test suite passes on unmutated code:</p>
+<p>.. code-block:: bash</p>
+<div class="highlight"><pre><span></span><code>cosmic-ray --verbosity=INFO baseline tutorial.toml
+</code></pre></div>
+<p>This should report that the tests pass, something like this:</p>
+<p>.. code-block:: text</p>
+<div class="highlight"><pre><span></span><code>[07/23/21 10:00:20] INFO     INFO:root:Reading config from &#39;tutorial.toml&#39;                                                                                                                                            config.py:103
+                    INFO     INFO:cosmic_ray.commands.execute:Beginning execution                                                                                                                                     execute.py:45
+                    INFO     INFO:cosmic_ray.testing:Running test (timeout=10.0): python -m unittest test_mod.py                                                                                                      testing.py:36
+                    INFO     INFO:cosmic_ray.commands.execute:Job baseline complete                                                                                                                                   execute.py:43
+                    INFO     INFO:cosmic_ray.commands.execute:Execution finished                                                                                                                                      execute.py:53
+                    INFO     INFO:root:Baseline passed. Execution with no mutation works fine.
+</code></pre></div>
+<p>If this command succeeds, then you're ready to start mutating code and testing it!</p>
+<h1 id="examining-the-session-with-cr-report">Examining the session with cr-report</h1>
+<p>Our session file, <code>tutorial.sqlite</code>, is essentially a list of mutations that Cosmic Ray will perform on the
+code under test. We haven't actually tested any mutants, so none of our mutations have testing results yet. With
+that in mind, let's examine the contents of our session with the <code>cr-report</code> program:</p>
+<p>.. code-block:: bash</p>
+<div class="highlight"><pre><span></span><code>cr-report tutorial.sqlite --show-pending
+</code></pre></div>
+<p>This will produce output like this (though note that the test IDs will be different):</p>
+<p>.. code-block:: text</p>
+<div class="highlight"><pre><span></span><code>[job-id] f168ef23dff24b75846a730858fe0111
+mod.py core/NumberReplacer 0
+[job-id] 929a563b613242b48dae0f2de74ad2af
+mod.py core/NumberReplacer 1
+total jobs: 2
+no jobs completed
+</code></pre></div>
+<p>This is telling us that Cosmic Ray detected two mutations that it can make to our code, both using the
+mutation operator "core/NumberReplacer". Without going into details, this means that Cosmic Ray has found
+one or more numeric literals in our code, and it plans to make two mutations to those numbers. We can see in our
+code that there is only one numeric literal, the value returned from <code>func()</code> on line 2:</p>
+<p>.. literalinclude:: mod.1.py
+    :linenos:
+    :emphasize-lines: 2</p>
+<p>So Cosmic Ray is going to mutate that number in two ways, running the test suite each time. </p>
+<p>The <code>cr-report</code> tool is useful for examining sessions, and it's main purpose is to give you summary reports after an
+entire session has been executed, which we'll do in the next step.</p>
+<h1 id="execution">Execution</h1>
+<p>Now that you've initialized and baselined your session, it's time to start making mutants and testing them. We do this
+with the <code>exec</code> command. <code>exec</code> looks in your session file, <code>tutorial.sqlite</code>, for any mutations which were
+detected in the <code>init</code> phase that don't yet have results. For each of these, it performs the specified mutation
+and runs the test suite.</p>
+<p>As we saw, we only have two mutations to make, and our test suite is very small. As a result the <code>exec</code> command will
+run quite quickly:</p>
+<p>.. code-block:: bash</p>
+<div class="highlight"><pre><span></span><code>cosmic-ray exec tutorial.toml tutorial.sqlite
+</code></pre></div>
+<p>This should produce no output. </p>
+<p>.. note::</p>
+<div class="highlight"><pre><span></span><code>The module and test suite for this tutorial are &quot;toys&quot; by design. As such, they run very quickly. Most real-world
+modules and test suites are much more substantial and require much longer to run. For example, if a test suite takes
+10 seconds to run and Cosmic Ray finds 1000 mutations, a full ``exec`` will take 10 x 1000 = 10,000 seconds, or
+about 2.7 hours.
+</code></pre></div>
+<h2 id="committing-before-exec">Committing before <code>exec</code></h2>
+<p>If you're using revision control with your code (you are, right?!), you should consider committing your changes before
+running <code>exec</code>. While it's not strictly necessary to do this in simple cases, it's often important to commit if
+you're using tools like <code>cr-http-workers</code> that rely on fetching code from a repository. </p>
+<p>Also, while Cosmic Ray is designed to be robust in the face of exceptions and crashes, there is always the possibility
+that Cosmic Ray won't correctly undo a mutation. Remember, it makes mutations directly on disk, so if a mutation is
+not correctly undone, and if you haven't committed your changes prior to testing, you run the risk of introducing
+a mutation into you code accidentally.</p>
+<h1 id="reporting-the-results">Reporting the results</h1>
+<p>Assuming it ran correctly, we can now use <code>cr-report</code> to see the updated state of our session:</p>
+<p>.. code-block:: bash</p>
+<div class="highlight"><pre><span></span><code>cr-report tutorial.sqlite --show-pending
+</code></pre></div>
+<p>This time we see that both mutations were made, tests were run for each, and both were "killed":</p>
+<p>.. code-block:: text</p>
+<div class="highlight"><pre><span></span><code>[job-id] f168ef23dff24b75846a730858fe0111
+mod.py core/NumberReplacer 0
+worker outcome: normal, test outcome: killed
+[job-id] 929a563b613242b48dae0f2de74ad2af
+mod.py core/NumberReplacer 1
+worker outcome: normal, test outcome: killed
+total jobs: 2
+complete: 2 (100.00%)
+surviving mutants: 0 (0.00%)
+</code></pre></div>
+<p>.. tip::</p>
+<div class="highlight"><pre><span></span><code>You don&#39;t have to wait for ``exec`` to complete to generate a report. If you have a long-running session and want to
+see your progress, you can execute ``cr-report`` while ``cosmic-ray exec`` is running to view the progress the
+latter is making.
+</code></pre></div>
+<h2 id="html-reports">HTML reports</h2>
+<p>You can also generate a handy HTML report with <code>cr-html</code>:</p>
+<p>::</p>
+<div class="highlight"><pre><span></span><code>cr-html tutorial.sqlite &gt; report.html
+</code></pre></div>
+<p>You can then open <code>report.html</code> in your browser to see the details. One nice feature of these HTML reports is
+that they show the actual mutation that was used.</p>
+<hr />
+<h2 id="file-docssourceconceptsrst">File: /docs/source/concepts.rst</h2>
+<p>==========
+ Concepts
+==========</p>
+<p>Cosmic Ray comprises a number of important and potentially confusing concepts.
+In this section we'll look at each of these concepts, explaining their role in
+Cosmic Ray and how they relate to other concepts. We'll also use this section to
+establish the terminology that we'll use throughout the rest of the
+documentation.</p>
+<h1 id="operators">Operators</h1>
+<p>An <em>operator</em> in Cosmic Ray is a class that represents a specific type of
+mutation. The first role of an operator is to identify points in the code where
+a specific mutation can be applied. The second role of an operator is to
+actually perform the mutation when requested.</p>
+<p>An example of an operator is
+:mod:<code>cosmic_ray.operators.break_continue</code>. As its name
+implies, this operator mutates code by replacing <code>break</code> with <code>continue</code>.
+During
+the initialization of a session, this operator identifies all of the locations
+in the code where this mutation can be applied. Then, during execution of a
+session, it actually mutates the code by replacing <code>break</code> nodes with
+<code>continue</code>
+nodes.</p>
+<p>Operators are exposed to Cosmic Ray via plugins, and users can choose to extend
+the available operator set by providing their own operators. Operators are
+implemented as subclasses of :class:<code>cosmic_ray.operators.operator.Operator</code>.</p>
+<h1 id="distributors">Distributors</h1>
+<p><em>Distributors</em> determine the context in which tests are executed. The primary examples of distributors are
+:class:<code>cosmic_ray.distribution.local.LocalDistributor</code> and :class:<code>cosmic_ray.distribution.http.HttpDistributor</code>. The
+local distributor tests on the local machine, modifying an existing copy of the code in-place, running each test
+serially with no concurrency.</p>
+<p>The http distributor distributes tests to remote workers via HTTP. There can be any number of workers, and they can run the
+tests in parallel. Because of this concurrency, each HTTP worker will generally have its own copy of the code under
+test.</p>
+<p>Distributors have broad control over how they execute tests. During the execution phase they are given a sequence of
+pending mutations to execute, and it's their job to execute the tests in the appropriate context and return a result.
+Cosmic Ray doesn't impose any real constraints on how distributors accomplish this.</p>
+<p>Distributors can require arbitrarily complex infrastructure and configuration. For example, the HTTP distributor requires
+you to start the workers prior to starting execution, and it requires that you provide each worker with its own 
+copy of the code under test.</p>
+<p>Distributors are implemented as plugins to Cosmic Ray. They are dynamically discovered, and users can create their own
+distributors. Cosmic Ray includes two execution engines plugins, <em>local</em> and <em>http</em>.</p>
+<h1 id="configurations">Configurations</h1>
+<p>A <em>configuration</em> is a TOML file that describes the work that Cosmic Ray will do. For example, it tells Cosmic Ray which
+modules to mutate, how to run tests, which tests to run, and so forth. You need to create a config before doing any real
+work with Cosmic Ray.</p>
+<p>You can create a skeleton config by running <code>cosmic-ray new-config &lt;config file&gt;</code>. This will ask you a series of
+questions and create a config from the answers. Note that this config will generally be incomplete and require you to
+edit it for completeness.</p>
+<p>In many Cosmic Ray examples we'll use the name "config.toml" for configurations. You are not required to use this name,
+however. You can use any file name you want for your configurations.</p>
+<p>.. important::</p>
+<div class="highlight"><pre><span></span><code>The full set of configuration options are not currently well documented. Each plugin can, in principle and often in
+practice, use their own specialized configuration options. We need to work on making the documentation of these
+options automatic and part of the plugin API. For detail on configuration options, the best place to check is
+currently in the ``tests/example_project`` directory.
+</code></pre></div>
+<h1 id="sessions">Sessions</h1>
+<p>Cosmic Ray has a notion of <em>sessions</em> which encompass an entire mutation testing run. Essentially, a session is a
+database which records the work that needs to be done for a run. Then as results are available from workers that do the
+actual testing, the database is updated with results. By having a database like this, Cosmic Ray can safely stop in the
+middle of a (potentially very long) session and be restarted. Since the session knows which work is already completed,
+it can continue where it left off.</p>
+<p>Sessions also allow for arbitrary post-facto analysis and report generation.</p>
+<h2 id="initializing-sessions">Initializing sessions</h2>
+<p>Before you can do mutation testing with Cosmic Ray, you need to first initialize a session. You can do this using the
+<code>init</code> command. With this command you tell Cosmic Ray a) the name of the session, b) which module(s) you wish to
+mutate and c) the location of the test suite. For example, to mutate the package <code>allele</code>, using the <code>unittest</code> to
+run the tests in <code>allele_tests</code>, and using the <code>local</code> execution engine, you could first need to create a
+configuration like this:</p>
+<p>.. code-block:: ini</p>
+<div class="highlight"><pre><span></span><code>[cosmic-ray]
+module-path = &quot;allele&quot;
+timeout = 10
+excluded-modules = []
+test-command = python -m unittest allele_tests
+distributor.name = &quot;local&quot;
+</code></pre></div>
+<p>You would run <code>cosmic-ray init</code> like this:</p>
+<p>::</p>
+<div class="highlight"><pre><span></span><code>cosmic-ray init config.toml session.sqlite
+</code></pre></div>
+<p>You'll notice that this creates a new file called <code>allele_session.sqlite</code>. This is the database for your session.</p>
+<p>.. _test_suite:</p>
+<h1 id="test-suite">Test suite</h1>
+<p>To be able to kill the mutants Cosmic Ray uses your test cases. But the mutants are not considered "more dead" when more
+test cases fail. Given that a single failing test case is sufficient to kill a mutant, it's a good idea to configure the
+test runner to exit as soon as a failing test case is found.</p>
+<p>For <code>pytest</code> and <code>nose</code> that can be achieved with the <code>-x</code> option.</p>
+<p>.. _note_separation_test_code:</p>
+<p>.. admonition:: An important note on separating tests and production code</p>
+<div class="highlight"><pre><span></span><code>Cosmic Ray has a relatively simple view of how to mutate modules. Fundamentally, it will attempt to mutate any and all
+code in a module. This means that if you have test code in the same module as your code under test, Cosmic Ray will
+happily mutate the test code along with the production code. This is probably not what you want.
+
+The best way to avoid this problem is to keep your test code in separate modules from your production code. This way you
+can tell Cosmic Ray precisely what to mutate.
+
+Ideally, your test code will be in a different package from your production code. This way you can tell Cosmic Ray to
+mutate an entire package without needing to filter anything out. However, if your test code is in the same package as
+your production code (a common configuration), you can use the ``excluded-modules`` setting in your configuration to
+prevent mutation of your tests.
+
+Given the choice, though, we recommend keeping your tests outside of the package for your code under test.
+</code></pre></div>
+<h2 id="executing-tests">Executing tests</h2>
+<p>Once a session has been initialized, you can start executing tests by using the <code>exec</code> command. This command
+needs the config and the session you provided to <code>init</code>:</p>
+<p>.. code-block:: bash</p>
+<div class="highlight"><pre><span></span><code>cosmic-ray exec config.toml session.sqlite
+</code></pre></div>
+<p>Normally this won't produce any output unless there are errors.</p>
+<h2 id="viewing-the-results">Viewing the results</h2>
+<p>Once your tests have completed, you can view the results using the <code>cr-report</code> command:</p>
+<p>.. code-block:: bash</p>
+<div class="highlight"><pre><span></span><code>cr-report test_session.sqlite
+</code></pre></div>
+<p>This will give you detailed information about what work was done, followed by a summary of the entire session.</p>
+<h1 id="test-commands">Test commands</h1>
+<p>The <code>test-command</code> field of a configuration tells Cosmic Ray how to run tests. Cosmic Ray runs this command from
+whatever directory you run the <code>exec</code> command (or, in the case of remote execution, in whatever directory the remote
+command handler is running).</p>
+<h1 id="timeouts">Timeouts</h1>
+<p>One difficulty mutation testing tools have to face is how to deal with mutations that result in infinite loops (or other
+pathological runtime effects). Cosmic Ray takes the simple approach of using a <em>timeout</em> to determine when to kill a
+test and consider it <em>incompetent</em>. That is, if a test of a mutant takes longer than the timeout, the test is killed,
+and the mutant is marked incompetent.</p>
+<p>You specify a test time through the <code>timeout</code> configuration key. This key specifies an absolute number of seconds that
+a test will be allowed to run. After the timeout is up, the test is killed. For example, to specify that tests should
+timeout after 10 seconds, use:</p>
+<p>.. code-block:: ini</p>
+<p># config.toml
+   [cosmic-ray]
+   timeout = 10</p>
+<hr />
+<h2 id="file-docssourceindexrst">File: /docs/source/index.rst</h2>
+<p>.. Cosmic Ray documentation documentation master file, created by
+   sphinx-quickstart on Fri Oct 27 12:29:41 2017.
+   You can adapt this file completely to your liking, but it should at least
+   contain the root <code>toctree</code> directive.</p>
+<h1 id="cosmic-ray-mutation-testing-for-python">Cosmic Ray: mutation testing for Python</h1>
+<p>"Four human beings -- changed by space-born cosmic rays into something more than merely human."</p>
+<p>-- The Fantastic Four</p>
+<p>Cosmic Ray is a mutation testing tool for Python 3. It makes small changes to your production source code, running your
+test suite for each change. If a test suite passes on mutated code, then you have a mismatch between your tests and your
+functionality. </p>
+<p>Like coverage analysis, mutation testing helps ensure that you're testing all of your code. But while coverage only
+tells you if a line of code is executed, mutation testing will determine if your tests actually check the behavior of your
+code. This adds tremendous value to your test suite by helping it fulfill its primary role: making sure your code
+does what you expect it to do!</p>
+<p>Cosmic Ray has been successfully used on a wide variety of projects ranging from
+assemblers to oil exploration software.</p>
+<h1 id="contents">Contents</h1>
+<p>.. toctree::
+   :maxdepth: 1</p>
+<p>theory
+   tutorials/intro/index
+   tutorials/distributed/index
+   concepts
+   how-tos/index
+   reference/index</p>
+<h1 id="indices-and-tables">Indices and tables</h1>
+<ul>
+<li>:ref:<code>genindex</code></li>
+<li>:ref:<code>modindex</code></li>
+<li>:ref:<code>search</code></li>
+</ul>
+<hr />
+<h2 id="file-docssourcetheoryrst">File: /docs/source/theory.rst</h2>
+<h1 id="theory">Theory</h1>
+<p>Mutation testing is conceptually simple and elegant. You make certain kinds of controlled changes (mutations) to your
+<em>code under test</em> [1]_, and then you run your test suite over this mutated code. If your test suite fails, then we say that
+your tests "killed" (i.e. detected) the mutant. If the changes cause your code to simply crash, then we say the mutant
+is "incompetent". If your test suite passes, however, we say that the mutant has "survived".</p>
+<p>Needless to say, we want to kill all of the mutants.</p>
+<p>The goal of mutation testing is to verify that your test suite is
+actually testing all of the parts of your code that it needs to, and
+that it is doing so in a meaningful way. If a mutant survives your test
+suite, this is an indication that your test suite is not adequately
+checking the code that was changed. This means that either a) you need
+more or better tests or b) you've got code which you don't need.</p>
+<p>You can read more about mutation testing at <code>the repository of all human
+knowledge &lt;https://en.wikipedia.org/wiki/Mutation_testing&gt;</code><strong>. Lionel
+Brian has a <code>nice set of
+slides &lt;http://www.uio.no/studier/emner/matnat/ifi/INF4290/v10/undervisningsmateriale/INF4290-Mutest.pdf&gt;</code></strong>
+introducing mutation testing as well.</p>
+<p>.. [1] By "code under test", we mean the code that your test suite is testing. Mutation testing is trying
+       to ensure that your unaltered test suite can detect explicitly incorrect behavior in your code.</p>
+<hr />
+<h2 id="file-testsresourcesfast_testsreadmemd">File: /tests/resources/fast_tests/README.md</h2>
+<p>This is intended to be a very fast test suite. On some platform (e.g. Windows) we've found that test suites like this
+can run faster than the resolution of the filesystem timestamps. This leads to problems where Python doesn't regenerate
+pycs files when necessary, leading to incorrect mutation testing results. </p>
+<p>We've modified CR to work around these problems, and this test (as driven by the pytest suite) will hopefully detect
+regressions in our workaround.</p>
+<hr />
+<h2 id="file-contributingrst">File: /CONTRIBUTING.rst</h2>
+<p>=================
+How to contribute
+=================</p>
+<p>Third-party patches are welcomed for improving Cosmic Ray. There is plenty of work to be done on bug fixes,
+documentation, new features, and improved tooling.</p>
+<p>Although we want to keep it as easy as possible to contribute changes that
+get things working in your environment, there are a few guidelines that we
+need contributors to follow so that we can have a chance of keeping on
+top of things.</p>
+<h1 id="getting-started">Getting Started</h1>
+<p>The easiest way to help is by submitting issues reporting defects or
+requesting additional features.</p>
+<ul>
+<li>
+<p>Make sure you have a <code>GitHub account &lt;https://github.com/signup/free&gt;</code>_</p>
+</li>
+<li>
+<p>Submit an issue, assuming one does not already exist.</p>
+</li>
+<li>
+<p>Clearly describe the issue including steps to reproduce when it is a bug.</p>
+</li>
+<li>
+<p>If appropriate, include a Cosmic Ray config file and, if possible, some way for us to get access to
+    the code you're working with.</p>
+</li>
+<li>
+<p>Make sure you mention the earliest version that you know has the issue.</p>
+</li>
+<li>
+<p>Fork the repository on GitHub</p>
+</li>
+</ul>
+<h1 id="making-changes">Making Changes</h1>
+<ul>
+<li>You must own the copyright to the patch you're submitting, and be in a
+  position to transfer the copyright to Sixty North by agreeing to the either
+  the |ICLA|
+  (for private individuals) or the |ECLA|
+  (for corporations or other organisations).</li>
+<li>Make small commits in logical units.</li>
+<li>Ensure your code is in the spirit of <code>PEP 8 &lt;https://www.python.org/dev/peps/pep-0008/&gt;</code>_,
+  although we accept that much of what is in PEP 8 are guidelines
+  rather than rules, so we value readability over strict compliance.</li>
+<li>Check for unnecessary whitespace with <code>git diff --check</code> before committing.</li>
+<li>
+<p>Make sure your commit messages are in the proper format::</p>
+<p>Issue #1234 - Make the example in CONTRIBUTING imperative and concrete</p>
+<p>Without this patch applied the example commit message in the CONTRIBUTING
+document is not a concrete example.  This is a problem because the
+contributor is left to imagine what the commit message should look like
+based on a description rather than an example.  This patch fixes the
+problem by making the example concrete and imperative.</p>
+<p>The first line is a real life imperative statement with an issue number
+from our issue tracker.  The body describes the behavior without the patch,
+why this is a problem, and how the patch fixes the problem when applied.</p>
+</li>
+<li>
+<p>Make sure you have added the necessary tests for your changes.</p>
+</li>
+<li>Run <strong>all</strong> the tests to assure nothing else was accidentally broken.</li>
+</ul>
+<h1 id="making-trivial-changes">Making Trivial Changes</h1>
+<h2 id="documentation">Documentation</h2>
+<p>For changes of a trivial nature to comments and documentation, it is not
+always necessary to create a new issue. In this case, it is appropriate
+to start the first line of a commit with 'Doc -' instead of an issue
+number::</p>
+<div class="highlight"><pre><span></span><code>Doc - Add documentation commit example to CONTRIBUTING
+
+There is no example for contributing a documentation commit
+to the Cosmic Ray repository. This is a problem because the contributor
+is left to assume how a commit of this nature may appear.
+
+The first line is a real life imperative statement with &#39;Doc -&#39; in
+place of what would have been the ticket number in a
+non-documentation related commit. The body describes the nature of
+the new documentation or comments added.
+</code></pre></div>
+<h1 id="submitting-changes">Submitting Changes</h1>
+<ul>
+<li>Agree to the |ICLA| or the |ECLA|
+  by attaching a copy of the current CLA to an email (so we know which
+  version you're agreeing to). The body of the message should contain
+  the text "I, <your name>, [representing <your company>] have read the
+  attached CLA and agree to its terms."  Send the email to austin@sixty-north.com</li>
+<li>Push your changes to a topic branch in your fork of the repository.</li>
+<li>Submit a pull request to the repository in the sixty-north organization.</li>
+</ul>
+<h1 id="additional-resources">Additional Resources</h1>
+<ul>
+<li>|ICLA|</li>
+<li>|ECLA|</li>
+<li><code>PEP 8 &lt;https://www.python.org/dev/peps/pep-0008/&gt;</code>_</li>
+<li><code>General GitHub documentation &lt;http://help.github.com/&gt;</code>_</li>
+<li><code>GitHub pull request documentation &lt;http://help.github.com/send-pull-requests/&gt;</code>_</li>
+</ul>
+<p>.. |ICLA| replace:: <code>Individual Contributors License Agreement &lt;https://github.com/sixty-north/cosmic-ray/raw/master/docs/source/legal/cosmic-ray-individual-cla.pdf&gt;</code><strong>
+.. |ECLA| replace:: <code>Entity Contributor License Agreement &lt;https://github.com/sixty-north/cosmic-ray/raw/master/docs/source/legal/cosmic-ray-entity-cla.pdf&gt;</code></strong></p>
+<hr />
+<h2 id="file-readmerst">File: /README.rst</h2>
+<p>|Python version| |Python version windows| |Build Status| |Documentation|</p>
+<h1 id="cosmic-ray-mutation-testing-for-python_1">Cosmic Ray: mutation testing for Python</h1>
+<p>"Four human beings -- changed by space-born cosmic rays into something more than merely human."</p>
+<p>-- The Fantastic Four</p>
+<p>Cosmic Ray is a mutation testing tool for Python 3.</p>
+<p>It makes small changes to your source code, running your test suite for each
+one. Here's how the mutations look:</p>
+<p>.. image:: docs/source/cr-in-action.gif</p>
+<p>|full_documentation|_</p>
+<h2 id="contributing">Contributing</h2>
+<p>The easiest way to contribute is to use Cosmic Ray and submit reports for defects or any other issues you come across.
+Please see CONTRIBUTING.rst for more details.</p>
+<p>.. |Python version| image:: https://img.shields.io/badge/Python_version-3.9+-blue.svg
+   :target: https://www.python.org/
+.. |Python version windows| image:: https://img.shields.io/badge/Python_version_(windows)-3.9+-blue.svg
+   :target: https://www.python.org/
+.. |Build Status| image:: https://github.com/sixty-north/cosmic-ray/actions/workflows/python-package.yml/badge.svg
+   :target: https://github.com/sixty-north/cosmic-ray/actions/workflows/python-package.yml
+.. |Code Health| image:: https://landscape.io/github/sixty-north/cosmic-ray/master/landscape.svg?style=flat
+   :target: https://landscape.io/github/sixty-north/cosmic-ray/master
+.. |Code Coverage| image:: https://codecov.io/gh/sixty-north/cosmic-ray/branch/master/graph/badge.svg
+   :target: https://codecov.io/gh/Vimjas/covimerage/branch/master
+.. |Documentation| image:: https://readthedocs.org/projects/cosmic-ray/badge/?version=latest
+   :target: http://cosmic-ray.readthedocs.org/en/latest/
+.. |full_documentation| replace:: <strong>Read the full documentation at readthedocs.</strong>
+.. _full_documentation: http://cosmic-ray.readthedocs.org/en/latest/</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.7a47a382.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.e71a0d61.min.js"></script>
+      
+        <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>

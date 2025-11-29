@@ -1,0 +1,583 @@
+@article{3d7e6543946e5829b922d6198c64786a76439544,
+title = {RNA secondary structure prediction using an ensemble of two-dimensional deep neural networks and transfer learning},
+year = {2019},
+url = {https://www.semanticscholar.org/paper/3d7e6543946e5829b922d6198c64786a76439544},
+abstract = {S2 TL;DR: The resulting method achieves large, statistically significant improvement in predicting all base pairs, noncanonical and non-nested base pairs in particular, and should be useful for improving RNA structure modeling, sequence alignment, and functional annotations.},
+author = {Jaswinder Singh and Jack Hanson and K. Paliwal and Yaoqi Zhou},
+journal = {Nature Communications},
+volume = {10},
+pages = {null},
+doi = {10.1038/s41467-019-13395-9},
+pmid = {31776342},
+}
+
+@article{85c4c641797a8a21c61ee44e7cf2b2fddde0d11c,
+title = {Direct inference of base-pairing probabilities with neural networks improves RNA secondary structure prediction with pseudoknots},
+year = {2018},
+url = {https://www.semanticscholar.org/paper/85c4c641797a8a21c61ee44e7cf2b2fddde0d11c},
+abstract = {Motivation Existing approaches for predicting RNA secondary structures depend on howto decompose a secondary structure into substructures, so-called the architecture, to define their parameter space. However, the architecture has not been sufficiently investigated especially for pseudoknotted secondary structures. Results In this paper, we propose a novel algorithm to directly infer base-pairing probabilities with neural networks that does not depend on the architecture of RNA secondary structures, followed by performing the maximum expected accuracy (MEA) based decoding algorithms; Nussinov-style decoding for pseudoknot-free structures, and IPknot-style decoding for pseudoknotted structures. To train the neural networks connected to each base-pair, we adopt a max-margin framework, called structured support vector machines (SSVM), as the output layer. Our benchmarks for predicting RNA secondary structures with and without pseudoknots show that our algorithm achieves the best prediction accuracy compared with existing methods. Availability The source code is available at https://github.com/keio-bioinformatics/neuralfold/. Contact satoken@bio.keio.ac.jp},
+author = {Manato Akiyama and Y. Sakakibara and Kengo Sato},
+journal = {bioRxiv},
+volume = {null},
+pages = {null},
+doi = {10.1101/303172},
+}
+
+@article{8eae54d484c815e492b61d3062ced8c901847b0f,
+title = {Single-sequence and profile-based prediction of RNA solvent accessibility using dilated convolutional neural network},
+year = {2020},
+url = {https://www.semanticscholar.org/paper/8eae54d484c815e492b61d3062ced8c901847b0f},
+abstract = {MOTIVATION
+RNA solvent accessibility, similar to protein solvent accessibility, reflects the structural regions that are accessible to solvents or other functional biomolecules, and plays an important role for structural and functional characterization. Unlike protein solvent accessibility, only a few tools are available for predicting RNA solvent accessibility despite the fact that millions of RNA transcripts have unknown structures and functions. Also, these tools have limited accuracy. Here, we have developed RNAsnap2 that uses a dilated convolutional neural network with a new feature, based on predicted base-pairing probabilities from LinearPartition.
+
+
+RESULTS
+Using the same training set from the recent predictor RNAsol, RNAsnap2 provides an 11% improvement in median Pearson Correlation Coefficient (PCC) and 9% improvement in mean absolute errors for the same test set of 45 RNA chains. A larger improvement (22% in median PCC) is observed for 31 newly deposited RNA chains that are non-redundant and independent from the training and the test sets. A single-sequence version of RNAsnap2 (i.e. without using sequence profiles generated from homology search by Infernal) has achieved comparable performance to the profile-based RNAsol. In addition, RNAsnap2 has achieved comparable performance for protein-bound and protein-free RNAs. Both RNAsnap2 and RNAsnap2 (SingleSeq) are expected to be useful for searching structural signatures and locating functional regions of non-coding RNAs.
+
+
+AVAILABILITY AND IMPLEMENTATION
+Standalone-versions of RNAsnap2 and RNAsnap2 (SingleSeq) are available at https://github.com/jaswindersingh2/RNAsnap2. Direct prediction can also be made at https://sparks-lab.org/server/rnasnap2. The datasets used in this research can also be downloaded from the GITHUB and the webserver mentioned above.
+
+
+SUPPLEMENTARY INFORMATION
+Supplementary data are available at Bioinformatics online.},
+author = {Anil Kumar Hanumanthappa and Jaswinder Singh and K. Paliwal and Jaspreet Singh and Yaoqi Zhou},
+journal = {Bioinformatics},
+volume = {null},
+pages = {null},
+doi = {10.1093/bioinformatics/btaa652},
+pmid = {33106872},
+}
+
+@article{ad21fbd5b2676d90c46b2903d9aa7e520e4d90e9,
+title = {Caveats to Deep Learning Approaches to RNA Secondary Structure Prediction},
+year = {2021},
+url = {https://www.semanticscholar.org/paper/ad21fbd5b2676d90c46b2903d9aa7e520e4d90e9},
+abstract = {Machine learning (ML) and in particular deep learning techniques have gained popularity for predicting structures from biopolymer sequences. An interesting case is the prediction of RNA secondary structures, where well established biophysics based methods exist. The accuracy of these classical methods is limited due to lack of experimental parameters and certain simplifying assumptions and has seen little improvement over the last decade. This makes RNA folding an attractive target for machine learning and consequently several deep learning models have been proposed in recent years. However, for ML approaches to be competitive for de-novo structure prediction, the models must not just demonstrate good phenomenological fits, but be able to learn a (complex) biophysical model. In this contribution we discuss limitations of current approaches, in particular due to biases in the training data. Furthermore, we propose to study capabilities and limitations of ML models by first applying them on synthetic data (obtained from a simplified biophysical model) that can be generated in arbitrary amounts and where all biases can be controlled. We assume that a deep learning model that performs well on these synthetic, would also perform well on real data, and vice versa. We apply this idea by testing several ML models of varying complexity. Finally, we show that the best models are capable of capturing many, but not all, properties of RNA secondary structures. Most severely, the number of predicted base pairs scales quadratically with sequence length, even though a secondary structure can only accommodate a linear number of pairs.},
+author = {Christoph Flamm and Julia Wielach and Michael T. Wolfinger and Stefan Badelt and Ronny Lorenz and I. Hofacker},
+journal = {Frontiers in Bioinformatics},
+volume = {2},
+pages = {null},
+doi = {10.1101/2021.12.14.472648},
+pmid = {36304289},
+}
+
+@article{5ab433acca7289e65a795b48a4304d2c5a7b3aff,
+title = {Scalable Deep Learning for RNA Secondary Structure Prediction},
+year = {2023},
+url = {https://www.semanticscholar.org/paper/5ab433acca7289e65a795b48a4304d2c5a7b3aff},
+abstract = {The field of RNA secondary structure prediction has made significant progress with the adoption of deep learning techniques. In this work, we present the RNAformer, a lean deep learning model using axial attention and recycling in the latent space. We gain performance improvements by designing the architecture for modeling the adjacency matrix directly in the latent space and by scaling the size of the model. Our approach achieves state-of-the-art performance on the popular TS0 benchmark dataset and even outperforms methods that use external information. Further, we show experimentally that the RNAformer can learn a biophysical model of the RNA folding process.},
+author = {Jörg K.H. Franke and Frederic Runge and F. Hutter},
+journal = {ArXiv},
+volume = {abs/2307.10073},
+pages = {null},
+doi = {10.48550/arXiv.2307.10073},
+arxivid = {2307.10073},
+}
+
+@article{c66348396cc9cdbb8507c97e01e451a8713b088b,
+title = {bpRNA: large-scale automated annotation and analysis of RNA secondary structure},
+year = {2018},
+url = {https://www.semanticscholar.org/paper/c66348396cc9cdbb8507c97e01e451a8713b088b},
+abstract = {While RNA secondary structure prediction from sequence data has made remarkable progress, there is a need for improved strategies for annotating the features of RNA secondary structures. Here we present bpRNA, a novel annotation tool capable of parsing RNA structures, including complex pseudoknot-containing RNAs, to yield an objective, precise, compact, unambiguous, easily-interpretable description of all loops, stems, and pseudoknots, along with the positions, sequence, and flanking base pairs of each such structural feature. We also introduce several new informative representations of RNA structure types to improve structure visualization and interpretation. We have further used bpRNA to generate a web-accessible meta-database, “bpRNA-1m”, of over 100,000 single-molecule, known secondary structures; this is both more fully and accurately annotated and over 20-times larger than existing databases. We use a subset of the database with highly similar (≥90% identical) sequences filtered out to report on statistical trends in sequence, flanking base pairs, and length. Both the bpRNA method and the bpRNA-1m database will be valuable resources both for specific analysis of individual RNA molecules and large-scale analyses such as are useful for updating RNA energy parameters for computational thermodynamic predictions, improving machine learning models for structure prediction, and for benchmarking structure-prediction algorithms.},
+author = {Padideh Danaee and Mason Rouches and M. Wiley and Dezhong Deng and Liang Huang and D. Hendrix},
+journal = {Nucleic Acids Research},
+volume = {46},
+pages = {5381 - 5394},
+doi = {10.1093/nar/gky285},
+pmid = {29746666},
+}
+
+@article{c906b34bff7a1c90f2d7fdb8c6720cc2c80fb48d,
+title = {Predicting RNA distance-based contact maps by integrated deep learning on physics-inferred secondary structure and evolutionary-derived mutational coupling},
+year = {2022},
+url = {https://www.semanticscholar.org/paper/c906b34bff7a1c90f2d7fdb8c6720cc2c80fb48d},
+abstract = {Abstract Motivation Recently, AlphaFold2 achieved high experimental accuracy for the majority of proteins in Critical Assessment of Structure Prediction (CASP 14). This raises the hope that one day, we may achieve the same feat for RNA structure prediction for those structured RNAs, which is as fundamentally and practically important similar to protein structure prediction. One major factor in the recent advancement of protein structure prediction is the highly accurate prediction of distance-based contact maps of proteins. Results Here, we showed that by integrated deep learning with physics-inferred secondary structures, co-evolutionary information and multiple sequence-alignment sampling, we can achieve RNA contact-map prediction at a level of accuracy similar to that in protein contact-map prediction. More importantly, highly accurate prediction for top L long-range contacts can be assured for those RNAs with a high effective number of homologous sequences (Neff > 50). The initial use of the predicted contact map as distance-based restraints confirmed its usefulness in 3D structure prediction. Availability and implementation SPOT-RNA-2D is available as a web server at https://sparks-lab.org/server/spot-rna-2d/ and as a standalone program at https://github.com/jaswindersingh2/SPOT-RNA-2D. Supplementary information Supplementary data are available at Bioinformatics online.},
+author = {Jaswinder Singh and K. Paliwal and Thomas Litfin and Jaspreet Singh and Yaoqi Zhou},
+journal = {Bioinformatics},
+volume = {38},
+pages = {3900 - 3910},
+doi = {10.1093/bioinformatics/btac421},
+pmid = {35751593},
+}
+
+@article{5fcc1173f0fc667c10f1fc681318018b2640f578,
+title = {Deep generalizable prediction of RNA secondary structure via base pair motif energy},
+year = {2024},
+url = {https://www.semanticscholar.org/paper/5fcc1173f0fc667c10f1fc681318018b2640f578},
+abstract = {RNA secondary structure plays essential roles in modeling RNA tertiary structure and further exploring the function of non-coding RNAs. Computational methods, especially deep learning methods, have demonstrated great potential and performance for RNA secondary structure prediction. However, the generalizability of deep learning models is a common unsolved issue in the situation of unseen out-of-distribution cases, which hinders the further improvement of accuracy and robustness of deep learning methods. Here we construct a base pair motif library which enumerates the complete space of locally adjacent three-neighbor base pair and records the thermodynamic energy of corresponding base pair motifs through de novo modeling of tertiary structures, and we further develop a deep learning approach for RNA secondary structure prediction, named BPfold, which employs hybrid transformer and convolutional neural network architecture and an elaborately designed base pair attention block to jointly learn representative features and relationship between RNA sequence and the energy map of base pair motif generated from the above motif library. Quantitative and qualitative experiments on sequence-wise datasets and family-wise datasets have demonstrated the great superiority of BPfold compared to other state-of-the-art approaches in both accuracy and generalizability. The significant performance of BPfold will greatly boost the development of deep learning methods for predicting RNA secondary structure and the further discovery of RNA structures and functionalities.},
+author = {Heqin Zhu and Fenghe Tang and Quan Quan and Ke Chen and Peng Xiong and S. K. Zhou},
+journal = {bioRxiv},
+volume = {null},
+pages = {null},
+doi = {10.1101/2024.10.22.619430},
+}
+
+@article{0fdcac161edd8c49c0fcc4c1ad3c22db4a0207f9,
+title = {Improved RNA secondary structure and tertiary base-pairing prediction using evolutionary profile, mutational coupling and two-dimensional transfer learning},
+year = {2021},
+url = {https://www.semanticscholar.org/paper/0fdcac161edd8c49c0fcc4c1ad3c22db4a0207f9},
+abstract = {MOTIVATION
+The recent discovery of numerous non-coding RNAs (long non-coding RNAs, in particular) has transformed our perception about the roles of RNAs in living organisms. Our ability to understand them, however, is hampered by our inability to solve their secondary and tertiary structures in high resolution efficiently by existing experimental techniques. Computational prediction of RNA secondary structure, on the other hand, has received much-needed improvement, recently, through deep learning of a large approximate data, followed by transfer learning with gold-standard base-pairing structures from high-resolution 3-D structures. Here, we expand this single-sequence-based learning to the use of evolutionary profiles and mutational coupling.
+
+
+RESULTS
+The new method allows large improvement not only in canonical base-pairs (RNA secondary structures) but more so in base-pairing associated with tertiary interactions such as pseudoknots, noncanonical and lone base-pairs. In particular, it is highly accurate for those RNAs of more than 1000 homologous sequences by achieving >0.8 F1-score (harmonic mean of sensitivity and precision) for 14/16 RNAs tested. The method can also significantly improve base-pairing prediction by incorporating artificial but functional homologous sequences generated from deep mutational scanning without any modification. The fully automatic method (publicly available as server and standalone software) should provide the scientific community a new powerful tool to capture not only the secondary structure but also tertiary base-pairing information for building three-dimensional models. It also highlights the future of accurately solving the base-pairing structure by using a large number of natural and/or artificial homologous sequences.
+
+
+AVAILABILITY
+Standalone-version of SPOT-RNA2 is available at https://github.com/jaswindersingh2/SPOT-RNA2. Direct prediction can also be made at https://sparks-lab.org/server/spot-rna2/. The datasets used in this research can also be downloaded from the GITHUB and the webserver mentioned above.},
+author = {Jaswinder Singh and K. Paliwal and Tongchuan Zhang and Jaspreet Singh and Thomas Litfin and Yaoqi Zhou},
+journal = {Bioinformatics},
+volume = {null},
+pages = {null},
+doi = {10.1093/bioinformatics/btab165},
+pmid = {33704363},
+}
+
+@article{0bcb5fb40d4a636ece43352c3a1dd63c136c3992,
+title = {Deep learning models for RNA secondary structure prediction (probably) do not generalize across families},
+year = {2022},
+url = {https://www.semanticscholar.org/paper/0bcb5fb40d4a636ece43352c3a1dd63c136c3992},
+abstract = {Motivation The secondary structure of RNA is of importance to its function. Over the last few years, several papers attempted to use machine learning to improve de novo RNA secondary structure prediction. Many of these papers report impressive results for intra-family predictions, but seldom address the much more difficult (and practical) inter-family problem. Results We demonstrate it is nearly trivial with convolutional neural networks to generate pseudo-free energy changes, modeled after structure mapping data, that improve the accuracy of structure prediction for intra-family cases. We propose a more rigorous method for inter-family cross-validation that can be used to assess the performance of learning-based models. Using this method, we further demonstrate that intra-family performance is insufficient proof of generalisation despite the widespread assumption in the literature, and provide strong evidence that many existing learning-based models have not generalised inter-family. Availability Source code and data is available at https://github.com/marcellszi/dl-rna.},
+author = {Marcell Szikszai and Michael Wise and A. Datta and Max Ward and D. Mathews},
+journal = {Bioinformatics},
+volume = {38},
+pages = {3892 - 3899},
+doi = {10.1101/2022.03.21.485135},
+pmid = {35748706},
+}
+
+@article{5dfa27ce1f44464464818b757e16739d99c8e1f2,
+title = {Exact calculation of loop formation probability identifies folding motifs in RNA secondary structures},
+year = {2016},
+url = {https://www.semanticscholar.org/paper/5dfa27ce1f44464464818b757e16739d99c8e1f2},
+abstract = {RNA secondary structure prediction is widely used to analyze RNA sequences. In an RNA partition function calculation, free energy nearest neighbor parameters are used in a dynamic programming algorithm to estimate statistical properties of the secondary structure ensemble. Previously, partition functions have largely been used to estimate the probability that a given pair of nucleotides form a base pair, the conditional stacking probability, the accessibility to binding of a continuous stretch of nucleotides, or a representative sample of RNA structures. Here it is demonstrated that an RNA partition function can also be used to calculate the exact probability of formation of hairpin loops, internal loops, bulge loops, or multibranch loops at a given position. This calculation can also be used to estimate the probability of formation of specific helices. Benchmarking on a set of RNA sequences with known secondary structures indicated that loops that were calculated to be more probable were more likely to be present in the known structure than less probable loops. Furthermore, highly probable loops are more likely to be in the known structure than the set of loops predicted in the lowest free energy structures.},
+author = {Michael F. Sloma and D. Mathews},
+journal = {RNA},
+volume = {22},
+pages = {1808 - 1818},
+doi = {10.1261/rna.053694.115},
+pmid = {27852924},
+}
+
+@article{687c4c39473cd3265d0825bf7b0b9cf4a61ffe6e,
+title = {A New Method of RNA Secondary Structure Prediction Based on Convolutional Neural Network and Dynamic Programming},
+year = {2019},
+url = {https://www.semanticscholar.org/paper/687c4c39473cd3265d0825bf7b0b9cf4a61ffe6e},
+abstract = {In recent years, obtaining RNA secondary structure information has played an important role in RNA and gene function research. Although some RNA secondary structures can be gained experimentally, in most cases, efficient, and accurate computational methods are still needed to predict RNA secondary structure. Current RNA secondary structure prediction methods are mainly based on the minimum free energy algorithm, which finds the optimal folding state of RNA in vivo using an iterative method to meet the minimum energy or other constraints. However, due to the complexity of biotic environment, a true RNA structure always keeps the balance of biological potential energy status, rather than the optimal folding status that meets the minimum energy. For short sequence RNA its equilibrium energy status for the RNA folding organism is close to the minimum free energy status; therefore, the minimum free energy algorithm for predicting RNA secondary structure has higher accuracy. Nevertheless, in a longer sequence RNA, constant folding causes its biopotential energy balance to deviate far from the minimum free energy status. This deviation is because of its complex structure and results in a serious decline in the prediction accuracy of its secondary structure. In this paper, we propose a novel RNA secondary structure prediction algorithm using a convolutional neural network model combined with a dynamic programming method to improve the accuracy with large-scale RNA sequence and structure data. We analyze current experimental RNA sequences and structure data to construct a deep convolutional network model, and then we extract implicit features of an effective classification from large-scale data to predict the pairing probability of each base in an RNA sequence. For the obtained probabilities of RNA sequence base pairing, an enhanced dynamic programming method is applied to obtain the optimal RNA secondary structure. Results indicate that our proposed method is superior to the common RNA secondary structure prediction algorithms in predicting three benchmark RNA families. Based on the characteristics of deep learning algorithm, it can be inferred that the method proposed in this paper has a 30% higher prediction success rate when compared with other algorithms, which will be needed as the amount of real RNA structure data increases in the future.},
+author = {Hao Zhang and Chunhe Zhang and Zhi Li and Cong Li and Xu-Bin Wei and Borui Zhang and Yuanning Liu},
+journal = {Frontiers in Genetics},
+volume = {10},
+pages = {null},
+doi = {10.3389/fgene.2019.00467},
+pmid = {31191603},
+}
+
+@article{c31acacff84d03c83187d8ea361f1c17e66c2ace,
+title = {Deciphering RNA Secondary Structure Prediction: A Probabilistic K-Rook Matching Perspective},
+year = {2022},
+url = {https://www.semanticscholar.org/paper/c31acacff84d03c83187d8ea361f1c17e66c2ace},
+abstract = {The secondary structure of ribonucleic acid (RNA) is more stable and accessible in the cell than its tertiary structure, making it essential for functional prediction. Although deep learning has shown promising results in this field, current methods suffer from poor generalization and high complexity. In this work, we reformulate the RNA secondary structure prediction as a K-Rook problem, thereby simplifying the prediction process into probabilistic matching within a finite solution space. Building on this innovative perspective, we introduce RFold, a simple yet effective method that learns to predict the most matching K-Rook solution from the given sequence. RFold employs a bi-dimensional optimization strategy that decomposes the probabilistic matching problem into row-wise and column-wise components to reduce the matching complexity, simplifying the solving process while guaranteeing the validity of the output. Extensive experiments demonstrate that RFold achieves competitive performance and about eight times faster inference efficiency than the state-of-the-art approaches. The code and Colab demo are available in (http://github.com/A4Bio/RFold).},
+author = {Cheng Tan and Zhangyang Gao and Hanqun Cao and Xingran Chen and Ge Wang and Lirong Wu and Jun Xia and Jiangbin Zheng and Stan Z. Li},
+arxivid = {2212.14041},
+}
+
+@article{3aec8d65f4879bb9615fc09c3839036b60425b75,
+title = {LinearFold: linear-time approximate RNA folding by 5'-to-3' dynamic programming and beam search},
+year = {2019},
+url = {https://www.semanticscholar.org/paper/3aec8d65f4879bb9615fc09c3839036b60425b75},
+abstract = {Abstract Motivation Predicting the secondary structure of an ribonucleic acid (RNA) sequence is useful in many applications. Existing algorithms [based on dynamic programming] suffer from a major limitation: their runtimes scale cubically with the RNA length, and this slowness limits their use in genome-wide applications. Results We present a novel alternative O(n3)-time dynamic programming algorithm for RNA folding that is amenable to heuristics that make it run in O(n) time and O(n) space, while producing a high-quality approximation to the optimal solution. Inspired by incremental parsing for context-free grammars in computational linguistics, our alternative dynamic programming algorithm scans the sequence in a left-to-right (5′-to-3′) direction rather than in a bottom-up fashion, which allows us to employ the effective beam pruning heuristic. Our work, though inexact, is the first RNA folding algorithm to achieve linear runtime (and linear space) without imposing constraints on the output structure. Surprisingly, our approximate search results in even higher overall accuracy on a diverse database of sequences with known structures. More interestingly, it leads to significantly more accurate predictions on the longest sequence families in that database (16S and 23S Ribosomal RNAs), as well as improved accuracies for long-range base pairs (500+ nucleotides apart), both of which are well known to be challenging for the current models. Availability and implementation Our source code is available at https://github.com/LinearFold/LinearFold, and our webserver is at http://linearfold.org (sequence limit: 100 000nt). Supplementary information Supplementary data are available at Bioinformatics online.},
+author = {Liang Huang and He Zhang and Dezhong Deng and Kai Zhao and Kaibo Liu and D. Hendrix and D. Mathews},
+journal = {Bioinformatics},
+volume = {35},
+pages = {i295 - i304},
+doi = {10.1093/bioinformatics/btz375},
+pmid = {31510672},
+arxivid = {2001.04020},
+}
+
+@article{8ca6a3eb9436019c2dec8ebe26b2e6e9c0426082,
+title = {DMfold: A Novel Method to Predict RNA Secondary Structure With Pseudoknots Based on Deep Learning and Improved Base Pair Maximization Principle},
+year = {2019},
+url = {https://www.semanticscholar.org/paper/8ca6a3eb9436019c2dec8ebe26b2e6e9c0426082},
+abstract = {While predicting the secondary structure of RNA is vital for researching its function, determining RNA secondary structure is challenging, especially for that with pseudoknots. Typically, several excellent computational methods can be utilized to predict the secondary structure (with or without pseudoknots), but they have their own merits and demerits. These methods can be classified into two categories: the multi-sequence method and the single-sequence method. The main advantage of the multi-sequence method lies in its use of the auxiliary sequences to assist in predicting the secondary structure, but it can only successfully predict in the presence of multiple highly homologous sequences. The single-sequence method is associated with the major merit of easy operation (only need the target sequence to predict secondary structure), but its folding parameters are the common features of diversity RNA, which cannot describe the unique characteristics of RNA, thus potentially resulting in the low prediction accuracy in some RNA. In this paper, “DMfold,” a method based on the Deep Learning and Improved Base Pair Maximization Principle, is proposed to predict the secondary structure with pseudoknots, which fully absorbs the advantages and avoids some disadvantages of those two methods. Notably, DMfold could predict the secondary structure of RNA by learning similar RNA in the known structures, which uses the similar RNA sequences instead of the highly homogeneous sequences in the multi-sequence method, thereby reducing the requirement for auxiliary sequences. In DMfold, it only needs to input the target sequence to predict the secondary structure. Its folding parameters are fully extracted automatically by deep learning, which could avoid the lack of folding parameters in the single-sequence method. Experiments show that our method is not only simple to operate, but also improves the prediction accuracy compared to multiple excellent prediction methods. A repository containing our code can be found at https://github.com/linyuwangPHD/RNA-Secondary-Structure-Database.},
+author = {Linyu Wang and Yuanning Liu and Xiaodan Zhong and Haiming Liu and Chao Lu and Cong Li and Hao Zhang},
+journal = {Frontiers in Genetics},
+volume = {10},
+pages = {null},
+doi = {10.3389/fgene.2019.00143},
+pmid = {30886627},
+}
+
+@article{b8fb507b780e6fd62ab9a5983155fc5ed791cda9,
+title = {UFold: fast and accurate RNA secondary structure prediction with deep learning},
+year = {2020},
+url = {https://www.semanticscholar.org/paper/b8fb507b780e6fd62ab9a5983155fc5ed791cda9},
+abstract = {For many RNA molecules, the secondary structure is essential for the correction function of the RNA. Predicting RNA secondary structure from nucleotide sequences is a long-standing problem in genomics, but the prediction performance has reached a plateau over time. Traditional RNA secondary structure prediction algorithms are primarily based on thermodynamic models through free energy minimization. Here we propose a deep learning-based method, called UFold, for RNA secondary structure prediction, trained directly on annotated data without any thermodynamic assumptions. UFold improves substantially upon previous models, with approximately 31% improvement over traditional thermodynamic models and 24.5% improvement over other learning-based methods. It achieves an F1 score of 0.96 on base pair prediction accuracy. An online web server running UFold is publicly available at http://ufold.ics.uci.edu.},
+author = {Laiyi Fu and Yingxin Cao and Jie Wu and Qinke Peng and Q. Nie and Xiaohui S. Xie},
+journal = {Nucleic Acids Research},
+volume = {50},
+pages = {e14 - e14},
+doi = {10.1101/2020.08.17.254896},
+pmid = {34792173},
+}
+
+@article{b967a1590e8b49002b67bd8ee43126d9d5bec15d,
+title = {Direct Inference of Base-Pairing Probabilities with Neural Networks Improves Prediction of RNA Secondary Structures with Pseudoknots},
+year = {2022},
+url = {https://www.semanticscholar.org/paper/b967a1590e8b49002b67bd8ee43126d9d5bec15d},
+abstract = {Existing approaches to predicting RNA secondary structures depend on how the secondary structure is decomposed into substructures, that is, the architecture, to define their parameter space. However, architecture dependency has not been sufficiently investigated, especially for pseudoknotted secondary structures. In this study, we propose a novel algorithm for directly inferring base-pairing probabilities with neural networks that do not depend on the architecture of RNA secondary structures, and then implement this approach using two maximum expected accuracy (MEA)-based decoding algorithms: Nussinov-style decoding for pseudoknot-free structures and IPknot-style decoding for pseudoknotted structures. To train the neural networks connected to each base pair, we adopt a max-margin framework, called structured support vector machines (SSVM), as the output layer. Our benchmarks for predicting RNA secondary structures with and without pseudoknots show that our algorithm outperforms existing methods in prediction accuracy.},
+author = {Manato Akiyama and Y. Sakakibara and Kengo Sato},
+journal = {Genes},
+volume = {13},
+pages = {null},
+doi = {10.3390/genes13112155},
+pmid = {36421829},
+}
+
+@article{2a6ddef855e0fc8a2276798f88ecc902ad1ad580,
+title = {Recent trends in RNA informatics: a review of machine learning and deep learning for RNA secondary structure prediction and RNA drug discovery},
+year = {2023},
+url = {https://www.semanticscholar.org/paper/2a6ddef855e0fc8a2276798f88ecc902ad1ad580},
+abstract = {Abstract Computational analysis of RNA sequences constitutes a crucial step in the field of RNA biology. As in other domains of the life sciences, the incorporation of artificial intelligence and machine learning techniques into RNA sequence analysis has gained significant traction in recent years. Historically, thermodynamics-based methods were widely employed for the prediction of RNA secondary structures; however, machine learning-based approaches have demonstrated remarkable advancements in recent years, enabling more accurate predictions. Consequently, the precision of sequence analysis pertaining to RNA secondary structures, such as RNA–protein interactions, has also been enhanced, making a substantial contribution to the field of RNA biology. Additionally, artificial intelligence and machine learning are also introducing technical innovations in the analysis of RNA–small molecule interactions for RNA-targeted drug discovery and in the design of RNA aptamers, where RNA serves as its own ligand. This review will highlight recent trends in the prediction of RNA secondary structure, RNA aptamers and RNA drug discovery using machine learning, deep learning and related technologies, and will also discuss potential future avenues in the field of RNA informatics.},
+author = {Kengo Sato and Michiaki Hamada},
+journal = {Briefings in Bioinformatics},
+volume = {24},
+pages = {null},
+doi = {10.1093/bib/bbad186},
+pmid = {37232359},
+}
+
+@article{d5b78078c432369f8ff4de5b3e6eafdc08d7a173,
+title = {CONTRAfold: RNA secondary structure prediction without physics-based models},
+year = {2006},
+url = {https://www.semanticscholar.org/paper/d5b78078c432369f8ff4de5b3e6eafdc08d7a173},
+abstract = {MOTIVATION
+For several decades, free energy minimization methods have been the dominant strategy for single sequence RNA secondary structure prediction. More recently, stochastic context-free grammars (SCFGs) have emerged as an alternative probabilistic methodology for modeling RNA structure. Unlike physics-based methods, which rely on thousands of experimentally-measured thermodynamic parameters, SCFGs use fully-automated statistical learning algorithms to derive model parameters. Despite this advantage, however, probabilistic methods have not replaced free energy minimization methods as the tool of choice for secondary structure prediction, as the accuracies of the best current SCFGs have yet to match those of the best physics-based models.
+
+
+RESULTS
+In this paper, we present CONTRAfold, a novel secondary structure prediction method based on conditional log-linear models (CLLMs), a flexible class of probabilistic models which generalize upon SCFGs by using discriminative training and feature-rich scoring. In a series of cross-validation experiments, we show that grammar-based secondary structure prediction methods formulated as CLLMs consistently outperform their SCFG analogs. Furthermore, CONTRAfold, a CLLM incorporating most of the features found in typical thermodynamic models, achieves the highest single sequence prediction accuracies to date, outperforming currently available probabilistic and physics-based techniques. Our result thus closes the gap between probabilistic and thermodynamic models, demonstrating that statistical learning procedures provide an effective alternative to empirical measurement of thermodynamic parameters for RNA secondary structure prediction.
+
+
+AVAILABILITY
+Source code for CONTRAfold is available at http://contra.stanford.edu/contrafold/.},
+author = {Chuong B. Do and Daniel A. Woods and S. Batzoglou},
+journal = {Bioinformatics},
+volume = {22 14},
+pages = {
+          e90-8
+        },
+doi = {10.1093/bioinformatics/btl246},
+pmid = {16873527},
+}
+
+@article{dbaee2b312ac358ce827a175fcaa33e109f354e5,
+title = {RFold: RNA Secondary Structure Prediction with Decoupled Optimization},
+year = {2023},
+url = {https://www.semanticscholar.org/paper/dbaee2b312ac358ce827a175fcaa33e109f354e5},
+abstract = {The secondary structure of ribonucleic acid (RNA) is more stable and accessible in the cell than its tertiary structure, making it essential for functional prediction. Although deep learning has shown promising results in this ﬁeld, current methods suffer from poor generalization and high complexity. In this work, we present RFold, a simple yet effective RNA secondary structure prediction in an end-to-end manner. RFold introduces a decoupled optimization process that decomposes the vanilla constraint satisfaction problem into row-wise and column-wise optimization, simplifying the solving process while guaranteeing the validity of the output. Moreover, RFold adopts attention maps as informative representations instead of designing hand-crafted features. Extensive experiments demonstrate that RFold achieves competitive performance and about eight times faster inference efﬁciency than the state-of-the-art method. The code and Colab demo are available in http://github.com/A4Bio/RFold.},
+author = {Cheng Tan and Zhangyang Gao and Stan Z. Li},
+}
+
+@article{d79b6f0699626ad3468f42c078e63e52c31ec7ab,
+title = {ML-Based RNA Secondary Structure Prediction Methods: A Survey},
+year = {2024},
+url = {https://www.semanticscholar.org/paper/d79b6f0699626ad3468f42c078e63e52c31ec7ab},
+abstract = {Article
+ML-Based RNA Secondary Structure Prediction Methods: A Survey
+
+Qi Zhao 1, Jingjing Chen 1, Zheng Zhao 2, Qian Mao 3, Haoxuan Shi 1 and Xiaoya Fan 4,∗
+
+
+1 School of Medicine and Biological Information Engineering, Northeastern University, Shenyang 110000, China
+2 School of Artificial Intelligence, Dalian Maritime University, Dalian 116000, China
+3 Department of Food Science and Engineering, College of Light Industry, Liaoning University, Shenyang 110000, China
+4 School of Software, Dalian University of Technology, Key Laboratory for Ubiquitous Network and Service Software, Dalian 116000, China
+∗ Correspondence: xiaoyafan@dlut.edu.cn
+Received: 6 May 2024; Revised: 17 October 2024; Accepted: 22 October 2024; Published: 29 October 2024
+ 
+
+Abstract: The secondary structure of noncoding RNAs (ncRNA) is significantly related to their functions, emphasizing the importance and value of identifying ncRNA secondary structure. Computational prediction methods have been widely used in this field. However, the performance of existing computational methods has plateaued in recent years despite various advancements. Fortunately, the emergence of machine learning, particularly deep learning, has brought new hope to this field. In this review, we present a comprehensive overview of machine learning-based methods for predicting RNA secondary structures, with a particular emphasis on deep learning approaches. Additionally, we discuss the current challenges and prospects in RNA secondary structure prediction.},
+author = {Qi Zhao and JingJing Chen and Zheng Zhao and Qian Mao and Haoxuan Shi and Xiaoya Fan},
+journal = {AI Medicine},
+volume = {null},
+pages = {null},
+doi = {10.53941/aim.2024.100006},
+}
+
+@article{305570cbac65d65b594d703b5bec2fca3c6f1b91,
+title = {TurboFold II: RNA structural alignment and secondary structure prediction informed by multiple homologs},
+year = {2017},
+url = {https://www.semanticscholar.org/paper/305570cbac65d65b594d703b5bec2fca3c6f1b91},
+abstract = {Abstract This paper presents TurboFold II, an extension of the TurboFold algorithm for predicting secondary structures for multiple RNA homologs. TurboFold II augments the structure prediction capabilities of TurboFold by additionally providing multiple sequence alignments. Probabilities for alignment of nucleotide positions between all pairs of input sequences are iteratively estimated in TurboFold II by incorporating information from both the sequence identity and secondary structures. A multiple sequence alignment is obtained from these probabilities by using a probabilistic consistency transformation and a hierarchically computed guide tree. To assess TurboFold II, its sequence alignment and structure predictions were compared with leading tools, including methods that focus on alignment alone and methods that provide both alignment and structure prediction. TurboFold II has comparable alignment accuracy with MAFFT and higher accuracy than other tools. TurboFold II also has comparable structure prediction accuracy as the original TurboFold algorithm, which is one of the most accurate methods. TurboFold II is part of the RNAstructure software package, which is freely available for download at http://rna.urmc.rochester.edu under a GPL license.},
+author = {Zhen Tan and Yinghan Fu and Gaurav Sharma and D. Mathews},
+journal = {Nucleic Acids Research},
+volume = {45},
+pages = {11570 - 11581},
+doi = {10.1093/nar/gkx815},
+pmid = {29036420},
+}
+
+@article{bf881e2c429132100fd89288ebb1ad0b3dbc57cf,
+title = {RFold: Towards Simple yet Effective RNA Secondary Structure Prediction},
+year = {2022},
+url = {https://www.semanticscholar.org/paper/bf881e2c429132100fd89288ebb1ad0b3dbc57cf},
+abstract = {The secondary structure of ribonucleic acid (RNA) is more stable and accessible in the cell than its tertiary structure, making it essential in functional prediction. Though deep learning has shown promising results in this ﬁeld, current methods suffer from either the post-processing step with a poor generalization or the pre-processing step with high complexity. In this work, we present RFold, a simple yet effective RNA secondary structure prediction in an end-to-end manner. RFold introduces novel Row-Col Softmax and Row-Col Argmax functions to replace the complicated post-processing step while the output is guaranteed to be valid. Moreover, RFold adopts attention maps as informative representations instead of designing hand-crafted features in the pre-processing step. Extensive experiments demonstrate that RFold achieves competitive performance and about eight times faster inference efﬁciency than the state-of-the-art method. The code and Colab demo are available in github.com/A4Bio/RFold.},
+author = {Cheng Tan and Zhangyang Gao and Stan Z. Li},
+journal = {ArXiv},
+volume = {abs/2212.14041},
+pages = {null},
+doi = {10.48550/arXiv.2212.14041},
+}
+
+@article{04d3b5f7c28c913d71d4579e7ad19d5778369e31,
+title = {Improved RNA homology detection and alignment by automatic iterative search in an expanded database},
+year = {2022},
+url = {https://www.semanticscholar.org/paper/04d3b5f7c28c913d71d4579e7ad19d5778369e31},
+abstract = {Unlike 20-letter-coded proteins, RNA homologous sequences are notoriously difficult to detect because their 4-letter-coded sequences can quickly lose their sequence identity. As a result, employing secondary structures has been found necessary to improve the sensitivity and the accuracy of homolog search. However, exact secondary structures often are not known. As a result, Rfam, the de facto gold-standard of RNA homologous families, has to rely on manual curation and experimental secondary structure if available. Here, we showed that using a combination of BLAST and iterative INFERNAL searches along with an expanded sequence database leads multiple sequence alignments (MSA) that are comparable to those provided by Rfam MSAs, according to secondary structure extracted from mutational coupling analysis and alignment accuracy when compared to structure alignment. The fully automatic tool (RNAcmap2) allows making homolog search, multiple sequence alignment, and mutational coupling analysis for any non-Rfam RNA sequences with Rfam-like performance.},
+author = {Jaswinder Singh and K. Paliwal and Jaspreet Singh and Thomas Litfin and Yaoqi Zhou},
+journal = {bioRxiv},
+volume = {null},
+pages = {null},
+doi = {10.1101/2022.10.03.510702},
+}
+
+@article{955fe6f43da226c848be66d61e0d58cde4371233,
+title = {RNAcmap: a fully automatic pipeline for predicting contact maps of RNAs by evolutionary coupling analysis},
+year = {2021},
+url = {https://www.semanticscholar.org/paper/955fe6f43da226c848be66d61e0d58cde4371233},
+abstract = {MOTIVATION
+The accuracy of RNA secondary and tertiary structure prediction can be significantly improved by using structural restraints derived from evolutionary coupling or direct coupling analysis. Currently, these coupling analyses relied on manually curated multiple sequence alignments collected in the Rfam database, which contains 3016 families. By comparison, millions of non-coding RNA sequences are known. Here, we established RNAcmap, a fully automatic pipeline that enables evolutionary coupling analysis for any RNA sequences. The homology search was based on the covariance model built by INFERNAL according to two secondary structure predictors: a folding-based algorithm RNAfold and the latest deep-learning method SPOT-RNA.
+
+
+RESULTS
+We showed that the performance of RNAcmap is less dependent on the specific evolutionary coupling tool but is more dependent on the accuracy of secondary structure predictor with the best performance given by RNAcmap (SPOT-RNA). The performance of RNAcmap (SPOT-RNA) is comparable to that based on Rfam-supplied alignment and consistent for those sequences that are not in Rfam collections. Further improvement can be made with a simple meta predictor RNAcmap (SPOT-RNA/RNAfold) depending on which secondary structure predictor can find more homologous sequences. Reliable base-pairing information generated from RNAcmap, for RNAs with high effective homologous sequences, in particular, will be useful for aiding RNA structure prediction.
+
+
+AVAILABILITY
+RNAcmap is available as a web server at https://sparks-lab.org/server/rnacmap/ and as a standalone application along with the datasets at https://github.com/sparks-lab-org/RNAcmap_standalone. A platform independent and fully configured docker image of RNAcmap is also provided at https://hub.docker.com/r/jaswindersingh2/rnacmap.},
+author = {Tongchuan Zhang and Jaswinder Singh and Thomas Litfin and Jian Zhan and K. Paliwal and Yaoqi Zhou},
+journal = {Bioinformatics},
+volume = {null},
+pages = {null},
+doi = {10.1093/bioinformatics/btab391},
+pmid = {34021744},
+}
+
+@article{1018b433d1370f25a225224da491a6853988dd66,
+title = {RNADiffFold: generative RNA secondary structure prediction using discrete diffusion models},
+year = {2024},
+url = {https://www.semanticscholar.org/paper/1018b433d1370f25a225224da491a6853988dd66},
+abstract = {RNA molecules are essential macromolecules that perform diverse biological functions in living beings. Precise prediction of RNA secondary structures is instrumental in deciphering their complex three-dimensional architecture and functionality. Traditional methodologies for RNA structure prediction, including energy-based and learning-based approaches, often depict RNA secondary structures from a static perspective and rely on stringent a priori constraints. Inspired by the success of diffusion models, in this work, we introduce RNADiffFold, an innovative generative prediction approach of RNA secondary structures based on multinomial diffusion. We reconceptualize the prediction of contact maps as akin to pixel-wise segmentation and accordingly train a denoising model to refine the contact maps starting from a noise-infused state progressively. We also devise a potent conditioning mechanism that harnesses features extracted from RNA sequences to steer the model toward generating an accurate secondary structure. These features encompass one-hot encoded sequences, probabilistic maps generated from a pre-trained scoring network, and embeddings and attention maps derived from RNA-FM. Experimental results on both within- and cross-family datasets demonstrate RNADiffFold’s competitive performance compared with current state-of-the-art methods. Additionally, RNADiffFold has shown a notable proficiency in capturing the dynamic aspects of RNA structures, a claim corroborated by its performance on datasets comprising multiple conformations.},
+author = {Zhen Wang and Yizhen Feng and Qingwen Tian and Ziqi Liu and Pengju Yan and Xiaolin Li},
+journal = {Briefings in Bioinformatics},
+volume = {26},
+pages = {null},
+doi = {10.1101/2024.05.28.596177},
+pmid = {39581872},
+}
+
+@article{5d6cff0177271273a166b3c675a972d044c568cd,
+title = {RNA secondary structure prediction using deep learning with thermodynamic integration},
+year = {2020},
+url = {https://www.semanticscholar.org/paper/5d6cff0177271273a166b3c675a972d044c568cd},
+abstract = {S2 TL;DR: It is shown that overfitting can be minimized when RNA folding scores learnt using a deep neural network are integrated together with Turner’s nearest-neighbor free energy parameters, suggesting that integrating thermodynamic information could help improve the robustness of deep learning-based predictions of RNA secondary structure.},
+author = {Kengo Sato and Manato Akiyama and Y. Sakakibara},
+journal = {Nature Communications},
+volume = {12},
+pages = {null},
+doi = {10.1038/s41467-021-21194-4},
+pmid = {33574226},
+}
+
+@article{88ae17509a06d1726e2e1a0b3b4bdc0e92461b36,
+title = {RNAcmap: A Fully Automatic Method for Predicting Contact Maps of RNAs by Evolutionary Coupling Analysis},
+year = {2020},
+url = {https://www.semanticscholar.org/paper/88ae17509a06d1726e2e1a0b3b4bdc0e92461b36},
+abstract = {Motivation The accuracy of RNA secondary and tertiary structure prediction can be significantly improved by using structural restraints derived from evolutionary or direct coupling analysis. Currently, these coupling analyses relied on manually curated multiple sequence alignments collected in the Rfam database, which contains 3016 families. By comparison, millions of non-coding RNA sequences are known. Here, we established RNAcmap, a fully automatic method that enables evolutionary coupling analysis for any RNA sequences. The homology search was based on the covariance model built by Infernal according to two secondary structure predictors: a folding-based algorithm RNAfold and the latest deep-learning method SPOT-RNA. Results We show that the performance of RNAcmap is less dependent on the specific evolutionary coupling tool but is more dependent on the accuracy of secondary structure predictor with the best performance given by RNAcmap (SPOT-RNA). The performance of RNAcmap (SPOT-RNA) is comparable to that based on Rfam-supplied alignment and consistent for those sequences that are not in Rfam collections. Further improvement can be made with a simple meta predictor RNAcmap (SPOT-RNA/RNAfold) depending on which secondary structure predictor can find more homologous sequences. Reliable base-pairing information generated from RNAcmap, for RNAs with high effective homologous sequences, in particular, will be useful for aiding RNA structure prediction. Availability and implementation RNAcmap is available as a web server at https://sparks-lab.org/server/rnacmap/) and as a standalone application along with the datasets at https://github.com/sparks-lab-org/RNAcmap.},
+author = {Tongchuan Zhang and Jaswinder Singh and Thomas Litfin and Jian Zhan and K. Paliwal and Yaoqi Zhou},
+journal = {bioRxiv},
+volume = {null},
+pages = {null},
+doi = {10.1101/2020.08.08.242636},
+}
+
+@article{cc9dc50dfd216067bbf7b5f3cac6096d1c6128d8,
+title = {RNA Secondary Structure Prediction By Learning Unrolled Algorithms},
+year = {2020},
+url = {https://www.semanticscholar.org/paper/cc9dc50dfd216067bbf7b5f3cac6096d1c6128d8},
+abstract = {In this paper, we propose an end-to-end deep learning model, called E2Efold, for RNA secondary structure prediction which can effectively take into account the inherent constraints in the problem. The key idea of E2Efold is to directly predict the RNA base-pairing matrix, and use an unrolled algorithm for constrained programming as the template for deep architectures to enforce constraints. With comprehensive experiments on benchmark datasets, we demonstrate the superior performance of E2Efold: it predicts significantly better structures compared to previous SOTA (especially for pseudoknotted structures), while being as efficient as the fastest algorithms in terms of inference time.},
+author = {Xinshi Chen and Yu Li and Ramzan Umarov and Xin Gao and Le Song},
+journal = {ArXiv},
+volume = {abs/2002.05810},
+pages = {null},
+arxivid = {2002.05810},
+}
+
+@article{d2aea4a98dd49f8a0bf56078d2b1ce6dfded45f9,
+title = {RNA Backbone Torsion and Pseudotorsion Angle Prediction Using Dilated Convolutional Neural Networks},
+year = {2021},
+url = {https://www.semanticscholar.org/paper/d2aea4a98dd49f8a0bf56078d2b1ce6dfded45f9},
+abstract = {RNA three-dimensional structure prediction has been relied on using a predicted or experimentally determined secondary structure as a restraint to reduce the conformational sampling space. However, the secondary-structure restraints are limited to paired bases, and the conformational space of the ribose-phosphate backbone is still too large to be sampled efficiently. Here, we employed the dilated convolutional neural network to predict backbone torsion and pseudotorsion angles using a single RNA sequence as input. The method called SPOT-RNA-1D was trained on a high-resolution training data set and tested on three independent, nonredundant, and high-resolution test sets. The proposed method yields substantially smaller mean absolute errors than the baseline predictors based on random predictions and based on helix conformations according to actual angle distributions. The mean absolute errors for three test sets range from 14°-44° for different angles, compared to 17°-62° by random prediction and 14°-58° by helix prediction. The method also accurately recovers the overall patterns of single or pairwise angle distributions. In general, torsion angles further away from the bases and associated with unpaired bases and paired bases involved in tertiary interactions are more difficult to predict. Compared to the best models in RNA-puzzles experiments, SPOT-RNA-1D yielded more accurate dihedral angles and, thus, are potentially useful as model quality indicators and restraints for RNA structure prediction as in protein structure prediction.},
+author = {Jaswinder Singh and K. Paliwal and Jaspreet Singh and Yaoqi Zhou},
+journal = {Journal of chemical information and modeling},
+volume = {null},
+pages = {null},
+doi = {10.1021/acs.jcim.1c00153},
+pmid = {34037398},
+}
+
+@article{ea04c6e773f8f9f76b80809278e29142613fb55e,
+title = {A max-margin training of RNA secondary structure prediction integrated with the thermodynamic model},
+year = {2017},
+url = {https://www.semanticscholar.org/paper/ea3fba9be0018046d88eda9cef6363e6e91509c8},
+abstract = {Motivation: A popular approach for predicting RNA secondary structure is the thermodynamic nearest neighbor model that finds a thermodynamically most stable secondary structure with the minimum free energy (MFE). For further improvement, an alternative approach that is based on machine learning techniques has been developed. The machine learning based approach can employ a fine-grained model that includes much richer feature representations with the ability to fit the training data. Although a machine learning based fine-grained model achieved extremely high performance in prediction accuracy, a possibility of the risk of overfitting for such model has been reported. Results: In this paper, we propose a novel algorithm for RNA secondary structure prediction that integrates the thermodynamic approach and the machine learning based weighted approach. Ourfine-grained model combines the experimentally determined thermodynamic parameters with a large number of scoring parameters for detailed contexts of features that are trained by the structured support vector machine (SSVM) with the ℓ1 regularization to avoid overfitting. Our benchmark shows that our algorithm achieves the best prediction accuracy compared with existing methods, and heavy overfitting cannot be observed. Availability: The implementation of our algorithm is available at https://github.com/keio-bioinformatics/mxfold. Contact: satoken@bio.keio.ac.jp},
+author = {Manato Akiyama and Kengo Sato and Y. Sakakibara},
+journal = {bioRxiv},
+volume = {null},
+pages = {null},
+doi = {10.1101/205047},
+pmid = {30616476},
+}
+
+@article{833d6720acb867a26218465a45441b1b60068377,
+title = {Wfold: A new method for predicting RNA secondary structure with deep learning},
+year = {2024},
+url = {https://www.semanticscholar.org/paper/833d6720acb867a26218465a45441b1b60068377},
+abstract = {S2 TL;DR: Wfold improves the accuracy of RNA secondary structure prediction by combining the benefits of self-attention mechanism's mining of long-range information with U-net's ability to gather local information and dramatically outperforms the state-of-the-art methods on within-family datasets.},
+author = {Yongna Yuan and Enjie Yang and Ruisheng Zhang},
+journal = {Computers in biology and medicine},
+volume = {182},
+pages = {
+          109207
+        },
+doi = {10.1016/j.compbiomed.2024.109207},
+pmid = {39341115},
+}
+
+@article{88e4beb2885a04d54613b9424c2de542920e3b4a,
+title = {RNA secondary structure packages evaluated and improved by high-throughput experiments},
+year = {2020},
+url = {https://www.semanticscholar.org/paper/88e4beb2885a04d54613b9424c2de542920e3b4a},
+abstract = {S2 TL;DR: A multitask-learning-based model, EternaFold, is developed, which demonstrates improved performance that generalizes to diverse external datasets, including complete viral genomes probed in vivo and synthetic designs modeling mRNA vaccines.},
+author = {H. Wayment-Steele and W. Kladwang and Alexandra I. Strom and Jeehyung Lee and Adrien Treuille and Alexander J Becka and Rhiju Das},
+journal = {bioRxiv},
+volume = {null},
+pages = {null},
+doi = {10.1038/s41592-022-01605-0},
+pmid = {36192461},
+}
+
+@article{02f9cf606b66c41e19048593c24395eeaf105a58,
+title = {Length-Dependent Deep Learning Model for RNA Secondary Structure Prediction},
+year = {2022},
+url = {https://www.semanticscholar.org/paper/02f9cf606b66c41e19048593c24395eeaf105a58},
+abstract = {Deep learning methods for RNA secondary structure prediction have shown higher performance than traditional methods, but there is still much room to improve. It is known that the lengths of RNAs are very different, as are their secondary structures. However, the current deep learning methods all use length-independent models, so it is difficult for these models to learn very different secondary structures. Here, we propose a length-dependent model that is obtained by further training the length-independent model for different length ranges of RNAs through transfer learning. 2dRNA, a coupled deep learning neural network for RNA secondary structure prediction, is used to do this. Benchmarking shows that the length-dependent model performs better than the usual length-independent model.},
+author = {Kangkun Mao and Jun Wang and Yi Xiao},
+journal = {Molecules},
+volume = {27},
+pages = {null},
+doi = {10.3390/molecules27031030},
+pmid = {35164295},
+}
+
+@article{2d0d56c082dd2ea0402a606ff4390845430148de,
+title = {ProbKnot: fast prediction of RNA secondary structure including pseudoknots.},
+year = {2010},
+url = {https://www.semanticscholar.org/paper/2d0d56c082dd2ea0402a606ff4390845430148de},
+abstract = {It is a significant challenge to predict RNA secondary structures including pseudoknots. Here, a new algorithm capable of predicting pseudoknots of any topology, ProbKnot, is reported. ProbKnot assembles maximum expected accuracy structures from computed base-pairing probabilities in O(N(2)) time, where N is the length of the sequence. The performance of ProbKnot was measured by comparing predicted structures with known structures for a large database of RNA sequences with fewer than 700 nucleotides. The percentage of known pairs correctly predicted was 69.3%. Additionally, the percentage of predicted pairs in the known structure was 61.3%. This performance is the highest of four tested algorithms that are capable of pseudoknot prediction. The program is available for download at: http://rna.urmc.rochester.edu/RNAstructure.html.},
+author = {Stanislav Bellaousov and D. Mathews},
+journal = {RNA},
+volume = {16 10},
+pages = {
+          1870-80
+        },
+doi = {10.1261/rna.2125310},
+pmid = {20699301},
+}
+
+@article{a7ee2cc12ab7180149e731c43e2ecf25a7672819,
+title = {RNA secondary structure prediction with convolutional neural networks},
+year = {2021},
+url = {https://www.semanticscholar.org/paper/a7ee2cc12ab7180149e731c43e2ecf25a7672819},
+abstract = {S2 TL;DR: This paper shows how to use an artificial neural network design to predict the structure for a given RNA sequence with high accuracy only by learning from samples whose native structures have been experimentally characterized, independent of any energy model.},
+author = {Mehdi Saman Booy and A. Ilin and P. Orponen},
+journal = {BMC Bioinformatics},
+volume = {23},
+pages = {null},
+doi = {10.1186/s12859-021-04540-7},
+pmid = {35109787},
+}
+
+@article{cac4c098ecfc8eb0c7611ba815b437522de22d00,
+title = {Review of machine learning methods for RNA secondary structure prediction},
+year = {2020},
+url = {https://www.semanticscholar.org/paper/cac4c098ecfc8eb0c7611ba815b437522de22d00},
+abstract = {Secondary structure plays an important role in determining the function of noncoding RNAs. Hence, identifying RNA secondary structures is of great value to research. Computational prediction is a mainstream approach for predicting RNA secondary structure. Unfortunately, even though new methods have been proposed over the past 40 years, the performance of computational prediction methods has stagnated in the last decade. Recently, with the increasing availability of RNA structure data, new methods based on machine learning (ML) technologies, especially deep learning, have alleviated the issue. In this review, we provide a comprehensive overview of RNA secondary structure prediction methods based on ML technologies and a tabularized summary of the most important methods in this field. The current pending challenges in the field of RNA secondary structure prediction and future trends are also discussed.},
+author = {Qi Zhao and Zheng Zhao and Xiaoya Fan and Zhengwei Yuan and Qian Mao and Yudong Yao},
+journal = {PLoS Computational Biology},
+volume = {17},
+pages = {null},
+doi = {10.1371/journal.pcbi.1009291},
+pmid = {34437528},
+arxivid = {2009.08868},
+}
+
+@article{7c2c78ae1a294bd039c14438370fae96bebe6bd8,
+title = {LinearPartition: linear-time approximation of RNA folding partition function and base-pairing probabilities},
+year = {2019},
+url = {https://www.semanticscholar.org/paper/ec33d27196ffd2e82b05a5356354ce7d9f3d9b64},
+abstract = {Abstract Motivation RNA secondary structure prediction is widely used to understand RNA function. Recently, there has been a shift away from the classical minimum free energy methods to partition function-based methods that account for folding ensembles and can therefore estimate structure and base pair probabilities. However, the classical partition function algorithm scales cubically with sequence length, and is therefore prohibitively slow for long sequences. This slowness is even more severe than cubic-time free energy minimization due to a substantially larger constant factor in runtime. Results Inspired by the success of our recent LinearFold algorithm that predicts the approximate minimum free energy structure in linear time, we design a similar linear-time heuristic algorithm, LinearPartition, to approximate the partition function and base-pairing probabilities, which is shown to be orders of magnitude faster than Vienna RNAfold and CONTRAfold (e.g. 2.5 days versus 1.3 min on a sequence with length 32 753 nt). More interestingly, the resulting base-pairing probabilities are even better correlated with the ground-truth structures. LinearPartition also leads to a small accuracy improvement when used for downstream structure prediction on families with the longest length sequences (16S and 23S rRNAs), as well as a substantial improvement on long-distance base pairs (500+ nt apart). Availability and implementation Code: http://github.com/LinearFold/LinearPartition; Server: http://linearfold.org/partition. Supplementary information Supplementary data are available at Bioinformatics online.},
+author = {He Zhang and Liang Zhang and D. Mathews and Liang Huang},
+journal = {Bioinformatics},
+volume = {36},
+pages = {i258 - i267},
+doi = {10.1093/bioinformatics/btaa460},
+pmid = {32657379},
+arxivid = {1912.13190},
+}
+
+@article{f2410f3d4805e64e183a9d3ab7035f9018344063,
+title = {Rich Parameterization Improves RNA Structure Prediction},
+year = {2011},
+url = {https://www.semanticscholar.org/paper/cb67b5b234f90acf37a8208a1e2baa3f7734e512},
+abstract = {S2 TL;DR: It is shown that the application of more detailed models indeed improves prediction quality, while the corresponding running time of the folding algorithm remains fast, and a new RNA folding prediction model is proposed, which results in a significantly higher prediction quality than that of previous models.},
+author = {Shay Zakov and Yoav Goldberg and Michael Elhadad and Michal Ziv-Ukelson},
+journal = {Journal of computational biology : a journal of computational molecular cell biology},
+volume = {18 11},
+pages = {
+          1525-42
+        },
+doi = {10.1007/978-3-642-20036-6_48},
+pmid = {22035327},
+}
+
+@article{3935d4a41aa959a8627fe4233910a697fd6f02dd,
+title = {A range of complex probabilistic models for RNA secondary structure prediction that includes the nearest-neighbor model and more.},
+year = {2012},
+url = {https://www.semanticscholar.org/paper/3935d4a41aa959a8627fe4233910a697fd6f02dd},
+abstract = {The standard approach for single-sequence RNA secondary structure prediction uses a nearest-neighbor thermodynamic model with several thousand experimentally determined energy parameters. An attractive alternative is to use statistical approaches with parameters estimated from growing databases of structural RNAs. Good results have been reported for discriminative statistical methods using complex nearest-neighbor models, including CONTRAfold, Simfold, and ContextFold. Little work has been reported on generative probabilistic models (stochastic context-free grammars [SCFGs]) of comparable complexity, although probabilistic models are generally easier to train and to use. To explore a range of probabilistic models of increasing complexity, and to directly compare probabilistic, thermodynamic, and discriminative approaches, we created TORNADO, a computational tool that can parse a wide spectrum of RNA grammar architectures (including the standard nearest-neighbor model and more) using a generalized super-grammar that can be parameterized with probabilities, energies, or arbitrary scores. By using TORNADO, we find that probabilistic nearest-neighbor models perform comparably to (but not significantly better than) discriminative methods. We find that complex statistical models are prone to overfitting RNA structure and that evaluations should use structurally nonhomologous training and test data sets. Overfitting has affected at least one published method (ContextFold). The most important barrier to improving statistical approaches for RNA secondary structure prediction is the lack of diversity of well-curated single-sequence RNA secondary structures in current RNA databases.},
+author = {Elena Rivas and Raymond W. Lang and S. Eddy},
+journal = {RNA},
+volume = {18 2},
+pages = {
+          193-212
+        },
+doi = {10.1261/rna.030049.111},
+pmid = {22194308},
+}
+
+@article{07264347e959913a6ea37953d9c0e30ed4efb3ba,
+title = {Interpretable RNA Foundation Model from Unannotated Data for Highly Accurate RNA Structure and Function Predictions},
+year = {2022},
+url = {https://www.semanticscholar.org/paper/07264347e959913a6ea37953d9c0e30ed4efb3ba},
+abstract = {Non-coding RNA structure and function are essential to understanding various biological processes, such as cell signaling, gene expression, and post-transcriptional regulations. These are all among the core problems in the RNA field. With the rapid growth of sequencing technology, we have accumulated a massive amount of unannotated RNA sequences. On the other hand, expensive experimental observatory results in only limited numbers of annotated data and 3D structures. Hence, it is still challenging to design computational methods for predicting their structures and functions. The lack of annotated data and systematic study causes inferior performance. To resolve the issue, we propose a novel RNA foundation model (RNA-FM) to take advantage of all the 23 million non-coding RNA sequences through self-supervised learning. Within this approach, we discover that the pre-trained RNA-FM could infer sequential and evolutionary information of non-coding RNAs without using any labels. Furthermore, we demonstrate RNA-FM’s effectiveness by applying it to the downstream secondary/3D structure prediction, SARS-CoV-2 genome structure and evolution prediction, protein-RNA binding preference modeling, and gene expression regulation modeling. The comprehensive experiments show that the proposed method improves the RNA structural and functional modelling results significantly and consistently. Despite only being trained with unlabelled data, RNA-FM can serve as the foundational model for the field.},
+author = {Jiayang Chen and Zhihang Hu and Siqi Sun and Qingxiong Tan and Yixuan Wang and Qinze Yu and Licheng Zong and Liang Hong and Jin Xiao and Irwin King and Yu Li},
+journal = {bioRxiv},
+volume = {null},
+pages = {null},
+doi = {10.1101/2022.08.06.503062},
+arxivid = {2204.00300},
+}

@@ -1,0 +1,4407 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="../StageA_RFold/">
+      
+      
+        <link rel="next" href="../RFold_paper/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.0">
+    
+    
+      
+        <title>RFold Code - rna_predict</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.618322db.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#file-apiinitpy" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="rna_predict" class="md-header__button md-logo" aria-label="rna_predict" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            rna_predict
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              RFold Code
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="rna_predict" class="md-nav__button md-logo" aria-label="rna_predict" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    rna_predict
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_1" id="__nav_2_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../guides/getting_started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../guides/getting_started/windows_compatibility_plan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Windows Compatibility
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2" id="__nav_2_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Best Practices
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Best Practices
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../guides/best_practices/code_quality_best_practices/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Code Quality
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2_2" id="__nav_2_2_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Testing
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../guides/best_practices/testing/test_coverage_strategy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Coverage Strategy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../guides/best_practices/testing/progressive_coverage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Progressive Coverage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../guides/best_practices/testing/test_generation_prompt/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Generation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2_3" id="__nav_2_2_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Debugging
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Debugging
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../guides/best_practices/debugging/comprehensive_debugging_guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comprehensive Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pipeline
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Pipeline
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_1" id="__nav_3_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Overview
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../overview/core_framework/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core Framework
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../overview/Integrated_RNA_3D_Prediction_Pipeline_Final_Comprehensive_Design/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comprehensive Design
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../overview/full_pipeline_specification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Full Specification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../overview/Multi_Stage_Implementation_Plan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Multi-Stage Plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Integration
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Integration
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integration/Integrated_RNA_3D_Prediction_Pipeline_Final_Comprehensive_Design/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integration/full_pipeline_specification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Full Specification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2_3" id="__nav_3_2_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hydra Integration
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_3_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Hydra Integration
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integration/hydra_integration/hydra_tutorial/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorial
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integration/hydra_integration/hydra_integration_gap_analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gap Analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integration/hydra_integration/hydra_integration_master_document/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Master Document
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2_3_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2_3_4" id="__nav_3_2_3_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Components
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_3_2_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Components
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integration/hydra_integration/components/stageA/StageA_2D_Adjacency/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage A
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integration/hydra_integration/components/stageB/StageB_Torsion_Pairwise/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage B
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integration/hydra_integration/components/stageC/StageC_3D_Reconstruction/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage C
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integration/hydra_integration/components/stageD/StageD_Diffusion_Refinement/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage D
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integration/hydra_integration/components/unified_latent/UnifiedLatentMerger/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unified Latent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3_3" id="__nav_3_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage A
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Stage A
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../StageA_RFold/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RFold Code
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RFold Code
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#file-apiinitpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /API/init.py
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#file-apidataloaderpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /API/dataloader.py
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#file-apidatasetpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /API/dataset.py
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#file-apimetricpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /API/metric.py
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#file-colab_utilspy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /colab_utils.py
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#file-mainpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /main.py
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#from-parser-import-create_parser" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        from parser import create_parser
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#if-name-main" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        if name == 'main':
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rna_ss_data-collectionsnamedtuplerna_ss_data-seq-ss_label-length-name-pairs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RNA_SS_data = collections.namedtuple('RNA_SS_data', 'seq ss_label length name pairs')
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#args-create_parser" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        args = create_parser()
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#config-argsdict" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        config = args.dict
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#exp-expargs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        exp = Exp(args)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#print-training" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        print('&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; training &lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;')
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#exptest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        exp.test()
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#print-testing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        print('&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; testing &lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;')
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#test_f1-test_precision-test_recall-test_runtime-exptest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        test_f1, test_precision, test_recall, test_runtime = exp.test()
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="test_f1, test_precision, test_recall, test_runtime = exp.test()">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#file-modelpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /model.py
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#file-modulepy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /module.py
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#file-parserpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /parser.py
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#file-rfoldpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /rfold.py
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#predefine-a-base_matrix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        predefine a base_matrix
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="predefine a base_matrix">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#file-utilspy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /utils.py
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../RFold_paper/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RFold Paper
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../rfold-demo/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Demo
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../stage_a_extra/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Extra Notes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_4" id="__nav_3_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage B
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Stage B
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stageB/Stage_B/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_4_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_4_2" id="__nav_3_4_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TorsionBERT
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_3_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    TorsionBERT
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stageB/torsionBert/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stageB/torsionbert_code/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Code
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stageB/torsionBert_full_paper/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Paper
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_5" id="__nav_3_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage C
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Stage C
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stageC/Stage_C/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stageC/Integrated_RNA_Geometry_and_3D_Reconstruction/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Geometry & Reconstruction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stageC/Unified, Comprehensive Plan for Integrating MP-NeRF into Stage C.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MP-NeRF Integration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stageC/mp_nerf/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MP-NeRF Details
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_6" id="__nav_3_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unified Latent
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Unified Latent
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../unified_latent/Perceiver_IO/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Perceiver IO
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Energy_Minimization_%26_Molecular_Dynamics_%28MD%29_for_RNA_Structure_Refinement/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Energy & MD
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_8" id="__nav_3_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Testing
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../test_time_scaling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Time Scaling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_9" id="__nav_3_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Kaggle
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Kaggle
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../kaggle_info/kaggle_competition/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Competition
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../kaggle_info/M2_Plan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    M2 Plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_1" id="__nav_4_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Advanced Methods
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Advanced Methods
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_1_1" id="__nav_4_1_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AlphaFold 3
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_4_1_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_1_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AlphaFold 3
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/advanced_methods/af3/AF3_paper/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Paper
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/advanced_methods/af3/AlphaFold3_progress/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Progress
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/advanced_methods/af3/Pairwise_Distance_Based_Prediction/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Distance Prediction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_1_2" id="__nav_4_1_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Diffusion
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_4_1_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_1_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Diffusion
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/advanced_methods/diffusion/s4_diffusion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    S4 Diffusion
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/advanced_methods/diffusion/test_time_scaling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Time Scaling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/advanced_methods/isosteric_substitutions/RNA_isostericity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Isosteric Substitutions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_2" id="__nav_4_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    External Literature
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    External Literature
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/external_lit/2d_structure_prediction_papers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2D Structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/external_lit/RNA_papers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RNA Papers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_3" id="__nav_4_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Residue Atom Bridging
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Residue Atom Bridging
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/residue_atom_bridging/audit_report/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Audit Report
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/residue_atom_bridging/design_spec/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design Spec
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/residue_atom_bridging/documentation_draft/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Documentation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/residue_atom_bridging/implementation_notes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Implementation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/residue_atom_bridging/refactoring_plan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Refactoring
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/residue_atom_bridging/bridging_caveats_guidelines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guidelines
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_4" id="__nav_4_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Torsion Calculations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Torsion Calculations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/torsion_calculations/torsion_angles_intro/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Introduction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/torsion_calculations/Standard_Bond_Lengths_and_Angles_in_RNA_Nucleotides/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bond Lengths & Angles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/torsion_calculations/Torsion_Angles_3D_Coordinates_RNA_Structure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3D Coordinates
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/torsion_calculations/torsion_angle_Latent_Manifold_Representation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Latent Manifold
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#file-apiinitpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /API/init.py
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#file-apidataloaderpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /API/dataloader.py
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#file-apidatasetpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /API/dataset.py
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#file-apimetricpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /API/metric.py
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#file-colab_utilspy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /colab_utils.py
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#file-mainpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /main.py
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#from-parser-import-create_parser" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        from parser import create_parser
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#if-name-main" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        if name == 'main':
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rna_ss_data-collectionsnamedtuplerna_ss_data-seq-ss_label-length-name-pairs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RNA_SS_data = collections.namedtuple('RNA_SS_data', 'seq ss_label length name pairs')
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#args-create_parser" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        args = create_parser()
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#config-argsdict" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        config = args.dict
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#exp-expargs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        exp = Exp(args)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#print-training" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        print('&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; training &lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;')
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#exptest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        exp.test()
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#print-testing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        print('&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; testing &lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;')
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#test_f1-test_precision-test_recall-test_runtime-exptest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        test_f1, test_precision, test_recall, test_runtime = exp.test()
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="test_f1, test_precision, test_recall, test_runtime = exp.test()">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#file-modelpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /model.py
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#file-modulepy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /module.py
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#file-parserpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /parser.py
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#file-rfoldpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /rfold.py
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#predefine-a-base_matrix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        predefine a base_matrix
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="predefine a base_matrix">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#file-utilspy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /utils.py
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<p>RFold CODE:
+Directory Structure:</p>
+<p>└── ./
+    ├── API
+    │   ├── <strong>init</strong>.py
+    │   ├── dataloader.py
+    │   ├── dataset.py
+    │   └── metric.py
+    ├── colab_utils.py
+    ├── main.py
+    ├── model.py
+    ├── module.py
+    ├── parser.py
+    ├── rfold.py
+    └── utils.py</p>
+<hr />
+<h2 id="file-apiinitpy">File: /API/<strong>init</strong>.py</h2>
+<p>from .dataloader import load_data
+from .metric import evaluate_result</p>
+<hr />
+<h2 id="file-apidataloaderpy">File: /API/dataloader.py</h2>
+<p>from .dataset import RNADataset
+from torch.utils.data import DataLoader</p>
+<p>def load_data(data_name, batch_size, data_root, num_workers=8, **kwargs):
+    if data_name == 'RNAStralign':
+        test_set = RNADataset(path=data_root, dataname='test_600')
+    elif data_name == 'ArchiveII':
+        test_set = RNADataset(path=data_root, dataname='all_600')
+    elif data_name == 'bpRNA':
+        test_set = RNADataset(path=data_root, dataname='test')
+    test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=False, num_workers=num_workers, drop_last=True)
+    return test_loader</p>
+<hr />
+<h2 id="file-apidatasetpy">File: /API/dataset.py</h2>
+<p>import numpy as np
+import os.path as osp
+import _pickle as cPickle
+from tqdm import tqdm
+from torch.utils import data</p>
+<p>def get_cut_len(data_len,set_len):
+    l = data_len
+    if l &lt;= set_len:
+        l = set_len
+    else:
+        l = (((l - 1) // 16) + 1) * 16
+    return l</p>
+<p>class cached_property(object):
+    """
+    Descriptor (non-data) for building an attribute on-demand on first use.
+    """
+    def <strong>init</strong>(self, factory):
+        """
+        <factory> is called such: factory(instance) to build the attribute.
+        """
+        self._attr_name = factory.<strong>name</strong>
+        self._factory = factory</p>
+<div class="highlight"><pre><span></span><code>def __get__(self, instance, owner):
+    # Build the attribute.
+    attr = self._factory(instance)
+
+    # Cache the value; hide ourselves.
+    setattr(instance, self._attr_name, attr)
+    return attr
+</code></pre></div>
+<p>class RNADataset(data.Dataset):
+    def <strong>init</strong>(self, path, dataname):
+        self.path = path
+        self.dataname = dataname
+        self.data = self.cache_data</p>
+<div class="highlight"><pre><span></span><code>def __len__(self):
+    return len(self.data)
+
+def get_data(self, dataname):
+    filename = dataname + &#39;.pickle&#39;
+    pre_data = cPickle.load(open(osp.join(self.path, filename), &#39;rb&#39;))
+
+    data = []
+    for instance in tqdm(pre_data):
+        data_x, _, seq_length, name, pairs = instance
+        l = get_cut_len(seq_length, 80)
+        # contact
+        contact = np.zeros((l, l))
+        contact[tuple(np.transpose(pairs))] = 1. if pairs != [] else 0.
+        # data_seq
+        data_seq = np.zeros((l, 4))
+        data_seq[:seq_length] = data_x[:seq_length]
+        data.append([contact, seq_length, data_seq])
+    return data
+
+@cached_property
+def cache_data(self):
+    return self.get_data(self.dataname)
+
+def __getitem__(self, index):
+    return self.data[index]
+</code></pre></div>
+<hr />
+<h2 id="file-apimetricpy">File: /API/metric.py</h2>
+<p>import torch</p>
+<p>def evaluate_result(pred_a, true_a, eps=1e-11):
+    tp_map = torch.sign(torch.Tensor(pred_a) * torch.Tensor(true_a))
+    tp = tp_map.sum()
+    pred_p = torch.sign(torch.Tensor(pred_a)).sum()
+    true_p = true_a.sum()
+    fp = pred_p - tp
+    fn = true_p - tp
+    recall = (tp + eps)/(tp+fn+eps)
+    precision = (tp + eps)/(tp+fp+eps)
+    f1_score = (2<em>tp + eps)/(2</em>tp + fp + fn + eps)
+    return precision, recall, f1_score</p>
+<hr />
+<h2 id="file-colab_utilspy">File: /colab_utils.py</h2>
+<p>import torch
+import os.path as osp
+import numpy as np
+import torch.nn.functional as F</p>
+<p>seq_dict = {
+    'A': 0,
+    'U': 1,
+    'C': 2,
+    'G': 3
+}</p>
+<p>def base_matrix(_max_length, device):
+    base_matrix = torch.ones(_max_length, _max_length)
+    for i in range(_max_length):
+        st, en = max(i-3, 0), min(i+3, _max_length-1)
+        for j in range(st, en + 1):
+            base_matrix[i, j] = 0.
+    return base_matrix.to(device)</p>
+<p>def constraint_matrix(x):
+    base_a, base_u, base_c, base_g = x[:, :, 0], x[:, :, 1], x[:, :, 2], x[:, :, 3]
+    batch = base_a.shape[0]
+    length = base_a.shape[1]
+    au = torch.matmul(base_a.view(batch, length, 1), base_u.view(batch, 1, length))
+    au_ua = au + torch.transpose(au, -1, -2)
+    cg = torch.matmul(base_c.view(batch, length, 1), base_g.view(batch, 1, length))
+    cg_gc = cg + torch.transpose(cg, -1, -2)
+    ug = torch.matmul(base_u.view(batch, length, 1), base_g.view(batch, 1, length))
+    ug_gu = ug + torch.transpose(ug, -1, -2)
+    return (au_ua + cg_gc + ug_gu) * base_matrix(x.shape[1], x.device)</p>
+<p>def sequence2onehot(seq, device):
+    seqs = list(map(lambda x: seq_dict[x], seq))
+    return torch.tensor(seqs).unsqueeze(0).to(device)</p>
+<p>def get_cut_len(l):
+    return (((l - 1) // 16) + 1) * 16</p>
+<p>def process_seqs(seq, device):
+    seq_len = len(seq)
+    seq = sequence2onehot(seq, device=device)
+    nseq_len = get_cut_len(seq_len)
+    nseq = F.pad(seq, (0, nseq_len - seq_len))
+    nseq_one_hot = F.one_hot(nseq).float()
+    return nseq, nseq_one_hot, seq_len</p>
+<p>def row_col_softmax(y):
+    row_softmax = torch.softmax(y, dim=-1)
+    col_softmax = torch.softmax(y, dim=-2)
+    return 0.5 * (row_softmax + col_softmax)</p>
+<p>def row_col_argmax(y):
+    y_pred = row_col_softmax(y)
+    y_hat = y_pred + torch.randn_like(y) * 1e-12
+    col_max = torch.argmax(y_hat, 1)
+    col_one = torch.zeros_like(y_hat).scatter(1, col_max.unsqueeze(1), 1.0)
+    row_max = torch.argmax(y_hat, 2)
+    row_one = torch.zeros_like(y_hat).scatter(2, row_max.unsqueeze(2), 1.0)
+    int_one = row_one * col_one 
+    return int_one</p>
+<p>def ct_file_output(pairs, seq, seq_name, save_result_path):
+    col1 = np.arange(1, len(seq) + 1, 1)
+    col2 = np.array([i for i in seq])
+    col3 = np.arange(0, len(seq), 1)
+    col4 = np.append(np.delete(col1, 0), [0])
+    col5 = np.zeros(len(seq), dtype=int)</p>
+<div class="highlight"><pre><span></span><code>for i, I in enumerate(pairs):
+    col5[I[0]-1] = int(I[1])
+col6 = np.arange(1, len(seq) + 1, 1)
+temp = np.vstack((np.char.mod(&#39;%d&#39;, col1), col2, np.char.mod(&#39;%d&#39;, col3), np.char.mod(&#39;%d&#39;, col4),
+                  np.char.mod(&#39;%d&#39;, col5), np.char.mod(&#39;%d&#39;, col6))).T
+np.savetxt(osp.join(save_result_path, seq_name.replace(&#39;/&#39;,&#39;_&#39;))+&#39;.ct&#39;, (temp), delimiter=&#39;\t&#39;, fmt=&quot;%s&quot;, header=&#39;&gt;seq length: &#39; + str(len(seq)) + &#39;\t seq name: &#39; + seq_name.replace(&#39;/&#39;,&#39;_&#39;) , comments=&#39;&#39;)
+return
+</code></pre></div>
+<p>def seq2dot(seq):
+    idx = np.arange(1, len(seq) + 1)
+    dot_file = np.array(['_'] * len(seq))
+    dot_file[seq &gt; idx] = '('
+    dot_file[seq &lt; idx] = ')'
+    dot_file[seq == 0] = '.'
+    dot_file = ''.join(dot_file)
+    return dot_file</p>
+<p>def save_ct(predict_matrix, seq_ori, name):
+    seq_tmp = torch.mul(predict_matrix.cpu().argmax(axis=1), predict_matrix.cpu().sum(axis = 1).clamp_max(1)).numpy().astype(int)
+    seq_tmp[predict_matrix.cpu().sum(axis = 1) == 0] = -1
+    dot_list = seq2dot((seq_tmp+1).squeeze())
+    letter = 'AUCG'
+    seq_letter = ''.join([letter[item] for item in np.nonzero(seq_ori)[:,1]])
+    seq = ((seq_tmp + 1).squeeze(), torch.arange(predict_matrix.shape[-1]).numpy() + 1)
+    cur_pred = [(seq[0][i],seq[1][i]) for i in np.arange(len(seq[0])) if seq[0][i] != 0]
+    ct_file_output(cur_pred, seq_letter, name, './')
+    return </p>
+<p>def visual_get_bases(seq):
+    a_bases, u_bases, c_bases, g_bases = [], [], [], []
+    for ii, s in enumerate(seq):
+        if s == 'A': a_bases.append(ii+1)
+        if s == 'U': u_bases.append(ii+1)
+        if s == 'C': c_bases.append(ii+1)
+        if s == 'G': g_bases.append(ii+1)
+    a_bases = ''.join([str(s)+',' for s in a_bases])[:-1]
+    u_bases = ''.join([str(s)+',' for s in u_bases])[:-1]
+    c_bases = ''.join([str(s)+',' for s in c_bases])[:-1]
+    g_bases = ''.join([str(s)+',' for s in g_bases])[:-1]
+    return a_bases, u_bases, c_bases, g_bases</p>
+<hr />
+<h2 id="file-mainpy">File: /main.py</h2>
+<p>import json
+import torch
+import logging
+import collections
+import os.path as osp</p>
+<h1 id="from-parser-import-create_parser">from parser import create_parser</h1>
+<p>import warnings
+warnings.filterwarnings('ignore')</p>
+<p>from utils import *
+from rfold import RFold</p>
+<p>class Exp:
+    def <strong>init</strong>(self, args):
+        self.args = args
+        self.config = args.<strong>dict</strong>
+        self.device = self._acquire_device()
+        self.total_step = 0
+        self._preparation()
+        print_log(output_namespace(self.args))</p>
+<div class="highlight"><pre><span></span><code>def _acquire_device(self):
+    if self.args.use_gpu:
+        device = torch.device(&#39;cuda:0&#39;)
+        print(&#39;Use GPU:&#39;,device)
+    else:
+        device = torch.device(&#39;cpu&#39;)
+        print(&#39;Use CPU&#39;)
+    return device
+
+def _preparation(self):
+    set_seed(self.args.seed)
+    # log and checkpoint
+    self.path = osp.join(self.args.res_dir, self.args.ex_name)
+    check_dir(self.path)
+
+    self.checkpoints_path = osp.join(self.path, &#39;checkpoints&#39;)
+    check_dir(self.checkpoints_path)
+
+    sv_param = osp.join(self.path, &#39;model_param.json&#39;)
+    with open(sv_param, &#39;w&#39;) as file_obj:
+        json.dump(self.args.__dict__, file_obj)
+
+    for handler in logging.root.handlers[:]:
+        logging.root.removeHandler(handler)
+    logging.basicConfig(level=logging.INFO, filename=osp.join(self.path, &#39;log.log&#39;),
+                        filemode=&#39;a&#39;, format=&#39;%(asctime)s - %(message)s&#39;)
+    # prepare data
+    self._get_data()
+    # build the method
+    self._build_method()
+
+def _build_method(self):
+    self.method = RFold(self.args, self.device)
+
+def _get_data(self):
+    self.test_loader = get_dataset(self.config)
+
+def test(self):
+    test_f1, test_precision, test_recall, test_runtime = self.method.test_one_epoch(self.test_loader)
+    print_log(&#39;Test F1: {0:.4f}, Precision: {1:.4f}, Recall: {2:.4f}, Runtime: {3:.4f}\n&#39;.format(test_f1, test_precision, test_recall, test_runtime))
+    return test_f1, test_precision, test_recall, test_runtime
+</code></pre></div>
+<h1 id="if-name-main">if <strong>name</strong> == '<strong>main</strong>':</h1>
+<h1 id="rna_ss_data-collectionsnamedtuplerna_ss_data-seq-ss_label-length-name-pairs">RNA_SS_data = collections.namedtuple('RNA_SS_data', 'seq ss_label length name pairs')</h1>
+<h1 id="args-create_parser">args = create_parser()</h1>
+<h1 id="config-argsdict">config = args.<strong>dict</strong></h1>
+<h1 id="exp-expargs">exp = Exp(args)</h1>
+<h1 id="print-training">print('&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; training &lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;')</h1>
+<h1 id="exptest">exp.test()</h1>
+<h1 id="print-testing">print('&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; testing  &lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;')</h1>
+<h1 id="test_f1-test_precision-test_recall-test_runtime-exptest">test_f1, test_precision, test_recall, test_runtime = exp.test()</h1>
+<hr />
+<h2 id="file-modelpy">File: /model.py</h2>
+<p>import torch
+import torch.nn as nn
+from module import conv_block, up_conv, Attn</p>
+<p>class Encoder(nn.Module):
+    def <strong>init</strong>(self, C_lst=[17, 32, 64, 128, 256]):
+        super(Encoder, self).<strong>init</strong>()
+        self.enc = nn.ModuleList([conv_block(ch_in=C_lst[0],ch_out=C_lst[1])])
+        for ch_in, ch_out in zip(C_lst[1:-1], C_lst[2:]):
+            self.enc.append(
+                nn.Sequential(*[
+                    nn.MaxPool2d(kernel_size=2, stride=2),
+                    conv_block(ch_in=ch_in, ch_out=ch_out)
+                ])
+            )</p>
+<div class="highlight"><pre><span></span><code>def forward(self, x):
+    skips = []
+    for i in range(0, len(self.enc)):
+        x = self.enc[i](x)
+        skips.append(x)
+    return x, skips[:-1]
+</code></pre></div>
+<p>class Decoder(nn.Module):
+    def <strong>init</strong>(self, C_lst=[512, 256, 128, 64, 32]):
+        super(Decoder, self).<strong>init</strong>()
+        self.dec = nn.ModuleList([])
+        for ch_in, ch_out in zip(C_lst[0:-1], C_lst[1:]):
+            self.dec.append(
+                nn.ModuleList([
+                    up_conv(ch_in=ch_in, ch_out=ch_out),
+                    conv_block(ch_in=ch_out * 2, ch_out=ch_out)
+                ])
+            )</p>
+<div class="highlight"><pre><span></span><code>def forward(self, x, skips):
+    skips.reverse()
+    for i in range(0, len(self.dec)):
+        upsample, conv = self.dec[i]
+        x = upsample(x)
+        x = conv(torch.cat((x, skips[i]), dim=1))
+    return x
+</code></pre></div>
+<p>class Seq2Map(nn.Module):
+    def <strong>init</strong>(self, 
+                 input_dim=4,
+                 num_hidden=128,
+                 dropout=0.1, 
+                 device=torch.device('cuda'),
+                 max_length=3000,
+                 <strong>kwargs):
+        super(Seq2Map, self).<strong>init</strong>(</strong>kwargs)
+        self.device = device
+        self.dropout = nn.Dropout(dropout)
+        self.scale = torch.sqrt(torch.FloatTensor([num_hidden])).to(device)</p>
+<div class="highlight"><pre><span></span><code>    self.tok_embedding = nn.Embedding(input_dim, num_hidden)
+    self.pos_embedding = nn.Embedding(max_length, num_hidden)
+    self.layer = Attn(dim=num_hidden, query_key_dim=num_hidden, dropout=dropout)
+
+def forward(self, src):
+    batch_size, src_len = src.shape[:2]
+    pos = torch.arange(0, src_len).unsqueeze(0).repeat(batch_size, 1).to(self.device)
+    src = self.tok_embedding(src) * self.scale
+    src = self.dropout(src + self.pos_embedding(pos))
+    attention = self.layer(src)
+    return attention
+</code></pre></div>
+<p>class RFold_Model(nn.Module):
+    def <strong>init</strong>(self, args):
+        super(RFold_Model, self).<strong>init</strong>()</p>
+<div class="highlight"><pre><span></span><code>    c_in, c_out, c_hid = 1, 1, 32
+    C_lst_enc = [c_in, 32, 64, 128, 256, 512]
+    C_lst_dec = [2*x for x in reversed(C_lst_enc[1:-1])] + [c_hid]
+
+    self.encoder = Encoder(C_lst=C_lst_enc)
+    self.decoder = Decoder(C_lst=C_lst_dec)
+    self.readout = nn.Conv2d(c_hid, c_out, kernel_size=1, stride=1, padding=0)
+    self.seq2map = Seq2Map(input_dim=4, num_hidden=args.num_hidden, dropout=args.dropout)
+
+def forward(self, seqs):
+    attention = self.seq2map(seqs)
+    x = (attention * torch.sigmoid(attention)).unsqueeze(0)
+    latent, skips = self.encoder(x)
+    latent = self.decoder(latent, skips)
+    y = self.readout(latent).squeeze(1)
+    return torch.transpose(y, -1, -2) * y
+</code></pre></div>
+<hr />
+<h2 id="file-modulepy">File: /module.py</h2>
+<p>import torch
+from torch import nn, einsum
+import torch.nn.functional as F</p>
+<p>class conv_block(nn.Module):
+    def <strong>init</strong>(self,ch_in,ch_out,residual=False):
+        super(conv_block,self).<strong>init</strong>()
+        self.conv = nn.Sequential(
+            nn.Conv2d(ch_in, ch_out, kernel_size=3,stride=1,padding=1,bias=True),
+            nn.BatchNorm2d(ch_out),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(ch_out, ch_out, kernel_size=3,stride=1,padding=1,bias=True),
+            nn.BatchNorm2d(ch_out),
+            nn.ReLU(inplace=True)
+        )
+        self.residual = residual</p>
+<div class="highlight"><pre><span></span><code>def forward(self,x):
+    if self.residual:
+        return x + self.conv(x)
+    return self.conv(x)
+</code></pre></div>
+<p>class up_conv(nn.Module):
+    def <strong>init</strong>(self,ch_in,ch_out):
+        super(up_conv,self).<strong>init</strong>()
+        self.up = nn.Sequential(
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(ch_in,ch_out,kernel_size=3,stride=1,padding=1,bias=True),
+            nn.BatchNorm2d(ch_out),
+            nn.ReLU(inplace=True)
+        )</p>
+<div class="highlight"><pre><span></span><code>def forward(self,x):
+    x = self.up(x)
+    return x
+</code></pre></div>
+<p>class OffsetScale(nn.Module):
+    def <strong>init</strong>(self, dim, heads = 1):
+        super().<strong>init</strong>()
+        self.gamma = nn.Parameter(torch.ones(heads, dim))
+        self.beta = nn.Parameter(torch.zeros(heads, dim))
+        nn.init.normal_(self.gamma, std = 0.02)</p>
+<div class="highlight"><pre><span></span><code>def forward(self, x):
+    out = einsum(&#39;... d, h d -&gt; ... h d&#39;, x, self.gamma) + self.beta
+    return out.unbind(dim = -2)
+</code></pre></div>
+<p>class Attn(nn.Module):
+    def <strong>init</strong>(self, *, dim, query_key_dim=128, expansion_factor=2.,
+        dropout=0.1):
+        super().<strong>init</strong>()
+        self.norm = nn.LayerNorm(dim)
+        self.dropout = nn.Dropout(dropout)
+        self.to_qk = nn.Sequential(
+            nn.Linear(dim, query_key_dim),
+            nn.SiLU()
+        )
+        self.offsetscale = OffsetScale(query_key_dim, heads=2)</p>
+<div class="highlight"><pre><span></span><code>def forward(self, x):
+    seq_len = x.shape[-2]
+    normed_x = self.norm(x)
+    qk = self.to_qk(normed_x)
+    q, k = self.offsetscale(qk)
+    sim = einsum(&#39;b i d, b j d -&gt; b i j&#39;, q, k) / seq_len
+    attn = F.relu(sim) ** 2
+    return attn
+</code></pre></div>
+<hr />
+<h2 id="file-parserpy">File: /parser.py</h2>
+<p>import argparse</p>
+<p>def create_parser():
+    parser = argparse.ArgumentParser()
+    # Set-up parameters
+    parser.add_argument('--device', default='cuda', type=str, help='Name of device to use for tensor computations (cuda/cpu)')
+    parser.add_argument('--display_step', default=10, type=int, help='Interval in batches between display of training metrics')
+    parser.add_argument('--res_dir', default='./results', type=str)
+    parser.add_argument('--ex_name', default='Debug', type=str)
+    parser.add_argument('--use_gpu', default=True, type=bool)
+    parser.add_argument('--gpu', default=0, type=int)
+    parser.add_argument('--seed', default=111, type=int)</p>
+<div class="highlight"><pre><span></span><code># dataset parameters
+parser.add_argument(&#39;--data_name&#39;, default=&#39;ArchiveII&#39;, choices=[&#39;ArchiveII&#39;, &#39;RNAStralign&#39;, &#39;bpRNA&#39;])
+parser.add_argument(&#39;--data_root&#39;, default=&#39;./data/archiveII_all&#39;)
+parser.add_argument(&#39;--batch_size&#39;, default=1, type=int)
+parser.add_argument(&#39;--num_workers&#39;, default=8, type=int)
+
+# Training parameters
+parser.add_argument(&#39;--epoch&#39;, default=1, type=int, help=&#39;end epoch&#39;)
+parser.add_argument(&#39;--log_step&#39;, default=1, type=int)
+parser.add_argument(&#39;--lr&#39;, default=0.001, type=float, help=&#39;Learning rate&#39;)
+
+# debug parameters
+parser.add_argument(&#39;--num_hidden&#39;, default=128, type=int)
+parser.add_argument(&#39;--pf_dim&#39;, default=128, type=int)
+parser.add_argument(&#39;--num_heads&#39;, default=2, type=int)
+parser.add_argument(&#39;--dropout&#39;, default=0.3, type=float)
+return parser.parse_args()
+</code></pre></div>
+<hr />
+<h2 id="file-rfoldpy">File: /rfold.py</h2>
+<p>import time
+import torch
+import numpy as np
+from tqdm import tqdm
+from utils import cuda
+from API import evaluate_result
+from model import RFold_Model</p>
+<h1 id="predefine-a-base_matrix">predefine a base_matrix</h1>
+<p>_max_length = 1005
+base_matrix = torch.ones(_max_length, _max_length)
+for i in range(_max_length):
+    st, en = max(i-3, 0), min(i+3, _max_length-1)
+    for j in range(st, en + 1):
+        base_matrix[i, j] = 0.</p>
+<p>def constraint_matrix(x):
+    base_a, base_u, base_c, base_g = x[:, :, 0], x[:, :, 1], x[:, :, 2], x[:, :, 3]
+    batch = base_a.shape[0]
+    length = base_a.shape[1]
+    au = torch.matmul(base_a.view(batch, length, 1), base_u.view(batch, 1, length))
+    au_ua = au + torch.transpose(au, -1, -2)
+    cg = torch.matmul(base_c.view(batch, length, 1), base_g.view(batch, 1, length))
+    cg_gc = cg + torch.transpose(cg, -1, -2)
+    ug = torch.matmul(base_u.view(batch, length, 1), base_g.view(batch, 1, length))
+    ug_gu = ug + torch.transpose(ug, -1, -2)
+    return (au_ua + cg_gc + ug_gu) * base_matrix[:length, :length].to(x.device)</p>
+<p>def row_col_softmax(y):
+    row_softmax = torch.softmax(y, dim=-1)
+    col_softmax = torch.softmax(y, dim=-2)
+    return 0.5 * (row_softmax + col_softmax)</p>
+<p>def row_col_argmax(y):
+    y_pred = row_col_softmax(y)
+    y_hat = y_pred + torch.randn_like(y) * 1e-12
+    col_max = torch.argmax(y_hat, 1)
+    col_one = torch.zeros_like(y_hat).scatter(1, col_max.unsqueeze(1), 1.0)
+    row_max = torch.argmax(y_hat, 2)
+    row_one = torch.zeros_like(y_hat).scatter(2, row_max.unsqueeze(2), 1.0)
+    int_one = row_one * col_one 
+    return int_one</p>
+<p>class RFold(object):
+    def <strong>init</strong>(self, args, device):
+        self.args = args
+        self.device = device
+        self.config = args.<strong>dict</strong></p>
+<div class="highlight"><pre><span></span><code>    self.model = self._build_model()
+    self.criterion = torch.nn.MSELoss()
+
+def _build_model(self, **kwargs):
+    return RFold_Model(self.args).to(self.device)
+
+def test_one_epoch(self, test_loader, **kwargs):
+    # note that the model is under the training mode for bn/dropout
+    self.model.train()
+    eval_results, run_time = [], []
+    test_pbar = tqdm(test_loader)
+    for batch in test_pbar:
+        contacts, seq_lens, seq_ori = batch
+        contacts, seq_ori = cuda(
+            (contacts.float(), seq_ori.float()), device=self.device)
+
+        # predict
+        seqs = torch.argmax(seq_ori, axis=-1)
+        s_time = time.time()
+        with torch.no_grad():
+            pred_contacts = self.model(seqs)
+
+        pred_contacts = row_col_argmax(pred_contacts) * constraint_matrix(seq_ori)
+
+        # interval time
+        interval_t = time.time() - s_time
+        run_time.append(interval_t)
+
+        eval_result = list(map(lambda i: evaluate_result(pred_contacts.cpu()[i],
+                                                                 contacts.cpu()[i]), range(contacts.shape[0])))
+        eval_results += eval_result
+
+    p, r, f1 = zip(*eval_results)
+    return np.average(f1), np.average(p), np.average(r), np.average(run_time)
+</code></pre></div>
+<hr />
+<h2 id="file-utilspy">File: /utils.py</h2>
+<p>import os
+import logging
+import numpy as np
+import torch
+from torch import optim
+import random 
+import torch.backends.cudnn as cudnn
+from collections.abc import Mapping, Sequence</p>
+<p>def set_seed(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    cudnn.deterministic = True</p>
+<p>def print_log(message):
+    print(message)
+    logging.info(message)</p>
+<p>def output_namespace(namespace):
+    configs = namespace.<strong>dict</strong>
+    message = ''
+    for k, v in configs.items():
+        message += '\n' + k + ': \t' + str(v) + '\t'
+    return message</p>
+<p>def check_dir(path):
+    if not os.path.exists(path):
+        os.makedirs(path)</p>
+<p>def get_dataset(config):
+    from API import load_data
+    return load_data(**config)</p>
+<p>def cuda(obj, <em>args, </em><em>kwargs):
+    """
+    Transfer any nested conatiner of tensors to CUDA.
+    """
+    if hasattr(obj, "cuda"):
+        return obj.cuda(</em>args, <strong>kwargs)
+    elif isinstance(obj, Mapping):
+        return type(obj)({k: cuda(v, *args, </strong>kwargs) for k, v in obj.items()})
+    elif isinstance(obj, Sequence):
+        return type(obj)(cuda(x, <em>args, </em><em>kwargs) for x in obj)
+    elif isinstance(obj, np.ndarray):
+        return torch.tensor(obj, </em>args, **kwargs)
+    raise TypeError("Can't transfer object type <code>%s</code>" % type(obj))</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": [], "search": "../../../assets/javascripts/workers/search.7a47a382.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.e71a0d61.min.js"></script>
+      
+        <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>

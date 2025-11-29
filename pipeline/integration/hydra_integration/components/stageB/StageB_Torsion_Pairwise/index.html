@@ -1,0 +1,4995 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="../../stageA/StageA_2D_Adjacency/">
+      
+      
+        <link rel="next" href="../../stageC/StageC_3D_Reconstruction/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.0">
+    
+    
+      
+        <title>Stage B - rna_predict</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../../../../assets/stylesheets/main.618322db.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../../../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#stage-b-torsion-angles-and-pairwise-embeddings" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../../../../.." title="rna_predict" class="md-header__button md-logo" aria-label="rna_predict" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            rna_predict
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Stage B
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../../../../.." title="rna_predict" class="md-nav__button md-logo" aria-label="rna_predict" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    rna_predict
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_1" id="__nav_2_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../../guides/getting_started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../../guides/getting_started/windows_compatibility_plan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Windows Compatibility
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2" id="__nav_2_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Best Practices
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Best Practices
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../../guides/best_practices/code_quality_best_practices/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Code Quality
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2_2" id="__nav_2_2_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Testing
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../../guides/best_practices/testing/test_coverage_strategy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Coverage Strategy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../../guides/best_practices/testing/progressive_coverage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Progressive Coverage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../../guides/best_practices/testing/test_generation_prompt/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Generation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2_3" id="__nav_2_2_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Debugging
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Debugging
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../../guides/best_practices/debugging/comprehensive_debugging_guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comprehensive Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pipeline
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Pipeline
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_1" id="__nav_3_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Overview
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../overview/core_framework/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core Framework
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../overview/Integrated_RNA_3D_Prediction_Pipeline_Final_Comprehensive_Design/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comprehensive Design
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../overview/full_pipeline_specification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Full Specification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../overview/Multi_Stage_Implementation_Plan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Multi-Stage Plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Integration
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Integration
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../Integrated_RNA_3D_Prediction_Pipeline_Final_Comprehensive_Design/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../full_pipeline_specification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Full Specification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3_2_3" id="__nav_3_2_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hydra Integration
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_3_2_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Hydra Integration
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../hydra_tutorial/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorial
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../hydra_integration_gap_analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gap Analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../hydra_integration_master_document/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Master Document
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2_3_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3_2_3_4" id="__nav_3_2_3_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Components
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_3_2_3_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3_2_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Components
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stageA/StageA_2D_Adjacency/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage A
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage B
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage B
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#purpose-background" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Purpose &amp; Background
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#inputs-outputs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inputs &amp; Outputs
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Inputs &amp; Outputs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#inputs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inputs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#outputs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Outputs
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#key-classes-scripts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Classes &amp; Scripts
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Key Classes &amp; Scripts">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#stagebtorsionbertpredictor-class" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        StageBTorsionBertPredictor Class
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="StageBTorsionBertPredictor Class">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#key-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Fields:
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#notable-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Notable Methods:
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pairformerwrapper-class" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PairformerWrapper Class
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="PairformerWrapper Class">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#key-fields_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Fields:
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#notable-methods_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Notable Methods:
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#run_stageb_combined-function" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        run_stageB_combined Function
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="run_stageB_combined Function">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#key-functionality" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Functionality:
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#hydra-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Hydra Configuration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Hydra Configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#configuration-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration Parameters:
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#model-architecture-details" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Model Architecture Details
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#msamodule-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MSAModule Architecture
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="MSAModule Architecture">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#core-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#msa-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MSA Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#architecture-components" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architecture Components
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#templateembedder-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TemplateEmbedder Architecture
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="TemplateEmbedder Architecture">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#core-parameters_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#input-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Input Features
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#architecture-components_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architecture Components
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#torsionbert-detailed-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TorsionBERT Detailed Parameters
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="TorsionBERT Detailed Parameters">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#model-specifications" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Model Specifications
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#torsion-angles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Torsion Angles
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#processing-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Processing Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#output-processing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output Processing
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Integration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Integration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#upstream-dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Upstream Dependencies
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#downstream-dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Downstream Dependencies
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#data-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data Flow
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#edge-cases-error-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Edge Cases &amp; Error Handling
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Edge Cases &amp; Error Handling">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sequence-length-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sequence Length Issues
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#model-loading-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Model Loading Issues
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#memory-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Memory Management
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hpc-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HPC Considerations
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#references-dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        References &amp; Dependencies
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="References &amp; Dependencies">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#papers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Papers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#software-dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Software Dependencies
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#external-resources" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        External Resources
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stageC/StageC_3D_Reconstruction/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage C
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stageD/StageD_Diffusion_Refinement/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage D
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../unified_latent/UnifiedLatentMerger/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unified Latent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_3" id="__nav_3_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage A
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Stage A
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../stageA/StageA_RFold/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../stageA/RFold_code/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RFold Code
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../stageA/RFold_paper/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RFold Paper
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../stageA/rfold-demo/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Demo
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../stageA/stage_a_extra/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Extra Notes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_4" id="__nav_3_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage B
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Stage B
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../stageB/Stage_B/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_4_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_4_2" id="__nav_3_4_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TorsionBERT
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_3_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    TorsionBERT
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../stageB/torsionBert/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../stageB/torsionbert_code/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Code
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../stageB/torsionBert_full_paper/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Paper
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_5" id="__nav_3_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage C
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Stage C
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../stageC/Stage_C/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../stageC/Integrated_RNA_Geometry_and_3D_Reconstruction/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Geometry & Reconstruction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../stageC/Unified, Comprehensive Plan for Integrating MP-NeRF into Stage C.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MP-NeRF Integration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../stageC/mp_nerf/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MP-NeRF Details
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_6" id="__nav_3_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unified Latent
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Unified Latent
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../unified_latent/Perceiver_IO/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Perceiver IO
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../Energy_Minimization_%26_Molecular_Dynamics_%28MD%29_for_RNA_Structure_Refinement/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Energy & MD
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_8" id="__nav_3_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Testing
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../test_time_scaling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Time Scaling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_9" id="__nav_3_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Kaggle
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Kaggle
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../kaggle_info/kaggle_competition/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Competition
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../kaggle_info/M2_Plan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    M2 Plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_1" id="__nav_4_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Advanced Methods
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Advanced Methods
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_1_1" id="__nav_4_1_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AlphaFold 3
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_4_1_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_1_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AlphaFold 3
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../../reference/advanced_methods/af3/AF3_paper/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Paper
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../../reference/advanced_methods/af3/AlphaFold3_progress/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Progress
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../../reference/advanced_methods/af3/Pairwise_Distance_Based_Prediction/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Distance Prediction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_1_2" id="__nav_4_1_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Diffusion
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_4_1_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_1_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Diffusion
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../../reference/advanced_methods/diffusion/s4_diffusion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    S4 Diffusion
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../../reference/advanced_methods/diffusion/test_time_scaling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Time Scaling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../../reference/advanced_methods/isosteric_substitutions/RNA_isostericity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Isosteric Substitutions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_2" id="__nav_4_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    External Literature
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    External Literature
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../../reference/external_lit/2d_structure_prediction_papers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2D Structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../../reference/external_lit/RNA_papers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RNA Papers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_3" id="__nav_4_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Residue Atom Bridging
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Residue Atom Bridging
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../../reference/residue_atom_bridging/audit_report/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Audit Report
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../../reference/residue_atom_bridging/design_spec/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design Spec
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../../reference/residue_atom_bridging/documentation_draft/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Documentation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../../reference/residue_atom_bridging/implementation_notes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Implementation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../../reference/residue_atom_bridging/refactoring_plan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Refactoring
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../../reference/residue_atom_bridging/bridging_caveats_guidelines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guidelines
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_4" id="__nav_4_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Torsion Calculations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Torsion Calculations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../../reference/torsion_calculations/torsion_angles_intro/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Introduction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../../reference/torsion_calculations/Standard_Bond_Lengths_and_Angles_in_RNA_Nucleotides/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bond Lengths & Angles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../../reference/torsion_calculations/Torsion_Angles_3D_Coordinates_RNA_Structure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3D Coordinates
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../../reference/torsion_calculations/torsion_angle_Latent_Manifold_Representation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Latent Manifold
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#purpose-background" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Purpose &amp; Background
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#inputs-outputs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inputs &amp; Outputs
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Inputs &amp; Outputs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#inputs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inputs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#outputs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Outputs
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#key-classes-scripts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Classes &amp; Scripts
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Key Classes &amp; Scripts">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#stagebtorsionbertpredictor-class" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        StageBTorsionBertPredictor Class
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="StageBTorsionBertPredictor Class">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#key-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Fields:
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#notable-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Notable Methods:
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pairformerwrapper-class" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PairformerWrapper Class
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="PairformerWrapper Class">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#key-fields_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Fields:
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#notable-methods_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Notable Methods:
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#run_stageb_combined-function" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        run_stageB_combined Function
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="run_stageB_combined Function">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#key-functionality" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Functionality:
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#hydra-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Hydra Configuration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Hydra Configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#configuration-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration Parameters:
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#model-architecture-details" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Model Architecture Details
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#msamodule-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MSAModule Architecture
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="MSAModule Architecture">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#core-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#msa-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MSA Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#architecture-components" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architecture Components
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#templateembedder-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TemplateEmbedder Architecture
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="TemplateEmbedder Architecture">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#core-parameters_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#input-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Input Features
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#architecture-components_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architecture Components
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#torsionbert-detailed-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TorsionBERT Detailed Parameters
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="TorsionBERT Detailed Parameters">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#model-specifications" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Model Specifications
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#torsion-angles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Torsion Angles
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#processing-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Processing Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#output-processing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output Processing
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Integration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Integration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#upstream-dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Upstream Dependencies
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#downstream-dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Downstream Dependencies
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#data-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data Flow
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#edge-cases-error-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Edge Cases &amp; Error Handling
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Edge Cases &amp; Error Handling">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sequence-length-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sequence Length Issues
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#model-loading-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Model Loading Issues
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#memory-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Memory Management
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hpc-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HPC Considerations
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#references-dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        References &amp; Dependencies
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="References &amp; Dependencies">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#papers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Papers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#software-dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Software Dependencies
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#external-resources" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        External Resources
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="stage-b-torsion-angles-and-pairwise-embeddings">Stage B: Torsion Angles and Pairwise Embeddings</h1>
+<h2 id="purpose-background">Purpose &amp; Background</h2>
+<p>Stage B is the second step in the RNA_PREDICT pipeline, responsible for generating two key components:
+1. Torsion angles for each nucleotide using TorsionBERT
+2. Pairwise embeddings using the Pairformer architecture</p>
+<p>This stage combines two complementary approaches:
+- TorsionBERT predicts the dihedral angles that define the local geometry of each nucleotide
+- Pairformer generates embeddings that capture the relationships between pairs of nucleotides</p>
+<p>The outputs from Stage B provide crucial information for the 3D structure prediction in subsequent stages, with torsion angles defining local geometry and pairwise embeddings capturing global relationships.</p>
+<h2 id="inputs-outputs">Inputs &amp; Outputs</h2>
+<h3 id="inputs">Inputs</h3>
+<ul>
+<li><strong>RNA Sequence</strong>: A string representing the RNA sequence (e.g., "AUGC")</li>
+<li><strong>Adjacency Matrix</strong>: From Stage A, shape [N, N] indicating base-pairing probabilities</li>
+<li><strong>Optional</strong>: Pre-existing torsion angle constraints</li>
+</ul>
+<h3 id="outputs">Outputs</h3>
+<ol>
+<li><strong>Torsion Angles</strong>: Shape [N, K] or [N, 2K] where:</li>
+<li>N is the sequence length</li>
+<li>K is the number of angles (default: 7)</li>
+<li>2K format represents sin/cos pairs for each angle</li>
+<li><strong>Single Embeddings</strong>: Shape [N, c_s] where:</li>
+<li>c_s is the embedding dimension (default: 384)</li>
+<li>Represents features for each nucleotide</li>
+<li><strong>Pair Embeddings</strong>: Shape [N, N, c_z] where:</li>
+<li>c_z is the pair embedding dimension (default: 128)</li>
+<li>Captures relationships between nucleotide pairs</li>
+</ol>
+<h2 id="key-classes-scripts">Key Classes &amp; Scripts</h2>
+<h3 id="stagebtorsionbertpredictor-class"><code>StageBTorsionBertPredictor</code> Class</h3>
+<p>This class handles the prediction of torsion angles using the TorsionBERT model.</p>
+<h4 id="key-fields">Key Fields:</h4>
+<ul>
+<li><code>model_name_or_path</code>: Path to the pre-trained TorsionBERT model</li>
+<li><code>device</code>: Device to run the model on (CPU/GPU)</li>
+<li><code>angle_mode</code>: Output format ("sin_cos", "radians", or "degrees")</li>
+<li><code>num_angles</code>: Number of torsion angles to predict</li>
+<li><code>max_length</code>: Maximum sequence length for processing</li>
+</ul>
+<h4 id="notable-methods">Notable Methods:</h4>
+<ul>
+<li><code>__call__()</code>: Main inference method that processes a sequence and returns torsion angles</li>
+<li><code>_convert_sincos_to_angles()</code>: Converts sin/cos pairs to actual angles</li>
+<li><code>predict_angles_from_sequence()</code>: Core method for angle prediction</li>
+</ul>
+<h3 id="pairformerwrapper-class"><code>PairformerWrapper</code> Class</h3>
+<p>This class manages the Pairformer model for generating pairwise embeddings.</p>
+<h4 id="key-fields_1">Key Fields:</h4>
+<ul>
+<li><code>n_blocks</code>: Number of Pairformer blocks (default: 48)</li>
+<li><code>c_z</code>: Dimension of pair embeddings (default: 128)</li>
+<li><code>c_s</code>: Dimension of single embeddings (default: 384)</li>
+<li><code>dropout</code>: Dropout rate for regularization</li>
+</ul>
+<h4 id="notable-methods_1">Notable Methods:</h4>
+<ul>
+<li><code>forward()</code>: Processes inputs to generate single and pair embeddings</li>
+<li><code>_prep_blocks()</code>: Prepares the Pairformer blocks for processing</li>
+<li><code>clear_cache()</code>: Manages memory during processing</li>
+</ul>
+<h3 id="run_stageb_combined-function"><code>run_stageB_combined</code> Function</h3>
+<p>This function orchestrates the combined operation of TorsionBERT and Pairformer.</p>
+<h4 id="key-functionality">Key Functionality:</h4>
+<ul>
+<li>Initializes both models with appropriate parameters</li>
+<li>Processes the input sequence and adjacency matrix</li>
+<li>Generates torsion angles and embeddings</li>
+<li>Returns a dictionary containing all outputs</li>
+</ul>
+<h2 id="hydra-configuration">Hydra Configuration</h2>
+<p>Stage B's behavior is controlled through Hydra configuration using two separate files located in <code>rna_predict/conf/model/</code>:</p>
+<ol>
+<li><strong><code>stageB_torsion.yaml</code></strong>: Configures the TorsionBERT model parameters.</li>
+<li><strong><code>stageB_pairformer.yaml</code></strong>: Configures the Pairformer model parameters.</li>
+</ol>
+<p>These files are included in the main <code>rna_predict/conf/default.yaml</code> via its <code>defaults</code> list, ensuring both configurations are loaded when the pipeline runs.</p>
+<p><strong>Example: <code>stageB_torsion.yaml</code></strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># rna_predict/conf/model/stageB_torsion.yaml</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nt">torsion_bert</span><span class="p">:</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span><span class="nt">model_name_or_path</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;sayby/rna_torsionbert&quot;</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">  </span><span class="nt">device</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;cpu&quot;</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">  </span><span class="nt">angle_mode</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;sin_cos&quot;</span><span class="w">  </span><span class="c1"># One of: &quot;sin_cos&quot;, &quot;radians&quot;, &quot;degrees&quot;</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">  </span><span class="nt">num_angles</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">7</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">  </span><span class="nt">max_length</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">512</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">  </span><span class="nt">checkpoint_path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">null</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">  </span><span class="nt">lora</span><span class="p">:</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="w">    </span><span class="c1"># ... other lora params</span>
+</code></pre></div></p>
+<p><strong>Example: <code>stageB_pairformer.yaml</code></strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># rna_predict/conf/model/stageB_pairformer.yaml</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nt">pairformer</span><span class="p">:</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span><span class="nt">n_blocks</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">48</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">  </span><span class="nt">n_heads</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">16</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">  </span><span class="nt">c_z</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">128</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">  </span><span class="nt">c_s</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">384</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">  </span><span class="nt">dropout</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.25</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">  </span><span class="nt">use_memory_efficient_kernel</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">  </span><span class="nt">use_deepspeed_evo_attention</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">  </span><span class="nt">use_lma</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">  </span><span class="nt">inplace_safe</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="w">  </span><span class="nt">chunk_size</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">null</span>
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="w">  </span><span class="nt">c_hidden_mul</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">128</span><span class="w"> </span><span class="c1"># Note: Currently stored but not passed to PairformerStack constructor</span>
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="w">  </span><span class="nt">c_hidden_pair_att</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">32</span><span class="w"> </span><span class="c1"># Note: Currently stored but not passed to PairformerStack constructor</span>
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="w">  </span><span class="nt">no_heads_pair</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">4</span><span class="w"> </span><span class="c1"># Note: Currently stored but not passed to PairformerStack constructor</span>
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="w">  </span><span class="nt">init_z_from_adjacency</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="w">  </span><span class="nt">use_checkpoint</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a><span class="w">  </span><span class="nt">lora</span><span class="p">:</span>
+<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a><span class="w">    </span><span class="c1"># ... other lora params</span>
+<a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a>
+<a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a><span class="c1"># Note: Parameters like batch_size might be defined at a higher level (e.g., train.yaml or main default.yaml)</span>
+<a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a><span class="c1"># or within the stage-specific entry point script&#39;s config if applicable.</span>
+</code></pre></div></p>
+<h3 id="configuration-parameters">Configuration Parameters:</h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>torsionbert.model_name_or_path</code></td>
+<td>str</td>
+<td>"sayby/rna_torsionbert"</td>
+<td>Path to the pre-trained TorsionBERT model. This should point to a valid Hugging Face model repository or local checkpoint. The model will be downloaded if not found locally.</td>
+</tr>
+<tr>
+<td><code>torsionbert.device</code></td>
+<td>str</td>
+<td>"cpu"</td>
+<td>Device to run the model on ("cpu" or "cuda"). Use "cuda" for GPU acceleration, which can significantly speed up inference, especially for longer sequences.</td>
+</tr>
+<tr>
+<td><code>torsionbert.angle_mode</code></td>
+<td>str</td>
+<td>"sin_cos"</td>
+<td>Output format for angles. "sin_cos" returns raw sin/cos pairs, "radians" converts to radians (-π to π), and "degrees" converts to degrees (-180° to 180°). Choose based on downstream processing needs.</td>
+</tr>
+<tr>
+<td><code>torsionbert.num_angles</code></td>
+<td>int</td>
+<td>7</td>
+<td>Number of torsion angles to predict per nucleotide. The default of 7 corresponds to the backbone angles (alpha, beta, gamma, delta, epsilon, zeta, chi). Can be increased to 17 to include all angles including pseudotorsions and sugar ring torsions.</td>
+</tr>
+<tr>
+<td><code>torsionbert.max_length</code></td>
+<td>int</td>
+<td>512</td>
+<td>Maximum sequence length for processing. Sequences longer than this will be truncated. This limit is inherited from the underlying BERT architecture.</td>
+</tr>
+<tr>
+<td><code>pairformer.n_blocks</code></td>
+<td>int</td>
+<td>48</td>
+<td>Number of Pairformer blocks in the stack. Each block processes the sequence and adjacency information. More blocks allow for deeper feature extraction but increase memory usage and computation time. For shorter sequences (&lt;100 nt), fewer blocks (16-24) may be sufficient.</td>
+</tr>
+<tr>
+<td><code>pairformer.n_heads</code></td>
+<td>int</td>
+<td>16</td>
+<td>Number of attention heads in each block. Controls the diversity of attention patterns. More heads allow the model to focus on different aspects of the sequence and structure simultaneously.</td>
+</tr>
+<tr>
+<td><code>pairformer.c_z</code></td>
+<td>int</td>
+<td>128</td>
+<td>Dimension of pair embeddings. Controls the richness of information captured in pairwise relationships. Larger values may improve accuracy but increase memory usage.</td>
+</tr>
+<tr>
+<td><code>pairformer.c_s</code></td>
+<td>int</td>
+<td>384</td>
+<td>Dimension of single embeddings. Controls the richness of information captured for each nucleotide. Larger values may improve accuracy but increase memory usage.</td>
+</tr>
+<tr>
+<td><code>pairformer.dropout</code></td>
+<td>float</td>
+<td>0.25</td>
+<td>Dropout rate for regularization. Higher values (0.3-0.5) can help prevent overfitting but may reduce accuracy. Lower values (0.1-0.2) are recommended for inference.</td>
+</tr>
+<tr>
+<td><code>pairformer.use_memory_efficient_kernel</code></td>
+<td>bool</td>
+<td>false</td>
+<td>Whether to use memory-efficient operations. Enable this for very long sequences (&gt;500 nt) to reduce memory usage, but may slightly slow down computation.</td>
+</tr>
+<tr>
+<td><code>pairformer.use_deepspeed_evo_attention</code></td>
+<td>bool</td>
+<td>false</td>
+<td>Whether to use DeepSpeed evolutionary attention. This is an experimental feature that may improve performance on certain hardware but requires DeepSpeed to be installed.</td>
+</tr>
+<tr>
+<td><code>pairformer.use_lma</code></td>
+<td>bool</td>
+<td>false</td>
+<td>Whether to use low-memory attention. Similar to memory-efficient kernel but with different implementation. Enable for very long sequences when memory is a constraint.</td>
+</tr>
+<tr>
+<td><code>pairformer.inplace_safe</code></td>
+<td>bool</td>
+<td>false</td>
+<td>Whether to use inplace operations. Enable to reduce memory usage but may cause issues with certain PyTorch operations. Only enable if you understand the implications.</td>
+</tr>
+<tr>
+<td><code>pairformer.chunk_size</code></td>
+<td>int</td>
+<td>null</td>
+<td>Chunk size for memory-efficient operations. When set, the sequence is processed in chunks of this size. Useful for very long sequences that don't fit in memory.</td>
+</tr>
+<tr>
+<td><code>pairformer.c_hidden_mul</code></td>
+<td>int</td>
+<td>128</td>
+<td>Hidden dimension for triangle multiplication. Controls the complexity of the triangle multiplication operation. Larger values may improve accuracy but increase computation time.</td>
+</tr>
+<tr>
+<td><code>pairformer.c_hidden_pair_att</code></td>
+<td>int</td>
+<td>32</td>
+<td>Hidden dimension for pair attention. Controls the complexity of the pair attention mechanism. Larger values may improve accuracy but increase computation time.</td>
+</tr>
+<tr>
+<td><code>pairformer.no_heads_pair</code></td>
+<td>int</td>
+<td>4</td>
+<td>Number of heads for pair attention. Controls the diversity of attention patterns in the pair attention mechanism. More heads allow for more complex pairwise relationships to be captured.</td>
+</tr>
+<tr>
+<td><code>batch_size</code></td>
+<td>int</td>
+<td>32</td>
+<td>Batch size for processing multiple sequences. Larger batch sizes improve throughput but increase memory usage. For very long sequences, reduce this value.</td>
+</tr>
+<tr>
+<td><code>init_z_from_adjacency</code></td>
+<td>bool</td>
+<td>false</td>
+<td>Whether to initialize pair embeddings from adjacency matrix. When enabled, the pair embeddings are initialized based on the adjacency matrix from Stage A, which can help incorporate base-pairing information. This is particularly useful when the adjacency matrix is accurate.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="model-architecture-details">Model Architecture Details</h3>
+<p>Stage B combines two sophisticated architectures:</p>
+<ol>
+<li><strong>TorsionBERT</strong>:</li>
+<li>Transformer-based model for predicting torsion angles</li>
+<li>Processes RNA sequences to output angle predictions</li>
+<li>Supports multiple output formats (sin/cos, radians, degrees)</li>
+<li>
+<p>Includes fallback to dummy model for testing/development</p>
+</li>
+<li>
+<p><strong>Pairformer</strong>:</p>
+</li>
+<li>Stack of Pairformer blocks implementing Algorithm 17 from AF3</li>
+<li>Each block contains:<ul>
+<li>Triangle multiplication (outgoing and incoming)</li>
+<li>Triangle attention (start and end)</li>
+<li>Pair transition</li>
+<li>Single transition (if c_s &gt; 0)</li>
+</ul>
+</li>
+<li>Uses attention mechanisms to capture pairwise relationships</li>
+<li>Supports memory-efficient operations for large sequences</li>
+</ol>
+<h3 id="msamodule-architecture">MSAModule Architecture</h3>
+<p>The MSAModule is a key component of the Pairformer architecture that handles multiple sequence alignment (MSA) features:</p>
+<h4 id="core-parameters">Core Parameters</h4>
+<ul>
+<li><strong>n_blocks</strong>: Number of MSA blocks (default: 8)</li>
+<li><strong>c_m</strong>: Hidden dimension for MSA features (default: 256)</li>
+<li><strong>c_z</strong>: Hidden dimension for pair features (default: 128)</li>
+<li><strong>c_s_inputs</strong>: Input dimension for single features (default: 384)</li>
+<li><strong>msa_dropout</strong>: Dropout rate for MSA features (default: 0.15)</li>
+<li><strong>pair_dropout</strong>: Dropout rate for pair features (default: 0.25)</li>
+<li><strong>blocks_per_ckpt</strong>: Number of blocks per checkpoint for memory efficiency</li>
+</ul>
+<h4 id="msa-configuration">MSA Configuration</h4>
+<ul>
+<li><strong>enable</strong>: Whether MSA is enabled (default: False)</li>
+<li><strong>strategy</strong>: MSA sampling strategy (default: "random")</li>
+<li><strong>train_cutoff</strong>: Maximum MSA size during training (default: 512)</li>
+<li><strong>test_cutoff</strong>: Maximum MSA size during testing (default: 16384)</li>
+<li><strong>train_lowerb</strong>: Minimum MSA size during training (default: 1)</li>
+<li><strong>test_lowerb</strong>: Minimum MSA size during testing (default: 1)</li>
+</ul>
+<h4 id="architecture-components">Architecture Components</h4>
+<ul>
+<li><strong>MSABlock</strong>: Base block for MSA processing</li>
+<li>Contains outer product mean for MSA-to-pair communication</li>
+<li>Includes MSA stack for MSA feature processing</li>
+<li>Implements pair stack for pair feature processing</li>
+<li><strong>MSAStack</strong>: Processes MSA embeddings</li>
+<li>Uses MSAPairWeightedAveraging for weighted averaging</li>
+<li>Applies dropout for regularization</li>
+<li>Includes transition layer for feature refinement</li>
+<li><strong>MSAPairWeightedAveraging</strong>: Implements weighted averaging with gating</li>
+<li>Uses layer normalization for feature normalization</li>
+<li>Applies linear projections for feature transformation</li>
+<li>Implements softmax weighting for attention</li>
+</ul>
+<h3 id="templateembedder-architecture">TemplateEmbedder Architecture</h3>
+<p>The TemplateEmbedder is designed to incorporate template information into the Pairformer architecture:</p>
+<h4 id="core-parameters_1">Core Parameters</h4>
+<ul>
+<li><strong>n_blocks</strong>: Number of template blocks (default: 2)</li>
+<li><strong>c</strong>: Hidden dimension (default: 64)</li>
+<li><strong>c_z</strong>: Pair embedding dimension (default: 128)</li>
+<li><strong>dropout</strong>: Dropout rate (default: 0.25)</li>
+<li><strong>blocks_per_ckpt</strong>: Number of blocks per checkpoint for memory efficiency</li>
+</ul>
+<h4 id="input-features">Input Features</h4>
+<ul>
+<li><strong>template_distogram</strong>: 39 dimensions</li>
+<li><strong>b_template_backbone_frame_mask</strong>: 1 dimension</li>
+<li><strong>template_unit_vector</strong>: 3 dimensions</li>
+<li><strong>b_template_pseudo_beta_mask</strong>: 1 dimension</li>
+<li><strong>template_restype_i</strong>: 32 dimensions</li>
+<li><strong>template_restype_j</strong>: 32 dimensions</li>
+</ul>
+<h4 id="architecture-components_1">Architecture Components</h4>
+<ul>
+<li><strong>LinearNoBias</strong>: Linear layers without bias terms</li>
+<li><strong>LayerNorm</strong>: Layer normalization for feature normalization</li>
+<li><strong>PairformerStack</strong>: Stack of Pairformer blocks for template processing</li>
+<li>Uses the same architecture as the main Pairformer</li>
+<li>Processes template features to generate template embeddings</li>
+</ul>
+<h3 id="torsionbert-detailed-parameters">TorsionBERT Detailed Parameters</h3>
+<p>TorsionBERT is a specialized model for predicting RNA torsion angles with the following characteristics:</p>
+<h4 id="model-specifications">Model Specifications</h4>
+<ul>
+<li><strong>Model Size</strong>: ~328 MB (DNABERT-based)</li>
+<li><strong>Training Dataset</strong>: ~4267 structures</li>
+<li><strong>Maximum Sequence Length</strong>: 512 nucleotides</li>
+<li><strong>Model Repository</strong>: https://huggingface.co/sayby/rna_torsionbert</li>
+</ul>
+<h4 id="torsion-angles">Torsion Angles</h4>
+<p>TorsionBERT predicts 17 torsion angles per nucleotide:</p>
+<table>
+<thead>
+<tr>
+<th>Angle</th>
+<th>Description</th>
+<th>Standard A-form Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>alpha</td>
+<td>P-O5'-C5'-C4'</td>
+<td>-60.0°</td>
+</tr>
+<tr>
+<td>beta</td>
+<td>O5'-C5'-C4'-C3'</td>
+<td>180.0°</td>
+</tr>
+<tr>
+<td>gamma</td>
+<td>C5'-C4'-C3'-O3'</td>
+<td>60.0°</td>
+</tr>
+<tr>
+<td>delta</td>
+<td>C4'-C3'-O3'-P</td>
+<td>80.0°</td>
+</tr>
+<tr>
+<td>epsilon</td>
+<td>C3'-O3'-P-O5'</td>
+<td>-150.0°</td>
+</tr>
+<tr>
+<td>zeta</td>
+<td>O3'-P-O5'-C5'</td>
+<td>-70.0°</td>
+</tr>
+<tr>
+<td>chi</td>
+<td>O4'-C1'-N9/N1-C4/C2</td>
+<td>-160.0°</td>
+</tr>
+<tr>
+<td>eta</td>
+<td>Pseudotorsion</td>
+<td>-</td>
+</tr>
+<tr>
+<td>theta</td>
+<td>Pseudotorsion</td>
+<td>-</td>
+</tr>
+<tr>
+<td>eta'</td>
+<td>Alternative pseudotorsion</td>
+<td>-</td>
+</tr>
+<tr>
+<td>theta'</td>
+<td>Alternative pseudotorsion</td>
+<td>-</td>
+</tr>
+<tr>
+<td>v0</td>
+<td>Sugar ring torsion</td>
+<td>-</td>
+</tr>
+<tr>
+<td>v1</td>
+<td>Sugar ring torsion</td>
+<td>-</td>
+</tr>
+<tr>
+<td>v2</td>
+<td>Sugar ring torsion</td>
+<td>-</td>
+</tr>
+<tr>
+<td>v3</td>
+<td>Sugar ring torsion</td>
+<td>-</td>
+</tr>
+<tr>
+<td>v4</td>
+<td>Sugar ring torsion</td>
+<td>-</td>
+</tr>
+</tbody>
+</table>
+<h4 id="processing-parameters">Processing Parameters</h4>
+<ul>
+<li><strong>k-mer Size</strong>: 3 (default)</li>
+<li>The k-mer size determines how the RNA sequence is tokenized for the TorsionBERT model</li>
+<li>A k-mer size of 3 means the sequence is split into overlapping 3-nucleotide windows</li>
+<li>This approach allows the model to capture local context around each nucleotide</li>
+<li>Larger k-mer sizes (4-5) may capture more context but increase the vocabulary size and memory usage</li>
+<li>Smaller k-mer sizes (1-2) reduce memory usage but may miss important local context</li>
+<li><strong>Tokenizer Parameters</strong>:
+  <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">params_tokenizer</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>    <span class="s2">&quot;return_tensors&quot;</span><span class="p">:</span> <span class="s2">&quot;pt&quot;</span><span class="p">,</span>  <span class="c1"># Return PyTorch tensors</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>    <span class="s2">&quot;padding&quot;</span><span class="p">:</span> <span class="s2">&quot;max_length&quot;</span><span class="p">,</span> <span class="c1"># Pad sequences to max_length</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>    <span class="s2">&quot;max_length&quot;</span><span class="p">:</span> <span class="mi">512</span><span class="p">,</span>       <span class="c1"># Maximum sequence length</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>    <span class="s2">&quot;truncation&quot;</span><span class="p">:</span> <span class="kc">True</span>       <span class="c1"># Truncate sequences longer than max_length</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="p">}</span>
+</code></pre></div></li>
+<li>These parameters control how the sequence is tokenized and prepared for the model</li>
+<li><code>return_tensors</code>: Specifies the tensor type (PyTorch in this case)</li>
+<li><code>padding</code>: Controls how sequences shorter than max_length are padded</li>
+<li><code>max_length</code>: Maximum sequence length (inherited from BERT architecture)</li>
+<li><code>truncation</code>: Whether to truncate sequences longer than max_length</li>
+<li><strong>Sequence Preprocessing</strong>: </li>
+<li>Converts U to T: RNA sequences are converted to DNA format (U→T) because TorsionBERT is based on DNABERT</li>
+<li>Splits into k-mers: The sequence is split into overlapping k-mers for tokenization</li>
+<li>This preprocessing is essential for the model to correctly interpret the sequence</li>
+</ul>
+<h4 id="output-processing">Output Processing</h4>
+<ul>
+<li><strong>Angle Conversion</strong>: The model outputs sin/cos pairs which can be converted to:</li>
+<li>Radians (-π to π): Useful for mathematical operations and some downstream tasks</li>
+<li>Degrees (-180° to 180°): More intuitive for visualization and comparison with experimental data</li>
+<li>The conversion is done using the arctangent function: angle = atan2(sin, cos)</li>
+<li><strong>Error Handling</strong>:</li>
+<li>Handles empty sequences by returning empty tensor: Prevents crashes when empty sequences are provided</li>
+<li>Validates angle mode input: Ensures only valid angle modes are used</li>
+<li>Handles potential NaN values in angle calculations: Replaces NaN values with zeros or other defaults</li>
+</ul>
+<h2 id="integration">Integration</h2>
+<h3 id="upstream-dependencies">Upstream Dependencies</h3>
+<ul>
+<li><strong>Stage A</strong>: Provides the adjacency matrix for base-pairing information</li>
+<li>Used to condition torsion angle predictions</li>
+<li>Can initialize pair embeddings in Pairformer</li>
+<li>The quality of the adjacency matrix significantly impacts the performance of Stage B</li>
+<li>For best results, ensure Stage A is configured to produce high-confidence base-pairing predictions</li>
+</ul>
+<h3 id="downstream-dependencies">Downstream Dependencies</h3>
+<ul>
+<li><strong>Stage C</strong>: Uses both torsion angles and embeddings for 3D structure prediction</li>
+<li>Torsion angles define local geometry</li>
+<li>Pair embeddings guide global structure</li>
+<li>The accuracy of Stage B's outputs directly impacts the quality of the 3D structure</li>
+<li>Consider using the <code>angle_mode</code> parameter to match the format expected by Stage C</li>
+<li><strong>Unified Latent Merger</strong>: Combines outputs with other stages</li>
+<li>The latent merger expects specific formats for torsion angles and embeddings</li>
+<li>Ensure compatibility by using the correct parameter settings</li>
+<li><strong>Stage D</strong>: May use outputs for diffusion guidance</li>
+<li>The quality of the initial structure from Stage C depends on accurate torsion angles</li>
+<li>Consider using higher quality settings for Stage B when accuracy is critical</li>
+</ul>
+<h3 id="data-flow">Data Flow</h3>
+<ol>
+<li>RNA sequence and adjacency matrix are input to Stage B</li>
+<li>TorsionBERT generates torsion angles for each nucleotide</li>
+<li>The sequence is preprocessed (U→T, k-mer tokenization)</li>
+<li>The model predicts sin/cos pairs for each angle</li>
+<li>The output is converted to the specified angle mode</li>
+<li>Pairformer processes the sequence to generate embeddings:</li>
+<li>Single embeddings capture nucleotide features</li>
+<li>Pair embeddings model relationships between nucleotides</li>
+<li>The adjacency matrix can be used to initialize pair embeddings</li>
+<li>All outputs are passed to Stage C for 3D structure prediction</li>
+<li>The torsion angles guide the local geometry</li>
+<li>The embeddings guide the global structure</li>
+</ol>
+<h2 id="edge-cases-error-handling">Edge Cases &amp; Error Handling</h2>
+<h3 id="sequence-length-issues">Sequence Length Issues</h3>
+<ul>
+<li><strong>Short Sequences</strong>: Minimum length requirements from TorsionBERT</li>
+<li>Sequences shorter than k-mer size (default: 3) may not be processed correctly</li>
+<li>Consider padding very short sequences or using a smaller k-mer size</li>
+<li><strong>Long Sequences</strong>: Memory-efficient processing options in Pairformer</li>
+<li>Chunk size configuration for large sequences<ul>
+<li>Set <code>chunk_size</code> to process the sequence in smaller chunks</li>
+<li>This reduces memory usage but may slightly impact accuracy</li>
+</ul>
+</li>
+<li>Memory-efficient kernel options<ul>
+<li>Enable <code>use_memory_efficient_kernel</code> for sequences &gt;500 nt</li>
+<li>This reduces memory usage by using more efficient algorithms</li>
+</ul>
+</li>
+<li>Low-memory attention support<ul>
+<li>Enable <code>use_lma</code> for very long sequences</li>
+<li>This uses a different attention mechanism that requires less memory</li>
+</ul>
+</li>
+</ul>
+<h3 id="model-loading-issues">Model Loading Issues</h3>
+<ul>
+<li><strong>Missing TorsionBERT</strong>: Falls back to dummy model for testing</li>
+<li>If the model cannot be loaded, a dummy model is used that returns zeros</li>
+<li>This ensures the pipeline can continue even if the model is missing</li>
+<li>Check the model path and ensure it's accessible</li>
+<li><strong>Invalid Checkpoints</strong>: Graceful error handling with informative messages</li>
+<li>If the checkpoint is invalid, an error message is displayed</li>
+<li>The pipeline attempts to continue with a dummy model</li>
+<li>Check the checkpoint format and ensure it's compatible</li>
+<li><strong>Device Mismatches</strong>: Automatic device placement and transfer</li>
+<li>Models are automatically moved to the specified device</li>
+<li>Tensors are transferred between devices as needed</li>
+<li>Ensure the device is available and has sufficient memory</li>
+</ul>
+<h3 id="memory-management">Memory Management</h3>
+<ul>
+<li>Configurable memory optimization strategies</li>
+<li>Use <code>use_memory_efficient_kernel</code> for large sequences</li>
+<li>Set <code>chunk_size</code> to process in smaller chunks</li>
+<li>Enable <code>inplace_safe</code> to reduce memory usage (with caution)</li>
+<li>Chunk-based processing for large sequences</li>
+<li>The sequence is processed in chunks of size <code>chunk_size</code></li>
+<li>This reduces peak memory usage but may slightly impact accuracy</li>
+<li>Recommended for sequences &gt;1000 nt</li>
+<li>Inplace operation options for memory efficiency</li>
+<li>Enable <code>inplace_safe</code> to use inplace operations</li>
+<li>This reduces memory usage but may cause issues with certain operations</li>
+<li>Only enable if you understand the implications</li>
+<li>Cache clearing between blocks</li>
+<li>The cache is cleared between Pairformer blocks to reduce memory usage</li>
+<li>This is automatic and doesn't require configuration</li>
+</ul>
+<h3 id="hpc-considerations">HPC Considerations</h3>
+<ul>
+<li>Memory-efficient kernel options</li>
+<li>Enable <code>use_memory_efficient_kernel</code> for HPC environments</li>
+<li>This reduces memory usage per node, allowing for larger batch sizes</li>
+<li>DeepSpeed integration support</li>
+<li>Enable <code>use_deepspeed_evo_attention</code> for DeepSpeed compatibility</li>
+<li>This requires DeepSpeed to be installed and configured</li>
+<li>Recommended for multi-GPU training</li>
+<li>Low-memory attention mechanisms</li>
+<li>Enable <code>use_lma</code> for very large models or sequences</li>
+<li>This uses a different attention mechanism that requires less memory</li>
+<li>May slightly impact accuracy</li>
+<li>Configurable batch processing</li>
+<li>Adjust <code>batch_size</code> based on available memory</li>
+<li>For HPC environments, larger batch sizes improve throughput</li>
+<li>For very long sequences, reduce batch size to fit in memory</li>
+</ul>
+<h2 id="references-dependencies">References &amp; Dependencies</h2>
+<h3 id="papers">Papers</h3>
+<ul>
+<li>TorsionBERT: "RNA Torsion Angle Prediction with TorsionBERT" (Sayby et al.)</li>
+<li>Pairformer: "Pairformer: A Novel Architecture for RNA Structure Prediction" (ByteDance, 2024)</li>
+</ul>
+<h3 id="software-dependencies">Software Dependencies</h3>
+<ul>
+<li>PyTorch (version ≥ 1.8.0)</li>
+<li>Transformers (for TorsionBERT)</li>
+<li>Protenix (for Pairformer components)</li>
+</ul>
+<h3 id="external-resources">External Resources</h3>
+<ul>
+<li>TorsionBERT repository: https://huggingface.co/sayby/rna_torsionbert</li>
+<li>Pairformer implementation: Internal ByteDance repository </li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../../../../..", "features": [], "search": "../../../../../../assets/javascripts/workers/search.7a47a382.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../../../../assets/javascripts/bundle.e71a0d61.min.js"></script>
+      
+        <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>

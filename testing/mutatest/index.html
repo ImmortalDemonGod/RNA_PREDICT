@@ -1,0 +1,6426 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.0">
+    
+    
+      
+        <title>Mutatest - rna_predict</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.618322db.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#file-githubpull_request_templatemd" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="rna_predict" class="md-header__button md-logo" aria-label="rna_predict" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            rna_predict
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Mutatest
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="rna_predict" class="md-nav__button md-logo" aria-label="rna_predict" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    rna_predict
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_1" id="__nav_2_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/getting_started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/getting_started/windows_compatibility_plan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Windows Compatibility
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2" id="__nav_2_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Best Practices
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Best Practices
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/best_practices/code_quality_best_practices/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Code Quality
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2_2" id="__nav_2_2_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Testing
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/best_practices/testing/test_coverage_strategy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Coverage Strategy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/best_practices/testing/progressive_coverage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Progressive Coverage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/best_practices/testing/test_generation_prompt/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Generation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2_3" id="__nav_2_2_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Debugging
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Debugging
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/best_practices/debugging/comprehensive_debugging_guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comprehensive Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pipeline
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Pipeline
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_1" id="__nav_3_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Overview
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/overview/core_framework/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core Framework
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/overview/Integrated_RNA_3D_Prediction_Pipeline_Final_Comprehensive_Design/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comprehensive Design
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/overview/full_pipeline_specification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Full Specification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/overview/Multi_Stage_Implementation_Plan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Multi-Stage Plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Integration
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Integration
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/integration/Integrated_RNA_3D_Prediction_Pipeline_Final_Comprehensive_Design/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/integration/full_pipeline_specification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Full Specification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2_3" id="__nav_3_2_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hydra Integration
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_3_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Hydra Integration
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/integration/hydra_integration/hydra_tutorial/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorial
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/integration/hydra_integration/hydra_integration_gap_analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gap Analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/integration/hydra_integration/hydra_integration_master_document/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Master Document
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2_3_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2_3_4" id="__nav_3_2_3_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Components
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_3_2_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Components
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/integration/hydra_integration/components/stageA/StageA_2D_Adjacency/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage A
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/integration/hydra_integration/components/stageB/StageB_Torsion_Pairwise/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage B
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/integration/hydra_integration/components/stageC/StageC_3D_Reconstruction/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage C
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/integration/hydra_integration/components/stageD/StageD_Diffusion_Refinement/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage D
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/integration/hydra_integration/components/unified_latent/UnifiedLatentMerger/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unified Latent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_3" id="__nav_3_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage A
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Stage A
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/stageA/StageA_RFold/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/stageA/RFold_code/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RFold Code
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/stageA/RFold_paper/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RFold Paper
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/stageA/rfold-demo/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Demo
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/stageA/stage_a_extra/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Extra Notes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_4" id="__nav_3_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage B
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Stage B
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/stageB/Stage_B/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_4_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_4_2" id="__nav_3_4_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TorsionBERT
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_3_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    TorsionBERT
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/stageB/torsionBert/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/stageB/torsionbert_code/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Code
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/stageB/torsionBert_full_paper/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Paper
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_5" id="__nav_3_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage C
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Stage C
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/stageC/Stage_C/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/stageC/Integrated_RNA_Geometry_and_3D_Reconstruction/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Geometry & Reconstruction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/stageC/Unified, Comprehensive Plan for Integrating MP-NeRF into Stage C.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MP-NeRF Integration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/stageC/mp_nerf/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MP-NeRF Details
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_6" id="__nav_3_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unified Latent
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Unified Latent
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/unified_latent/Perceiver_IO/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Perceiver IO
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/Energy_Minimization_%26_Molecular_Dynamics_%28MD%29_for_RNA_Structure_Refinement/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Energy & MD
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_8" id="__nav_3_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Testing
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/test_time_scaling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Time Scaling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_9" id="__nav_3_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Kaggle
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Kaggle
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/kaggle_info/kaggle_competition/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Competition
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/kaggle_info/M2_Plan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    M2 Plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_1" id="__nav_4_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Advanced Methods
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Advanced Methods
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_1_1" id="__nav_4_1_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AlphaFold 3
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_4_1_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_1_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AlphaFold 3
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/advanced_methods/af3/AF3_paper/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Paper
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/advanced_methods/af3/AlphaFold3_progress/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Progress
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/advanced_methods/af3/Pairwise_Distance_Based_Prediction/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Distance Prediction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_1_2" id="__nav_4_1_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Diffusion
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_4_1_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_1_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Diffusion
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/advanced_methods/diffusion/s4_diffusion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    S4 Diffusion
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/advanced_methods/diffusion/test_time_scaling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Time Scaling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/advanced_methods/isosteric_substitutions/RNA_isostericity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Isosteric Substitutions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_2" id="__nav_4_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    External Literature
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    External Literature
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/external_lit/2d_structure_prediction_papers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2D Structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/external_lit/RNA_papers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RNA Papers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_3" id="__nav_4_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Residue Atom Bridging
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Residue Atom Bridging
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/residue_atom_bridging/audit_report/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Audit Report
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/residue_atom_bridging/design_spec/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design Spec
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/residue_atom_bridging/documentation_draft/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Documentation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/residue_atom_bridging/implementation_notes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Implementation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/residue_atom_bridging/refactoring_plan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Refactoring
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/residue_atom_bridging/bridging_caveats_guidelines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guidelines
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_4" id="__nav_4_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Torsion Calculations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Torsion Calculations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/torsion_calculations/torsion_angles_intro/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Introduction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/torsion_calculations/Standard_Bond_Lengths_and_Angles_in_RNA_Nucleotides/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bond Lengths & Angles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/torsion_calculations/Torsion_Angles_3D_Coordinates_RNA_Structure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3D Coordinates
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/torsion_calculations/torsion_angle_Latent_Manifold_Representation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Latent Manifold
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#file-githubpull_request_templatemd" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /.github/pull_request_template.md
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#file-docsapi_tutorialapi_tutorialrst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /docs/api_tutorial/api_tutorial.rst
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#api-tutorial" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        API Tutorial
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="API Tutorial">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#tutorial-setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tutorial setup
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#run-a-clean-trial-and-generate-coverage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Run a clean trial and generate coverage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#genome-basics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Genome Basics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#creating-mutations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Creating Mutations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#genomegroups" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GenomeGroups
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#file-docschangelogrst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /docs/changelog.rst
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#file-docscommandlinerst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /docs/commandline.rst
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#command-line-controls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Command Line Controls
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Command Line Controls">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#specifying-source-files-and-test-commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Specifying source files and test commands
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#coverage-filtering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Coverage filtering
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#auto-detected-package-structures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Auto-detected package structures
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#selecting-a-running-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Selecting a running mode
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#controlling-randomization-behavior-and-trial-number" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Controlling randomization behavior and trial number
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#selecting-categories-of-mutations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Selecting categories of mutations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#setting-the-output-location" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Setting the output location
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#raising-exceptions-for-survivor-tolerances" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Raising exceptions for survivor tolerances
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#controlling-trial-timeout-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Controlling trial timeout behavior
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parallelization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parallelization
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#putting-it-all-together" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Putting it all together
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#getting-help" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Getting help
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#using-a-config-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Using a config file
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#file-docscontributingrst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /docs/contributing.rst
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#file-docsindexrst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /docs/index.rst
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mutatest-python-mutation-testing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mutatest: Python mutation testing
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Mutatest: Python mutation testing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#features" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Features:
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#quick-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Start
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#contents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Contents
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#indices-and-tables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Indices and tables
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Indices and tables">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#file-docsinstallrst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /docs/install.rst
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#installation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Installation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mutation-trial-process" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mutation Trial Process
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#motivation-and-faqs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Motivation and FAQs
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Motivation and FAQs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mutation-testing-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mutation Testing Overview
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#why-random-sampling-instead-of-all-possible-mutants" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why random sampling instead of all possible mutants?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#why-modify-the-pycache" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why modify the pycache?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#can-i-use-mutatest-in-cicd" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Can I use mutatest in CICD?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#are-there-differences-in-running-with-python-37-vs-python-38" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Are there differences in running with Python 3.7 vs. Python 3.8?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#known-limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Known limitations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#file-docslicenserst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /docs/license.rst
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#license" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        License
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="License">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#file-docsmodulesrst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /docs/modules.rst
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#api-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        API Reference
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="API Reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#file-docsmutantsrst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /docs/mutants.rst
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mutations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mutations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Mutations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#augassign-aa" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AugAssign - "aa"
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#binop-bn" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BinOp - "bn"
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#binop-bit-comparison-bc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BinOp Bit Comparison - "bc"
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#binop-bit-shifts-bs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BinOp Bit Shifts - "bs"
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#boolop-bl" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BoolOp - "bl"
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#compare-cp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compare - "cp"
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#compare-in-cn" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compare In - "cn"
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#compare-is-cs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compare Is - "cs"
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#if-if" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        If - "if"
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#index-ix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Index - "ix"
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nameconstant-nc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NameConstant - "nc"
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#slices-su" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Slices - "su"
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#file-authorsrst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /AUTHORS.rst
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#authors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Authors
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Authors">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#contributors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Contributors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#file-changelogrst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /CHANGELOG.rst
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#changelog" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changelog
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Changelog">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#stable-releases" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stable Releases
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#beta-releases" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Beta Releases
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#alpha-releases" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Alpha Releases
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#file-contributingrst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /CONTRIBUTING.rst
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#contributing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Contributing
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Contributing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#vision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Vision
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#development-guidelines" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Development Guidelines
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#file-readmerst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File: /README.rst
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mutatest-python-mutation-testing_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        mutatest: Python mutation testing
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="mutatest: Python mutation testing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#features_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Features
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#install" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Install
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-output" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example Output
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Documentation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bugsrequests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bugs/Requests
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changelog_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ChangeLog
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#license_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        License
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<p>Directory Structure:</p>
+<p>└── ./
+    ├── .github
+    │   └── pull_request_template.md
+    ├── docs
+    │   ├── api_tutorial
+    │   │   └── api_tutorial.rst
+    │   ├── changelog.rst
+    │   ├── commandline.rst
+    │   ├── contributing.rst
+    │   ├── index.rst
+    │   ├── install.rst
+    │   ├── license.rst
+    │   ├── modules.rst
+    │   └── mutants.rst
+    ├── AUTHORS.rst
+    ├── CHANGELOG.rst
+    ├── CONTRIBUTING.rst
+    └── README.rst</p>
+<hr />
+<h2 id="file-githubpull_request_templatemd">File: /.github/pull_request_template.md</h2>
+<!--
+Thanks for your pull-request! For efficient review please:
+
+1. Review the [contribution guidelines](https://mutatest.readthedocs.io/en/latest/contributing.html).
+2. Optionally, append your name to [Authors.rst](https://github.com/EvanKepner/mutatest/blob/master/AUTHORS.rst).
+3. Include a description of the change including examples to reproduce if necessary.
+
+Pull requests will be reviewed when the automated CI checks successfully pass.
+-->
+
+<p>PR Checklist:</p>
+<ul>
+<li>[ ] Description of the change is included.</li>
+<li>[ ] Ensure all automated CI checks pass (though ask for help if needed).</li>
+</ul>
+<hr />
+<h2 id="file-docsapi_tutorialapi_tutorialrst">File: /docs/api_tutorial/api_tutorial.rst</h2>
+<p>.. _API Tutorial:</p>
+<h1 id="api-tutorial">API Tutorial</h1>
+<p>This is a walkthrough of using the <code>mutatest</code> API. These are the same
+method calls used by the CLI and provide additional flexibility for
+customization. The code and notebook to generate this tutorial is
+located under the <code>docs/api_tutorial</code> folder on GitHub.</p>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code># Imports used throughout the tutorial
+
+import ast
+
+from pathlib import Path
+
+from mutatest import run
+from mutatest import transformers
+from mutatest.api import Genome, GenomeGroup, MutationException
+from mutatest.filters import CoverageFilter, CategoryCodeFilter
+</code></pre></div>
+<h2 id="tutorial-setup">Tutorial setup</h2>
+<p>The <code>example/</code> folder has two Python files, <code>a.py</code> and <code>b.py</code>,
+with a <code>test_ab.py</code> file that would be automatically detected by
+<code>pytest</code>.</p>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code># This folder and included .py files are in docs/api_tutoral/
+
+src_loc = Path(&quot;example&quot;)
+</code></pre></div>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code>print(*[i for i in src_loc.iterdir()
+        if i.is_file()], sep=&quot;\n&quot;)
+</code></pre></div>
+<p>.. parsed-literal::</p>
+<div class="highlight"><pre><span></span><code>example/a.py
+example/test_ab.py
+example/b.py
+</code></pre></div>
+<p><code>a.py</code> holds two functions: one to add five to an input value, another
+to return <code>True</code> if the first input value is greater than the second
+input value. The add operation is represented in the AST as <code>ast.Add</code>,
+a <code>BinOp</code> operation type, and the greater-than operation is
+represented by <code>ast.Gt</code>, a <code>CompareOp</code> operation type. If the source
+code is executed the expected value is to print <code>10</code>.</p>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code>def open_print(fn):
+    &quot;&quot;&quot;Open a print file contents.&quot;&quot;&quot;
+    with open(fn) as f:
+        print(f.read())
+
+# Contents of a.py example source file
+open_print(src_loc / &quot;a.py&quot;)
+</code></pre></div>
+<p>.. parsed-literal::</p>
+<div class="highlight"><pre><span></span><code>&quot;&quot;&quot;Example A.
+&quot;&quot;&quot;
+
+
+def add_five(a):
+    return a + 5
+
+
+def greater_than(a, b):
+    return a &gt; b
+
+
+print(add_five(5))
+</code></pre></div>
+<p><code>b.py</code> has a single function that returns whether or not the first
+input <code>is</code> the second input. <code>is</code> is represented by <code>ast.Is</code> and
+is a <code>CompareIs</code> operation type. The expected value if this source
+code is executed is <code>True</code>.</p>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code># Contents of b.py example source file
+
+open_print(src_loc / &quot;b.py&quot;)
+</code></pre></div>
+<p>.. parsed-literal::</p>
+<div class="highlight"><pre><span></span><code>&quot;&quot;&quot;Example B.
+&quot;&quot;&quot;
+
+
+def is_match(a, b):
+    return a is b
+
+
+print(is_match(1, 1))
+</code></pre></div>
+<p><code>test_ab.py</code> is the test script for both <code>a.py</code> and <code>b.py</code>. The
+<code>test_add_five</code> function is intentionally broken to demonstrate later
+mutations. It will pass if the value is greater than 10 in the test
+using 6 as an input value, and fail otherwise.</p>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code># Contents of test_ab.py example test file
+
+open_print(src_loc / &quot;test_ab.py&quot;)
+</code></pre></div>
+<p>.. parsed-literal::</p>
+<div class="highlight"><pre><span></span><code>from a import add_five
+from b import is_match
+
+
+def test_add_five():
+    assert add_five(6) &gt; 10
+
+
+def test_is_match():
+    assert is_match(&quot;one&quot;, &quot;one&quot;)
+</code></pre></div>
+<h2 id="run-a-clean-trial-and-generate-coverage">Run a clean trial and generate coverage</h2>
+<p>We can use <code>run</code> to perform a “clean trial” of our test commands based
+on the source location. This will generate a <code>.coverage</code> file that
+will be used by the <code>Genome</code>. A <code>.coverage</code> file is not required.
+This run method is useful for doing clean trials before and after
+mutation trials as a way to reset the <code>__pycache__</code>.</p>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code># The return value of clean_trial is the time to run
+# this is used in reporting from the CLI
+
+run.clean_trial(
+    src_loc, test_cmds=[&quot;pytest&quot;, &quot;--cov=example&quot;]
+)
+</code></pre></div>
+<p>.. parsed-literal::</p>
+<div class="highlight"><pre><span></span><code>datetime.timedelta(microseconds=411150)
+</code></pre></div>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code>Path(&quot;.coverage&quot;).exists()
+</code></pre></div>
+<p>.. parsed-literal::</p>
+<div class="highlight"><pre><span></span><code>True
+</code></pre></div>
+<h2 id="genome-basics">Genome Basics</h2>
+<p><code>Genomes</code> are the basic representation of a source code file in
+<code>mutatest</code>. They can be initialized by passing in the path to a
+specific file, or initialized without any arguments and have the source
+file added later. The basic properties include the Abstract Syntax Tree
+(AST), the source file, the coverage file, and any category codes for
+filtering.</p>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code># Initialize with the source file location
+# By default, the &quot;.coverage&quot; file is set
+# for the coverage_file property
+
+genome = Genome(src_loc / &quot;a.py&quot;)
+</code></pre></div>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code>genome.source_file
+</code></pre></div>
+<p>.. parsed-literal::</p>
+<div class="highlight"><pre><span></span><code>PosixPath(&#39;example/a.py&#39;)
+</code></pre></div>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code>genome.coverage_file
+</code></pre></div>
+<p>.. parsed-literal::</p>
+<div class="highlight"><pre><span></span><code>PosixPath(&#39;.coverage&#39;)
+</code></pre></div>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code># By default, no filter codes are set
+# These are categories of mutations to filter
+
+genome.filter_codes
+</code></pre></div>
+<p>.. parsed-literal::</p>
+<div class="highlight"><pre><span></span><code>set()
+</code></pre></div>
+<p>Finding mutation targets
+~~~~~~~~~~~~~~~~~~~~~~~~</p>
+<p>The <code>Genome</code> has two additional properties related to finding mutation
+locations: <code>targets</code> and <code>covered_targets</code>. These are sets of
+<code>LocIndex</code> objects (defined in <code>transformers</code>) that represent
+locations in the AST that can be mutated. Covered targets are those that
+have lines covered by the set <code>coverage_file</code> property.</p>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code>genome.targets
+</code></pre></div>
+<p>.. parsed-literal::</p>
+<div class="highlight"><pre><span></span><code>{LocIndex(ast_class=&#39;BinOp&#39;, lineno=6, col_offset=11, op_type=&lt;class &#39;_ast.Add&#39;&gt;, end_lineno=6, end_col_offset=16),
+ LocIndex(ast_class=&#39;Compare&#39;, lineno=10, col_offset=11, op_type=&lt;class &#39;_ast.Gt&#39;&gt;, end_lineno=10, end_col_offset=16)}
+</code></pre></div>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code>genome.covered_targets
+</code></pre></div>
+<p>.. parsed-literal::</p>
+<div class="highlight"><pre><span></span><code>{LocIndex(ast_class=&#39;BinOp&#39;, lineno=6, col_offset=11, op_type=&lt;class &#39;_ast.Add&#39;&gt;, end_lineno=6, end_col_offset=16)}
+</code></pre></div>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code>genome.targets - genome.covered_targets
+</code></pre></div>
+<p>.. parsed-literal::</p>
+<div class="highlight"><pre><span></span><code>{LocIndex(ast_class=&#39;Compare&#39;, lineno=10, col_offset=11, op_type=&lt;class &#39;_ast.Gt&#39;&gt;, end_lineno=10, end_col_offset=16)}
+</code></pre></div>
+<p>Accessing the AST
+~~~~~~~~~~~~~~~~~</p>
+<p>The <code>ast</code> property is the AST of the source file. You can access the
+properties directly. This is used to generate the targets and covered
+targets. The AST parser is defined in <code>transformers</code> but is
+encapsulted in the <code>Genome</code>.</p>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code>genome.ast
+</code></pre></div>
+<p>.. parsed-literal::</p>
+<div class="highlight"><pre><span></span><code>&lt;_ast.Module at 0x7f68a4014bb0&gt;
+</code></pre></div>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code>genome.ast.body
+</code></pre></div>
+<p>.. parsed-literal::</p>
+<div class="highlight"><pre><span></span><code>[&lt;_ast.Expr at 0x7f68a4014ca0&gt;,
+ &lt;_ast.FunctionDef at 0x7f68a4014ac0&gt;,
+ &lt;_ast.FunctionDef at 0x7f68a4014eb0&gt;,
+ &lt;_ast.Expr at 0x7f68a402c040&gt;]
+</code></pre></div>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code>genome.ast.body[1].__dict__
+</code></pre></div>
+<p>.. parsed-literal::</p>
+<div class="highlight"><pre><span></span><code>{&#39;name&#39;: &#39;add_five&#39;,
+ &#39;args&#39;: &lt;_ast.arguments at 0x7f68a4014d30&gt;,
+ &#39;body&#39;: [&lt;_ast.Return at 0x7f68a4014dc0&gt;],
+ &#39;decorator_list&#39;: [],
+ &#39;returns&#39;: None,
+ &#39;type_comment&#39;: None,
+ &#39;lineno&#39;: 5,
+ &#39;col_offset&#39;: 0,
+ &#39;end_lineno&#39;: 6,
+ &#39;end_col_offset&#39;: 16}
+</code></pre></div>
+<p>Filtering mutation targets
+~~~~~~~~~~~~~~~~~~~~~~~~~~</p>
+<p>You can set filters on a <code>Genome</code> for specific types of targets. For
+example, setting <code>bn</code> for <code>BinOp</code> will filter both targets and
+covered targets to only <code>BinOp</code> class operations.</p>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code># All available categories are listed
+# in transformers.CATEGORIES
+
+print(*[f&quot;Category:{k}, Code: {v}&quot;
+        for k,v in transformers.CATEGORIES.items()],
+      sep=&quot;\n&quot;)
+</code></pre></div>
+<p>.. parsed-literal::</p>
+<div class="highlight"><pre><span></span><code>Category:AugAssign, Code: aa
+Category:BinOp, Code: bn
+Category:BinOpBC, Code: bc
+Category:BinOpBS, Code: bs
+Category:BoolOp, Code: bl
+Category:Compare, Code: cp
+Category:CompareIn, Code: cn
+Category:CompareIs, Code: cs
+Category:If, Code: if
+Category:Index, Code: ix
+Category:NameConstant, Code: nc
+Category:SliceUS, Code: su
+</code></pre></div>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code># If you attempt to set an invalid code a ValueError is raised
+# and the valid codes are listed in the message
+
+try:
+    genome.filter_codes = (&quot;asdf&quot;,)
+
+except ValueError as e:
+    print(e)
+</code></pre></div>
+<p>.. parsed-literal::</p>
+<div class="highlight"><pre><span></span><code>Invalid category codes: {&#39;asdf&#39;}.
+Valid codes: {&#39;AugAssign&#39;: &#39;aa&#39;, &#39;BinOp&#39;: &#39;bn&#39;, &#39;BinOpBC&#39;: &#39;bc&#39;, &#39;BinOpBS&#39;: &#39;bs&#39;, &#39;BoolOp&#39;: &#39;bl&#39;, &#39;Compare&#39;: &#39;cp&#39;, &#39;CompareIn&#39;: &#39;cn&#39;, &#39;CompareIs&#39;: &#39;cs&#39;, &#39;If&#39;: &#39;if&#39;, &#39;Index&#39;: &#39;ix&#39;, &#39;NameConstant&#39;: &#39;nc&#39;, &#39;SliceUS&#39;: &#39;su&#39;}
+</code></pre></div>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code># Set the filter using an iterable of the two-letter codes
+
+genome.filter_codes = (&quot;bn&quot;,)
+</code></pre></div>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code># Targets and covered targets will only show the filtered value
+
+genome.targets
+</code></pre></div>
+<p>.. parsed-literal::</p>
+<div class="highlight"><pre><span></span><code>{LocIndex(ast_class=&#39;BinOp&#39;, lineno=6, col_offset=11, op_type=&lt;class &#39;_ast.Add&#39;&gt;, end_lineno=6, end_col_offset=16)}
+</code></pre></div>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code>genome.covered_targets
+</code></pre></div>
+<p>.. parsed-literal::</p>
+<div class="highlight"><pre><span></span><code>{LocIndex(ast_class=&#39;BinOp&#39;, lineno=6, col_offset=11, op_type=&lt;class &#39;_ast.Add&#39;&gt;, end_lineno=6, end_col_offset=16)}
+</code></pre></div>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code># Reset the filter_codes to an empty set
+genome.filter_codes = set()
+</code></pre></div>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code># All target classes are now listed again
+
+genome.targets
+</code></pre></div>
+<p>.. parsed-literal::</p>
+<div class="highlight"><pre><span></span><code>{LocIndex(ast_class=&#39;BinOp&#39;, lineno=6, col_offset=11, op_type=&lt;class &#39;_ast.Add&#39;&gt;, end_lineno=6, end_col_offset=16),
+ LocIndex(ast_class=&#39;Compare&#39;, lineno=10, col_offset=11, op_type=&lt;class &#39;_ast.Gt&#39;&gt;, end_lineno=10, end_col_offset=16)}
+</code></pre></div>
+<p>Using custom filters
+~~~~~~~~~~~~~~~~~~~~</p>
+<p>If you need more flexibility, the <code>filters</code> define the two classes of
+filter used by <code>Genome</code>: the <code>CoverageFilter</code> and the
+<code>CategoryCodeFilter</code>. These are encapsultated by <code>Genome</code> and
+<code>GenomeGroup</code> already but can be accessed directly.</p>
+<p>Coverage Filter
+^^^^^^^^^^^^^^^</p>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code>cov_filter = CoverageFilter(coverage_file=Path(&quot;.coverage&quot;))
+</code></pre></div>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code># Use the filter method to filter targets based on
+# a given source file.
+
+cov_filter.filter(
+    genome.targets, genome.source_file
+)
+</code></pre></div>
+<p>.. parsed-literal::</p>
+<div class="highlight"><pre><span></span><code>{LocIndex(ast_class=&#39;BinOp&#39;, lineno=6, col_offset=11, op_type=&lt;class &#39;_ast.Add&#39;&gt;, end_lineno=6, end_col_offset=16)}
+</code></pre></div>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code># You can invert the filtering as well
+
+cov_filter.filter(
+    genome.targets, genome.source_file,
+    invert=True
+)
+</code></pre></div>
+<p>.. parsed-literal::</p>
+<div class="highlight"><pre><span></span><code>{LocIndex(ast_class=&#39;Compare&#39;, lineno=10, col_offset=11, op_type=&lt;class &#39;_ast.Gt&#39;&gt;, end_lineno=10, end_col_offset=16)}
+</code></pre></div>
+<p>Category Code Filter
+^^^^^^^^^^^^^^^^^^^^</p>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code># Instantiate using a set of codes
+# or add them later
+
+catcode_filter = CategoryCodeFilter(codes=(&quot;bn&quot;,))
+</code></pre></div>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code># Valid codes provide all potential values
+
+catcode_filter.valid_codes
+</code></pre></div>
+<p>.. parsed-literal::</p>
+<div class="highlight"><pre><span></span><code>dict_values([&#39;aa&#39;, &#39;bn&#39;, &#39;bc&#39;, &#39;bs&#39;, &#39;bl&#39;, &#39;cp&#39;, &#39;cn&#39;, &#39;cs&#39;, &#39;if&#39;, &#39;ix&#39;, &#39;nc&#39;, &#39;su&#39;])
+</code></pre></div>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code># Valid categories are also available
+
+catcode_filter.valid_categories
+</code></pre></div>
+<p>.. parsed-literal::</p>
+<div class="highlight"><pre><span></span><code>{&#39;AugAssign&#39;: &#39;aa&#39;,
+ &#39;BinOp&#39;: &#39;bn&#39;,
+ &#39;BinOpBC&#39;: &#39;bc&#39;,
+ &#39;BinOpBS&#39;: &#39;bs&#39;,
+ &#39;BoolOp&#39;: &#39;bl&#39;,
+ &#39;Compare&#39;: &#39;cp&#39;,
+ &#39;CompareIn&#39;: &#39;cn&#39;,
+ &#39;CompareIs&#39;: &#39;cs&#39;,
+ &#39;If&#39;: &#39;if&#39;,
+ &#39;Index&#39;: &#39;ix&#39;,
+ &#39;NameConstant&#39;: &#39;nc&#39;,
+ &#39;SliceUS&#39;: &#39;su&#39;}
+</code></pre></div>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code># add more codes
+
+catcode_filter.add_code(&quot;aa&quot;)
+catcode_filter.codes
+</code></pre></div>
+<p>.. parsed-literal::</p>
+<div class="highlight"><pre><span></span><code>{&#39;aa&#39;, &#39;bn&#39;}
+</code></pre></div>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code># see all validation mutations
+# based on the set codes
+
+catcode_filter.valid_mutations
+</code></pre></div>
+<p>.. parsed-literal::</p>
+<div class="highlight"><pre><span></span><code>{_ast.Add,
+ _ast.Div,
+ _ast.FloorDiv,
+ _ast.Mod,
+ _ast.Mult,
+ _ast.Pow,
+ _ast.Sub,
+ &#39;AugAssign_Add&#39;,
+ &#39;AugAssign_Div&#39;,
+ &#39;AugAssign_Mult&#39;,
+ &#39;AugAssign_Sub&#39;}
+</code></pre></div>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code># discard codes
+
+catcode_filter.discard_code(&quot;aa&quot;)
+catcode_filter.codes
+</code></pre></div>
+<p>.. parsed-literal::</p>
+<div class="highlight"><pre><span></span><code>{&#39;bn&#39;}
+</code></pre></div>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code>catcode_filter.valid_mutations
+</code></pre></div>
+<p>.. parsed-literal::</p>
+<div class="highlight"><pre><span></span><code>{_ast.Add, _ast.Div, _ast.FloorDiv, _ast.Mod, _ast.Mult, _ast.Pow, _ast.Sub}
+</code></pre></div>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code># Filter a set of targets based on codes
+
+catcode_filter.filter(genome.targets)
+</code></pre></div>
+<p>.. parsed-literal::</p>
+<div class="highlight"><pre><span></span><code>{LocIndex(ast_class=&#39;BinOp&#39;, lineno=6, col_offset=11, op_type=&lt;class &#39;_ast.Add&#39;&gt;, end_lineno=6, end_col_offset=16)}
+</code></pre></div>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code># Optionally, invert the filter
+
+catcode_filter.filter(
+    genome.targets, invert=True
+)
+</code></pre></div>
+<p>.. parsed-literal::</p>
+<div class="highlight"><pre><span></span><code>{LocIndex(ast_class=&#39;Compare&#39;, lineno=10, col_offset=11, op_type=&lt;class &#39;_ast.Gt&#39;&gt;, end_lineno=10, end_col_offset=16)}
+</code></pre></div>
+<p>Changing the source file in a Genome
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~</p>
+<p>If you change the source file property of the <code>Genome</code> all core
+properties except the coverage file and filters are reset - this
+includes targets, covered targets, and AST.</p>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code>genome.source_file = src_loc / &quot;b.py&quot;
+</code></pre></div>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code>genome.targets
+</code></pre></div>
+<p>.. parsed-literal::</p>
+<div class="highlight"><pre><span></span><code>{LocIndex(ast_class=&#39;CompareIs&#39;, lineno=6, col_offset=11, op_type=&lt;class &#39;_ast.Is&#39;&gt;, end_lineno=6, end_col_offset=17)}
+</code></pre></div>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code>genome.covered_targets
+</code></pre></div>
+<p>.. parsed-literal::</p>
+<div class="highlight"><pre><span></span><code>{LocIndex(ast_class=&#39;BinOp&#39;, lineno=6, col_offset=11, op_type=&lt;class &#39;_ast.Add&#39;&gt;, end_lineno=6, end_col_offset=16)}
+</code></pre></div>
+<h2 id="creating-mutations">Creating Mutations</h2>
+<p>Mutations are applied to specific <code>LocIndex</code> targets in a <code>Genome</code>.
+You must speicfy a valid operation e.g., “add” can be mutated to
+“divide” or “subtract”, but not “is”. The <code>Genome</code> itself is not
+modified, a returned <code>Mutant</code> object holds the information required to
+create a mutated version of the <code>__pycache__</code> for that source file.
+For this example, we’ll change <code>a.py</code> to use a multiplication
+operation instead of an addition operation for the <code>add_five</code>
+function. The original expected result of the code was <code>10</code> from
+<code>5 + 5</code> if executed, with the mutation it will be <code>25</code> since the
+mutation creates <code>5 * 5</code>.</p>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code># Set the Genome back to example a
+# filter to only the BinOp targets
+
+genome.source_file = src_loc / &quot;a.py&quot;
+genome.filter_codes = (&quot;bn&quot;,)
+
+# there is only one Binop target
+
+mutation_target = list(genome.targets)[0]
+mutation_target
+</code></pre></div>
+<p>.. parsed-literal::</p>
+<div class="highlight"><pre><span></span><code>LocIndex(ast_class=&#39;BinOp&#39;, lineno=6, col_offset=11, op_type=&lt;class &#39;_ast.Add&#39;&gt;, end_lineno=6, end_col_offset=16)
+</code></pre></div>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code># The mutate() method applies a mutation operation
+# and returns a mutant
+
+mutant = genome.mutate(mutation_target, ast.Mult)
+</code></pre></div>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code># applying an invalid mutation
+# raises a MutationException
+
+try:
+    genome.mutate(mutation_target, ast.IsNot)
+
+except MutationException as e:
+    print(e)
+</code></pre></div>
+<p>.. parsed-literal::</p>
+<div class="highlight"><pre><span></span><code>&lt;class &#39;_ast.IsNot&#39;&gt; is not a member of mutation category bn.
+Valid mutations for bn: {&lt;class &#39;_ast.Mult&#39;&gt;, &lt;class &#39;_ast.Sub&#39;&gt;, &lt;class &#39;_ast.Add&#39;&gt;, &lt;class &#39;_ast.Pow&#39;&gt;, &lt;class &#39;_ast.FloorDiv&#39;&gt;, &lt;class &#39;_ast.Mod&#39;&gt;, &lt;class &#39;_ast.Div&#39;&gt;}.
+</code></pre></div>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code># mutants have all of the properties
+# needed to write mutated __pycache__
+
+mutant
+</code></pre></div>
+<p>.. parsed-literal::</p>
+<div class="highlight"><pre><span></span><code>Mutant(mutant_code=&lt;code object &lt;module&gt; at 0x7f68a4040b30, file &quot;example/a.py&quot;, line 1&gt;, src_file=PosixPath(&#39;example/a.py&#39;), cfile=PosixPath(&#39;example/__pycache__/a.cpython-38.pyc&#39;), loader=&lt;_frozen_importlib_external.SourceFileLoader object at 0x7f689cfbd310&gt;, source_stats={&#39;mtime&#39;: 1571346690.5703905, &#39;size&#39;: 118}, mode=33188, src_idx=LocIndex(ast_class=&#39;BinOp&#39;, lineno=6, col_offset=11, op_type=&lt;class &#39;_ast.Add&#39;&gt;, end_lineno=6, end_col_offset=16), mutation=&lt;class &#39;_ast.Mult&#39;&gt;)
+</code></pre></div>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code># You can directly execute the mutant_code
+# This result is with the mutated target being
+# applied as Mult instead of Add in a.py
+
+exec(mutant.mutant_code)
+</code></pre></div>
+<p>.. parsed-literal::</p>
+<div class="highlight"><pre><span></span><code>25
+</code></pre></div>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code># Mutants have a write_cache() method to apply
+# the change to __pycache__
+
+mutant.write_cache()
+</code></pre></div>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code># Alternatively, use run to do a single trial
+# and return the result
+
+mutant_trial_result = run.create_mutation_run_trial(
+    genome, mutation_target, ast.Mult, [&quot;pytest&quot;], max_runtime=5
+)
+</code></pre></div>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code># In this case the mutation would survive
+# The test passes if the value is
+# greater than 10.
+
+mutant_trial_result.status
+</code></pre></div>
+<p>.. parsed-literal::</p>
+<div class="highlight"><pre><span></span><code>&#39;SURVIVED&#39;
+</code></pre></div>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code># Using a different operation, such as Div
+# will be a detected mutation
+# since the test will fail.
+
+mutant_trial_result = run.create_mutation_run_trial(
+    genome, mutation_target, ast.Div, [&quot;pytest&quot;], max_runtime=5
+)
+
+mutant_trial_result.status
+</code></pre></div>
+<p>.. parsed-literal::</p>
+<div class="highlight"><pre><span></span><code>&#39;DETECTED&#39;
+</code></pre></div>
+<h2 id="genomegroups">GenomeGroups</h2>
+<p>The <code>GenomeGroup</code> is a way to interact with multiple <code>Genomes</code>. You
+can create a <code>GenomeGroup</code> from a folder of files, add new
+<code>Genomes</code>, and access shared properties across the <code>Genomes</code>. It is
+a <code>MutableMapping</code> and behaves accordingly, though it only accepts
+<code>Path</code> keys and <code>Genome</code> values. You can use the <code>GenomeGroup</code> to
+assign common filters, common coverage files, and to get all targets
+across an entire collection of <code>Genomes</code>.</p>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code>ggrp = GenomeGroup(src_loc)
+</code></pre></div>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code># key-value pairs in the GenomeGroup are
+# the path to the source file
+# and the Genome object for that file
+
+for k,v in ggrp.items():
+    print(k, v)
+</code></pre></div>
+<p>.. parsed-literal::</p>
+<div class="highlight"><pre><span></span><code>example/a.py &lt;mutatest.api.Genome object at 0x7f689cfc8c10&gt;
+example/b.py &lt;mutatest.api.Genome object at 0x7f689cfc8f70&gt;
+</code></pre></div>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code># targets, and covered_targets produce
+# GenomeGroupTarget objects that have
+# attributes for the source path and
+# LocIdx for the target
+
+for t in ggrp.targets:
+    print(
+        t.source_path, t.loc_idx
+    )
+</code></pre></div>
+<p>.. parsed-literal::</p>
+<div class="highlight"><pre><span></span><code>example/b.py LocIndex(ast_class=&#39;CompareIs&#39;, lineno=6, col_offset=11, op_type=&lt;class &#39;_ast.Is&#39;&gt;, end_lineno=6, end_col_offset=17)
+example/a.py LocIndex(ast_class=&#39;Compare&#39;, lineno=10, col_offset=11, op_type=&lt;class &#39;_ast.Gt&#39;&gt;, end_lineno=10, end_col_offset=16)
+example/a.py LocIndex(ast_class=&#39;BinOp&#39;, lineno=6, col_offset=11, op_type=&lt;class &#39;_ast.Add&#39;&gt;, end_lineno=6, end_col_offset=16)
+</code></pre></div>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code># You can set a filter or
+# coverage file for the entire set
+# of genomes
+
+ggrp.set_coverage = Path(&quot;.coverage&quot;)
+
+for t in ggrp.covered_targets:
+    print(
+        t.source_path, t.loc_idx
+    )
+</code></pre></div>
+<p>.. parsed-literal::</p>
+<div class="highlight"><pre><span></span><code>example/b.py LocIndex(ast_class=&#39;CompareIs&#39;, lineno=6, col_offset=11, op_type=&lt;class &#39;_ast.Is&#39;&gt;, end_lineno=6, end_col_offset=17)
+example/a.py LocIndex(ast_class=&#39;BinOp&#39;, lineno=6, col_offset=11, op_type=&lt;class &#39;_ast.Add&#39;&gt;, end_lineno=6, end_col_offset=16)
+</code></pre></div>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code># Setting filter codes on all Genomes
+# in the group
+
+ggrp.set_filter((&quot;cs&quot;,))
+ggrp.targets
+</code></pre></div>
+<p>.. parsed-literal::</p>
+<div class="highlight"><pre><span></span><code>{GenomeGroupTarget(source_path=PosixPath(&#39;example/b.py&#39;), loc_idx=LocIndex(ast_class=&#39;CompareIs&#39;, lineno=6, col_offset=11, op_type=&lt;class &#39;_ast.Is&#39;&gt;, end_lineno=6, end_col_offset=17))}
+</code></pre></div>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code>for k, v in ggrp.items():
+    print(k, v.filter_codes)
+</code></pre></div>
+<p>.. parsed-literal::</p>
+<div class="highlight"><pre><span></span><code>example/a.py {&#39;cs&#39;}
+example/b.py {&#39;cs&#39;}
+</code></pre></div>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code># MutableMapping operations are
+# available as well
+
+ggrp.values()
+</code></pre></div>
+<p>.. parsed-literal::</p>
+<div class="highlight"><pre><span></span><code>dict_values([&lt;mutatest.api.Genome object at 0x7f689cfc8c10&gt;, &lt;mutatest.api.Genome object at 0x7f689cfc8f70&gt;])
+</code></pre></div>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code>ggrp.keys()
+</code></pre></div>
+<p>.. parsed-literal::</p>
+<div class="highlight"><pre><span></span><code>dict_keys([PosixPath(&#39;example/a.py&#39;), PosixPath(&#39;example/b.py&#39;)])
+</code></pre></div>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code># pop a Genome out of the Group
+
+genome_a = ggrp.pop(Path(&quot;example/a.py&quot;))
+ggrp
+</code></pre></div>
+<p>.. parsed-literal::</p>
+<div class="highlight"><pre><span></span><code>{PosixPath(&#39;example/b.py&#39;): &lt;mutatest.api.Genome object at 0x7f689cfc8f70&gt;}
+</code></pre></div>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code># add a Genome to the group
+
+ggrp.add_genome(genome_a)
+ggrp
+</code></pre></div>
+<p>.. parsed-literal::</p>
+<div class="highlight"><pre><span></span><code>{PosixPath(&#39;example/b.py&#39;): &lt;mutatest.api.Genome object at 0x7f689cfc8f70&gt;, PosixPath(&#39;example/a.py&#39;): &lt;mutatest.api.Genome object at 0x7f689cfc8c10&gt;}
+</code></pre></div>
+<p>.. code:: ipython3</p>
+<div class="highlight"><pre><span></span><code># the add_folder options provides
+# more flexibility e.g., to include
+# the test_ files.
+
+ggrp_with_tests = GenomeGroup()
+ggrp_with_tests.add_folder(
+    src_loc, ignore_test_files=False
+)
+
+for k, v in ggrp_with_tests.items():
+    print(k, v)
+</code></pre></div>
+<p>.. parsed-literal::</p>
+<div class="highlight"><pre><span></span><code>example/a.py &lt;mutatest.api.Genome object at 0x7f68a4044700&gt;
+example/test_ab.py &lt;mutatest.api.Genome object at 0x7f689cfd7340&gt;
+example/b.py &lt;mutatest.api.Genome object at 0x7f689cfd74f0&gt;
+</code></pre></div>
+<hr />
+<h2 id="file-docschangelogrst">File: /docs/changelog.rst</h2>
+<p>.. _Change log:</p>
+<p>.. include:: ../CHANGELOG.rst</p>
+<hr />
+<h2 id="file-docscommandlinerst">File: /docs/commandline.rst</h2>
+<p>.. _Command Line Controls:</p>
+<h1 id="command-line-controls">Command Line Controls</h1>
+<h2 id="specifying-source-files-and-test-commands">Specifying source files and test commands</h2>
+<p>If you have a Python package in a directory with an associated <code>tests/</code> folder
+(or internal <code>test_</code> prefixed files, see the examples below) that are auto-detected
+with <code>pytest</code>, then you can run <code>mutatest</code> without any arguments.</p>
+<p>.. code-block:: bash</p>
+<div class="highlight"><pre><span></span><code>$ mutatest
+</code></pre></div>
+<p>It will detect the package, and run <code>pytest</code> by default. If you want to run with special
+arguments, such as to exclude a custom marker, you can pass in the <code>--testcmds</code> argument
+with the desired string.</p>
+<p>Here is the command to run <code>pytest</code> and exclude tests marked with <code>pytest.mark.slow</code>.</p>
+<p>.. code-block:: bash</p>
+<div class="highlight"><pre><span></span><code>$ mutatest --testcmds &quot;pytest -m &#39;not slow&#39;&quot;
+
+# using shorthand arguments
+$ mutatest -t &quot;pytest -m &#39;not slow&#39;&quot;
+</code></pre></div>
+<p>You can use this syntax if you want to specify a single module in your package to run and test.</p>
+<p>.. code-block:: bash</p>
+<div class="highlight"><pre><span></span><code>$ mutatest --src mypackage/run.py --testcmds &quot;pytest tests/test_run.py&quot;
+
+# using shorthand arguments
+$ mutatest -s mypackage/run.py -t &quot;pytest tests/test_run.py&quot;
+</code></pre></div>
+<p>There is an option to exclude files from the source set.
+Exclude files using the <code>--exclude</code> argument and pointing to the file.
+Multiple <code>--exclude</code> statements may be used to exclude multiple files. The default behavior
+is that no files are excluded.</p>
+<p>.. code-block:: bash</p>
+<div class="highlight"><pre><span></span><code>$ mutatest --exclude mypackage/__init__.py --exclude mypackage/_devtools.py
+
+# using shorthand arguments
+$ mutatest -e mypackage/__init__.py -e mypackage/_devtools.py
+</code></pre></div>
+<p>These commands can all be combined in different ways to target your sample space for mutations.</p>
+<h2 id="coverage-filtering">Coverage filtering</h2>
+<p>Any command combination that generates a <code>.coverage</code> file will use that as a restriction
+mechanism for the sample space to only select mutation locations that are covered. For example,
+running:</p>
+<p>.. code-block:: bash</p>
+<div class="highlight"><pre><span></span><code>$ mutatest --testcmds &quot;pytest --cov=mypackage tests/test_run.py&quot;
+
+# using shorthand arguments
+$ mutatest -t &quot;pytest --cov=mypackage tests/test_run.py&quot;
+</code></pre></div>
+<p>would generate the <code>.coverage</code> file based on <code>tests/test_run.py</code>. Therefore, even though
+the entire package is seen only the lines covered by <code>tests/test_run.py</code> will be mutated
+during the trials.
+If you specified a source with <code>-s</code> only the covered lines in that source file would become
+valid targets for mutation. Excluded files with <code>-e</code> are still skipped.
+You can override this behavior with the <code>--nocov</code> flag on the command line.</p>
+<p>If you have a <code>pytest.ini</code> file that includes the <code>--cov</code> command the default behavior
+of <code>mutatest</code> will generate the coverage file. You will see a message in the CLI output at the
+beginning of the trials if coverage is ignored.</p>
+<p>.. code-block:: bash</p>
+<div class="highlight"><pre><span></span><code># note the smaller sample based on the coverage
+
+$ mutatest -n 4 -t &quot;pytest --cov=mypackage&quot;
+
+... prior output...
+
+... Total sample space size: 287
+... Selecting 4 locations from 287 potentials.
+... Starting individual mutation trials!
+
+... continued output...
+
+
+# even with coverage specified the --nocov flag is used
+# sample size is larger, and the note on ignoring is present
+
+$ mutatest -n 4 -t &quot;pytest --cov=mypackage&quot; --nocov
+
+... prior output...
+
+... Ignoring coverage file for sample space creation.
+... Total sample space size: 311
+... Selecting 4 locations from 311 potentials.
+... Starting individual mutation trials!
+
+... continued output...
+</code></pre></div>
+<p>.. versionadded:: 2.1.0
+    Support for <code>coverage</code> version 4.x and 5.x.</p>
+<h2 id="auto-detected-package-structures">Auto-detected package structures</h2>
+<p>The following package structures would be auto-detected if you ran <code>mutatest</code> from the
+same directory holding <code>examplepkg/</code>. You can always point to a specific directory using
+the <code>--source</code> argument. These are outlined in the <code>Pytest Test Layout</code>_ documentation.</p>
+<p>Example with internal tests
+~~~~~~~~~~~~~~~~~~~~~~~~~~~</p>
+<p>.. code-block:: bash</p>
+<div class="highlight"><pre><span></span><code>.
+└── examplepkg
+    ├── __init__.py
+    ├── run.py
+    └── test_run.py
+</code></pre></div>
+<p>Example with external tests
+~~~~~~~~~~~~~~~~~~~~~~~~~~~</p>
+<p>.. code-block:: bash</p>
+<div class="highlight"><pre><span></span><code>.
+├── examplepkg
+│   ├── __init__.py
+│   └── run.py
+└── tests
+    └── test_run.py
+</code></pre></div>
+<h2 id="selecting-a-running-mode">Selecting a running mode</h2>
+<p><code>mutatest</code> has different running modes to make trials faster. The running modes determine
+what will happen after a mutation trial. For example, you can choose to stop further mutations at a
+location as soon as a survivor is detected. The different running mode choices are:</p>
+<p>Run modes:
+    - f: full mode, run all possible combinations (slowest but most thorough).
+    - s: break on first SURVIVOR per mutated location e.g. if there is a single surviving mutation
+      at a location move to the next location without further testing.
+      This is the default mode.
+    - d: break on the first DETECTION per mutated location e.g. if there is a detected mutation on
+      at a location move to the next one.
+    - sd: break on the first SURVIVOR or DETECTION (fastest, and least thorough).</p>
+<p>The API for <code>mutatest.controller.run_mutation_trials</code> offers finer control over the run
+method beyond the CLI.</p>
+<p>A good practice when first starting is to set the mode to <code>sd</code> which will stop if a mutation
+survives or is detected, effectively running a single mutation per candidate location. This is the
+fastest running mode and can give you a sense of investigation areas quickly.</p>
+<p>.. code-block::</p>
+<div class="highlight"><pre><span></span><code>$ mutatest --mode sd
+
+# using shorthand arguments
+$ mutatest -m sd
+</code></pre></div>
+<h2 id="controlling-randomization-behavior-and-trial-number">Controlling randomization behavior and trial number</h2>
+<p><code>mutatest</code> uses random sampling of all source candidate locations and of potential mutations
+to substitute at a location. You can set a random seed for repeatable trials using the
+<code>--rseed</code> argument. The <code>--nlocations</code> argument controls the size of the sample
+of locations to mutate. If it exceeds the number of candidate locations then the full set of
+candidate locations is used.</p>
+<p>.. code-block::</p>
+<div class="highlight"><pre><span></span><code>$ mutatest --nlocations 5 --rseed 314
+
+# using shorthand arguments
+$ mutatest -n 5 -r 314
+</code></pre></div>
+<h2 id="selecting-categories-of-mutations">Selecting categories of mutations</h2>
+<p><code>mutatest</code> categorizes families of mutations with two-letter category codes (available in
+the help output and in the mutants section below). You can use these category codes in the
+<code>--only</code> and <code>--skip</code> arguments to opt-in or opt-out of types of mutations
+for your trials. This impacts the pool of potential locations to draw from for the sample, but the
+number of mutations specified in <code>--nlocations</code> still determines the final sample size.
+You will see the categories used in the output during the trial. Categories are space delimited
+as an input list on the CLI.</p>
+<p>.. code-block::</p>
+<div class="highlight"><pre><span></span><code># selects only the categories &quot;aa&quot; (AugAssign), &quot;bn&quot; (BinOp), and &quot;ix&quot; (Index) mutations
+$ mutatest --only aa bn ix
+
+... prior output...
+
+... Category restriction, chosen categories: [&#39;aa&#39;, &#39;bn&#39;, &#39;ix&#39;]
+... Setting random.seed to: None
+... Total sample space size: 311
+... Selecting 10 locations from 311 potentials.
+... Starting individual mutation trials!
+
+... continued output...
+
+# using shorthand
+$ mutatest -y aa bn ix
+
+# using the skip list instead, selects all categories except &quot;aa&quot;, &quot;bn&quot;, and &quot;ix&quot;
+$ mutatest --skip aa bn ix
+
+# with shorthand
+$ mutatest -k aa bn ix
+</code></pre></div>
+<h2 id="setting-the-output-location">Setting the output location</h2>
+<p>By default, <code>mutatest</code> will only create CLI output to <code>stdout</code>.
+You can set path location using the <code>--output</code> argument for a written RST report of the
+mutation trial results.</p>
+<p>.. code-block::</p>
+<div class="highlight"><pre><span></span><code>$ mutatest --output path/to/my_custom_file.rst
+
+# using shorthand arguments
+$ mutatest -o path/to/my_custom_file.rst
+</code></pre></div>
+<p>The output report will include the arguments used to generate it along with the total runtimes.
+The SURVIVORS section of the output report is the one you should pay attention to. These are the
+mutations that were undetected by your test suite. The report includes file names, line numbers,
+column numbers, original operation, and mutation for ease of diagnostic investigation.</p>
+<h2 id="raising-exceptions-for-survivor-tolerances">Raising exceptions for survivor tolerances</h2>
+<p>By default, <code>mutatest</code> will only display output and not raise any final exceptions if there
+are survivors in the trial results. You can set a tolerance number using the <code>--exception</code>
+or <code>-x</code> argument that will raise an exception if that number if met or exceeded for the
+count of survivors after the trials. This argument is included for use in automated running
+of <code>mutatest</code> e.g. as a stage in continuous integration.</p>
+<p>When combined with the random seed and category selection you can have targeted stages for important
+sections of code where you want a low count of surviving mutations enforced.</p>
+<p>.. code-block::</p>
+<div class="highlight"><pre><span></span><code>$ mutatest --exception 5
+
+# using shorthand arguments
+$ mutatest -x 5
+</code></pre></div>
+<p>The exception type is a <code>SurvivingMutantException</code>:</p>
+<p>.. code-block::</p>
+<div class="highlight"><pre><span></span><code>... prior output from trial...
+
+mutatest.cli.SurvivingMutantException: Survivor tolerance breached: 8 / 2
+</code></pre></div>
+<h2 id="controlling-trial-timeout-behavior">Controlling trial timeout behavior</h2>
+<p>.. versionadded:: 1.2
+    The <code>--timeout_factor</code> argument.</p>
+<p>Typically mutation trials take approximately the same time as the first clean trial with some small
+variance.
+There are instances where a mutation could cause source code to enter an infinite loop, such
+as changing a <code>while</code> statement using a comparison operation like <code>&lt;</code> to <code>&gt;</code> or <code>==</code>.
+To protect against these effects a <code>--timeout_factor</code> controls a multiplier of the
+first clean run that will act as the timeout cap for any mutation trials.
+For example, if the clean trial takes 2 seconds, and the <code>--timeout_factor</code> is set to 5 (the
+default value), the maximum run time for a mutation trial before being stopped and logged as
+a <code>TIMEOUT</code> is 10 seconds (2 seconds * 5).</p>
+<p>.. code-block:: bash</p>
+<div class="highlight"><pre><span></span><code>$ mutatest --timeout_factor=1.5
+</code></pre></div>
+<p>Note that if you set the <code>--timeout_factor</code> to be exactly 1 you will likely get timeout trials
+by natural variance in logging success vs. failure.</p>
+<p>.. _Parallelization:</p>
+<h2 id="parallelization">Parallelization</h2>
+<p>.. versionadded:: 3.0.0
+    Support for multiprocessing parallelization in Python 3.8.</p>
+<p>The <code>--parallel</code> argument can be used if you are running with Python 3.8 to enable multiprocessing
+of mutation trials. This argument has no effect if you are running Python 3.7.
+Parallelism is achieved by creating parallel cache directories in a <code>.mutatest_cache/</code> folder
+in the current working directory. Unique folders for each trial are created and the subprocess
+command sets <code>PYTHONPYCACHEPREFIX</code> per trial. These sub-folders, and the top level
+<code>.mutatest_cache/</code> directory, are removed when the trials are complete.
+Multiprocessing uses all CPUs detected by <code>os.cpu_count()</code> in the pool.</p>
+<p>The parallel cache adds some IO overhead to the trial process. You will get the most benefit
+from multiprocessing if you are running a longer test suite or a high number of trials.
+All trials get an additional 10 seconds added to the maximum timeout calculation as a buffer
+for gathering results. If you notice excessive false positive timeouts try running without
+parallelization.</p>
+<p>.. code-block:: bash</p>
+<div class="highlight"><pre><span></span><code>$ mutatest --parallel
+</code></pre></div>
+<h2 id="putting-it-all-together">Putting it all together</h2>
+<p>If you want to run 5 trials, in fast <code>sd</code> mode, with a random seed of 345 and an output
+file name of <code>mutation_345.rst</code>, you would do the following if your directory structure
+has a Python package folder and tests that are auto-discoverable and run by <code>pytest</code>.</p>
+<p>.. code-block:: bash</p>
+<div class="highlight"><pre><span></span><code>$ mutatest -n 5 -m sd -r 345 -o mutation_345.rst
+</code></pre></div>
+<p>With <code>coverage</code> optimization if your <code>pytest.ini</code> file does not already specify it:</p>
+<p>.. code-block:: bash</p>
+<div class="highlight"><pre><span></span><code>$ mutatest -n 5 -m sd -r 345 -o mutation_345.rst -t &quot;pytest --cov=mypackage&quot;
+</code></pre></div>
+<h2 id="getting-help">Getting help</h2>
+<p>Run <code>mutatest --help</code> to see command line arguments and supported operations:</p>
+<p>.. code-block:: bash</p>
+<div class="highlight"><pre><span></span><code>$ mutatest --help
+
+usage: Mutatest [-h] [-b [STR [STR ...]]] [-e PATH] [-m {f,s,d,sd}] [-n INT]
+                [-o PATH] [-r INT] [-s PATH] [-t STR_CMDS]
+                [-w [STR [STR ...]]] [-x INT] [--debug] [--nocov] [--parallel]
+                [--timeout_factor FLOAT &gt; 1]
+
+Python mutation testing. Mutatest will manipulate local __pycache__ files.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -k [STR [STR ...]], --skip [STR [STR ...]]
+                        Mutation categories to skip for trials. (default: empty list)
+  -e PATH, --exclude PATH
+                        Path to .py file to exclude, multiple -e entries supported. (default: None)
+  -m {f,s,d,sd}, --mode {f,s,d,sd}
+                        Running modes, see the choice option descriptions below. (default: s)
+  -n INT, --nlocations INT
+                        Number of locations in code to randomly select for mutation from possible targets. (default: 10)
+  -o PATH, --output PATH
+                        Output RST file location for results. (default: No output written)
+  -r INT, --rseed INT   Random seed to use for sample selection.
+  -s PATH, --src PATH   Source code (file or directory) for mutation testing. (default: auto-detection attempt).
+  -t STR_CMDS, --testcmds STR_CMDS
+                        Test command string to execute. (default: &#39;pytest&#39;)
+  -y [STR [STR ...]], --only [STR [STR ...]]
+                        Only mutation categories to use for trials. (default: empty list)
+  -x INT, --exception INT
+                        Count of survivors to raise Mutation Exception for system exit.
+  --debug               Turn on DEBUG level logging output.
+  --nocov               Ignore coverage files for optimization.
+  --parallel            Run with multiprocessing (Py3.8 only).
+  --timeout_factor FLOAT &gt; 1
+                        If a mutation trial running time is beyond this factor multiplied by the first
+                        clean trial running time then that mutation trial is aborted and logged as a timeout.
+</code></pre></div>
+<h2 id="using-a-config-file">Using a config file</h2>
+<p>.. versionadded:: 2.2.0
+    Support for <code>setup.cfg</code> as an optional settings file.</p>
+<p>Arguments for <code>mutatest</code> can be stored in a <code>mutatest.ini</code> config file in the directory where
+you run the command.
+Use the full argument names and either spaces or newlines to separate multiple values for a given
+argument.
+The flag commands (<code>--debug</code> and <code>--nocov</code>) are given boolean flags that can be interpreted by
+the Python <code>ConfigParser</code>.
+Command line arguments passed to <code>mutatest</code> will override the values in the <code>ini</code> file.
+Any command line arguments that are not in the <code>ini</code> file will be added to the execution
+parameters along with the config file values.</p>
+<p>Alternatively, you may use <code>setup.cfg</code> with either a <code>[mutatest]</code> or <code>[tool:mutatest]</code> entry.
+The <code>mutatest.ini</code> file will be used first if it is present, skipping <code>setup.cfg</code>.
+<code>setup.cfg</code> will honor the <code>[mutatest]</code> and <code>[tool:mutatest]</code> in that order.
+Entries are not combined if both are present.</p>
+<p>Example config file
+~~~~~~~~~~~~~~~~~~~</p>
+<p>The contents of an example <code>mutatest.ini</code> or entry in <code>setup.cfg</code>:</p>
+<p>.. code-block:: ini</p>
+<p>[mutatest]</p>
+<p>skip = nc su ix
+   exclude =
+       mutatest/<strong>init</strong>.py
+       mutatest/_devtools.py
+   mode = sd
+   rseed = 567
+   testcmds = pytest -m 'not slow'
+   debug = no
+   nocov = no</p>
+<p>.. target-notes::
+.. _Pytest Test Layout: https://docs.pytest.org/en/latest/goodpractices.html#choosing-a-test-layout-import-rules
+.. _Python AST grammar: https://docs.python.org/3/library/ast.html#abstract-grammar</p>
+<hr />
+<h2 id="file-docscontributingrst">File: /docs/contributing.rst</h2>
+<p>.. _contributing:</p>
+<p>.. include:: ../CONTRIBUTING.rst</p>
+<hr />
+<h2 id="file-docsindexrst">File: /docs/index.rst</h2>
+<h1 id="mutatest-python-mutation-testing">Mutatest: Python mutation testing</h1>
+<p>|  |py-versions| |license| |ci-azure| |ci-travis| |docs| |coverage| |black|
+|  |pypi-version| |pypi-status| |pypi-format| |pypi-downloads|
+|  |conda-version| |conda-recipe| |conda-platform| |conda-downloads|</p>
+<p>Are you confident in your tests? Try out <code>mutatest</code> and see if your tests will detect small
+modifications (mutations) in the code. Surviving mutations represent subtle changes that are
+undetectable by your tests. These mutants are potential modifications in source code that continuous
+integration checks would miss.</p>
+<h2 id="features">Features:</h2>
+<div class="highlight"><pre><span></span><code>- Simple command line tool with `multiple configuration options &lt;https://mutatest.readthedocs.io/en/latest/commandline.html&gt;`_.
+- Built on Python&#39;s Abstract Syntax Tree (AST) grammar to ensure `mutants are valid &lt;https://mutatest.readthedocs.io/en/latest/mutants.html&gt;`_.
+- `No source code modification &lt;https://mutatest.readthedocs.io/en/latest/install.html#mutation-trial-process&gt;`_,
+  only the ``__pycache__`` is changed.
+- Uses ``coverage`` to create `only meaningful mutants &lt;https://mutatest.readthedocs.io/en/latest/commandline.html#coverage-filtering&gt;`_.
+- Built for efficiency with `multiple running modes &lt;https://mutatest.readthedocs.io/en/latest/commandline.html#selecting-a-running-mode&gt;`_
+  and `random sampling of mutation targets &lt;https://mutatest.readthedocs.io/en/latest/commandline.html#controlling-randomization-behavior-and-trial-number&gt;`_.
+- Capable of running `parallel mutation trials &lt;https://mutatest.readthedocs.io/en/latest/commandline.html#parallelization&gt;`_
+  with multiprocessing on Python 3.8.
+- Flexible enough to run on a `whole package &lt;https://mutatest.readthedocs.io/en/latest/commandline.html#auto-detected-package-structures&gt;`_
+  or a `single file &lt;https://mutatest.readthedocs.io/en/latest/commandline.html#specifying-source-files-and-test-commands&gt;`_.
+- Includes an `API for custom mutation controls &lt;https://mutatest.readthedocs.io/en/latest/modules.html&gt;`_.
+- Tested on Linux, Windows, and MacOS with `Azure pipelines &lt;https://dev.azure.com/evankepner/mutatest/_build/latest?definitionId=1&amp;branchName=master&gt;`_.
+- Full strict static type annotations throughout the source code and the API.
+</code></pre></div>
+<h2 id="quick-start">Quick Start</h2>
+<p><code>mutatest</code> requires Python 3.7 or 3.8.</p>
+<p>Install from <code>PyPI &lt;https://pypi.org/project/mutatest/&gt;</code>_:</p>
+<p>.. code-block:: bash</p>
+<div class="highlight"><pre><span></span><code>$ pip install mutatest
+</code></pre></div>
+<p>Install from <code>conda-forge &lt;https://anaconda.org/conda-forge/mutatest&gt;</code>_:</p>
+<p>.. code-block:: bash</p>
+<div class="highlight"><pre><span></span><code>$ conda install -c conda-forge mutatest
+</code></pre></div>
+<p>Alternatively, clone the repo from <code>GitHub &lt;https://github.com/EvanKepner/mutatest&gt;</code>_ and install
+from the source code:</p>
+<p>.. code-block:: bash</p>
+<div class="highlight"><pre><span></span><code>$ cd mutatest
+$ pip install .
+</code></pre></div>
+<p><code>mutatest</code> is designed to work when your test files are separated from your source directory
+and are prefixed with <code>test_</code>.
+See <code>Pytest Test Layout &lt;https://docs.pytest.org/en/latest/goodpractices.html#choosing-a-test-layout-import-rules&gt;</code>_
+for more details.</p>
+<p><code>mutatest</code> is a diagnostic command line tool for your test coverage assessment.
+If you have a Python package in with an associated <code>tests/</code> folder, or internal <code>test_</code> prefixed files,
+that are auto-detected with <code>pytest</code>, then you can run <code>mutatest</code> without any arguments.</p>
+<p>.. code-block:: bash</p>
+<div class="highlight"><pre><span></span><code>$ mutatest
+</code></pre></div>
+<p>See more examples with additional configuration options in :ref:<code>Command Line Controls</code>.</p>
+<p>Help
+~~~~</p>
+<p>Run <code>mutatest --help</code> to see command line arguments and supported operations:</p>
+<p>.. code-block:: bash</p>
+<div class="highlight"><pre><span></span><code>$ mutatest --help
+
+usage: Mutatest [-h] [-b [STR [STR ...]]] [-e PATH] [-m {f,s,d,sd}] [-n INT]
+                [-o PATH] [-r INT] [-s PATH] [-t STR_CMDS]
+                [-w [STR [STR ...]]] [-x INT] [--debug] [--nocov] [--parallel]
+                [--timeout_factor FLOAT &gt; 1]
+
+Python mutation testing. Mutatest will manipulate local __pycache__ files.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -k [STR [STR ...]], --skip [STR [STR ...]]
+                        Mutation categories to skip for trials. (default: empty list)
+  -e PATH, --exclude PATH
+                        Path to .py file to exclude, multiple -e entries supported. (default: None)
+  -m {f,s,d,sd}, --mode {f,s,d,sd}
+                        Running modes, see the choice option descriptions below. (default: s)
+  -n INT, --nlocations INT
+                        Number of locations in code to randomly select for mutation from possible targets. (default: 10)
+  -o PATH, --output PATH
+                        Output RST file location for results. (default: No output written)
+  -r INT, --rseed INT   Random seed to use for sample selection.
+  -s PATH, --src PATH   Source code (file or directory) for mutation testing. (default: auto-detection attempt).
+  -t STR_CMDS, --testcmds STR_CMDS
+                        Test command string to execute. (default: &#39;pytest&#39;)
+  -y [STR [STR ...]], --only [STR [STR ...]]
+                        Only mutation categories to use for trials. (default: empty list)
+  -x INT, --exception INT
+                        Count of survivors to raise Mutation Exception for system exit.
+  --debug               Turn on DEBUG level logging output.
+  --nocov               Ignore coverage files for optimization.
+  --parallel            Run with multiprocessing (Py3.8 only).
+  --timeout_factor FLOAT &gt; 1
+                        If a mutation trial running time is beyond this factor multiplied by the first
+                        clean trial running time then that mutation trial is aborted and logged as a timeout.
+</code></pre></div>
+<p>Example Output
+~~~~~~~~~~~~~~</p>
+<p>This is an output example running mutation trials against the :ref:<code>API Tutorial</code> example folder.</p>
+<p>.. code-block:: bash</p>
+<div class="highlight"><pre><span></span><code>$ mutatest -s example/ -t &quot;pytest&quot; -r 314
+
+Running clean trial
+2 mutation targets found in example/a.py AST.
+1 mutation targets found in example/b.py AST.
+Setting random.seed to: 314
+Total sample space size: 2
+10 exceeds sample space, using full sample: 2.
+
+Starting individual mutation trials!
+Current target location: a.py, LocIndex(ast_class=&#39;BinOp&#39;, lineno=6, col_offset=11, op_type=&lt;class &#39;_ast.Add&#39;&gt;)
+Detected mutation at example/a.py: (6, 11)
+Detected mutation at example/a.py: (6, 11)
+Surviving mutation at example/a.py: (6, 11)
+Break on survival: stopping further mutations at location.
+
+Current target location: b.py, LocIndex(ast_class=&#39;CompareIs&#39;, lineno=6, col_offset=11, op_type=&lt;class &#39;_ast.Is&#39;&gt;)
+Detected mutation at example/b.py: (6, 11)
+Running clean trial
+
+Mutatest diagnostic summary
+===========================
+ - Source location: /home/user/Github/mutatest/docs/api_tutorial/example
+ - Test commands: [&#39;pytest&#39;]
+ - Mode: s
+ - Excluded files: []
+ - N locations input: 10
+ - Random seed: 314
+
+Random sample details
+---------------------
+ - Total locations mutated: 2
+ - Total locations identified: 2
+ - Location sample coverage: 100.00 %
+
+
+Running time details
+--------------------
+ - Clean trial 1 run time: 0:00:00.348999
+ - Clean trial 2 run time: 0:00:00.350213
+ - Mutation trials total run time: 0:00:01.389095
+
+Trial Summary Report:
+
+Overall mutation trial summary
+==============================
+ - DETECTED: 3
+ - SURVIVED: 1
+ - TOTAL RUNS: 4
+ - RUN DATETIME: 2019-10-17 16:57:08.645355
+
+Detected mutations:
+
+DETECTED
+--------
+ - example/a.py: (l: 6, c: 11) - mutation from &lt;class &#39;_ast.Add&#39;&gt; to &lt;class &#39;_ast.Sub&#39;&gt;
+ - example/a.py: (l: 6, c: 11) - mutation from &lt;class &#39;_ast.Add&#39;&gt; to &lt;class &#39;_ast.Mod&#39;&gt;
+ - example/b.py: (l: 6, c: 11) - mutation from &lt;class &#39;_ast.Is&#39;&gt; to &lt;class &#39;_ast.IsNot&#39;&gt;
+
+Surviving mutations:
+
+SURVIVED
+--------
+ - example/a.py: (l: 6, c: 11) - mutation from &lt;class &#39;_ast.Add&#39;&gt; to &lt;class &#39;_ast.Mult&#39;&gt;
+</code></pre></div>
+<h1 id="contents">Contents</h1>
+<p>.. toctree::
+   :maxdepth: 4</p>
+<p>install
+   commandline
+   mutants
+   api_tutorial/api_tutorial
+   modules
+   license
+   changelog
+   contributing
+   GitHub <a href="https://github.com/EvanKepner/mutatest">https://github.com/EvanKepner/mutatest</a></p>
+<h1 id="indices-and-tables">Indices and tables</h1>
+<ul>
+<li>:ref:<code>genindex</code></li>
+<li>:ref:<code>modindex</code></li>
+<li>:ref:<code>search</code></li>
+</ul>
+<p>.. |py-versions| image:: https://img.shields.io/pypi/pyversions/mutatest?color=green
+    :target: https://pypi.org/project/mutatest/
+    :alt: Python versions
+.. |license| image:: https://img.shields.io/pypi/l/mutatest.svg
+    :target: https://pypi.org/project/mutatest/
+    :alt: License
+.. |pypi-version| image:: https://badge.fury.io/py/mutatest.svg
+    :target: https://pypi.org/project/mutatest/
+    :alt: PyPI version
+.. |pypi-status| image:: https://img.shields.io/pypi/status/mutatest.svg
+    :target: https://pypi.org/project/mutatest/
+    :alt: PyPI status
+.. |pypi-format| image:: https://img.shields.io/pypi/format/mutatest.svg
+    :target: https://pypi.org/project/mutatest/
+    :alt: PyPI Format
+.. |pypi-downloads| image:: https://pepy.tech/badge/mutatest
+    :target: https://pepy.tech/project/mutatest
+    :alt: PyPI Downloads
+.. |ci-travis| image:: https://travis-ci.org/EvanKepner/mutatest.svg?branch=master
+    :target: https://travis-ci.org/EvanKepner/mutatest
+    :alt: TravisCI
+.. |ci-azure| image:: https://dev.azure.com/evankepner/mutatest/_apis/build/status/EvanKepner.mutatest?branchName=master
+    :target: https://dev.azure.com/evankepner/mutatest/_build/latest?definitionId=1&amp;branchName=master
+    :alt: Azure Pipelines
+.. |docs| image:: https://readthedocs.org/projects/mutatest/badge/?version=latest
+    :target: https://mutatest.readthedocs.io/en/latest/?badge=latest
+    :alt: RTD status
+.. |coverage| image:: https://codecov.io/gh/EvanKepner/mutatest/branch/master/graph/badge.svg
+    :target: https://codecov.io/gh/EvanKepner/mutatest
+    :alt: CodeCov
+.. |black| image:: https://img.shields.io/badge/code%20style-black-000000.svg
+    :target: https://github.com/psf/black
+    :alt: Black
+.. |conda-recipe| image:: https://img.shields.io/badge/recipe-mutatest-green.svg
+    :target: https://anaconda.org/conda-forge/mutatest
+    :alt: Conda recipe
+.. |conda-version| image:: https://img.shields.io/conda/vn/conda-forge/mutatest.svg
+    :target: https://anaconda.org/conda-forge/mutatest
+    :alt: Conda version
+.. |conda-platform| image:: https://img.shields.io/conda/pn/conda-forge/mutatest.svg
+    :target: https://anaconda.org/conda-forge/mutatest
+    :alt: Conda platforms
+.. |conda-azure| image:: https://dev.azure.com/conda-forge/feedstock-builds/_apis/build/status/mutatest-feedstock?branchName=master
+    :target: https://anaconda.org/conda-forge/mutatest
+    :alt: Conda azure status
+.. |conda-downloads| image:: https://img.shields.io/conda/dn/conda-forge/mutatest.svg
+    :target: https://anaconda.org/conda-forge/mutatest
+    :alt: Conda downloads</p>
+<hr />
+<h2 id="file-docsinstallrst">File: /docs/install.rst</h2>
+<p>.. _Installation:</p>
+<h1 id="installation">Installation</h1>
+<p><code>mutatest</code> requires Python 3.7 or Python 3.8.</p>
+<p>Install from <code>PyPI &lt;https://pypi.org/project/mutatest/&gt;</code>_:</p>
+<p>.. code-block:: bash</p>
+<div class="highlight"><pre><span></span><code>$ pip install mutatest
+</code></pre></div>
+<p>Install from <code>conda-forge &lt;https://anaconda.org/conda-forge/mutatest&gt;</code>_:</p>
+<p>.. code-block:: bash</p>
+<div class="highlight"><pre><span></span><code>$ conda install -c conda-forge mutatest
+</code></pre></div>
+<p>Alternatively, clone this repo and install locally:</p>
+<p>.. code-block:: bash</p>
+<div class="highlight"><pre><span></span><code>$ cd mutatest
+$ pip install .
+</code></pre></div>
+<p><code>mutatest</code> is designed to work when your test files are separated from your source directory
+and are prefixed with <code>test_</code>. See <code>Pytest Test Layout</code>_ for more details.</p>
+<p>.. _Mutation Trial Process:</p>
+<h1 id="mutation-trial-process">Mutation Trial Process</h1>
+<p><code>mutatest</code> is designed to be a diagnostic command line tool for your test coverage assessment.</p>
+<p>The mutation trial process follows these steps when <code>mutatest</code> is run from the CLI:</p>
+<ol>
+<li>Scan for your existing Python package, or use the input source location.</li>
+<li>Create an abstract syntax tree (AST) from the source files.</li>
+<li>Identify locations in the code that may be mutated (line and column). If you are running with
+   <code>coverage</code> the sample is restricted only to lines that are marked as covered in the
+   <code>.coverage</code> file.</li>
+<li>Take a random sample of the identified locations.</li>
+<li>Apply a mutation at the location by modifying a copy of the AST and writing a new cache file
+   to the appropriate <code>__pycache__</code> location with the source file statistics.</li>
+<li>Run the test suite. This will use the mutated <code>__pycache__</code> file since the source statistics
+   are the same for modification time.</li>
+<li>See if the test suite detected the mutation by a failed test.</li>
+<li>Remove the modified <code>__pycache__</code> file.</li>
+<li>Repeat steps 5-9 for the remaining selected locations to mutate.</li>
+<li>Write an output report of the various mutation results.</li>
+</ol>
+<p>A "clean trial" of your tests is run before any mutations are applied. This same "clean trial" is
+run at the end of the mutation testing. This ensures that your original test suite passes before
+attempting to detect surviving mutations and that the <code>__pycache__</code> has been appropriately
+reset when the mutation trials are finished.</p>
+<p>.. _Motivation:</p>
+<h1 id="motivation-and-faqs">Motivation and FAQs</h1>
+<h2 id="mutation-testing-overview">Mutation Testing Overview</h2>
+<p>Mutation testing is designed to assess the quality of other testing; typically, unit tests.
+The idea is that unit tests should fail given a specific mutation in a tested function.
+For example, if a new contributor were to submit a pull request for an important numerical library
+and accidentally typo a <code>&gt;</code> to be <code>&gt;=</code> in an existing tested function, the maintainer should
+expect that the change is detected through unit test failure.
+Mutation testing is a way to ensure this assumption is valid.
+Essentially, mutation testing is a test of the alarm system created by the unit tests.</p>
+<h2 id="why-random-sampling-instead-of-all-possible-mutants">Why random sampling instead of all possible mutants?</h2>
+<p>By nature, mutation testing can be slow.
+You have to make a small modification in your source code and then see if your test suite fails.
+For fast tests and smaller projects running every possible mutation may be feasible.
+For larger projects, this could be prohibitively expensive in time.
+Random sampling of the target locations, as well as of the mutations to apply, takes advantage
+of the "alarm testing" nature of mutation testing.
+You do not need to exhaustively test every mutation to have a good understanding of whether or not
+your test suite is generally sufficient to detect these changes, and it provides a sense of
+the types of mutations that could slip past your unit tests.
+Using the source and test commands targeting, as well as the category filters, you can create specific
+mutation trials for important components of your code.
+Setting a <code>random seed &lt;https://mutatest.readthedocs.io/en/latest/commandline.html#controlling-randomization-behavior-and-trial-number&gt;</code>_
+on the command line ensures reproducibility for the same set of arguments.</p>
+<h2 id="why-modify-the-pycache">Why modify the pycache?</h2>
+<p>In short, protection of source code.
+A goal of <code>mutatest</code> is to avoid source code modification so that mutations are not accidentally
+committed to version control.
+Writing the mutations from memory to the <code>__pycache__</code> is a safety mechanism to ensure that the
+worst-case scenario of a killed process in a trial is to clear you cache.</p>
+<h2 id="can-i-use-mutatest-in-cicd">Can I use mutatest in CICD?</h2>
+<p>Yes, though because of the slow nature of running your test suite multiple times it is not something
+you would run across your entire codebase on every commit.
+<code>Mutatest</code> includes an option to <code>raise survivor exceptions &lt;https://mutatest.readthedocs.io/en/latest/commandline.html#raising-exceptions-for-survivor-tolerances&gt;</code>_
+based on a tolerance level e.g., you may tolerate up to 2 surviving mutants (you set the threshold)
+out of 20 with specific pieces of your source code.
+<code>Mutatest</code> is most useful as a diagnostic tool to determine weak spots in your overall test structure.</p>
+<h2 id="are-there-differences-in-running-with-python-37-vs-python-38">Are there differences in running with Python 3.7 vs. Python 3.8?</h2>
+<p>.. versionadded:: 2.0.0
+    Support for Python 3.8
+.. versionadded:: 3.0.0
+    Multiprocessing parallelization in Python 3.8</p>
+<p>Yes, though they do not impact the command line interface experience.
+In Python 3.8, the <code>NamedConstant</code> node type was deprecated in favor of <code>Constant</code>, and new
+location attributes were added to individual nodes: <code>end_lineno</code> and <code>end_col_offset</code>.
+These changes are accounted for in the <code>transformers</code> module.
+Running with Python 3.7 the <code>LocIndex.end_lineno</code> and <code>LocIndex.end_col_offset</code> will always
+be set to <code>None</code>, and in Python 3.8 these values are populated based on the AST.
+Additional information is on <code>Python 3.8 What's New Improved Modules</code>_.</p>
+<p>Python 3.8 also supports a parallel pycache directory. This is used to enable multiprocessing of
+mutation trials with the <code>--parallel</code> argument. Parallelization is not supported on Python 3.7.</p>
+<h2 id="known-limitations">Known limitations</h2>
+<p>Since <code>mutatest</code> operates on the local <code>__pycache__</code> it is a serial execution process.
+This means it will take as long as running your test suite in series for the
+number of operations. It's designed as a diagnostic tool, and you should try to find the combination
+of test commands, source specifiers, and exclusions that generate meaningful diagnostics.
+For example, if you have 600 tests, running <code>mutatest</code> over the entire test suite may take
+some time. A better strategy would be:</p>
+<ol>
+<li>Select a subset of your tests and run <code>pytest</code> with <code>coverage</code> to see the
+   covered percentage per source file.</li>
+<li>Run <code>mutatest</code> with the same <code>pytest</code> command passed in with <code>-t</code> and generating
+   a coverage file. Use <code>-s</code> to pick the source file of interest to restrict the sample space,
+   or use <code>-e</code> to exclude files if you want to target multiple files.</li>
+</ol>
+<p>If you kill the <code>mutatest</code> process before the trials complete you may end up
+with partially mutated <code>__pycache__</code> files. If this happens the best fix is to remove the
+<code>__pycache__</code> directories and let them rebuild automatically the next time your package is
+imported (for instance, by re-running your test suite).</p>
+<p>The mutation status is based on the return code of the test suite e.g. 0 for success, 1 for failure.
+<code>mutatest</code> can theoretically be run with any test suite that you pass with the
+<code>--testcmds</code> argument; however, only <code>pytest</code> has been tested to date. The
+<code>mutatest.run.MutantTrialResult</code> contains the definitions for translating
+return codes into mutation trial statuses.</p>
+<p>.. target-notes::
+.. _Pytest Test Layout: https://docs.pytest.org/en/latest/goodpractices.html#choosing-a-test-layout-import-rules
+.. _Python 3.8 What's New Improved Modules: https://docs.python.org/3/whatsnew/3.8.html#ast</p>
+<hr />
+<h2 id="file-docslicenserst">File: /docs/license.rst</h2>
+<p>.. _license:</p>
+<h1 id="license">License</h1>
+<p>Distributed under the terms of the <code>MIT</code>_ license, <code>mutatest</code> is free and open source software.</p>
+<p>.. literalinclude:: ../LICENSE</p>
+<p>.. target-notes::
+.. _<code>MIT</code>: https://github.com/EvanKepner/mutatest/blob/master/LICENSE</p>
+<hr />
+<h2 id="file-docsmodulesrst">File: /docs/modules.rst</h2>
+<p>.. _API Reference:</p>
+<h1 id="api-reference">API Reference</h1>
+<p>.. automodule:: mutatest.api
+   :members:</p>
+<p>.. automodule:: mutatest.cache
+   :members:</p>
+<p>.. automodule:: mutatest.cli
+   :members:</p>
+<p>.. automodule:: mutatest.filters
+   :members:</p>
+<p>.. automodule:: mutatest.report
+   :members:</p>
+<p>.. automodule:: mutatest.run
+   :members:</p>
+<p>.. automodule:: mutatest.transformers
+   :members:</p>
+<hr />
+<h2 id="file-docsmutantsrst">File: /docs/mutants.rst</h2>
+<p>.. _Mutations:</p>
+<h1 id="mutations">Mutations</h1>
+<p><code>mutatest</code> supports the following mutation operations based on the <code>Python AST grammar</code>_:</p>
+<p>Supported operations:
+    - <code>AugAssign</code> mutations e.g. <code>+= -= *= /=</code>.
+    - <code>BinOp</code> mutations e.g. <code>+ - / *</code>.
+    - <code>BinOp Bitwise Comparison</code> mutations e.g. <code>x&amp;y x|y x^y</code>.
+    - <code>BinOp Bitwise Shift</code> mutations e.g. <code>&lt;&lt; &gt;&gt;</code>.
+    - <code>BoolOp</code> mutations e.g. <code>and or</code>.
+    - <code>Compare</code> mutations e.g. <code>== &gt;= &lt; &lt;= !=</code>.
+    - <code>Compare In</code> mutations e.g. <code>in, not in</code>.
+    - <code>Compare Is</code> mutations e.g. <code>is, is not</code>.
+    - <code>If</code> mutations e.g. <code>If x &gt; y</code> becomes <code>If True</code> or <code>If False</code>.
+    - <code>Index</code> mutations e.g. <code>i[0]</code> becomes <code>i[1]</code> and <code>i[-1]</code>.
+    - <code>NameConstant</code> mutations e.g. <code>True</code>, <code>False</code>, and <code>None</code>.
+    - <code>Slice</code> mutations e.g. changing <code>x[:2]</code> to <code>x[2:]</code>.</p>
+<p>These are the current operations that are mutated as compatible sets.
+The two-letter category code for white/black-list selection is beside the name in double quotes.</p>
+<h2 id="augassign-aa">AugAssign - "aa"</h2>
+<p>Augmented assignment e.g. <code>+= -= /= *=</code>.</p>
+<p>Members:
+    - <code>AugAssign_Add</code>
+    - <code>AugAssign_Div</code>
+    - <code>AugAssign_Mult</code>
+    - <code>AugAssign_Sub</code></p>
+<p>Example:</p>
+<p>.. code-block:: python</p>
+<div class="highlight"><pre><span></span><code># source code
+x += y
+
+# mutations
+x -= y  # AugAssign_Sub
+x *= y  # AugAssign_Mult
+x /= y  # AugAssign_Div
+</code></pre></div>
+<h2 id="binop-bn">BinOp - "bn"</h2>
+<p>Binary operations e.g. add, subtract, divide, etc.</p>
+<p>Members:
+    - <code>ast.Add</code>
+    - <code>ast.Div</code>
+    - <code>ast.FloorDiv</code>
+    - <code>ast.Mod</code>
+    - <code>ast.Mult</code>
+    - <code>ast.Pow</code>
+    - <code>ast.Sub</code></p>
+<p>Example:</p>
+<p>.. code-block:: python</p>
+<div class="highlight"><pre><span></span><code># source code
+x = a + b
+
+# mutations
+x = a / b  # ast.Div
+x = a - b  # ast.Sub
+</code></pre></div>
+<h2 id="binop-bit-comparison-bc">BinOp Bit Comparison - "bc"</h2>
+<p>Bitwise comparison operations e.g. <code>x &amp; y, x | y, x ^ y</code>.</p>
+<p>Members:
+    - <code>ast.BitAnd</code>
+    - <code>ast.BitOr</code>
+    - <code>ast.BitXor</code></p>
+<p>Example:</p>
+<p>.. code-block:: python</p>
+<div class="highlight"><pre><span></span><code># source code
+x = a &amp; y
+
+# mutations
+x = a | y  # ast.BitOr
+x = a ^ y  # ast.BitXor
+</code></pre></div>
+<h2 id="binop-bit-shifts-bs">BinOp Bit Shifts - "bs"</h2>
+<p>Bitwise shift operations e.g. <code>&lt;&lt; &gt;&gt;</code>.</p>
+<p>Members:
+    - <code>ast.LShift</code>
+    - <code>ast.RShift</code></p>
+<p>Example:</p>
+<p>.. code-block:: python</p>
+<div class="highlight"><pre><span></span><code># source code
+x &gt;&gt; y
+
+# mutation
+x &lt;&lt; y
+</code></pre></div>
+<h2 id="boolop-bl">BoolOp - "bl"</h2>
+<p>Boolean operations e.g. <code>and or</code>.</p>
+<p>Members:
+    - <code>ast.And</code>
+    - <code>ast.Or</code></p>
+<p>Example:</p>
+<p>.. code-block:: python</p>
+<div class="highlight"><pre><span></span><code># source code
+if x and y:
+
+# mutation
+if x or y:
+</code></pre></div>
+<h2 id="compare-cp">Compare - "cp"</h2>
+<p>Comparison operations e.g. <code>== &gt;= &lt;= &gt; &lt;</code>.</p>
+<p>Members:
+    - <code>ast.Eq</code>
+    - <code>ast.Gt</code>
+    - <code>ast.GtE</code>
+    - <code>ast.Lt</code>
+    - <code>ast.LtE</code>
+    - <code>ast.NotEq</code></p>
+<p>Example:</p>
+<p>.. code-block:: python</p>
+<div class="highlight"><pre><span></span><code># source code
+x &gt;= y
+
+# mutations
+x &lt; y  # ast.Lt
+x &gt; y  # ast.Gt
+x != y  # ast.NotEq
+</code></pre></div>
+<h2 id="compare-in-cn">Compare In - "cn"</h2>
+<p>Compare membership e.g. <code>in, not in</code>.</p>
+<p>Members:
+    - <code>ast.In</code>
+    - <code>ast.NotIn</code></p>
+<p>Example:</p>
+<p>.. code-block:: python</p>
+<div class="highlight"><pre><span></span><code># source code
+x in [1, 2, 3, 4]
+
+# mutation
+x not in [1, 2, 3, 4]
+</code></pre></div>
+<h2 id="compare-is-cs">Compare Is - "cs"</h2>
+<p>Comapre identity e.g. <code>is, is not</code>.</p>
+<p>Members:
+    - <code>ast.Is</code>
+    - <code>ast.IsNot</code></p>
+<p>Example:</p>
+<p>.. code-block:: python</p>
+<div class="highlight"><pre><span></span><code># source code
+x is None
+
+# mutation
+x is not None
+</code></pre></div>
+<h2 id="if-if">If - "if"</h2>
+<p>If mutations change <code>if</code> statements to always be <code>True</code> or <code>False</code>. The original
+statement is represented by the class <code>If_Statement</code> in reporting.</p>
+<p>Members:
+    - <code>If_False</code>
+    - <code>If_Statement</code>
+    - <code>If_True</code></p>
+<p>Example:</p>
+<p>.. code-block:: python</p>
+<div class="highlight"><pre><span></span><code># source code
+if a &gt; b:   # If_Statement
+    ...
+
+# Mutations
+if True:   # If_True
+    ...
+
+if False:  # If_False
+    ...
+</code></pre></div>
+<h2 id="index-ix">Index - "ix"</h2>
+<p>Index values for iterables e.g. <code>i[-1], i[0], i[0][1]</code>. It is worth noting that this is a
+unique mutation form in that any index value that is positive will be marked as <code>Index_NumPos</code>
+and the same relative behavior will happen for negative index values to <code>Index_NumNeg</code>. During
+the mutation process there are three possible outcomes: the index is set to 0, -1 or 1.
+The alternate values are chosen as potential mutations e.g. if the original operation is classified
+as <code>Index_NumPos</code> such as <code>x[10]</code> then valid mutations are to <code>x[0]</code> or
+<code>x[-1]</code>.</p>
+<p>Members:
+    - <code>Index_NumNeg</code>
+    - <code>Index_NumPos</code>
+    - <code>Index_NumZero</code></p>
+<p>Example:</p>
+<p>.. code-block:: python</p>
+<div class="highlight"><pre><span></span><code># source code
+x = [a[10], a[-4], a[0]]
+
+# mutations
+x = [a[-1], a[-4], a[0]]  # a[10] mutated to Index_NumNeg
+x = [a[10], a[0], a[0]]  # a[-4] mutated to Index_NumZero
+x = [a[10], a[1], a[0]]  # a[-4] mutated to Index_NumPos
+x = [a[10], a[-4], a[1]]  # a[0] mutated to Index_NumPos
+</code></pre></div>
+<h2 id="nameconstant-nc">NameConstant - "nc"</h2>
+<p>Named constant mutations e.g. <code>True, False, None</code>.</p>
+<p>Members:
+    - <code>False</code>
+    - <code>None</code>
+    - <code>True</code></p>
+<p>Example:</p>
+<p>.. code-block:: python</p>
+<div class="highlight"><pre><span></span><code># source code
+x = True
+
+# mutations
+x = False
+X = None
+</code></pre></div>
+<h2 id="slices-su">Slices - "su"</h2>
+<p>Slice mutations to swap lower/upper values, or change range e.g. <code>x[2:] to x[:2]</code>.
+This is a unique mutation. If the upper or lower bound is set to
+<code>None</code> then the bound values are swapped. This is represented by the operations of
+<code>Slice_UnboundedUpper</code> for swap None to the "upper" value  from "lower". The category code
+for this type of mutation is "su".</p>
+<p>Members:
+    - <code>Slice_Unbounded</code>
+    - <code>Slice_UnboundedLower</code>
+    - <code>Slice_UnboundedUpper</code></p>
+<p>Example:</p>
+<p>.. code-block:: python</p>
+<div class="highlight"><pre><span></span><code># source code
+w = a[:2]
+x = a[4:]
+
+# mutation
+w = a[2:]  # Slice_UnboundedUpper, upper is now unbounded and lower has a value
+x = a[4:]
+
+# mutation
+w = a[:2]
+x = a[:4]  # Slice_UnboundedLower, lower is now unbounded and upper has a value
+
+# mutation
+w = a[:2]
+x = a[:]  # Slice_Unbounded, both upper and lower are unbounded
+</code></pre></div>
+<p>.. target-notes::
+.. _Python AST grammar: https://docs.python.org/3/library/ast.html#abstract-grammar</p>
+<hr />
+<h2 id="file-authorsrst">File: /AUTHORS.rst</h2>
+<h1 id="authors">Authors</h1>
+<p><code>mutatest</code> is written and maintained by Evan Kepner.</p>
+<p>See the <code>Contributing Guidelines &lt;https://mutatest.readthedocs.io/en/latest/contributing.html&gt;</code><em> if you
+are interested in submitting code in the form of pull requests.
+Contributors are listed here, and can be seen on the
+<code>GitHub contribution graph &lt;https://github.com/EvanKepner/mutatest/graphs/contributors&gt;</code></em>.</p>
+<h2 id="contributors">Contributors</h2>
+<ul>
+<li>David Li-Bland</li>
+<li>Alireza Aghamohammadi</li>
+</ul>
+<hr />
+<h2 id="file-changelogrst">File: /CHANGELOG.rst</h2>
+<h1 id="changelog">Changelog</h1>
+<h2 id="stable-releases">Stable Releases</h2>
+<p>3.1.0
+~~~~~</p>
+<ul>
+<li>Maintenance patches and API changes to skip/only category selection.</li>
+</ul>
+<p>3.0.2
+~~~~~</p>
+<div class="highlight"><pre><span></span><code>- `Maintenance patch #27 &lt;https://github.com/EvanKepner/mutatest/pull/27&gt;`_ updating source
+  code conditional logic in the CLI argument parsing.
+- Minor fixes for the most updated CI checks.
+</code></pre></div>
+<p>3.0.1
+~~~~~</p>
+<div class="highlight"><pre><span></span><code>- `Bug fix #24 &lt;https://github.com/EvanKepner/mutatest/issues/24&gt;`_ where the bit-shift
+  operators where not being applied during mutation trials and raised ``KeyError``.
+- A new ``test_all_op_types.py`` ensures all mutation substitutions work as intended.
+</code></pre></div>
+<p>3.0.0
+~~~~~</p>
+<div class="highlight"><pre><span></span><code>- ``Mutatest`` has reached a level of maturity to warrant a stable release.
+  With the addition of the multiprocessing capabilities, support for ``coverage`` versions
+  4.x and 5.x, support for Python 3.7 and 3.8, being installable through ``pip`` or
+  ``conda``, and with Azure Pipelines CI for platform tests, the tool and API are
+  unlikely to change in a major way without moving to ``4.0.0``.
+
+New in this release:
+
+- Multiprocessing support on Python 3.8!
+    - The new ``--parallel`` command argument will instruct ``mutatest`` to use
+      multiprocessing for mutation trials. See the documentation for complete details.
+
+- Bug fix in ``mutatest.cache.create_cache_dirs()`` where the cache directory did not
+  include &quot;parents&quot; in case of packages with nested directories without existing pycache.
+- Removal of the ``sr`` subcategory of slice mutations (``Slice_RC`` for range changes).
+  These were rare, and supporting both Python 3.7 and 3.8 required excessive complexity.
+  The ``su`` category remains valid as the primary slice mutation set.
+</code></pre></div>
+<h2 id="beta-releases">Beta Releases</h2>
+<p>2.2.0
+~~~~~</p>
+<div class="highlight"><pre><span></span><code>- Added support for specifying settings in ``setup.cfg`` using either ``[mutatest]`` or
+  ``[tool:mutatest]`` sections in addition to the ``mutatest.ini`` file.
+</code></pre></div>
+<p>2.1.3
+~~~~~</p>
+<div class="highlight"><pre><span></span><code>- Addressing test issues on Windows platform in the coverage tests by adding a
+  ``resolve_source`` flag to the ``CoverageFilter.filter`` method.
+</code></pre></div>
+<p>2.1.2
+~~~~~</p>
+<div class="highlight"><pre><span></span><code>- Moved the ``tests`` directory to be within the package of ``mutatest``.
+  This enabled the installation to be tested with ``pytest --pyargs mutatest`` as well
+  as ``pytest`` from local source files.
+  Test dependencies are still installed with ``pip install .[tests]``.
+</code></pre></div>
+<p>2.1.1
+~~~~~</p>
+<div class="highlight"><pre><span></span><code>- Includes specific test environments for ``coverage`` versions 4 and 5 with appropriate mocked
+  ``.coverage`` data outputs (JSON or SQL based on version).
+- A new ``tox`` test environment called ``cov4`` is added, with a new ``pytest`` marker
+  ``pytest.mark.coverage`` for test selection.
+</code></pre></div>
+<p>2.1.0
+~~~~~</p>
+<div class="highlight"><pre><span></span><code>- ``Coverage`` version 5.0 has moved to a SQLite database instead of a flat file. To support
+  both 4x and 5x versions of ``Coverage`` the ``filters`` source code has been updated.
+  The test suite includes mocked coverage data parsing tests of 4x only for now.
+</code></pre></div>
+<p>2.0.1
+~~~~~</p>
+<div class="highlight"><pre><span></span><code>- Explicit including of ``typing-extensions`` in ``setup.py`` requirements to fix breaking
+  documentation builds on Python version 3.7 vs. 3.8.
+</code></pre></div>
+<p>2.0.0
+~~~~~</p>
+<div class="highlight"><pre><span></span><code>- Python 3.8 support! There are breaking changes with the ``LocIndex`` and other components
+  of the ``transformers`` from prior versions of ``mutatest``. Python 3.8 introduces a new
+  AST structure - including additional node attributes ``end_lineno`` and ``end_col_offset``
+  that have to be accounted for. ``transformers.MutateAST`` is now build from a base class
+  and a mixin class depending on the Python version (3.7 vs. 3.8) for the appropriate AST
+  treatment. There are no changes in the CLI usage.
+</code></pre></div>
+<p>1.2.1
+~~~~~</p>
+<div class="highlight"><pre><span></span><code>- Bugfix to ensure ``exclude`` path processing in ``GenomeGroup.add_folder`` always uses full
+  resolved paths for files.
+</code></pre></div>
+<p>1.2.0
+~~~~~</p>
+<div class="highlight"><pre><span></span><code>- `Feature #18 &lt;https://github.com/EvanKepner/mutatest/pull/18&gt;`_: Allow mutation trials to time out.
+  There are cases where a mutation could cause an infinite loop, such as changing the comparator in
+  a ``while`` statement e.g., ``while x &lt; 5`` becomes ``while x &gt;= 5``. A new ``--timeout_factor``
+  argument is added to set a cap on the maximum trial time as a multiplier of the clean-trial run.
+- Bugfix on using ``exclude`` where files were logged but still becoming part of the sample.
+</code></pre></div>
+<p>1.1.1
+~~~~~</p>
+<div class="highlight"><pre><span></span><code>- `Bug Fix #15 &lt;https://github.com/EvanKepner/mutatest/pull/15&gt;`_: Fix ``LocIndex.ast_class`` setting for ``Index`` node mutations.
+</code></pre></div>
+<p>1.1.0
+~~~~~</p>
+<div class="highlight"><pre><span></span><code>- Add support for a ``mutatest.ini`` configuration file for command line arguments.
+</code></pre></div>
+<p>1.0.1
+~~~~~</p>
+<div class="highlight"><pre><span></span><code>- Documentation updates, including the API tutorial.
+- Fix on latest ``mypy`` errors related to ``strict`` processing of ``run`` and ``cache``.
+</code></pre></div>
+<p>1.0.0
+~~~~~</p>
+<div class="highlight"><pre><span></span><code>- Moving from the alpha to the beta version with an API design. The alpha releases were focused
+  on defining the functionality of the CLI. In the beta version, the CLI remains unchanged; however,
+  a full internal design has been applied to create a coherent API. The ``controller``, ``optimizers``,
+  and ``maker`` modules have been fully replaced by ``run``, ``api``, and ``filters``. See
+  the new full API documentation for details on using these modules outside of the CLI.
+- Additionally, ``pytest`` was removed from the installation requirements since it is assumed
+  for the default running modes but not required for the API or installation.
+</code></pre></div>
+<h2 id="alpha-releases">Alpha Releases</h2>
+<p>0.9.2
+~~~~~</p>
+<div class="highlight"><pre><span></span><code>- Added ``--exception`` and ``-x`` as a survivor tolerance to raise an exception
+  after the trial completes if the count of surviving mutants is greater than or equal to the
+  specified value.
+</code></pre></div>
+<p>0.9.1
+~~~~~</p>
+<div class="highlight"><pre><span></span><code>- Added ``--only`` and ``--skip`` with category codes for mutation families.
+- Provides CLI selection of mutation types to be used during the trials.
+</code></pre></div>
+<p>0.9.0
+~~~~~</p>
+<div class="highlight"><pre><span></span><code>- Added new ``If`` mutation:
+    1. Original statements are represented by ``If_Statement`` and mutated to be either
+       ``If_True`` where the statement always passes, or ``If_False`` where the statement
+       is never passed.
+</code></pre></div>
+<p>0.8.0
+~~~~~</p>
+<div class="highlight"><pre><span></span><code>- Breaking changes to the CLI arguments and new defaults:
+    1. Output files are now optional, the default behavior has changed from always writing an RST
+       file using the ``-o`` option on the command line.
+    2. Exclusions are still marked as ``-e``; however, now multiple ``-e`` arguments are
+       supported and arguments must point to a Python file. The argument used to be:
+       ``mutatest -e &quot;__init__.py _devtools.py&quot;`` and now it is
+       ``mutatest -e src/__init__.py -e src/_devtools.py``. There are no longer default
+       exclusions applied.
+
+- Improved CLI reporting, including selected test counts and line/col locations
+  for trial results while processing.
+</code></pre></div>
+<p>0.7.1
+~~~~~</p>
+<div class="highlight"><pre><span></span><code>- Internal changes to ``Slice`` mutations for clearer categorization and report output.
+- Includes clearing names to ``Slice_Swap`` and ``Slice_RangeChange`` for categories.
+- Updates operation names to ``Slice_Unbounded...`` with &quot;lower&quot; or &quot;upper&quot;.
+</code></pre></div>
+<p>0.7.0
+~~~~~</p>
+<div class="highlight"><pre><span></span><code>- Added new slice mutations:
+    1. ``Slice_SwapNoneUL`` and ``Slice_SwapNoneLU`` for swapping the upper and lower
+       bound values when only one is specified e.g. ``x[1:]`` to ``x[:1]``.
+    2. ``Slice_UPosToZero`` and ``Slice_UNegToZero`` for moving the upper bound of a
+       slice by 1 unit e.g. ``x[1:5]`` becomes ``x[1:4]``.
+</code></pre></div>
+<p>0.6.1
+~~~~~</p>
+<div class="highlight"><pre><span></span><code>- Added explicit tests for ``argparse`` cli options.
+- Added mechanism to sort reporting mutations by source file, then line number, then column
+  number.
+</code></pre></div>
+<p>0.6.0
+~~~~~</p>
+<div class="highlight"><pre><span></span><code>- Including ``pytest`` in the installation requirements. Technically, any test runner can
+  be used but with all base package assumptions being built around ``pytest`` this feels
+  like the right assumption to call out as an install dependency. It is the default behavior.
+- Updated ``controller`` for test file exclusion to explicitly match prefix or suffix cases
+  for ``&quot;test_&quot;`` and ``&quot;_test&quot;`` per ``pytest`` conventions.
+- Changed error and unknown status results to console color as yellow instead of red.
+- Added multiple invariant property tests, primarily to ``controller`` and ``cache``.
+- Added ``hypothesis`` to the test components of ``extras_require``.
+- Moved to ``@property`` decorators for internal class properties that should only
+  be set at initialization, may add custom ``setters`` at a later time.
+- Fixed a zero-division bug in the ``cli`` when reporting coverage percentage.
+</code></pre></div>
+<p>0.5.0
+~~~~~</p>
+<div class="highlight"><pre><span></span><code>- Addition of ``optimizers``, including the new class ``CoverageOptimizer``.
+- This optimizer restricts the full sample space only to source locations that are marked
+  as covered in the ``.coverage`` file. If you have a ``pytest.ini`` that includes
+  the ``--cov=`` command it will automatically generate during the clean-trial run.
+</code></pre></div>
+<p>0.4.2
+~~~~~</p>
+<div class="highlight"><pre><span></span><code>- More behind the scenes maintenance: updated debug level logging to include source file
+  names and line numbers for all visit operations and separated colorized output to a new
+  function.
+</code></pre></div>
+<p>0.4.1
+~~~~~</p>
+<div class="highlight"><pre><span></span><code>- Updated the reporting functions to return colorized display results to CLI.
+</code></pre></div>
+<p>0.4.0
+~~~~~</p>
+<div class="highlight"><pre><span></span><code>- Added new mutation support for:
+    1. ``AugAssign`` in AST e.g. ``+= -= *= /=``.
+    2. ``Index`` substitution in lists e.g. take a positive number like ``i[1]`` and
+       mutate to zero and a negative number e.g. ``i[-1] i[0]``.
+
+- Added a ``desc`` attribute to ``transformers.MutationOpSet`` that is used in the
+  cli help display.
+- Updated the cli help display to show the description and valid members.
+</code></pre></div>
+<p>0.3.0
+~~~~~</p>
+<div class="highlight"><pre><span></span><code>- Added new mutation support for ``NameConstant`` in AST.
+- This includes substitutions for singleton assignments such as: ``True``, ``False``,
+  and ``None``.
+- This is the first non-type mutation and required adding a ``readonly`` parameter
+  to the ``transformers.MutateAST`` class. Additionally, the type-hints for the
+  ``LocIndex`` and ``MutationOpSet`` were updated to ``Any`` to support
+  the mixed types. This was more flexible than a series of ``overload`` signatures.
+</code></pre></div>
+<p>0.2.0
+~~~~~</p>
+<div class="highlight"><pre><span></span><code>- Added new compare mutation support for:
+    1. ``Compare Is`` mutations e.g. ``is, is not``.
+    2. ``Compare In`` mutations e.g. ``in, not in``.
+</code></pre></div>
+<p>0.1.0
+~~~~~</p>
+<div class="highlight"><pre><span></span><code>- Initial release!
+- Requires Python 3.7 due to the ``importlib`` internal references for manipulating cache.
+- Run mutation tests using the ``mutatest`` command line interface.
+- Supported operations:
+
+    1. ``BinOp`` mutations e.g. ``+ - / *`` including bit-operations.
+    2. ``Compare`` mutations e.g. ``== &gt;= &lt; &lt;= !=``.
+    3. ``BoolOp`` mutations e.g. ``and or``.
+</code></pre></div>
+<hr />
+<h2 id="file-contributingrst">File: /CONTRIBUTING.rst</h2>
+<h1 id="contributing">Contributing</h1>
+<p>Up top, thanks for considering a contribution!
+New features that align to the vision are welcome.
+You can either open an issue to discuss the idea first, or if you have working code,
+submit a pull-request.</p>
+<h2 id="vision">Vision</h2>
+<p>The goal of <code>mutatest</code> is to provide a simple tool and API for mutation testing.
+The top level priorities for the project are:</p>
+<ol>
+<li>Collect useful mutation patterns without modifying the target source code.</li>
+<li>Make it fast.</li>
+</ol>
+<p>Open questions I'm working through on the design:</p>
+<ol>
+<li>
+<p>Fancy test selection? If there is a way to not only test coverage, but only select tests based
+   on the mutation location (a form of "who tests what") that could make trials more efficient.</p>
+</li>
+<li>
+<p>Local database? Keeping a local database of mutations and trial results would allow for re-running
+   failed mutations quickly. Providing the ability to log false positives to skip on future samples
+   would also be valuable.</p>
+</li>
+<li>
+<p>Clustered mutations? There could be room for specifying a number of mutations to run simultaneously.</p>
+</li>
+<li>
+<p>More API options? If you add two Genomes together should it create a GenomeGroup automatically?</p>
+</li>
+<li>
+<p>More reporting options? HTML etc.</p>
+</li>
+</ol>
+<h2 id="development-guidelines">Development Guidelines</h2>
+<p>The following guidelines are used in the style formatting of this package. Many are enforced through
+<code>pre-commit</code> Git hooks and in the test running configuration of <code>tox</code>.</p>
+<p>Development environment setup
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~</p>
+<p>Here is how to get up and running for development on <code>mutatest</code>. Referenced tools are included
+in the development dependencies as part of the set up procedure.</p>
+<ol>
+<li>Fork this repo, then clone your fork locally.</li>
+<li>Create a new Python virtual environment using Python 3.7 and activate it.</li>
+<li>Change to the local directory of your clone. All commands are run in the top level directory
+   where the <code>setup.py</code> file is located.</li>
+<li>Install <code>mutatest</code> in edit mode with all development dependencies using <code>pip</code>.</li>
+</ol>
+<p>.. code-block:: bash</p>
+<div class="highlight"><pre><span></span><code>$ pip install -e .[dev]
+</code></pre></div>
+<ol>
+<li>Run a clean <code>tox</code> trial to ensure you're starting from a correct installation:</li>
+</ol>
+<p>.. code-block:: bash</p>
+<div class="highlight"><pre><span></span><code>$ tox
+
+# expected output ...
+
+py37: commands succeeded
+lint: commands succeeded
+typing: commands succeeded
+pypi-description: commands succeeded
+manifest: commands succeeded
+help: commands succeeded
+congratulations :)
+</code></pre></div>
+<ol>
+<li>Install <code>pre-commit</code> for the cloned repo. This ensures that every commit runs the
+   formatting checks including <code>black</code> and <code>flake8</code>.</li>
+</ol>
+<p>.. code-block:: bash</p>
+<div class="highlight"><pre><span></span><code>$ pre-commit install
+</code></pre></div>
+<ol>
+<li>Start developing!</li>
+<li>Run <code>tox</code> one more time before you open the PR to make sure your functionality passes the
+   original tests (and any new ones you have added).</li>
+</ol>
+<p>Style: all files
+~~~~~~~~~~~~~~~~</p>
+<div class="highlight"><pre><span></span><code>- Generally hard-wrap at 100 characters for all files, including text files or RST.
+- Prefer RST over markdown or plaintext for explanations and outputs.
+- Accept the edits from the ``pre-commit`` configuration e.g. to trim trailing
+  whitespace.
+</code></pre></div>
+<p>Style: Package Python code
+~~~~~~~~~~~~~~~~~~~~~~~~~~</p>
+<p>Many of these points are automated with <code>pre-commit</code> and the existing configuration settings
+for <code>black</code> and <code>flake8</code>. In general:</p>
+<div class="highlight"><pre><span></span><code>- Use ``isort`` for ordering ``import`` statements in Python files.
+- Run ``black`` for formatting all Python files.
+- Use &quot;Google Style&quot; doc-string formatting for functions.
+- Type-hints are strictly enforced with ``mypy --strct``.
+- Adhere to PEP-8 for naming conventions and general style defaults.
+- All code is hard-wrapped at 100 characters.
+- If you are adding a new development tool instead of a feature, prefix the module name
+  with an underscore.
+- Provide justification for any new install requirements.
+- All tests are stored in the ``tests/`` directory.
+- Accept the edits from the ``pre-commit`` configuration.
+</code></pre></div>
+<p>Style: Test Python code
+~~~~~~~~~~~~~~~~~~~~~~~</p>
+<p><code>Pytest</code> is used to manage unit tests, and <code>tox</code> is used to run various environment
+tests. <code>Hypothesis</code> is used for property testing in addition to the unit tests.
+If you are adding a new feature ensure that tests are added to cover the functionality.
+Some style enforcing is relaxed on the test files:</p>
+<div class="highlight"><pre><span></span><code>- Use ``isort`` for ordering ``import`` statements in Python files.
+- Run ``black`` for formatting all Python files.
+- Use &quot;Google Style&quot; doc-string formatting for functions, though single-line descriptions can be
+  appropriate for unit test descriptions.
+- Test files are all in the ``mutatest/tests/`` directory so tests are distributed with the package.
+- Tests do not require type-hints for the core test function or fixtures. Use as appropriate to
+  add clarity with custom classes or mocking.
+- Prefer to use ``pytest`` fixtures such as ``tmp_path`` and ``monkeypatch``.
+- All test files are prefixed with ``test_``.
+- All test functions are prefixed with ``test_`` and are descriptive.
+- Shared fixtures are stored in ``tests/conftest.py``.
+- Accept the edits from the ``pre-commit`` configuration.
+</code></pre></div>
+<p>Commits
+~~~~~~~</p>
+<div class="highlight"><pre><span></span><code>- Use descriptive commit messages in &quot;action form&quot;. Messages should be read as, &quot;If applied,
+  this commit will... &lt;&lt;your commit message&gt;&gt;&quot; e.g. &quot;add tests for coverage of bool_op visit&quot;.
+- Squash commits as appropriate.
+</code></pre></div>
+<hr />
+<h2 id="file-readmerst">File: /README.rst</h2>
+<h1 id="mutatest-python-mutation-testing_1"><code>mutatest</code>: Python mutation testing</h1>
+<p>|  |py-versions| |license| |ci-azure| |docs| |coverage| |black|
+|  |pypi-version| |pypi-status| |pypi-format| |pypi-downloads|
+|  |conda-version| |conda-recipe| |conda-platform| |conda-downloads|</p>
+<p>Are you confident in your tests? Try out <code>mutatest</code> and see if your tests will detect small
+modifications (mutations) in the code. Surviving mutations represent subtle changes that are
+undetectable by your tests. These mutants are potential modifications in source code that continuous
+integration checks would miss.</p>
+<h2 id="features_1">Features</h2>
+<div class="highlight"><pre><span></span><code>- Simple command line tool with `multiple configuration options &lt;https://mutatest.readthedocs.io/en/latest/commandline.html&gt;`_.
+- Built on Python&#39;s Abstract Syntax Tree (AST) grammar to ensure `mutants are valid &lt;https://mutatest.readthedocs.io/en/latest/mutants.html&gt;`_.
+- `No source code modification &lt;https://mutatest.readthedocs.io/en/latest/install.html#mutation-trial-process&gt;`_,
+  only the ``__pycache__`` is changed.
+- Uses ``coverage`` to create `only meaningful mutants &lt;https://mutatest.readthedocs.io/en/latest/commandline.html#coverage-filtering&gt;`_.
+- Built for efficiency with `multiple running modes &lt;https://mutatest.readthedocs.io/en/latest/commandline.html#selecting-a-running-mode&gt;`_
+  and `random sampling of mutation targets &lt;https://mutatest.readthedocs.io/en/latest/commandline.html#controlling-randomization-behavior-and-trial-number&gt;`_.
+- Capable of running `parallel mutation trials &lt;https://mutatest.readthedocs.io/en/latest/commandline.html#parallelization&gt;`_
+  with multiprocessing on Python 3.8.
+- Flexible enough to run on a `whole package &lt;https://mutatest.readthedocs.io/en/latest/commandline.html#auto-detected-package-structures&gt;`_
+  or a `single file &lt;https://mutatest.readthedocs.io/en/latest/commandline.html#specifying-source-files-and-test-commands&gt;`_.
+- Includes an `API for custom mutation controls &lt;https://mutatest.readthedocs.io/en/latest/modules.html&gt;`_.
+- Tested on Linux, Windows, and MacOS with `Azure pipelines &lt;https://dev.azure.com/evankepner/mutatest/_build/latest?definitionId=1&amp;branchName=master&gt;`_.
+- Full strict static type annotations throughout the source code and the API.
+</code></pre></div>
+<h2 id="install">Install</h2>
+<p>Install from <code>PyPI &lt;https://pypi.org/project/mutatest/&gt;</code>_:</p>
+<p>.. code-block:: bash</p>
+<div class="highlight"><pre><span></span><code>$ pip install mutatest
+</code></pre></div>
+<p>Install from <code>conda-forge &lt;https://anaconda.org/conda-forge/mutatest&gt;</code>_:</p>
+<p>.. code-block:: bash</p>
+<div class="highlight"><pre><span></span><code>$ conda install -c conda-forge mutatest
+</code></pre></div>
+<h2 id="example-output">Example Output</h2>
+<p>This is an output example running mutation trials against the
+<code>API Tutorial example folder &lt;https://mutatest.readthedocs.io/en/latest/api_tutorial/api_tutorial.html&gt;</code>_
+example folder.</p>
+<p>.. code-block:: bash</p>
+<div class="highlight"><pre><span></span><code>$ mutatest -s example/ -t &quot;pytest&quot; -r 314
+
+Running clean trial
+2 mutation targets found in example/a.py AST.
+1 mutation targets found in example/b.py AST.
+Setting random.seed to: 314
+Total sample space size: 2
+10 exceeds sample space, using full sample: 2.
+
+Starting individual mutation trials!
+Current target location: a.py, LocIndex(ast_class=&#39;BinOp&#39;, lineno=6, col_offset=11, op_type=&lt;class &#39;_ast.Add&#39;&gt;)
+Detected mutation at example/a.py: (6, 11)
+Detected mutation at example/a.py: (6, 11)
+Surviving mutation at example/a.py: (6, 11)
+Break on survival: stopping further mutations at location.
+
+Current target location: b.py, LocIndex(ast_class=&#39;CompareIs&#39;, lineno=6, col_offset=11, op_type=&lt;class &#39;_ast.Is&#39;&gt;)
+Detected mutation at example/b.py: (6, 11)
+Running clean trial
+
+Mutatest diagnostic summary
+===========================
+ - Source location: /home/user/Github/mutatest/docs/api_tutorial/example
+ - Test commands: [&#39;pytest&#39;]
+ - Mode: s
+ - Excluded files: []
+ - N locations input: 10
+ - Random seed: 314
+
+Random sample details
+---------------------
+ - Total locations mutated: 2
+ - Total locations identified: 2
+ - Location sample coverage: 100.00 %
+
+
+Running time details
+--------------------
+ - Clean trial 1 run time: 0:00:00.348999
+ - Clean trial 2 run time: 0:00:00.350213
+ - Mutation trials total run time: 0:00:01.389095
+
+Trial Summary Report:
+
+Overall mutation trial summary
+==============================
+ - DETECTED: 3
+ - SURVIVED: 1
+ - TOTAL RUNS: 4
+ - RUN DATETIME: 2019-10-17 16:57:08.645355
+
+Detected mutations:
+
+DETECTED
+--------
+ - example/a.py: (l: 6, c: 11) - mutation from &lt;class &#39;_ast.Add&#39;&gt; to &lt;class &#39;_ast.Sub&#39;&gt;
+ - example/a.py: (l: 6, c: 11) - mutation from &lt;class &#39;_ast.Add&#39;&gt; to &lt;class &#39;_ast.Mod&#39;&gt;
+ - example/b.py: (l: 6, c: 11) - mutation from &lt;class &#39;_ast.Is&#39;&gt; to &lt;class &#39;_ast.IsNot&#39;&gt;
+
+Surviving mutations:
+
+SURVIVED
+--------
+ - example/a.py: (l: 6, c: 11) - mutation from &lt;class &#39;_ast.Add&#39;&gt; to &lt;class &#39;_ast.Mult&#39;&gt;
+</code></pre></div>
+<h2 id="documentation">Documentation</h2>
+<p>For full documentation, including installation, CLI references, API references, and tutorials,
+please see https://mutatest.readthedocs.io/en/latest/.
+The project is hosted on PyPI at https://pypi.org/project/mutatest/.</p>
+<h2 id="bugsrequests">Bugs/Requests</h2>
+<p>Please use the <code>GitHub issue tracker &lt;https://github.com/EvanKepner/mutatest/issues&gt;</code><em> to submit bugs
+or request features.
+See the <code>Contributing Guidelines &lt;https://mutatest.readthedocs.io/en/latest/contributing.html&gt;</code></em> if you
+are interested in submitting code in the form of pull requests.</p>
+<h2 id="changelog_1">ChangeLog</h2>
+<p>Consult the <code>Changelog &lt;https://mutatest.readthedocs.io/en/latest/changelog.html&gt;</code>_ page for fixes
+and enhancements of each version.</p>
+<h2 id="license_1">License</h2>
+<p>Copyright Evan Kepner 2018-2020.</p>
+<p>Distributed under the terms of the <code>MIT &lt;https://github.com/pytest-dev/pytest/blob/master/LICENSE&gt;</code>_
+license, <code>mutatest</code> is free and open source software.</p>
+<p>.. |py-versions| image:: https://img.shields.io/pypi/pyversions/mutatest?color=green
+    :target: https://pypi.org/project/mutatest/
+    :alt: Python versions
+.. |license| image:: https://img.shields.io/pypi/l/mutatest.svg
+    :target: https://pypi.org/project/mutatest/
+    :alt: License
+.. |pypi-version| image:: https://badge.fury.io/py/mutatest.svg
+    :target: https://pypi.org/project/mutatest/
+    :alt: PyPI version
+.. |pypi-status| image:: https://img.shields.io/pypi/status/mutatest.svg
+    :target: https://pypi.org/project/mutatest/
+    :alt: PyPI status
+.. |pypi-format| image:: https://img.shields.io/pypi/format/mutatest.svg
+    :target: https://pypi.org/project/mutatest/
+    :alt: PyPI Format
+.. |pypi-downloads| image:: https://pepy.tech/badge/mutatest
+    :target: https://pepy.tech/project/mutatest
+    :alt: PyPI Downloads
+.. |ci-travis| image:: https://travis-ci.org/EvanKepner/mutatest.svg?branch=master
+    :target: https://travis-ci.org/EvanKepner/mutatest
+    :alt: TravisCI
+.. |ci-azure| image:: https://dev.azure.com/evankepner/mutatest/_apis/build/status/EvanKepner.mutatest?branchName=master
+    :target: https://dev.azure.com/evankepner/mutatest/_build/latest?definitionId=1&amp;branchName=master
+    :alt: Azure Pipelines
+.. |docs| image:: https://readthedocs.org/projects/mutatest/badge/?version=latest
+    :target: https://mutatest.readthedocs.io/en/latest/?badge=latest
+    :alt: RTD status
+.. |coverage| image:: https://codecov.io/gh/EvanKepner/mutatest/branch/master/graph/badge.svg
+    :target: https://codecov.io/gh/EvanKepner/mutatest
+    :alt: CodeCov
+.. |black| image:: https://img.shields.io/badge/code%20style-black-000000.svg
+    :target: https://github.com/psf/black
+    :alt: Black
+.. |conda-recipe| image:: https://img.shields.io/badge/recipe-mutatest-green.svg
+    :target: https://anaconda.org/conda-forge/mutatest
+    :alt: Conda recipe
+.. |conda-version| image:: https://img.shields.io/conda/vn/conda-forge/mutatest.svg
+    :target: https://anaconda.org/conda-forge/mutatest
+    :alt: Conda version
+.. |conda-platform| image:: https://img.shields.io/conda/pn/conda-forge/mutatest.svg
+    :target: https://anaconda.org/conda-forge/mutatest
+    :alt: Conda platforms
+.. |conda-azure| image:: https://dev.azure.com/conda-forge/feedstock-builds/_apis/build/status/mutatest-feedstock?branchName=master
+    :target: https://anaconda.org/conda-forge/mutatest
+    :alt: Conda azure status
+.. |conda-downloads| image:: https://img.shields.io/conda/dn/conda-forge/mutatest.svg
+    :target: https://anaconda.org/conda-forge/mutatest
+    :alt: Conda downloads</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.7a47a382.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.e71a0d61.min.js"></script>
+      
+        <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>

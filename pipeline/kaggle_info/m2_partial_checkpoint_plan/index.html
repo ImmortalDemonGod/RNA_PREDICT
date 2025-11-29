@@ -1,0 +1,4548 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.0">
+    
+    
+      
+        <title>M2 partial checkpoint plan - rna_predict</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.618322db.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#aligning-on-my-goal" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="rna_predict" class="md-header__button md-logo" aria-label="rna_predict" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            rna_predict
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              M2 partial checkpoint plan
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="rna_predict" class="md-nav__button md-logo" aria-label="rna_predict" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    rna_predict
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_1" id="__nav_2_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../guides/getting_started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../guides/getting_started/windows_compatibility_plan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Windows Compatibility
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2" id="__nav_2_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Best Practices
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Best Practices
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../guides/best_practices/code_quality_best_practices/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Code Quality
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2_2" id="__nav_2_2_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Testing
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../guides/best_practices/testing/test_coverage_strategy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Coverage Strategy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../guides/best_practices/testing/progressive_coverage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Progressive Coverage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../guides/best_practices/testing/test_generation_prompt/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Generation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2_3" id="__nav_2_2_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Debugging
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Debugging
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../guides/best_practices/debugging/comprehensive_debugging_guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comprehensive Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pipeline
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Pipeline
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_1" id="__nav_3_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Overview
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../overview/core_framework/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core Framework
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../overview/Integrated_RNA_3D_Prediction_Pipeline_Final_Comprehensive_Design/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comprehensive Design
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../overview/full_pipeline_specification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Full Specification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../overview/Multi_Stage_Implementation_Plan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Multi-Stage Plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Integration
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Integration
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integration/Integrated_RNA_3D_Prediction_Pipeline_Final_Comprehensive_Design/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integration/full_pipeline_specification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Full Specification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2_3" id="__nav_3_2_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hydra Integration
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_3_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Hydra Integration
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integration/hydra_integration/hydra_tutorial/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorial
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integration/hydra_integration/hydra_integration_gap_analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gap Analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integration/hydra_integration/hydra_integration_master_document/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Master Document
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2_3_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2_3_4" id="__nav_3_2_3_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Components
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_3_2_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Components
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integration/hydra_integration/components/stageA/StageA_2D_Adjacency/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage A
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integration/hydra_integration/components/stageB/StageB_Torsion_Pairwise/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage B
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integration/hydra_integration/components/stageC/StageC_3D_Reconstruction/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage C
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integration/hydra_integration/components/stageD/StageD_Diffusion_Refinement/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage D
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integration/hydra_integration/components/unified_latent/UnifiedLatentMerger/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unified Latent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_3" id="__nav_3_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage A
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Stage A
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stageA/StageA_RFold/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stageA/RFold_code/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RFold Code
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stageA/RFold_paper/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RFold Paper
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stageA/rfold-demo/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Demo
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stageA/stage_a_extra/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Extra Notes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_4" id="__nav_3_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage B
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Stage B
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stageB/Stage_B/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_4_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_4_2" id="__nav_3_4_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TorsionBERT
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_3_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    TorsionBERT
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stageB/torsionBert/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stageB/torsionbert_code/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Code
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stageB/torsionBert_full_paper/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Paper
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_5" id="__nav_3_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage C
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Stage C
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stageC/Stage_C/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stageC/Integrated_RNA_Geometry_and_3D_Reconstruction/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Geometry & Reconstruction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stageC/Unified, Comprehensive Plan for Integrating MP-NeRF into Stage C.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MP-NeRF Integration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stageC/mp_nerf/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MP-NeRF Details
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_6" id="__nav_3_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unified Latent
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Unified Latent
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../unified_latent/Perceiver_IO/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Perceiver IO
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Energy_Minimization_%26_Molecular_Dynamics_%28MD%29_for_RNA_Structure_Refinement/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Energy & MD
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_8" id="__nav_3_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Testing
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../test_time_scaling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Time Scaling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_9" id="__nav_3_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Kaggle
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Kaggle
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../kaggle_competition/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Competition
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../M2_Plan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    M2 Plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_1" id="__nav_4_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Advanced Methods
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Advanced Methods
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_1_1" id="__nav_4_1_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AlphaFold 3
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_4_1_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_1_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AlphaFold 3
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/advanced_methods/af3/AF3_paper/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Paper
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/advanced_methods/af3/AlphaFold3_progress/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Progress
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/advanced_methods/af3/Pairwise_Distance_Based_Prediction/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Distance Prediction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_1_2" id="__nav_4_1_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Diffusion
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_4_1_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_1_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Diffusion
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/advanced_methods/diffusion/s4_diffusion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    S4 Diffusion
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/advanced_methods/diffusion/test_time_scaling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Time Scaling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/advanced_methods/isosteric_substitutions/RNA_isostericity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Isosteric Substitutions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_2" id="__nav_4_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    External Literature
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    External Literature
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/external_lit/2d_structure_prediction_papers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2D Structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/external_lit/RNA_papers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RNA Papers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_3" id="__nav_4_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Residue Atom Bridging
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Residue Atom Bridging
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/residue_atom_bridging/audit_report/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Audit Report
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/residue_atom_bridging/design_spec/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design Spec
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/residue_atom_bridging/documentation_draft/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Documentation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/residue_atom_bridging/implementation_notes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Implementation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/residue_atom_bridging/refactoring_plan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Refactoring
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/residue_atom_bridging/bridging_caveats_guidelines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guidelines
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_4" id="__nav_4_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Torsion Calculations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Torsion Calculations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/torsion_calculations/torsion_angles_intro/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Introduction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/torsion_calculations/Standard_Bond_Lengths_and_Angles_in_RNA_Nucleotides/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bond Lengths & Angles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/torsion_calculations/Torsion_Angles_3D_Coordinates_RNA_Structure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3D Coordinates
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/torsion_calculations/torsion_angle_Latent_Manifold_Representation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Latent Manifold
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-code-architecture-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Code Architecture Overview
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Code Architecture Overview">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#model-definitions-training-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Model Definitions &amp; Training Patterns
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lora-or-custom-trainable-modules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LoRA or Custom Trainable Modules
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#checkpointing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Checkpointing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#testing-hydra" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Testing &amp; Hydra
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-where-to-place-partial-checkpoint-logic" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Where to Place Partial Checkpoint Logic
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-designing-the-dummy-model-minimal-training-loop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Designing the Dummy Model &amp; Minimal Training Loop
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-step-by-step-implementation-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Step-by-Step Implementation Plan
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-potential-edge-cases-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Potential Edge Cases &amp; Notes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Next Steps
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<p>Okay, performing a deep dive into the <code>RNA_PREDICT</code> codebase provided.</p>
+<p><strong>Deep Dive Analysis of <code>RNA_PREDICT</code> Codebase (Focus on M2 Checkpoint Cycle):</strong></p>
+<ol>
+<li>
+<p><strong>Model Definitions &amp; Training Structure:</strong></p>
+<ul>
+<li><strong>Core Models:</strong> The primary pipeline components (<code>StageARFoldPredictor</code>, <code>StageBTorsionBertPredictor</code>, <code>PairformerWrapper</code>, <code>StageCReconstruction</code>, <code>DiffusionModule</code>, <code>ProtenixDiffusionManager</code>, various attention/embedding modules) are implemented as standard <code>torch.nn.Module</code> subclasses.</li>
+<li><strong>Lightning Usage:</strong> There is <strong>no evidence</strong> of <code>pytorch_lightning.LightningModule</code> being used for the main pipeline models. Lightning might be used in isolated tests or utilities, but the core training/inference flow doesn't rely on it.</li>
+<li><strong>Training/Inference Execution:</strong> Orchestration happens primarily through scripts:<ul>
+<li><code>rna_predict/run_full_pipeline.py</code>: Calls individual stage functions.</li>
+<li>Stage-specific runners: <code>rna_predict/pipeline/stageA/run_stageA.py</code>, <code>rna_predict/pipeline/stageB/main.py</code> (calls <code>run_stageB_combined</code>), <code>rna_predict/pipeline/stageC/stage_c_reconstruction.py</code> (calls <code>run_stageC_rna_mpnerf</code>), <code>rna_predict/pipeline/stageD/diffusion/run_stageD_unified.py</code>.</li>
+<li>These scripts manage the flow but <strong>do not contain standard training loops</strong> (forward, loss, backward, step). The M2 plan implies a new <code>train.py</code> script, likely using Lightning, needs to be created.</li>
+</ul>
+</li>
+<li><strong>Implication:</strong> For the M2 partial checkpoint <em>test</em>, we cannot rely on <code>Lightning Trainer</code>. The test itself will need to implement a <em>manual</em>, minimal PyTorch training loop.</li>
+</ul>
+</li>
+<li>
+<p><strong>Checkpointing Mechanisms:</strong></p>
+<ul>
+<li><strong>Gradient Checkpointing:</strong> <code>rna_predict/pipeline/stageA/input_embedding/current/checkpointing.py</code> exists but handles <code>torch.utils.checkpoint</code> for memory saving during forward/backward, <strong>not</strong> model state saving/loading.</li>
+<li><strong>State Saving/Loading:</strong> No centralized utility (like <code>checkpoint.py</code>) or function (<code>partial_load_state_dict</code>) was found in <code>rna_predict/utils/</code>. Checkpoint paths in configs (<code>stageA.yaml</code>, <code>stageB_torsion.yaml</code>) refer to loading <em>pre-trained models</em>, not saving/loading training states.</li>
+<li><strong>Implication:</strong> The <code>partial_load_state_dict</code> function is a <strong>critical missing piece</strong> and must be implemented from scratch. The test will need to manually save the relevant state dict using <code>torch.save</code>.</li>
+</ul>
+</li>
+<li>
+<p><strong>LoRA/Custom Trainable Modules:</strong></p>
+<ul>
+<li><strong>Configuration:</strong> LoRA configuration sections (<code>lora: enabled: ...</code>) are present in <code>rna_predict/conf/config_schema.py</code> (for <code>TorsionBertConfig</code>, <code>PairformerConfig</code>) and the corresponding YAML files (<code>stageB_torsion.yaml</code>, <code>stageB_pairformer.yaml</code>). This indicates the <em>design intent</em> to use LoRA.</li>
+<li><strong>Implementation:</strong> A search for <code>LoRA</code>, <code>peft</code>, <code>adapter</code> within the primary model code (<code>rna_predict/pipeline/</code>) did not reveal active LoRA layers or integration using libraries like <code>peft</code>. <code>StageBTorsionBertPredictor</code> and <code>PairformerWrapper</code> load base models but don't appear to apply LoRA adapters dynamically based on the config <em>yet</em>.</li>
+<li><strong>Implication:</strong> The M2 test needs a <em>dummy model</em> that explicitly simulates the intended structure: a frozen "base" part and a distinct "trainable/adapter" part. The test will focus on the <em>mechanics</em> of saving/loading only the trainable part, assuming LoRA integration will happen separately in the main codebase.</li>
+</ul>
+</li>
+<li>
+<p><strong>Hydra Configuration:</strong></p>
+<ul>
+<li><strong>Usage:</strong> Hydra is deeply integrated. Structured configs are defined in <code>rna_predict/conf/config_schema.py</code>, YAMLs are in <code>rna_predict/conf/</code>, and scripts use <code>@hydra.main</code>.</li>
+<li><strong>Config Path:</strong> The absolute path <code>/Users/tomriddle1/RNA_PREDICT/rna_predict/conf</code> is the correct one to use for initialization within tests.</li>
+<li><strong>Test Configs:</strong> <code>rna_predict/conf/test/data.yaml</code> exists.</li>
+<li><strong>Implication:</strong> Tests must initialize Hydra correctly using the absolute path. A minimal test-specific config might be useful but not strictly necessary if the test defines its parameters directly.</li>
+</ul>
+</li>
+<li>
+<p><strong>Testing Infrastructure:</strong></p>
+<ul>
+<li><strong>Directory:</strong> <code>tests/</code> is the root.</li>
+<li><strong>Structure:</strong> Well-organized with <code>integration/</code>, <code>unit/</code>, stage-specific folders (<code>tests/pipeline/stageD/</code>, etc.), and common utilities (<code>tests/common/</code>).</li>
+<li><strong>Existing Tests:</strong> Follow standard patterns (e.g., <code>tests/integration/test_full_pipeline.py</code>). Dummy components are sometimes defined within tests or in <code>tests/common/</code>.</li>
+<li><strong>Implication:</strong> New tests should be placed appropriately: <code>tests/integration/test_partial_checkpoint_cycle.py</code> and <code>tests/unit/test_partial_load_state_dict.py</code> (or <code>tests/unit/utils/test_checkpoint.py</code>).</li>
+</ul>
+</li>
+</ol>
+<p><strong>Revised &amp; Concrete Implementation Plan for M2 Partial Checkpoint Cycle Test (RNA_PREDICT Context):</strong></p>
+<ol>
+<li>
+<p><strong>Implement <code>partial_load_state_dict</code> Utility:</strong></p>
+<ul>
+<li><strong>File:</strong> Create <code>rna_predict/utils/checkpoint.py</code>.</li>
+<li><strong>Function:</strong>
+    <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># rna_predict/utils/checkpoint.py</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="kn">from</span><span class="w"> </span><span class="nn">collections</span><span class="w"> </span><span class="kn">import</span> <span class="n">OrderedDict</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="k">def</span><span class="w"> </span><span class="nf">partial_load_state_dict</span><span class="p">(</span><span class="n">model</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span> <span class="n">state_dict</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">strict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="sd">    Loads parameters from state_dict into model, skipping mismatched keys</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="sd">    and logging information about missing/unexpected keys.</span>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="sd">    Args:</span>
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="sd">        model: The PyTorch model to load parameters into.</span>
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="sd">        state_dict: The dictionary containing parameters to load.</span>
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="sd">        strict: If True, raise an error for missing or unexpected keys (default: False).</span>
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="sd">    Returns:</span>
+<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a><span class="sd">        Tuple[List[str], List[str]]: missing_keys, unexpected_keys</span>
+<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>    <span class="n">missing_keys</span> <span class="o">=</span> <span class="p">[]</span>
+<a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>    <span class="n">unexpected_keys</span> <span class="o">=</span> <span class="p">[]</span>
+<a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>    <span class="n">error_msgs</span> <span class="o">=</span> <span class="p">[]</span>
+<a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>
+<a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>    <span class="c1"># Convert state_dict to OrderedDict if needed</span>
+<a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">state_dict</span><span class="p">,</span> <span class="n">OrderedDict</span><span class="p">):</span>
+<a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>         <span class="n">state_dict</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">(</span><span class="n">state_dict</span><span class="p">)</span>
+<a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a>
+<a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a>    <span class="n">metadata</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">state_dict</span><span class="p">,</span> <span class="s1">&#39;_metadata&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+<a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a>    <span class="k">if</span> <span class="n">metadata</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a>        <span class="n">state_dict</span> <span class="o">=</span> <span class="n">state_dict</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+<a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a>        <span class="n">state_dict</span><span class="o">.</span><span class="n">_metadata</span> <span class="o">=</span> <span class="n">metadata</span>
+<a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a>
+<a id="__codelineno-0-34" name="__codelineno-0-34" href="#__codelineno-0-34"></a>    <span class="n">own_state</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">state_dict</span><span class="p">()</span>
+<a id="__codelineno-0-35" name="__codelineno-0-35" href="#__codelineno-0-35"></a>
+<a id="__codelineno-0-36" name="__codelineno-0-36" href="#__codelineno-0-36"></a>    <span class="c1"># Check for unexpected keys first if strict=False</span>
+<a id="__codelineno-0-37" name="__codelineno-0-37" href="#__codelineno-0-37"></a>    <span class="k">if</span> <span class="ow">not</span> <span class="n">strict</span><span class="p">:</span>
+<a id="__codelineno-0-38" name="__codelineno-0-38" href="#__codelineno-0-38"></a>        <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">state_dict</span><span class="p">:</span>
+<a id="__codelineno-0-39" name="__codelineno-0-39" href="#__codelineno-0-39"></a>            <span class="k">if</span> <span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">own_state</span><span class="p">:</span>
+<a id="__codelineno-0-40" name="__codelineno-0-40" href="#__codelineno-0-40"></a>                <span class="n">unexpected_keys</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+<a id="__codelineno-0-41" name="__codelineno-0-41" href="#__codelineno-0-41"></a>
+<a id="__codelineno-0-42" name="__codelineno-0-42" href="#__codelineno-0-42"></a>    <span class="c1"># Load matching keys</span>
+<a id="__codelineno-0-43" name="__codelineno-0-43" href="#__codelineno-0-43"></a>    <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">state_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+<a id="__codelineno-0-44" name="__codelineno-0-44" href="#__codelineno-0-44"></a>        <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">own_state</span><span class="p">:</span>
+<a id="__codelineno-0-45" name="__codelineno-0-45" href="#__codelineno-0-45"></a>            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">param</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Parameter</span><span class="p">):</span>
+<a id="__codelineno-0-46" name="__codelineno-0-46" href="#__codelineno-0-46"></a>                <span class="c1"># backwards compatibility for serialized parameters</span>
+<a id="__codelineno-0-47" name="__codelineno-0-47" href="#__codelineno-0-47"></a>                <span class="n">param</span> <span class="o">=</span> <span class="n">param</span><span class="o">.</span><span class="n">data</span>
+<a id="__codelineno-0-48" name="__codelineno-0-48" href="#__codelineno-0-48"></a>            <span class="k">try</span><span class="p">:</span>
+<a id="__codelineno-0-49" name="__codelineno-0-49" href="#__codelineno-0-49"></a>                <span class="n">own_state</span><span class="p">[</span><span class="n">name</span><span class="p">]</span><span class="o">.</span><span class="n">copy_</span><span class="p">(</span><span class="n">param</span><span class="p">)</span>
+<a id="__codelineno-0-50" name="__codelineno-0-50" href="#__codelineno-0-50"></a>            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+<a id="__codelineno-0-51" name="__codelineno-0-51" href="#__codelineno-0-51"></a>                <span class="n">error_msgs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;While copying the parameter named &quot;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1">&quot;, &#39;</span>
+<a id="__codelineno-0-52" name="__codelineno-0-52" href="#__codelineno-0-52"></a>                                  <span class="sa">f</span><span class="s1">&#39;whose dimensions in the model are </span><span class="si">{</span><span class="n">own_state</span><span class="p">[</span><span class="n">name</span><span class="p">]</span><span class="o">.</span><span class="n">size</span><span class="p">()</span><span class="si">}</span><span class="s1"> and &#39;</span>
+<a id="__codelineno-0-53" name="__codelineno-0-53" href="#__codelineno-0-53"></a>                                  <span class="sa">f</span><span class="s1">&#39;whose dimensions in the checkpoint are </span><span class="si">{</span><span class="n">param</span><span class="o">.</span><span class="n">size</span><span class="p">()</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+<a id="__codelineno-0-54" name="__codelineno-0-54" href="#__codelineno-0-54"></a>        <span class="c1"># If strict=True, unexpected keys are handled below</span>
+<a id="__codelineno-0-55" name="__codelineno-0-55" href="#__codelineno-0-55"></a>
+<a id="__codelineno-0-56" name="__codelineno-0-56" href="#__codelineno-0-56"></a>    <span class="c1"># Check for missing keys</span>
+<a id="__codelineno-0-57" name="__codelineno-0-57" href="#__codelineno-0-57"></a>    <span class="n">loaded_keys</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">state_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+<a id="__codelineno-0-58" name="__codelineno-0-58" href="#__codelineno-0-58"></a>    <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">own_state</span><span class="p">:</span>
+<a id="__codelineno-0-59" name="__codelineno-0-59" href="#__codelineno-0-59"></a>        <span class="k">if</span> <span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">loaded_keys</span><span class="p">:</span>
+<a id="__codelineno-0-60" name="__codelineno-0-60" href="#__codelineno-0-60"></a>            <span class="n">missing_keys</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+<a id="__codelineno-0-61" name="__codelineno-0-61" href="#__codelineno-0-61"></a>
+<a id="__codelineno-0-62" name="__codelineno-0-62" href="#__codelineno-0-62"></a>    <span class="c1"># Handle strict mode errors</span>
+<a id="__codelineno-0-63" name="__codelineno-0-63" href="#__codelineno-0-63"></a>    <span class="k">if</span> <span class="n">strict</span><span class="p">:</span>
+<a id="__codelineno-0-64" name="__codelineno-0-64" href="#__codelineno-0-64"></a>         <span class="n">unexpected_keys</span> <span class="o">=</span> <span class="p">[</span><span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">state_dict</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">own_state</span><span class="p">]</span> <span class="c1"># Recalculate for strict</span>
+<a id="__codelineno-0-65" name="__codelineno-0-65" href="#__codelineno-0-65"></a>         <span class="k">if</span> <span class="n">unexpected_keys</span><span class="p">:</span>
+<a id="__codelineno-0-66" name="__codelineno-0-66" href="#__codelineno-0-66"></a>             <span class="n">error_msgs</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span>
+<a id="__codelineno-0-67" name="__codelineno-0-67" href="#__codelineno-0-67"></a>                 <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;Unexpected key(s) in state_dict: </span><span class="si">{}</span><span class="s1">. &#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+<a id="__codelineno-0-68" name="__codelineno-0-68" href="#__codelineno-0-68"></a>                     <span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;&quot;</span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s1">&quot;&#39;</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">unexpected_keys</span><span class="p">)))</span>
+<a id="__codelineno-0-69" name="__codelineno-0-69" href="#__codelineno-0-69"></a>         <span class="k">if</span> <span class="n">missing_keys</span><span class="p">:</span>
+<a id="__codelineno-0-70" name="__codelineno-0-70" href="#__codelineno-0-70"></a>             <span class="n">error_msgs</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span>
+<a id="__codelineno-0-71" name="__codelineno-0-71" href="#__codelineno-0-71"></a>                 <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;Missing key(s) in state_dict: </span><span class="si">{}</span><span class="s1">. &#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+<a id="__codelineno-0-72" name="__codelineno-0-72" href="#__codelineno-0-72"></a>                     <span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;&quot;</span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s1">&quot;&#39;</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">missing_keys</span><span class="p">)))</span>
+<a id="__codelineno-0-73" name="__codelineno-0-73" href="#__codelineno-0-73"></a>
+<a id="__codelineno-0-74" name="__codelineno-0-74" href="#__codelineno-0-74"></a>    <span class="k">if</span> <span class="n">error_msgs</span><span class="p">:</span>
+<a id="__codelineno-0-75" name="__codelineno-0-75" href="#__codelineno-0-75"></a>        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;Error(s) in loading state_dict for </span><span class="si">{}</span><span class="s1">:</span><span class="se">\n\t</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+<a id="__codelineno-0-76" name="__codelineno-0-76" href="#__codelineno-0-76"></a>                           <span class="n">model</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="s2">&quot;</span><span class="se">\n\t</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">error_msgs</span><span class="p">)))</span>
+<a id="__codelineno-0-77" name="__codelineno-0-77" href="#__codelineno-0-77"></a>
+<a id="__codelineno-0-78" name="__codelineno-0-78" href="#__codelineno-0-78"></a>    <span class="c1"># Log warnings if not strict</span>
+<a id="__codelineno-0-79" name="__codelineno-0-79" href="#__codelineno-0-79"></a>    <span class="k">if</span> <span class="ow">not</span> <span class="n">strict</span><span class="p">:</span>
+<a id="__codelineno-0-80" name="__codelineno-0-80" href="#__codelineno-0-80"></a>         <span class="k">if</span> <span class="n">unexpected_keys</span><span class="p">:</span>
+<a id="__codelineno-0-81" name="__codelineno-0-81" href="#__codelineno-0-81"></a>             <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unexpected key(s) in state_dict: </span><span class="si">{</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">unexpected_keys</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-82" name="__codelineno-0-82" href="#__codelineno-0-82"></a>         <span class="k">if</span> <span class="n">missing_keys</span><span class="p">:</span>
+<a id="__codelineno-0-83" name="__codelineno-0-83" href="#__codelineno-0-83"></a>             <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Missing key(s) in state_dict: </span><span class="si">{</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">missing_keys</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-84" name="__codelineno-0-84" href="#__codelineno-0-84"></a>
+<a id="__codelineno-0-85" name="__codelineno-0-85" href="#__codelineno-0-85"></a>    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loaded </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">own_state</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="n">missing_keys</span><span class="p">)</span><span class="si">}</span><span class="s2"> keys from checkpoint into </span><span class="si">{</span><span class="n">model</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-86" name="__codelineno-0-86" href="#__codelineno-0-86"></a>    <span class="k">return</span> <span class="n">missing_keys</span><span class="p">,</span> <span class="n">unexpected_keys</span> <span class="c1"># Return lists for inspection in tests</span>
+</code></pre></div></li>
+<li><strong>Unit Test:</strong> Create <code>tests/unit/utils/test_checkpoint.py</code>.<ul>
+<li>Define simple dummy <code>nn.Module</code>s (<code>BaseModel</code>, <code>AdapterModel</code> inheriting or composing <code>BaseModel</code>).</li>
+<li>Test loading full state into full model (<code>strict=True</code>).</li>
+<li>Test loading partial (adapter-only) state into full model (<code>strict=False</code> -&gt; succeed, <code>strict=True</code> -&gt; fail).</li>
+<li>Test loading state with extra keys (<code>strict=False</code> -&gt; succeed with warning, <code>strict=True</code> -&gt; fail).</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><strong>Create Test Infrastructure:</strong></p>
+<ul>
+<li><strong>File:</strong> Create <code>tests/integration/test_partial_checkpoint_cycle.py</code>.</li>
+<li><strong>Dummy Model:</strong> Define within the test file:
+    <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># tests/integration/test_partial_checkpoint_cycle.py</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="kn">import</span><span class="w"> </span><span class="nn">torch.nn</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">nn</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="k">class</span><span class="w"> </span><span class="nc">DummyCheckpointModel</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="c1"># Renamed to avoid potential conflicts if imported elsewhere</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">base_dim</span><span class="o">=</span><span class="mi">16</span><span class="p">,</span> <span class="n">adapter_dim</span><span class="o">=</span><span class="mi">8</span><span class="p">):</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>        <span class="c1"># Simulate a frozen base</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">base_layer</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">base_dim</span><span class="p">,</span> <span class="n">base_dim</span><span class="p">)</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>        <span class="c1"># Simulate a trainable adapter/head</span>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">adapter_layer</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">base_dim</span><span class="p">,</span> <span class="n">adapter_dim</span><span class="p">)</span>
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>        <span class="c1"># Freeze base layer by default for the test&#39;s purpose</span>
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>        <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">base_layer</span><span class="o">.</span><span class="n">parameters</span><span class="p">():</span>
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>            <span class="n">param</span><span class="o">.</span><span class="n">requires_grad</span> <span class="o">=</span> <span class="kc">False</span>
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>
+<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a>        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">base_layer</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">adapter_layer</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+<a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a>        <span class="k">return</span> <span class="n">x</span>
+<a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a>
+<a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">get_adapter_state_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a>        <span class="c1"># Gets ONLY the state dict of the part we intend to train/save partially</span>
+<a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">adapter_layer</span><span class="o">.</span><span class="n">state_dict</span><span class="p">()</span>
+</code></pre></div></li>
+<li><strong>Synthetic Data:</strong>
+    <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># tests/integration/test_partial_checkpoint_cycle.py</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">torch.utils.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">TensorDataset</span><span class="p">,</span> <span class="n">DataLoader</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="k">def</span><span class="w"> </span><span class="nf">create_dummy_dataloader</span><span class="p">(</span><span class="n">batch_size</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">n_samples</span><span class="o">=</span><span class="mi">12</span><span class="p">,</span> <span class="n">base_dim</span><span class="o">=</span><span class="mi">16</span><span class="p">,</span> <span class="n">adapter_dim</span><span class="o">=</span><span class="mi">8</span><span class="p">):</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>    <span class="n">X</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">n_samples</span><span class="p">,</span> <span class="n">base_dim</span><span class="p">)</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>    <span class="n">y</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">n_samples</span><span class="p">,</span> <span class="n">adapter_dim</span><span class="p">)</span> <span class="c1"># Target matches adapter output dim</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>    <span class="n">dataset</span> <span class="o">=</span> <span class="n">TensorDataset</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>    <span class="k">return</span> <span class="n">DataLoader</span><span class="p">(</span><span class="n">dataset</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="n">batch_size</span><span class="p">)</span>
+</code></pre></div></li>
+<li><strong>Hydra Init (if needed):</strong>
+    <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># tests/integration/test_partial_checkpoint_cycle.py</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="kn">import</span><span class="w"> </span><span class="nn">hydra</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="k">def</span><span class="w"> </span><span class="nf">setup_hydra</span><span class="p">():</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>    <span class="c1"># Only initialize if not already initialized (important for pytest)</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>    <span class="k">if</span> <span class="ow">not</span> <span class="n">hydra</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">global_hydra</span><span class="o">.</span><span class="n">GlobalHydra</span><span class="o">.</span><span class="n">instance</span><span class="p">()</span><span class="o">.</span><span class="n">is_initialized</span><span class="p">():</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>        <span class="n">hydra</span><span class="o">.</span><span class="n">initialize</span><span class="p">(</span><span class="n">config_path</span><span class="o">=</span><span class="s2">&quot;/Users/tomriddle1/RNA_PREDICT/rna_predict/conf&quot;</span><span class="p">,</span> <span class="n">version_base</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>    <span class="c1"># cfg = hydra.compose(config_name=&quot;test/your_test_config&quot;) # If needed</span>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>    <span class="c1"># return cfg</span>
+</code></pre></div></li>
+</ul>
+</li>
+<li>
+<p><strong>Implement Integration Test Logic:</strong></p>
+<ul>
+<li><strong>File:</strong> <code>tests/integration/test_partial_checkpoint_cycle.py</code></li>
+<li><strong>Test Function (<code>test_train_save_partial_load_infer</code>):</strong><ul>
+<li><strong>Setup:</strong> Call <code>setup_hydra()</code>, create dataloader, instantiate <code>model = DummyCheckpointModel()</code>. Use <code>tmp_path</code> fixture.</li>
+<li><strong>Optimizer:</strong> <code>optimizer = torch.optim.Adam(model.adapter_layer.parameters(), lr=1e-3)</code> (Crucially, optimize <em>only</em> adapter).</li>
+<li><strong>Manual Training Loop:</strong>
+    <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">model</span><span class="o">.</span><span class="n">train</span><span class="p">()</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="n">criterion</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">MSELoss</span><span class="p">()</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="k">for</span> <span class="n">epoch</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">):</span> <span class="c1"># Train for 2 epochs</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>    <span class="k">for</span> <span class="n">batch_x</span><span class="p">,</span> <span class="n">batch_y</span> <span class="ow">in</span> <span class="n">dataloader</span><span class="p">:</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>        <span class="n">optimizer</span><span class="o">.</span><span class="n">zero_grad</span><span class="p">()</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>        <span class="n">output</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">batch_x</span><span class="p">)</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>        <span class="n">loss</span> <span class="o">=</span> <span class="n">criterion</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="n">batch_y</span><span class="p">)</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>        <span class="n">loss</span><span class="o">.</span><span class="n">backward</span><span class="p">()</span>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>        <span class="n">optimizer</span><span class="o">.</span><span class="n">step</span><span class="p">()</span>
+</code></pre></div></li>
+<li><strong>Save Partial Checkpoint:</strong>
+    <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">adapter_state_dict</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">get_adapter_state_dict</span><span class="p">()</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="n">checkpoint</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>    <span class="s1">&#39;model_adapter_state_dict&#39;</span><span class="p">:</span> <span class="n">adapter_state_dict</span><span class="p">,</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>    <span class="s1">&#39;optimizer_state_dict&#39;</span><span class="p">:</span> <span class="n">optimizer</span><span class="o">.</span><span class="n">state_dict</span><span class="p">(),</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>    <span class="c1"># Add epoch or other metadata if needed</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="p">}</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="n">partial_ckpt_path</span> <span class="o">=</span> <span class="n">tmp_path</span> <span class="o">/</span> <span class="s2">&quot;partial_adapter_checkpoint.pt&quot;</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="n">torch</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">checkpoint</span><span class="p">,</span> <span class="n">partial_ckpt_path</span><span class="p">)</span>
+</code></pre></div></li>
+<li><strong>(Optional) Save Full State:</strong> <code>full_ckpt_path = tmp_path / "full_model.pt"; torch.save(model.state_dict(), full_ckpt_path)</code></li>
+<li><strong>Reload Stage:</strong>
+    <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">rna_predict.utils.checkpoint</span><span class="w"> </span><span class="kn">import</span> <span class="n">partial_load_state_dict</span> <span class="c1"># Import utility</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="n">new_model</span> <span class="o">=</span> <span class="n">DummyCheckpointModel</span><span class="p">()</span> <span class="c1"># Fresh model instance</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="n">loaded_checkpoint</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">partial_ckpt_path</span><span class="p">)</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="c1"># Store initial weights for comparison</span>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="n">initial_adapter_weight</span> <span class="o">=</span> <span class="n">new_model</span><span class="o">.</span><span class="n">adapter_layer</span><span class="o">.</span><span class="n">weight</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span>
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="n">initial_base_weight</span> <span class="o">=</span> <span class="n">new_model</span><span class="o">.</span><span class="n">base_layer</span><span class="o">.</span><span class="n">weight</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span>
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="n">missing</span><span class="p">,</span> <span class="n">unexpected</span> <span class="o">=</span> <span class="n">partial_load_state_dict</span><span class="p">(</span>
+<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>    <span class="n">new_model</span><span class="p">,</span> <span class="n">loaded_checkpoint</span><span class="p">[</span><span class="s1">&#39;model_adapter_state_dict&#39;</span><span class="p">],</span> <span class="n">strict</span><span class="o">=</span><span class="kc">False</span>
+<a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="p">)</span>
+<a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a>
+<a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a><span class="c1"># Assert loading results</span>
+<a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a><span class="k">assert</span> <span class="ow">not</span> <span class="n">unexpected</span> <span class="c1"># Should be no keys in ckpt not in the full model structure</span>
+<a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a><span class="k">assert</span> <span class="nb">all</span><span class="p">(</span><span class="s1">&#39;base_layer&#39;</span> <span class="ow">in</span> <span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">missing</span><span class="p">)</span> <span class="c1"># Base layer keys should be missing</span>
+</code></pre></div></li>
+<li><strong>Inference &amp; Assertions:</strong>
+    <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="n">new_model</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="n">test_input</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">16</span><span class="p">)</span> <span class="c1"># Use dims from model</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>    <span class="n">inference_output</span> <span class="o">=</span> <span class="n">new_model</span><span class="p">(</span><span class="n">test_input</span><span class="p">)</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="k">assert</span> <span class="n">inference_output</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">8</span><span class="p">)</span> <span class="c1"># Matches adapter_dim</span>
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="k">assert</span> <span class="ow">not</span> <span class="n">torch</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">inference_output</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">()</span>
+<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="k">assert</span> <span class="ow">not</span> <span class="n">torch</span><span class="o">.</span><span class="n">isinf</span><span class="p">(</span><span class="n">inference_output</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">()</span>
+<a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>
+<a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="c1"># Verify weights loaded correctly</span>
+<a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a><span class="k">assert</span> <span class="ow">not</span> <span class="n">torch</span><span class="o">.</span><span class="n">equal</span><span class="p">(</span><span class="n">new_model</span><span class="o">.</span><span class="n">adapter_layer</span><span class="o">.</span><span class="n">weight</span><span class="p">,</span> <span class="n">initial_adapter_weight</span><span class="p">)</span> <span class="c1"># Adapter weights should have changed</span>
+<a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a><span class="k">assert</span> <span class="n">torch</span><span class="o">.</span><span class="n">equal</span><span class="p">(</span><span class="n">new_model</span><span class="o">.</span><span class="n">base_layer</span><span class="o">.</span><span class="n">weight</span><span class="p">,</span> <span class="n">initial_base_weight</span><span class="p">)</span> <span class="c1"># Base weights should NOT have changed</span>
+</code></pre></div></li>
+<li><strong>(Optional) Size Check:</strong>
+    <div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="n">partial_size</span> <span class="o">=</span> <span class="n">partial_ckpt_path</span><span class="o">.</span><span class="n">stat</span><span class="p">()</span><span class="o">.</span><span class="n">st_size</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="n">full_size</span> <span class="o">=</span> <span class="n">full_ckpt_path</span><span class="o">.</span><span class="n">stat</span><span class="p">()</span><span class="o">.</span><span class="n">st_size</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="k">assert</span> <span class="n">partial_size</span> <span class="o">&lt;</span> <span class="n">full_size</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Partial ckpt size: </span><span class="si">{</span><span class="n">partial_size</span><span class="si">}</span><span class="s2">, Full ckpt size: </span><span class="si">{</span><span class="n">full_size</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</code></pre></div></li>
+</ul>
+</li>
+</ul>
+</li>
+</ol>
+<p><strong>Summary Table (Final RNA_PREDICT Context):</strong></p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Step</th>
+<th style="text-align: left;">File/Location</th>
+<th style="text-align: left;">Key Actions &amp; Notes</th>
+<th style="text-align: left;">Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Implement Utility</td>
+<td style="text-align: left;"><code>rna_predict/utils/checkpoint.py</code></td>
+<td style="text-align: left;">Create <code>partial_load_state_dict</code>.</td>
+<td style="text-align: left;"><strong>TODO</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;">Unit Test Utility</td>
+<td style="text-align: left;"><code>tests/unit/utils/test_checkpoint.py</code></td>
+<td style="text-align: left;">Test loader thoroughly with dummy modules/dicts.</td>
+<td style="text-align: left;"><strong>TODO</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;">Create Test Infra</td>
+<td style="text-align: left;"><code>tests/integration/test_partial_checkpoint_cycle.py</code></td>
+<td style="text-align: left;">Define <code>DummyCheckpointModel</code>, <code>create_dummy_dataloader</code>, <code>setup_hydra</code>.</td>
+<td style="text-align: left;"><strong>TODO</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;">Manual Training</td>
+<td style="text-align: left;"><code>tests/integration/test_partial_checkpoint_cycle.py</code></td>
+<td style="text-align: left;">Manual loop, optimize <em>only adapter</em> params.</td>
+<td style="text-align: left;"><strong>TODO</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;">Save Partial Ckpt</td>
+<td style="text-align: left;"><code>tests/integration/test_partial_checkpoint_cycle.py</code></td>
+<td style="text-align: left;">Manually get <em>adapter</em> state dict, <code>torch.save</code>.</td>
+<td style="text-align: left;"><strong>TODO</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;">Reload &amp; Infer</td>
+<td style="text-align: left;"><code>tests/integration/test_partial_checkpoint_cycle.py</code></td>
+<td style="text-align: left;">Instantiate new model, call <em>implemented</em> <code>partial_load_state_dict</code>.</td>
+<td style="text-align: left;"><strong>TODO</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;">Assert Correctness</td>
+<td style="text-align: left;"><code>tests/integration/test_partial_checkpoint_cycle.py</code></td>
+<td style="text-align: left;">Check load success, inference output, <em>verify which weights changed/didn't</em>.</td>
+<td style="text-align: left;"><strong>TODO</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;">(Optional) Size Check</td>
+<td style="text-align: left;"><code>tests/integration/test_partial_checkpoint_cycle.py</code></td>
+<td style="text-align: left;">Compare partial vs. full state dict file sizes.</td>
+<td style="text-align: left;">Optional</td>
+</tr>
+</tbody>
+</table>
+<p>This detailed, context-aware plan provides the necessary steps, code structure, and verification logic to implement and test the M2 partial checkpoint cycle within the specific environment of the <code>RNA_PREDICT</code> project. The next immediate step is to implement the <code>partial_load_state_dict</code> function and its unit tests.</p>
+<h1 id="aligning-on-my-goal">🧙🏾‍♂️: [aligning on my goal]</h1>
+<p>Certainly! Below is an updated “deep dive” analysis of your codebase, focusing on how to implement the M2 partial checkpoint cycle. I’ve structured it around (1) your existing code architecture, (2) where partial checkpoint logic best fits, (3) how to design the dummy model and partial loader, and (4) an actionable step-by-step plan.</p>
+<p>[emoji]: [actionable response]</p>
+<hr />
+<h2 id="1-code-architecture-overview">1. Code Architecture Overview</h2>
+<h3 id="model-definitions-training-patterns">Model Definitions &amp; Training Patterns</h3>
+<ul>
+<li><strong><code>torch.nn.Module</code></strong> is the primary inheritance pattern for your models (e.g. <code>StageBTorsionBertPredictor</code>, <code>PairformerWrapper</code>, <code>DiffusionModule</code>), not <code>pytorch_lightning.LightningModule</code>.</li>
+<li><strong>Training loops</strong> in your code are mostly “manual”—scripts like <code>run_full_pipeline.py</code> or <code>run_stageB_combined</code> orchestrate forward passes but do not do full epoch-based training or checkpoint saving as PyTorch Lightning would.  </li>
+</ul>
+<p><strong>Implication</strong>: For the M2 partial checkpoint test, you’ll likely create a <strong>minimal</strong> training loop (manual forward/backward/step) rather than using a Lightning <code>Trainer</code>.</p>
+<h3 id="lora-or-custom-trainable-modules">LoRA or Custom Trainable Modules</h3>
+<ul>
+<li>Your config (<code>rna_predict/conf/model/stageB_torsion.yaml</code>, etc.) references <code>lora:</code> parameters, but the actual injection of LoRA modules into a base model (e.g. <code>peft.get_peft_model</code>) isn’t clearly implemented. </li>
+<li><strong>Implication</strong>: For the partial checkpoint cycle test, you need a <strong>dummy</strong> model that simulates “frozen base” + “trainable adapter.” Then you only save the trainable adapter state to simulate “partial checkpoint.”</li>
+</ul>
+<h3 id="checkpointing">Checkpointing</h3>
+<ul>
+<li><strong>No dedicated partial loader</strong>: The code has references to gradient checkpointing but not to saving or partial loading the model’s state. </li>
+<li><strong>Implication</strong>: You’ll need to create something like <code>partial_load_state_dict(model, checkpoint_dict, strict=False)</code> in a new file, e.g. <code>rna_predict/utils/checkpoint.py</code>. That function will:</li>
+<li>Loop over <code>checkpoint_dict</code> keys </li>
+<li>Compare them to <code>model.state_dict()</code> keys </li>
+<li>Load the intersection </li>
+<li>Possibly warn/ignore mismatches.</li>
+</ul>
+<h3 id="testing-hydra">Testing &amp; Hydra</h3>
+<ul>
+<li>You have <strong><code>tests/</code></strong> with subfolders for <code>integration/</code>, <code>unit/</code>, and stage-specific tests. </li>
+<li>Hydra is used widely. If you need config parameters for the test, you can <code>hydra.initialize(config_path=...)</code> in your test. Otherwise, you might define everything inline for simplicity.</li>
+</ul>
+<hr />
+<h2 id="2-where-to-place-partial-checkpoint-logic">2. Where to Place Partial Checkpoint Logic</h2>
+<ol>
+<li><strong>New Utility</strong>: </li>
+<li>File: <code>rna_predict/utils/checkpoint.py</code></li>
+<li>Function: <code>partial_load_state_dict(model: nn.Module, state_dict: dict, strict: bool = False) -&gt; None</code></li>
+<li>
+<p>Purpose: Let you load only certain matching parameters into the model, ignoring or warning about extras.</p>
+</li>
+<li>
+<p><strong>Integration Test</strong>:</p>
+</li>
+<li>File: <code>tests/integration/test_partial_checkpoint_cycle.py</code></li>
+<li>
+<p>Purpose:  </p>
+<ol>
+<li>Build a <strong>dummy</strong> model with a “frozen base layer” + “trainable adapter layer.”  </li>
+<li>Manually train for a couple steps (so the adapter changes).  </li>
+<li>Save only the adapter’s weights as a partial checkpoint.  </li>
+<li>Reload them into a fresh model.  </li>
+<li>Check that the base remains default, the adapter is updated, and inference works.</li>
+</ol>
+</li>
+<li>
+<p><strong>Unit Test</strong> (Optional):</p>
+</li>
+<li>File: <code>tests/unit/test_partial_load_state_dict.py</code></li>
+<li>Purpose: Validate <code>partial_load_state_dict(...)</code> in isolation with smaller scenario: missing keys, unexpected keys, etc.</li>
+</ol>
+<hr />
+<h2 id="3-designing-the-dummy-model-minimal-training-loop">3. Designing the Dummy Model &amp; Minimal Training Loop</h2>
+<p>Below is a conceptual outline (not full code) of what the dummy model and minimal training loop might look like:</p>
+<ol>
+<li><strong>Dummy Model</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="kn">import</span><span class="w"> </span><span class="nn">torch.nn</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">nn</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="k">class</span><span class="w"> </span><span class="nc">DummyLoRAModel</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">base_layer</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>     <span class="c1"># Frozen</span>
+<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">adapter_layer</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>   <span class="c1"># Trainable (like LoRA)</span>
+<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>
+<a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a>        <span class="c1"># Freeze base layer</span>
+<a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a>        <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">base_layer</span><span class="o">.</span><span class="n">parameters</span><span class="p">():</span>
+<a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a>            <span class="n">p</span><span class="o">.</span><span class="n">requires_grad</span> <span class="o">=</span> <span class="kc">False</span>
+<a id="__codelineno-9-13" name="__codelineno-9-13" href="#__codelineno-9-13"></a>
+<a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+<a id="__codelineno-9-15" name="__codelineno-9-15" href="#__codelineno-9-15"></a>        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">base_layer</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+<a id="__codelineno-9-16" name="__codelineno-9-16" href="#__codelineno-9-16"></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">adapter_layer</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+<a id="__codelineno-9-17" name="__codelineno-9-17" href="#__codelineno-9-17"></a>
+<a id="__codelineno-9-18" name="__codelineno-9-18" href="#__codelineno-9-18"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">get_trainable_params</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<a id="__codelineno-9-19" name="__codelineno-9-19" href="#__codelineno-9-19"></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">adapter_layer</span><span class="o">.</span><span class="n">parameters</span><span class="p">()</span>
+</code></pre></div></li>
+<li>The “base_layer” simulates “frozen base,” </li>
+<li>
+<p>The “adapter_layer” simulates “LoRA or new module.”</p>
+</li>
+<li>
+<p><strong>Training Step</strong> (in your integration test):
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="n">model</span> <span class="o">=</span> <span class="n">DummyLoRAModel</span><span class="p">()</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="n">optimizer</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">optim</span><span class="o">.</span><span class="n">Adam</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">get_trainable_params</span><span class="p">(),</span> <span class="n">lr</span><span class="o">=</span><span class="mf">1e-3</span><span class="p">)</span>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="c1"># Synthetic data</span>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="n">X</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>  <span class="c1"># batch=4, input_dim=10</span>
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="n">Y</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>   <span class="c1"># match adapter_layer output dim=2</span>
+<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="n">loss_fn</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">MSELoss</span><span class="p">()</span>
+<a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>
+<a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a><span class="c1"># Simple training loop</span>
+<a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a><span class="k">for</span> <span class="n">step</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">):</span>
+<a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a>    <span class="n">optimizer</span><span class="o">.</span><span class="n">zero_grad</span><span class="p">()</span>
+<a id="__codelineno-10-12" name="__codelineno-10-12" href="#__codelineno-10-12"></a>    <span class="n">preds</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+<a id="__codelineno-10-13" name="__codelineno-10-13" href="#__codelineno-10-13"></a>    <span class="n">loss</span> <span class="o">=</span> <span class="n">loss_fn</span><span class="p">(</span><span class="n">preds</span><span class="p">,</span> <span class="n">Y</span><span class="p">)</span>
+<a id="__codelineno-10-14" name="__codelineno-10-14" href="#__codelineno-10-14"></a>    <span class="n">loss</span><span class="o">.</span><span class="n">backward</span><span class="p">()</span>
+<a id="__codelineno-10-15" name="__codelineno-10-15" href="#__codelineno-10-15"></a>    <span class="n">optimizer</span><span class="o">.</span><span class="n">step</span><span class="p">()</span>
+</code></pre></div></p>
+</li>
+<li>After these 2 steps, the adapter layer’s weights have changed.  </li>
+<li>
+<p>Then you’d do <code>torch.save(...)</code> for the partial checkpoint.</p>
+</li>
+<li>
+<p><strong>Saving Partial Checkpoint</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="c1"># Only the adapter layer&#39;s weights</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="n">partial_sd</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">adapter_layer</span><span class="o">.</span><span class="n">state_dict</span><span class="p">()</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="n">torch</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">partial_sd</span><span class="p">,</span> <span class="s2">&quot;partial_checkpoint.pt&quot;</span><span class="p">)</span>
+</code></pre></div></p>
+</li>
+<li><strong>Reloading</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="n">new_model</span> <span class="o">=</span> <span class="n">DummyLoRAModel</span><span class="p">()</span>   <span class="c1"># fresh instance</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="n">loaded_sd</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;partial_checkpoint.pt&quot;</span><span class="p">)</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="n">partial_load_state_dict</span><span class="p">(</span><span class="n">new_model</span><span class="o">.</span><span class="n">adapter_layer</span><span class="p">,</span> <span class="n">loaded_sd</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</code></pre></div></li>
+</ol>
+<hr />
+<h2 id="4-step-by-step-implementation-plan">4. Step-by-Step Implementation Plan</h2>
+<p>Below is the final recommended plan for the M2 partial checkpoint cycle:</p>
+<ol>
+<li><strong>Create Partial Loader Utility</strong>  </li>
+<li><strong>File</strong>: <code>rna_predict/utils/checkpoint.py</code>  </li>
+<li><strong>Function</strong>: 
+     <div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">partial_load_state_dict</span><span class="p">(</span><span class="n">module</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span> <span class="n">state_dict</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">strict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>    <span class="c1"># Compare keys with module.state_dict().</span>
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>    <span class="c1"># Load only matching keys, skip or warn about mismatches.</span>
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>    <span class="c1"># Return any missing/unexpected keys if needed.</span>
+</code></pre></div></li>
+<li>
+<p>This should handle e.g. <code>module.adapter_layer.weight</code> and <code>module.adapter_layer.bias</code>.</p>
+</li>
+<li>
+<p><strong>Unit Test</strong> (Optional but recommended)  </p>
+</li>
+<li><strong>File</strong>: <code>tests/unit/test_partial_load_state_dict.py</code>  </li>
+<li>
+<p><strong>Scenarios</strong>:</p>
+<ol>
+<li>Perfect match.</li>
+<li>Missing keys in checkpoint.</li>
+<li>Extra keys in checkpoint.</li>
+<li><code>strict=True</code> vs <code>strict=False</code> behavior.</li>
+</ol>
+</li>
+<li>
+<p><strong>Integration Test</strong>  </p>
+</li>
+<li><strong>File</strong>: <code>tests/integration/test_partial_checkpoint_cycle.py</code>  </li>
+<li>
+<p><strong>Implementation</strong>:</p>
+<ol>
+<li><strong>Define</strong> <code>DummyLoRAModel</code>.</li>
+<li><strong>Create</strong> a small synthetic dataset (like <code>(X, Y)</code> random).</li>
+<li><strong>Train</strong> for a few steps (2–3) with only the adapter’s parameters in the optimizer.</li>
+<li><strong>Save</strong> partial checkpoint with <code>adapter_layer.state_dict()</code>.</li>
+<li><strong>Reload</strong> into a fresh <code>DummyLoRAModel</code> instance using <code>partial_load_state_dict(...)</code>.</li>
+<li><strong>Run</strong> a forward pass on the new model, checking output shape is correct, no NaNs, etc.</li>
+<li>(Optional) Compare partial checkpoint file size to a full <code>model.state_dict()</code> to confirm it’s smaller.</li>
+</ol>
+</li>
+<li>
+<p><strong>Hydra Usage</strong>:</p>
+</li>
+<li>If needed for specifying device or hyperparameters, you can wrap the test in <code>hydra.initialize(...)</code>.  </li>
+<li>
+<p>Many times you can keep the test simple with inline definitions for the dataset, model, etc.</p>
+</li>
+<li>
+<p><strong>Add Documentation</strong>:</p>
+</li>
+<li>In <code>checkpoint.py</code>, docstring to explain partial load logic.  </li>
+<li>In the integration test, short docstrings about the partial checkpoint approach for M2.</li>
+</ol>
+<hr />
+<h2 id="5-potential-edge-cases-notes">5. Potential Edge Cases &amp; Notes</h2>
+<ul>
+<li><strong>Key naming</strong>: If your actual LoRA code modifies param names (e.g. “base_layer.lora_A”), your partial loader must handle that. For the dummy test, you can keep it straightforward.  </li>
+<li><strong>Multiple adapters</strong>: If in future you have multiple adapters, you can save them each to separate partial checkpoints or combine them in one dictionary.  </li>
+<li><strong>Frozen base mismatch</strong>: Ensure the base parameters remain identical to their initialization in the new model (the test can assert that).  </li>
+</ul>
+<hr />
+<h2 id="next-steps">Next Steps</h2>
+<ol>
+<li><strong>Implement</strong> <code>partial_load_state_dict</code> in <code>rna_predict/utils/checkpoint.py</code>.</li>
+<li><strong>Write</strong> the integration test in <code>tests/integration/test_partial_checkpoint_cycle.py</code>.</li>
+<li><strong>Optionally</strong> add a unit test for partial loading edge cases.</li>
+<li><strong>Validate</strong> the M2 partial checkpoint cycle by running <code>pytest -k partial_checkpoint_cycle</code>.</li>
+</ol>
+<p><strong>Outcome</strong>: You’ll have a minimal, workable demonstration of saving only the trainable adapter’s weights and reloading them into a fresh model instance—fulfilling the M2 partial checkpoint requirement.</p>
+<hr />
+<p>[emoji]: 
+Would you like any further clarifications or example code patterns? Feel free to let me know which section you’d like me to detail more.</p>
+<p>Here’s a systematic, actionable plan for implementing and testing the M2 partial checkpoint cycle, based on the requirements and best practices you provided:</p>
+<ol>
+<li>Dummy Model and LoRA/New Modules
+Implement a minimal PyTorch (Lightning) model that includes at least one LoRA or new module to ensure non-triviality.
+The model should be simple (e.g., a linear layer with LoRA adaptation) but must have trainable parameters.</li>
+<li>Synthetic Data Loader
+Create a DataLoader that yields synthetic (random or constant) data and labels.
+Keep batch size and number of batches small for speed (e.g., batch size = 2, num_batches = 3).</li>
+<li>Minimal Training Loop
+Use PyTorch Lightning Trainer (or a minimal manual loop if Lightning is not available).
+Train for a minimal number of steps/epochs (e.g., 1-2 steps).
+Ensure at least one optimizer step is taken so parameters are updated.
+Use ModelCheckpoint (or equivalent) to save checkpoints containing only trainable parameters and optimizer state.</li>
+<li>Partial Checkpoint Loader
+Implement or use an existing partial_load_state_dict function.
+This function must:
+Load only matching keys from the checkpoint into the model.
+Gracefully handle missing/unexpected keys (no crash).
+Write a unit test with dummy modules and state dicts to verify this logic.</li>
+<li>Integration Test: Checkpoint Cycle
+Steps:
+Train the dummy model on synthetic data and save a checkpoint.
+Instantiate a new model instance.
+Load the checkpoint using partial_load_state_dict.
+Run inference on synthetic data.
+Assert:
+No errors/crashes.
+Output shape is correct.
+Output is not all-zeros or NaNs.
+Manually or programmatically check that the checkpoint file is smaller than a full model checkpoint (if possible).</li>
+<li>Test Coverage
+Ensure both:
+Unit test for the partial loader (dummy modules/state dicts).
+Integration test for the full cycle (train → save → reload → inference).</li>
+<li>Hydra/Config
+If config is needed, use minimal, hardcoded or Hydra-based config as appropriate.
+Avoid unnecessary dependencies—keep the test self-contained.</li>
+<li>Documentation and Manual Inspection
+Add docstrings/comments explaining the test logic.
+Optionally print/log checkpoint file size for manual inspection.
+Summary Table
+| Step | What to Implement/Test | Notes | |---------------------|--------------------------------------------------------|-------------------------------------------| | Dummy Model | Minimal Lightning model with LoRA/new module | Should have trainable params | | Synthetic Data | DataLoader with random/constant data | Small batch/epoch for speed | | Training Loop | Minimal training to produce checkpoint | Use ModelCheckpoint | | Partial Loader | partial_load_state_dict + unit test | Handles missing/unexpected keys | | Integration Test | Full cycle: train → save → reload → inference | Check shape, no crash, no NaNs/all-zeros | | Checkpoint Size | Optional: assert/print that checkpoint is “partial” | Manual or programmatic check | | Documentation | Comments/docstrings/logs | For clarity and reproducibility |</li>
+</ol>
+<p>Next Steps
+Implement the dummy model and LoRA/new module.
+Write the synthetic DataLoader.
+Set up the minimal training loop with checkpoint saving.
+Implement and unit test the partial loader.
+Write the integration test for the checkpoint cycle.
+Add documentation and (optionally) checkpoint size check.
+If you’d like, I can scaffold the code structure or write the first component for you—just let me know which step you want to start with!
+To adapt the M2 partial checkpoint cycle plan to your current code structure, here’s a systematic approach tailored to the RNA_PREDICT project:</p>
+<ol>
+<li>Understand Current Code Structure and Integration Points
+Model Location: Your main models and modules (including LoRA or custom modules) are likely under rna_predict/pipeline/ (e.g., StageB, StageD).
+Training/Inference Entrypoints: Training and inference are typically managed by scripts like run_all_pipeline.py or stage-specific scripts (e.g., run_stageD.py).
+Config Management: You use Hydra for configuration, with schemas in rna_predict/conf/config_schema.py and configs in rna_predict/conf/.
+Testing: Tests are organized in the test/ directory, following best practices for modular and integration testing.</li>
+<li>Where to Place the Partial Checkpoint Cycle Test
+Integration Test:
+Place the full-cycle integration test in test/integration/ (or create this directory if it doesn’t exist).
+Name it something like test_partial_checkpoint_cycle.py.
+Unit Test for Loader:
+Place the partial loader unit test in test/unit/ or alongside the loader implementation if it’s in a utility module.
+Dummy Model/Data:
+Define these within the test file itself or in a test/utils/ module to avoid polluting production code.</li>
+<li>How to Use Existing Infrastructure
+Hydra:
+Use the correct config path (/Users/tomriddle1/RNA_PREDICT/rna_predict/conf) for all initialization in tests.
+Create a minimal or test-specific Hydra config if needed.
+Lightning/Training Loop:
+If you have Lightning modules, subclass a minimal one for the dummy model.
+Use the same checkpointing mechanism as the main training loop (ModelCheckpoint or custom).
+Partial Loader:
+If you have an existing partial_load_state_dict, import and use it. Otherwise, implement it in a utility module (e.g., rna_predict/utils/checkpoint_utils.py).</li>
+<li>Minimize Coupling and Keep Tests Self-Contained
+Avoid using full pipeline scripts (like run_all_pipeline.py) for this test—keep the test focused and isolated.
+Use synthetic data and a minimal model defined within the test, not production data/models.
+Mock or stub Hydra configs as needed, but ensure correct initialization.</li>
+<li>Proposed Directory and File Structure
+CopyInsert
+rna_predict/
+  pipeline/
+    ... (existing code)
+  conf/
+    ... (existing Hydra configs)
+  utils/
+    checkpoint_utils.py  # (if partial_load_state_dict is here)
+test/
+  integration/
+    test_partial_checkpoint_cycle.py
+  unit/
+    test_partial_load_state_dict.py
+  utils/
+    dummy_model.py
+    dummy_data.py</li>
+<li>Example: Integration Test Skeleton
+python
+CopyInsert</li>
+</ol>
+<h1 id="testintegrationtest_partial_checkpoint_cyclepy">test/integration/test_partial_checkpoint_cycle.py</h1>
+<p>import torch
+import pytorch_lightning as pl
+from rna_predict.utils.checkpoint_utils import partial_load_state_dict</p>
+<h1 id="dummy-model-and-dataloader-defined-here-or-imported-from-testutils">Dummy model and dataloader defined here or imported from test/utils</h1>
+<p>def test_partial_checkpoint_cycle(tmp_path):
+    # 1. Instantiate dummy model
+    # 2. Create synthetic dataloader
+    # 3. Train for a few steps, save checkpoint to tmp_path
+    # 4. Instantiate new model, load with partial_load_state_dict
+    # 5. Run inference, assert output shape, no NaNs/all-zeros
+    # 6. (Optional) Check checkpoint file size
+    pass
+7. Hydra Integration in Tests
+Use the absolute config path for Hydra initialization in tests:
+python
+CopyInsert
+with hydra.initialize(config_path="/Users/tomriddle1/RNA_PREDICT/rna_predict/conf", version_base=None):
+    cfg = hydra.compose(config_name="test_config")
+Create a minimal config file for the test if needed.
+8. Next Steps
+Confirm where your partial_load_state_dict lives (or if it needs to be implemented).
+Set up the test directory structure if not present.
+Scaffold the dummy model and data loader in test utils or directly in the integration test.
+Implement the integration and unit tests as outlined.
+Would you like me to:</p>
+<p>Locate or scaffold the partial_load_state_dict utility?
+Scaffold the integration test file and dummy model/data?
+Suggest a minimal test Hydra config?
+Let me know your preferred starting point!</p>
+<p>Feedback submitted
+Me</p>
+<p>can you actually do a deep dive into the code and show me your updated analysis similar to what you just made</p>
+<p>Absolutely! I’ll do a deep dive into your codebase to provide a concrete, context-aware analysis for implementing the M2 partial checkpoint cycle. I’ll focus on:</p>
+<p>Where models, training loops, and checkpoints are implemented
+Where/how LoRA or custom modules are integrated
+How configuration and Hydra are used
+Where checkpoint saving/loading happens
+What test and utility infrastructure exists
+How/where to best add the integration/unit tests for the checkpoint cycle
+Let’s begin by mapping out the relevant code structure and identifying key implementation points. I’ll start by searching for model definitions, checkpoint logic, LoRA usage, and test infrastructure.</p>
+<p>I will:</p>
+<p>Search for model and LightningModule definitions.
+Locate checkpoint saving/loading code.
+Identify any LoRA or “new module” integrations.
+Examine config/Hydra usage.
+Map the test directory and existing test patterns/utilities.
+Let’s start with these searches.</p>
+<p>Semantic searched codebase
+669 results
+Semantic searchedrna_predict/pipelinewith queryLightningModule
+Semantic searched codebase
+755 results
+Semantic searchedrna_predict/pipelinewith querycheckpoint
+Semantic searched codebase
+780 results
+Semantic searchedrna_predict/pipelinewith queryLoRA
+Semantic searched codebase
+775 results
+Semantic searchedrna_predict/pipelinewith queryhydra
+Searched filesystem
+2 results
+Searchedfordirectoriesin~/RNA_PREDICTwith depth3with patterntest<em>
+Searched filesystem
+99 results
+Searchedforfilesintestswith depth3with pattern</em>.py
+Searched filesystem
+0 results
+Searchedforfilesinrna_predict/utilswith depth2with patterncheckpoint*
+Here is a deep, codebase-specific analysis for implementing the M2 partial checkpoint cycle in the context of RNA_PREDICT, based on the latest code structure and findings:</p>
+<ol>
+<li>Model and Training Loop Structure
+Model Definitions:
+Most models are implemented as nn.Module (not PyTorch LightningModule), e.g. PairformerStack, PairformerBlock, PairformerWrapper (in stageB/pairwise/), and various predictors.
+There is a DummyPairformerModel in stageB/pairwise/dummy_pairformer.py for testing.
+No direct evidence of LightningModule usage for main pipeline models, but some test and utility code may use Lightning for convenience.
+Training Loops:
+Training and inference are managed by scripts like run_stageB_combined, run_pipeline (in stageB/main.py), and run_stageD (in stageD/run_stageD.py).
+These functions are not Lightning-native but could be adapted for minimal training/testing.</li>
+<li>Checkpointing Logic
+Checkpoint Saving/Loading:
+No dedicated checkpoint_utils.py or clear utility for partial loading in rna_predict/utils/.
+Checkpointing is referenced in some configs and model wrappers (e.g. use_checkpoint in PairformerWrapper), but actual save/load logic is not centralized.
+No existing partial_load_state_dict found—this will need to be implemented, likely in a new utility file (e.g., rna_predict/utils/checkpoint.py).</li>
+<li>LoRA/Adapter Modules
+LoRA Integration:
+No explicit LoRA modules found in the main pipeline code.
+The test plan should use a dummy model with a simple trainable submodule to simulate LoRA/new module behavior.</li>
+<li>Hydra Configuration
+Hydra Usage:
+All main scripts and many tests use Hydra, with configs in /Users/tomriddle1/RNA_PREDICT/rna_predict/conf.
+For all tests and initialization, always use the absolute config path (/Users/tomriddle1/RNA_PREDICT/rna_predict/conf).
+Test configs exist under conf/test/.</li>
+<li>Test Infrastructure
+Test Directory:
+Main test directory is tests/ (not test/), with subfolders for integration/, unit/, and stage-specific tests.
+Integration tests like integration/test_full_pipeline.py and integration/test_pipeline_integration.py exist.
+Dummy models and data are sometimes defined in test files or in tests/common/ or tests/utils/.</li>
+<li>Proposed Implementation Plan (RNA_PREDICT-Specific)
+A. Utility Implementation
+Create rna_predict/utils/checkpoint.py with:
+partial_load_state_dict (loads only matching keys, ignores missing/unexpected).
+Unit test for this function in tests/unit/test_partial_load_state_dict.py.
+B. Dummy Model and Data
+Define a minimal nn.Module (with a dummy trainable submodule, simulating LoRA) in the integration test or in tests/utils/dummy_model.py.
+Use a synthetic DataLoader (random tensors).
+C. Minimal Training Loop
+In the integration test (tests/integration/test_partial_checkpoint_cycle.py):
+Instantiate the dummy model.
+Run a minimal manual training loop (since main models are not LightningModules).
+Save a checkpoint (using torch.save(model.state_dict(), ...) and torch.save(optimizer.state_dict(), ...)).
+D. Partial Checkpoint Cycle Test
+In the same integration test:
+Instantiate a new dummy model.
+Load checkpoint using partial_load_state_dict.
+Run inference, check output shape, ensure no all-zeros/NaNs.
+Optionally, compare checkpoint file sizes.
+E. Hydra Integration
+Use hydra.initialize(config_path="/Users/tomriddle1/RNA_PREDICT/rna_predict/conf", ...) in all tests/configs.
+If needed, create a minimal config in conf/test/.</li>
+<li>Directory and File Structure
+CopyInsert
+rna_predict/
+  utils/
+    checkpoint.py  # (new, for partial_load_state_dict)
+tests/
+  integration/
+    test_partial_checkpoint_cycle.py
+  unit/
+    test_partial_load_state_dict.py
+  utils/
+    dummy_model.py  # (if needed)</li>
+<li>
+<p>Summary Table (RNA_PREDICT Context)
+| Step | File/Location | Notes | |---------------------|----------------------------------------------------|---------------------------------| | Partial Loader | utils/checkpoint.py, unit/test_partial_load_state_dict.py | New utility + unit test | | Dummy Model/Data | integration/test_partial_checkpoint_cycle.py or tests/utils/dummy_model.py | Use nn.Module, not Lightning | | Training Loop | integration/test_partial_checkpoint_cycle.py | Manual loop, torch.save | | Checkpoint Cycle | integration/test_partial_checkpoint_cycle.py | Save, partial load, infer, check| | Hydra Config | Use absolute path in all tests | Use conf/test/ if needed |</p>
+</li>
+<li>
+<p>Next Steps
+Implement partial_load_state_dict in rna_predict/utils/checkpoint.py.
+Write its unit test in tests/unit/test_partial_load_state_dict.py.
+Scaffold the integration test in tests/integration/test_partial_checkpoint_cycle.py using a dummy model and manual training loop.
+Use Hydra with the correct config path in all test code.
+Would you like me to scaffold any of these files or show concrete code snippets for any step? Let me know your preferred next step!</p>
+</li>
+</ol>
+<h1 id="task-master-data-for-m2-partial-checkpoint-cycle-as-of-2025-04-21">Task Master Data for M2 Partial Checkpoint Cycle (as of 2025-04-21)</h1>
+<h2 id="project-dashboard">Project Dashboard</h2>
+<ul>
+<li>Tasks Progress: 60% (25 done, 17 pending)</li>
+<li>Subtasks Progress: 43% (15/35 completed)</li>
+<li>High priority: 14, Medium: 23, Low: 5</li>
+</ul>
+<h2 id="next-task-to-work-on">Next Task to Work On</h2>
+<ul>
+<li><strong>ID 25</strong>: M2-Test Verify Partial Checkpoint Cycle (high priority)</li>
+<li>Dependencies: 40</li>
+</ul>
+<h2 id="task-25-m2-test-verify-partial-checkpoint-cycle">Task #25 - M2-Test Verify Partial Checkpoint Cycle</h2>
+<p><strong>Description:</strong>
+We save only trainable parameters (LoRA + new modules). This test ensures partial checkpoints reload cleanly without missing/unexpected key errors and that inference still works.</p>
+<h3 id="tasks">Tasks</h3>
+<ol>
+<li><strong>New test</strong>: <code>tests/integration/test_checkpoint_cycle.py</code>.</li>
+<li><strong>Dummy training</strong>: A few steps, produce partial checkpoint.</li>
+<li><strong>Reload</strong>: Use <code>partial_load_state_dict(...)</code> in a fresh model.</li>
+<li><strong>Inference</strong>: Confirm no key mismatch, shape is correct.</li>
+</ol>
+<h3 id="acceptance-criteria">Acceptance Criteria</h3>
+<ul>
+<li>Partial checkpoint is smaller than a full model.</li>
+<li>Reload is error-free.</li>
+<li>Forward pass works post-load.</li>
+</ul>
+<h3 id="potential-problems">Potential Problems</h3>
+<ul>
+<li>Lightning’s default checkpoint might still save the entire state.</li>
+<li>Param naming differences can cause mismatch warnings.</li>
+<li>Distinguishing intentionally excluded vs. truly missing keys can be tricky.</li>
+</ul>
+<h3 id="test-strategy">Test Strategy</h3>
+<p>In <code>test_checkpoint_cycle.py</code>, train a minimal model for a few steps, save partial checkpoint, reload into a fresh model, run forward pass to confirm no shape mismatch or missing keys.</p>
+<h3 id="subtasks">Subtasks</h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Status</th>
+<th>Title</th>
+<th>Dependencies</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>25.1</td>
+<td>pending</td>
+<td>Create Test Infrastructure and Dummy Model</td>
+<td>None</td>
+</tr>
+<tr>
+<td>25.2</td>
+<td>pending</td>
+<td>Implement Partial Checkpoint Generation</td>
+<td>25.1</td>
+</tr>
+<tr>
+<td>25.3</td>
+<td>pending</td>
+<td>Implement Partial State Dict Loading</td>
+<td>25.1, 25.2</td>
+</tr>
+<tr>
+<td>25.4</td>
+<td>pending</td>
+<td>Validate Model Inference Post-Loading</td>
+<td>25.1, 25.2, 25.3</td>
+</tr>
+</tbody>
+</table>
+<p>Subtask Progress: 0/4 (0%)</p>
+<h3 id="suggested-actions">Suggested Actions</h3>
+<ul>
+<li>Mark as in-progress: <code>task-master set-status --id=25 --status=in-progress</code></li>
+<li>Mark as done when completed: <code>task-master set-status --id=25 --status=done</code></li>
+<li>Update subtask status: <code>task-master set-status --id=25.1 --status=done</code></li>
+</ul>
+<hr />
+<p><em>This section was generated by exporting current Task Master data for the M2 partial checkpoint cycle feature. For updates, rerun <code>task-master list</code> and <code>task-master show 25</code>.</em></p>
+<p>Below is a <em>bolt‑on</em> guide that shows <strong>where Lightning and LanceDB can add value to the “partial‑checkpoint cycle” work</strong> (and, more broadly, to your RNA pipeline) without forcing a ground‑up rewrite.  Think of it as two mix‑and‑match “upgrade paths” you can adopt independently or together.</p>
+<hr />
+<h2 id="1-pytorch-lightning-painless-training-surgical-checkpointing">1  |  PyTorch Lightning ➜ painless training + surgical checkpointing</h2>
+<table>
+<thead>
+<tr>
+<th>What you get</th>
+<th>Why it helps here</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Trainer loop‑as‑a‑service</strong></td>
+<td>Eliminates the 30–40 lines of manual train/val boilerplate you planned to embed in the integration test.</td>
+</tr>
+<tr>
+<td><strong>Pluggable checkpoint callback</strong> (<code>ModelCheckpoint</code>)</td>
+<td>Lets you decide <em>at callback time</em> which parts of the state‑dict to write → perfect for “save only LoRA/adapter”.</td>
+</tr>
+<tr>
+<td><strong>Fabric</strong> (lightweight)</td>
+<td>If you only want device orchestration &amp; mixed precision but keep a manual loop, use <code>lightning.Fabric</code> instead of the full <code>Trainer</code>.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="11-minimal-lightningmodule-for-the-dummy-lora-model">1.1 Minimal LightningModule for the dummy LoRA model</h3>
+<p><div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="c1"># tests/utils/dummy_lora_lightning.py</span>
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span><span class="o">,</span><span class="w"> </span><span class="nn">torch.nn</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">nn</span>
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="kn">import</span><span class="w"> </span><span class="nn">lightning</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">L</span>
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>
+<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a><span class="k">class</span><span class="w"> </span><span class="nc">DummyLoRAModule</span><span class="p">(</span><span class="n">L</span><span class="o">.</span><span class="n">LightningModule</span><span class="p">):</span>
+<a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">base_dim</span><span class="o">=</span><span class="mi">16</span><span class="p">,</span> <span class="n">adapter_dim</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">lr</span><span class="o">=</span><span class="mf">1e-3</span><span class="p">):</span>
+<a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a>        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+<a id="__codelineno-14-8" name="__codelineno-14-8" href="#__codelineno-14-8"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">save_hyperparameters</span><span class="p">()</span>   <span class="c1"># ← persists hparams in checkpoint</span>
+<a id="__codelineno-14-9" name="__codelineno-14-9" href="#__codelineno-14-9"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">base</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">base_dim</span><span class="p">,</span> <span class="n">base_dim</span><span class="p">,</span> <span class="n">bias</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>   <span class="c1"># frozen</span>
+<a id="__codelineno-14-10" name="__codelineno-14-10" href="#__codelineno-14-10"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">adapter</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">base_dim</span><span class="p">,</span> <span class="n">adapter_dim</span><span class="p">)</span>
+<a id="__codelineno-14-11" name="__codelineno-14-11" href="#__codelineno-14-11"></a>        <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">base</span><span class="o">.</span><span class="n">parameters</span><span class="p">():</span>
+<a id="__codelineno-14-12" name="__codelineno-14-12" href="#__codelineno-14-12"></a>            <span class="n">p</span><span class="o">.</span><span class="n">requires_grad</span> <span class="o">=</span> <span class="kc">False</span>
+<a id="__codelineno-14-13" name="__codelineno-14-13" href="#__codelineno-14-13"></a>
+<a id="__codelineno-14-14" name="__codelineno-14-14" href="#__codelineno-14-14"></a>    <span class="c1"># ───────────────────── training logic ──────────────────────</span>
+<a id="__codelineno-14-15" name="__codelineno-14-15" href="#__codelineno-14-15"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>             <span class="c1"># &lt;‑ inference &amp; val/test share this</span>
+<a id="__codelineno-14-16" name="__codelineno-14-16" href="#__codelineno-14-16"></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">adapter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">base</span><span class="p">(</span><span class="n">x</span><span class="p">))</span>
+<a id="__codelineno-14-17" name="__codelineno-14-17" href="#__codelineno-14-17"></a>
+<a id="__codelineno-14-18" name="__codelineno-14-18" href="#__codelineno-14-18"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">training_step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">batch</span><span class="p">,</span> <span class="n">_</span><span class="p">):</span>
+<a id="__codelineno-14-19" name="__codelineno-14-19" href="#__codelineno-14-19"></a>        <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">batch</span>
+<a id="__codelineno-14-20" name="__codelineno-14-20" href="#__codelineno-14-20"></a>        <span class="n">loss</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">functional</span><span class="o">.</span><span class="n">mse_loss</span><span class="p">(</span><span class="bp">self</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="n">y</span><span class="p">)</span>
+<a id="__codelineno-14-21" name="__codelineno-14-21" href="#__codelineno-14-21"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">&quot;train_loss&quot;</span><span class="p">,</span> <span class="n">loss</span><span class="p">,</span> <span class="n">prog_bar</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<a id="__codelineno-14-22" name="__codelineno-14-22" href="#__codelineno-14-22"></a>        <span class="k">return</span> <span class="n">loss</span>
+<a id="__codelineno-14-23" name="__codelineno-14-23" href="#__codelineno-14-23"></a>
+<a id="__codelineno-14-24" name="__codelineno-14-24" href="#__codelineno-14-24"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">configure_optimizers</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<a id="__codelineno-14-25" name="__codelineno-14-25" href="#__codelineno-14-25"></a>        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">optim</span><span class="o">.</span><span class="n">Adam</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">adapter</span><span class="o">.</span><span class="n">parameters</span><span class="p">(),</span> <span class="n">lr</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="o">.</span><span class="n">lr</span><span class="p">)</span>
+<a id="__codelineno-14-26" name="__codelineno-14-26" href="#__codelineno-14-26"></a>
+<a id="__codelineno-14-27" name="__codelineno-14-27" href="#__codelineno-14-27"></a>    <span class="c1"># ─────────── override to emit *only* adapter params ─────────</span>
+<a id="__codelineno-14-28" name="__codelineno-14-28" href="#__codelineno-14-28"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">on_save_checkpoint</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ckpt</span><span class="p">):</span>
+<a id="__codelineno-14-29" name="__codelineno-14-29" href="#__codelineno-14-29"></a>        <span class="n">ckpt</span><span class="p">[</span><span class="s2">&quot;state_dict&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-14-30" name="__codelineno-14-30" href="#__codelineno-14-30"></a>            <span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">state_dict</span><span class="p">()</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+<a id="__codelineno-14-31" name="__codelineno-14-31" href="#__codelineno-14-31"></a>            <span class="k">if</span> <span class="n">k</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;adapter.&quot;</span><span class="p">)</span>
+<a id="__codelineno-14-32" name="__codelineno-14-32" href="#__codelineno-14-32"></a>        <span class="p">}</span>
+</code></pre></div>
+<em>That last hook means ➜ every Lightning checkpoint is already “partial”.  No custom utility needed in the test; you just load with <code>model.load_from_checkpoint(...)</code>.</em></p>
+<h3 id="12-integrationtest-skeleton-with-trainer">1.2 Integration‑test skeleton with Trainer</h3>
+<p><div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">lightning</span><span class="w"> </span><span class="kn">import</span> <span class="n">Trainer</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">lightning.pytorch.callbacks</span><span class="w"> </span><span class="kn">import</span> <span class="n">ModelCheckpoint</span>
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tests.utils.dummy_lora_lightning</span><span class="w"> </span><span class="kn">import</span> <span class="n">DummyLoRAModule</span>
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="kn">from</span><span class="w"> </span><span class="nn">torch.utils.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">DataLoader</span><span class="p">,</span> <span class="n">TensorDataset</span>
+<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span><span class="o">,</span><span class="w"> </span><span class="nn">tempfile</span>
+<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a>
+<a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a><span class="k">def</span><span class="w"> </span><span class="nf">_synthetic_dl</span><span class="p">(</span><span class="n">bs</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="mi">12</span><span class="p">,</span> <span class="n">in_dim</span><span class="o">=</span><span class="mi">16</span><span class="p">,</span> <span class="n">out_dim</span><span class="o">=</span><span class="mi">8</span><span class="p">):</span>
+<a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a>    <span class="n">X</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">in_dim</span><span class="p">)</span>
+<a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a>    <span class="n">y</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">out_dim</span><span class="p">)</span>
+<a id="__codelineno-15-10" name="__codelineno-15-10" href="#__codelineno-15-10"></a>    <span class="k">return</span> <span class="n">DataLoader</span><span class="p">(</span><span class="n">TensorDataset</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">),</span> <span class="n">batch_size</span><span class="o">=</span><span class="n">bs</span><span class="p">)</span>
+<a id="__codelineno-15-11" name="__codelineno-15-11" href="#__codelineno-15-11"></a>
+<a id="__codelineno-15-12" name="__codelineno-15-12" href="#__codelineno-15-12"></a><span class="k">def</span><span class="w"> </span><span class="nf">test_partial_ckpt_cycle</span><span class="p">(</span><span class="n">tmp_path</span><span class="p">):</span>
+<a id="__codelineno-15-13" name="__codelineno-15-13" href="#__codelineno-15-13"></a>    <span class="n">ckpt_cb</span> <span class="o">=</span> <span class="n">ModelCheckpoint</span><span class="p">(</span><span class="n">dirpath</span><span class="o">=</span><span class="n">tmp_path</span><span class="p">,</span> <span class="n">save_top_k</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<a id="__codelineno-15-14" name="__codelineno-15-14" href="#__codelineno-15-14"></a>
+<a id="__codelineno-15-15" name="__codelineno-15-15" href="#__codelineno-15-15"></a>    <span class="n">model</span> <span class="o">=</span> <span class="n">DummyLoRAModule</span><span class="p">()</span>
+<a id="__codelineno-15-16" name="__codelineno-15-16" href="#__codelineno-15-16"></a>    <span class="n">trainer</span> <span class="o">=</span> <span class="n">Trainer</span><span class="p">(</span><span class="n">max_epochs</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">callbacks</span><span class="o">=</span><span class="p">[</span><span class="n">ckpt_cb</span><span class="p">],</span> <span class="n">logger</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<a id="__codelineno-15-17" name="__codelineno-15-17" href="#__codelineno-15-17"></a>    <span class="n">trainer</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">_synthetic_dl</span><span class="p">())</span>
+<a id="__codelineno-15-18" name="__codelineno-15-18" href="#__codelineno-15-18"></a>
+<a id="__codelineno-15-19" name="__codelineno-15-19" href="#__codelineno-15-19"></a>    <span class="n">ckpt_path</span> <span class="o">=</span> <span class="n">ckpt_cb</span><span class="o">.</span><span class="n">best_model_path</span>     <span class="c1"># → contains only adapter.*</span>
+<a id="__codelineno-15-20" name="__codelineno-15-20" href="#__codelineno-15-20"></a>
+<a id="__codelineno-15-21" name="__codelineno-15-21" href="#__codelineno-15-21"></a>    <span class="n">fresh</span> <span class="o">=</span> <span class="n">DummyLoRAModule</span><span class="o">.</span><span class="n">load_from_checkpoint</span><span class="p">(</span><span class="n">ckpt_path</span><span class="p">)</span>
+<a id="__codelineno-15-22" name="__codelineno-15-22" href="#__codelineno-15-22"></a>    <span class="n">out</span> <span class="o">=</span> <span class="n">fresh</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">16</span><span class="p">))</span>
+<a id="__codelineno-15-23" name="__codelineno-15-23" href="#__codelineno-15-23"></a>    <span class="k">assert</span> <span class="n">out</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">8</span><span class="p">)</span>
+</code></pre></div>
+<strong>Nice side effect:</strong> Lightning’s checkpoints already include optimizer state and hyper‑parameters, so you don’t need to hand‑roll <code>torch.save({...})</code>.</p>
+<hr />
+<h2 id="2-lancedb-versioned-ondisk-vector-store-for-embeddings-checkpoints">2  |  LanceDB ➜ versioned, on‑disk vector store for embeddings &amp; checkpoints</h2>
+<blockquote>
+<p><em>LanceDB isn’t for model weights</em>—it excels at <strong>fast random‑access to vectors + metadata</strong>.  Here’s how it can slot in:</p>
+</blockquote>
+<h3 id="21-storing-training-artefacts">2.1 Storing training artefacts</h3>
+<table>
+<thead>
+<tr>
+<th>Artefact</th>
+<th>LanceDB schema suggestion</th>
+<th>Benefit</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Adapter weight snapshots</strong> (small)</td>
+<td><code>{step: int, vector: Blob(weights), loss: float}</code></td>
+<td>You can rewind/branch training quickly, or feed checkpoints into hyper‑param search.</td>
+</tr>
+<tr>
+<td><strong>Stage‑B / Stage‑D token embeddings</strong></td>
+<td><code>{run_id: str, vector: &lt;np.ndarray&gt;, residue_idx: int, quality: float}</code></td>
+<td>Rapid nearest‑neighbour queries when you finetune on similar residues.</td>
+</tr>
+<tr>
+<td><strong>Inference outputs for eval</strong></td>
+<td><code>{seq_id: str, coords: Blob, rmsd: float}</code></td>
+<td>Build dashboards comparing different model versions with SQL‑style filters (<code>WHERE rmsd &lt; 2</code>).</td>
+</tr>
+</tbody>
+</table>
+<p><em>Because LanceDB is append‑only, you get automatic versioning for free, and its Arrow‑backed zero‑copy scans keep RAM use low in CI.</em></p>
+<h3 id="22-checkpoint-catalogue">2.2 Checkpoint catalogue</h3>
+<p>Instead of scattering <code>.pt</code> files in experiment dirs, create one <strong><code>checkpoints</code> table</strong>:</p>
+<p><div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">lancedb</span><span class="o">,</span><span class="w"> </span><span class="nn">torch</span><span class="o">,</span><span class="w"> </span><span class="nn">json</span><span class="o">,</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">dt</span>
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="n">db</span>  <span class="o">=</span> <span class="n">lancedb</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="s2">&quot;data/lance&quot;</span><span class="p">)</span>
+<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="n">tbl</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">create_table</span><span class="p">(</span><span class="s2">&quot;checkpoints&quot;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;create&quot;</span><span class="p">,</span> 
+<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a>        <span class="n">schema</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;tag&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="s2">&quot;vector&quot;</span><span class="p">:</span> <span class="n">lancedb</span><span class="o">.</span><span class="n">BlobType</span><span class="p">(),</span> <span class="s2">&quot;meta&quot;</span><span class="p">:</span> <span class="nb">dict</span><span class="p">})</span>
+<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a>
+<a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a><span class="k">def</span><span class="w"> </span><span class="nf">log_ckpt</span><span class="p">(</span><span class="n">tag</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ckpt_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">meta</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
+<a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a>    <span class="n">tbl</span><span class="o">.</span><span class="n">add</span><span class="p">([{</span>
+<a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a>        <span class="s2">&quot;tag&quot;</span><span class="p">:</span> <span class="n">tag</span><span class="p">,</span>
+<a id="__codelineno-16-9" name="__codelineno-16-9" href="#__codelineno-16-9"></a>        <span class="s2">&quot;vector&quot;</span><span class="p">:</span> <span class="nb">open</span><span class="p">(</span><span class="n">ckpt_path</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">(),</span>
+<a id="__codelineno-16-10" name="__codelineno-16-10" href="#__codelineno-16-10"></a>        <span class="s2">&quot;meta&quot;</span><span class="p">:</span> <span class="p">{</span><span class="o">**</span><span class="n">meta</span><span class="p">,</span> <span class="s2">&quot;timestamp&quot;</span><span class="p">:</span> <span class="n">dt</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span><span class="o">.</span><span class="n">isoformat</span><span class="p">()}</span>
+<a id="__codelineno-16-11" name="__codelineno-16-11" href="#__codelineno-16-11"></a>    <span class="p">}])</span>
+</code></pre></div>
+Now your test can <em>push</em> the partial checkpoint into LanceDB and later <em>pull</em> it by tag:</p>
+<p><div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="n">row</span> <span class="o">=</span> <span class="n">tbl</span><span class="o">.</span><span class="n">query</span><span class="p">()</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="s2">&quot;tag == &#39;adapter_v0&#39;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">to_pandas</span><span class="p">()</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="n">fresh</span> <span class="o">=</span> <span class="n">DummyLoRAModule</span><span class="o">.</span><span class="n">load_from_checkpoint</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="s2">&quot;vector&quot;</span><span class="p">])</span>
+</code></pre></div>
+<em>(The binary lives inside the columnar file; no extra object‑store needed.)</em></p>
+<hr />
+<h2 id="3-which-road-to-take">3  |  Which road to take?</h2>
+<table>
+<thead>
+<tr>
+<th>Scenario</th>
+<th>Lightning</th>
+<th>LanceDB</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>CI test only</strong> (prove partial ckpt works)</td>
+<td><strong>Yes</strong> — 15 lines kills boilerplate</td>
+<td>Optional</td>
+</tr>
+<tr>
+<td><strong>Research workflow</strong> (multiple runs, compare embeddings)</td>
+<td><strong>Yes</strong> — Trainer callbacks for logging</td>
+<td><strong>Yes</strong> — store every run’s embeddings/checkpoints; query later</td>
+</tr>
+<tr>
+<td><strong>High‑throughput prod inference</strong></td>
+<td>Possibly (Fabric for device mgmt)</td>
+<td><strong>Mostly No</strong> (you ship a frozen model, not a vector index)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="4-implementation-touch-points">4  |  Implementation touch points</h2>
+<ol>
+<li><strong>Dependencies</strong><br />
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>pip<span class="w"> </span>install<span class="w"> </span>lightning<span class="w"> </span>lancedb<span class="w"> </span>pyarrow<span class="w">  </span><span class="c1"># (+ duckdb if you want SQL joins)</span>
+</code></pre></div></li>
+<li><strong>Utilities</strong><br />
+<em>Keep your <code>partial_load_state_dict</code> as a fall‑back</em> for plain PyTorch code paths; Lightning will bypass it.</li>
+<li><strong>Config</strong><br />
+   Add <code>use_lightning: true</code> and <code>lance_uri: "data/lance"</code> flags in <code>rna_predict/conf/default.yaml</code>; guard the new code with <code>if cfg.use_lightning:</code> so legacy scripts stay untouched.</li>
+<li><strong>Docs</strong><br />
+   In <code>docs/guides/best_practices/checkpointing.md</code> show <strong>both</strong>:<br />
+<em>“Vanilla PyTorch + utility”</em> <strong>vs.</strong> <em>“Lightning callback”</em> flavour.  Readers can copy whichever fits.</li>
+</ol>
+<hr />
+<h3 id="tldr">TL;DR</h3>
+<ul>
+<li><strong>Lightning</strong> can shrink your integration test to ~20 LOC, give you free logging, <em>and</em> make “save only adapter” a one‑liner override.  </li>
+<li><strong>LanceDB</strong> is not a weight store, but it’s <em>excellent</em> for versioned storage of embeddings <em>and</em> the partial checkpoints themselves; you gain SQL &amp; vector search on every artefact your pipeline spits out.</li>
+</ul>
+<p>Adopt one, the other, or both—each is orthogonal and plays nicely with the plan we already laid out.  Happy upgrading!</p>
+<h3 id="short-answer">Short answer</h3>
+<ul>
+<li><strong>PyTorch Lightning</strong> → <strong>Yes — it fits squarely inside the M2 core requirements</strong> (items 1, 4, 5, 6, 7, 9).  </li>
+<li><strong>LanceDB</strong> → <strong>Nice‑to‑have, not need‑to‑have</strong>.  It doesn’t unblock any M2 “Definition‑of‑Done” item, but can be layered on later to manage experiment artefacts (checkpoints, embeddings) once the basic train + infer loop is proven stable.</li>
+</ul>
+<hr />
+<h2 id="1-how-lightning-lines-up-with-the-m2-spec">1 How Lightning lines up with the M2 spec</h2>
+<table>
+<thead>
+<tr>
+<th>M2 Requirement</th>
+<th>How Lightning satisfies / simplifies</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>1 Trainable pipeline execution</strong></td>
+<td><code>Trainer</code> handles device placement, gradient accumulation, mixed precision, etc., so you spend near‑zero time on boiler‑plating the loop.</td>
+</tr>
+<tr>
+<td><strong>2 Loss calculation</strong></td>
+<td>Loss is defined once in <code>training_step</code>; Lightning auto‑reduces across distributed devices and logs it.</td>
+</tr>
+<tr>
+<td><strong>4 Optimizer config &amp; param targeting</strong></td>
+<td><code>configure_optimizers()</code> is the single source of truth; filters for LoRA &amp; diffusion params live here.</td>
+</tr>
+<tr>
+<td><strong>5 Back‑prop &amp; weight update</strong></td>
+<td>Out‑of‑the‑box gradient flow checking (<code>detect_anomaly=True</code>, <code>gradient_clip_val</code>, etc.).</td>
+</tr>
+<tr>
+<td><strong>6 Training loop stability</strong></td>
+<td><code>fast_dev_run</code> and <code>limit_*_batches</code> flags make early smoke tests trivial.</td>
+</tr>
+<tr>
+<td><strong>7 Checkpoint saving</strong></td>
+<td><code>ModelCheckpoint</code> already supports <strong>save‑weights‑only</strong> and callback‑controlled key filtering (your <code>on_save_checkpoint</code> override keeps just LoRA/adapter weights).</td>
+</tr>
+<tr>
+<td><strong>9 Partial checkpoint loading</strong></td>
+<td><code>LightningModule.load_from_checkpoint()</code> calls can be patched to use your <code>partial_load_state_dict</code>—zero script changes needed.</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Bottom line:</strong> Lightning removes ~200 LOC of custom orchestration and directly hits the guts of M2.<br />
+<strong>Risk:</strong> minimal; you’re already planning to freeze base weights and use mixed devices—Lightning is designed for exactly that.</p>
+</blockquote>
+<hr />
+<h2 id="2-where-lancedb-could-helpand-why-it-isnt-critical-for-m2">2 Where LanceDB <em>could</em> help—and why it isn’t critical for M2</h2>
+<table>
+<thead>
+<tr>
+<th>Possible use case</th>
+<th>Benefit</th>
+<th>Why it’s not on the critical path</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Versioned storage of partial checkpoints</strong></td>
+<td>All checkpoints live in one table: query by tag/date, fetch as blob, zero‑copy.</td>
+<td>M2 only asks that <em>a</em> checkpoint save/load cycle works.  Local <code>.pt</code> files satisfy that.</td>
+</tr>
+<tr>
+<td><strong>Fast random access to per‑residue / per‑atom embeddings</strong></td>
+<td>Could power later “hard negative mining” or transfer‑learning experiments.</td>
+<td>Embedding logging isn’t required until M3 (“Validation &amp; Debugging”) or M4 (“Performance”).</td>
+</tr>
+<tr>
+<td><strong>Experiment metadata catalog</strong></td>
+<td>LanceDB’s SQL + vector search beats spreadsheets for many runs.</td>
+<td>Until you’re running <em>lots</em> of experiments, W&amp;B or TensorBoard scalars cover M2’s observability needs.</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Recommendation:</strong><br />
+<em>Park LanceDB behind a feature flag (<code>use_lance_db: false</code> in Hydra).</em><br />
+Wire a small helper that <strong>publishes</strong> a checkpoint/metrics row <strong>iff</strong> the flag is true.<br />
+That adds ~2 hours of work now and keeps the path open without becoming a blocker.</p>
+</blockquote>
+<hr />
+<h2 id="3-concrete-next-steps">3 Concrete next steps</h2>
+<ol>
+<li><strong>Lock‑in Lightning</strong>  </li>
+<li>Add <code>lightning&gt;=2.2</code> to <code>requirements.txt</code>.  </li>
+<li>Land <code>rna_predict/training/rna_lightning_module.py</code> + a thin <code>train.py</code> (your spec §4.6).  </li>
+<li>
+<p>Replace the manual‑loop stub in your current integration tests with <code>Trainer(fast_dev_run=True)</code>.</p>
+</li>
+<li>
+<p><strong>Defer LanceDB integration</strong>  </p>
+</li>
+<li>Create a stub <code>rna_predict/utils/lance_logger.py</code> with two no‑op functions: <code>log_checkpoint</code>, <code>log_embeddings</code>.  </li>
+<li>When <code>cfg.experiment.use_lance_db</code> is enabled, import <code>lancedb</code> and execute the real code; otherwise keep no‑ops.  </li>
+<li>
+<p>Add a single TODO ticket for M3: “Switch LanceDB flag on and back‑fill existing runs.”</p>
+</li>
+<li>
+<p><strong>Update the M2 spec</strong>  </p>
+</li>
+<li>In the <em>Requirements</em> table indicate Lightning as an <strong>implementation decision</strong> fulfilling items 1–7, 9.  </li>
+<li>Move “LanceDB experiment catalogue” to the <em>Optional Enhancements</em> section.</li>
+</ol>
+<hr />
+<h3 id="tldr_1">TL;DR</h3>
+<p><em>Green‑light Lightning.</em>  It is a direct accelerator for M2’s mandatory training‑loop deliverables.<br />
+<em>Yellow‑light LanceDB.</em>  Valuable, but schedule it <em>after</em> the M2 “Definition‑of‑Done” checklist is met, or hide it behind a feature flag so it can’t jeopardize timing.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": [], "search": "../../../assets/javascripts/workers/search.7a47a382.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.e71a0d61.min.js"></script>
+      
+        <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>

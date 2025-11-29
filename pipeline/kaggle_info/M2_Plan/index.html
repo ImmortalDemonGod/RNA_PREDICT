@@ -1,0 +1,3722 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="../kaggle_competition/">
+      
+      
+        <link rel="next" href="../../../reference/advanced_methods/af3/AF3_paper/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.0">
+    
+    
+      
+        <title>M2 Plan - rna_predict</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.618322db.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#confirmation-that-tensor-shape-patching-is-active" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="rna_predict" class="md-header__button md-logo" aria-label="rna_predict" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            rna_predict
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              M2 Plan
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="rna_predict" class="md-nav__button md-logo" aria-label="rna_predict" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    rna_predict
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_1" id="__nav_2_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../guides/getting_started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../guides/getting_started/windows_compatibility_plan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Windows Compatibility
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2" id="__nav_2_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Best Practices
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Best Practices
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../guides/best_practices/code_quality_best_practices/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Code Quality
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2_2" id="__nav_2_2_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Testing
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../guides/best_practices/testing/test_coverage_strategy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Coverage Strategy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../guides/best_practices/testing/progressive_coverage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Progressive Coverage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../guides/best_practices/testing/test_generation_prompt/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Generation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2_3" id="__nav_2_2_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Debugging
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Debugging
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../guides/best_practices/debugging/comprehensive_debugging_guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comprehensive Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pipeline
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Pipeline
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_1" id="__nav_3_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Overview
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../overview/core_framework/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core Framework
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../overview/Integrated_RNA_3D_Prediction_Pipeline_Final_Comprehensive_Design/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comprehensive Design
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../overview/full_pipeline_specification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Full Specification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../overview/Multi_Stage_Implementation_Plan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Multi-Stage Plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Integration
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Integration
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integration/Integrated_RNA_3D_Prediction_Pipeline_Final_Comprehensive_Design/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integration/full_pipeline_specification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Full Specification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2_3" id="__nav_3_2_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hydra Integration
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_3_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Hydra Integration
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integration/hydra_integration/hydra_tutorial/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorial
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integration/hydra_integration/hydra_integration_gap_analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gap Analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integration/hydra_integration/hydra_integration_master_document/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Master Document
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2_3_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2_3_4" id="__nav_3_2_3_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Components
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_3_2_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Components
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integration/hydra_integration/components/stageA/StageA_2D_Adjacency/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage A
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integration/hydra_integration/components/stageB/StageB_Torsion_Pairwise/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage B
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integration/hydra_integration/components/stageC/StageC_3D_Reconstruction/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage C
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integration/hydra_integration/components/stageD/StageD_Diffusion_Refinement/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage D
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integration/hydra_integration/components/unified_latent/UnifiedLatentMerger/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unified Latent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_3" id="__nav_3_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage A
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Stage A
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stageA/StageA_RFold/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stageA/RFold_code/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RFold Code
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stageA/RFold_paper/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RFold Paper
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stageA/rfold-demo/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Demo
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stageA/stage_a_extra/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Extra Notes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_4" id="__nav_3_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage B
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Stage B
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stageB/Stage_B/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_4_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_4_2" id="__nav_3_4_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TorsionBERT
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_3_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    TorsionBERT
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stageB/torsionBert/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stageB/torsionbert_code/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Code
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stageB/torsionBert_full_paper/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Paper
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_5" id="__nav_3_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage C
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Stage C
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stageC/Stage_C/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stageC/Integrated_RNA_Geometry_and_3D_Reconstruction/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Geometry & Reconstruction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stageC/Unified, Comprehensive Plan for Integrating MP-NeRF into Stage C.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MP-NeRF Integration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stageC/mp_nerf/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MP-NeRF Details
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_6" id="__nav_3_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unified Latent
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Unified Latent
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../unified_latent/Perceiver_IO/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Perceiver IO
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Energy_Minimization_%26_Molecular_Dynamics_%28MD%29_for_RNA_Structure_Refinement/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Energy & MD
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_8" id="__nav_3_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Testing
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../test_time_scaling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Time Scaling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_9" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3_9" id="__nav_3_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Kaggle
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_9_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Kaggle
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../kaggle_competition/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Competition
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    M2 Plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_1" id="__nav_4_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Advanced Methods
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Advanced Methods
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_1_1" id="__nav_4_1_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AlphaFold 3
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_4_1_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_1_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AlphaFold 3
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/advanced_methods/af3/AF3_paper/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Paper
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/advanced_methods/af3/AlphaFold3_progress/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Progress
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/advanced_methods/af3/Pairwise_Distance_Based_Prediction/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Distance Prediction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_1_2" id="__nav_4_1_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Diffusion
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_4_1_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_1_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Diffusion
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/advanced_methods/diffusion/s4_diffusion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    S4 Diffusion
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/advanced_methods/diffusion/test_time_scaling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Time Scaling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/advanced_methods/isosteric_substitutions/RNA_isostericity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Isosteric Substitutions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_2" id="__nav_4_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    External Literature
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    External Literature
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/external_lit/2d_structure_prediction_papers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2D Structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/external_lit/RNA_papers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RNA Papers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_3" id="__nav_4_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Residue Atom Bridging
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Residue Atom Bridging
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/residue_atom_bridging/audit_report/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Audit Report
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/residue_atom_bridging/design_spec/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design Spec
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/residue_atom_bridging/documentation_draft/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Documentation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/residue_atom_bridging/implementation_notes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Implementation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/residue_atom_bridging/refactoring_plan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Refactoring
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/residue_atom_bridging/bridging_caveats_guidelines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guidelines
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_4" id="__nav_4_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Torsion Calculations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Torsion Calculations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/torsion_calculations/torsion_angles_intro/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Introduction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/torsion_calculations/Standard_Bond_Lengths_and_Angles_in_RNA_Nucleotides/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bond Lengths & Angles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/torsion_calculations/Torsion_Angles_3D_Coordinates_RNA_Structure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3D Coordinates
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/torsion_calculations/torsion_angle_Latent_Manifold_Representation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Latent Manifold
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<p>Okay, here is a comprehensive document detailing the goals, requirements, and tasks for Milestone 2 (M2), suitable for briefing a senior developer. It incorporates the analysis of your <code>rna_predict</code> project and leverages relevant patterns identified from the <code>ProjectEquiSurv</code> example.</p>
+<hr />
+<p><strong>Project <code>rna_predict</code> - Milestone 2 Specification: Initial End-to-End Training &amp; Prediction</strong></p>
+<p><strong>1. Objective</strong></p>
+<p>The primary goal of Milestone 2 (M2) is to achieve and validate the <strong>functional trainability</strong> of the integrated RNA 3D prediction pipeline developed in M1. This involves demonstrating that the end-to-end system (Sequence -&gt; Stage A Adjacency -&gt; Stage B Torsions/Pairs -&gt; Unified Latent Merger -&gt; Stage D Diffusion -&gt; Final 3D Coords) can execute within a training loop, compute losses, backpropagate gradients correctly to the intended trainable parameters (primarily LoRA adapters), and generate initial 3D coordinate outputs.</p>
+<p><strong>Key Focus:</strong> Functionality and Infrastructure. Achieving high prediction accuracy is <strong>not</strong> the goal of M2; instead, we focus on proving the pipeline works mechanically, gradients flow correctly, and we can generate baseline outputs for subsequent debugging and refinement (M3).</p>
+<p><strong>2. Prerequisites</strong></p>
+<ul>
+<li><strong>M1 Completed:</strong> The integrated pipeline codebase is complete and callable (e.g., via <code>rna_predict.pipeline.run_pipeline.run_full_pipeline</code>). This includes functional instances of:<ul>
+<li>Stage A Adjacency predictor interface (<code>rfold_predictor.StageARFoldPredictor</code>).</li>
+<li>Stage B combined runner (<code>run_stage_b.run_stageB_combined</code>) integrating working TorsionBERT (<code>torsion_predictor.StageBTorsionBertPredictor</code>) and Pairformer (<code>pairwise.pairformer.PairformerWrapper</code>) modules.</li>
+<li>Unified Latent Merger (<code>run_pipeline.SimpleLatentMerger</code> or equivalent placeholder).</li>
+<li>Stage D Diffusion components (<code>diffusion.manager.ProtenixDiffusionManager</code>, <code>diffusion.model.DiffusionModule</code>).</li>
+<li>LoRA wrapping mechanism applied to TorsionBERT and Pairformer base models, ready for activation.</li>
+</ul>
+</li>
+</ul>
+<p><strong>3. Core Requirements (Definition of Done for M2)</strong></p>
+<p>The following must be demonstrably working by the end of M2:</p>
+<ol>
+<li><strong>Trainable Pipeline Execution:</strong> The primary training script (<code>rna_predict/train.py</code>) successfully executes the full forward pass of the integrated pipeline (A -&gt; B -&gt; Merger -&gt; D) on batches of training data without crashing (resolving any shape, type, or device errors).</li>
+<li><strong>Loss Calculation:</strong> A defined loss function (minimum: 3D coordinate-based loss like L1 or MSE comparing <code>final_coords</code> from Stage D to ground truth) is implemented and computes a valid (non-NaN, non-Inf) scalar loss value per batch.</li>
+<li><strong>Data Loading:</strong> A functional PyTorch <code>DataLoader</code> (using <code>rna_predict.data.loader.RNADataset</code> or similar) must provide batches containing all necessary inputs: sequences, pre-computed adjacency matrices (from Stage A), ground truth 3D coordinates, and any other features required by the pipeline. Must correctly handle padding/batching.</li>
+<li><strong>Optimizer Configuration &amp; Parameter Targeting:</strong> An optimizer (e.g., AdamW) is correctly configured to update <em>only</em> the specified trainable parameters (LoRA adapters in TorsionBERT/Pairformer, UnifiedLatentMerger weights, Diffusion head/adapters). A clear mechanism exists to filter and provide only these parameters to the optimizer (e.g., a helper function <code>get_trainable_parameters(model)</code>). Base model weights must remain frozen (<code>requires_grad=False</code>).</li>
+<li><strong>Backpropagation &amp; Weight Update:</strong> <code>loss.backward()</code> and <code>optimizer.step()</code> execute successfully, indicating gradients are computed and applied to the trainable parameters without error.</li>
+<li><strong>Training Loop Functionality:</strong> The training script completes at least one full epoch (or a substantial number of training steps) over the training dataset without critical runtime errors.</li>
+<li><strong>Checkpoint Saving:</strong> The training process successfully saves model checkpoints containing the <code>state_dict</code> of <em>trainable</em> parameters and the optimizer state (e.g., using PyTorch Lightning's <code>ModelCheckpoint</code>).</li>
+<li><strong>Inference Script:</strong> A separate inference script (<code>rna_predict/predict.py</code> or similar) exists for generating predictions from saved checkpoints.</li>
+<li><strong>Checkpoint Loading (Partial):</strong> The inference script successfully loads the <em>trainable</em> parameters from a saved M2 checkpoint into the corresponding pipeline model structure using a partial loading mechanism (handling potentially missing base model weights in the checkpoint).</li>
+<li><strong>Initial Prediction Generation:</strong> The inference script, using a loaded M2 checkpoint, successfully generates and saves 3D coordinate outputs (e.g., <code>.pdb</code> or <code>.pt</code> format) for a representative subset of the validation data without crashing.</li>
+<li><strong>LanceDB Logging Stub:</strong> A stub LanceDB logger is present in the codebase (<code>rna_predict/utils/lance_logger.py</code>), with no-op logging methods and a config flag (<code>PipelineConfig.lance_db.enabled</code>) controlling activation. For M2, this logger is a placeholder; real logging will be implemented in M3.</li>
+</ol>
+<p><strong>4. Key Technical Tasks &amp; Recommended Approaches</strong></p>
+<p>To achieve the M2 requirements, the following technical tasks should be prioritized, leveraging patterns from <code>ProjectEquiSurv</code> where applicable:</p>
+<p><strong>4.1. Implement Training Framework (Leverage PyTorch Lightning)</strong></p>
+<ul>
+<li><strong>Task:</strong> Refactor the training logic into a PyTorch Lightning <code>LightningModule</code> (e.g., <code>RNALightningModule</code>).</li>
+<li><strong>Details:</strong><ul>
+<li>Encapsulate model instantiation (likely involving the setup logic from <code>run_full_pipeline</code>) within the module's <code>__init__</code>. The module should hold instances of the stage predictors, merger, and diffusion manager.</li>
+<li>Implement <code>training_step</code>: Takes a batch, runs the necessary steps of the forward pass (A-&gt;B-&gt;Merger-&gt;D), computes the primary 3D loss (and optional auxiliary losses like angle loss), logs training loss (<code>self.log</code>), returns the loss tensor.</li>
+<li>Implement <code>validation_step</code>: Similar to <code>training_step</code> but uses <code>torch.no_grad()</code>. Logs validation loss and basic coordinate metrics (e.g., MAE).</li>
+<li>Implement <code>configure_optimizers</code>: Defines the optimizer (e.g., AdamW) targeting <em>only</em> trainable parameters (Task 4.3) and optionally sets up an LR scheduler.</li>
+<li>Override <code>load_state_dict</code> or use the <code>on_load_checkpoint</code> hook to integrate partial checkpoint loading logic (Task 4.4).</li>
+<li>Integrate config flags for LanceDB logging (stub for M2, see <code>PipelineConfig.lance_db</code>).</li>
+</ul>
+</li>
+<li><strong>Reference (<code>ProjectEquiSurv</code>):</strong><ul>
+<li><code>quick_fixes/advanced/training/lightning_survival_module.py</code> (<code>LightningSurvivalModule</code>)</li>
+<li><code>quick_fixes/advanced/training/optim_wrappers.py</code> (<code>configure_optimizers</code>)</li>
+</ul>
+</li>
+<li><strong>Benefit:</strong> Significantly reduces boilerplate for training loops, multi-device handling, logging, and checkpointing.</li>
+</ul>
+<p><strong>4.2. Establish Configuration Management (Leverage Hydra)</strong></p>
+<ul>
+<li><strong>Task:</strong> Manage all hyperparameters and settings (paths, model dimensions, LoRA ranks, loss weights, training settings) using Hydra.</li>
+<li><strong>Details:</strong><ul>
+<li>Create a <code>rna_predict/conf/</code> directory with subdirectories (e.g., <code>model</code>, <code>training</code>, <code>data</code>, <code>lora</code>).</li>
+<li>Define configuration schemas using dataclasses (e.g., <code>rna_predict/conf/config_schema.py</code>) for hierarchical configuration access.</li>
+<li>Create corresponding <code>.yaml</code> files (e.g., <code>conf/train.yaml</code>, <code>conf/model/default.yaml</code>, <code>conf/lora/torsionbert.yaml</code>).</li>
+<li>Use <code>@hydra.main(config_path="conf", config_name="train")</code> decorator in <code>train.py</code> and <code>predict.py</code>. Access config via <code>cfg: DictConfig</code>.</li>
+</ul>
+</li>
+<li><strong>Reference (<code>ProjectEquiSurv</code>):</strong><ul>
+<li><code>quick_fixes/advanced/pipeline/main.py</code> (<code>@hydra.main</code>)</li>
+<li><code>quick_fixes/conf/config_schema.py</code></li>
+</ul>
+</li>
+<li><strong>Benefit:</strong> Provides flexible, reproducible, and command-line-friendly configuration.</li>
+</ul>
+<p><strong>4.3. Implement Trainable Parameter Filtering</strong></p>
+<ul>
+<li><strong>Task:</strong> Create a utility function (e.g., in <code>rna_predict/core/utils.py</code>) or a method within <code>RNALightningModule</code> to identify and return only the parameters intended for training.</li>
+<li><strong>Details:</strong> Iterate through <code>self.model.named_parameters()</code> (assuming the full pipeline is <code>self.model</code>). Filter based on parameter names (e.g., check if <code>lora</code> is in the name, or if the parameter belongs to the <code>Merger</code> or <code>Diffusion</code> head). Pass only this filtered iterator/list to the optimizer in <code>configure_optimizers</code>.</li>
+<li><strong>Verification:</strong> Add a log statement at the start of training printing <code>sum(p.numel() for p in model.parameters() if p.requires_grad)</code> vs <code>sum(p.numel() for p in model.parameters())</code>.</li>
+</ul>
+<p><strong>4.4. Implement Partial Checkpoint Loading</strong></p>
+<ul>
+<li><strong>Task:</strong> Ensure checkpoints saved during M2 (containing only trainable weights) can be loaded correctly for inference or resuming training.</li>
+<li><strong>Details:</strong><ul>
+<li>Copy or adapt the <code>partial_load_state_dict</code> function from <code>ProjectEquiSurv</code>.</li>
+<li>In <code>RNALightningModule</code>, override the <code>load_state_dict</code> method. Inside, call <code>partial_load_state_dict(self, state_dict, strict=False)</code> instead of the default <code>super().load_state_dict</code>.</li>
+<li>In <code>predict.py</code>, after instantiating the model, load the checkpoint using <code>torch.load</code> and then call <code>partial_load_state_dict(model, checkpoint['state_dict'], strict=False)</code>.</li>
+</ul>
+</li>
+<li><strong>Reference (<code>ProjectEquiSurv</code>):</strong><ul>
+<li><code>quick_fixes/advanced/hypercloning/checkpoint_utils.py</code> (<code>partial_load_state_dict</code>)</li>
+</ul>
+</li>
+<li><strong>Benefit:</strong> Critical for LoRA workflow.</li>
+</ul>
+<p><strong>4.5. Build Data Handling Pipeline</strong></p>
+<ul>
+<li><strong>Task:</strong> Implement <code>RNADataset</code> and <code>DataLoader</code> for training and validation.</li>
+<li><strong>Details:</strong><ul>
+<li>Create/Refine <code>RNADataset</code> in <code>rna_predict/data/loader.py</code>. The <code>__getitem__</code> should return a dictionary containing:<ul>
+<li><code>sequence</code>: Raw string.</li>
+<li><code>adjacency</code>: Precomputed <code>[N, N]</code> tensor.</li>
+<li><code>coords_gt</code>: Ground truth <code>[N_atoms, 3]</code> tensor.</li>
+<li>Any other features needed for <code>features/initial_embeddings.py</code>.</li>
+</ul>
+</li>
+<li>Implement data splitting logic (e.g., random split indices) in <code>train.py</code> using PyTorch <code>Subset</code>.</li>
+<li>Instantiate <code>DataLoader</code>s with appropriate <code>batch_size</code>, <code>num_workers</code>, and a custom <code>collate_fn</code> if necessary to handle variable length sequences (e.g., padding within a batch).</li>
+</ul>
+</li>
+<li><strong>Reference (<code>ProjectEquiSurv</code>):</strong><ul>
+<li><code>quick_fixes/advanced/data/graph_survival_dataset.py</code> (Pattern for Dataset class)</li>
+<li><code>quick_fixes/advanced/data/split_manager.py</code> (Pattern for splitting logic)</li>
+</ul>
+</li>
+</ul>
+<p><strong>4.6. Implement Training Script (<code>train.py</code>)</strong></p>
+<ul>
+<li><strong>Task:</strong> Create the main script (<code>rna_predict/train.py</code>) using PyTorch Lightning and Hydra.</li>
+<li><strong>Details:</strong><ul>
+<li>Use <code>@hydra.main</code>.</li>
+<li>Instantiate <code>RNALightningModule</code> using the Hydra config (<code>cfg</code>).</li>
+<li>Instantiate <code>DataLoader</code>s.</li>
+<li>Instantiate PyTorch Lightning <code>Trainer</code>, configuring callbacks:<ul>
+<li><code>ModelCheckpoint</code> (monitor validation loss, save top-k checkpoints).</li>
+<li><code>LearningRateMonitor</code>.</li>
+<li>Optionally <code>HydraConfigSaverCallback</code> (from <code>ProjectEquiSurv</code> example).</li>
+</ul>
+</li>
+<li>Call <code>trainer.fit(model, train_dataloader, val_dataloader)</code>.</li>
+</ul>
+</li>
+<li><strong>Reference (<code>ProjectEquiSurv</code>):</strong><ul>
+<li><code>quick_fixes/advanced/pipeline/pipeline_train_single.py</code> (<code>train_single_run</code>)</li>
+</ul>
+</li>
+</ul>
+<p><strong>4.7. Implement Inference Script (<code>predict.py</code>)</strong></p>
+<ul>
+<li><strong>Task:</strong> Create the script (<code>rna_predict/predict.py</code>) to generate 3D coordinates from a trained checkpoint.</li>
+<li><strong>Details:</strong><ul>
+<li>Use <code>@hydra.main</code>.</li>
+<li>Load model configuration (<code>cfg</code>).</li>
+<li>Instantiate the pipeline model structure (e.g., potentially wrapped in the <code>RNALightningModule</code> or directly using the orchestrator logic).</li>
+<li>Load <em>trained</em> weights from the specified checkpoint path using the <code>partial_load_state_dict</code> logic (Task 4.4).</li>
+<li>Set <code>model.eval()</code>.</li>
+<li>Load input sequences (e.g., from a file specified in <code>cfg</code>).</li>
+<li>Prepare features (including precomputed adjacency) for each sequence.</li>
+<li>Iterate through sequences, call the pipeline's inference function (e.g., <code>run_full_pipeline</code>) with <code>torch.no_grad()</code>.</li>
+<li>Save the resulting <code>final_coords</code> tensor to a file (e.g., <code>.pdb</code> using BioPython or <code>.pt</code>).</li>
+</ul>
+</li>
+<li><strong>Reference (<code>ProjectEquiSurv</code>):</strong><ul>
+<li><code>quick_fixes/advanced/kaggle_submission/ensemble_inference.py</code></li>
+<li><code>quick_fixes/advanced/kaggle_submission/inference_utils.py</code></li>
+</ul>
+</li>
+</ul>
+<p><strong>5. Optional Enhancements for M2</strong></p>
+<ul>
+<li><strong>Basic Logging:</strong> Use <code>self.log("train/loss", loss)</code> in <code>training_step</code> and <code>self.log("val/loss", loss)</code> in <code>validation_step</code> within the LightningModule.</li>
+<li><strong>Gradient Clipping:</strong> Set <code>gradient_clip_val</code> in the <code>Trainer</code> arguments (e.g., <code>gradient_clip_val=1.0</code>).</li>
+<li><strong>NaN/Inf Checks:</strong> Add simple checks like <code>if torch.isnan(loss).any(): raise ValueError("NaN loss detected")</code> after loss calculation.</li>
+<li><strong>Qualitative Output Check:</strong> Manually view 1-2 generated PDBs.</li>
+</ul>
+<p><strong>6. Definition of Done (M2)</strong></p>
+<p>M2 is complete when all 11 "Must-Have" requirements listed in Section 3 are met and verified. This signifies that the integrated pipeline is demonstrably trainable using LoRA and capable of producing initial 3D outputs from saved checkpoints.</p>
+<p><strong>7. Next Steps (Post-M2)</strong></p>
+<p>Upon successful completion of M2, the focus shifts to <strong>M3: Validation &amp; Debugging</strong>. This will involve implementing quantitative validation metrics (TM-score), systematically evaluating the initial M2 predictions, debugging geometric/numerical issues, and performing initial hyperparameter adjustments.</p>
+<hr />
+<p>Important considerations:
+Location and generation process for pre-computed Stage A adjacency matrices.</p>
+<p>Location and structure of the LoRA configuration within the Hydra setup.</p>
+<p>Exact implementation details for trainable parameter filtering and partial checkpoint loading.</p>
+<p>Location and specific type (MSE, L1, FAPE?) of the primary 3D loss function.</p>
+<p>Status and input/output handling of the UnifiedLatentMerger.</p>
+<p>Confirmation that the necessary dependencies (Lightning, Hydra, PEFT) are installed.</p>
+<h1 id="confirmation-that-tensor-shape-patching-is-active">Confirmation that tensor shape patching is active.</h1>
+<p>V2:
+Okay, here is a comprehensive document detailing the goals, requirements, and tasks for Milestone 2 (M2), suitable for briefing a senior developer. It incorporates the analysis of the <code>rna_predict</code> project and leverages relevant patterns identified from the <code>ProjectEquiSurv</code> example.</p>
+<hr />
+<p><strong>Project <code>rna_predict</code> - Milestone 2 Specification: Initial End-to-End Training &amp; Prediction</strong></p>
+<p><strong>Document Version:</strong> 1.0
+<strong>Date:</strong> March 30, 2025
+<strong>Target Completion for M2:</strong> ~April 7th-10th, 2025</p>
+<p><strong>1. Objective</strong></p>
+<p>The primary goal of Milestone 2 (M2) is to achieve and validate the <strong>functional trainability</strong> of the integrated RNA 3D prediction pipeline developed in M1. This involves demonstrating that the end-to-end system (Sequence -&gt; Stage A Adjacency -&gt; Stage B Torsions/Pairs -&gt; Unified Latent Merger -&gt; Stage D Diffusion -&gt; Final 3D Coords) can execute within a training loop, compute losses, backpropagate gradients correctly to the intended trainable parameters (primarily LoRA adapters), and generate initial 3D coordinate outputs.</p>
+<p><strong>Key Focus:</strong> Functionality and Infrastructure. Achieving high prediction accuracy is <strong>not</strong> the goal of M2; instead, we focus on proving the pipeline works mechanically, gradients flow correctly, and we can generate baseline outputs for subsequent debugging and refinement (M3). The infrastructure established in M2 (training scripts, configuration, checkpointing) will be crucial for future iterations.</p>
+<p><strong>2. Prerequisites</strong></p>
+<ul>
+<li><strong>M1 Completed:</strong> The integrated pipeline codebase is complete and functionally callable via <code>rna_predict.pipeline.run_pipeline.run_full_pipeline</code>. This implies:<ul>
+<li>Functional interfaces/wrappers for Stage A (<code>StageARFoldPredictor</code>), Stage B (<code>run_stageB_combined</code> using <code>StageBTorsionBertPredictor</code> &amp; <code>PairformerWrapper</code>), Stage C (<code>run_stageC</code>), and Stage D (<code>ProtenixDiffusionManager</code>, <code>run_stageD_diffusion</code>).</li>
+<li>The <code>UnifiedLatentMerger</code> (<code>SimpleLatentMerger</code> or equivalent) is integrated into the <code>run_full_pipeline</code> flow.</li>
+<li>LoRA adapters have been applied to the base TorsionBERT and Pairformer models (using <code>peft</code> or custom wrappers), and these wrapped models are used in the pipeline. Base weights are configured to be frozen.</li>
+<li>The necessary runtime patching (<code>rna_predict.pipeline.patching.shape_fixes.apply_tensor_fixes</code>) is integrated and callable.</li>
+</ul>
+</li>
+</ul>
+<p><strong>3. Core Requirements (Definition of Done for M2)</strong></p>
+<p>The following must be demonstrably working by the end of M2:</p>
+<ol>
+<li><strong>Trainable Pipeline Execution:</strong> The primary training script (<code>rna_predict/train.py</code>) successfully executes the full forward pass of the integrated pipeline (A -&gt; B -&gt; Merger -&gt; D) on batches of training data without crashing (resolving any shape, type, or device errors).</li>
+<li><strong>Loss Calculation:</strong> A defined loss function (minimum: 3D coordinate-based loss like L1/MSE between Stage D output <code>final_coords</code> and ground truth <code>coords_gt</code>) is implemented and computes a valid (non-NaN, non-Inf) scalar loss value per batch.</li>
+<li><strong>Data Loading:</strong> A functional PyTorch <code>DataLoader</code> (using <code>rna_predict.data.loader.RNADataset</code> or similar) provides batches containing sequences, pre-computed adjacency matrices, ground truth 3D coordinates, and potentially other features. It must correctly handle padding/batching for variable-length sequences.</li>
+<li><strong>Optimizer Configuration &amp; Parameter Targeting:</strong> An optimizer (e.g., AdamW) is correctly configured to update <em>only</em> the specified trainable parameters (LoRA adapters in TorsionBERT/Pairformer, UnifiedLatentMerger weights, Diffusion head/adapters). A verified mechanism exists to filter and provide only these parameters to the optimizer.</li>
+<li><strong>Backpropagation &amp; Weight Update:</strong> <code>loss.backward()</code> and <code>optimizer.step()</code> execute successfully, showing gradients are computed and applied to the trainable parameters without error. Verification should confirm non-zero gradients for trainable parameters and zero gradients for frozen base parameters.</li>
+<li><strong>Training Loop Functionality:</strong> The training script completes at least one full epoch over the training dataset without critical runtime errors, demonstrating stability.</li>
+<li><strong>Checkpoint Saving:</strong> The training process successfully saves model checkpoints containing the <code>state_dict</code> of <em>trainable</em> parameters and the optimizer state (e.g., via PyTorch Lightning's <code>ModelCheckpoint</code>).</li>
+<li><strong>Inference Script:</strong> A separate inference script (<code>rna_predict/predict.py</code>) exists for generating predictions from saved checkpoints.</li>
+<li><strong>Checkpoint Loading (Partial):</strong> The inference script successfully loads the <em>trainable</em> parameters from a saved M2 checkpoint into the corresponding pipeline model structure using a partial loading mechanism (e.g., <code>partial_load_state_dict</code> adapted from <code>ProjectEquiSurv</code>), gracefully handling the absence of base model weights in the checkpoint.</li>
+<li><strong>Initial Prediction Generation:</strong> The inference script, using a loaded M2 checkpoint, successfully generates and saves 3D coordinate outputs (e.g., <code>.pdb</code> format) for a small, representative subset of the validation data without crashing.</li>
+<li><strong>LanceDB Logging Stub:</strong> A stub LanceDB logger is present in the codebase (<code>rna_predict/utils/lance_logger.py</code>), with no-op logging methods and a config flag (<code>PipelineConfig.lance_db.enabled</code>) controlling activation. For M2, this logger is a placeholder; real logging will be implemented in M3.</li>
+</ol>
+<p><strong>4. Key Technical Tasks &amp; Recommended Approaches</strong></p>
+<p><strong>Confirmations Needed Before Starting:</strong></p>
+<ul>
+<li>[ ] <strong>Data Paths:</strong> Confirm locations for raw Kaggle CSVs, precomputed Stage A adjacency files (specify format/naming), and ground truth coordinate data.</li>
+<li>[ ] <strong>Train/Val Split:</strong> Confirm the method/file defining the train/validation split indices.</li>
+<li>[ ] <strong>LoRA Configuration:</strong> Confirm the location (<code>conf/lora/*.yaml</code>?) and structure of LoRA configs (<code>r</code>, <code>alpha</code>, <code>target_modules</code>).</li>
+<li>[ ] <strong>LoRA Wrapping:</strong> Confirm the implementation used to wrap base models with LoRA adapters is functional.</li>
+<li>[ ] <strong>Parameter Freezing:</strong> Confirm the mechanism used to freeze base model parameters is active.</li>
+<li>[ ] <strong>Loss Function:</strong> Confirm the specific 3D coordinate loss function (L1, MSE, FAPE?) and its location (<code>rna_predict/core/losses.py</code>?).</li>
+<li>[ ] <strong>Merger Status:</strong> Confirm the <code>UnifiedLatentMerger</code> implementation is stable and handles expected inputs.</li>
+<li>[ ] <strong>Dependencies:</strong> Confirm PyTorch Lightning, Hydra, and PEFT (or custom LoRA library) are in <code>requirements-dev.txt</code>.</li>
+<li>[ ] <strong>Patching:</strong> Confirm <code>apply_tensor_fixes</code> is being called at the start of <code>train.py</code> and <code>predict.py</code>.</li>
+</ul>
+<p><strong>Implementation Tasks:</strong></p>
+<p><strong>4.1. Implement Training Framework (Leverage PyTorch Lightning)</strong></p>
+<ul>
+<li><strong>Task:</strong> Create <code>rna_predict/training/rna_lightning_module.py</code> defining <code>RNALightningModule</code>.</li>
+<li><strong>Details:</strong><ul>
+<li><code>__init__</code>: Instantiate the full pipeline model components based on Hydra config (<code>cfg</code>). Store components (predictors, merger, manager) as attributes. Store loss weights.</li>
+<li><code>forward</code>: Define the core forward pass logic (potentially calling <code>run_full_pipeline</code>).</li>
+<li><code>training_step</code>: Call <code>forward</code>, compute loss(es), log <code>train/loss</code>.</li>
+<li><code>validation_step</code>: Call <code>forward</code> with <code>torch.no_grad()</code>, compute loss(es), compute basic coordinate MAE, log <code>val/loss</code>, <code>val/mae</code>.</li>
+<li><code>configure_optimizers</code>: Instantiate optimizer (e.g., AdamW from <code>cfg.training.optimizer</code>) targeting <em>only</em> trainable parameters (Task 4.3). Optionally build LR scheduler (using <code>build_scheduler</code> pattern from <code>ProjectEquiSurv</code>).</li>
+<li><code>load_state_dict</code>: Override to use <code>partial_load_state_dict</code> (Task 4.4).</li>
+<li>Integrate config flags for LanceDB logging (stub for M2, see <code>PipelineConfig.lance_db</code>).</li>
+</ul>
+</li>
+<li><strong>Reference (<code>ProjectEquiSurv</code>):</strong> <code>lightning_survival_module.py</code>, <code>optim_wrappers.py</code>.</li>
+</ul>
+<p><strong>4.2. Establish Configuration Management (Leverage Hydra)</strong></p>
+<ul>
+<li><strong>Task:</strong> Set up <code>rna_predict/conf/</code> directory and schema.</li>
+<li><strong>Details:</strong><ul>
+<li>Create <code>rna_predict/conf/config_schema.py</code> with dataclasses (<code>DataConfig</code>, <code>ModelConfig</code>, <code>LoRAConfig</code>, <code>TrainingConfig</code>, <code>DiffusionConfig</code>, <code>PipelineConfig</code>, <code>RootConfig</code>).</li>
+<li>Create default <code>.yaml</code> files in <code>rna_predict/conf/</code> (e.g., <code>train.yaml</code>, <code>model/default.yaml</code>, <code>lora/torsionbert.yaml</code>).</li>
+<li>Use <code>@hydra.main</code> in <code>train.py</code> and <code>predict.py</code>.</li>
+</ul>
+</li>
+<li><strong>Reference (<code>ProjectEquiSurv</code>):</strong> <code>conf/config_schema.py</code>, <code>pipeline/main.py</code>.</li>
+</ul>
+<p><strong>4.3. Implement Trainable Parameter Filtering</strong></p>
+<ul>
+<li><strong>Task:</strong> Implement a function <code>get_trainable_parameters(model: torch.nn.Module)</code> -&gt; Iterator[torch.nn.Parameter].</li>
+<li><strong>Details:</strong> Place this in <code>rna_predict/core/utils.py</code> or within <code>RNALightningModule</code>. It should iterate <code>model.named_parameters()</code> and yield <code>p</code> if <code>lora</code> is in <code>name</code> OR if <code>p</code> belongs to the Merger/Diffusion head (identify by module name/path) AND <code>p.requires_grad</code> is True.</li>
+<li><strong>Verification:</strong> Log the count/percentage of trainable parameters in <code>RNALightningModule.__init__</code>.</li>
+</ul>
+<p><strong>4.4. Implement Partial Checkpoint Loading</strong></p>
+<ul>
+<li><strong>Task:</strong> Adapt <code>partial_load_state_dict</code> for use in <code>rna_predict</code>.</li>
+<li><strong>Details:</strong> Copy the function logic into <code>rna_predict/core/checkpointing.py</code> or <code>utils.py</code>. Ensure it handles loading a <code>state_dict</code> containing only LoRA/Merger/Diffusion keys into the full pipeline model structure without raising <code>strict=True</code> errors. Call this from <code>RNALightningModule.load_state_dict</code> and <code>predict.py</code>.</li>
+<li><strong>Reference (<code>ProjectEquiSurv</code>):</strong> <code>hypercloning/checkpoint_utils.py</code>.</li>
+</ul>
+<p><strong>4.5. Build Data Handling Pipeline</strong></p>
+<ul>
+<li><strong>Task:</strong> Finalize <code>RNADataset</code> and <code>DataLoader</code> setup.</li>
+<li><strong>Details:</strong><ul>
+<li>Ensure <code>RNADataset</code> (<code>data/loader.py</code>) correctly loads sequence, adjacency (e.g., from <code>data/processed/adjacency/{seq_id}.pt</code>), and ground truth coords (e.g., from <code>data/processed/coords/{seq_id}.pt</code>). Return a dictionary.</li>
+<li>Implement splitting logic in <code>train.py</code> (e.g., using <code>torch.utils.data.random_split</code> or loading pre-defined indices).</li>
+<li>Create <code>DataLoader</code>s. Implement a <code>collate_fn</code> if needed for padding batches of variable-length sequences/adjacencies/coords.</li>
+</ul>
+</li>
+<li><strong>Reference (<code>ProjectEquiSurv</code>):</strong> <code>graph_survival_dataset.py</code>, <code>split_manager.py</code>.</li>
+</ul>
+<p><strong>4.6. Implement Training Script (<code>train.py</code>)</strong></p>
+<ul>
+<li><strong>Task:</strong> Create the main training script <code>rna_predict/train.py</code>.</li>
+<li><strong>Details:</strong><ul>
+<li>Use <code>@hydra.main(config_path="conf", config_name="train")</code>.</li>
+<li>Initialize logging (WandB/TensorBoard via Lightning loggers).</li>
+<li>Call <code>apply_tensor_fixes()</code>.</li>
+<li>Instantiate <code>RNALightningModule(cfg)</code>.</li>
+<li>Setup <code>DataLoader</code>s.</li>
+<li>Setup <code>ModelCheckpoint</code> callback (monitor <code>val/loss</code> or <code>val/mae</code>).</li>
+<li>Instantiate <code>Trainer</code> (pass <code>logger</code>, <code>callbacks</code>, <code>max_epochs</code> from <code>cfg</code>).</li>
+<li>Call <code>trainer.fit(model, train_dataloader, val_dataloader)</code>.</li>
+</ul>
+</li>
+<li><strong>Reference (<code>ProjectEquiSurv</code>):</strong> <code>pipeline/pipeline_train_single.py</code>.</li>
+</ul>
+<p><strong>4.7. Implement Inference Script (<code>predict.py</code>)</strong></p>
+<ul>
+<li><strong>Task:</strong> Create the inference script <code>rna_predict/predict.py</code>.</li>
+<li><strong>Details:</strong><ul>
+<li>Use <code>@hydra.main</code>.</li>
+<li>Call <code>apply_tensor_fixes()</code>.</li>
+<li>Instantiate the model structure (e.g., <code>RNALightningModule(cfg)</code> or directly the pipeline components).</li>
+<li>Load checkpoint using <code>torch.load</code> and <code>partial_load_state_dict</code>.</li>
+<li>Set <code>model.eval()</code>.</li>
+<li>Load list of sequences to predict (e.g., from <code>cfg.predict.input_file</code>).</li>
+<li>Create a simple <code>DataLoader</code> or loop through sequences.</li>
+<li>For each sequence: prepare features (adjacency), run inference via <code>model.forward</code> or <code>run_full_pipeline</code> with <code>torch.no_grad()</code>, potentially generating multiple samples (<code>N_sample</code> in diffusion).</li>
+<li>Save <code>final_coords</code> to <code>.pdb</code> (using BioPython) or <code>.pt</code> files in <code>cfg.predict.output_dir</code>.</li>
+</ul>
+</li>
+<li><strong>Reference (<code>ProjectEquiSurv</code>):</strong> <code>kaggle_submission/ensemble_inference.py</code>, <code>inference_utils.py</code>.</li>
+</ul>
+<p><strong>5. Optional Enhancements for M2</strong></p>
+<ul>
+<li><strong>Logging:</strong> Integrate <code>wandb</code> logger with PyTorch Lightning <code>Trainer</code>.</li>
+<li><strong>Gradient Clipping:</strong> Add <code>gradient_clip_val: 1.0</code> to <code>conf/train.yaml</code> and pass to <code>Trainer</code>.</li>
+<li><strong>Qualitative Check:</strong> Add a step in <code>train.py</code>'s <code>on_validation_epoch_end</code> hook (or manually run <code>predict.py</code>) to save one prediction PDB and visually inspect it.</li>
+</ul>
+<p><strong>6. Definition of Done (M2)</strong></p>
+<p>M2 is complete when all 11 "Must-Have" requirements listed in Section 3 are met and verified. The integrated pipeline is demonstrably trainable using LoRA, and initial 3D coordinate predictions can be generated from saved checkpoints for validation data.</p>
+<p><strong>7. Next Steps (Post-M2)</strong></p>
+<p>M3 will focus on <strong>Validation &amp; Debugging</strong>: Implementing quantitative metrics (TM-score), evaluating M2 predictions, debugging geometry/numerical issues, and performing initial hyperparameter tuning based on validation results.</p>
+<hr />
+<p>Okay, let's define specific, actionable code quality and testing goals for Milestone 2 (M2), tailored for a senior developer who has successfully completed M1. These goals align with M2's primary objective: achieving functional end-to-end trainability and initial output generation.</p>
+<p><strong>Context:</strong> M1 established the integrated pipeline structure and module implementations (potentially with stubs or basic functionality). M2 focuses on making this integrated system <em>runnable</em> for training and inference, particularly validating LoRA, gradient flow, and the core mechanics.</p>
+<hr />
+<p><strong>M2 Code Quality Goals</strong></p>
+<p>The focus is on <strong>functional correctness, clear integration points, and maintainable infrastructure setup</strong>, rather than perfect optimization or deep refactoring at this stage.</p>
+<ol>
+<li>
+<p><strong>Functional Correctness of New M2 Components:</strong></p>
+<ul>
+<li><strong>Goal:</strong> Ensure the primary scripts and modules introduced or significantly modified for M2 (<code>train.py</code>, <code>predict.py</code>, <code>RNALightningModule</code>, <code>RNADataset</code>, partial checkpoint loader) execute their core functions without runtime errors (crashes, type errors, major shape mismatches not handled by patching).</li>
+<li><strong>Metric:</strong> Successful completion of a minimal training run (e.g., 1 epoch or 100 steps) and a minimal inference run (e.g., predicting 1-2 validation samples).</li>
+</ul>
+</li>
+<li>
+<p><strong>Readability and Clarity of Integration Logic:</strong></p>
+<ul>
+<li><strong>Goal:</strong> The code implementing the training loop (<code>RNALightningModule</code>, <code>train.py</code>), inference logic (<code>predict.py</code>), and data loading (<code>RNADataset</code>) should be clearly structured and understandable. Key integration points (e.g., how data flows into <code>run_full_pipeline</code>, how loss is computed, how trainable parameters are selected) should be evident.</li>
+<li><strong>Metric:</strong> Peer code review confirms understandability. Docstrings for major classes/functions (<code>RNALightningModule</code>, <code>train_single_run</code> equivalent, <code>predict.py</code> main function) are present and explain purpose/flow.</li>
+</ul>
+</li>
+<li>
+<p><strong>Configuration-Driven Execution:</strong></p>
+<ul>
+<li><strong>Goal:</strong> All critical hyperparameters (learning rate, batch size, LoRA ranks/targets, loss weights, file paths, diffusion steps, etc.) should be managed via the Hydra configuration system (<code>conf/</code> directory), not hardcoded.</li>
+<li><strong>Metric:</strong> The <code>train.py</code> and <code>predict.py</code> scripts primarily rely on the <code>cfg: DictConfig</code> object for settings. Manual inspection confirms no major hardcoded parameters remain.</li>
+</ul>
+</li>
+<li>
+<p><strong>Correct LoRA/Trainable Parameter Handling:</strong></p>
+<ul>
+<li><strong>Goal:</strong> The mechanism for identifying and isolating trainable parameters (LoRA adapters, Merger, Diffusion head) for the optimizer must be implemented correctly and demonstrably work. Base model parameters must remain frozen.</li>
+<li><strong>Metric:</strong> Code inspection confirms filtering logic. Logging/debugging output confirms only the intended parameters receive gradients and updates during a test <code>optimizer.step()</code>.</li>
+</ul>
+</li>
+<li>
+<p><strong>Robust Checkpoint Save/Load (Partial):</strong></p>
+<ul>
+<li><strong>Goal:</strong> Checkpoints saved during training must contain only the necessary trainable weights and optimizer state. The inference script must successfully load these partial checkpoints into the full model structure.</li>
+<li><strong>Metric:</strong> Successful execution of Requirement #9 and #10 (loading checkpoint and generating inference output). Manual inspection of a saved <code>.pt</code> file can confirm it doesn't contain the full base model weights (should be significantly smaller).</li>
+</ul>
+</li>
+<li>
+<p><strong>Explicit Patching:</strong></p>
+<ul>
+<li><strong>Goal:</strong> Runtime tensor shape patches should be applied explicitly and controllably, ideally via the central <code>patching/shape_fixes.py</code> module.</li>
+<li><strong>Metric:</strong> Patches are applied via a clear function call (e.g., <code>apply_tensor_fixes()</code>) at the start of <code>train.py</code> and <code>predict.py</code>.</li>
+</ul>
+</li>
+</ol>
+<p><strong>Out of Scope for M2 Code Quality:</strong></p>
+<ul>
+<li>Deep refactoring of M1 modules (unless required to fix critical M2 blockers).</li>
+<li>Extensive performance optimization (micro-optimizations, kernel fusion).</li>
+<li>Full PEP 8 compliance across the entire codebase (focus on <em>new</em> M2 code).</li>
+<li>Elimination of the <em>need</em> for runtime patching (this is a later refactoring goal).</li>
+</ul>
+<hr />
+<p><strong>M2 Testing Goals</strong></p>
+<p>The focus is on <strong>integration testing</strong> to verify the core mechanics of the end-to-end training and inference workflows. Unit testing is secondary and targeted at critical new components.</p>
+<ol>
+<li>
+<p><strong>Core Training Loop Integration Test:</strong></p>
+<ul>
+<li><strong>Goal:</strong> Verify that the training script (<code>train.py</code> using <code>RNALightningModule</code>) can successfully execute a small number of steps (e.g., 2-5 batches) on realistic (or simplified real) data without crashing.</li>
+<li><strong>Implementation:</strong> A pytest test (e.g., <code>tests/pipeline/test_train_integration.py</code>) that:<ul>
+<li>Sets up a minimal Hydra config pointing to small data subsets/adjacencies.</li>
+<li>Instantiates the <code>RNALightningModule</code> and a Lightning <code>Trainer</code> with <code>fast_dev_run=True</code> or <code>max_steps=5</code>.</li>
+<li>Calls <code>trainer.fit()</code>.</li>
+</ul>
+</li>
+<li><strong>Assertions:</strong> The test passes if <code>trainer.fit()</code> completes without exceptions. Check that the logged training loss is not NaN/Inf.</li>
+</ul>
+</li>
+<li>
+<p><strong>Gradient Flow and Parameter Update Test:</strong></p>
+<ul>
+<li><strong>Goal:</strong> Confirm that backpropagation works and <em>only</em> updates the intended trainable parameters (LoRA, etc.).</li>
+<li><strong>Implementation:</strong> Extend the training loop integration test (or create a separate one):<ul>
+<li>Before the first <code>optimizer.step()</code>, store the initial values (or norms) of a sample of trainable parameters and a sample of frozen parameters.</li>
+<li>After <code>optimizer.step()</code>, assert that the trainable parameters <em>have changed</em> and the frozen parameters <em>have not changed</em>.</li>
+<li>Assert that <code>param.grad</code> is non-None for trainable params and None (or all zeros) for frozen params after <code>loss.backward()</code>.</li>
+</ul>
+</li>
+<li><strong>Metric:</strong> Test passes assertions.</li>
+</ul>
+</li>
+<li>
+<p><strong>Checkpoint Save/Load/Inference Cycle Test:</strong></p>
+<ul>
+<li><strong>Goal:</strong> Verify the critical cycle of saving trainable weights during training and loading them for inference works correctly.</li>
+<li><strong>Implementation:</strong> A pytest test (e.g., <code>tests/pipeline/test_checkpoint_inference_cycle.py</code>) that:<ol>
+<li>Runs the training loop test (Task 1) for a few steps, ensuring a checkpoint is saved by <code>ModelCheckpoint</code>.</li>
+<li>Instantiates the inference pipeline model structure.</li>
+<li>Loads the saved checkpoint using the <code>partial_load_state_dict</code> logic.</li>
+<li>Runs the inference logic (<code>predict.py</code>'s core steps) on a single test sequence using the loaded model.</li>
+</ol>
+</li>
+<li><strong>Assertions:</strong> Loading the partial checkpoint succeeds. Inference runs without crashing. The output coordinate tensor has the expected shape and contains numeric values (not all zeros, no NaNs/Infs).</li>
+</ul>
+</li>
+<li>
+<p><strong>Unit Test: <code>partial_load_state_dict</code>:</strong></p>
+<ul>
+<li><strong>Goal:</strong> Ensure the partial checkpoint loading utility functions correctly in isolation.</li>
+<li><strong>Implementation:</strong> Unit tests in <code>tests/core/test_checkpointing.py</code> using dummy <code>nn.Module</code>s and <code>state_dict</code>s (one full, one partial) to verify correct loading behavior and error handling.</li>
+</ul>
+</li>
+<li>
+<p><strong>Unit Test: <code>RNADataset</code> / <code>collate_fn</code>:</strong></p>
+<ul>
+<li><strong>Goal:</strong> Verify the dataset loading and batch collation.</li>
+<li><strong>Implementation:</strong> Unit tests in <code>tests/data/test_loader.py</code> that:<ul>
+<li>Instantiate <code>RNADataset</code> with mock file paths.</li>
+<li>Check that <code>__getitem__</code> returns a dictionary with the expected keys and tensor shapes/types for a single sample.</li>
+<li>Test the <code>collate_fn</code> (if custom) to ensure it correctly batches samples, potentially including padding.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ol>
+<p><strong>Out of Scope for M2 Testing:</strong></p>
+<ul>
+<li>Unit tests for <em>all</em> individual modules implemented in M1 (assume basic tests exist or focus is on integration).</li>
+<li><code>hypothesis</code>-based fuzzing for most components (can be added in M3+).</li>
+<li>Quantitative accuracy tests (TM-score, precise coordinate RMSD).</li>
+<li>Testing edge cases in data loading (corrupted files, very long sequences beyond padding limits).</li>
+<li>Mocking external dependencies like Hugging Face Hub downloads (assume models are pre-downloaded or rely on caching).</li>
+</ul>
+<hr />
+<p><strong>Summary for Senior Developer:</strong></p>
+<p>M2 requires building and validating the core training and inference infrastructure around the integrated pipeline from M1. Code quality focuses on functional correctness and clear configuration. Testing priorities are <strong>integration tests</strong> verifying the train loop, gradient flow to LoRA parameters, and the checkpoint save/load/predict cycle. Unit tests should cover critical new M2 components like partial checkpoint loading and data collation. Achieving these goals ensures we have a mechanically sound system ready for quantitative validation and iterative refinement in M3. Please confirm the prerequisite checks listed in the previous document section before proceeding with these tasks.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": [], "search": "../../../assets/javascripts/workers/search.7a47a382.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.e71a0d61.min.js"></script>
+      
+        <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>

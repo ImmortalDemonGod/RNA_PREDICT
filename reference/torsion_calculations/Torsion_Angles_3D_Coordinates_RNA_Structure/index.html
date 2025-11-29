@@ -1,0 +1,3312 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="../Standard_Bond_Lengths_and_Angles_in_RNA_Nucleotides/">
+      
+      
+        <link rel="next" href="../torsion_angle_Latent_Manifold_Representation/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.0">
+    
+    
+      
+        <title>3D Coordinates - rna_predict</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.618322db.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="rna_predict" class="md-header__button md-logo" aria-label="rna_predict" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            rna_predict
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              3D Coordinates
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="rna_predict" class="md-nav__button md-logo" aria-label="rna_predict" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    rna_predict
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_1" id="__nav_2_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../guides/getting_started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../guides/getting_started/windows_compatibility_plan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Windows Compatibility
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2" id="__nav_2_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Best Practices
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Best Practices
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../guides/best_practices/code_quality_best_practices/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Code Quality
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2_2" id="__nav_2_2_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Testing
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../guides/best_practices/testing/test_coverage_strategy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Coverage Strategy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../guides/best_practices/testing/progressive_coverage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Progressive Coverage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../guides/best_practices/testing/test_generation_prompt/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Generation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2_3" id="__nav_2_2_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Debugging
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Debugging
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../guides/best_practices/debugging/comprehensive_debugging_guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comprehensive Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pipeline
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Pipeline
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_1" id="__nav_3_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Overview
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../pipeline/overview/core_framework/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core Framework
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../pipeline/overview/Integrated_RNA_3D_Prediction_Pipeline_Final_Comprehensive_Design/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comprehensive Design
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../pipeline/overview/full_pipeline_specification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Full Specification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../pipeline/overview/Multi_Stage_Implementation_Plan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Multi-Stage Plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Integration
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Integration
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../pipeline/integration/Integrated_RNA_3D_Prediction_Pipeline_Final_Comprehensive_Design/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../pipeline/integration/full_pipeline_specification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Full Specification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2_3" id="__nav_3_2_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hydra Integration
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_3_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Hydra Integration
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../pipeline/integration/hydra_integration/hydra_tutorial/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorial
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../pipeline/integration/hydra_integration/hydra_integration_gap_analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gap Analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../pipeline/integration/hydra_integration/hydra_integration_master_document/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Master Document
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2_3_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2_3_4" id="__nav_3_2_3_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Components
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_3_2_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Components
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../pipeline/integration/hydra_integration/components/stageA/StageA_2D_Adjacency/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage A
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../pipeline/integration/hydra_integration/components/stageB/StageB_Torsion_Pairwise/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage B
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../pipeline/integration/hydra_integration/components/stageC/StageC_3D_Reconstruction/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage C
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../pipeline/integration/hydra_integration/components/stageD/StageD_Diffusion_Refinement/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage D
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../pipeline/integration/hydra_integration/components/unified_latent/UnifiedLatentMerger/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unified Latent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_3" id="__nav_3_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage A
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Stage A
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../pipeline/stageA/StageA_RFold/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../pipeline/stageA/RFold_code/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RFold Code
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../pipeline/stageA/RFold_paper/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RFold Paper
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../pipeline/stageA/rfold-demo/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Demo
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../pipeline/stageA/stage_a_extra/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Extra Notes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_4" id="__nav_3_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage B
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Stage B
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../pipeline/stageB/Stage_B/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_4_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_4_2" id="__nav_3_4_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TorsionBERT
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_3_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    TorsionBERT
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../pipeline/stageB/torsionBert/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../pipeline/stageB/torsionbert_code/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Code
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../pipeline/stageB/torsionBert_full_paper/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Paper
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_5" id="__nav_3_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage C
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Stage C
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../pipeline/stageC/Stage_C/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../pipeline/stageC/Integrated_RNA_Geometry_and_3D_Reconstruction/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Geometry & Reconstruction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../pipeline/stageC/Unified, Comprehensive Plan for Integrating MP-NeRF into Stage C.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MP-NeRF Integration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../pipeline/stageC/mp_nerf/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MP-NeRF Details
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_6" id="__nav_3_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unified Latent
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Unified Latent
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../pipeline/unified_latent/Perceiver_IO/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Perceiver IO
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../pipeline/Energy_Minimization_%26_Molecular_Dynamics_%28MD%29_for_RNA_Structure_Refinement/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Energy & MD
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_8" id="__nav_3_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Testing
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../pipeline/test_time_scaling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Time Scaling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_9" id="__nav_3_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Kaggle
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Kaggle
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../pipeline/kaggle_info/kaggle_competition/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Competition
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../pipeline/kaggle_info/M2_Plan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    M2 Plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_1" id="__nav_4_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Advanced Methods
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Advanced Methods
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_1_1" id="__nav_4_1_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AlphaFold 3
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_4_1_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_1_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AlphaFold 3
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../advanced_methods/af3/AF3_paper/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Paper
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../advanced_methods/af3/AlphaFold3_progress/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Progress
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../advanced_methods/af3/Pairwise_Distance_Based_Prediction/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Distance Prediction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_1_2" id="__nav_4_1_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Diffusion
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_4_1_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_1_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Diffusion
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../advanced_methods/diffusion/s4_diffusion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    S4 Diffusion
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../advanced_methods/diffusion/test_time_scaling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Time Scaling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../advanced_methods/isosteric_substitutions/RNA_isostericity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Isosteric Substitutions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_2" id="__nav_4_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    External Literature
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    External Literature
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../external_lit/2d_structure_prediction_papers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2D Structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../external_lit/RNA_papers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RNA Papers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_3" id="__nav_4_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Residue Atom Bridging
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Residue Atom Bridging
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../residue_atom_bridging/audit_report/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Audit Report
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../residue_atom_bridging/design_spec/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design Spec
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../residue_atom_bridging/documentation_draft/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Documentation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../residue_atom_bridging/implementation_notes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Implementation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../residue_atom_bridging/refactoring_plan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Refactoring
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../residue_atom_bridging/bridging_caveats_guidelines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guidelines
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4_4" id="__nav_4_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Torsion Calculations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Torsion Calculations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../torsion_angles_intro/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Introduction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Standard_Bond_Lengths_and_Angles_in_RNA_Nucleotides/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bond Lengths & Angles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3D Coordinates
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../torsion_angle_Latent_Manifold_Representation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Latent Manifold
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+  <h1>3D Coordinates</h1>
+
+<p>Torsion Angles and 3D Coordinates in RNA Structure</p>
+<p>Theoretical Background</p>
+<p>Definition and Importance of Torsion Angles: In the context of RNA, a torsion angle (or dihedral angle) is the angle between two intersecting planes defined by four sequential atoms in the RNA backbone or sugar–base linkage ￼. These angles describe the rotation around bonds in the nucleotide chain and are a fundamental way to represent RNA conformation. Unlike Cartesian coordinates (which give absolute atom positions), torsional coordinates capture the molecule’s internal geometry and are invariant under translation or rotation of the whole molecule ￼. This makes torsion angles extremely useful for comparing structures and understanding flexibility, since they directly encode the backbone’s rotational degrees of freedom. Each nucleotide can be seen as a link with several rotatable bonds; collectively, the torsion angles of all these bonds determine how an RNA strand folds in three-dimensional space ￼. Because RNA folding involves rotations about these bonds, torsion angles play a pivotal role in RNA structural formation and stability. They influence how bases stack and pair, and certain angle values are necessary for forming stable helices or loops. In fact, the energetic landscape governing RNA folding is largely shaped by bonded interactions (including planar and torsional angles) along with non-bonded interactions ￼. Small changes in a torsion angle can significantly alter the 3D structure, meaning that torsional configurations often correlate with specific motifs or stable conformational states of the RNA.</p>
+<p>Relationship to RNA Folding and Stability: RNA molecules fold into specific 3D structures by adopting particular sets of torsion angles that minimize free energy and satisfy functional constraints. Certain combinations of backbone angles are associated with well-known secondary or tertiary structure motifs. For example, the standard A-form double helix corresponds to a characteristic set of backbone torsions (with the sugar in C3′-endo pucker and typical values for angles like β, γ, and ε) that support tight base stacking ￼. Departures from these preferred ranges can introduce strain or require compensation by other interactions, affecting stability. Indeed, analysis of high-resolution RNA structures has shown that RNA backbone torsions cluster into a limited number of rotameric conformations (analogous to protein Ramachandran regions). A seminal survey identified about 46 discrete backbone conformers that RNAs commonly adopt; tellingly, most of these conformers correspond to specific structural roles or motifs in known RNA structures ￼. For instance, one such conformer (“1a”) represents the canonical A-form helix geometry, while another (“5z”) corresponds to the start of an S-turn motif ￼. This demonstrates that particular torsion angle patterns are integral to forming recurring RNA folds. Moreover, certain torsional arrangements are often associated with functional sites – for example, the angles in a receptor loop or a tRNA anticodon may differ from those in a helix, enabling unique interactions. Studies have explicitly noted that specific torsion angles (or unusual angle flips) can be markers of functional RNA motifs such as protein or ligand binding sites ￼. Thus, mapping the torsional profile of an RNA helps predict and rationalize its folding and stability: if all backbone angles lie in favorable ranges, the structure is likely stable, whereas out-of-range torsions might signal strained or flexible regions. In summary, torsion angles are not only descriptive of RNA conformation but also predictive of folding behavior, with certain angle sets required for stable, biologically active structures.</p>
+<p>Conventions for Defining RNA Torsion Angles: By convention, the RNA backbone is described by six main-chain torsion angles per residue (labeled α through ζ) plus one torsion for the glycosidic bond (χ). The standard IUPAC nomenclature defines these angles based on the sequence of atoms in the phosphodiester backbone ￼. The six backbone angles correspond to rotations about the bonds: P–O5′ (α), O5′–C5′ (β), C5′–C4′ (γ), C4′–C3′ (δ), C3′–O3′ (ε), and O3′–P (next nucleotide, ζ) ￼. For example, α is the torsion around the O3′(i–1)–P bond linking one nucleotide to the next, and δ is the torsion around the C5′–C4′ bond within the sugar-phosphate backbone ￼. In addition, the χ torsion describes the rotation about the N-glycosidic bond between the base and the sugar (C1′–N linkage) ￼. The χ angle has two favored conformational regions: anti (around 180° ± 90°) and syn (around 0° ± 90°), referring to the relative orientation of the base and sugar ￼. Most pyrimidines and purines in standard RNA helices adopt the anti conformation (base pointing away from the sugar), whereas syn conformations are less common and typically occur in specific contexts (e.g., certain looped-out bases or purine-rich motifs) ￼. The sugar ring itself is puckered rather than planar; its conformation is usually described by pseudorotation parameters instead of a single torsion, with C3′-endo and C2′-endo being the prevalent puckers in RNA and DNA respectively ￼. However, one can define five torsion-like angles (ν₀–ν₄) around the sugar ring bonds; these are interdependent due to the ring closure, so sugar pucker is often summarized by a phase angle P and amplitude rather than individual ν angles ￼ ￼. Another helpful reduced representation in RNA structural analysis is the set of virtual torsion angles η (eta) and θ (theta), defined between consecutive nucleotide base positions (P–C4′ distances) ￼. The pair (η, θ), often called pseudotorsion angles, captures the coarse orientation of three sequential nucleotides and is useful for classifying overall backbone geometry (for instance, plotting η vs. θ can distinguish helix regions from loops in a Ramachandran-like fashion) ￼. In summary, RNA torsion angles are defined by a well-established convention (α, β, γ, δ, ε, ζ, χ, plus sugar pucker or pseudotorsions for the ribose) ￼ ￼. Using these internal angles, one can uniquely specify the 3D conformation of an RNA: indeed, giving all torsion angles (and a few additional parameters for the sugar) for each residue is an equivalent description to giving all atomic Cartesian coordinates ￼. Because torsion angles succinctly encode the fold in a rotation-invariant manner, they provide a common language to discuss RNA structure across different molecules and contexts.</p>
+<p>Mathematical Formulations and Algorithms</p>
+<p>Calculating Torsion Angles from Coordinates: Given four points (atoms) in 3D space, the torsion angle between them can be computed using vector algebra. The four atoms A–B–C–D (in sequential covalent order) define two planes: plane ABC and plane BCD. The dihedral angle ω is the angle between these two planes, or equivalently, the angle between the normal vectors of the planes. In practice, one can calculate ω by first computing bond vectors b₁ = AB, b₂ = BC, and b₃ = CD. Next, compute n₁ = b₁ × b₂ and n₂ = b₂ × b₃, which are the normals to planes ABC and BCD respectively ￼. The torsion angle is the angle between n₁ and n₂, with a sign determined by the orientation (to distinguish clockwise vs. counterclockwise rotation about the central bond). A stable way to obtain the signed angle is to use the arctan2 function: for example, one can define an orthonormal frame where n₁ is one axis and a perpendicular to n₁ in the plane of rotation is another axis, then project n₂ onto this frame ￼ ￼. In formula terms, one convenient expression is:
+    •   ω = atan2(y, x), where x = n₁ · n₂ (dot product of normals) and y = (b₂/‖b₂‖) · (n₁ × n₂) (the component of the cross-product of the normals along the direction of b₂) ￼ ￼.</p>
+<p>This returns ω in the range (–180°, +180°], consistent with chemical convention (e.g., +60° or –60° for staggered conformations). Using such equations, software can derive each torsion angle (α through ζ, χ, etc.) from a set of atomic coordinates unambiguously. Many molecular libraries implement this by simply taking the four relevant atoms for each defined torsion and applying the cross-product and dot-product operations as above.</p>
+<p>From Torsion Angles to 3D Coordinates: The reverse process – computing 3D coordinates given a set of torsion angles – is a standard task in internal coordinate modeling. Because internal coordinates (bond lengths, bond angles, and torsion angles) provide a complete specification of molecular geometry ￼, one can build a structure by starting from an initial reference and adding one bond at a time. Typically, the first three atoms of a chain are placed in an arbitrary reference frame (for example, atom 1 at the origin, atom 2 on the x-axis, atom 3 in the xy-plane at specified bond lengths/angles). Thereafter, each new atom i+1 can be placed given the previous three atoms (i-2, i-1, i) and the desired internal coordinates: the distance |i–i+1| (bond length), the angle ∠(i-1, i, i+1) (bond angle), and the torsion ∠(i-2, i-1, i, i+1). By using basic geometry and rotation transformations, one can compute the position of atom i+1. In essence, the bond i–i+1 is drawn at the correct length and angle relative to atom i, and then rotated around the bond (i-1–i) by the specified torsion. This procedure is often implemented via recursive algorithms or fixed rotation matrices (sometimes known as the Z-matrix construction in quantum chemistry). Modern implementations optimize this process; for example, the Natural Extension Reference Frame (NeRF) algorithm and its variants allow efficient and numerically stable reconstruction of polymer coordinates from internal coordinates. The key point is that algorithms exist to go back-and-forth between torsion space and Cartesian space. Because any RNA conformation can be described by its torsion angles, structure prediction methods often operate in this torsion-angle space, building candidate 3D structures consistent with predicted or sampled angles.</p>
+<p>Algorithms for RNA 3D Structure Prediction: A variety of computational methodologies leverage torsion angles to predict RNA tertiary structures. Broadly, these fall into knowledge-based assembly approaches, physics-based simulations, or hybrid methods:
+    •   Fragment Assembly Methods: These algorithms use databases of known RNA structural fragments and assemble them in torsion space. For example, FARNA/FARFAR (Fragment Assembly of RNA) is a Rosetta-based approach that selects small fragments (e.g., trinucleotides) from known structures and inserts them into the growing chain, effectively sampling backbone torsions informed by real RNA geometries ￼ ￼. Similarly, MC-Sym uses a constrained search of conformations by assembling predefined nucleotide cycles (e.g., tetranucleotides) with given base-pairing patterns ￼. These methods rely on knowledge of favorable torsion angle combinations derived from known structures and typically use a scoring function (coarse-grained energy or statistical potential) to choose the assembly that best satisfies base pairing and stacking. Fragment-based assembly efficiently explores the vast torsion-angle space by biasing towards physically realistic conformations; however, ensuring global chain closure and avoiding fragment incompatibilities can be challenging ￼ ￼.
+    •   Coarse-Grained Monte Carlo and Molecular Dynamics: Another class of methods reduces the RNA representation to a simpler model (e.g., one to three “pseudo-atoms” per nucleotide) and then uses Monte Carlo (random sampling) or molecular dynamics to search for low-energy conformations. Discrete Molecular Dynamics (DMD), for instance, represents each nucleotide with a few beads and uses rapid collision-based simulations to sample structures; it has been shown to fold a tRNA structure with good accuracy using this reduced model ￼. NAST (Nucleic Acid Simulation Tool) uses an even more reduced single-bead (one per nucleotide) model and was able to fold a 160-nucleotide domain (the Tetrahymena group I intron P4/P6) to within ~16 Å root-mean-square deviation (RMSD) of the known structure ￼. These coarse-grained simulations treat torsion-like motions implicitly (since each “bead” rotation corresponds to collective backbone bending) and allow sampling of large conformational changes that would be infeasible with all-atom detail. Monte Carlo methods will randomly tweak torsion angles (or coarse analogs) and accept moves based on an energy criterion (Metropolis criterion), sometimes using simulated annealing to gradually refine towards a low-energy structure. The advantage is a broader exploration of conformational space, though at the cost of atomic detail. Often, the output of coarse methods is later “reconstructed” into full atom models and refined. Tools exist to refine coarse models by reintroducing all torsion angles – for example, C2A can convert a NAST model to an all-atom structure and refine it ￼.
+    •   Internal-Coordinate Dynamics and Optimization: Instead of working in Cartesian coordinates, some algorithms directly treat torsion angles as the degrees of freedom during structure optimization. Internal coordinate molecular dynamics integrates equations of motion where each torsion angle (and bond angle/bond length, if flexible) is a coordinate in the simulation. RNABuilder is an example of an RNA modeling framework that operates in dihedral-angle space ￼. By using internal coordinates, RNABuilder can apply physics-based forces (from a force field) to the torsional variables and perform dynamics or energy minimization to fold the RNA. One benefit is computational efficiency: the system has far fewer degrees of freedom (only the dihedrals, rather than 3N Cartesian coordinates for N atoms), and fixed bond geometry can be constrained easily. In RNABuilder, the computational cost scales roughly linearly with the number of nucleotides since it focuses on the “moving parts” (rotatable bonds) ￼. This allows simulation of larger RNAs that might be intractable with standard all-atom MD. Internal coordinate methods also make it straightforward to enforce known constraints (e.g., keeping certain base pairs or tertiary contacts) by directly constraining the relevant torsions or distances. Many de novo prediction protocols combine these ideas: they might start with a secondary structure (list of base pairs), then use fragment assembly or Monte Carlo to generate candidate torsion angle sets, and finally refine those candidates with an internal-coordinate energy minimization or all-atom force field relaxation.</p>
+<p>In summary, whether through fragment assembly, coarse-grained Monte Carlo, or internal-coordinate physics, RNA structure prediction algorithms ultimately deal with torsion angles as the central adjustable parameters. Torsion angles offer a reduced, chemically relevant search space for algorithms to navigate. The success of methods like FARNA, MC-Sym, DMD, NAST, and RNABuilder demonstrates that operating in torsion space (or a simplified version of it) is an effective strategy for exploring RNA conformations ￼ ￼. The algorithms differ in how they choose or change torsion angles – some use lookup libraries and statistical potentials, others use random perturbation and physics-based scoring – but all recognize that getting the right set of torsion angles is equivalent to building the correct 3D structure of the RNA.</p>
+<p>Practical Applications</p>
+<p>Torsion Angles in RNA Molecular Modeling: In practical modeling of RNA, torsion angles serve as intuitive handles to manipulate and evaluate structures. Modelers often adjust backbone torsions to alleviate steric clashes or to induce a desired conformational change. For example, when refining a model to fit into a cryo-EM density map or to satisfy chemical probing data, a scientist might manually tweak the α or γ angles at a particular residue to bend the backbone and reposition a helix. Many interactive modeling programs (like PyMOL, Coot, or Chimera) allow users to rotate torsion angles of the RNA backbone or the χ angle of a nucleotide to explore conformational alternatives. Because RNA’s flexibility is primarily in these torsions, such adjustments can dramatically alter the 3D shape while preserving bond lengths and bond angles. Torsion angles are also the variables that are optimized during structure refinement procedures. When improving an RNA crystal structure, refinement software will often apply restraints to keep torsions in favored ranges (preventing unrealistic values) and will adjust torsions to better fit the experimental data (electron density or NMR constraints). All-atom force fields used in molecular dynamics include dihedral energy terms that penalize deviations from preferred torsion angles; these terms are crucial for maintaining the RNA in a physically realistic conformation during simulations ￼. Thus, understanding and controlling torsion angles is a core aspect of RNA molecular modeling – they are the “knobs” that modelers turn to fold RNA chains, and the parameters that force fields tune to balance RNA flexibility and stability.</p>
+<p>Experimental Determination of RNA 3D Structures and Validation: High-resolution experimental techniques provide the groundwork for our knowledge of RNA torsion angles. X-ray crystallography and cryo-electron microscopy (cryo-EM) yield atomic or near-atomic coordinates for RNA molecules (often in complex with proteins or ions). From these solved structures, one can directly calculate all the torsion angles and assess them against standard benchmarks. For instance, once a crystal structure of a ribozyme is obtained, the backbone α–ζ and χ angles are computed and checked to see if they fall within typical allowed ranges. Unusual torsion values might indicate a unique structural motif or could be a sign of modeling error; therefore, structure validation programs analyze torsions as part of their quality criteria. Tools like MolProbity (commonly used for protein/RNA structure validation) flag RNA backbone “suite” outliers – a suite being the set of six backbone angles plus χ for one nucleotide – by comparing them to distributions from high-quality structures ￼. If a particular nucleotide in a new structure has an implausible torsion combination not seen in known RNA, it will be highlighted for the modeler to reconsider. NMR spectroscopy offers another window into RNA torsions through indirect measurements. NMR experiments can provide dihedral angle constraints based on coupling constants and NOE (nuclear Overhauser effect) intensities. For example, the sugar pucker (whether C3′-endo or C2′-endo) can be determined by analyzing spin–spin coupling patterns in the ribose, which effectively tells us about the δ torsion and the ν₀–ν₄ angles of the ring ￼. Likewise, NOE cross-peaks between the H1′ of the sugar and the base protons (H6/H8) inform whether the base is syn or anti, thus constraining the χ torsion ￼ ￼. Through such NMR data, researchers incorporate torsion angle restraints into structure calculations: for instance, if NOEs indicate a base is anti, χ might be restrained to ~−160° ± 20° during the computational assembly of the structure. NMR structure determination programs (e.g., CYANA, XPLOR-NIH) often perform torsion angle dynamics, where they use simulated annealing in torsion angle space to find conformations that satisfy experimental distance and angle constraints ￼. This approach underscores the practical importance of torsions: rather than attempting to satisfy constraints by moving atoms arbitrarily, the software adjusts torsion angles which is a natural way to explore RNA conformations while keeping covalent geometry intact. Overall, experimental structure determination provides target values for torsion angles, and refinement against experimental data ensures those angles are physically and chemically reasonable.</p>
+<p>Once an RNA structure is determined, validation involves checking all torsion angles against known standards. The RNA backbone rotamer analysis by Richardson et al. (defining the 46 conformer families) is often used as a reference: if a solved structure has a backbone torsion sequence that doesn’t match any known rotamer, it might be an error or a rare new conformer. Tools like Suitename (part of Richardson’s MolProbity suite) automatically assign each nucleotide to one of the rotameric conformer names or flag it as an outlier ￼ ￼. This helps scientists ensure their RNA models make chemical sense. In summary, experimental techniques pin down RNA 3D coordinates, and from those we extract torsion angles which are then used to validate and analyze the structure. Both X-ray/cryo-EM and NMR rely, in different ways, on understanding torsion angles – either as an outcome to be measured or as parameters to be restrained – reinforcing their central role in RNA structural biology.</p>
+<p>Computational Tools Utilizing RNA Torsion Angles: A variety of software tools have been developed to calculate, analyze, and visualize torsion angles in RNA structures, underlining their practical utility. For instance, 3DNA is a widely used toolkit that, among many features, can compute all backbone torsion angles (α through ζ) and pseudotorsions for nucleic acid structures ￼. It generates detailed reports on these angles for DNA/RNA and has been invaluable in surveying conformations across crystal structures. Its successor, DSSR (Detailed Secondary Structure of RNA), extends this capability and is tailored for RNA; it reads modern PDBx/mmCIF files and calculates torsions and other geometric parameters seamlessly ￼ ￼. Researchers use DSSR not only to get torsion values but also to identify motifs (DSSR can recognize common substructures and sometimes uses torsion patterns as part of the identification). Another tool, Curves+, also computes backbone torsions and groove geometries; although originally developed for DNA analysis, it has been applied to RNA as well ￼. For dynamic studies, Barnaba is a Python library that can analyze RNA molecular dynamics trajectories, computing torsion angles frame by frame ￼. This is useful for understanding how torsions fluctuate over time or under different conditions (e.g., in simulations of RNA folding or ligand binding).</p>
+<p>To facilitate human understanding, visualization tools exist for torsion data. The AMIGOS III plugin for PyMOL, for example, calculates the pseudotorsion angles η and θ for an RNA structure and plots them in a Ramachandran-like 2D plot ￼. This helps users quickly see if a nucleotide is in an unusual region of η–θ space, which may correspond to a rare conformation or an error. Newer web-based platforms like RNAtango integrate many of these analysis functions into a user-friendly interface. RNAtango (developed in 2024) allows users to upload or input an RNA structure and receive a full torsion angle analysis ￼. It computes all standard torsion and pseudotorsion angles, provides statistics and visualization, and even enables direct comparison between structures based on their torsion angles ￼ ￼. Such comparison is valuable, for example, in benchmarking RNA structure predictions against the known native structure: rather than comparing coordinates (which requires superposition), RNAtango can compare the sequence of torsion angles in the model vs. the target ￼. Because torsion angles are independent of global orientation, this method cleanly assesses if the model got the local conformations right. In essence, computational tools leveraging torsion angles form an essential part of the RNA researcher’s toolkit – from building models (e.g., using internal coordinate manipulations) to validating and analyzing structures (by listing angles, checking against known motifs, and comparing conformational differences). As RNA research grows, especially with many new structures from improved experimental methods, these tools help distill complex 3D data into insightful torsional patterns.</p>
+<p>Relevant Computational Methods in RNA Structure Studies</p>
+<p>Modern RNA structural biology employs a range of computational methods, many of which center on handling torsion angles as fundamental variables:
+    •   Molecular Dynamics (MD) Simulations: All-atom MD is used to simulate the physical movements of RNA in time under realistic force fields. In MD, torsion angles are not fixed but evolve according to forces; however, the force field contains specific torsional potential terms that bias each backbone angle towards low-energy conformations. The accuracy of RNA MD hinges on these torsion parameters. In recent years, extensive efforts have been made to refine force fields by fitting torsion potentials to quantum calculations and experimental data ￼. For example, the Amber force field’s RNA parameters were updated by calculating the energy profiles of various backbone rotations with high-level quantum chemistry and adjusting the torsional energy terms accordingly ￼. This led to improved MD performance, preventing spurious conformations (like unrealistic backbone flips or base sugar syn/anti errors) that earlier parameters might allow ￼ ￼. With a good force field, MD can capture RNA phenomena such as base flipping, helix bending, or even tertiary unfolding – all of which manifest as changes in torsion angles over time. MD simulations produce trajectories (snapshots) from which one can extract time-series of every torsion angle to analyze dynamic flexibility. For instance, one can monitor the chi angle of a specific nucleotide to see if a base stays anti or transiently flips to syn, or observe the range of δ (C4′–C3′ torsion) to see sugar pucker transitions. These analyses often reveal which torsion angles are rigid (e.g., those involved in stable helices) and which are flexible (e.g., in loops or junctions). Overall, MD is a powerful method to study RNA dynamics and folding pathways; its results critically depend on treating torsion angles with the correct physics, and conversely, MD simulations provide insight into how torsion angles correlate with functional motions.
+    •   Monte Carlo (MC) and Stochastic Sampling Methods: Monte Carlo simulations randomly sample conformational space by making random changes to torsion angles and accepting or rejecting these moves based on an energy criterion. In RNA applications, MC is often used in conjunction with simplified models or in fragment reassembly contexts (as described earlier for structure prediction). One notable use of MC is in Simulated Annealing for NMR structure determination, where an RNA’s torsion angles are randomly perturbed and gradually “cooled” to satisfy experimental restraints (distance and angle constraints). Stochastic approaches are also used in Boltzmann sampling of RNA loops: for example, one can generate many random conformations of a tetraloop by sampling its backbone torsions from known distributions, then filter these by energy or experimental agreement. Another example is SimRNA, a Monte Carlo-based algorithm that uses a knowledge-based potential to guide RNA folding; it modifies torsion angles of a coarse-grained RNA representation through random moves and simulates an annealing process to find low-energy folds. Compared to MD, Monte Carlo methods don’t simulate real time but can sometimes explore conformations more broadly (since they are not bound by physical kinetic pathways). They are particularly useful when one wants to bypass energetic barriers by allowing occasional high-energy intermediate torsions that would be rare in deterministic dynamics. Many RNA 3D prediction protocols (including FARNA in Rosetta) effectively use MC sampling of torsions: they generate a trial structure by randomly replacing a fragment (changing a set of torsions) and accept it if the scoring function is improved. As computing power grows, MC methods can be run for millions of steps, yielding ensembles of possible structures. Each accepted move corresponds to a new set of torsion angles, so the outcome of an MC simulation is a collection of torsion angle sets (and corresponding structures) that represent the RNA’s accessible conformational space at equilibrium (or a low-energy subset thereof). These methods complement MD by focusing on exploring which torsional conformations are possible rather than the dynamics of how one conformation transitions to another.
+    •   Quantum Mechanical Calculations: Quantum chemistry provides the most accurate description of molecular energetics and has been applied to study RNA torsion preferences, albeit on small chemical models. Fully quantum simulations of entire RNAs are infeasible due to their size (quantum methods scale poorly with number of atoms) ￼. Instead, researchers apply quantum mechanics (QM) to fragments like dinucleotides or trinucleotides to map out the potential energy surface as a function of a torsion angle. For example, one might calculate the energy of a simplified ribose-phosphate backbone fragment while rotating the ε (C3′–O3′–P–O5′) angle in small increments, using density functional theory (DFT). Such scans yield detailed energy vs. torsion curves, identifying energetic minima and barriers. These data are invaluable for parameterizing classical force fields (as noted above) – effectively, QM provides the reference for how favorable a gauche+ vs trans conformation is for a given dihedral, or what the barrier height is to rotate through an eclipsed conformation ￼. Quantum calculations have been used to investigate tricky torsions like χ (base-sugar linkage), where electron delocalization and steric effects both matter. For instance, high-level calculations can quantify why purines favor anti and what the penalty is for adopting syn. Beyond force field development, QM is sometimes used to study specific chemical problems, such as protonated nucleotides or catalytic centers in ribozymes, where unusual torsion angles might occur with associated electronic effects. In those cases, one might optimize a structure with certain torsion angle constraints to see how the electronic energy changes – essentially probing torsion angle dependence at an atomic orbital level. In summary, while quantum mechanics is not a routine tool for whole RNA folding, it underpins our understanding of torsion energetics on a small scale and ensures that the classical methods (MD/MC) are grounded in accurate physics. QM calculations have confirmed, for example, that even a small change in the glycosidic torsion χ can dramatically alter base stacking energies and sugar pucker preferences, explaining why torsion angles must fall within narrow ranges for RNA to remain stable ￼ ￼. Such insights justify the empirical torsion restraints used in other methods. In essence, quantum methods are the benchmark that validates the torsion angle paradigms used throughout RNA computational studies.
+    •   Machine Learning for RNA Structure Prediction: In recent years, machine learning (ML) techniques have been applied to RNA structure, including approaches that explicitly predict torsion angles. By learning from large databases of RNA structures, ML models can identify patterns and make structure predictions from sequence alone. One line of research focuses on directly predicting torsion angles as an intermediate for building 3D models. For example, the tool SPOT-RNA-1D uses deep neural networks (including dilated convolutional layers) to predict backbone torsion angles (α, β, γ, δ, ε, ζ, χ) and even pseudotorsions (η, θ) given only the RNA sequence as input ￼. The network is trained on known RNA structures, learning the sequence–structure relationships (such as which sequences tend to have which torsion patterns, perhaps capturing base-step preferences for certain dihedrals). The output is a set of predicted angle values or distributions for each residue, which can then be used to assemble a 3D model (either by a follow-up algorithm that places atoms accordingly, or by integrating these predictions into fragment assembly pipelines). Results from SPOT-RNA-1D and similar models show that certain torsions can be predicted with reasonable accuracy, especially those strongly constrained by local sequence or secondary structure context (for instance, angles in stable helices or specific loop motifs) ￼ ￼. Another exciting development is end-to-end structure prediction with ML, inspired by successes like AlphaFold in proteins. Recently, RhoFold+ was introduced as an RNA language model-based predictor that can output full 3D coordinates from sequence, using transformer neural network architectures that effectively “learn” RNA folding rules ￼. Such models do not explicitly output torsion angles, but they implicitly must get them right to produce a correct 3D structure. In fact, some ML approaches use internal coordinates internally for efficiency. There’s also work on graph neural networks that represent RNA structure as a graph (with torsion angles influencing edge lengths or angles in the graph) to predict 3D geometry. Machine learning excels at recognizing subtle correlations that might be missed by manual analysis – for example, how a particular sequence motif in a loop correlates with an unusual backbone flip (torsion outlier) that allows a tertiary contact. By training on many examples, the ML model might predict that flip when it sees the motif in a new RNA. While ML methods for RNA 3D structure are still emerging, they hold promise to rapidly predict plausible torsion angle sets for large RNAs that are difficult for physics-based methods. These techniques often output a consensus or probability distribution for torsions, highlighting regions of a sequence that are well-determined (with confidently predicted angles) versus those that are ambiguous. In practice, ML predictions of torsions could be used to constrain traditional folding simulations (a hybrid approach) or to guide experimental probing by identifying likely flexible torsions. As datasets of RNA structures grow and models improve, machine learning may become an integral part of RNA structure pipelines, leveraging torsion angle predictions to assemble models with accuracy comparable to experimental structures.</p>
+<p>In summary, torsion angles are a unifying thread across many computational methods in RNA structural analysis. Molecular dynamics treats torsions as dynamic variables governed by physics, Monte Carlo treats torsions as random variables to sample conformations, quantum mechanics treats torsions as parameters in energy calculations, and machine learning treats torsions as learnable outputs of sequence-to-structure mappings. Each approach contributes to our understanding: MD and MC reveal the range of motion and likely conformations (essentially mapping out which torsion angle combinations are feasible and favorable), QM provides the quantitative underpinnings of torsional energetics, and ML offers predictive power to guess torsions from sequence alone. Together, these methods enable researchers to predict RNA structures, simulate their behavior, and design or modify RNAs with desired properties, all while keeping a close eye on the torsion angles that ultimately define the RNA’s three-dimensional form.</p>
+<p>References:
+    1.  ￼ ￼ – Nucleic Acid Knowledge Base (NAKB) – Nucleotide Geometry Standards. (Definitions of RNA torsion angles α–ζ and χ, and syn/anti conformations.)
+    2.  ￼ ￼ – Mackowiak et al., PLOS Comput. Biol. 20(10): e1012500 (2024). (Description of torsion angles as measures of RNA backbone flexibility and their association with functional motifs.)
+    3.  ￼ – Richardson et al., RNA 14(3): 463–481 (2008). (Identification of discrete rotameric conformers of the RNA backbone and their correspondence to structural features like A-form helices and S-motifs.)
+    4.  ￼ – Mackowiak et al., PLOS Comput. Biol. (2024). (Advantages of comparing RNA structures in torsion angle space, since torsions are invariant under translation/rotation, aiding structural alignment and machine learning.)
+    5.  ￼ ￼ – StackExchange (Mathematics) post on dihedral angle calculation. (Step-by-step method to compute a torsion angle from four atomic coordinates using cross products and atan2 for the signed angle.)
+    6.  ￼ – RNA Structure Primer (Mississippi State U.). (Noting that an RNA conformation can be specified by internal coordinates: five backbone dihedrals, one χ, and sugar pucker parameters per residue.)
+    7.  ￼ – Flores et al., IEEE/ACM Trans. Comput. Biol. Bioinf. 12(6): 1248–1260 (2015). (Overview of knowledge-based RNA structure prediction methods: FARNA fragment assembly, MC-Sym assembly of cycles, and challenges in closing structures.)
+    8.  ￼ ￼ – Flores et al. (2015). (Examples of coarse-grained RNA folding: DMD with three pseudo-atoms per nucleotide successfully folding tRNA; NAST one-bead model folding a 160-nt domain to ~16 Å accuracy.)
+    9.  ￼ – Flores et al., IEEE/ACM Trans. CBB (2015). (RNABuilder works in internal dihedral angle space, yielding computational cost that scales linearly with the number of torsions rather than total atoms.)
+    10. ￼ – Tan et al., J. Chem. Theory Comput. 14(1): 1542–1555 (2018). (Amber force field RNA torsion parameters refined by fitting to quantum energy profiles; improved agreement with experimentally observed torsion distributions and more stable MD simulations.)
+    11. ￼ ￼ – Xu et al., Prog. Nucl. Magn. Reson. Spectrosc. 105: 41–74 (2018). (Use of NMR to determine RNA torsion angle constraints: inferring sugar pucker from COSY/TOCSY and χ anti/syn from NOE intensities, and applying these in structure calculations.)
+    12. ￼ ￼ – Mackowiak et al., PLOS Comput. Biol. (2024). (Survey of tools for RNA torsion analysis: 3DNA and DSSR for calculating torsions and pseudotorsions; Curves+, Barnaba, and the AMIGOS III PyMOL plugin for analyzing torsions and plotting pseudotorsion angles.)
+    13. ￼ – Mackowiak et al., PLOS Comput. Biol. (2024). (Introduction of RNAtango web server for torsion angle analysis, providing angle calculations, statistics, and structure comparison based on backbone torsions.)
+    14. ￼ – Singh et al., J. Chem. Inf. Model. 61(4): 1572–1584 (2021). (SPOT-RNA-1D uses a dilated convolutional neural network to predict RNA backbone torsion and pseudotorsion angles from sequence.)
+    15. ￼ – Chen et al., Nat. Biotechnol. 40: 586–594 (2022). (RhoFold+ RNA language model that predicts 3D RNA structure from sequence, demonstrating the integration of ML in RNA tertiary structure prediction.)</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": [], "search": "../../../assets/javascripts/workers/search.7a47a382.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.e71a0d61.min.js"></script>
+      
+        <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>

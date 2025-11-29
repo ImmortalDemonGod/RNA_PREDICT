@@ -1,0 +1,4006 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="../Integrated_RNA_3D_Prediction_Pipeline_Final_Comprehensive_Design/">
+      
+      
+        <link rel="next" href="../Multi_Stage_Implementation_Plan/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.0">
+    
+    
+      
+        <title>Full Specification - rna_predict</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.618322db.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="rna_predict" class="md-header__button md-logo" aria-label="rna_predict" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            rna_predict
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Full Specification
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="rna_predict" class="md-nav__button md-logo" aria-label="rna_predict" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    rna_predict
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_1" id="__nav_2_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../guides/getting_started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../guides/getting_started/windows_compatibility_plan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Windows Compatibility
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2" id="__nav_2_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Best Practices
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Best Practices
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../guides/best_practices/code_quality_best_practices/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Code Quality
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2_2" id="__nav_2_2_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Testing
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../guides/best_practices/testing/test_coverage_strategy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Coverage Strategy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../guides/best_practices/testing/progressive_coverage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Progressive Coverage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../guides/best_practices/testing/test_generation_prompt/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Generation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2_3" id="__nav_2_2_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Debugging
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Debugging
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../guides/best_practices/debugging/comprehensive_debugging_guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comprehensive Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pipeline
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Pipeline
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_1" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3_1" id="__nav_3_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_1_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Overview
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../core_framework/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core Framework
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Integrated_RNA_3D_Prediction_Pipeline_Final_Comprehensive_Design/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comprehensive Design
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Full Specification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Multi_Stage_Implementation_Plan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Multi-Stage Plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Integration
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Integration
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integration/Integrated_RNA_3D_Prediction_Pipeline_Final_Comprehensive_Design/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integration/full_pipeline_specification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Full Specification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2_3" id="__nav_3_2_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hydra Integration
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_3_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Hydra Integration
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integration/hydra_integration/hydra_tutorial/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorial
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integration/hydra_integration/hydra_integration_gap_analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gap Analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integration/hydra_integration/hydra_integration_master_document/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Master Document
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2_3_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2_3_4" id="__nav_3_2_3_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Components
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_3_2_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Components
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integration/hydra_integration/components/stageA/StageA_2D_Adjacency/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage A
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integration/hydra_integration/components/stageB/StageB_Torsion_Pairwise/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage B
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integration/hydra_integration/components/stageC/StageC_3D_Reconstruction/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage C
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integration/hydra_integration/components/stageD/StageD_Diffusion_Refinement/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage D
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integration/hydra_integration/components/unified_latent/UnifiedLatentMerger/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unified Latent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_3" id="__nav_3_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage A
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Stage A
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stageA/StageA_RFold/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stageA/RFold_code/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RFold Code
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stageA/RFold_paper/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RFold Paper
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stageA/rfold-demo/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Demo
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stageA/stage_a_extra/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Extra Notes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_4" id="__nav_3_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage B
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Stage B
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stageB/Stage_B/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_4_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_4_2" id="__nav_3_4_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TorsionBERT
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_3_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    TorsionBERT
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stageB/torsionBert/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stageB/torsionbert_code/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Code
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stageB/torsionBert_full_paper/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Paper
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_5" id="__nav_3_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stage C
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Stage C
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stageC/Stage_C/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stageC/Integrated_RNA_Geometry_and_3D_Reconstruction/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Geometry & Reconstruction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stageC/Unified, Comprehensive Plan for Integrating MP-NeRF into Stage C.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MP-NeRF Integration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../stageC/mp_nerf/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MP-NeRF Details
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_6" id="__nav_3_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unified Latent
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Unified Latent
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../unified_latent/Perceiver_IO/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Perceiver IO
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Energy_Minimization_%26_Molecular_Dynamics_%28MD%29_for_RNA_Structure_Refinement/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Energy & MD
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_8" id="__nav_3_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Testing
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../test_time_scaling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Time Scaling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_9" id="__nav_3_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Kaggle
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Kaggle
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../kaggle_info/kaggle_competition/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Competition
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../kaggle_info/M2_Plan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    M2 Plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_1" id="__nav_4_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Advanced Methods
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Advanced Methods
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_1_1" id="__nav_4_1_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AlphaFold 3
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_4_1_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_1_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    AlphaFold 3
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/advanced_methods/af3/AF3_paper/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Paper
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/advanced_methods/af3/AlphaFold3_progress/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Progress
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/advanced_methods/af3/Pairwise_Distance_Based_Prediction/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Distance Prediction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_1_2" id="__nav_4_1_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Diffusion
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_4_1_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_1_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Diffusion
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/advanced_methods/diffusion/s4_diffusion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    S4 Diffusion
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/advanced_methods/diffusion/test_time_scaling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Time Scaling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/advanced_methods/isosteric_substitutions/RNA_isostericity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Isosteric Substitutions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_2" id="__nav_4_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    External Literature
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    External Literature
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/external_lit/2d_structure_prediction_papers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2D Structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/external_lit/RNA_papers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RNA Papers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_3" id="__nav_4_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Residue Atom Bridging
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Residue Atom Bridging
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/residue_atom_bridging/audit_report/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Audit Report
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/residue_atom_bridging/design_spec/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design Spec
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/residue_atom_bridging/documentation_draft/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Documentation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/residue_atom_bridging/implementation_notes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Implementation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/residue_atom_bridging/refactoring_plan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Refactoring
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/residue_atom_bridging/bridging_caveats_guidelines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guidelines
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_4" id="__nav_4_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Torsion Calculations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Torsion Calculations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/torsion_calculations/torsion_angles_intro/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Introduction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/torsion_calculations/Standard_Bond_Lengths_and_Angles_in_RNA_Nucleotides/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bond Lengths & Angles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/torsion_calculations/Torsion_Angles_3D_Coordinates_RNA_Structure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3D Coordinates
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/torsion_calculations/torsion_angle_Latent_Manifold_Representation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Latent Manifold
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+  <h1>Full Specification</h1>
+
+<p>Unified RNA 3D Prediction Pipeline: “Best-of-All-Worlds” Technical Documentation</p>
+<p>Below is a comprehensive, high-level-to-concrete technical guide that merges and improves upon the previous versions (V1–V5). It addresses criticisms from each, consolidates their strengths, and incorporates a cohesive plan for seamlessly integrating LoRA, Pairformer embeddings, a Unified Latent Merger, and Diffusion (Stage D). It is verbose and detailed—designed to serve as a robust blueprint for developers working on an end-to-end RNA structure prediction pipeline.</p>
+<p>⸻</p>
+<ol>
+<li>Introduction &amp; Objectives</li>
+</ol>
+<p>This “best-of-all-worlds” architecture aims to unify the entire multi-stage RNA 3D pipeline:
+    1.  Stage A: 2D adjacency predictor (e.g., RFold or an external method).
+    2.  Stage B:
+    •   TorsionBERT (with LoRA) → local angles (α, β, γ, δ, ε, ζ, χ, …).
+    •   Pairformer (with LoRA) → global pairwise embeddings \mathbf{z}_{ij} + single embeddings \mathbf{s}_i.
+    3.  (Optional) Stage C: MP-NeRF or partial 3D geometry reconstruction from angles.
+    4.  Unified Latent Merger: Merges adjacency, angles, partial coords, Pairformer outputs into a single “unified latent” representation.
+    5.  Stage D: Diffusion-based refinement (with LoRA optional), which takes the unified latent as conditioning to generate final 3D coordinates.
+    6.  (Optional) Energy Minimization: A post-hoc step for short local refinement in a force field.</p>
+<p>Key motivations:
+    •   Bring local angle predictions and global pair embeddings into a single representation.
+    •   Support LoRA to minimize GPU memory usage in large pretrained models (TorsionBERT, Pairformer).
+    •   Achieve synergy by letting the Diffusion step see both adjacency-based local constraints and Pairformer-driven global context.
+    •   Provide a single top-level pipeline function so users can run from sequence → final 3D with minimal confusion.</p>
+<p>⸻</p>
+<ol>
+<li>High-Level Data Flow<div class="highlight"><pre><span></span><code>    ┌─────────┐
+    │ Stage A │
+    │Adjacency│
+    └────┬────┘
+         │
+         │ adjacency_matrix
+         v
+</code></pre></div>
+<p>┌───────────────────────────────────────┐
+│ Stage B Combined Runner (Torsion+Pair)    │
+│  - TorsionBERT (LoRA) -&gt; angles      │
+│  - Pairformer (LoRA) -&gt; (s, z)       │
+└────┬─────────────────────────────────┘
+ │ {torsion_angles, s, z}
+ v
+┌────────────────────────────────────────┐
+│ (Optional) Stage C: MP-NeRF/ partial 3D │
+└────┬────────────────────────────────────┘
+ │ partial_coords (optional)
+ v
+┌────────────────────────────────────────┐
+│ Unified Latent Merger (angles, s, z,  │
+│ adjacency, partial_coords) -&gt; unified │
+└────┬───────────────────────────────────┘
+ │ unified_latent
+ v
+┌───────────────────────────────────────────┐
+│ Stage D Diffusion (LoRA optional)        │
+│  Condition on 'unified_latent'           │
+└────┬──────────────────────────────────────┘
+ │ final_3D_coords
+ v
+ (Optional) Energy Minimization &amp; Output</p>
+</li>
+</ol>
+<p>⸻</p>
+<ol>
+<li>LoRA Integration</li>
+</ol>
+<p>3.1 Where LoRA is Applied
+    1.  TorsionBERT: We load a base BERT-like model (for angle regression) and freeze its main weights. Insert LoRA in attention or feed-forward layers.
+    2.  Pairformer: The large trunk (TriangleAttention, TriangularMultiplication blocks). We freeze base layers, attach LoRA to minimal modules.
+    3.  (Optional) Diffusion: If we have a large pretrained diffusion model, we can also freeze and inject LoRA.</p>
+<p>3.2 Implementation Sketch</p>
+<p>In practice, you might create rna_predict/peft/lora_utils.py with a function like:</p>
+<p>from peft import LoraConfig, get_peft_model</p>
+<p>def apply_lora(model, lora_cfg):
+    # lora_cfg might contain r, alpha, dropout, target_modules, etc.
+    lora_config = LoraConfig(**lora_cfg)
+    return get_peft_model(model, lora_config)</p>
+<p>Then in TorsionBertPredictorWithLoRA:</p>
+<p>class TorsionBertPredictorWithLoRA:
+    def <strong>init</strong>(self, model_name_or_path, lora_cfg, device="cpu", angle_mode="sin_cos"):
+        # load base TorsionBERT
+        self.base_model = TorsionBertModel(model_name_or_path, device=device)
+        # apply LoRA to self.base_model.model (the underlying HF model)
+        self.model = apply_lora(self.base_model.model, lora_cfg)
+        # freeze base
+        for name, param in self.base_model.model.named_parameters():
+            if "lora" not in name.lower():
+                param.requires_grad = False
+        # store angle_mode, device, etc.
+        self.angle_mode = angle_mode
+        self.device = device</p>
+<div class="highlight"><pre><span></span><code>def __call__(self, sequence, adjacency=None):
+    # same logic as StageBTorsionBertPredictor
+    out = self.base_model.predict_angles_from_sequence(sequence)
+    # convert sin/cos if needed
+    return {&quot;torsion_angles&quot;: out}  # e.g. shape [N, 2 * num_angles]
+</code></pre></div>
+<p>A similar approach is used for PairformerWithLoRA.</p>
+<p>⸻</p>
+<ol>
+<li>Stage-by-Stage Implementation Outline</li>
+</ol>
+<p>4.1 Stage A: Adjacency</p>
+<p>We assume a script (e.g. rna_predict/pipeline/stageA/run_stageA.py) that can produce an [N, N] adjacency. Possibly:</p>
+<p>def run_stageA(sequence: str, predictor, device="cpu") -&gt; torch.Tensor:
+    # predictor might be StageARFoldPredictor or a wrapper
+    adjacency_matrix = predictor.predict_adjacency(sequence)
+    return adjacency_matrix.to(device)</p>
+<p>In the advanced pipeline: We only need the adjacency as a 2D float/bool tensor for the subsequent steps.</p>
+<p>4.2 Stage B: Combined Runner</p>
+<p>Create run_stageB_combined.py. This merges TorsionBERT + Pairformer:</p>
+<p>def run_stageB_combined(
+    sequence: str,
+    adjacency_matrix: torch.Tensor,
+    torsion_bert_model,  # TorsionBertPredictorWithLoRA
+    pairformer_model,     # PairformerWithLoRA
+    device="cpu"
+) -&gt; dict:
+    # 1) Torsion angles
+    torsion_output = torsion_bert_model(sequence, adjacency=adjacency_matrix)
+    angles = torsion_output["torsion_angles"].to(device)  # shape [N, ...]</p>
+<div class="highlight"><pre><span></span><code># 2) Prepare input for Pairformer
+# e.g. create initial_s [1, N, c_s], initial_z [1, N, N, c_z], pair_mask [1, N, N]
+# possibly incorporate adjacency as bias
+
+# 3) Run Pairformer -&gt; s_embeddings, z_embeddings
+s_updated, z_updated = pairformer_model(initial_s, initial_z, pair_mask)
+
+return {
+  &quot;torsion_angles&quot;: angles,   # [N, angle_dim]
+  &quot;s_embeddings&quot;: s_updated.squeeze(0), # [N, c_s]
+  &quot;z_embeddings&quot;: z_updated.squeeze(0)  # [N, N, c_z]
+}
+</code></pre></div>
+<p>Key Points:
+    •   You must define how initial_s and initial_z are constructed (some shape [1, N, c_s], [1, N, N, c_z]).
+    •   If you have an MSA, incorporate that or fallback to single-sequence mode.
+    •   If adjacency is used for Pairformer attention bias, you add it to z_init or inside the Pairformer code.</p>
+<p>4.3 (Optional) Stage C: MP-NeRF</p>
+<p>If the pipeline uses partial 3D from angles:</p>
+<p>def run_stageC(sequence, torsion_angles, method="mp_nerf", device="cpu", **kwargs):
+    # e.g., build_scaffolds_rna_from_torsions -&gt; rna_fold -&gt; coords
+    # Return {"coords": shape [N, #atoms, 3], "atom_count": ...}
+    ...</p>
+<p>Note: This step can be skipped if you let the diffusion start from random noise.</p>
+<p>4.4 Unified Latent Merger</p>
+<p>We create a flexible module, e.g. in merger/unified_latent_merger.py.</p>
+<p>class SimpleUnifiedLatentMerger(nn.Module):
+    def <strong>init</strong>(self, angle_dim, s_dim, z_dim, hidden_dim, output_dim):
+        super().<strong>init</strong>()
+        # Various sub-layers
+        # Potential adjacency + partial_coords processing</p>
+<div class="highlight"><pre><span></span><code>def forward(self, angles, adjacency, s_embeddings, z_embeddings, partial_coords=None):
+    # merges into unified_latent
+    return unified_latent
+</code></pre></div>
+<p>Implementation Details:
+    •   Possibly embed angles with nn.Linear(angle_dim, hidden_dim).
+    •   Convert adjacency [N,N] into node features [N,1] by row sum or a GNN layer.
+    •   Pool z [N,N,c_z] -&gt; [N,c_z].
+    •   Concatenate all. You get [N, \text{some_total_dim}].
+    •   Possibly run a small MLP or Transformer block.
+    •   Produce final shape [N, output_dim] or a single global [output_dim].</p>
+<p>4.5 Stage D: Diffusion</p>
+<p>Adapt your diffusion manager to accept “unified_latent”:</p>
+<p>def run_stageD_diffusion(
+    partial_coords: Optional[torch.Tensor],
+    unified_latent: torch.Tensor,
+    diffusion_manager,
+    device="cpu",
+    inference_steps=20
+):
+    # 1) if partial_coords is None, create random noise
+    # 2) pass unified_latent as condition
+    final_coords = diffusion_manager.inference_conditioned(
+        coords_init=partial_coords,
+        conditioning_latent=unified_latent,
+        steps=inference_steps
+    )
+    return final_coords</p>
+<p>In practice: If your code uses s_trunk, z_trunk, you might do {"unified_latent": ...} or merge them inside. The actual method in ProtenixDiffusionManager must be changed to handle that single latent.</p>
+<p>⸻</p>
+<ol>
+<li>A “Full Pipeline” Orchestrator</li>
+</ol>
+<p>5.1 Proposed File: rna_predict/run_full_pipeline.py</p>
+<p>Pseudocode:</p>
+<p>def run_full_pipeline(sequence, config, device="cuda"):
+    # Stage A
+    adjacency = run_stageA(sequence, stageA_predictor, device=device)</p>
+<div class="highlight"><pre><span></span><code># Stage B
+b_outputs = run_stageB_combined(
+    sequence, adjacency,
+    torsion_bert_model,
+    pairformer_model,
+    device=device
+)
+angles = b_outputs[&quot;torsion_angles&quot;]
+s_emb = b_outputs[&quot;s_embeddings&quot;]
+z_emb = b_outputs[&quot;z_embeddings&quot;]
+
+# Stage C (optional)
+partial_coords = None
+if config[&quot;use_stageC&quot;]:
+    partial_coords_out = run_stageC(sequence, angles, device=device)
+    partial_coords = partial_coords_out[&quot;coords&quot;]
+
+# Merger
+unified_latent = merger_module(
+    angles, adjacency, s_emb, z_emb, partial_coords
+)
+
+# Stage D
+final_coords = run_stageD_diffusion(
+    partial_coords, unified_latent, diffusion_manager, device=device,
+    inference_steps=config[&quot;stageD&quot;][&quot;n_steps&quot;]
+)
+
+# (Optional) Minimization
+if config.get(&quot;run_minimization&quot;):
+    final_coords = run_energy_minimization(final_coords, config[&quot;minimization&quot;])
+
+return final_coords
+</code></pre></div>
+<p>Config can store file paths for TorsionBERT &amp; Pairformer LoRA checkpoints, adjacency predictor settings, etc.</p>
+<p>⸻</p>
+<ol>
+<li>Key Architectural Details and Decisions<ol>
+<li>Index Consistency
+•   Ensure Stage A’s adjacency matrix matches sequence indices used by TorsionBERT, Pairformer, MP-NeRF, etc. A single reference for residue indexing is critical.</li>
+<li>LoRA Implementation
+•   Each sub-model is loaded in a partially-frozen mode with small LoRA adapters.
+•   Keep a method like get_trainable_parameters() to only optimize LoRA layers, or rely on PEFT’s built-in parameter filtering.</li>
+<li>Pooling of z-embeddings
+•   In the simplest approach, we do a row-wise average of z_{ij} across j to get a node-level feature for each residue i. More advanced methods might do specialized GNN or attention.</li>
+<li>Stage D Condition
+•   By default, older code might expect s_trunk or z_trunk. We now unify them with unified_latent. The diffusion code must be updated accordingly— e.g., if it had a line like:</li>
+</ol>
+</li>
+</ol>
+<p>condition = self.model.build_condition(s_trunk, z_trunk, ...)</p>
+<p>it becomes:</p>
+<p>condition = self.model.build_condition(unified_latent=unified_latent, ...)</p>
+<p>The details are up to the existing diffusion architecture.</p>
+<div class="highlight"><pre><span></span><code>5.  Memory
+•   The pipeline can get large. Use gradient checkpointing or micro-batching in Pairformer.
+•   Keep angles as minimal float32 or float16.
+•   LoRA helps reduce training memory by only learning small rank updates.
+6.  Angle Format
+•   TorsionBERT might output sin/cos pairs or direct angles in degrees. The MP-NeRF pipeline might require radians. Either unify them or carefully convert in the Stage B → Stage C handoff.
+7.  Energy Minimization
+•   If you have PyRosetta, OpenMM, or MDAnalysis, define a function run_energy_minimization(coords, config). This is purely optional, but recommended for final polishing.
+</code></pre></div>
+<p>⸻</p>
+<ol>
+<li>Example Repository Layout</li>
+</ol>
+<p>rna_predict/
+├── pipeline
+│   ├── stageA
+│   │   └── run_stageA.py
+│   ├── stageB
+│   │   ├── run_stageB_combined.py    # NEW
+│   │   ├── torsion
+│   │   │   └── torsion_bert_lora.py  # LoRA-enabled TorsionBERT
+│   │   └── pairwise
+│   │       ├── pairformer_lora.py    # LoRA-enabled Pairformer
+│   │       └── pairformer_wrapper.py # existing code, adapted
+│   ├── stageC
+│   │   └── stage_c_reconstruction.py
+│   ├── stageD
+│   │   └── run_stageD_unified.py     # or run_stageD_diffusion.py
+│   └── merger
+│       └── unified_latent_merger.py  # NEW
+├── run_full_pipeline.py              # NEW orchestrator
+├── peft
+│   └── lora_utils.py
+└── postprocess
+    └── energy_minimization.py</p>
+<p>⸻</p>
+<ol>
+<li>Final Guidance, Next Steps<ol>
+<li>Implementation:
+•   Start by creating placeholders for each new file. Copy in the pseudocode or code stubs from above.
+•   Validate shapes at each step by printing tensor shapes—especially adjacency, angles, s/z embeddings, partial coords, final coords.
+•   Integrate your actual adjacency predictor code from Stage A.
+•   Integrate real TorsionBERT &amp; Pairformer model loading with LoRA.
+•   Flesh out the Diffusion manager so it can read unified_latent.</li>
+<li>Testing:
+•   Write unit tests for each stage (A, B, Merger, C, D). Then add an integration test that calls run_full_pipeline on a short synthetic sequence (like “ACGUACG”) and checks for shape correctness.</li>
+<li>Performance:
+•   If training, ensure you only optimize LoRA parameters. Double-check memory usage.
+•   If your pipeline is large, use half precision or BF16 on a modern GPU.</li>
+<li>Refinement:
+•   Once you get the pipeline working on small RNAs, do QA metrics (RMSD, pLDDT equivalents).
+•   Tweak adjacency usage, z pooling, or unify angle modes if the geometry fails.</li>
+</ol>
+</li>
+</ol>
+<p>⸻</p>
+<p>Conclusion</p>
+<p>This document merges the strengths of Versions 1–5:
+    •   It provides file-by-file structural guidance (V1, V3, V4).
+    •   It includes concrete code snippets and final orchestrator pseudocode (V2, V5).
+    •   It addresses LoRA hooking points, data shape alignment, synergy with partial 3D, and an integrated pipeline function—all in a single, verbose reference.</p>
+<p>Next Steps: Implement the placeholders, ensure shapes align, confirm the diffusion model sees the unified_latent, and incorporate LoRA in your TorsionBERT &amp; Pairformer code. Once complete, you’ll have a fully functional Stage A → B → (C) → Merger → D pipeline that reflects the advanced synergy described in your original design documents—truly better than the sum of its parts.</p>
+<p>Below is a comprehensive technical document that unifies the best qualities of all four previous versions (V1–V4) while addressing their criticisms. It includes a detailed, color-coded Mermaid diagram referencing specific code modules (as in Version 3), visual clarity (Version 2), top-down flow (Version 1 &amp; V4), optional stages, LoRA integration points, shape details, and unified latent synergy—ultimately creating a verbose, all-in-one technical overview of the multistage RNA 3D structure prediction pipeline.</p>
+<p>⸻</p>
+<p>Multistage RNA 3D Structure Prediction Pipeline (Comprehensive Final Version)</p>
+<p>High-Level Summary</p>
+<p>We have a five-step pipeline for generating RNA 3D structures:
+    1.  Stage A – Predict 2D Adjacency (e.g., via RFold).
+    2.  Stage B – Torsion &amp; Pair Embeddings:
+    •   TorsionBERT (LoRA-enabled) to get backbone torsion angles.
+    •   Pairformer (LoRA-enabled) to generate single-residue and pairwise embeddings.
+    3.  Stage C – (Optional) Partial 3D Reconstruction (e.g., MP-NeRF), using torsions to build backbone coords.
+    4.  Unified Latent Merger – Combine adjacency, torsions, partial coords, single/pair embeddings into a single “latent.”
+    5.  Stage D – Diffusion (LoRA-optional) for final 3D refinement, optionally followed by short energy minimization.</p>
+<p>Implementation Files:
+    •   Stage A: rna_predict/pipeline/stageA/run_stageA.py, rfold_predictor.py, model.py
+    •   Stage B:
+    •   Torsion: torsion/torsion_bert_predictor.py, torsionbert_inference.py
+    •   Pairformer: pairwise/pairformer_wrapper.py, pairformer.py
+    •   Stage C: stage_c_reconstruction.py + mp_nerf/rna.py + final_kb_rna.py
+    •   Unified Latent: could be a simple MLP or attention block (not always singled out in code)
+    •   Stage D: stageD/diffusion/, protenix_diffusion_manager.py, generator.py, diffusion.py</p>
+<p>Shape Conventions:
+    •   Adjacency: [N, N] (binary or real-valued).
+    •   Torsion Angles: [N, K] (e.g., K=7 for alpha..zeta + chi) or [N, 2*K] if sin/cos.
+    •   Single Embeddings: [N, c_s]
+    •   Pair Embeddings: [N, N, c_z]
+    •   Partial 3D coords: [N, #atoms, 3]
+    •   Diffusion: might internally handle [batch, N_sample, N_atom, 3] arrays, plus trunk embeddings.</p>
+<p>⸻</p>
+<p>Comprehensive Mermaid Diagram</p>
+<p>Below is a left-to-right color-coded diagram with subgraphs for each stage, referencing code modules, shape details, LoRA usage, and optional steps. You can copy this into a Mermaid-compatible environment to view a rendered version.</p>
+<p>flowchart LR</p>
+<div class="highlight"><pre><span></span><code>%% -------------------------------------------------
+%% STYLES
+%% -------------------------------------------------
+classDef stageA fill:#bbdefb,stroke:#1a237e,stroke-width:2px,color:#000
+classDef stageB fill:#c8e6c9,stroke:#2e7d32,stroke-width:2px,color:#000
+classDef stageC fill:#fff9c4,stroke:#fdd835,stroke-width:2px,color:#000
+classDef unify fill:#e1bee7,stroke:#6a1b9a,stroke-width:2px,color:#000
+classDef stageD fill:#f8bbd0,stroke:#ad1457,stroke-width:2px,color:#000
+classDef optional fill:#cfd8dc,stroke:#455a64,stroke-width:2px,color:#000,stroke-dasharray:5 5
+classDef data fill:#ffffff,stroke:#999999,stroke-width:1px,color:#000,rx:5,ry:5
+classDef code fill:#f5f5f5,stroke:#999999,stroke-width:1px,color:#000,stroke-dasharray:3 3
+
+%% -------------------------------------------------
+%% INPUTS
+%% -------------------------------------------------
+S((RNA Sequence)):::data
+
+%% ========== Stage A Subgraph ==========
+subgraph A_subgraph [**Stage A**: 2D Adjacency Prediction (RFold)]
+direction TB
+class A_subgraph stageA
+
+A1[[run_stageA.py\n(rfold_predictor.py / model.py)]:::code]
+A2((Adjacency NxN)):::data
+S --&gt; A1
+A1 --&gt; A2
+end
+
+%% ========== Stage B Subgraph ==========
+subgraph B_subgraph [**Stage B**: TorsionBERT &amp; Pairformer (LoRA)]
+direction TB
+class B_subgraph stageB
+
+B1[[TorsionBert Predictor\n(torsion_bert_predictor.py)\nLoRA-enabled]]:::code
+B2((Torsion Angles\n[N,K or N,2K])):::data
+
+B3[[Pairformer\n(pairformer_wrapper.py)\nLoRA-enabled]]:::code
+B4((Single Embs s:\n[N, c_s])):::data
+B5((Pair Embs z:\n[N,N,c_z])):::data
+
+S --&gt; B1
+A2 -. optional .-&gt; B1
+B1 --&gt; B2
+
+S --&gt; B3
+A2 -. optional .-&gt; B3
+B3 --&gt; B4
+B3 --&gt; B5
+
+end
+
+%% ========== Stage C Subgraph ==========
+subgraph C_subgraph [**Stage C** (Optional): MP-NeRF Partial 3D]
+direction TB
+class C_subgraph stageC
+
+C1[[stage_c_reconstruction.py\n+ mp_nerf/rna.py\n+ final_kb_rna.py]]:::code
+C2((Partial 3D Coords\n[N, #atoms, 3])):::data
+
+B2 --&gt; C1
+S --&gt; C1
+C1 --&gt; C2
+end
+class C_subgraph optional
+
+%% ========== Unified Latent Subgraph ==========
+subgraph M_subgraph [Unified Latent Merger]
+class M_subgraph unify
+
+M1[[Merge angles,\nadjacency, s, z,\npartial coords]]:::code
+M2((Unified\nLatent)):::data
+end
+
+%% Connect them
+A2 --&gt; M1
+B2 --&gt; M1
+B4 --&gt; M1
+B5 --&gt; M1
+C2 -. optional .-&gt; M1
+M1 --&gt; M2
+
+%% ========== Stage D Subgraph ==========
+subgraph D_subgraph [**Stage D**: Diffusion Refinement]
+direction TB
+class D_subgraph stageD
+
+D1[[ProtenixDiffusionManager\n(protenix_diffusion_manager.py)\n+ DiffusionModule\nLoRA optional]]:::code
+D2((Final 3D Structures\n(N, #atoms, 3)\nor multiple)):::data
+M2 --&gt; D1
+D1 --&gt; D2
+end
+
+%% ========== Post-Processing Subgraph ==========
+subgraph PP_subgraph [Optional Post-Processing: Energy Minimization]
+class PP_subgraph optional
+direction TB
+PP1[[Local MD / Minimization\ne.g. OpenMM, GROMACS]]:::code
+PP2((Polished 3D\nStructure(s))):::data
+D2 --&gt; PP1
+PP1 --&gt; PP2
+end
+
+%% -------------------------------------------------
+%% STYLING
+%% -------------------------------------------------
+linkStyle default stroke-width:2px,fill:none,stroke:#888
+</code></pre></div>
+<p>Diagram Explanation
+    1.  Input
+    •   RNA Sequence S((…)): A raw string representing nucleotides.
+    2.  Stage A: Adjacency (RFold)
+    •   In run_stageA.py + rfold_predictor.py, the pipeline obtains an adjacency matrix [N, N].
+    •   This matrix typically indicates base-pair contacts. Optionally fed into Stage B if the TorsionBERT or Pairformer uses adjacency as a feature.
+    3.  Stage B: TorsionBERT + Pairformer
+    1.  TorsionBERT (LoRA)
+    •   Reads the RNA sequence and optionally adjacency, producing backbone torsion angles [N, K] or [N, 2<em>K] if sin/cos.
+    •   Code references: torsion_bert_predictor.py, torsionbert_inference.py.
+    2.  Pairformer (LoRA)
+    •   Potentially uses the same sequence and adjacency to generate single [N, c_s] and pair [N, N, c_z] embeddings (like z_trunk).
+    •   Code references: pairformer_wrapper.py, pairformer.py.
+    4.  Stage C (Optional): Partial 3D
+    •   If used, we pass torsion angles + sequence + standard geometry from final_kb_rna.py into mp_nerf/rna.py or stage_c_reconstruction.py.
+    •   Produces partial 3D coords [N, #atoms, 3], typically backbone only.
+    •   This is optional; the pipeline can skip it and rely purely on Diffusion or initial random coords.
+    5.  Unified Latent Merger
+    •   Merges everything: adjacency, angles, partial coords, single/pair embeddings.
+    •   This synergy can be an MLP or a small attention block. Usually not a separate file, but references are integrated in stageD or a separate “merger” class.
+    •   Yields a single “unified latent” vector or array [N, ...] used by the next stage.
+    6.  Stage D: Diffusion
+    •   The ProtenixDiffusionManager plus the DiffusionModule (optionally LoRA-enabled) use the unified latent as a condition to refine or generate final 3D coordinates.
+    •   The code references: rna_predict/pipeline/stageD/diffusion/</em>.py (including generator.py, protenix_diffusion_manager.py, diffusion.py).
+    •   Produces final 3D coordinates [N, #atoms, 3] or an ensemble from multiple samples.
+    7.  Optional Energy Minimization
+    •   Tools like OpenMM or GROMACS for local minimization or short MD runs, producing a final polished structure.
+    •   Often done in a separate script or environment, not strictly part of the Python pipeline code.</p>
+<p>⸻</p>
+<p>Detailed Stage-by-Stage Description</p>
+<p>Stage A: Adjacency (2D)
+    •   Code: run_stageA.py, rfold_predictor.py, referencing an RFold_Model in model.py.
+    •   Input: RNA sequence (e.g. "AUGCA...").
+    •   Output: adjacency ∈ ℝ^(N×N) (binary or probability).
+    •   Comment: Typically no LoRA is used here, though you could do so if your adjacency predictor is large.</p>
+<p>Stage B: Torsion &amp; Pair Embeddings
+    1.  TorsionBERT
+    •   LoRA: partial fine-tuning if model_name is huge ("sayby/rna_torsionbert").
+    •   Produces angles in either sin/cos or direct rad/deg.
+    •   Key shapes: [N, 2×num_angles] or [N, num_angles].
+    2.  Pairformer
+    •   LoRA: partial fine-tuning again.
+    •   Generates single embeddings s [N, c_s] and pair embeddings z [N, N, c_z].
+    •   Possibly uses adjacency as a “bias” to handle base-pair info or skip if not needed.</p>
+<p>Stage C: (Optional) Partial 3D Reconstruction
+    •   Code: stage_c_reconstruction.py → calls mp_nerf/rna.py, plus geometry from final_kb_rna.py.
+    •   Input: Torsion angles + (optionally) adjacency or other constraints.
+    •   Output: partial coords, typically [N, #atoms, 3] if building a backbone. This can be used as an initial conformation for Diffusion or a final fallback if Stage D is skipped.
+    •   Sugar Pucker: default “C3′-endo” for standard A-form. Could also handle “C2′-endo” or ring closure logic.</p>
+<p>Unified Latent Merger
+    •   Combines:
+    1.  Torsion angles
+    2.  Adjacency [N, N]
+    3.  Single embeddings [N, c_s] + pair embeddings [N, N, c_z]
+    4.  Possibly partial coords [N, #atoms, 3]
+    •   Typically an MLP or small attention-based aggregator that outputs a single “conditioning latent.” Not always singled out as a separate .py, but recognized conceptually for synergy.</p>
+<p>Stage D: Diffusion Refinement
+    •   Code: stageD/diffusion/, e.g. protenix_diffusion_manager.py, generator.py, diffusion.py.
+    •   LoRA: optional if the base diffusion model is large.
+    •   Process:
+    1.  Possibly start from partial coords (Stage C) or random noise.
+    2.  Condition on the “unified latent.”
+    3.  Iteratively denoise to generate refined 3D coords [N, #atoms, 3]. Possibly produce multiple samples.
+    •   Output: final or near-final 3D structure(s).</p>
+<p>Post-Processing (Optional)
+    •   Might run short local MD in OpenMM or GROMACS to fix minor geometry or steric issues.
+    •   Not strictly in the code, but invoked for final polishing.
+    •   If used, it yields an improved structure (lowest-energy or an ensemble).</p>
+<p>⸻</p>
+<p>Why This Comprehensive Diagram Excels
+    1.  Complete Flow:
+    •   We integrate the straightforward top-down approach (V1, V4) with color-coded subgraphs (V2) plus code references and shape details (V3).
+    2.  LoRA Markings:
+    •   TorsionBERT &amp; Pairformer are explicitly shown as LoRA-enabled; Diffusion’s LoRA is noted.
+    3.  Implementation Mapping:
+    •   We reference .py files and configuration references (like model.py, protenix_diffusion_manager.py), for a developer-friendly approach.
+    4.  Optional Paths:
+    •   Stage C (MP-NeRF) is visually “optional,” connected with a dashed arrow.
+    •   Post-processing is also a separate optional subgraph.
+    5.  Shape / Data:
+    •   Key data artifacts (adjacency NxN, angles NxK, single embeddings Nx c_s, pair NxNx c_z, partial coords Nx(#atoms), final coords Nx(#atoms), etc.) are all labeled.
+    6.  Unified Latent Synergy:
+    •   The “Merger” is singled out as a subgraph, clarifying we combine adjacency, angles, partial coords, s, z, etc., exactly how we want.</p>
+<p>⸻</p>
+<p>Key Configuration Points
+    1.  LoRA:
+    •   TorsionBERT in Stage B: set model_name_or_path to a large pretrained model and insert LoRA adapters with “rank=8” or so.
+    •   Pairformer: similarly add LoRA to attention or feed-forward layers.
+    •   Diffusion: optionally insert LoRA if the diffusion model is huge.
+    2.  Stage A:
+    •   rfold_predictor.py might load RNAStralign_trainset_pretrained.pth.
+    •   Output adjacency is used in Stages B and the Unified Merger, if we want adjacency-based synergy.
+    3.  Stage B:
+    •   torsion_bert_predictor.py has angle_mode="degrees" or "sin_cos".
+    •   pairformer_wrapper.py config might specify n_blocks=48, c_z=128, c_s=384.
+    4.  Stage C:
+    •   mp_nerf/rna.py: Usually sets sugar pucker to “C3′-endo.”
+    •   If do_ring_closure is False, we skip ring closure.
+    5.  Stage D:
+    •   protenix_diffusion_manager.py might define a schedule in generator.py (InferenceNoiseScheduler) for 50–100 denoising steps.
+    •   We unify single embeddings (s_trunk), pair embeddings (z_trunk), partial coords, etc., in a single “conditioning” dictionary.</p>
+<p>⸻</p>
+<p>Recommended Usage Flow
+    1.  Obtain adjacency from Stage A.
+    2.  Run Stage B to get angles + single/pair embeddings. Possibly pass adjacency in to TorsionBERT or Pairformer if they require it.
+    3.  (Optional) Stage C: If you want an initial 3D for diffusion, run MP-NeRF.
+    4.  Merge all data (angles, adjacency, partial coords, single/pair embeddings) into a unified latent.
+    5.  Stage D: Condition the diffusion model on that unified latent to refine final 3D.
+    6.  Optionally do a short local MD to minimize bond strains or fix sterics.</p>
+<p>You can skip Stage C if you want to let diffusion start from random noise. You can skip energy minimization if you trust the final diffusion geometry. However, each step may improve the final structure’s accuracy.</p>
+<p>⸻</p>
+<p>Conclusion</p>
+<p>This final combined architectural document:
+    •   Merges the clarity of a color-coded flow (V2) with the concrete code references and shape details (V3).
+    •   Incorporates the straightforward top-down perspective (V1) plus an emphasis on synergy and the “unified latent” concept (V4).
+    •   Highlights LoRA usage in TorsionBERT, Pairformer, and (optionally) Diffusion.
+    •   Shows optional partial 3D (Stage C) and optional energy minimization.</p>
+<p>Hence, this pipeline covers everything from adjacency (2D) → torsion + pair embeddings → (optional) partial 3D → unified synergy → diffusion-based refinement → final or post-processed 3D. It should serve as a verbose and complete reference for both developers and advanced users interested in each module’s role, shapes, code references, and how they integrate to produce high-quality RNA 3D structures.
+Multistage RNA 3D Structure Prediction Pipeline (Comprehensive Final Version, ASCII Edition)</p>
+<p>Below is a comprehensive technical document unifying the strengths of previous versions (V1–V4), addressing their criticisms, and presenting a verbose ASCII-based diagram clearly referencing code modules, shapes, optional paths, LoRA integration, and unified latent synergy.</p>
+<p>⸻</p>
+<p>High-Level Summary</p>
+<p>The RNA 3D prediction pipeline consists of five primary stages:</p>
+<ol>
+<li>Stage A – 2D Adjacency Prediction (RFold)</li>
+<li>Stage B – Torsion &amp; Pair Embeddings:</li>
+<li>TorsionBERT (LoRA-enabled) → backbone torsion angles</li>
+<li>Pairformer (LoRA-enabled) → single-residue and pairwise embeddings</li>
+<li>Stage C – (Optional) Partial 3D Reconstruction (MP-NeRF)</li>
+<li>Unified Latent Merger – Combines adjacency, angles, partial coords, embeddings</li>
+<li>Stage D – Diffusion-based Refinement (LoRA-optional)</li>
+<li>Optional Post-processing (Energy Minimization)</li>
+</ol>
+<p>⸻</p>
+<p>Implementation Files</p>
+<p>Stage A:
+  - rna_predict/pipeline/stageA/run_stageA.py
+  - rfold_predictor.py
+  - model.py</p>
+<p>Stage B:
+  - TorsionBERT:
+    - torsion/torsion_bert_predictor.py
+    - torsionbert_inference.py
+  - Pairformer:
+    - pairwise/pairformer_wrapper.py
+    - pairformer.py</p>
+<p>Stage C:
+  - stage_c_reconstruction.py
+  - mp_nerf/rna.py
+  - final_kb_rna.py</p>
+<p>Unified Latent:
+  - Typically a small MLP or attention block (often within Stage D code)</p>
+<p>Stage D:
+  - stageD/diffusion/
+  - protenix_diffusion_manager.py
+  - generator.py
+  - diffusion.py</p>
+<p>⸻</p>
+<p>Shape Conventions</p>
+<ul>
+<li>Adjacency:         [N, N] (binary/probability)</li>
+<li>Torsion Angles:    [N, K] or [N, 2K] if sin/cos encoding</li>
+<li>Single Embeddings: [N, c_s]</li>
+<li>Pair Embeddings:   [N, N, c_z]</li>
+<li>Partial 3D Coords: [N, #atoms, 3]</li>
+<li>Diffusion:         [batch, N_sample, N_atom, 3] + trunk embeddings</li>
+</ul>
+<p>⸻</p>
+<p>Detailed ASCII Diagram of the Pipeline</p>
+<p>RNA Sequence (String: "ACGU...")
+         |
+         v
++---------------------------------------------+
+| Stage A: 2D Adjacency Prediction (RFold)    |
+| [run_stageA.py, rfold_predictor.py, model.py] (No LoRA)
++---------------------------------------------+
+         |
+         | Adjacency Matrix [N,N]
+         v
++----------------------------------------------------------+
+| Stage B: Torsion Angles &amp; Pair Embeddings (LoRA-enabled) |
+|                                                          |
+| - TorsionBERT: angles [N,K or N,2K]                      |
+|   [torsion_bert_predictor.py, torsionbert_inference.py]  |
+|                                                          |
+| - Pairformer:                                            |
+|   Single embeddings [N,c_s]                              |
+|   Pair embeddings [N,N,c_z]                              |
+|   [pairformer_wrapper.py, pairformer.py]                 |
++----------------------------------------------------------+
+         |
+         +------------+---------------+
+         |            |               |
+         |            |(Optional)     |
+         |            v               |
+         |  +--------------------------------------------+
+         |  | Stage C: Partial 3D Reconstruction         |
+         |  | [stage_c_reconstruction.py, mp_nerf/rna.py,|
+         |  | final_kb_rna.py] (Optional)                |
+         |  +--------------------------------------------+
+         |            |               |
+         | Partial Coords [N,#atoms,3]|
+         |            v               |
+         +------------+---------------+
+                      |
+                      v
++----------------------------------------------------+
+| Unified Latent Merger                              |
+|                                                    |
+| Combines adjacency, angles, partial coords,        |
+| single &amp; pair embeddings into Unified Latent       |
+| (MLP/attention-based merger, usually in Stage D)   |
++----------------------------------------------------+
+                      |
+                      | Unified Latent
+                      v
++-------------------------------------------------------------+
+| Stage D: Diffusion-based Refinement (LoRA optional)        |
+| [protenix_diffusion_manager.py, generator.py, diffusion.py]|
+| - Conditions on Unified Latent                             |
+| - Produces Final 3D structure(s) [N,#atoms,3] or ensemble  |
++-------------------------------------------------------------+
+                      |
+                      v
++---------------------------------------+
+| Optional Post-processing:             |
+| Short MD / Energy Minimization        |
+| (OpenMM, GROMACS, Amber, etc.)        |
+| Polished Final Structures             |
++---------------------------------------+</p>
+<p>⸻</p>
+<p>Stage-by-Stage Breakdown (Detailed)</p>
+<p>Stage A: 2D Adjacency (RFold)
+    •   Input: RNA sequence string.
+    •   Output: Adjacency matrix [N,N].
+    •   Code: run_stageA.py, rfold_predictor.py, model.py
+    •   Comment: Usually no LoRA integration here; output optionally used downstream.</p>
+<p>Stage B: Torsion &amp; Pair Embeddings</p>
+<p>TorsionBERT (LoRA):
+    •   Inputs: Sequence (optionally adjacency).
+    •   Outputs: Backbone torsion angles [N,K] or [N,2K] if sin/cos encoded.
+    •   Code: torsion_bert_predictor.py, torsionbert_inference.py</p>
+<p>Pairformer (LoRA):
+    •   Inputs: Sequence (optionally adjacency).
+    •   Outputs:
+    •   Single embeddings [N,c_s]
+    •   Pair embeddings [N,N,c_z]
+    •   Code: pairformer_wrapper.py, pairformer.py</p>
+<p>Stage C (Optional): Partial 3D Reconstruction (MP-NeRF)
+    •   Inputs: Torsion angles, sequence, standard geometry.
+    •   Outputs: Partial coordinates [N,#atoms,3].
+    •   Code: stage_c_reconstruction.py, mp_nerf/rna.py, final_kb_rna.py
+    •   Comment: Typically backbone atoms only; optional ring closure.</p>
+<p>Unified Latent Merger
+    •   Inputs: Adjacency, torsion angles, single/pair embeddings, partial coords.
+    •   Outputs: Unified latent vector (used as conditioning input to diffusion).
+    •   Implementation: Often small MLP or attention layers embedded within Stage D.</p>
+<p>Stage D: Diffusion-based Refinement
+    •   Inputs: Unified latent, optionally partial 3D coords from Stage C.
+    •   Outputs: Final refined 3D structure(s) [N,#atoms,3].
+    •   Code: stageD/diffusion/, protenix_diffusion_manager.py, generator.py, diffusion.py
+    •   LoRA: Optional if diffusion model is large-scale.</p>
+<p>Post-processing (Optional)
+    •   Methods: Short molecular dynamics or energy minimization runs.
+    •   Tools: OpenMM, GROMACS, Amber.
+    •   Output: Polished final 3D structure(s).</p>
+<p>⸻</p>
+<p>Key Configuration &amp; LoRA Integration Points
+    •   Stage B (TorsionBERT &amp; Pairformer):
+    •   Insert LoRA adapters (rank=8) into large pretrained models.
+    •   Angle modes configurable (degrees vs. sin_cos).
+    •   Pairformer configurable (n_blocks=48, c_z=128, c_s=384).
+    •   Stage D (Diffusion):
+    •   Optional LoRA insertion for large diffusion models.
+    •   Denoising schedule configurable (~50-100 steps typical).
+    •   Stage C (Optional):
+    •   Sugar pucker geometry defaults (C3'-endo).
+    •   Ring closure toggle (do_ring_closure=True/False).</p>
+<p>⸻</p>
+<p>Recommended Usage Flow</p>
+<ol>
+<li>Obtain adjacency matrix from Stage A.</li>
+<li>Generate angles &amp; embeddings in Stage B, optionally using adjacency.</li>
+<li>(Optional) Generate partial 3D structure in Stage C.</li>
+<li>Merge data into unified latent.</li>
+<li>Diffusion-based refinement (Stage D) using unified latent.</li>
+<li>(Optional) Post-processing MD/energy minimization.</li>
+</ol>
+<p>Stages C and post-processing are optional, but inclusion typically enhances accuracy.</p>
+<p>⸻</p>
+<p>Why This Comprehensive ASCII Diagram Excels
+    •   Clarity: Clearly marked stages, inputs/outputs, optional steps.
+    •   LoRA integration: Explicitly highlighted integration points.
+    •   Implementation mapping: Clear references to code modules.
+    •   Data shape specification: Explicit and consistent.
+    •   Unified latent synergy: Clearly defined aggregation step for advanced conditioning.</p>
+<p>⸻</p>
+<p>Conclusion</p>
+<p>This comprehensive ASCII-based overview merges clarity, technical detail, code referencing, optional paths, LoRA integration, and latent synergy to provide a complete, developer-friendly resource for understanding, implementing, and customizing the RNA 3D prediction pipeline from initial sequence to polished final structures.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": [], "search": "../../../assets/javascripts/workers/search.7a47a382.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.e71a0d61.min.js"></script>
+      
+        <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>
