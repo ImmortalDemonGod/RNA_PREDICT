@@ -2,8 +2,13 @@
 
 [![codecov](https://codecov.io/gh/ImmortalDemonGod/RNA_PREDICT/branch/main/graph/badge.svg?token=dY9KCmU95B)](https://codecov.io/gh/ImmortalDemonGod/RNA_PREDICT) [![CI](https://github.com/ImmortalDemonGod/RNA_PREDICT/actions/workflows/main.yml/badge.svg)](https://github.com/ImmortalDemonGod/RNA_PREDICT/actions/workflows/main.yml) [![CodeScene general](https://codescene.io/images/analyzed-by-codescene-badge.svg)](https://codescene.io/projects/65039) [![CodeScene Average Code Health](https://codescene.io/projects/65039/status-badges/average-code-health)](https://codescene.io/projects/65039) [![CodeScene Hotspot Code Health](https://codescene.io/projects/65039/status-badges/hotspot-code-health)](https://codescene.io/projects/65039)
 
+## Project Status
 
-**Awesome `rna_predict` created by ImmortalDemonGod** 🚀
+| Component | Status |
+|-----------|--------|
+| **Inference** | ✅ Functional |
+| **Training** | 🚧 Experimental |
+| **Diffusion** | 🧪 Research Prototype |
 
 ---
 
