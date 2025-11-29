@@ -49,6 +49,11 @@ uv run rna_predict/predict.py \
 - For full pipeline or batch prediction, set `fast_dev_run=false` (or omit).
 - All outputs are saved in the specified `output_dir`.
 
+#### ⚠️ External Requirements
+- **Network Access:** First run requires internet to download `sayby/rna_torsionbert` from Hugging Face (~328MB).
+- **Stage A Weights:** RFold requires manual download of checkpoint files (see `docs/pipeline/stageA/StageA_RFold.md`).
+- **Dependencies:** All Python dependencies are managed via `pyproject.toml` and installed automatically with `uv`.
+
 ---
 
 ### 🛠️ Development
@@ -175,3 +180,27 @@ for i in range(1, N_res):
 🌟 **Conclusion:**
 
 Structured, MkDocs-friendly documentation, explicitly detailed with filenames, pipeline stages, algorithmic insights, and clear performance guidelines to enhance readability and comprehensive understanding.
+
+---
+
+## 📚 Key References
+
+This project implements and adapts methods from the following publications:
+
+1. **TorsionBERT (Stage B)**  
+   Bernard C, Postic G, Ghannay S, Tahi F. (2025). *RNA-TorsionBERT: leveraging language models for RNA 3D torsion angles prediction.*  
+   **Bioinformatics** 41(1): btaf004. [doi:10.1093/bioinformatics/btaf004](https://doi.org/10.1093/bioinformatics/btaf004)  
+   Model: `sayby/rna_torsionbert` (Hugging Face)
+
+2. **MP-NeRF (Stage C)**  
+   *Massively Parallel Natural Extension of Reference Frame method.*  
+   **bioRxiv** [doi:10.1101/2021.06.08.446214](https://doi.org/10.1101/2021.06.08.446214)  
+   Based on: Parsons et al. (2005), AlQuraishi (2019), Bayati et al. (2020)  
+   Implementation: [github.com/EleutherAI/mp_nerf](https://github.com/EleutherAI/mp_nerf)
+
+3. **AlphaFold 3 Diffusion Module (Stage D)**  
+   Abramson J, et al. (2024). *Accurate structure prediction of biomolecular interactions with AlphaFold 3.*  
+   **Nature** 630: 493–500. [doi:10.1038/s41586-024-07487-w](https://doi.org/10.1038/s41586-024-07487-w)  
+   Note: Stage D adapts AF3's coordinate-space diffusion (Algorithms 18-21) for RNA-specific refinement.
+
+See `docs/` directory for detailed implementation notes and paper summaries.
