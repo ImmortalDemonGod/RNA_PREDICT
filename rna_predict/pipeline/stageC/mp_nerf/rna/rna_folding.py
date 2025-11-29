@@ -1,197 +1,248 @@
-"""
-RNA folding functions for MP-NeRF implementation.
-"""
-
-import math
 import logging
-from typing import Any, Dict, List
+import math
+from typing import Any, Dict 
 import torch
 
-from .rna_constants import BACKBONE_ATOMS
-from .rna_atom_positioning import calculate_atom_position
+from .rna_constants import BACKBONE_ATOMS 
+from .rna_atom_positioning import calculate_atom_position 
 from ..final_kb_rna import (
     get_bond_angle,
     get_bond_length,
+    get_torsion_angle_name, 
+    get_torsion_angle_index 
 )
 
-##@snoop
-def rna_fold(
-    scaffolds: Dict[str, Any], device: str = "cpu", do_ring_closure: bool = False, debug_logging: bool = False
+logger = logging.getLogger(__name__)
+
+print(f"!!!!!!!!!! CASCADE MODULE-LEVEL: rna_folding.py LOADED FROM: {__file__} !!!!!!!!!!")
+
+def build_rna_chain_from_internal_coords(
+    scaffolds: Dict[str, torch.Tensor],
+    num_residues: int,
+    device: torch.device,
+    atom_idx_map: Dict[str, int] 
 ) -> torch.Tensor:
     """
-    Fold the RNA sequence into 3D coordinates using MP-NeRF method.
+    Builds RNA chain coordinates from internal coordinates (torsion angles) and
+    standard geometry (bond lengths, bond angles).
 
     Args:
-        scaffolds: Dictionary containing bond masks, angle masks, etc.
-        device: Device to place tensors on ('cpu' or 'cuda')
-        do_ring_closure: Whether to perform ring closure refinement
-        debug_logging: Whether to enable debug logging
+        scaffolds: Dictionary containing at least "torsions" (N, num_torsions_per_residue).
+                   Torsions are expected in radians.
+        num_residues: Number of residues in the chain.
+        device: PyTorch device to perform calculations on.
+        atom_idx_map: Mapping from atom name to index in the output tensor.
 
     Returns:
-        Tensor of shape [L, B, 3] where L is sequence length and B is number of backbone atoms
+        torch.Tensor of shape (num_residues, num_atoms_per_residue, 3)
+        representing the Cartesian coordinates of the RNA chain.
     """
-    logger = logging.getLogger("rna_predict.pipeline.stageC.mp_nerf.rna_fold")
-    logger.debug("[rna_fold] Function entry.")
-    # Log scaffold input statistics
-    for key, value in scaffolds.items():
-        if isinstance(value, torch.Tensor):
-            # Ensure value is float or complex for .mean() and .min()/.max()
-            if value.is_floating_point() or value.is_complex():
-                logger.debug(f"scaffolds['{key}']: shape={value.shape}, min={value.min().item() if value.numel() else 'NA'}, max={value.max().item() if value.numel() else 'NA'}, mean={value.mean().item() if value.numel() else 'NA'}, nan={torch.isnan(value).any().item()}")
-            else:
-                logger.debug(f"scaffolds['{key}']: shape={value.shape}, dtype={value.dtype}, min={value.min().item() if value.numel() else 'NA'}, max={value.max().item() if value.numel() else 'NA'}, nan={(value != value).any().item() if value.numel() else 'NA'} (non-float tensor)")
-        else:
-            logger.debug(f"scaffolds['{key}']: type={type(value)}")
+    num_atoms_per_residue = len(BACKBONE_ATOMS)
+    residue_coords = torch.zeros((num_residues, num_atoms_per_residue, 3), dtype=scaffolds["torsions"].dtype, device=device)
 
-    # Validate input
-    if not isinstance(scaffolds, dict):
-        raise ValueError("scaffolds must be a dictionary")
+    for i in range(num_residues):  
+        p_atom_idx = atom_idx_map.get("P")
+        if p_atom_idx is None:
+            logger.error("[ERR-RNAPREDICT-ATOMMAP-001] 'P' atom not in atom_idx_map.")
+            raise ValueError("'P' atom not in atom_idx_map.")
+        residue_coords[i, p_atom_idx, :] = torch.tensor([0.0, 0.0, 0.0], dtype=scaffolds["torsions"].dtype, device=device)
 
-    # Get sequence length and number of backbone atoms
-    L = scaffolds["bond_mask"].shape[0]
-    B = scaffolds["bond_mask"].shape[1]
+        for j in range(1, len(BACKBONE_ATOMS)):
+            # Define atom names for current iteration, used in calculations and potentially logging
+            current_atom_name_calc = BACKBONE_ATOMS[j]
+            prev_atom_name_calc = BACKBONE_ATOMS[j-1]
 
-    # Instrument: print requires_grad and grad_fn for input torsions
-    if logger.isEnabledFor(logging.DEBUG):
-        logger.debug("[DEBUG-GRAD] scaffolds['torsions'] requires_grad: %s, grad_fn: %s" % (getattr(scaffolds['torsions'], 'requires_grad', None), getattr(scaffolds['torsions'], 'grad_fn', None)))
+            current_atom_idx = atom_idx_map.get(current_atom_name_calc)
+            prev_atom_idx = atom_idx_map.get(prev_atom_name_calc)
 
-    # Build coordinates as nested lists to avoid in-place ops
-    coords_list: List[List[torch.Tensor]] = []
-    for i in range(L):
-        residue_coords = []
-        # SYSTEMATIC DEBUGGING: Log start of residue folding for residue 3
-        if i == 3 and debug_logging:
-            logger.debug(f"[DEBUG-RNAFOLD-RES3] Folding residue 3: torsions={scaffolds['torsions'][3]}")
-        if i == 0:
-            # First residue: seed enough atoms for geometric propagation
-            # Use canonical geometry for first 9 atoms (P, O5', C5', C4', O4', C3', O3', C2', C1')
-            # Values from 1a34_1_B.cif (canonical/experimental geometry):
-            residue_coords.append(torch.tensor([13.774, 39.026, 15.251], device=device, dtype=scaffolds["torsions"].dtype))  # P
-            residue_coords.append(torch.tensor([14.872, 37.934, 15.708], device=device, dtype=scaffolds["torsions"].dtype))   # O5'
-            residue_coords.append(torch.tensor([14.938, 37.437, 17.082], device=device, dtype=scaffolds["torsions"].dtype))   # C5'
-            residue_coords.append(torch.tensor([16.189, 36.563, 17.364], device=device, dtype=scaffolds["torsions"].dtype))   # C4'
-            residue_coords.append(torch.tensor([17.279, 37.002, 16.486], device=device, dtype=scaffolds["torsions"].dtype))   # O4'
-            residue_coords.append(torch.tensor([16.731, 36.539, 18.805], device=device, dtype=scaffolds["torsions"].dtype))   # C3'
-            residue_coords.append(torch.tensor([16.075, 35.38, 19.521], device=device, dtype=scaffolds["torsions"].dtype))    # O3'
-            residue_coords.append(torch.tensor([18.276, 36.491, 18.593], device=device, dtype=scaffolds["torsions"].dtype))   # C2'
-            residue_coords.append(torch.tensor([18.527, 37.062, 17.172], device=device, dtype=scaffolds["torsions"].dtype))   # C1'
-            for j in range(9, B):
-                residue_coords.append(torch.zeros(3, device=device, dtype=scaffolds["torsions"].dtype))
-        else:
-            for j in range(B):
-                # SYSTEMATIC DEBUGGING: Log intermediate atom coordinates for residue 3
-                if i == 3 and debug_logging:
-                    logger.debug(f"[DEBUG-RNAFOLD-RES3] j={j} (before placement): prev_atom={residue_coords[j-1] if j > 0 else 'N/A'}")
-                if j == 0:
-                    # Instead of copying/offset, always use calculate_atom_position with differentiable torsion for first atom
-                    prev_prev_atom = coords_list[i-1][6]  # e.g., use O5' from previous residue
-                    prev_atom = coords_list[i-1][8]      # e.g., use O3' from previous residue
-                    if prev_prev_atom.device != torch.device(device):
-                        prev_prev_atom = prev_prev_atom.to(device)
-                    if prev_atom.device != torch.device(device):
-                        prev_atom = prev_atom.to(device)
-                    bond_length_val = get_bond_length("O5'-P")
-                    bond_length = torch.full((), bond_length_val if bond_length_val is not None else 1.5, dtype=scaffolds["torsions"].dtype, device=device)
-                    bond_angle_val = get_bond_angle("O3'-O5'-P")
-                    bond_angle = torch.full((), (bond_angle_val if bond_angle_val is not None else 109.5) * (math.pi / 180.0), dtype=scaffolds["torsions"].dtype, device=device)
-                    torsion_angle = scaffolds["torsions"][i, 0] * (math.pi / 180.0)
-                    if torsion_angle.device != torch.device(device):
-                        torsion_angle = torsion_angle.to(device)
-                    new_coord = calculate_atom_position(
-                        prev_prev_atom,
-                        prev_atom,
-                        bond_length,
-                        bond_angle,
-                        torsion_angle,
-                        device,
-                    )
-                    if logger.isEnabledFor(logging.DEBUG):
-                        logger.debug(f"[DEBUG-GRAD] i={i},j={j} (P, differentiable) requires_grad: {new_coord.requires_grad}, grad_fn: {new_coord.grad_fn}")
-                    residue_coords.append(new_coord)
+            if current_atom_idx is None or prev_atom_idx is None:
+                logger.error(f"[ERR-RNAPREDICT-ATOMMAP-002] Atom index not found for {current_atom_name_calc} or {prev_atom_name_calc}")
+                raise ValueError(f"Atom index not found for {current_atom_name_calc} or {prev_atom_name_calc}")
+
+            prev_atom_coords = residue_coords[i, prev_atom_idx, :]
+
+            bond_length_val = get_bond_length(f"{prev_atom_name_calc}-{current_atom_name_calc}")
+            if bond_length_val is None:
+                logger.warning(f"[WARN-RNAPREDICT-GEOM-001] Bond length for ({prev_atom_name_calc}-{current_atom_name_calc}) not found. Using default 1.5Å.")
+                bond_length_val = 1.5
+            # This is the current_bond_length tensor used in calculations and logging
+            current_bond_length_tensor = torch.tensor(bond_length_val, dtype=scaffolds["torsions"].dtype, device=device)
+
+            if j == 1: # Placing O5' (atom 1), relative to P (atom 0)
+                offset = torch.tensor([current_bond_length_tensor.item(), 0.0, 0.0], dtype=prev_atom_coords.dtype, device=device)
+                current_atom_coords = prev_atom_coords + offset
+                # Logging for O5'
+                log_atom_name_o5 = BACKBONE_ATOMS[j] # Should be O5'
+                if i == 0 and log_atom_name_o5 == "O5'":
+                    logger.info(f"[DEBUG-FOLDING] Placing O5' (res {i}, atom {j}): {log_atom_name_o5}")
+                    logger.info(f"  REF P (P): {prev_atom_coords.cpu().detach().numpy()}")
+                    logger.info(f"  Bond Length (P-O5'): {current_bond_length_tensor.item():.4f} Å")
+            else: # Placing C5' (j=2) and subsequent atoms
+                prev_prev_atom_name_calc = BACKBONE_ATOMS[j-2]
+                prev_prev_atom_idx = atom_idx_map.get(prev_prev_atom_name_calc)
+                if prev_prev_atom_idx is None:
+                    logger.error(f"[ERR-RNAPREDICT-ATOMMAP-003] Atom index not found for {prev_prev_atom_name_calc}")
+                    raise ValueError(f"Atom index not found for {prev_prev_atom_name_calc}")
+                prev_prev_atom_coords = residue_coords[i, prev_prev_atom_idx, :]
+
+                bond_angle_val = get_bond_angle(f"{prev_prev_atom_name_calc}-{prev_atom_name_calc}-{current_atom_name_calc}")
+                if bond_angle_val is None:
+                    logger.warning(f"[WARN-RNAPREDICT-GEOM-002] Bond angle for ({prev_prev_atom_name_calc}-{prev_atom_name_calc}-{current_atom_name_calc}) not found. Using default 109.5°.")
+                    bond_angle_val = 109.5
+                current_bond_angle_rad = torch.tensor(bond_angle_val * (math.pi / 180.0), dtype=scaffolds["torsions"].dtype, device=device)
+
+                a_ref_coords_for_nerf = None
+                current_torsion_angle_rad_for_nerf = None
+                torsion_name_for_log_str = "N/A"
+
+                if j == 2: # Placing C5' (atom 2). Needs P(0), O5'(1).
+                    # Define atom names specifically for this logging context if needed
+                    log_prev_prev_atom_c5 = BACKBONE_ATOMS[j-2] # P
+                    log_prev_atom_c5 = BACKBONE_ATOMS[j-1]      # O5'
+                    log_current_atom_c5 = BACKBONE_ATOMS[j]     # C5'
+
+                    a_ref_coords_for_nerf = prev_prev_atom_coords - torch.tensor([0.0, 1.0, 0.0], dtype=prev_prev_atom_coords.dtype, device=device)
+                    current_torsion_angle_rad_for_nerf = torch.tensor(0.0, dtype=scaffolds["torsions"].dtype, device=device)
+                    torsion_name_for_log_str = f"FixedDummyA-{log_prev_prev_atom_c5}-{log_prev_atom_c5}-{log_current_atom_c5}"
+                    if i == 0 and log_current_atom_c5 == "C5'":
+                        logger.info(f"[DEBUG-FOLDING] Placing C5' (res {i}, atom {j}): {log_current_atom_c5} using 3-atom NeRF")
+                        logger.info(f"  NeRF a (dummy): {a_ref_coords_for_nerf.cpu().detach().numpy()}")
+                        logger.info(f"  NeRF b (P):    {prev_prev_atom_coords.cpu().detach().numpy()}")
+                        logger.info(f"  NeRF c (O5'):  {prev_atom_coords.cpu().detach().numpy()}")
+                        logger.info(f"  Bond Length (O5'-C5'): {current_bond_length_tensor.item():.4f} Å")
+                        logger.info(f"  Bond Angle (P-O5'-C5'): {bond_angle_val:.2f}° ({current_bond_angle_rad.item():.4f} rad)")
+                        logger.info(f"  Torsion Angle ({torsion_name_for_log_str}): {current_torsion_angle_rad_for_nerf.item():.4f} rad")
+                elif j >= 3: # Placing C4' (j=3) and onwards.
+                    nerf_a_atom_name_calc = BACKBONE_ATOMS[j-3]
+                    prev_prev_prev_atom_idx = atom_idx_map.get(nerf_a_atom_name_calc)
+                    if prev_prev_prev_atom_idx is None:
+                        logger.error(f"[ERR-RNAPREDICT-ATOMMAP-004] Atom index not found for {nerf_a_atom_name_calc}")
+                        raise ValueError(f"Atom index not found for {nerf_a_atom_name_calc}")
+                    a_ref_coords_for_nerf = residue_coords[i, prev_prev_prev_atom_idx, :]
+
+                    # Atom names for torsion definition and logging
+                    torsion_log_atom1 = BACKBONE_ATOMS[j-3]
+                    torsion_log_atom2 = BACKBONE_ATOMS[j-2]
+                    torsion_log_atom3 = BACKBONE_ATOMS[j-1]
+                    torsion_log_atom4 = BACKBONE_ATOMS[j]
+
+                    torsion_name = get_torsion_angle_name(torsion_log_atom1, torsion_log_atom2, torsion_log_atom3, torsion_log_atom4)
+                    expected_torsion_idx = get_torsion_angle_index(torsion_name) if torsion_name else -1
+
+                    if expected_torsion_idx != -1 and \
+                       scaffolds["torsions"].nelement() > 0 and \
+                       scaffolds["torsions"].shape[0] > i and \
+                       scaffolds["torsions"].shape[1] > expected_torsion_idx:
+                        current_torsion_angle_rad_for_nerf = scaffolds["torsions"][i, expected_torsion_idx]
+                    else:
+                        logger.warning(f"[WARN-RNAPREDICT-GEOM-003] Torsion angle '{torsion_name}' (idx {expected_torsion_idx}) for atoms "
+                                       f"{torsion_log_atom1}-{torsion_log_atom2}-{torsion_log_atom3}-{torsion_log_atom4} "
+                                       f"not found or invalid in scaffolds. Using 0.0 rad.")
+                        current_torsion_angle_rad_for_nerf = torch.tensor(0.0, dtype=scaffolds["torsions"].dtype, device=device)
+                    torsion_name_for_log_str = torsion_name if torsion_name else "UnknownTorsion"
+
+                    # Logging for C4'
+                    log_current_atom_c4_onwards = BACKBONE_ATOMS[j]
+                    if i == 0 and log_current_atom_c4_onwards == "C4'":
+                        logger.info(f"[DEBUG-FOLDING] Placing C4' (res {i}, atom {j}): {log_current_atom_c4_onwards} using 4-atom NeRF")
+                        logger.info(f"  NeRF a (P):    {a_ref_coords_for_nerf.cpu().detach().numpy()}")
+                        logger.info(f"  NeRF b (O5'):  {prev_prev_atom_coords.cpu().detach().numpy()}")
+                        logger.info(f"  NeRF c (C5'):  {prev_atom_coords.cpu().detach().numpy()}")
+                        logger.info(f"  Bond Length (C5'-C4'): {current_bond_length_tensor.item():.4f} Å")
+                        logger.info(f"  Bond Angle (O5'-C5'-C4'): {bond_angle_val:.2f}° ({current_bond_angle_rad.item():.4f} rad)")
+                        logger.info(f"  Torsion Angle ({torsion_name_for_log_str}, idx {expected_torsion_idx}): {current_torsion_angle_rad_for_nerf.item():.4f} rad from scaffolds")
                 else:
-                    prev_atom = residue_coords[j-1]
-                    if prev_atom.device != torch.device(device):
-                        prev_atom = prev_atom.to(device)
-                    if j >= 2:
-                        prev_prev_atom = residue_coords[j-2]
-                    else:
-                        prev_prev_atom = coords_list[i-1][-1]
-                    if prev_prev_atom.device != torch.device(device):
-                        prev_prev_atom = prev_prev_atom.to(device)
-                    if logger.isEnabledFor(logging.DEBUG):
-                        logger.debug(f"[DEBUG-GRAD] i={i},j={j} input prev_atom.requires_grad: {prev_atom.requires_grad}, prev_prev_atom.requires_grad: {prev_prev_atom.requires_grad}")
-                    bond_length_val = get_bond_length(f"{BACKBONE_ATOMS[j-1]}-{BACKBONE_ATOMS[j]}")
-                    bond_length = torch.full((), bond_length_val if bond_length_val is not None else 1.5, dtype=scaffolds["torsions"].dtype, device=device)
+                    # This case should ideally not be reached if j starts from 1 and BACKBONE_ATOMS is not empty.
+                    logger.error(f"Unexpected j value: {j} in atom placement loop leading to unhandled NeRF case.")
+                    raise IndexError(f"Unexpected j value for NeRF logic: {j}")
 
-                    if j >= 2:
-                        angle_triplet = (
-                            f"{BACKBONE_ATOMS[j-2]}-"
-                            f"{BACKBONE_ATOMS[j-1]}-"
-                            f"{BACKBONE_ATOMS[j]}"
-                        )
-                    else:
-                        angle_triplet = f"{BACKBONE_ATOMS[0]}-{BACKBONE_ATOMS[j-1]}-{BACKBONE_ATOMS[j]}"
+                current_atom_coords = calculate_atom_position(
+                    a=a_ref_coords_for_nerf,
+                    b=prev_prev_atom_coords,
+                    c=prev_atom_coords,
+                    bond_length_cd=current_bond_length_tensor, # Use the tensor form
+                    theta=current_bond_angle_rad,
+                    chi=current_torsion_angle_rad_for_nerf,
+                    device=device
+                )
 
-                    bond_angle_val = get_bond_angle(angle_triplet)
-                    bond_angle = torch.full((), (bond_angle_val if bond_angle_val is not None else 109.5) * (math.pi / 180.0), dtype=scaffolds["torsions"].dtype, device=device)
-                    if j >= 3:
-                        torsion_angle = scaffolds["torsions"][i, j-3] * (math.pi / 180.0)
-                        if torsion_angle.device != torch.device(device):
-                            torsion_angle = torsion_angle.to(device)
-                    else:
-                        torsion_angle = torch.zeros((), dtype=scaffolds["torsions"].dtype, device=device)
-                    # SYSTEMATIC DEBUGGING: Log all inputs to calculate_atom_position for residue 3
-                    if i == 3 and debug_logging:
-                        logger.debug(f"[DEBUG-RNAFOLD-RES3] j={j} call: prev_atom={prev_atom}, prev_prev_atom={prev_prev_atom}, bond_length={bond_length}, bond_angle={bond_angle}, torsion_angle={torsion_angle}")
-                    new_pos = calculate_atom_position(
-                        prev_prev_atom,
-                        prev_atom,
-                        bond_length,
-                        bond_angle,
-                        torsion_angle,
-                        device,
-                    )
-                    if logger.isEnabledFor(logging.DEBUG):
-                        logger.debug(f"[DEBUG-GRAD] i={i},j={j} (calc) requires_grad: {new_pos.requires_grad}, grad_fn: {new_pos.grad_fn}")
-                    residue_coords.append(new_pos)
-        # SYSTEMATIC DEBUGGING: Log final residue coordinates for residue 0 and 1
-        if i == 0 and debug_logging:
-            logger.debug(f"[DEBUG-RNAFOLD-RES0] residue_coords = {residue_coords}")
-        if i == 1 and debug_logging:
-            logger.debug(f"[DEBUG-RNAFOLD-RES1] residue_coords = {residue_coords}")
-        # SYSTEMATIC DEBUGGING: Log final residue coordinates for residue 2
-        if i == 2 and debug_logging:
-            logger.debug(f"[DEBUG-RNAFOLD-RES2] residue_coords = {residue_coords}")
-            if len(residue_coords) > 8 and debug_logging:
-                logger.debug(f"[DEBUG-RNAFOLD-RES2] O5' (coords_list[2][6]) = {residue_coords[6]}")
-                logger.debug(f"[DEBUG-RNAFOLD-RES2] O3' (coords_list[2][8]) = {residue_coords[8]}")
-        # SYSTEMATIC DEBUGGING: Log final residue coordinates for residue 3
-        if i == 3 and debug_logging:
-            logger.debug(f"[DEBUG-RNAFOLD-RES3] residue_coords = {residue_coords}")
-        coords_list.append(residue_coords)
-        # Print after residue
-        if logger.isEnabledFor(logging.DEBUG):
-            logger.debug(f"[DEBUG-GRAD] residue {i} last atom requires_grad: {residue_coords[-1].requires_grad}, grad_fn: {residue_coords[-1].grad_fn}")
-    # Stack to tensor
-    coords_tensor = torch.stack([torch.stack(res, dim=0) for res in coords_list], dim=0)
-    if logger.isEnabledFor(logging.DEBUG):
-        logger.debug(f"[DEBUG-GRAD] coords_tensor (rna_fold output) requires_grad: {getattr(coords_tensor, 'requires_grad', None)}, grad_fn: {getattr(coords_tensor, 'grad_fn', None)}")
+            residue_coords[i, current_atom_idx, :] = current_atom_coords
 
-    # --- DEBUG: Check requires_grad and grad_fn after folding ---
-    if isinstance(coords_tensor, torch.Tensor):
-        logger.debug(f"[GRAD-TRACE-FOLDING] coords_tensor.requires_grad: {coords_tensor.requires_grad}, grad_fn: {coords_tensor.grad_fn}")
+            # General log for placed atom
+            log_final_placed_atom_name = BACKBONE_ATOMS[j]
+            if i == 0 and log_final_placed_atom_name in ["O5'", "C5'", "C4'"]:
+                if logger.isEnabledFor(logging.INFO):
+                    logger.info(f"  Placed {log_final_placed_atom_name} (res {i}) at: {current_atom_coords.cpu().detach().numpy()}")
 
-    # Apply ring closure refinement if requested
+    if torch.isnan(residue_coords).any():
+        logger.error("[ERR-RNAPREDICT-NAN-COORD-001] NaN detected in final residue_coords.")
+    
+    print(f"!!!!!!!!!! CASCADE: build_rna_chain_from_internal_coords COMPLETED. Output shape: {residue_coords.shape} !!!!!!!!!!")
+    return residue_coords
+
+def rna_fold(
+    scaffolds: Dict[str, torch.Tensor],  # Expects a dict containing 'torsions'
+    sequence: str,
+    device: str = "cpu",
+    do_ring_closure: bool = False,      # New parameter
+    debug_logging: bool = False         # New parameter
+) -> Dict[str, Any]:
+    """
+    Main function to fold an RNA sequence given torsion angles within a scaffolds dictionary.
+    """
+    logger.info(f"[INFO-RNAFOLD] Starting RNA fold for sequence: '{sequence}' with {len(sequence)} residues.")
+    logger.info(f"[INFO-RNAFOLD] Using device: {device}, do_ring_closure: {do_ring_closure}, debug_logging: {debug_logging}")
+
+    torch_device = torch.device(device)
+    logger.info(f"[INFO-RNAFOLD] Torch device object: {torch_device}")
+
+    num_residues = len(sequence)
+
+    if "torsions" not in scaffolds:
+        logger.error("[ERR-RNAFOLD-SCAFFOLD-001] 'torsions' key not found in input scaffolds dictionary.")
+        raise ValueError("'torsions' key not found in input scaffolds dictionary.")
+
+    # Ensure torsions from scaffolds are on the correct device
+    current_torsions = scaffolds["torsions"].to(torch_device)
+
+    if current_torsions.shape[0] != num_residues:
+        logger.error(f"[ERR-RNAFOLD-SHAPE-001] Number of residues in sequence ({num_residues}) "
+                     f"does not match torsions in scaffolds ({current_torsions.shape[0]}).")
+        raise ValueError("Residue count mismatch between sequence and torsion angles in scaffolds.")
+
+    # Update scaffolds with torsions on the correct device, or create a new one for build_rna_chain_from_internal_coords
+    # For simplicity, let's ensure the input 'scaffolds' dict has torsions on the right device.
+    # This modifies the input 'scaffolds' dictionary if it's mutable and passed by reference.
+    # A safer approach might be to create a new scaffolds dict for internal use if modification is an issue.
+    processed_scaffolds = scaffolds.copy() # Avoid modifying the original dict if it's from outside
+    processed_scaffolds["torsions"] = current_torsions
+
+    atom_idx_map = {atom_name: i for i, atom_name in enumerate(BACKBONE_ATOMS)}
+
+    coords = build_rna_chain_from_internal_coords(
+        scaffolds=processed_scaffolds, # Use the scaffolds dictionary with torsions on the correct device
+        num_residues=num_residues,
+        device=torch_device,
+        atom_idx_map=atom_idx_map
+    )
+
     if do_ring_closure:
-        coords_tensor = ring_closure_refinement(coords_tensor)
+        logger.info("[INFO-RNAFOLD] Ring closure requested. Placeholder: not yet fully implemented.")
+        # coords = ring_closure_refinement(coords, sequence) # Call actual refinement when available
 
-    return coords_tensor
+    output = {
+        "sequence": sequence,
+        "coordinates": coords,
+        "torsion_angles_input": current_torsions, # Report the torsions that were actually used
+        "atom_names_ordered": BACKBONE_ATOMS
+    }
+    logger.info(f"[INFO-RNAFOLD] RNA fold completed. Output coordinates shape: {coords.shape}")
+    return output
 
-
-def ring_closure_refinement(coords: torch.Tensor) -> torch.Tensor:
+def ring_closure_refinement(coords: torch.Tensor, sequence: str) -> torch.Tensor:
     """
-    Placeholder. We could do a small iterative approach to ensure the
-    ribose ring closes properly for the sugar pucker.
-    Currently returns coords as-is.
+    Placeholder for ring closure refinement.
     """
+    logger.warning("[WARN-RNAPREDICT-NOTIMPL-001] Ring closure refinement is not yet implemented.")
+    print("!!!!!!!!!! CASCADE: ring_closure_refinement CALLED (NOT IMPLEMENTED) !!!!!!!!!!")
     return coords

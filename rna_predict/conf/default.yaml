@@ -14,6 +14,10 @@ defaults:
   - model/protenix_integration@model.protenix_integration
   - test_data@test_data  # Include test data configuration
 
+# Execution mode (predict or train)
+experiment_name: default_experiment
+mode: predict
+
 # RNA sequence to predict structure for
 sequence: ${test_data.sequence}  # Default to test sequence
 
@@ -53,7 +57,7 @@ training:
   checkpoint_dir: outputs/checkpoints
   accelerator: cpu   # Trainer accelerator (e.g. 'cpu', 'mps', 'cuda')
   devices: 1         # Number of devices for Trainer
-  epochs: 10         # Default number of training epochs
+  epochs: 1         # Default number of training epochs
   batch_size: 32     # Default training batch size
   limit_train_batches: 1  # Default number of training batches per epoch (for quick tests)
   streamline_mode: true  # When true, run only TorsionBERT -> Stage C for streamlined training
@@ -62,4 +66,4 @@ training:
 prediction:
   repeats: 5
   residue_atom_choice: 0
-  enable_stochastic_inference_for_submission: false
+  enable_stochastic_inference_for_submission: true

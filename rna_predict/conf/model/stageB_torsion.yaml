@@ -1,5 +1,5 @@
 # rna_predict/conf/model/stageB_torsion.yaml
-model_name_or_path: "sayby/rna_torsionbert"
+model_name_or_path: ${oc.env:TOR_BERT_CKPT,"sayby/rna_torsionbert"}
 device: ${device}          # Explicitly set device for debugging interpolation failure
 angle_mode: "sin_cos"  # Default angle representation
 num_angles: 7          # Standard number of torsion angles

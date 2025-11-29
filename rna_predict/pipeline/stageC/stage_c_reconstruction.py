@@ -314,7 +314,14 @@ def run_stageC_rna_mpnerf(
         else:
             logger.debug(f"[DEBUG-SCAFFOLDS-RES3] scaffolds has no keys() method, type={type(scaffolds)}")
     start_time = time.time()
-    coords_bb = rna_fold(scaffolds, device=device, do_ring_closure=do_ring_closure, debug_logging=stage_cfg.debug_logging)
+    coords_bb_dict = rna_fold(
+        scaffolds=scaffolds, 
+        sequence=sequence, 
+        device=device, 
+        do_ring_closure=do_ring_closure, 
+        debug_logging=stage_cfg.debug_logging
+    )
+    coords_bb = coords_bb_dict["coordinates"] # Extract coordinates from the returned dict
     elapsed = time.time() - start_time
     # SYSTEMATIC DEBUGGING: Dump backbone coordinates for residue 3 right after rna_fold
     if coords_bb.shape[0] > 3:

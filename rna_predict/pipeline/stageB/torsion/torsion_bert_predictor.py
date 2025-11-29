@@ -286,8 +286,35 @@ class StageBTorsionBertPredictor(nn.Module):
             self.model = DummyTorsionBertAutoModel(num_angles=self.num_angles).to(self.device)
         else:
             try:
-                self.tokenizer = AutoTokenizer.from_pretrained(self.model_name_or_path, trust_remote_code=True)
-                self.model = AutoModel.from_pretrained(self.model_name_or_path, trust_remote_code=True)
+                def is_local_path(path):
+                    import os
+                    return os.path.exists(path)
+                if is_local_path(self.model_name_or_path):
+                    logging.info(f"[DEBUG-TORSIONBERT] Loading tokenizer from local path: {self.model_name_or_path} with local_files_only=True")
+                    self.tokenizer = AutoTokenizer.from_pretrained(
+                        self.model_name_or_path,
+                        trust_remote_code=True,
+                        local_files_only=True
+                    )
+                else:
+                    logging.info(f"[DEBUG-TORSIONBERT] Loading tokenizer from hub id: {self.model_name_or_path}")
+                    self.tokenizer = AutoTokenizer.from_pretrained(
+                        self.model_name_or_path,
+                        trust_remote_code=True
+                    )
+                if is_local_path(self.model_name_or_path):
+                    logging.info(f"[DEBUG-TORSIONBERT] Loading model from local path: {self.model_name_or_path} with local_files_only=True")
+                    self.model = AutoModel.from_pretrained(
+                        self.model_name_or_path,
+                        trust_remote_code=True,
+                        local_files_only=True
+                    )
+                else:
+                    logging.info(f"[DEBUG-TORSIONBERT] Loading model from hub id: {self.model_name_or_path}")
+                    self.model = AutoModel.from_pretrained(
+                        self.model_name_or_path,
+                        trust_remote_code=True
+                    )
                 if self.debug_logging:
                     logger.info(f"[DEVICE-DEBUG][stageB_torsion] Model class before to(device): {self.model.__class__}")
                     logger.info(f"[DEVICE-DEBUG][stageB_torsion] Model config before to(device): {self.model.config}")
@@ -596,6 +623,17 @@ class StageBTorsionBertPredictor(nn.Module):
                     logger.debug(f"[DEBUG-PREDICTOR] outputs.last_hidden_state shape: {getattr(outputs.last_hidden_state, 'shape', None)}")
             # Don't print debug info when debug_logging is False
 
+            # --- DIVERSITY DEBUG: Log logits sum and seed ---
+            # (This helps check if stochastic inference is working)
+            if stochastic_pass:
+                logits = None
+                if hasattr(outputs, 'logits') and outputs.logits is not None:
+                    logits = outputs.logits
+                elif isinstance(outputs, dict) and 'logits' in outputs:
+                    logits = outputs['logits']
+                if logits is not None:
+                    seed_to_log = seed if seed is not None else "N/A"
+                    logger.info(f"[DEBUG-LOGITS] Seed: {seed_to_log}, Logits sum: {logits.sum().item()}, Stochastic: {stochastic_pass}")
             # Extract logits from the output
             angle_preds = None
             if isinstance(outputs, dict) and "logits" in outputs:
@@ -765,11 +803,6 @@ class StageBTorsionBertPredictor(nn.Module):
                 output_dim = self.num_angles * 2
             else:
                 output_dim = self.num_angles
-
-            # Special case for tests: If num_angles is 16, ensure output shape is [N, 16]
-            # This is needed for the TestStageBTorsionBertPredictor tests in test_torsionbert.py
-            if self.num_angles == 16 and self.angle_mode == "degrees":
-                output_dim = 16
 
             if self.debug_logging:
                 logger.info(f"[DEBUG-DUMMY-MODE] Using output_dim={output_dim} for num_angles={self.num_angles} in {self.angle_mode} mode")

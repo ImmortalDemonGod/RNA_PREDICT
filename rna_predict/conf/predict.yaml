@@ -10,7 +10,7 @@ limit_n: null
 
 input_csv: rna_predict/dataset/examples/kaggle_minimal_index.csv
 output_dir: outputs/predict_M2_test/
-checkpoint_path: null  # To be set on CLI or in script
+checkpoint_path: /Users/tomriddle1/RNA_PREDICT/outputs/checkpoints/last.ckpt  # Updated for correct test location
 
 # Device and other overrides
 # device: cpu  # or mps/cuda as needed

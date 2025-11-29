@@ -159,6 +159,7 @@ RNA_BOND_ANGLES_C3_ENDO = {
     "O5'-P-O1P/O2P_small": 105.7,
     "O3'-P-O5'": 104.0,
     "P-O5'-C5'": 120.9,
+    "O5'-C5'-C4'": 111.5,
     "C3'-O3'-P": 119.7,
 }
 
@@ -187,6 +188,21 @@ RNA_BACKBONE_TORSIONS_AFORM = {
     "delta": 85.0,  # C5'-C4'-C3'-O3'
     "epsilon": 180.0,  # C4'-C3'-O3'-P
     "zeta": 290.0,  # C3'-O3'-P-O5'(next)
+}
+
+# Definitions for mapping atom quadruplets to torsion angle names
+# Primarily for intra-residue backbone torsions derived from sequential BACKBONE_ATOMS
+TORSION_DEFINITIONS = {
+    # (atom1, atom2, atom3, atom4): "torsion_name"
+    ("P", "O5'", "C5'", "C4'"): "beta",
+    ("O5'", "C5'", "C4'", "C3'"): "gamma",
+    ("C5'", "C4'", "C3'", "O3'"): "delta",
+    # Alpha, Epsilon, Zeta involve atoms from adjacent residues (e.g., P_next, O3'_prev)
+    # and are typically handled by direct indexing into a torsion array rather than by name lookup from 4 current residue atoms.
+    # Example if needed for inter-residue, assuming atom names could include _prev or _next context:
+    # ("C4'", "C3'", "O3'", "P_next"): "epsilon",
+    # ("C3'", "O3'", "P_next", "O5'_next"): "zeta",
+    # ("O3'_prev", "P", "O5'", "C5'"): "alpha",
 }
 
 RNA_SUGAR_PUCKER_TORSIONS = {
@@ -333,6 +349,64 @@ RNA_CONNECT = {
 
 
 ###############################################################################
+# Helper function to map atom names to torsion angle names
+###############################################################################
+
+def get_torsion_angle_name(atom1_name: str, atom2_name: str, atom3_name: str, atom4_name: str) -> str | None:
+    """
+    Given four atom names defining a dihedral angle, return the canonical
+    torsion angle name (e.g., "beta", "gamma", "delta").
+
+    This function primarily supports intra-residue backbone torsion angles.
+    Returns None if the atom combination does not match a known definition.
+
+    Args:
+        atom1_name: Name of the first atom.
+        atom2_name: Name of the second atom.
+        atom3_name: Name of the third atom.
+        atom4_name: Name of the fourth atom.
+
+    Returns:
+        The torsion angle name as a string, or None if not found.
+    """
+    atom_tuple = (atom1_name, atom2_name, atom3_name, atom4_name)
+    return TORSION_DEFINITIONS.get(atom_tuple)
+
+
+###############################################################################
+# Helper function to map torsion angle names to their numerical indices
+###############################################################################
+
+TORSION_ANGLE_TO_INDEX = {
+    "alpha": 0,
+    "beta": 1,
+    "gamma": 2,
+    "delta": 3,
+    "epsilon": 4,
+    "zeta": 5,
+    # Chi (glycosidic) and other torsions could be added if needed
+}
+
+def get_torsion_angle_index(torsion_name: str) -> int:
+    """
+    Given a canonical torsion angle name (e.g., "alpha", "beta"),
+    return its numerical index.
+
+    This is used to access values from an array of torsion angles,
+    such as scaffolds['torsions'].
+
+    Args:
+        torsion_name: The name of the torsion angle.
+
+    Returns:
+        The numerical index (0-based) of the torsion angle.
+        Returns -1 if the torsion name is not recognized, allowing callers
+        to handle unknown or unsupported torsion angles gracefully.
+    """
+    return TORSION_ANGLE_TO_INDEX.get(torsion_name, -1)
+
+
+###############################################################################
 # Helper: canonicalize bond pair so reversed pairs are recognized
 ###############################################################################
 def canonicalize_bond_pair(pair: str) -> str:
@@ -354,6 +428,7 @@ def canonicalize_bond_pair(pair: str) -> str:
 ###############################################################################
 # 6) PUBLIC API: GETTERS
 ###############################################################################
+
 def get_bond_length(pair, sugar_pucker="C3'-endo", test_mode=False):
     """
     Retrieve a standard bond length (Å) for the sugar–phosphate backbone

@@ -194,13 +194,40 @@ class TorsionBertModel(nn.Module):
         try:
             if self.debug_logging:
                 logger.info(f"[DEBUG-INIT] Attempting to load tokenizer from model_path: '{model_path}'")
-            self.tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
+            def is_local_path(path):
+                import os
+                return os.path.exists(path)
+            if is_local_path(model_path):
+                logging.info(f"[DEBUG-TORSIONBERT-INFER] Loading tokenizer from local path: {model_path} with local_files_only=True")
+                self.tokenizer = AutoTokenizer.from_pretrained(
+                    model_path,
+                    trust_remote_code=True,
+                    local_files_only=True
+                )
+            else:
+                logging.info(f"[DEBUG-TORSIONBERT-INFER] Loading tokenizer from hub id: {model_path}")
+                self.tokenizer = AutoTokenizer.from_pretrained(
+                    model_path,
+                    trust_remote_code=True
+                )
             if self.debug_logging:
                 logger.info(f"[DEBUG-INIT] Tokenizer loaded successfully: {type(self.tokenizer)}")
 
             if self.debug_logging:
                 logger.info(f"[DEBUG-INIT] Attempting to load model from model_path: '{model_path}'")
-            self.model = AutoModel.from_pretrained(model_path, trust_remote_code=True)
+            if is_local_path(model_path):
+                logging.info(f"[DEBUG-TORSIONBERT-INFER] Loading model from local path: {model_path} with local_files_only=True")
+                self.model = AutoModel.from_pretrained(
+                    model_path,
+                    trust_remote_code=True,
+                    local_files_only=True
+                )
+            else:
+                logging.info(f"[DEBUG-TORSIONBERT-INFER] Loading model from hub id: {model_path}")
+                self.model = AutoModel.from_pretrained(
+                    model_path,
+                    trust_remote_code=True
+                )
             if self.debug_logging:
                 logger.info(f"[DEBUG-INIT] Model loaded successfully: {type(self.model)}")
                 logger.info(f"[DEVICE-DEBUG][stageB_torsion] After model load, param device: {next(self.model.parameters()).device}")
