@@ -50,6 +50,7 @@ const sh = (c, a, o = {}) => new Promise((r) => {
   p.on("close", (code) => r({ code, out: O, err: E }));
 });
 const log = (...m) => console.log(`[orch ${new Date().toISOString().slice(11, 19)}]`, ...m);
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const sortBy = (k) => (a, b) => (a[k] > b[k] ? 1 : a[k] < b[k] ? -1 : 0);
 const packChunks = (xs, n) => { const o = []; for (let i = 0; i < xs.length; i += n) o.push(xs.slice(i, i + n)); return o; };
 const tolerantJson = (s) => { // strip fences / surrounding prose, parse first {...} ... last }
@@ -88,7 +89,8 @@ function validate(schema, data, path = "$") {
 
 // ─────────────────────────────── one subagent ───────────────────────────────
 let SEQ = 0;
-async function runAgent({ name, prompt, schema, model = MODEL_HEAVY, maxTurns = 50, web = false, timeoutMs = 18e5, retries = 1 }) {
+async function runAgent({ name, prompt, schema, model = MODEL_HEAVY, maxTurns = 50, web = false, timeoutMs = 18e5, retries = 2 }) {
+  let lastUsage = false;
   for (let attempt = 0; attempt <= retries; attempt++) {
     const out = join(WORK, `a_${name.replace(/\W+/g, "_")}_${SEQ++}.json`);
     const tools = (web ? "Read,Grep,Glob,Bash,WebSearch,WebFetch" : "Read,Grep,Glob,Bash") + ",Write";
@@ -105,13 +107,20 @@ async function runAgent({ name, prompt, schema, model = MODEL_HEAVY, maxTurns = 
     });
     let envel = null; try { envel = JSON.parse(r.O); } catch {}
     if (envel) TOTAL_COST += Number(envel.total_cost_usd || 0);
+    const errText = `${envel?.result || ""} ${envel?.api_error_status || ""} ${envel?.subtype || ""}`.toLowerCase();
+    const fast = (envel?.duration_api_ms ?? 9999) < 400; // sub-400ms is_error ⇒ pre-flight reject (usage/rate limit)
+    lastUsage = !!envel?.is_error && (/usage limit|rate limit|429|overloaded|quota|too many requests|exceed/.test(errText) || fast);
     const data = existsSync(out) ? tolerantJson(readFileSync(out, "utf8")) : null;
-    if (!data) { log(`  ⚠ ${name}: no/invalid handoff (attempt ${attempt + 1}/${retries + 1})${envel?.is_error ? " [agent is_error]" : ""}`); continue; }
-    const v = validate(schema, data);
-    if (!v.ok) { log(`  ⚠ ${name}: schema violations (attempt ${attempt + 1}): ${v.errors.slice(0, 4).join(" | ")}`); continue; }
-    return { ok: true, data };
+    if (data) {
+      const v = validate(schema, data);
+      if (v.ok) return { ok: true, data };
+      log(`  ⚠ ${name}: schema violations (attempt ${attempt + 1}): ${v.errors.slice(0, 4).join(" | ")}`);
+    } else {
+      log(`  ⚠ ${name}: no/invalid handoff (attempt ${attempt + 1}/${retries + 1})${envel?.is_error ? ` [agent is_error${lastUsage ? ":usage-limit" : ""}]` : ""}`);
+    }
+    if (attempt < retries) await sleep(lastUsage ? 30000 : 5000);
   }
-  return { ok: false, err: "failed-after-retries" };
+  return { ok: false, err: lastUsage ? "usage-limit" : "failed-after-retries" };
 }
 
 async function pMap(xs, fn, n = CONCURRENCY) {
@@ -265,10 +274,11 @@ _Every defect findable by reading. Promoted only after surviving adversarial fal
 - Findings (survivors): **${findings.length}**
 - Severity: ${["critical", "high", "medium", "low", "info"].map((s) => `${s}=${bySev[s] || 0}`).join(", ")}
 - Source files in denominator: **${meta.source_total}**; examined: **${meta.examined}**
+- Survived adversarial falsification; **${meta.unverified || 0}** kept as _unverified_ (falsifier could not adjudicate).
 - Judged against Stage-1 provisional intent.
 
 ## Findings
-${sorted.map((f) => `### [${f.severity.toUpperCase()}] ${f.id} — ${f.class}
+${sorted.map((f) => `### [${f.severity.toUpperCase()}] ${f.id} — ${f.class}${f.status === "unverified" ? " _(UNVERIFIED — falsifier could not adjudicate)_" : ""}
 - **Location:** \`${f.location}\`
 - **Evidence:** ${f.evidence}
 ${f.recommendation ? `- **Recommendation:** ${f.recommendation}\n` : ""}`).join("\n")}
@@ -347,6 +357,23 @@ ${fence({ plan: items, mappability_check: check })}
 // ─────────────────────────────── stages ───────────────────────────────
 const A = "audit/01-understanding.md", A2 = "audit/02-static-audit.md", A3 = "audit/03-execution.md", A4 = "audit/04-goal.md", A5 = "audit/05-plan.md";
 
+// Reuse already-gathered Stage-2 audit-shard handoffs (a_s2_c<chunk>_l<lens>_*.json) so a resume
+// re-runs only the (cheap) falsification, not the expensive 24-pass audit fan-out.
+function collectExistingShardFindings() {
+  const combos = new Set(), findings = [], examined = new Set();
+  let files = []; try { files = readdirSync(WORK); } catch { return { combos: 0, findings, examined }; }
+  for (const f of files) {
+    const m = f.match(/^a_s2_c(\d+)_l(\d+)_\d+\.json$/);
+    if (!m) continue;
+    let o; try { o = JSON.parse(readFileSync(join(WORK, f), "utf8")); } catch { continue; }
+    if (!o || !Array.isArray(o.findings)) continue;
+    combos.add(`${m[1]}_${m[2]}`);
+    o.findings.forEach((x) => findings.push(x));
+    (o.files_examined || []).forEach((p) => examined.add(p));
+  }
+  return { combos: combos.size, findings, examined };
+}
+
 async function stage1(state) {
   log("STAGE 1 — comprehensive understanding");
   const files = await repoFileSet();
@@ -405,45 +432,74 @@ async function stage2(state, s1) {
   const lenses = ["correctness bugs (logic errors, wrong shapes/types, error handling, resource leaks, concurrency)",
     "security vulnerabilities (injection, deserialization, path traversal, secrets in code, unsafe downloads/eval, SSRF)",
     "documentation/code drift and design defects (README/docstrings vs reality, dead/contradictory config, intent mismatch vs Stage-1 provisional intent)"];
-  // initial audit: every chunk audited; lens rotates so the whole tree gets all 3 angles across chunks
-  let findings = [];
-  const examined = new Set();
-  const passes = chunks.flatMap((paths, idx) => lenses.map((lens, li) => ({ paths, idx, lens, li })));
-  const out = await pMap(passes, (p) => runAgent({ name: `s2-c${p.idx}-l${p.li}`, model: MODEL_HEAVY, maxTurns: 70, schema: S.findings,
-    prompt: `Static audit of repo ${REPO}. Read the Stage-1 map at ${A} (provisional intent is your defect yardstick). AUDIT EVERY assigned file below through THIS lens: ${p.lens}. Open each file with Read. A defect is only a defect relative to intended behavior. Every finding needs id (globally unique, prefix s2c${p.idx}l${p.li}-), location path:line, class, severity, concrete evidence, and a recommendation. Also return files_examined = the assigned paths you actually opened.\nASSIGNED FILES:\n${p.paths.join("\n")}` }), 4);
-  out.forEach((r) => { if (r.ok) { r.data.findings.forEach((f) => findings.push(f)); r.data.files_examined.forEach((p) => examined.add(p)); } });
-  log(`  initial pass: ${findings.length} raw findings; examined ${examined.size}/${sourceFiles.length} source files`);
-
   const fingerprint = (f) => `${f.location}::${f.class}`;
   const dedupe = (arr) => { const m = new Map(); for (const f of arr) if (!m.has(fingerprint(f))) m.set(fingerprint(f), f); return [...m.values()]; };
 
-  let prev = "", rounds = 0;
+  // ── gather raw findings: REUSE existing shard handoffs if a full set is on disk, else run the fan-out ──
+  let findings = [];
+  const examined = new Set();
+  const reuse = collectExistingShardFindings();
+  const expectedCombos = chunks.length * lenses.length;
+  if (reuse.combos >= expectedCombos && reuse.findings.length > 0) {
+    reuse.findings.forEach((f) => findings.push(f));
+    reuse.examined.forEach((p) => examined.add(p));
+    log(`  reusing ${findings.length} raw findings from ${reuse.combos}/${expectedCombos} existing shard handoffs (skip costly re-audit)`);
+  } else {
+    const passes = chunks.flatMap((paths, idx) => lenses.map((lens, li) => ({ paths, idx, lens, li })));
+    const out = await pMap(passes, (p) => runAgent({ name: `s2-c${p.idx}-l${p.li}`, model: MODEL_HEAVY, maxTurns: 70, schema: S.findings,
+      prompt: `Static audit of repo ${REPO}. Read the Stage-1 map at ${A} (provisional intent is your defect yardstick). AUDIT EVERY assigned file below through THIS lens: ${p.lens}. Open each file with Read. A defect is only a defect relative to intended behavior. Every finding needs id (globally unique, prefix s2c${p.idx}l${p.li}-), location path:line, class, severity, concrete evidence, and a recommendation. Also return files_examined = the assigned paths you actually opened.\nASSIGNED FILES:\n${p.paths.join("\n")}` }), 4);
+    out.forEach((r) => { if (r.ok) { r.data.findings.forEach((f) => findings.push(f)); r.data.files_examined.forEach((p) => examined.add(p)); } });
+  }
+  findings = dedupe(findings);
+  log(`  raw findings: ${findings.length}; examined ${examined.size}/${sourceFiles.length} source files`);
+  if (findings.length === 0) await halt("stage2", "no raw findings gathered — audit fan-out produced nothing (likely usage/rate limit). Re-run --from 2 when usage is available.");
+
+  // ── falsification fixpoint. Invariant: a falsifier OUTAGE is never a refutation. ──
+  // verdict map persists across rounds (each finding falsified once); un-adjudicated findings are KEPT
+  // as 'unverified' (never silently dropped); a wholesale falsifier failure HALTs instead of shipping empty.
+  const verdict = new Map();
+  let prev = "", rounds = 0, unverified = 0;
   for (let round = 1; round <= STAGE2_CEILING; round++) {
     rounds = round;
-    // 1) re-audit sweep for anything missed (fresh lens over the same denominator, summarized)
+    // 1) re-audit sweep for anything missed (best-effort)
     const sweep = await runAgent({ name: `s2-reaudit-r${round}`, model: MODEL_HEAVY, maxTurns: 80, schema: S.reaudit,
-      prompt: `Re-audit repo ${REPO} for defects MISSED so far. Read ${A}. The current finding locations are:\n${dedupe(findings).map((f) => `- ${f.location} (${f.class})`).join("\n").slice(0, 6000)}\nHunt specifically for classes/areas under-represented above (e.g. packaging/entry-point breakage, hardcoded machine-specific paths, unsafe network/deserialization, doc/code drift, dead config). Only NEW findings not already listed. Unique ids prefixed s2re${round}-.` });
+      prompt: `Re-audit repo ${REPO} for defects MISSED so far. Read ${A}. The current finding locations are:\n${dedupe(findings).map((f) => `- ${f.location} (${f.class})`).join("\n").slice(0, 6000)}\nHunt specifically for classes/areas under-represented above (packaging/entry-point breakage, hardcoded machine-specific paths, unsafe network/deserialization, doc/code drift, dead config). Only NEW findings not already listed. Unique ids prefixed s2re${round}-.` });
     if (sweep.ok) findings = dedupe([...findings, ...sweep.data.new_findings.map((f) => ({ ...f, recommendation: f.recommendation || "" }))]);
     findings = dedupe(findings);
-    // 2) falsify the WHOLE set against source (adversarial promotion gate)
-    const batches = packChunks(findings, 25);
-    const verds = await pMap(batches, (batch, bi) => runAgent({ name: `s2-falsify-r${round}-b${bi}`, model: MODEL_HEAVY, maxTurns: 70, schema: S.falsify,
-      prompt: `Adversarially verify each finding below by opening the cited path:line in repo ${REPO} and trying to REFUTE it. For each: verdict ∈ {survived (evidence holds), refuted (claim is wrong/not a real defect), needs-refinement (real but mislocated/misclassified — give corrected_location)} with a rationale citing what you saw. Do not rubber-stamp.\nFINDINGS:\n${JSON.stringify(batch.map((f) => ({ id: f.id, location: f.location, class: f.class, evidence: f.evidence })))}` }), 4);
-    const verdict = new Map();
-    verds.forEach((r) => { if (r.ok) r.data.verdicts.forEach((v) => verdict.set(v.id, v)); });
-    // 3) keep survivors (and refined); drop refuted and anything not adjudicated
-    findings = findings.filter((f) => { const v = verdict.get(f.id); if (!v) return false; if (v.verdict === "refuted") return false; if (v.verdict === "needs-refinement" && v.corrected_location) f.location = v.corrected_location; return true; });
+    // 2) falsify only not-yet-adjudicated findings, with adjudication-coverage guard + retries
+    for (let fa = 1; fa <= 3; fa++) {
+      const todo = findings.filter((f) => !verdict.has(f.id));
+      if (!todo.length) break;
+      const batches = packChunks(todo, 20);
+      const verds = await pMap(batches, (batch, bi) => runAgent({ name: `s2-falsify-r${round}-a${fa}-b${bi}`, model: MODEL_HEAVY, maxTurns: 70, schema: S.falsify,
+        prompt: `Adversarially verify each finding below by opening the cited path:line in repo ${REPO} and trying to REFUTE it. For each: verdict ∈ {survived (evidence holds), refuted (claim is wrong / not a real defect), needs-refinement (real but mislocated — give corrected_location)} with a rationale citing what you saw. Do not rubber-stamp. Return a verdict for EVERY id given.\nFINDINGS:\n${JSON.stringify(batch.map((f) => ({ id: f.id, location: f.location, class: f.class, evidence: f.evidence })))}` }), 4);
+      verds.forEach((r) => { if (r.ok) r.data.verdicts.forEach((v) => verdict.set(v.id, v)); });
+      const frac = findings.filter((f) => verdict.has(f.id)).length / Math.max(1, findings.length);
+      log(`  round ${round} falsify attempt ${fa}: ${(frac * 100).toFixed(0)}% adjudicated`);
+      if (frac >= 0.85) break;
+      if (fa < 3) await sleep(20000);
+    }
+    const adjFrac = findings.filter((f) => verdict.has(f.id)).length / Math.max(1, findings.length);
+    if (adjFrac < 0.6) await halt("stage2", `adversarial falsification could not be performed (only ${(adjFrac * 100).toFixed(0)}% of ${findings.length} findings adjudicated) — likely usage/rate limit. Refusing to ship an empty/unverified audit; re-run --from 2 when usage is restored.`);
+    // 3) drop ONLY explicit 'refuted'; keep survivors; keep un-adjudicated as 'unverified'
+    findings = findings.map((f) => {
+      const v = verdict.get(f.id);
+      if (!v) { f.status = "unverified"; return f; }
+      if (v.verdict === "refuted") return null;
+      if (v.verdict === "needs-refinement" && v.corrected_location) f.location = v.corrected_location;
+      f.status = "survived"; return f;
+    }).filter(Boolean);
     findings = dedupe(findings);
+    unverified = findings.filter((f) => f.status === "unverified").length;
     const sig = findings.map(fingerprint).sort().join("|");
-    log(`  round ${round}: ${findings.length} survivors`);
-    if (sig === prev) { log(`  fixpoint reached at round ${round}`); break; }
+    log(`  round ${round}: ${findings.length} survivors (${unverified} unverified)`);
+    if (sig === prev && unverified === 0) { log(`  fixpoint reached at round ${round}`); break; }
     prev = sig;
-    if (round === STAGE2_CEILING) await halt("stage2", `no falsification fixpoint within ${STAGE2_CEILING} rounds.`);
+    if (round === STAGE2_CEILING && unverified === 0) await halt("stage2", `no falsification fixpoint within ${STAGE2_CEILING} rounds.`);
   }
-  // coverage stop-test (denominator visited)
   const coverage = examined.size / Math.max(1, sourceFiles.length);
   if (coverage < 0.9) log(`  ⚠ examined coverage ${(coverage * 100).toFixed(0)}% (<90%) — recorded in meta.`);
-  const meta = { rounds, source_total: sourceFiles.length, examined: examined.size };
+  const meta = { rounds, source_total: sourceFiles.length, examined: examined.size, survivors: findings.length, unverified };
   const obj = { findings, meta };
   await checkpoint("stage2", "02-static-audit.md", renderStatic(findings, meta), "stage2.json", obj, state);
   return obj;
@@ -452,9 +508,9 @@ async function stage2(state, s1) {
 async function stage3(state, s1, s2) {
   log("STAGE 3 — execution / dynamic surface");
   const findingIds = s2.findings.map((f) => f.id);
-  const ex = await runAgent({ name: "s3-exec", model: MODEL_FAST, maxTurns: 120, timeoutMs: 24e5, schema: S.exec,
+  const ex = await runAgent({ name: "s3-exec", model: MODEL_FAST, maxTurns: 140, timeoutMs: 24e5, retries: 3, schema: S.exec,
     prompt: `Exercise the executable surface of repo ${REPO}. DISCOVER build/test/coverage commands from the repo itself (README, Makefile, pyproject.toml, pytest.ini, package.json, .github/workflows) — never assume another project's commands. Then actually run them in this sandbox: attempt dependency install if a manifest exists (uv/pip/npm), run the test suite under coverage if feasible, and drive real entry points. Capture real exit codes and observed behavior. If heavy deps cannot be installed or a region needs credentials/external services/hardware, record it in 'accounting' with the right status+reason rather than pretending. Aim for 100% ACCOUNTING (every region either executed or carrying a documented reason), not 100% execution. Use Stage-2 findings (read ${A2}) to confirm/refute/refine via finding_deltas. Known Stage-2 finding ids: ${findingIds.join(", ") || "(none)"}.` });
-  if (!ex.ok) await halt("stage3", "execution worker failed to produce a valid execution object.");
+  if (!ex.ok) await halt("stage3", `execution worker failed to produce a valid execution object (reason: ${ex.err}). If reason is 'usage-limit', simply re-run: node audit/run-audit.mjs --from 3`);
   // independent check of the self-reported coverage/accounting
   const check = await runAgent({ name: "s3-check", model: MODEL_HEAVY, maxTurns: 50, schema: S.execCheck,
     prompt: `Independently verify the execution report at ${join(WORK, "stage3_raw.json")} (already written) against the actual repo ${REPO} and any coverage artifacts on disk (e.g. coverage.xml, htmlcov, .coverage, pytest output logs). Is the measured-coverage claim and the accounting honest and supported by real artifacts? Return coverage_claim_supported (bool), a rationale, and any discrepancies. Be adversarial — this stage is the most failure-prone.` });
