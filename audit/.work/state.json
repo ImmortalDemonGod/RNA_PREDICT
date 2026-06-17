@@ -1,7 +1,8 @@
 {
   "completed": {
-    "stage1": 1781666523929
+    "stage1": 1781666523929,
+    "stage2": 1781670335916
   },
   "branch": "claude/exciting-dirac-mxw19j",
-  "total_cost_usd_api_equiv": 5.8167225
+  "total_cost_usd_api_equiv": 83.864456
 }
