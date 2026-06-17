@@ -1,0 +1,504 @@
+{
+  "plan": {
+    "items": [
+      {
+        "id": "P01",
+        "title": "Resolve deepspeed/torch version incompatibility blocking 52 test files, training, stageD and pairformer imports",
+        "links_to": [
+          "goal-candidate-3",
+          "s2c4l0-pairformer-wrapper-predict-random",
+          "s2c5l1-stageD-pytest-envvar-bypass-001"
+        ],
+        "location": "pyproject.toml:25 (torch pin), uv.lock:1014-1030 (deepspeed 0.19.2), rna_predict/pipeline/stageA/input_embedding/current/checkpointing.py:17-20",
+        "change": "deepspeed 0.19.2 requires torch>=2.4 (torch.library.custom_op) but the resolved torch is 2.3.1 and the pin allows <2.6.0; importing deepspeed raises AttributeError, not ImportError, so the try/except at checkpointing.py:17-20 does not catch it. Pin a deepspeed version compatible with torch 2.3.x in pyproject.toml dependencies (or raise the torch lower bound to >=2.4 consistently) AND broaden the guard at checkpointing.py:18 to `except (ImportError, AttributeError, OSError)` so a mismatched deepspeed degrades gracefully to deepspeed=None instead of crashing the whole import chain. Re-run uv lock.",
+        "verification": "`uv run pytest tests/ --co -q --override-ini='addopts='` collects with 0 collection-error files (was 52 ERROR files with `module 'torch.library' has no attribute 'custom_op'`); `uv run python -c 'import rna_predict.pipeline.stageB.pairwise.pairformer_wrapper'` exits 0.",
+        "depends_on": [],
+        "order": 1
+      },
+      {
+        "id": "P02",
+        "title": "Create the missing rna_predict.__main__ console entry point",
+        "links_to": [
+          "goal-candidate-1",
+          "s2c0l0-001",
+          "s2c0l0-003"
+        ],
+        "location": "pyproject.toml:61 ([project.scripts] rna_predict = \"rna_predict.__main__:main\"); new file rna_predict/__main__.py",
+        "change": "Add rna_predict/__main__.py defining `main()` that delegates to the README-recommended inference entry (rna_predict.predict:main, the @hydra.main at predict.py:440), so `rna_predict` and `python -m rna_predict` both resolve. Alternatively repoint pyproject.toml:61 to `rna_predict.predict:main`; prefer adding __main__.py to keep both invocation styles working.",
+        "verification": "`uv run rna_predict --help` exits 0 and prints the Hydra help (was `ModuleNotFoundError: No module named 'rna_predict.__main__'`); `find rna_predict -name __main__.py` returns one path.",
+        "depends_on": [],
+        "order": 2
+      },
+      {
+        "id": "P03",
+        "title": "Remove hardcoded developer checkpoint path from the default inference config",
+        "links_to": [
+          "goal-candidate-1",
+          "s2c1l0-predict-yaml-hardcoded-ckpt",
+          "s2c1l2-predict-yaml-hardcoded-checkpoint"
+        ],
+        "location": "rna_predict/conf/predict.yaml:13",
+        "change": "Replace `checkpoint_path: /Users/tomriddle1/RNA_PREDICT/outputs/checkpoints/last.ckpt` with a relative/repo-portable default (e.g. `checkpoint_path: null` with a documented override, or `outputs/checkpoints/last.ckpt`). Ensure predict.py's torch.load call (predict.py:535) handles a null/missing checkpoint by running from-scratch or raising a clear, actionable error rather than FileNotFoundError on the dev path.",
+        "verification": "`grep -rn '/Users/tomriddle1' rna_predict/conf/` returns nothing; `uv run python -m rna_predict.predict checkpoint_path=null sequence=AUGCAUGC mode=predict device=cpu` no longer fails at torch.load of the /Users/tomriddle1 path.",
+        "depends_on": [],
+        "order": 3
+      },
+      {
+        "id": "P04",
+        "title": "Support offline / locally-cached TorsionBERT weights for Stage B inference",
+        "links_to": [
+          "goal-candidate-1",
+          "s2c1l2-predict-yaml-hardcoded-checkpoint"
+        ],
+        "location": "rna_predict/pipeline/stageB/torsion/torsion_bert_predictor.py (StageBTorsionBertPredictor.__init__), rna_predict/conf/model/stageB_torsion.yaml",
+        "change": "StageBTorsionBertPredictor currently hard-requires a live HuggingFace download of 'sayby/rna_torsionbert' and fails with LocalEntryNotFoundError offline. Add a config-driven local model path / HF cache dir option and honor HF_HUB_OFFLINE, falling back to a documented local snapshot; surface a clear error naming the missing model id and the env var to set, instead of an opaque connection error. Wire the option through stageB_torsion.yaml.",
+        "verification": "With weights cached locally and HF_HUB_OFFLINE=1, `uv run python -m rna_predict.predict input_csv=rna_predict/dataset/examples/<small>.csv checkpoint_path=null device=cpu` reaches Stage C without a network call; with no cache it errors with a message naming 'sayby/rna_torsionbert' and the local-path/offline option.",
+        "depends_on": [
+          "P03"
+        ],
+        "order": 4
+      },
+      {
+        "id": "P05",
+        "title": "Restore production model dimensions in the structured config schema (toy defaults)",
+        "links_to": [
+          "goal-candidate-1",
+          "goal-candidate-3",
+          "s2c1l2-dimsconfig-reduced-defaults"
+        ],
+        "location": "rna_predict/conf/config_schema.py:46-107 (DimensionsConfig and per-stage dataclasses)",
+        "change": "DimensionsConfig defaults were slashed to debug values (c_s=8 '# was 384', c_z=4 '# was 128', c_s_inputs/c_token=8 '# was 449', c_atom=4 '# was 128', c_noise_embedding=4 '# was 32', StageAConfig.num_hidden=8 '# was 128'). Restore the documented AlphaFold3-inspired values as the schema defaults so the validated source of truth instantiates a functional model, OR move the toy values into an explicit `conf/experiment/toy.yaml` override and have the schema default to production sizes.",
+        "verification": "`uv run python -c 'from rna_predict.conf.config_schema import DimensionsConfig; d=DimensionsConfig(); print(d.c_s,d.c_z,d.c_s_inputs,d.c_atom)'` prints the restored production sizes (384/128/449/128) not (8/4/8/4); existing config tests still pass.",
+        "depends_on": [],
+        "order": 5
+      },
+      {
+        "id": "P06",
+        "title": "Reconcile Stage B torsion angle encoding with Stage C's expected representation",
+        "links_to": [
+          "goal-candidate-1",
+          "s2c1l0-stagec-angle-repr-mismatch",
+          "s2c1l2-stagec-angle-representation-semantics"
+        ],
+        "location": "rna_predict/conf/model/stageB_torsion.yaml:4 (angle_mode: sin_cos), rna_predict/conf/model/stageC.yaml:18 (angle_representation: degrees), rna_predict/pipeline/stageC/stage_c_reconstruction.py",
+        "change": "Stage B emits sin/cos pairs (dim=14 for 7 angles) but Stage C config declares angle_representation: degrees, so Stage C misinterprets Stage B output. Make them consistent: either set stageC.yaml angle_representation to match Stage B's sin_cos and add an explicit sin_cos->radians decode in stage_c_reconstruction.py before MP-NeRF, or convert Stage B output to degrees at the boundary. Add a runtime assert that the incoming angle tensor's last-dim matches the declared representation.",
+        "verification": "A unit test feeding known sin/cos torsions through stage_c_reconstruction reproduces the expected radian/degree values; the new dimension/representation assert does not fire on the default config; reconstructed coordinates for a fixed seed match a golden value.",
+        "depends_on": [
+          "P05"
+        ],
+        "order": 6
+      },
+      {
+        "id": "P07",
+        "title": "Fix rna_fold() signature/test API mismatch in Stage C MP-NeRF",
+        "links_to": [
+          "goal-candidate-1",
+          "goal-candidate-4"
+        ],
+        "location": "rna_predict/pipeline/stageC/mp_nerf/rna/rna_folding.py:183 (def rna_fold), tests/stageC/mp_nerf_tests/rna_stability_tests/test_rna_refactored.py",
+        "change": "Tests call rna_fold(scaffolds, device=...) (4-arg API) but the implementation requires rna_fold(scaffolds, sequence, device, do_ring_closure, debug_logging). Make `sequence` optional/keyword with a derivable default OR update the callers/tests to pass sequence. Choose the implementation-correct contract (sequence is required for folding) and update tests/call-sites accordingly so the API is single and documented.",
+        "verification": "`uv run pytest tests/stageC/mp_nerf_tests/rna_stability_tests/test_rna_refactored.py -q --override-ini='addopts='` passes (was TypeError: rna_fold() missing 1 required positional argument: 'sequence').",
+        "depends_on": [],
+        "order": 7
+      },
+      {
+        "id": "P08",
+        "title": "Remove unreachable dead code after raise in interface.py",
+        "links_to": [
+          "goal-candidate-2",
+          "s2c1l0-interface-deadcode-after-raise"
+        ],
+        "location": "rna_predict/interface.py:46-52",
+        "change": "Lines 47-52 (debug prints and a second raise) follow `raise ValueError(...)` at line 46 inside an except block and can never execute. If the debug output is intended, move it before the raise (or log it in the raised message); otherwise delete lines 47-52.",
+        "verification": "`uv run ruff check rna_predict/interface.py` reports no unreachable-code/format issue at that block; reading interface.py shows no statements after the raise in that except branch.",
+        "depends_on": [],
+        "order": 8
+      },
+      {
+        "id": "P09",
+        "title": "Remove hardcoded external-drive data path from the Kaggle runner",
+        "links_to": [
+          "goal-candidate-2",
+          "s2c1l2-hardcoded-external-drive-data-path"
+        ],
+        "location": "rna_predict/kaggle/rna_predict.py:77-78 (BASE_INPUT_ROOT_EXTERNAL_DRIVE), rna_predict/dataset/examples/kaggle_minimal_index.csv",
+        "change": "Replace `BASE_INPUT_ROOT_EXTERNAL_DRIVE = pathlib.Path('/Volumes/Totallynotaharddrive/RNA_structure_PREDICT/kaggle/')` with a config/env-driven data root (e.g. cfg.data.kaggle_root or RNA_PREDICT_KAGGLE_ROOT) defaulting to the Kaggle `/kaggle/input` path already handled at line 70-73; update kaggle_minimal_index.csv sequence_path entries to repo-relative example paths.",
+        "verification": "`grep -rn 'Totallynotaharddrive' rna_predict/` returns nothing; `uv run pytest <test_real_rna_predict> --override-ini='addopts='` no longer fails with FileNotFoundError for the /Volumes path (fails only on genuinely absent data, with a path naming the configured root).",
+        "depends_on": [],
+        "order": 9
+      },
+      {
+        "id": "P10",
+        "title": "Make submission_validator raise catchable exceptions instead of sys.exit",
+        "links_to": [
+          "goal-candidate-2",
+          "s2c1l0-submission-validator-sysexit"
+        ],
+        "location": "rna_predict/kaggle/submission_validator.py:35 (run_sanity_checks)",
+        "change": "Replace `sys.exit(f\"[ERROR] {f_path_str} not found!\")` with `raise FileNotFoundError(f\"{f_path_str} not found\")` (and convert any other sys.exit in validation functions to raised exceptions), keeping a thin __main__ wrapper (validator has its own guard at :128) that catches and exits non-zero for CLI use. This makes the validator usable programmatically in the submission flow and testable under pytest.",
+        "verification": "`uv run pytest` test importing run_sanity_checks with a missing file catches FileNotFoundError (no process exit); the __main__ CLI path still exits non-zero on invalid submission.",
+        "depends_on": [],
+        "order": 10
+      },
+      {
+        "id": "P11",
+        "title": "Correct the Kaggle runner usage header (wrong filename and developer paths)",
+        "links_to": [
+          "goal-candidate-2",
+          "s2c1l2-kaggle-runner-filename-and-paths"
+        ],
+        "location": "rna_predict/kaggle/rna_predict.py:12-23,314 (comment/usage header and commented example)",
+        "change": "The usage header references the non-existent hyphenated file 'rna_predict/kaggle/rna-predict.py' and absolute paths /Users/tomriddle1/.local/bin/uv and /Users/tomriddle1/RNA_PREDICT/... Update the example commands to the real underscore filename `rna_predict/kaggle/rna_predict.py`, `uv run` (no absolute path), and `--config-path rna_predict/conf`. Remove the /Users/tomriddle1 path at line 314.",
+        "verification": "`grep -n 'rna-predict.py\\|tomriddle1' rna_predict/kaggle/rna_predict.py` returns nothing; the documented command runs (after P09) as written.",
+        "depends_on": [
+          "P09"
+        ],
+        "order": 11
+      },
+      {
+        "id": "P12",
+        "title": "Remove hardcoded absolute @hydra.main config_path from training entry",
+        "links_to": [
+          "goal-candidate-3",
+          "s2c1l0-ggt-hardcoded-conf-path",
+          "s2c6l0-train-abs-config"
+        ],
+        "location": "rna_predict/training/train.py:20,217",
+        "change": "Both @hydra.main decorators use config_path='/Users/tomriddle1/RNA_PREDICT/rna_predict/conf'. Replace with a package-relative path (e.g. config_path='../conf' or use hydra's `pkg://rna_predict.conf` / importlib.resources) so train.py resolves on any machine, matching how other Hydra mains in the repo locate conf.",
+        "verification": "`grep -n 'tomriddle1' rna_predict/training/train.py` returns nothing; `uv run python -m rna_predict.training.train --help` exits 0 (requires P01) and prints Hydra help with config groups resolved.",
+        "depends_on": [
+          "P01"
+        ],
+        "order": 12
+      },
+      {
+        "id": "P13",
+        "title": "Register Stage A atom-attention submodules by subclassing nn.Module",
+        "links_to": [
+          "goal-candidate-3",
+          "s2c3l0-001"
+        ],
+        "location": "rna_predict/pipeline/stageA/input_embedding/current/transformer/atom_attention/components/atom_attention_feature_processing.py:22 (FeatureProcessor), components/attention_components.py:16 (AttentionComponents), components/coordinate_processing.py:13 (CoordinateProcessor)",
+        "change": "These plain classes construct nn.Module submodules (LinearNoBias, nn.Sequential, LayerNorm) that, when assigned as attributes of AtomAttentionEncoder/Decoder, are NOT registered in .parameters()/.state_dict(), not moved by .to(device), not seen by the optimizer, not checkpointed. Make each subclass nn.Module and call super().__init__() (or register their layers directly on the parent encoder/decoder as the refactored encoder does).",
+        "verification": "New unit test asserts list(encoder.parameters()) and encoder.state_dict() include the FeatureProcessor/AttentionComponents/CoordinateProcessor layer weights; a save/load round-trip preserves them; `encoder.to('cpu')` moves them.",
+        "depends_on": [
+          "P01"
+        ],
+        "order": 13
+      },
+      {
+        "id": "P14",
+        "title": "Fix or remove the unimportable legacy InputFeatureEmbedder",
+        "links_to": [
+          "goal-candidate-3",
+          "s2c3l0-020"
+        ],
+        "location": "rna_predict/pipeline/stageA/input_embedding/legacy/encoder/input_feature_embedding.py:4,36",
+        "change": "Imports `from rna_predict.models.encoder.atom_encoder import AtomAttentionEncoder` but the rna_predict.models package does not exist, so the module raises ModuleNotFoundError on import. Repoint imports to rna_predict.pipeline.stageA.input_embedding.legacy.encoder.atom_encoder (the real location), or delete this dead legacy module if superseded by current/.",
+        "verification": "`uv run python -c 'from rna_predict.pipeline.stageA.input_embedding.legacy.encoder.input_feature_embedding import InputFeatureEmbedder'` exits 0, or the file no longer exists and no references remain (`grep -rn input_feature_embedding rna_predict/`).",
+        "depends_on": [],
+        "order": 14
+      },
+      {
+        "id": "P15",
+        "title": "Stop generating random embeddings in pairformer wrapper predict()",
+        "links_to": [
+          "goal-candidate-3",
+          "s2c4l0-pairformer-wrapper-predict-random"
+        ],
+        "location": "rna_predict/pipeline/stageB/pairwise/pairformer_wrapper.py:399-400 (predict)",
+        "change": "predict() seeds s_emb/z_emb with torch.randn(...) producing non-deterministic outputs unrelated to the input. Compute these embeddings from the input features (or accept caller-provided embeddings) so the pairwise branch produces learned, deterministic outputs. If random init is only a placeholder for an unfinished path, gate it behind an explicit debug flag and raise by default.",
+        "verification": "Calling predict() twice with the same input yields identical outputs (deterministic); `grep -n 'torch.randn' pairformer_wrapper.py` shows no randn in the predict path (or only under an explicit debug flag).",
+        "depends_on": [
+          "P01"
+        ],
+        "order": 15
+      },
+      {
+        "id": "P16",
+        "title": "Remove the global torch.Tensor.__add__ monkeypatch that silently drops additions",
+        "links_to": [
+          "goal-candidate-3",
+          "s2c6l2-006",
+          "s2c6l0-tenops-add-silent"
+        ],
+        "location": "rna_predict/pipeline/stageD/tensor_fixes/tensor_operations.py:19-38 (fix_tensor_add), rna_predict/pipeline/stageD/tensor_fixes/__init__.py:251-293,418-427 (apply_tensor_fixes), rna_predict/pipeline/stageD/diffusion/run_stageD_unified.py:137",
+        "change": "apply_tensor_fixes()->fix_tensor_add() globally overrides torch.Tensor.__add__ so shape-mismatched adds silently return an operand unchanged, corrupting all tensor arithmetic in the process once Stage D initializes. Remove fix_tensor_add() and the apply_tensor_fixes() call at run_stageD_unified.py:137; fix the underlying shape mismatches at their specific Stage D call sites with explicit broadcasting/asserts.",
+        "verification": "After importing/initializing Stage D, `python -c 'import torch; a=torch.tensor([1.,2.,3.]); b=torch.tensor([1.,2.]); a+b'` raises RuntimeError (size mismatch) instead of returning a silently; Stage D unified run still completes on correctly-shaped inputs.",
+        "depends_on": [
+          "P01"
+        ],
+        "order": 16
+      },
+      {
+        "id": "P17",
+        "title": "Remove RFold is_test zero-output bypass for small inputs",
+        "links_to": [
+          "goal-candidate-3",
+          "goal-candidate-4",
+          "s2c2l2-rfold-istest-returns-zeros"
+        ],
+        "location": "rna_predict/pipeline/stageA/adjacency/RFold_code.py:520-528",
+        "change": "`is_test = seqs.shape[0] <= 2 and seqs.shape[1] <= 16; if is_test: return torch.zeros((batch, seqlen, seqlen))` silently zeros predictions for any real input with batch<=2 and seq_len<=16. Remove this size-based bypass so small real sequences get true predictions; if a test hook is needed, gate it behind an explicit test-only flag, not input shape.",
+        "verification": "Running RFold on a real short sequence (len<=16, batch 1) returns a non-zero adjacency matrix; `grep -n 'is_test' RFold_code.py` shows no shape-based bypass returning zeros.",
+        "depends_on": [],
+        "order": 17
+      },
+      {
+        "id": "P18",
+        "title": "Remove RFold seq2dot hardcoded special-case for a test input",
+        "links_to": [
+          "goal-candidate-3",
+          "goal-candidate-4",
+          "s2c2l2-rfold-seq2dot-hardcoded-test"
+        ],
+        "location": "rna_predict/pipeline/stageA/adjacency/RFold_code.py:164-168 (seq2dot)",
+        "change": "seq2dot() returns a preset dot-bracket string for the specific 4-element input [2,0,3,0], bypassing real computation. Remove the hardcoded special-case so all inputs use the generic conversion loop.",
+        "verification": "`grep -n 'seq\\[0\\] == 2' RFold_code.py` returns nothing; a unit test confirms seq2dot([2,0,3,0]) is produced by the generic algorithm, not a literal.",
+        "depends_on": [],
+        "order": 18
+      },
+      {
+        "id": "P19",
+        "title": "Fail loudly when Stage A RFold checkpoint download fails instead of using random weights",
+        "links_to": [
+          "goal-candidate-1",
+          "goal-candidate-3",
+          "s2c2l2-rfoldpred-silent-random-weights"
+        ],
+        "location": "rna_predict/pipeline/stageA/run_stageA.py:93,190 (download_file / predictor instantiation)",
+        "change": "When the Dropbox checkpoint download fails (HTTP 403), the predictor silently proceeds with random weights. Make missing/failed checkpoint loading raise a clear error (or require an explicit allow_random_weights flag) and add a configurable local/relative checkpoint path so a downloaded checkpoint can be supplied offline. Mirror the offline strategy from P04.",
+        "verification": "With no network and no local RFold checkpoint, run_stageA raises an actionable error naming the expected checkpoint path/flag (not a silent random-weight run); with a local checkpoint configured, it loads it.",
+        "depends_on": [],
+        "order": 19
+      },
+      {
+        "id": "P20",
+        "title": "Unify loader atom-feature return shapes/dtypes across dummy and real branches",
+        "links_to": [
+          "goal-candidate-3",
+          "s2c1l0-loader-atomfeat-shape-mismatch",
+          "s2c1l2-loader-dummy-shape-mismatch"
+        ],
+        "location": "rna_predict/dataset/.../loader.py:291-304 (missing-pdb dummy branch vs real-data branch)",
+        "change": "The missing-pdb branch returns coords (L, max_atoms, 3), atom_mask (L, max_atoms) float32, atom_to_tok (L, max_atoms) int32; the real branch returns coords (max_atoms, 3), atom_mask (max_atoms,) bool, atom_to_tok (max_atoms,) long — incompatible ranks/dtypes from one function. Make both branches return the same rank and dtype (pick the real-data contract) so downstream collate/model code receives consistent tensors.",
+        "verification": "Unit test asserts the dummy and real branches of the loader return tensors of identical rank and dtype for coords/atom_mask/atom_to_tok; existing tests/data/test_loader.py still passes.",
+        "depends_on": [],
+        "order": 20
+      },
+      {
+        "id": "P21",
+        "title": "Fix SimpleLatentMerger: honor all declared inputs and stop rebuilding its MLP at runtime",
+        "links_to": [
+          "goal-candidate-3",
+          "s2c1l0-merger-ignores-inputs",
+          "s2c1l0-merger-dynamic-mlp-reinit",
+          "s2c1l2-latent-merger-rebuilds-weights-and-ignores-config"
+        ],
+        "location": "rna_predict/.../simple_latent_merger.py (forward, ~lines 55-64)",
+        "change": "forward() ignores inputs.adjacency and inputs.partial_coords (2 of 5 declared LatentInputs), and when self.mlp[0].in_features != total_in_dim it constructs a new nn.Sequential and assigns it to self.mlp, discarding trained weights and detaching from the optimizer. Size the MLP correctly at construction from config (the dimensions known then) and remove the runtime reinit; either consume adjacency/partial_coords in the merge or document/remove them from LatentInputs so the contract matches the computation.",
+        "verification": "Unit test asserts forward() output depends on adjacency/partial_coords (or they are removed from LatentInputs); calling forward() with mismatched dims raises rather than silently replacing self.mlp; `grep -n 'nn.Sequential' simple_latent_merger.py` shows no rebuild inside forward.",
+        "depends_on": [
+          "P05"
+        ],
+        "order": 21
+      },
+      {
+        "id": "P22",
+        "title": "Fix Stage B pairformer c_s=0 single-representation dimension",
+        "links_to": [
+          "goal-candidate-3",
+          "s2c1l0-pairformer-cs-zero"
+        ],
+        "location": "rna_predict/conf/model/stageB_pairformer.yaml:32 (c_s: 0)",
+        "change": "c_s=0 yields zero-dimensional/empty single-representation tensors anywhere code allocates or indexes by c_s. Set c_s to the intended single-representation width consistent with config_schema production dimensions (P05), or, if the pair stack genuinely has no single representation, add guards so c_s=0 cannot be used to allocate/index a tensor.",
+        "verification": "A combined torsion+pairformer forward pass produces non-empty single-representation tensors; `uv run pytest tests/stageB/test_combined_torsion_pairformer.py --override-ini='addopts='` passes (requires P01).",
+        "depends_on": [
+          "P01",
+          "P05"
+        ],
+        "order": 22
+      },
+      {
+        "id": "P23",
+        "title": "Remove import-time filesystem side effects (DSSR extract/rename/chmod) from angles.py",
+        "links_to": [
+          "goal-candidate-3",
+          "s2c1l0-angles-import-side-effect-chmod"
+        ],
+        "location": "rna_predict/dataset/preprocessing/angles.py:425-449",
+        "change": "Module-level code extracts a DSSR zip, renames the binary, and calls os.chmod(_DSSR_BIN, 0o755) at import time. Move this into an explicit, idempotent ensure_dssr()/lazy setup function invoked by the code paths that actually need DSSR, so merely importing angles.py has no filesystem side effects.",
+        "verification": "Importing rna_predict.dataset.preprocessing.angles in a fresh tree performs no extraction/chmod (verified by patching os.chmod/zipfile and asserting not called on import); DSSR-dependent functions still set it up on first use.",
+        "depends_on": [],
+        "order": 23
+      },
+      {
+        "id": "P24",
+        "title": "Remove the deg2rad(degrees(phi)) no-op roundtrip in dihedral calculation",
+        "links_to": [
+          "goal-candidate-4",
+          "s2c1l0-calc-dihedral-noop-roundtrip"
+        ],
+        "location": "rna_predict/dataset/preprocessing/angles.py:179 (_calc_dihedral)",
+        "change": "`return np.deg2rad(np.degrees(phi))` is a confirmed numerical no-op (phi is already radians from np.arccos). Return phi directly and add a comment documenting the unit (radians), removing the confused conversion.",
+        "verification": "`_calc_dihedral` returns the same values as before (regression test on fixed coordinates); line 179 no longer contains deg2rad(degrees(...)).",
+        "depends_on": [],
+        "order": 24
+      },
+      {
+        "id": "P25",
+        "title": "Reconcile test_data.yaml sequence_length with its sequence",
+        "links_to": [
+          "goal-candidate-4",
+          "s2c1l0-testdata-seqlen-mismatch",
+          "s2c1l2-testdata-seqlen-contradiction"
+        ],
+        "location": "rna_predict/conf/.../test_data.yaml:12 (sequence_length: 8 vs 29-char sequence)",
+        "change": "sequence_length=8 contradicts the 29-character sequence 'GGGUGCUCAGUACGAGAGGAACCGCACCC'. Set sequence_length to 29 (or derive it from the sequence so it cannot drift), so tests using it as a trusted constant operate on a consistent length.",
+        "verification": "`python -c` reading the yaml confirms sequence_length == len(sequence); tests consuming test_data.yaml pass with the corrected length.",
+        "depends_on": [],
+        "order": 25
+      },
+      {
+        "id": "P26",
+        "title": "Fix Containerfile base image and default command",
+        "links_to": [
+          "goal-candidate-5",
+          "s2c0l0-002",
+          "s2c0l0-003"
+        ],
+        "location": "Containerfile:1,5",
+        "change": "Change `FROM python:3.7-slim` to `python:3.11-slim` (match requires-python>=3.10 and CI 3.11; torch>=2.0.1 has no cp37 wheels). Ensure CMD [\"rna_predict\"] now resolves via the entry point fixed in P02 (or set CMD to [\"python\",\"-m\",\"rna_predict.predict\"]).",
+        "verification": "`docker build`/`podman build` resolves dependencies and the resulting image's default command starts without ModuleNotFoundError (or, sandbox-limited, static read shows python:3.11-slim and a valid CMD target).",
+        "depends_on": [
+          "P02"
+        ],
+        "order": 26
+      },
+      {
+        "id": "P27",
+        "title": "Stop CI from clobbering the tracked requirements.txt",
+        "links_to": [
+          "goal-candidate-5",
+          "s2c0l0-004"
+        ],
+        "location": ".github/workflows/main.yml:39 (and the git add -A/commit/push steps at :50-70)",
+        "change": "The 'Check for dependency vulnerabilities' step runs `pip freeze > requirements.txt`, overwriting the curated tracked file, which the later `git add -A && git commit && git push` on push-to-main can commit back. Write the freeze to a throwaway file (`pip freeze > /tmp/frozen.txt`) and audit that; or scope `git add` to specific paths so requirements.txt is never auto-committed.",
+        "verification": "main.yml no longer writes the freeze to the tracked requirements.txt (`grep -n 'pip freeze' .github/workflows/main.yml` targets /tmp); the auto-commit step's `git add` is path-scoped.",
+        "depends_on": [],
+        "order": 27
+      },
+      {
+        "id": "P28",
+        "title": "Reconcile stale setup.py metadata with pyproject.toml for releases",
+        "links_to": [
+          "goal-candidate-5",
+          "s2c0l2-0006"
+        ],
+        "location": ".github/workflows/release.yml:38 (python setup.py sdist bdist_wheel), setup.py:6,31",
+        "change": "release.yml builds via setup.py which declares version=1.0.0 and python_requires>=3.8, contradicting pyproject.toml (version 2.0.8, requires-python>=3.10) and rna_predict/VERSION (2.0.8). Build with the PEP517 frontend (`python -m build`) so pyproject metadata is authoritative, and delete or reconcile setup.py.",
+        "verification": "`python -m build` produces a wheel labelled 2.0.8 with requires-python>=3.10; setup.py is removed or its version/python_requires match pyproject.",
+        "depends_on": [],
+        "order": 28
+      },
+      {
+        "id": "P29",
+        "title": "Fix or remove the broken Task Master Node CLI (missing scripts/modules/commands.js)",
+        "links_to": [
+          "goal-candidate-5"
+        ],
+        "location": "scripts/dev.js:16 (import from './modules/commands.js'), package.json:2-7",
+        "change": "scripts/dev.js imports './modules/commands.js' but scripts/modules/ does not exist, so `node scripts/dev.js list` fails ERR_MODULE_NOT_FOUND. Either restore the missing scripts/modules/commands.js module the CLI depends on, or remove the dev/list/generate/parse-prd npm scripts and dev.js if Task Master is not part of the intended deliverable.",
+        "verification": "`node scripts/dev.js list` exits 0, or the package.json scripts and dev.js are removed and `npm run` no longer advertises broken commands.",
+        "depends_on": [],
+        "order": 29
+      },
+      {
+        "id": "P30",
+        "title": "Clear ruff and mypy errors to green",
+        "links_to": [
+          "goal-candidate-5"
+        ],
+        "location": "rna_predict/pipeline/stageD/diffusion/components/diffusion_module.py:271-343 (19 mypy errors), rna_predict/kaggle/rna_predict.py:181-190 (5 mypy errors), plus 8 ruff E501/format violations across rna_predict/",
+        "change": "Resolve the 102 mypy errors (chiefly Any|None passed where int expected in DiffusionConditioning/AtomAttentionConfig/DiffusionTransformer constructors, and Path-where-str in kaggle/rna_predict.py:181-190) by adding/validating types or narrowing Optionals, and apply `ruff format` / fix the 8 E501 line-length violations.",
+        "verification": "`uv run mypy --ignore-missing-imports rna_predict/` exits 0; `uv run ruff check rna_predict/` exits 0.",
+        "depends_on": [
+          "P01",
+          "P16"
+        ],
+        "order": 30
+      },
+      {
+        "id": "P31",
+        "title": "Add Stage D diffusion tests to lift 0% coverage on diffusion components",
+        "links_to": [
+          "goal-candidate-3",
+          "goal-candidate-5",
+          "s2c5l1-stageD-pytest-envvar-bypass-001"
+        ],
+        "location": "rna_predict/pipeline/stageD/diffusion/components/diffusion_module.py (0%), diffusion_conditioning.py (0%); new tests under tests/stageD/",
+        "change": "With deepspeed unblocked (P01) and the monkeypatch removed (P16), add unit tests that import and exercise DiffusionModule and DiffusionConditioning on small CPU tensors (forward shapes, config validation), removing any pytest env-var bypass that currently skips Stage D. Target meaningful coverage of the previously-0% diffusion components.",
+        "verification": "`uv run pytest tests/stageD/ --override-ini='addopts=' --cov=rna_predict.pipeline.stageD.diffusion` collects with no errors and reports non-zero coverage for diffusion_module.py and diffusion_conditioning.py.",
+        "depends_on": [
+          "P01",
+          "P16"
+        ],
+        "order": 31
+      },
+      {
+        "id": "P32",
+        "title": "Add an offline end-to-end inference smoke test for RNAPredictor (Stage B->C)",
+        "links_to": [
+          "goal-candidate-1",
+          "goal-candidate-2"
+        ],
+        "location": "rna_predict/predict.py:398 (batch_predict), :440-543 (main); new test tests/integration/test_inference_smoke.py",
+        "change": "Add an integration test that runs RNAPredictor over a tiny input CSV with a from-scratch/local checkpoint and offline TorsionBERT, asserting it writes prediction_{i}.csv/.pdb/.pt and summary.csv to a temp output_dir and returns atom coordinates of the expected shape. This pins the primary deliverable (Candidate 1 success signals) against regression.",
+        "verification": "`uv run pytest tests/integration/test_inference_smoke.py --override-ini='addopts='` passes and the temp output_dir contains prediction_0.csv/.pdb/.pt and summary.csv.",
+        "depends_on": [
+          "P02",
+          "P03",
+          "P04",
+          "P05",
+          "P06",
+          "P07"
+        ],
+        "order": 32
+      },
+      {
+        "id": "P33",
+        "title": "Add an external benchmark/evaluation harness with TM-score/RMSD reporting",
+        "links_to": [
+          "goal-candidate-4",
+          "research-idea-benchmark-harness"
+        ],
+        "location": "rna_predict/benchmarks/benchmark.py (currently 0% coverage); new rna_predict/benchmarks/evaluate.py and conf entry",
+        "change": "Add a standardized evaluation harness that runs the full pipeline over a held-out set (e.g. an RNA-Puzzles/CASP-style sequence-nonredundant set) and reports TM-score/RMSD vs reference structures, providing the external comparison denominator the research stage calls for. Wire it as a CLI/Hydra main and give it at least one small fixture-based test so benchmarks/ is no longer 0% covered.",
+        "verification": "`uv run python -m rna_predict.benchmarks.evaluate <small fixture>` runs and emits a metrics table (TM-score/RMSD); a benchmarks test executes, raising benchmark module coverage above 0%.",
+        "depends_on": [
+          "P32"
+        ],
+        "order": 33
+      },
+      {
+        "id": "P34",
+        "title": "Pin transformers to a version compatible with the resolved torch to clear the import-level version conflict blocking Stage B TorsionBERT and interface tests",
+        "links_to": [
+          "goal-candidate-1",
+          "goal-candidate-5"
+        ],
+        "location": "pyproject.toml:25-26 (torch>=2.0.1,<2.6.0 and transformers>=4.49.0), uv.lock",
+        "change": "transformers>=4.49.0 (pyproject.toml:26) requires torch>=2.4 at import time, but the resolved torch is 2.3.1, so importing transformers raises `ImportError: transformers requires torch>=2.4 but found 2.3.1`, which is what makes the Stage B TorsionBERT (torsion_bert_predictor.py / torsionbert_inference.py) and interface test families fail at runtime. Make the transformers and torch pins mutually consistent in pyproject.toml: if P01 raises the torch lower bound to >=2.4, leave transformers>=4.49.0 unchanged; otherwise (torch held at 2.3.x) cap transformers to the last release that supports torch 2.3 (e.g. change line 26 to `transformers>=4.46,<4.49`). Edit only these two dependency lines and re-run `uv lock` so the locked transformers/torch pair import together.",
+        "verification": "`uv run python -c 'import torch, transformers; from rna_predict.pipeline.stageB.torsion.torsion_bert_predictor import StageBTorsionBertPredictor'` exits 0 (no `transformers requires torch>=2.4` ImportError); the previously version-blocked Stage B torsion and interface test files collect and run (`uv run pytest tests/stageB tests/test_interface.py --co -q --override-ini='addopts='` reports 0 collection errors attributable to the transformers/torch version conflict).",
+        "depends_on": [
+          "P01"
+        ],
+        "order": 34
+      }
+    ]
+  },
+  "mappability_check": {
+    "all_mappable": true,
+    "ambiguous_items": []
+  }
+}
