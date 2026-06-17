@@ -26,6 +26,7 @@ const WORK = join(AUDIT, ".work");
 const CHUNK = Number(process.env.AUDIT_CHUNK || 55);          // files per Stage-1 classification shard
 const CONCURRENCY = Number(process.env.AUDIT_CONCURRENCY || 4);
 const STAGE2_CEILING = Number(process.env.AUDIT_S2_CEILING || 5);
+const STAGE2_CONVERGE_DELTA = Number(process.env.AUDIT_S2_DELTA || 5); // re-audit adding ≤N survivors/round ⇒ diminishing returns
 const RESEARCH_GATHERERS = Number(process.env.AUDIT_RESEARCHERS || 3);
 const IGNORE = [/^audit\//, /^\.git\//];                      // declared coverage ignore list
 let MODEL_HEAVY = process.env.AUDIT_MODEL_HEAVY || "opus";    // synthesis / audit / falsify / goal / plan
@@ -374,6 +375,18 @@ function collectExistingShardFindings() {
   return { combos: combos.size, findings, examined };
 }
 
+// Reuse prior falsification verdicts (a_s2_falsify_*.json) so a resume re-adjudicates only NEW findings.
+function collectExistingVerdicts() {
+  const verdict = new Map();
+  let files = []; try { files = readdirSync(WORK); } catch { return verdict; }
+  for (const f of files) {
+    if (!/^a_s2_falsify_/.test(f)) continue;
+    let o; try { o = JSON.parse(readFileSync(join(WORK, f), "utf8")); } catch { continue; }
+    if (o && Array.isArray(o.verdicts)) o.verdicts.forEach((v) => { if (v && v.id && !verdict.has(v.id)) verdict.set(v.id, v); });
+  }
+  return verdict;
+}
+
 async function stage1(state) {
   log("STAGE 1 — comprehensive understanding");
   const files = await repoFileSet();
@@ -457,8 +470,9 @@ async function stage2(state, s1) {
   // ── falsification fixpoint. Invariant: a falsifier OUTAGE is never a refutation. ──
   // verdict map persists across rounds (each finding falsified once); un-adjudicated findings are KEPT
   // as 'unverified' (never silently dropped); a wholesale falsifier failure HALTs instead of shipping empty.
-  const verdict = new Map();
-  let prev = "", rounds = 0, unverified = 0;
+  const verdict = collectExistingVerdicts();
+  if (verdict.size) log(`  reusing ${verdict.size} falsification verdicts from a prior run (cheap resume)`);
+  let prev = "", rounds = 0, unverified = 0, prevCount = findings.length;
   for (let round = 1; round <= STAGE2_CEILING; round++) {
     rounds = round;
     // 1) re-audit sweep for anything missed (best-effort)
@@ -492,10 +506,16 @@ async function stage2(state, s1) {
     findings = dedupe(findings);
     unverified = findings.filter((f) => f.status === "unverified").length;
     const sig = findings.map(fingerprint).sort().join("|");
-    log(`  round ${round}: ${findings.length} survivors (${unverified} unverified)`);
-    if (sig === prev && unverified === 0) { log(`  fixpoint reached at round ${round}`); break; }
-    prev = sig;
-    if (round === STAGE2_CEILING && unverified === 0) await halt("stage2", `no falsification fixpoint within ${STAGE2_CEILING} rounds.`);
+    const added = findings.length - prevCount;
+    log(`  round ${round}: ${findings.length} survivors (${unverified} unverified, +${added} this round)`);
+    if (unverified === 0 && (sig === prev || (round > 1 && added <= STAGE2_CONVERGE_DELTA))) {
+      log(`  converged at round ${round} (${sig === prev ? "strict fixpoint" : `diminishing returns: +${added} ≤ ${STAGE2_CONVERGE_DELTA}`})`); break;
+    }
+    prev = sig; prevCount = findings.length;
+    if (round === STAGE2_CEILING) {
+      if (unverified > 0) await halt("stage2", `${unverified} findings unverified at ceiling — adversarial verification incomplete (likely usage limit). Re-run --from 2 when usage is restored.`);
+      log(`  ⚠ ceiling reached; accepting ${findings.length} adversarially-verified findings (strict fixpoint not reached; re-audit still surfacing a few/round)`);
+    }
   }
   const coverage = examined.size / Math.max(1, sourceFiles.length);
   if (coverage < 0.9) log(`  ⚠ examined coverage ${(coverage * 100).toFixed(0)}% (<90%) — recorded in meta.`);
