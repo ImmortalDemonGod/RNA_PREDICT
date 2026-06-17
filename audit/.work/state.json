@@ -3,10 +3,5 @@
     "stage1": 1781666523929
   },
   "branch": "claude/exciting-dirac-mxw19j",
-  "total_cost_usd_api_equiv": 83.864456,
-  "halted": {
-    "stage": "stage2",
-    "why": "no falsification fixpoint within 5 rounds.",
-    "at": 1781705915251
-  }
+  "total_cost_usd_api_equiv": 83.864456
 }
