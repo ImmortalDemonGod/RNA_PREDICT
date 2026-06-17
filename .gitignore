@@ -231,3 +231,7 @@ dssr-2ndstrs.ct
 
 # External projects
 auto-type-annotate/
+
+# forensic audit pipeline — transient intermediates (handoff files + run logs)
+audit/.work/a_*.json
+audit/.work/*.log
