@@ -4,5 +4,10 @@
     "stage2": 1781670335916
   },
   "branch": "claude/exciting-dirac-mxw19j",
-  "total_cost_usd_api_equiv": 83.864456
+  "total_cost_usd_api_equiv": 83.864456,
+  "halted": {
+    "stage": "stage3",
+    "why": "execution worker failed to produce a valid execution object.",
+    "at": 1781670339179
+  }
 }
