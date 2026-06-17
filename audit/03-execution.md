@@ -1,0 +1,649 @@
+# 03 — Execution / Dynamic Surface
+
+_What the code actually does when run. Commands discovered from the repo, not hardcoded._
+
+## Commands discovered
+| Command | Source | Purpose |
+| --- | --- | --- |
+| `uv sync` | uv.lock / pyproject.toml | Install all declared dependencies into .venv via uv |
+| `make install` | Makefile:22-27 | Install the project in dev mode (pip install -e .[dev]) |
+| `make test` | Makefile:46-49 | Run lint then pytest with coverage: pytest --cov=rna_predict + coverage xml/html |
+| `make lint` | Makefile:33-35 | Run ruff check --fix --unsafe-fixes and mypy --ignore-missing-imports |
+| `pytest -v --cov-config .coveragerc --cov=rna_predict -l --tb=short --maxfail=1 tests/` | Makefile:48 | Full test suite with branch coverage; --maxfail=1 halts on first failure |
+| `pytest tests/ --override-ini='addopts=' [--ignore=...deepspeed-broken files...]` | pytest.ini / manual invocation | Run collectible subset of tests (629) excluding deepspeed-incompatible files |
+| `coverage xml && coverage html` | Makefile:49-50 | Generate XML and HTML coverage reports after pytest run |
+| `ruff check --fix --unsafe-fixes rna_predict/ tests/` | Makefile:34 / .github/workflows/main.yml:50 | Lint and auto-fix Python code with ruff |
+| `mypy --ignore-missing-imports rna_predict/` | Makefile:35 / mypy.ini | Static type-check the rna_predict package |
+| `python -m rna_predict.predict` | pyproject.toml:61 (console script target) / rna_predict/predict.py | Main Hydra-based inference entry point for RNA structure prediction |
+| `rna_predict` | pyproject.toml:61 [project.scripts] | Console entry point; delegates to rna_predict.__main__:main (missing) |
+| `python -m rna_predict.main` | rna_predict/main.py | Demo stub entry point that prints config and calls demo_run_input_embedding() |
+| `python -m rna_predict.training.train` | rna_predict/training/train.py:20 | Training entry point with hardcoded @hydra.main config_path=/Users/tomriddle1/... |
+| `python simple_test.py` | simple_test.py (repo root) | Minimal smoke test (download attempt + assertion) |
+| `node scripts/dev.js list` | package.json:scripts.list | Node.js task-master list command (requires scripts/modules/commands.js) |
+| `npm install` | package.json | Install Node.js dependencies (@anthropic-ai/sdk, openai, chalk, etc.) |
+| `cosmic-ray init cosmic-ray.dev.toml session.sqlite && cosmic-ray exec session.sqlite` | cosmic-ray.dev.toml | Mutation testing using cosmic-ray with HTTP distributor workers |
+| `mutatest -c mutatest.ini` | mutatest.ini | Mutation testing with mutatest; survivor mode; testcmds=pytest -n auto --cov=rna_predict tests |
+
+## Runs
+| Command | Exit | Observed | Artifact |
+| --- | --- | --- | --- |
+| `uv sync --no-install-project` | 0 | Successfully installed all dependencies including torch==2.3.1+cu121, pytest==9.1.0, hydra-core==1.3.2, lightning, transformers. deepspeed also installed but incompatible with torch 2.3.1 (requires torch.library.custom_op which requires torch>=2.4). |  |
+| `uv run pytest tests/ -q --cov=rna_predict --cov-report=term --override-ini='addopts=' [ignoring 52 deepspeed-broken files] --timeout=120` | 1 | 629 tests collected (after excluding deepspeed-broken files). Result: 526 passed, 57 failed, 24 skipped, 22 errors, 39 subtests passed. Failures grouped: (a) StageC mp_nerf rna tests fail with TypeError: rna_fold() missing required positional arg 'sequence' — test calls old 4-arg API; impl requires 5 args. (b) StageB TorsionBert tests fail with ImportError: transformers requires torch>=2.4 but found 2.3.1. (c) Interface tests fail with same transformers/torch version mismatch. (d) StageA integration tests fail with HTTPError 403 (Dropbox checkpoint unavailable). (e) test_debug_logging and test_shape_utils fail with deepspeed AttributeError via import chain. (f) Integration test_real_rna_predict fails because hardcoded CSV path /Volumes/Totallynotaharddrive/... does not exist. |  |
+| `uv run pytest tests/ --co -q --override-ini='addopts=' (no ignore list)` | 1 | 1065 tests collected, 52 ERROR files at collection due to deepspeed AttributeError: module 'torch.library' has no attribute 'custom_op'. Root cause: deepspeed installed is incompatible with torch 2.3.1; torch.library.custom_op was added in torch>=2.4. Error trace: deepspeed/compile/custom_ops/all_to_all.py:12. |  |
+| `uv run pytest tests/ -q --cov=rna_predict --cov-report=term --override-ini='addopts=' [ignoring deepspeed-blocked] --timeout=120 (coverage total only)` | 1 | TOTAL: 13556 stmts, 8537 missed, 5418 branches, 457 branch-partial. Overall coverage 33%. Highest coverage areas: mp_nerf protein_utils ~90-100%, config_schema.py 92%, dataset_loader.py 92%. Lowest: benchmarks 0%, kaggle/*.py 0%, stageB/main.py 2%, stageB/pairwise 2-3%, stageD diffusion components 0%. |  |
+| `uv run rna_predict` | 1 | ModuleNotFoundError: No module named 'rna_predict.__main__'. The console entry point (pyproject.toml:61) targets rna_predict.__main__:main but no __main__.py exists anywhere in the rna_predict package tree. |  |
+| `uv run python -m rna_predict.predict sequence=AUGCAUGC mode=predict device=cpu` | 1 | Hydra config loads successfully; predict.py initializes then fails at StageBTorsionBertPredictor.__init__: OSError/LocalEntryNotFoundError from HuggingFace hub (cannot connect to https://huggingface.co to load sayby/rna_torsionbert tokenizer). Config shows hardcoded checkpoint_path: /Users/tomriddle1/RNA_PREDICT/outputs/checkpoints/last.ckpt which also does not exist. |  |
+| `uv run python -m rna_predict.predict sequence=AUGCAUGC mode=predict device=cpu model.stageB.torsion_bert.init_from_scratch=true` | 1 | After bypassing HuggingFace download, fails at predict.py:535: torch.load('/Users/tomriddle1/RNA_PREDICT/outputs/checkpoints/last.ckpt') raises FileNotFoundError. Hardcoded developer checkpoint path confirmed non-functional. |  |
+| `uv run python -m rna_predict.main --help` | 0 | Hydra --help succeeds, shows config groups and full default config YAML. main.py is a stub that would call demo_run_input_embedding() which just prints and returns True. |  |
+| `uv run python -m rna_predict.training.train --help` | 1 | Import fails at rna_predict/training/train.py:8 -> rna_predict/training/rna_lightning_module.py:16 -> rna_predict/pipeline/stageB/pairwise/pairformer_wrapper.py -> deepspeed AttributeError (torch.library.custom_op). train.py also has hardcoded @hydra.main(config_path='/Users/tomriddle1/RNA_PREDICT/rna_predict/conf') at lines 20 and 217. |  |
+| `python simple_test.py` | 0 | 1 test ran, OK. Two download attempts failed with 'Connection refused' and 'Timeout' (expected in sandboxed environment) but the test itself passes. |  |
+| `npm install && node scripts/dev.js list` | 1 | npm install succeeded (node_modules populated). node scripts/dev.js list fails with ERR_MODULE_NOT_FOUND: Cannot find module '/home/user/RNA_PREDICT/scripts/modules/commands.js'. The task-master JS scripts are incomplete; modules/commands.js is referenced but does not exist. |  |
+| `uv run mypy --ignore-missing-imports rna_predict/` | 1 | Found 102 errors in 7 files (checked 231 source files). Main error clusters: diffusion_module.py:271-343 (19 errors) — Argument type 'Any\|None' not compatible with expected 'int' for DiffusionConditioning, AtomAttentionConfig, DiffusionTransformer constructors. kaggle/rna_predict.py:181-190 (5 errors) — Path passed where str expected. All are type annotation violations, not runtime blockers. |  |
+| `uv run ruff check rna_predict/` | 1 | Found 8 errors. Violations include E501 (line too long) and formatting issues. Not blocking — fixable with ruff format. |  |
+| `uv run pytest tests/integration/test_stageD_config_errors.py -v --override-ini='addopts='` | 0 | 3/3 tests passed. test_stageD_missing_feature_dimensions_raises, test_stageD_none_trunk_embeddings_raises, test_stageD_missing_s_inputs_in_real_config_raises all PASSED. StageD config validation logic is functional. |  |
+| `uv run pytest tests/integration/test_partial_checkpoint_cycle.py tests/integration/test_partial_checkpoint_stageA.py -v --override-ini='addopts='` | 0 | 2/2 PASSED. test_train_save_partial_load_infer and test_partial_checkpoint_stageA passed. Checkpoint save/load cycle works for stageA without network dependencies. |  |
+| `uv run pytest tests/data/test_loader.py -v --override-ini='addopts='` | 0 | 5/5 PASSED. test_rnadataset_getitem, test_rnadataset_len, test_rna_collate_fn_basic, test_rna_collate_fn_single_item, test_rna_collate_fn_empty_batch_raises all passed using mocked/synthetic data. |  |
+| `uv run python -c "from rna_predict.pipeline.stageD.tensor_fixes.tensor_operations import fix_tensor_add; fix_tensor_add(); import torch; a=torch.tensor([1.,2.,3.]); b=torch.tensor([1.,2.]); r=a+b; print(r is a)"` | 0 | Output: True. After fix_tensor_add() patches torch.Tensor.__add__, adding tensors of incompatible shapes (3-elem and 2-elem) silently returns the left operand unchanged (a) instead of raising RuntimeError. Addition is silently dropped. Numerically incorrect result with no error. |  |
+| `uv run python -c "import numpy as np; phi=1.234; print(np.deg2rad(np.degrees(phi))-phi)"` | 0 | Output: 0.0. The deg2rad(degrees(phi)) roundtrip in angles.py:179 is a confirmed noop (zero numerical error at this precision). The final phi value returned by _calc_dihedral is already in radians and the conversion neither changes the value nor documents intent. |  |
+| `uv run pytest tests/stageC/mp_nerf_tests/rna_stability_tests/test_rna_refactored.py::TestRnaFold::test_rna_fold_shapes -v --override-ini='addopts='` | 1 | FAILED: TypeError: rna_fold() missing 1 required positional argument: 'sequence'. Tests call rna_fold(scaffolds, device=...) but the actual signature is rna_fold(scaffolds, sequence, device, do_ring_closure, debug_logging). API mismatch between tests and implementation confirmed at runtime. |  |
+
+## Measured coverage
+- Tool: **pytest-cov with .coveragerc (branch=True, source=rna_predict)** — measured **33%**
+- Note: 33% overall (13556 stmts, 8537 missed). Measured over 629 collectible tests after excluding 52 test files that fail at collection due to deepspeed/torch version incompatibility. Breakdown: rna_predict/__init__.py 100%, conf/config_schema.py 92%, dataset/dataset_loader.py 92%, mp_nerf/protein_utils/* 91-100%, stageC/mp_nerf/rna/* 84-97%, pipeline/stageC/stage_c_reconstruction.py 86%. Zero coverage: benchmarks/benchmark.py 0%, conf/utils.py 0%, kaggle/*.py 0%, stageB/main.py 2%, stageB/pairwise/pairformer.py 2%, stageD/diffusion/components/diffusion_module.py 0%, stageD/diffusion/components/diffusion_conditioning.py 0%.
+- Independent check — claim supported: **true**. The execution report's central coverage claim is fully supported by, and exactly reproducible from, the real on-disk artifact. NOTE: the prompt-named file /audit/.work/stage3_raw.json does not exist; the actual stage-3 execution report on disk is /audit/.work/a_s3_exec_10.json, which I verified against. That report claims measured_pct=33.0 with '13556 stmts, 8537 missed', '5418 branches', '457 branch-partial', tool='pytest-cov with .coveragerc (branch=True, source=rna_predict)'. I independently re-ran coverage 7.14.1 against a non-destructive copy of the real .coverage SQLite DB (/home/user/RNA_PREDICT/.coverage, has_arcs=1, 146 files, written 2026-06-17 14:59:13 — before the exec report at 15:13) and the TOTAL line reproduced VERBATIM: 13556 stmts, 8537 missed, 5418 branches, 457 partial, 33%. The tool/config claim is confirmed by reading .coveragerc (branch=True, source=rna_predict, parallel=True, omit tests/scripts). Every per-file figure I spot-checked matches the artifact exactly: conf/config_schema.py 92% (458/29), dataset/dataset_loader.py 92% (57/2), benchmarks/benchmark.py 0% (130/130), kaggle/rna_predict.py 0% (160/160), stageB/main.py 2% (301/294), stageD diffusion_module.py 0% (552/552), diffusion_conditioning.py 0% (237/237), stageC/stage_c_reconstruction.py 86% (255/26), mp_nerf/protein_utils/* 91-100%. The accounting (executed vs missing-deps vs external-service vs not-executed regions) is internally consistent with the measured artifact and with run-log evidence (run2.log shows deepspeed/torch 2.3.1 vs >=2.4 incompatibility). The coverage measurement and its accounting are honest and backed by a genuine, reproducible artifact — not fabricated.
+- Discrepancies: Prompt-named artifact /home/user/RNA_PREDICT/audit/.work/stage3_raw.json does not exist on disk; the actual stage-3 execution report is /home/user/RNA_PREDICT/audit/.work/a_s3_exec_10.json. Verification was performed against the existing file.; No coverage.xml or htmlcov/ exist on disk. The report lists 'coverage xml && coverage html' (Makefile:49-50) only under commands_discovered and claims only a terminal (term) coverage report was produced, so their absence is consistent with the report rather than contradicting it (no XML/HTML claim was made).; The exact per-run test tallies in the report (629 collectible tests; 526 passed / 57 failed / 24 skipped / 22 errors) cannot be independently reproduced from any on-disk pytest log. The only full pytest-output artifact present, all_tests_no_maxfail.txt, records a different, fully-passing run (1356 passed, 40 skipped, 2 xfailed) from a different/healthy environment. The coverage NUMBER itself is verified and the .coverage DB (146 files) is consistent with the described partial deepspeed-excluded run, but the precise pass/fail counts remain unverified against a citable artifact (status: unverified, not refuted).
+
+## Coverage accounting (100% accounting, not 100% execution)
+| Region | Status | Reason |
+| --- | --- | --- |
+| dependency-install (uv sync) | executed | uv sync --no-install-project completed successfully (exit 0). All deps including torch==2.3.1+cu121, pytest==9.1.0, hydra-core==1.3.2, transformers, lightning installed. |
+| pytest-collectible-suite (629 tests, deepspeed-excluded) | executed | 526 passed, 57 failed, 24 skipped, 22 errors. Coverage 33%. Failures: StageC rna_fold API mismatch (TypeError: missing 'sequence' arg), transformers/torch version conflict (ImportError: torch>=2.4 required), StageA checkpoint network failure (HTTP 403), hardcoded paths. |
+| pytest-deepspeed-blocked-tests (52 collection-error files) | missing-deps | 52 test files fail at collection with AttributeError: module 'torch.library' has no attribute 'custom_op'. Root cause: deepspeed installed requires torch>=2.4 for torch.library.custom_op; torch 2.3.1+cu121 is installed. This blocks all stageA/unit, stageB/pairwise, stageD, integration/lightning, performance, pipeline, tmp_tests that import the deepspeed chain. |
+| coverage-measurement (pytest-cov) | executed | Coverage measured at 33% (13556 stmts, 8537 missed) over the collectible 629-test subset. Branch coverage also measured via .coveragerc (branch=True). |
+| console-entry-rna_predict | executed | Executed 'uv run rna_predict'; exit code 1 with ModuleNotFoundError: No module named 'rna_predict.__main__'. Entry point broken as predicted by s2c0l0-001. |
+| predict.py inference entry point | executed | Executed 'python -m rna_predict.predict sequence=AUGCAUGC mode=predict device=cpu'; exit code 1. Fails at HuggingFace tokenizer download (network unavailable) then at torch.load of hardcoded /Users/tomriddle1/... checkpoint path. Both blockers confirmed at runtime. |
+| main.py demo stub | executed | Executed 'python -m rna_predict.main --help'; exit code 0. Hydra help succeeds. Full execution would call demo_run_input_embedding() which just prints and returns True — no real computation. |
+| training/train.py entry point | missing-deps | Import chain train.py -> rna_lightning_module.py -> pairformer_wrapper.py -> deepspeed fails with AttributeError: torch.library.custom_op. Blocked before reaching the hardcoded @hydra.main config_path. |
+| stageA checkpoint download (Dropbox) | external-service | run_stageA.py:93 download_file() from https://www.dropbox.com/s/l04l9bf3v6z2tfd/checkpoints.zip raised HTTPError 403 Forbidden after 3 retries. Dropbox direct-download links are access-restricted in this sandbox. |
+| torsionbert model download (HuggingFace) | external-service | StageBTorsionBertPredictor loads sayby/rna_torsionbert from HuggingFace Hub. Execution fails with LocalEntryNotFoundError: cannot connect to https://huggingface.co. HuggingFace Hub is inaccessible in sandboxed environment. |
+| GPU/CUDA hardware execution | hardware-gated | deepspeed reports: Setting accelerator to CPU (no GPU detected). torch 2.3.1+cu121 is installed but no CUDA GPU is available in this sandbox. All model execution runs on CPU; GPU-specific code paths (CUDA kernels, mixed precision) cannot be exercised. |
+| node scripts/dev.js task-master | executed | npm install succeeded; node scripts/dev.js list fails exit code 1 with ERR_MODULE_NOT_FOUND: scripts/modules/commands.js is missing. The Node.js task-master scripts are incomplete and non-functional. |
+| mypy type checking | executed | uv run mypy --ignore-missing-imports rna_predict/ exit code 1. Found 102 errors in 7 files (checked 231). Main clusters: diffusion_module.py (19 type errors), kaggle/rna_predict.py (5 errors). |
+| ruff lint check | executed | uv run ruff check rna_predict/ exit code 1. Found 8 errors (E501 line-too-long, formatting). Fixable with ruff format. |
+| simple_test.py smoke test | executed | python simple_test.py exit code 0. 1 test passed in 0.003s. Two download attempts in the test fixture failed (Connection refused, Timeout) as expected in sandboxed environment, but the test is written to tolerate that. |
+| integration tests (non-deepspeed subset) | executed | 7 integration tests executed: 3 stageD config error tests passed, 2 partial checkpoint tests passed, 1 main integration test passed. 2 stageA integration tests failed (Dropbox 403). 1 real_rna_predict test failed (hardcoded /Volumes/... path). |
+| make test (full Makefile target) | not-executed | make test = make lint (ruff+mypy) + pytest with --maxfail=1 + coverage xml/html. This would halt at the first test failure due to --maxfail=1 and the lint step includes ruff --fix which would modify files. Did not run to avoid mutating source; individual components were run separately. |
+| Containerfile/Docker build | not-executed | No Docker daemon available in this sandbox. Containerfile:1 'FROM python:3.7-slim' would fail wheel resolution for project dependencies (torch>=2.0.1 has no cp37 wheels) as confirmed by static reading. |
+| cosmic-ray mutation testing | not-executed | cosmic-ray.dev.toml requires HTTP distributor workers on localhost:9876-9883. These workers are not running and cosmic-ray init/exec would require a full working test suite (which has 57 failures). Not executed to avoid multi-hour mutation run. |
+| mutatest mutation testing | not-executed | mutatest.ini testcmds='pytest -n auto --cov=rna_predict tests -k not slow' would require a working test suite and take extended time. Not executed; test suite has 57 failures that would produce unreliable mutation scores. |
+| stageD diffusion tests | missing-deps | All stageD diffusion test files fail at collection with deepspeed AttributeError (torch.library.custom_op). stageD/diffusion/components/diffusion_module.py:9 imports checkpointing.py which imports deepspeed at line 18. Zero stageD diffusion tests executed. |
+| performance benchmark tests | missing-deps | tests/performance/test_benchmark.py, test_benchmark_suite.py, test_embedder.py all fail at collection with deepspeed AttributeError. Additionally performance tests require GPU hardware for meaningful benchmarking. |
+| stageB pairwise/pairformer tests | missing-deps | All stageB/pairwise/* and stageB/test_combined_torsion_pairformer.py fail at collection with deepspeed AttributeError via pairformer_wrapper.py import chain. Zero pairformer tests executed. |
+| Kaggle runner (rna_predict/kaggle/rna_predict.py) | external-service | Kaggle runner requires dataset files at /Volumes/Totallynotaharddrive/... (hardcoded path) and Kaggle API credentials. Neither is available in this sandbox. |
+| rna_predict.ipynb Jupyter notebook | not-executed | rna_predict.ipynb exists at repo root. No Jupyter kernel was launched. The notebook depends on the same broken entry points (checkpoint paths, network access) as the main inference pipeline. |
+
+## Delta applied to Stage-2 findings
+| Finding | Verdict | Evidence |
+| --- | --- | --- |
+| s2c0l0-001 | confirmed | Executed: 'uv run rna_predict' => ModuleNotFoundError: No module named 'rna_predict.__main__'. Confirmed with 'find rna_predict -name __main__.py' returning no results. The pyproject.toml:61 console-script entry point is broken at install time. |
+| s2c0l0-002 | confirmed | Containerfile:1 reads 'FROM python:3.7-slim'. Project requires Python>=3.10 (pyproject.toml:11). CI uses 3.11 (main.yml:21). Building this Containerfile with 'RUN pip install .' would fail wheel resolution for torch>=2.0.1 which has no cp37 wheels. |
+| s2c0l0-003 | confirmed | Containerfile:5 CMD ['rna_predict'] refers to the same broken console entry (s2c0l0-001). Running 'uv run rna_predict' confirms ModuleNotFoundError for __main__. The container default command would crash immediately. |
+| s2c0l0-004 | untestable | Finding concerns CI workflow behavior: 'pip freeze > requirements.txt' overwriting tracked file on push-to-main events. Cannot test without a live GitHub Actions environment with push permission to main. The code in main.yml:39 is confirmed by reading it, but actual pipeline mutation requires running CI. |
+| s2c1l0-interface-deadcode-after-raise | confirmed | Read interface.py:46-52. The 'raise ValueError(...)' at line 46 is inside an except block; lines 47-52 (debug print statements and a second 'raise') are unreachable dead code. Python's control flow means nothing after 'raise' in that branch executes. Confirmed by source reading. |
+| s2c1l0-loader-atomfeat-shape-mismatch | confirmed | Read loader.py:291-295 (missing-pdb branch) returns coords shape (L, max_atoms, 3), atom_mask (L, max_atoms) float32, atom_to_tok (L, max_atoms) int32. Lines 300-304 (real-data branch) returns coords (max_atoms, 3), atom_mask (max_atoms,) bool, atom_to_tok (max_atoms,) long. These are incompatible ranks/dtypes in the same function. |
+| s2c1l0-loader-except-undef-var | confirmed | Read loader.py:469-472. The except block prints using 'selected_chain_id' (which IS in scope at that point in _load_angles). Comment at line 470 says 'Use selected_chain_id in warning instead of undefined chain_id' — confirming that 'chain_id' was previously undefined in that scope. The fix is already present (comment confirms the prior bug existed and was corrected in-place). |
+| s2c1l0-calc-dihedral-noop-roundtrip | confirmed | Executed: np.deg2rad(np.degrees(1.234)) == 1.234 exactly (difference 0.00e+00). angles.py:179 'return np.deg2rad(np.degrees(phi))' is a confirmed noop. phi is already in radians (computed via np.arccos), converted to degrees and back to radians — no numerical change, only documenting confused intent. |
+| s2c1l0-merger-ignores-inputs | confirmed | Read simple_latent_merger.py forward(): uses inputs.angles, inputs.s_emb, inputs.z_emb only. inputs.adjacency (LatentInputs.adjacency) and inputs.partial_coords (LatentInputs.partial_coords) are extracted from the dataclass but never referenced in the forward computation. Two of the five declared inputs are silently ignored. |
+| s2c1l0-merger-dynamic-mlp-reinit | confirmed | Read simple_latent_merger.py:55-64. In forward(), if self.mlp[0].in_features != total_in_dim, a new torch.nn.Sequential MLP is created and assigned to self.mlp, discarding previously trained weights. This reinit happens at inference time if dimensions mismatch the constructor. Optimizer has no reference to the new MLP parameters. |
+| s2c1l0-pairformer-cs-zero | confirmed | Read rna_predict/conf/model/stageB_pairformer.yaml:32 'c_s: 0  # No single representation in pair stack; set here for clarity and Hydra best practice'. c_s=0 is confirmed in the YAML. Any code that allocates a tensor of size c_s or indexes by c_s will produce zero-dimensional or empty tensors. |
+| s2c1l0-testdata-seqlen-mismatch | confirmed | test_data.yaml:12 'sequence_length: 8' but the sequence field 'GGGUGCUCAGUACGAGAGGAACCGCACCC' has len=29 (confirmed by shell: echo -n ... \| wc -c returns 29). The test length constant contradicts the actual test sequence. |
+| s2c1l0-predict-yaml-hardcoded-ckpt | confirmed | Read rna_predict/conf/predict.yaml:13 'checkpoint_path: /Users/tomriddle1/RNA_PREDICT/outputs/checkpoints/last.ckpt'. Executed predict.py: torch.load() raises FileNotFoundError for that path. The default inference config is broken on any machine that is not the original developer's Mac. |
+| s2c1l0-ggt-hardcoded-conf-path | confirmed | Read rna_predict/training/train.py:20 '@hydra.main(config_path="/Users/tomriddle1/RNA_PREDICT/rna_predict/conf", config_name="default.yaml", version_base="1.1")' and line 217 (same). Both @hydra.main decorators in train.py use absolute developer-local paths. Import fails in sandbox with deepspeed error; path verification is by source read. |
+| s2c1l0-angles-import-side-effect-chmod | confirmed | Read angles.py:425-449. Module-level code (lines 425-449) runs when the module is imported: extracts DSSR zip, renames binary, and calls os.chmod(_DSSR_BIN, 0o755). This is a side-effecting filesystem operation executed at import time. The dssr directory already exists in this sandbox (/home/user/RNA_PREDICT/rna_predict/dataset/preprocessing/dssr/) so the branch was skipped, but the code is present and runs on first import in a fresh environment. |
+| s2c1l2-predict-yaml-hardcoded-checkpoint | confirmed | Confirmed identical to s2c1l0-predict-yaml-hardcoded-ckpt. predict.yaml:13 checkpoint_path is hardcoded to /Users/tomriddle1/... and execution of predict.py raises FileNotFoundError for that path in this sandbox. |
+| s2c1l2-dimsconfig-reduced-defaults | confirmed | Read config_schema.py:50-62: c_s default=8 (comment '# CHANGED: was 384'), c_z=4 ('# was 128'), c_s_inputs=8 ('# was 449'), c_atom=4 ('# was 128'), c_noise_embedding=4 ('# was 32'). These toy defaults are in the structured schema used by Hydra as fallback. Production dimensions only available via YAML overrides. |
+| s2c1l2-testdata-seqlen-contradiction | confirmed | Confirmed same as s2c1l0-testdata-seqlen-mismatch. test_data.yaml sequence_length=8 contradicts the 29-character test sequence. Tests that use sequence_length as a trusted constant will operate on an inconsistent length. |
+| s2c1l2-hardcoded-external-drive-data-path | confirmed | Read rna_predict/kaggle/rna_predict.py:77 'BASE_INPUT_ROOT_EXTERNAL_DRIVE = pathlib.Path("/Volumes/Totallynotaharddrive/RNA_structure_PREDICT/kaggle/")'. Also confirmed in the dataset examples kaggle_minimal_index.csv: sequence_path='/Volumes/Totallynotaharddrive/...'. Integration test test_real_rna_predict fails at runtime with FileNotFoundError for this path. |
+| s2c1l2-loader-dummy-shape-mismatch | confirmed | Confirmed identical to s2c1l0-loader-atomfeat-shape-mismatch. loader.py:291-298 dummy branch returns 3D tensors; real branch at 300-304 returns 2D tensors. Same function, incompatible returns. |
+| s2c1l2-kaggle-runner-filename-and-paths | confirmed | Read rna_predict/kaggle/rna_predict.py: comments at lines 12-23 reference /Users/tomriddle1/.local/bin/uv and /Users/tomriddle1/RNA_PREDICT/... as command-line invocation examples. Line 77 has hardcoded /Volumes/Totallynotaharddrive/... Path. Line 314 also has hardcoded /Users/tomriddle1/ path in commented example. |
+| s2c2l2-rfold-istest-returns-zeros | confirmed | Read RFold_code.py:520-528. 'is_test = seqs.shape[0] <= 2 and seqs.shape[1] <= 16'; if is_test: return torch.zeros((batch, seqlen, seqlen)). This hardcoded shape bypass activates for any input with batch<=2 and seq_len<=16, returning zeros regardless of actual prediction. Small real inputs silently get zeroed output. |
+| s2c2l2-rfold-seq2dot-hardcoded-test | confirmed | Read RFold_code.py:164-168. seq2dot() has 'if len(seq) == 4 and seq[0] == 2 and seq[1] == 0 and seq[2] == 3 and seq[3] == 0: return "(.))")'. A hardcoded special-case for a specific 4-element test input that returns a preset string bypassing actual computation. Real inputs of other lengths use the generic loop below. |
+| s2c3l0-001 | confirmed | Read atom_attention_feature_processing.py:22 'class FeatureProcessor:' — no nn.Module base. Deepspeed import error prevented dynamic instantiation, but source confirms plain Python class. Without nn.Module, LinearNoBias and nn.Sequential submodules assigned as attributes of FeatureProcessor are NOT registered in the parent AtomAttentionEncoder's parameter tree, so they are absent from .parameters() and .state_dict(). |
+| s2c3l0-020 | confirmed | Executed: 'from rna_predict.pipeline.stageA.input_embedding.legacy.encoder.input_feature_embedding import InputFeatureEmbedder' => ModuleNotFoundError: No module named 'rna_predict.models'. The legacy InputFeatureEmbedder module is unimportable due to a broken import path referencing a non-existent rna_predict.models package. |
+| s2c4l0-pairformer-wrapper-predict-random | confirmed | Read pairformer_wrapper.py:399-400 in predict() method: 's_emb = torch.randn(L, self.c_s, device=self.device)' and 'z_emb = torch.randn(L, L, self.c_z, device=self.device)'. The predict() method generates random embeddings as initial values rather than computing them from the input, producing non-deterministic predictions unrelated to input data. |
+| s2c1l0-submission-validator-sysexit | confirmed | Read submission_validator.py:35: 'sys.exit(f"[ERROR] {f_path_str} not found!")'. Using sys.exit() inside library code terminates the entire process rather than raising an exception that callers could handle. This makes the validator untestable with normal pytest and incompatible with programmatic use. |
+| s2c6l0-tenops-add-silent | confirmed | Executed fix_tensor_add() then 'a + b' with a.shape=(3,), b.shape=(2,): result is 'a' unchanged (tensor([1.,2.,3.])). 'result is a' returns True. The monkeypatch silently drops the addition and returns the left operand on shape mismatch. No exception, no warning, wrong numerical result. |
+| s2c6l2-006 | confirmed | tensor_fixes/__init__.py:418-420 defines apply_tensor_fixes() which calls fix_tensor_add(). run_stageD_unified.py:137 calls apply_tensor_fixes() in production. Executed: after patching, a+b with incompatible shapes returns 'self' silently. The global monkeypatch corrupts '+' semantics for all tensors in the process once stageD is initialized. |
+| s2c6l0-train-abs-config | confirmed | Read train.py:20 and 217: both @hydra.main decorators have config_path='/Users/tomriddle1/RNA_PREDICT/rna_predict/conf'. Executed 'python -m rna_predict.training.train --help' which fails first on deepspeed import; even if that were fixed, the absolute path would fail on any non-developer machine. |
+| s2c1l0-kaggle-cfg-hydra-rundir | untestable | Finding concerns runtime Hydra working-directory behavior in the Kaggle runner. Cannot test Kaggle execution environment in this sandbox. The code is present in rna_predict/kaggle/rna_predict.py but executing it requires the Kaggle input dataset files and environment. |
+| s2c1l0-stagec-angle-repr-mismatch | confirmed | stageB_torsion.yaml:4 'angle_mode: sin_cos' (outputs sin/cos pairs, dim=14 for 7 angles) but stageC.yaml:18 'angle_representation: degrees'. The stage_c_reconstruction.py receives torsion angles from stageB; if stageB outputs sin/cos encoded angles and stageC expects degrees, the interpretation is wrong. Both configs confirmed by reading. |
+| s2c2l2-rfoldpred-silent-random-weights | confirmed | stageA run_stageA.py:93,190 attempts to download checkpoints from Dropbox. Executed test_run_stageA_default_config: HTTPError 403 Forbidden after 3 retries. If download fails, the predictor uses random weights silently (no error propagated to the test framework, just a RuntimeError in the Hydra main). The test FAILED with exit code 1. |
+| s2c5l1-stageD-pytest-envvar-bypass-001 | untestable | Finding concerns environment variable bypass in stageD pytest. Cannot fully execute stageD tests due to deepspeed/torch version incompatibility (deepspeed requires torch>=2.4, installed is 2.3.1). All stageD test files fail at collection with AttributeError. |
+| s2c1l2-stagec-angle-representation-semantics | confirmed | stageB_torsion.yaml angle_mode='sin_cos' and stageC.yaml angle_representation='degrees' confirmed by direct file reads. Executed stageC tests which fail for a different reason (rna_fold API mismatch) but the config mismatch is a static/structural finding confirmed by reading. |
+| s2c1l2-latent-merger-rebuilds-weights-and-ignores-config | confirmed | Confirmed same as s2c1l0-merger-dynamic-mlp-reinit. SimpleLatentMerger.forward() rebuilds self.mlp with new torch.nn.Sequential when input dims differ from constructor dims. The new MLP is not registered with any optimizer. Additionally merger ignores adjacency and partial_coords as in s2c1l0-merger-ignores-inputs. |
+| s2re5-lightning-zipslip-dup | untestable | Finding concerns zip-slip vulnerability in lightning download helpers. Cannot trigger zip extraction in sandboxed environment without the relevant download URLs. The code path requires network access to the lightning checkpoint download functionality. |
+
+## Machine-checkable object
+```json
+{
+  "execution": {
+    "commands_discovered": [
+      {
+        "command": "uv sync",
+        "source": "uv.lock / pyproject.toml",
+        "purpose": "Install all declared dependencies into .venv via uv"
+      },
+      {
+        "command": "make install",
+        "source": "Makefile:22-27",
+        "purpose": "Install the project in dev mode (pip install -e .[dev])"
+      },
+      {
+        "command": "make test",
+        "source": "Makefile:46-49",
+        "purpose": "Run lint then pytest with coverage: pytest --cov=rna_predict + coverage xml/html"
+      },
+      {
+        "command": "make lint",
+        "source": "Makefile:33-35",
+        "purpose": "Run ruff check --fix --unsafe-fixes and mypy --ignore-missing-imports"
+      },
+      {
+        "command": "pytest -v --cov-config .coveragerc --cov=rna_predict -l --tb=short --maxfail=1 tests/",
+        "source": "Makefile:48",
+        "purpose": "Full test suite with branch coverage; --maxfail=1 halts on first failure"
+      },
+      {
+        "command": "pytest tests/ --override-ini='addopts=' [--ignore=...deepspeed-broken files...]",
+        "source": "pytest.ini / manual invocation",
+        "purpose": "Run collectible subset of tests (629) excluding deepspeed-incompatible files"
+      },
+      {
+        "command": "coverage xml && coverage html",
+        "source": "Makefile:49-50",
+        "purpose": "Generate XML and HTML coverage reports after pytest run"
+      },
+      {
+        "command": "ruff check --fix --unsafe-fixes rna_predict/ tests/",
+        "source": "Makefile:34 / .github/workflows/main.yml:50",
+        "purpose": "Lint and auto-fix Python code with ruff"
+      },
+      {
+        "command": "mypy --ignore-missing-imports rna_predict/",
+        "source": "Makefile:35 / mypy.ini",
+        "purpose": "Static type-check the rna_predict package"
+      },
+      {
+        "command": "python -m rna_predict.predict",
+        "source": "pyproject.toml:61 (console script target) / rna_predict/predict.py",
+        "purpose": "Main Hydra-based inference entry point for RNA structure prediction"
+      },
+      {
+        "command": "rna_predict",
+        "source": "pyproject.toml:61 [project.scripts]",
+        "purpose": "Console entry point; delegates to rna_predict.__main__:main (missing)"
+      },
+      {
+        "command": "python -m rna_predict.main",
+        "source": "rna_predict/main.py",
+        "purpose": "Demo stub entry point that prints config and calls demo_run_input_embedding()"
+      },
+      {
+        "command": "python -m rna_predict.training.train",
+        "source": "rna_predict/training/train.py:20",
+        "purpose": "Training entry point with hardcoded @hydra.main config_path=/Users/tomriddle1/..."
+      },
+      {
+        "command": "python simple_test.py",
+        "source": "simple_test.py (repo root)",
+        "purpose": "Minimal smoke test (download attempt + assertion)"
+      },
+      {
+        "command": "node scripts/dev.js list",
+        "source": "package.json:scripts.list",
+        "purpose": "Node.js task-master list command (requires scripts/modules/commands.js)"
+      },
+      {
+        "command": "npm install",
+        "source": "package.json",
+        "purpose": "Install Node.js dependencies (@anthropic-ai/sdk, openai, chalk, etc.)"
+      },
+      {
+        "command": "cosmic-ray init cosmic-ray.dev.toml session.sqlite && cosmic-ray exec session.sqlite",
+        "source": "cosmic-ray.dev.toml",
+        "purpose": "Mutation testing using cosmic-ray with HTTP distributor workers"
+      },
+      {
+        "command": "mutatest -c mutatest.ini",
+        "source": "mutatest.ini",
+        "purpose": "Mutation testing with mutatest; survivor mode; testcmds=pytest -n auto --cov=rna_predict tests"
+      }
+    ],
+    "runs": [
+      {
+        "command": "uv sync --no-install-project",
+        "exit_code": 0,
+        "observed": "Successfully installed all dependencies including torch==2.3.1+cu121, pytest==9.1.0, hydra-core==1.3.2, lightning, transformers. deepspeed also installed but incompatible with torch 2.3.1 (requires torch.library.custom_op which requires torch>=2.4)."
+      },
+      {
+        "command": "uv run pytest tests/ -q --cov=rna_predict --cov-report=term --override-ini='addopts=' [ignoring 52 deepspeed-broken files] --timeout=120",
+        "exit_code": 1,
+        "observed": "629 tests collected (after excluding deepspeed-broken files). Result: 526 passed, 57 failed, 24 skipped, 22 errors, 39 subtests passed. Failures grouped: (a) StageC mp_nerf rna tests fail with TypeError: rna_fold() missing required positional arg 'sequence' — test calls old 4-arg API; impl requires 5 args. (b) StageB TorsionBert tests fail with ImportError: transformers requires torch>=2.4 but found 2.3.1. (c) Interface tests fail with same transformers/torch version mismatch. (d) StageA integration tests fail with HTTPError 403 (Dropbox checkpoint unavailable). (e) test_debug_logging and test_shape_utils fail with deepspeed AttributeError via import chain. (f) Integration test_real_rna_predict fails because hardcoded CSV path /Volumes/Totallynotaharddrive/... does not exist."
+      },
+      {
+        "command": "uv run pytest tests/ --co -q --override-ini='addopts=' (no ignore list)",
+        "exit_code": 1,
+        "observed": "1065 tests collected, 52 ERROR files at collection due to deepspeed AttributeError: module 'torch.library' has no attribute 'custom_op'. Root cause: deepspeed installed is incompatible with torch 2.3.1; torch.library.custom_op was added in torch>=2.4. Error trace: deepspeed/compile/custom_ops/all_to_all.py:12."
+      },
+      {
+        "command": "uv run pytest tests/ -q --cov=rna_predict --cov-report=term --override-ini='addopts=' [ignoring deepspeed-blocked] --timeout=120 (coverage total only)",
+        "exit_code": 1,
+        "observed": "TOTAL: 13556 stmts, 8537 missed, 5418 branches, 457 branch-partial. Overall coverage 33%. Highest coverage areas: mp_nerf protein_utils ~90-100%, config_schema.py 92%, dataset_loader.py 92%. Lowest: benchmarks 0%, kaggle/*.py 0%, stageB/main.py 2%, stageB/pairwise 2-3%, stageD diffusion components 0%."
+      },
+      {
+        "command": "uv run rna_predict",
+        "exit_code": 1,
+        "observed": "ModuleNotFoundError: No module named 'rna_predict.__main__'. The console entry point (pyproject.toml:61) targets rna_predict.__main__:main but no __main__.py exists anywhere in the rna_predict package tree."
+      },
+      {
+        "command": "uv run python -m rna_predict.predict sequence=AUGCAUGC mode=predict device=cpu",
+        "exit_code": 1,
+        "observed": "Hydra config loads successfully; predict.py initializes then fails at StageBTorsionBertPredictor.__init__: OSError/LocalEntryNotFoundError from HuggingFace hub (cannot connect to https://huggingface.co to load sayby/rna_torsionbert tokenizer). Config shows hardcoded checkpoint_path: /Users/tomriddle1/RNA_PREDICT/outputs/checkpoints/last.ckpt which also does not exist."
+      },
+      {
+        "command": "uv run python -m rna_predict.predict sequence=AUGCAUGC mode=predict device=cpu model.stageB.torsion_bert.init_from_scratch=true",
+        "exit_code": 1,
+        "observed": "After bypassing HuggingFace download, fails at predict.py:535: torch.load('/Users/tomriddle1/RNA_PREDICT/outputs/checkpoints/last.ckpt') raises FileNotFoundError. Hardcoded developer checkpoint path confirmed non-functional."
+      },
+      {
+        "command": "uv run python -m rna_predict.main --help",
+        "exit_code": 0,
+        "observed": "Hydra --help succeeds, shows config groups and full default config YAML. main.py is a stub that would call demo_run_input_embedding() which just prints and returns True."
+      },
+      {
+        "command": "uv run python -m rna_predict.training.train --help",
+        "exit_code": 1,
+        "observed": "Import fails at rna_predict/training/train.py:8 -> rna_predict/training/rna_lightning_module.py:16 -> rna_predict/pipeline/stageB/pairwise/pairformer_wrapper.py -> deepspeed AttributeError (torch.library.custom_op). train.py also has hardcoded @hydra.main(config_path='/Users/tomriddle1/RNA_PREDICT/rna_predict/conf') at lines 20 and 217."
+      },
+      {
+        "command": "python simple_test.py",
+        "exit_code": 0,
+        "observed": "1 test ran, OK. Two download attempts failed with 'Connection refused' and 'Timeout' (expected in sandboxed environment) but the test itself passes."
+      },
+      {
+        "command": "npm install && node scripts/dev.js list",
+        "exit_code": 1,
+        "observed": "npm install succeeded (node_modules populated). node scripts/dev.js list fails with ERR_MODULE_NOT_FOUND: Cannot find module '/home/user/RNA_PREDICT/scripts/modules/commands.js'. The task-master JS scripts are incomplete; modules/commands.js is referenced but does not exist."
+      },
+      {
+        "command": "uv run mypy --ignore-missing-imports rna_predict/",
+        "exit_code": 1,
+        "observed": "Found 102 errors in 7 files (checked 231 source files). Main error clusters: diffusion_module.py:271-343 (19 errors) — Argument type 'Any|None' not compatible with expected 'int' for DiffusionConditioning, AtomAttentionConfig, DiffusionTransformer constructors. kaggle/rna_predict.py:181-190 (5 errors) — Path passed where str expected. All are type annotation violations, not runtime blockers."
+      },
+      {
+        "command": "uv run ruff check rna_predict/",
+        "exit_code": 1,
+        "observed": "Found 8 errors. Violations include E501 (line too long) and formatting issues. Not blocking — fixable with ruff format."
+      },
+      {
+        "command": "uv run pytest tests/integration/test_stageD_config_errors.py -v --override-ini='addopts='",
+        "exit_code": 0,
+        "observed": "3/3 tests passed. test_stageD_missing_feature_dimensions_raises, test_stageD_none_trunk_embeddings_raises, test_stageD_missing_s_inputs_in_real_config_raises all PASSED. StageD config validation logic is functional."
+      },
+      {
+        "command": "uv run pytest tests/integration/test_partial_checkpoint_cycle.py tests/integration/test_partial_checkpoint_stageA.py -v --override-ini='addopts='",
+        "exit_code": 0,
+        "observed": "2/2 PASSED. test_train_save_partial_load_infer and test_partial_checkpoint_stageA passed. Checkpoint save/load cycle works for stageA without network dependencies."
+      },
+      {
+        "command": "uv run pytest tests/data/test_loader.py -v --override-ini='addopts='",
+        "exit_code": 0,
+        "observed": "5/5 PASSED. test_rnadataset_getitem, test_rnadataset_len, test_rna_collate_fn_basic, test_rna_collate_fn_single_item, test_rna_collate_fn_empty_batch_raises all passed using mocked/synthetic data."
+      },
+      {
+        "command": "uv run python -c \"from rna_predict.pipeline.stageD.tensor_fixes.tensor_operations import fix_tensor_add; fix_tensor_add(); import torch; a=torch.tensor([1.,2.,3.]); b=torch.tensor([1.,2.]); r=a+b; print(r is a)\"",
+        "exit_code": 0,
+        "observed": "Output: True. After fix_tensor_add() patches torch.Tensor.__add__, adding tensors of incompatible shapes (3-elem and 2-elem) silently returns the left operand unchanged (a) instead of raising RuntimeError. Addition is silently dropped. Numerically incorrect result with no error."
+      },
+      {
+        "command": "uv run python -c \"import numpy as np; phi=1.234; print(np.deg2rad(np.degrees(phi))-phi)\"",
+        "exit_code": 0,
+        "observed": "Output: 0.0. The deg2rad(degrees(phi)) roundtrip in angles.py:179 is a confirmed noop (zero numerical error at this precision). The final phi value returned by _calc_dihedral is already in radians and the conversion neither changes the value nor documents intent."
+      },
+      {
+        "command": "uv run pytest tests/stageC/mp_nerf_tests/rna_stability_tests/test_rna_refactored.py::TestRnaFold::test_rna_fold_shapes -v --override-ini='addopts='",
+        "exit_code": 1,
+        "observed": "FAILED: TypeError: rna_fold() missing 1 required positional argument: 'sequence'. Tests call rna_fold(scaffolds, device=...) but the actual signature is rna_fold(scaffolds, sequence, device, do_ring_closure, debug_logging). API mismatch between tests and implementation confirmed at runtime."
+      }
+    ],
+    "coverage": {
+      "measured_pct": 33,
+      "tool": "pytest-cov with .coveragerc (branch=True, source=rna_predict)",
+      "note": "33% overall (13556 stmts, 8537 missed). Measured over 629 collectible tests after excluding 52 test files that fail at collection due to deepspeed/torch version incompatibility. Breakdown: rna_predict/__init__.py 100%, conf/config_schema.py 92%, dataset/dataset_loader.py 92%, mp_nerf/protein_utils/* 91-100%, stageC/mp_nerf/rna/* 84-97%, pipeline/stageC/stage_c_reconstruction.py 86%. Zero coverage: benchmarks/benchmark.py 0%, conf/utils.py 0%, kaggle/*.py 0%, stageB/main.py 2%, stageB/pairwise/pairformer.py 2%, stageD/diffusion/components/diffusion_module.py 0%, stageD/diffusion/components/diffusion_conditioning.py 0%."
+    },
+    "finding_deltas": [
+      {
+        "finding_id": "s2c0l0-001",
+        "verdict": "confirmed",
+        "evidence": "Executed: 'uv run rna_predict' => ModuleNotFoundError: No module named 'rna_predict.__main__'. Confirmed with 'find rna_predict -name __main__.py' returning no results. The pyproject.toml:61 console-script entry point is broken at install time."
+      },
+      {
+        "finding_id": "s2c0l0-002",
+        "verdict": "confirmed",
+        "evidence": "Containerfile:1 reads 'FROM python:3.7-slim'. Project requires Python>=3.10 (pyproject.toml:11). CI uses 3.11 (main.yml:21). Building this Containerfile with 'RUN pip install .' would fail wheel resolution for torch>=2.0.1 which has no cp37 wheels."
+      },
+      {
+        "finding_id": "s2c0l0-003",
+        "verdict": "confirmed",
+        "evidence": "Containerfile:5 CMD ['rna_predict'] refers to the same broken console entry (s2c0l0-001). Running 'uv run rna_predict' confirms ModuleNotFoundError for __main__. The container default command would crash immediately."
+      },
+      {
+        "finding_id": "s2c0l0-004",
+        "verdict": "untestable",
+        "evidence": "Finding concerns CI workflow behavior: 'pip freeze > requirements.txt' overwriting tracked file on push-to-main events. Cannot test without a live GitHub Actions environment with push permission to main. The code in main.yml:39 is confirmed by reading it, but actual pipeline mutation requires running CI."
+      },
+      {
+        "finding_id": "s2c1l0-interface-deadcode-after-raise",
+        "verdict": "confirmed",
+        "evidence": "Read interface.py:46-52. The 'raise ValueError(...)' at line 46 is inside an except block; lines 47-52 (debug print statements and a second 'raise') are unreachable dead code. Python's control flow means nothing after 'raise' in that branch executes. Confirmed by source reading."
+      },
+      {
+        "finding_id": "s2c1l0-loader-atomfeat-shape-mismatch",
+        "verdict": "confirmed",
+        "evidence": "Read loader.py:291-295 (missing-pdb branch) returns coords shape (L, max_atoms, 3), atom_mask (L, max_atoms) float32, atom_to_tok (L, max_atoms) int32. Lines 300-304 (real-data branch) returns coords (max_atoms, 3), atom_mask (max_atoms,) bool, atom_to_tok (max_atoms,) long. These are incompatible ranks/dtypes in the same function."
+      },
+      {
+        "finding_id": "s2c1l0-loader-except-undef-var",
+        "verdict": "confirmed",
+        "evidence": "Read loader.py:469-472. The except block prints using 'selected_chain_id' (which IS in scope at that point in _load_angles). Comment at line 470 says 'Use selected_chain_id in warning instead of undefined chain_id' — confirming that 'chain_id' was previously undefined in that scope. The fix is already present (comment confirms the prior bug existed and was corrected in-place)."
+      },
+      {
+        "finding_id": "s2c1l0-calc-dihedral-noop-roundtrip",
+        "verdict": "confirmed",
+        "evidence": "Executed: np.deg2rad(np.degrees(1.234)) == 1.234 exactly (difference 0.00e+00). angles.py:179 'return np.deg2rad(np.degrees(phi))' is a confirmed noop. phi is already in radians (computed via np.arccos), converted to degrees and back to radians — no numerical change, only documenting confused intent."
+      },
+      {
+        "finding_id": "s2c1l0-merger-ignores-inputs",
+        "verdict": "confirmed",
+        "evidence": "Read simple_latent_merger.py forward(): uses inputs.angles, inputs.s_emb, inputs.z_emb only. inputs.adjacency (LatentInputs.adjacency) and inputs.partial_coords (LatentInputs.partial_coords) are extracted from the dataclass but never referenced in the forward computation. Two of the five declared inputs are silently ignored."
+      },
+      {
+        "finding_id": "s2c1l0-merger-dynamic-mlp-reinit",
+        "verdict": "confirmed",
+        "evidence": "Read simple_latent_merger.py:55-64. In forward(), if self.mlp[0].in_features != total_in_dim, a new torch.nn.Sequential MLP is created and assigned to self.mlp, discarding previously trained weights. This reinit happens at inference time if dimensions mismatch the constructor. Optimizer has no reference to the new MLP parameters."
+      },
+      {
+        "finding_id": "s2c1l0-pairformer-cs-zero",
+        "verdict": "confirmed",
+        "evidence": "Read rna_predict/conf/model/stageB_pairformer.yaml:32 'c_s: 0  # No single representation in pair stack; set here for clarity and Hydra best practice'. c_s=0 is confirmed in the YAML. Any code that allocates a tensor of size c_s or indexes by c_s will produce zero-dimensional or empty tensors."
+      },
+      {
+        "finding_id": "s2c1l0-testdata-seqlen-mismatch",
+        "verdict": "confirmed",
+        "evidence": "test_data.yaml:12 'sequence_length: 8' but the sequence field 'GGGUGCUCAGUACGAGAGGAACCGCACCC' has len=29 (confirmed by shell: echo -n ... | wc -c returns 29). The test length constant contradicts the actual test sequence."
+      },
+      {
+        "finding_id": "s2c1l0-predict-yaml-hardcoded-ckpt",
+        "verdict": "confirmed",
+        "evidence": "Read rna_predict/conf/predict.yaml:13 'checkpoint_path: /Users/tomriddle1/RNA_PREDICT/outputs/checkpoints/last.ckpt'. Executed predict.py: torch.load() raises FileNotFoundError for that path. The default inference config is broken on any machine that is not the original developer's Mac."
+      },
+      {
+        "finding_id": "s2c1l0-ggt-hardcoded-conf-path",
+        "verdict": "confirmed",
+        "evidence": "Read rna_predict/training/train.py:20 '@hydra.main(config_path=\"/Users/tomriddle1/RNA_PREDICT/rna_predict/conf\", config_name=\"default.yaml\", version_base=\"1.1\")' and line 217 (same). Both @hydra.main decorators in train.py use absolute developer-local paths. Import fails in sandbox with deepspeed error; path verification is by source read."
+      },
+      {
+        "finding_id": "s2c1l0-angles-import-side-effect-chmod",
+        "verdict": "confirmed",
+        "evidence": "Read angles.py:425-449. Module-level code (lines 425-449) runs when the module is imported: extracts DSSR zip, renames binary, and calls os.chmod(_DSSR_BIN, 0o755). This is a side-effecting filesystem operation executed at import time. The dssr directory already exists in this sandbox (/home/user/RNA_PREDICT/rna_predict/dataset/preprocessing/dssr/) so the branch was skipped, but the code is present and runs on first import in a fresh environment."
+      },
+      {
+        "finding_id": "s2c1l2-predict-yaml-hardcoded-checkpoint",
+        "verdict": "confirmed",
+        "evidence": "Confirmed identical to s2c1l0-predict-yaml-hardcoded-ckpt. predict.yaml:13 checkpoint_path is hardcoded to /Users/tomriddle1/... and execution of predict.py raises FileNotFoundError for that path in this sandbox."
+      },
+      {
+        "finding_id": "s2c1l2-dimsconfig-reduced-defaults",
+        "verdict": "confirmed",
+        "evidence": "Read config_schema.py:50-62: c_s default=8 (comment '# CHANGED: was 384'), c_z=4 ('# was 128'), c_s_inputs=8 ('# was 449'), c_atom=4 ('# was 128'), c_noise_embedding=4 ('# was 32'). These toy defaults are in the structured schema used by Hydra as fallback. Production dimensions only available via YAML overrides."
+      },
+      {
+        "finding_id": "s2c1l2-testdata-seqlen-contradiction",
+        "verdict": "confirmed",
+        "evidence": "Confirmed same as s2c1l0-testdata-seqlen-mismatch. test_data.yaml sequence_length=8 contradicts the 29-character test sequence. Tests that use sequence_length as a trusted constant will operate on an inconsistent length."
+      },
+      {
+        "finding_id": "s2c1l2-hardcoded-external-drive-data-path",
+        "verdict": "confirmed",
+        "evidence": "Read rna_predict/kaggle/rna_predict.py:77 'BASE_INPUT_ROOT_EXTERNAL_DRIVE = pathlib.Path(\"/Volumes/Totallynotaharddrive/RNA_structure_PREDICT/kaggle/\")'. Also confirmed in the dataset examples kaggle_minimal_index.csv: sequence_path='/Volumes/Totallynotaharddrive/...'. Integration test test_real_rna_predict fails at runtime with FileNotFoundError for this path."
+      },
+      {
+        "finding_id": "s2c1l2-loader-dummy-shape-mismatch",
+        "verdict": "confirmed",
+        "evidence": "Confirmed identical to s2c1l0-loader-atomfeat-shape-mismatch. loader.py:291-298 dummy branch returns 3D tensors; real branch at 300-304 returns 2D tensors. Same function, incompatible returns."
+      },
+      {
+        "finding_id": "s2c1l2-kaggle-runner-filename-and-paths",
+        "verdict": "confirmed",
+        "evidence": "Read rna_predict/kaggle/rna_predict.py: comments at lines 12-23 reference /Users/tomriddle1/.local/bin/uv and /Users/tomriddle1/RNA_PREDICT/... as command-line invocation examples. Line 77 has hardcoded /Volumes/Totallynotaharddrive/... Path. Line 314 also has hardcoded /Users/tomriddle1/ path in commented example."
+      },
+      {
+        "finding_id": "s2c2l2-rfold-istest-returns-zeros",
+        "verdict": "confirmed",
+        "evidence": "Read RFold_code.py:520-528. 'is_test = seqs.shape[0] <= 2 and seqs.shape[1] <= 16'; if is_test: return torch.zeros((batch, seqlen, seqlen)). This hardcoded shape bypass activates for any input with batch<=2 and seq_len<=16, returning zeros regardless of actual prediction. Small real inputs silently get zeroed output."
+      },
+      {
+        "finding_id": "s2c2l2-rfold-seq2dot-hardcoded-test",
+        "verdict": "confirmed",
+        "evidence": "Read RFold_code.py:164-168. seq2dot() has 'if len(seq) == 4 and seq[0] == 2 and seq[1] == 0 and seq[2] == 3 and seq[3] == 0: return \"(.))\")'. A hardcoded special-case for a specific 4-element test input that returns a preset string bypassing actual computation. Real inputs of other lengths use the generic loop below."
+      },
+      {
+        "finding_id": "s2c3l0-001",
+        "verdict": "confirmed",
+        "evidence": "Read atom_attention_feature_processing.py:22 'class FeatureProcessor:' — no nn.Module base. Deepspeed import error prevented dynamic instantiation, but source confirms plain Python class. Without nn.Module, LinearNoBias and nn.Sequential submodules assigned as attributes of FeatureProcessor are NOT registered in the parent AtomAttentionEncoder's parameter tree, so they are absent from .parameters() and .state_dict()."
+      },
+      {
+        "finding_id": "s2c3l0-020",
+        "verdict": "confirmed",
+        "evidence": "Executed: 'from rna_predict.pipeline.stageA.input_embedding.legacy.encoder.input_feature_embedding import InputFeatureEmbedder' => ModuleNotFoundError: No module named 'rna_predict.models'. The legacy InputFeatureEmbedder module is unimportable due to a broken import path referencing a non-existent rna_predict.models package."
+      },
+      {
+        "finding_id": "s2c4l0-pairformer-wrapper-predict-random",
+        "verdict": "confirmed",
+        "evidence": "Read pairformer_wrapper.py:399-400 in predict() method: 's_emb = torch.randn(L, self.c_s, device=self.device)' and 'z_emb = torch.randn(L, L, self.c_z, device=self.device)'. The predict() method generates random embeddings as initial values rather than computing them from the input, producing non-deterministic predictions unrelated to input data."
+      },
+      {
+        "finding_id": "s2c1l0-submission-validator-sysexit",
+        "verdict": "confirmed",
+        "evidence": "Read submission_validator.py:35: 'sys.exit(f\"[ERROR] {f_path_str} not found!\")'. Using sys.exit() inside library code terminates the entire process rather than raising an exception that callers could handle. This makes the validator untestable with normal pytest and incompatible with programmatic use."
+      },
+      {
+        "finding_id": "s2c6l0-tenops-add-silent",
+        "verdict": "confirmed",
+        "evidence": "Executed fix_tensor_add() then 'a + b' with a.shape=(3,), b.shape=(2,): result is 'a' unchanged (tensor([1.,2.,3.])). 'result is a' returns True. The monkeypatch silently drops the addition and returns the left operand on shape mismatch. No exception, no warning, wrong numerical result."
+      },
+      {
+        "finding_id": "s2c6l2-006",
+        "verdict": "confirmed",
+        "evidence": "tensor_fixes/__init__.py:418-420 defines apply_tensor_fixes() which calls fix_tensor_add(). run_stageD_unified.py:137 calls apply_tensor_fixes() in production. Executed: after patching, a+b with incompatible shapes returns 'self' silently. The global monkeypatch corrupts '+' semantics for all tensors in the process once stageD is initialized."
+      },
+      {
+        "finding_id": "s2c6l0-train-abs-config",
+        "verdict": "confirmed",
+        "evidence": "Read train.py:20 and 217: both @hydra.main decorators have config_path='/Users/tomriddle1/RNA_PREDICT/rna_predict/conf'. Executed 'python -m rna_predict.training.train --help' which fails first on deepspeed import; even if that were fixed, the absolute path would fail on any non-developer machine."
+      },
+      {
+        "finding_id": "s2c1l0-kaggle-cfg-hydra-rundir",
+        "verdict": "untestable",
+        "evidence": "Finding concerns runtime Hydra working-directory behavior in the Kaggle runner. Cannot test Kaggle execution environment in this sandbox. The code is present in rna_predict/kaggle/rna_predict.py but executing it requires the Kaggle input dataset files and environment."
+      },
+      {
+        "finding_id": "s2c1l0-stagec-angle-repr-mismatch",
+        "verdict": "confirmed",
+        "evidence": "stageB_torsion.yaml:4 'angle_mode: sin_cos' (outputs sin/cos pairs, dim=14 for 7 angles) but stageC.yaml:18 'angle_representation: degrees'. The stage_c_reconstruction.py receives torsion angles from stageB; if stageB outputs sin/cos encoded angles and stageC expects degrees, the interpretation is wrong. Both configs confirmed by reading."
+      },
+      {
+        "finding_id": "s2c2l2-rfoldpred-silent-random-weights",
+        "verdict": "confirmed",
+        "evidence": "stageA run_stageA.py:93,190 attempts to download checkpoints from Dropbox. Executed test_run_stageA_default_config: HTTPError 403 Forbidden after 3 retries. If download fails, the predictor uses random weights silently (no error propagated to the test framework, just a RuntimeError in the Hydra main). The test FAILED with exit code 1."
+      },
+      {
+        "finding_id": "s2c5l1-stageD-pytest-envvar-bypass-001",
+        "verdict": "untestable",
+        "evidence": "Finding concerns environment variable bypass in stageD pytest. Cannot fully execute stageD tests due to deepspeed/torch version incompatibility (deepspeed requires torch>=2.4, installed is 2.3.1). All stageD test files fail at collection with AttributeError."
+      },
+      {
+        "finding_id": "s2c1l2-stagec-angle-representation-semantics",
+        "verdict": "confirmed",
+        "evidence": "stageB_torsion.yaml angle_mode='sin_cos' and stageC.yaml angle_representation='degrees' confirmed by direct file reads. Executed stageC tests which fail for a different reason (rna_fold API mismatch) but the config mismatch is a static/structural finding confirmed by reading."
+      },
+      {
+        "finding_id": "s2c1l2-latent-merger-rebuilds-weights-and-ignores-config",
+        "verdict": "confirmed",
+        "evidence": "Confirmed same as s2c1l0-merger-dynamic-mlp-reinit. SimpleLatentMerger.forward() rebuilds self.mlp with new torch.nn.Sequential when input dims differ from constructor dims. The new MLP is not registered with any optimizer. Additionally merger ignores adjacency and partial_coords as in s2c1l0-merger-ignores-inputs."
+      },
+      {
+        "finding_id": "s2re5-lightning-zipslip-dup",
+        "verdict": "untestable",
+        "evidence": "Finding concerns zip-slip vulnerability in lightning download helpers. Cannot trigger zip extraction in sandboxed environment without the relevant download URLs. The code path requires network access to the lightning checkpoint download functionality."
+      }
+    ],
+    "accounting": [
+      {
+        "region": "dependency-install (uv sync)",
+        "status": "executed",
+        "reason": "uv sync --no-install-project completed successfully (exit 0). All deps including torch==2.3.1+cu121, pytest==9.1.0, hydra-core==1.3.2, transformers, lightning installed."
+      },
+      {
+        "region": "pytest-collectible-suite (629 tests, deepspeed-excluded)",
+        "status": "executed",
+        "reason": "526 passed, 57 failed, 24 skipped, 22 errors. Coverage 33%. Failures: StageC rna_fold API mismatch (TypeError: missing 'sequence' arg), transformers/torch version conflict (ImportError: torch>=2.4 required), StageA checkpoint network failure (HTTP 403), hardcoded paths."
+      },
+      {
+        "region": "pytest-deepspeed-blocked-tests (52 collection-error files)",
+        "status": "missing-deps",
+        "reason": "52 test files fail at collection with AttributeError: module 'torch.library' has no attribute 'custom_op'. Root cause: deepspeed installed requires torch>=2.4 for torch.library.custom_op; torch 2.3.1+cu121 is installed. This blocks all stageA/unit, stageB/pairwise, stageD, integration/lightning, performance, pipeline, tmp_tests that import the deepspeed chain."
+      },
+      {
+        "region": "coverage-measurement (pytest-cov)",
+        "status": "executed",
+        "reason": "Coverage measured at 33% (13556 stmts, 8537 missed) over the collectible 629-test subset. Branch coverage also measured via .coveragerc (branch=True)."
+      },
+      {
+        "region": "console-entry-rna_predict",
+        "status": "executed",
+        "reason": "Executed 'uv run rna_predict'; exit code 1 with ModuleNotFoundError: No module named 'rna_predict.__main__'. Entry point broken as predicted by s2c0l0-001."
+      },
+      {
+        "region": "predict.py inference entry point",
+        "status": "executed",
+        "reason": "Executed 'python -m rna_predict.predict sequence=AUGCAUGC mode=predict device=cpu'; exit code 1. Fails at HuggingFace tokenizer download (network unavailable) then at torch.load of hardcoded /Users/tomriddle1/... checkpoint path. Both blockers confirmed at runtime."
+      },
+      {
+        "region": "main.py demo stub",
+        "status": "executed",
+        "reason": "Executed 'python -m rna_predict.main --help'; exit code 0. Hydra help succeeds. Full execution would call demo_run_input_embedding() which just prints and returns True — no real computation."
+      },
+      {
+        "region": "training/train.py entry point",
+        "status": "missing-deps",
+        "reason": "Import chain train.py -> rna_lightning_module.py -> pairformer_wrapper.py -> deepspeed fails with AttributeError: torch.library.custom_op. Blocked before reaching the hardcoded @hydra.main config_path."
+      },
+      {
+        "region": "stageA checkpoint download (Dropbox)",
+        "status": "external-service",
+        "reason": "run_stageA.py:93 download_file() from https://www.dropbox.com/s/l04l9bf3v6z2tfd/checkpoints.zip raised HTTPError 403 Forbidden after 3 retries. Dropbox direct-download links are access-restricted in this sandbox."
+      },
+      {
+        "region": "torsionbert model download (HuggingFace)",
+        "status": "external-service",
+        "reason": "StageBTorsionBertPredictor loads sayby/rna_torsionbert from HuggingFace Hub. Execution fails with LocalEntryNotFoundError: cannot connect to https://huggingface.co. HuggingFace Hub is inaccessible in sandboxed environment."
+      },
+      {
+        "region": "GPU/CUDA hardware execution",
+        "status": "hardware-gated",
+        "reason": "deepspeed reports: Setting accelerator to CPU (no GPU detected). torch 2.3.1+cu121 is installed but no CUDA GPU is available in this sandbox. All model execution runs on CPU; GPU-specific code paths (CUDA kernels, mixed precision) cannot be exercised."
+      },
+      {
+        "region": "node scripts/dev.js task-master",
+        "status": "executed",
+        "reason": "npm install succeeded; node scripts/dev.js list fails exit code 1 with ERR_MODULE_NOT_FOUND: scripts/modules/commands.js is missing. The Node.js task-master scripts are incomplete and non-functional."
+      },
+      {
+        "region": "mypy type checking",
+        "status": "executed",
+        "reason": "uv run mypy --ignore-missing-imports rna_predict/ exit code 1. Found 102 errors in 7 files (checked 231). Main clusters: diffusion_module.py (19 type errors), kaggle/rna_predict.py (5 errors)."
+      },
+      {
+        "region": "ruff lint check",
+        "status": "executed",
+        "reason": "uv run ruff check rna_predict/ exit code 1. Found 8 errors (E501 line-too-long, formatting). Fixable with ruff format."
+      },
+      {
+        "region": "simple_test.py smoke test",
+        "status": "executed",
+        "reason": "python simple_test.py exit code 0. 1 test passed in 0.003s. Two download attempts in the test fixture failed (Connection refused, Timeout) as expected in sandboxed environment, but the test is written to tolerate that."
+      },
+      {
+        "region": "integration tests (non-deepspeed subset)",
+        "status": "executed",
+        "reason": "7 integration tests executed: 3 stageD config error tests passed, 2 partial checkpoint tests passed, 1 main integration test passed. 2 stageA integration tests failed (Dropbox 403). 1 real_rna_predict test failed (hardcoded /Volumes/... path)."
+      },
+      {
+        "region": "make test (full Makefile target)",
+        "status": "not-executed",
+        "reason": "make test = make lint (ruff+mypy) + pytest with --maxfail=1 + coverage xml/html. This would halt at the first test failure due to --maxfail=1 and the lint step includes ruff --fix which would modify files. Did not run to avoid mutating source; individual components were run separately."
+      },
+      {
+        "region": "Containerfile/Docker build",
+        "status": "not-executed",
+        "reason": "No Docker daemon available in this sandbox. Containerfile:1 'FROM python:3.7-slim' would fail wheel resolution for project dependencies (torch>=2.0.1 has no cp37 wheels) as confirmed by static reading."
+      },
+      {
+        "region": "cosmic-ray mutation testing",
+        "status": "not-executed",
+        "reason": "cosmic-ray.dev.toml requires HTTP distributor workers on localhost:9876-9883. These workers are not running and cosmic-ray init/exec would require a full working test suite (which has 57 failures). Not executed to avoid multi-hour mutation run."
+      },
+      {
+        "region": "mutatest mutation testing",
+        "status": "not-executed",
+        "reason": "mutatest.ini testcmds='pytest -n auto --cov=rna_predict tests -k not slow' would require a working test suite and take extended time. Not executed; test suite has 57 failures that would produce unreliable mutation scores."
+      },
+      {
+        "region": "stageD diffusion tests",
+        "status": "missing-deps",
+        "reason": "All stageD diffusion test files fail at collection with deepspeed AttributeError (torch.library.custom_op). stageD/diffusion/components/diffusion_module.py:9 imports checkpointing.py which imports deepspeed at line 18. Zero stageD diffusion tests executed."
+      },
+      {
+        "region": "performance benchmark tests",
+        "status": "missing-deps",
+        "reason": "tests/performance/test_benchmark.py, test_benchmark_suite.py, test_embedder.py all fail at collection with deepspeed AttributeError. Additionally performance tests require GPU hardware for meaningful benchmarking."
+      },
+      {
+        "region": "stageB pairwise/pairformer tests",
+        "status": "missing-deps",
+        "reason": "All stageB/pairwise/* and stageB/test_combined_torsion_pairformer.py fail at collection with deepspeed AttributeError via pairformer_wrapper.py import chain. Zero pairformer tests executed."
+      },
+      {
+        "region": "Kaggle runner (rna_predict/kaggle/rna_predict.py)",
+        "status": "external-service",
+        "reason": "Kaggle runner requires dataset files at /Volumes/Totallynotaharddrive/... (hardcoded path) and Kaggle API credentials. Neither is available in this sandbox."
+      },
+      {
+        "region": "rna_predict.ipynb Jupyter notebook",
+        "status": "not-executed",
+        "reason": "rna_predict.ipynb exists at repo root. No Jupyter kernel was launched. The notebook depends on the same broken entry points (checkpoint paths, network access) as the main inference pipeline."
+      }
+    ]
+  },
+  "independent_check": {
+    "coverage_claim_supported": true,
+    "rationale": "The execution report's central coverage claim is fully supported by, and exactly reproducible from, the real on-disk artifact. NOTE: the prompt-named file /audit/.work/stage3_raw.json does not exist; the actual stage-3 execution report on disk is /audit/.work/a_s3_exec_10.json, which I verified against. That report claims measured_pct=33.0 with '13556 stmts, 8537 missed', '5418 branches', '457 branch-partial', tool='pytest-cov with .coveragerc (branch=True, source=rna_predict)'. I independently re-ran coverage 7.14.1 against a non-destructive copy of the real .coverage SQLite DB (/home/user/RNA_PREDICT/.coverage, has_arcs=1, 146 files, written 2026-06-17 14:59:13 — before the exec report at 15:13) and the TOTAL line reproduced VERBATIM: 13556 stmts, 8537 missed, 5418 branches, 457 partial, 33%. The tool/config claim is confirmed by reading .coveragerc (branch=True, source=rna_predict, parallel=True, omit tests/scripts). Every per-file figure I spot-checked matches the artifact exactly: conf/config_schema.py 92% (458/29), dataset/dataset_loader.py 92% (57/2), benchmarks/benchmark.py 0% (130/130), kaggle/rna_predict.py 0% (160/160), stageB/main.py 2% (301/294), stageD diffusion_module.py 0% (552/552), diffusion_conditioning.py 0% (237/237), stageC/stage_c_reconstruction.py 86% (255/26), mp_nerf/protein_utils/* 91-100%. The accounting (executed vs missing-deps vs external-service vs not-executed regions) is internally consistent with the measured artifact and with run-log evidence (run2.log shows deepspeed/torch 2.3.1 vs >=2.4 incompatibility). The coverage measurement and its accounting are honest and backed by a genuine, reproducible artifact — not fabricated.",
+    "discrepancies": [
+      "Prompt-named artifact /home/user/RNA_PREDICT/audit/.work/stage3_raw.json does not exist on disk; the actual stage-3 execution report is /home/user/RNA_PREDICT/audit/.work/a_s3_exec_10.json. Verification was performed against the existing file.",
+      "No coverage.xml or htmlcov/ exist on disk. The report lists 'coverage xml && coverage html' (Makefile:49-50) only under commands_discovered and claims only a terminal (term) coverage report was produced, so their absence is consistent with the report rather than contradicting it (no XML/HTML claim was made).",
+      "The exact per-run test tallies in the report (629 collectible tests; 526 passed / 57 failed / 24 skipped / 22 errors) cannot be independently reproduced from any on-disk pytest log. The only full pytest-output artifact present, all_tests_no_maxfail.txt, records a different, fully-passing run (1356 passed, 40 skipped, 2 xfailed) from a different/healthy environment. The coverage NUMBER itself is verified and the .coverage DB (146 files) is consistent with the described partial deepspeed-excluded run, but the precise pass/fail counts remain unverified against a citable artifact (status: unverified, not refuted)."
+    ]
+  }
+}
+```
