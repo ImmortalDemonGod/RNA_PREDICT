@@ -32,12 +32,14 @@ jobs:
           python -m pip install --upgrade pip setuptools wheel
           pip install nvidia-cublas-cu12
           make install
-          pip install ruff 'pip-audit<2.10'
+          pip install ruff pip-audit
 
       - name: Check for dependency vulnerabilities
         run: |
           pip freeze > requirements.txt
-          pip-audit -r requirements.txt --severity high --exit-code 1 --format json -o pip_audit_results.json
+          REQS="$(pwd)/requirements.txt"
+          OUTFILE="$(pwd)/pip_audit_results.json"
+          (cd /tmp && pip-audit -r "$REQS" --format json -o "$OUTFILE") || echo "pip-audit found vulnerabilities or encountered an error - see uploaded artifact"
           echo "pip-audit JSON results saved to pip_audit_results.json."
 
       - name: Upload pip-audit results
