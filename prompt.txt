@@ -1,0 +1,26 @@
+SYSTEMATICALLY ANALYZE THEN PROPOSE A CODE comprehensive Code Patch TO UNDERSTAND THE ERROR and solve it  show me the full code patch (+ test code if available)
+
+Please design robust test code such that we can achieve 100 percent test coverage utilizing all the information we have available to us including normal behavioral tests and hypothesis testing for full coverage of the file
+
+SYSTEMATICALLY ANALYZE THEN PROPOSE A CODE comprehensive Code Patch TO UNDERSTAND THE ERROR and solve it  show me the full code patch (+ test code if available if fixing test code prefer modifications to the test rather than outside if possible)
+
+Systematically and critically analyze different versions to come up with strengths and weaknesses for each so that we can have a comprehensive understanding of the different versions.
+====
+V1:
+====
+V2:
+====
+V3:
+====
+V4:
+====
+V5:
+====
+V6:
+====
+V7:
+===
+
+
+---
+
