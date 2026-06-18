@@ -280,8 +280,8 @@
           "s2c1l0-loader-atomfeat-shape-mismatch",
           "s2c1l2-loader-dummy-shape-mismatch"
         ],
-        "location": "rna_predict/dataset/.../loader.py:291-304 (missing-pdb dummy branch vs real-data branch)",
-        "change": "The missing-pdb branch returns coords (L, max_atoms, 3), atom_mask (L, max_atoms) float32, atom_to_tok (L, max_atoms) int32; the real branch returns coords (max_atoms, 3), atom_mask (max_atoms,) bool, atom_to_tok (max_atoms,) long — incompatible ranks/dtypes from one function. Make both branches return the same rank and dtype (pick the real-data contract) so downstream collate/model code receives consistent tensors.",
+        "location": "rna_predict/dataset/loader.py:291-304 (missing-pdb dummy branch vs real-data branch)",
+        "change": "The missing-pdb branch returns coords (L, max_atoms, 3), atom_mask (L, max_atoms) float32, atom_to_tok (L, max_atoms) int32; the real branch returns coords (max_atoms, 3), atom_mask (max_atoms,) bool, atom_to_tok (max_atoms,) long \u2014 incompatible ranks/dtypes from one function. Make both branches return the same rank and dtype (pick the real-data contract) so downstream collate/model code receives consistent tensors.",
         "verification": "Unit test asserts the dummy and real branches of the loader return tensors of identical rank and dtype for coords/atom_mask/atom_to_tok; existing tests/data/test_loader.py still passes.",
         "depends_on": [],
         "order": 20
@@ -295,7 +295,7 @@
           "s2c1l0-merger-dynamic-mlp-reinit",
           "s2c1l2-latent-merger-rebuilds-weights-and-ignores-config"
         ],
-        "location": "rna_predict/.../simple_latent_merger.py (forward, ~lines 55-64)",
+        "location": "rna_predict/pipeline/merger/simple_latent_merger.py (forward, ~lines 55-64)",
         "change": "forward() ignores inputs.adjacency and inputs.partial_coords (2 of 5 declared LatentInputs), and when self.mlp[0].in_features != total_in_dim it constructs a new nn.Sequential and assigns it to self.mlp, discarding trained weights and detaching from the optimizer. Size the MLP correctly at construction from config (the dimensions known then) and remove the runtime reinit; either consume adjacency/partial_coords in the merge or document/remove them from LatentInputs so the contract matches the computation.",
         "verification": "Unit test asserts forward() output depends on adjacency/partial_coords (or they are removed from LatentInputs); calling forward() with mismatched dims raises rather than silently replacing self.mlp; `grep -n 'nn.Sequential' simple_latent_merger.py` shows no rebuild inside forward.",
         "depends_on": [
@@ -353,7 +353,7 @@
           "s2c1l0-testdata-seqlen-mismatch",
           "s2c1l2-testdata-seqlen-contradiction"
         ],
-        "location": "rna_predict/conf/.../test_data.yaml:12 (sequence_length: 8 vs 29-char sequence)",
+        "location": "rna_predict/conf/test_data.yaml:12 (sequence_length: 8 vs 29-char sequence)",
         "change": "sequence_length=8 contradicts the 29-character sequence 'GGGUGCUCAGUACGAGAGGAACCGCACCC'. Set sequence_length to 29 (or derive it from the sequence so it cannot drift), so tests using it as a trusted constant operate on a consistent length.",
         "verification": "`python -c` reading the yaml confirms sequence_length == len(sequence); tests consuming test_data.yaml pass with the corrected length.",
         "depends_on": [],

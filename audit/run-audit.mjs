@@ -424,9 +424,9 @@ async function stage1(state) {
   // synthesis: entry points + architecture + provisional intent
   log("  synthesizing architecture + entry points + provisional intent");
   const sourceList = inv.filter((e) => ["source", "config"].includes(e.role)).map((e) => e.path);
+  writeFileSync(join(WORK, "stage1_inventory.json"), JSON.stringify({ inventory: inv }, null, 2));
   const synth = await runAgent({ name: "s1-synth", model: MODEL_HEAVY, maxTurns: 80, schema: S.synth,
     prompt: `Repo ${REPO}. Using the inventory at ${join(WORK, "stage1_inventory.json")} (already written) plus your own reading of README, packaging manifests (pyproject/setup/package.json), console-script declarations, and every plausible entry module (CLI mains, hydra @main, exported APIs, routes, runners), produce:\n- entry_points: trace EACH real entry point to {name, kind, location(path:line), description}. Verify console-script targets actually exist on disk; if a declared entry target is missing, still list it with a description noting it is declared-but-missing.\n- architecture: a precise paragraph-level system description grounded in real paths.\n- provisional_intent: the apparent reason this project exists (mark mentally as provisional; Stage 4 may refine it).\nCite real path:line anchors. Source/config inventory is:\n${sourceList.slice(0, 400).join("\n")}` });
-  writeFileSync(join(WORK, "stage1_inventory.json"), JSON.stringify({ inventory: inv }, null, 2));
   if (!synth.ok) await halt("stage1", "synthesis worker failed to produce a valid architecture/entry-point/intent object.");
   // stop-test
   const cov = { files_total: files.length, files_classified: inv.filter((e) => e.role !== "unknown").length, unknown: unknown.length };
@@ -573,9 +573,9 @@ async function stage5(state) {
     plan = await runAgent({ name: `s5-plan-r${round}`, model: MODEL_HEAVY, maxTurns: 80, schema: S.plan,
       prompt: `Produce an execution-ready change plan for ${REPO} that closes the gap between current state (read ${A}, ${A2}, ${A3}) and goal (read ${A4}). Ordered items; each item: id, title, links_to[] (Stage-2 finding ids and/or Stage-4 goal-gaps), location (file/module), change (what to do), verification (the observation or test that proves it worked), depends_on[] (item ids), and an integer order in dependency sequence. Every item MUST be mappable to a concrete diff target without a clarifying question.${note}` });
     if (!plan.ok) await halt("stage5", "plan worker failed to produce a valid plan object.");
+    writeFileSync(join(WORK, "stage5_raw.json"), JSON.stringify(plan.data, null, 2));
     check = await runAgent({ name: `s5-check-r${round}`, model: MODEL_HEAVY, maxTurns: 50, schema: S.planCheck,
       prompt: `You are a fresh implementer. For the plan at ${join(WORK, "stage5_raw.json")} (already written), try to map EACH item to a concrete diff target in repo ${REPO} without asking any clarifying question. Return all_mappable (bool) and ambiguous_items[] = {id, why} for any item you could not localize/execute as written.` });
-    writeFileSync(join(WORK, "stage5_raw.json"), JSON.stringify(plan.data, null, 2));
     const checkData = check.ok ? check.data : { all_mappable: false, ambiguous_items: [{ id: "?", why: "checker failed" }] };
     ambiguous = checkData.ambiguous_items || [];
     if (checkData.all_mappable) { check = { ok: true, data: checkData }; break; }
