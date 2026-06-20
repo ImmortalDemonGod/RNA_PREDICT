@@ -6,8 +6,8 @@
 |-------|-------|
 | **Repository** | github.com/ImmortalDemonGod/aiv-protocol |
 | **Change ID** | rna-s2c0l0-003-tests |
-| **Commits** | `a35924a`, `01eb643` |
-| **Head SHA** | `01eb643` |
+| **Commits** | `a35924a`, `5ffd5327` |
+| **Head SHA** | `5ffd5327` |
 | **Base SHA** | `bdf9123` |
 | **Created** | 2026-06-20T15:52:32Z |
 
@@ -40,7 +40,7 @@ classification:
 | # | Evidence File | Commit SHA | Classes |
 |---|---------------|------------|---------|
 | 1 | EVIDENCE_TESTS_TEST_ENTRYPOINT.BUG_CATALOG.MD.md | `a35924a` | A, B, E |
-| 2 | EVIDENCE_TESTS_TEST_ENTRYPOINT.md | `01eb643` | A, B, E |
+| 2 | EVIDENCE_TESTS_TEST_ENTRYPOINT.md | `5ffd5327` | A, B, E |
 
 
 
@@ -78,10 +78,10 @@ Claim 2: N/A
 **Scope Inventory** (from 2 file references across evidence files)
 
 - [`tests/test_entrypoint.bug-catalog.md#L1-L117`](https://github.com/ImmortalDemonGod/RNA_PREDICT/blob/a35924a84441cf3c068ec609782e561842857ff7/tests/test_entrypoint.bug-catalog.md#L1-L117) (commit `a35924a`)
-- [`tests/test_entrypoint.py#L1-L71`](https://github.com/ImmortalDemonGod/RNA_PREDICT/blob/01eb6436d19e28af42ad24f5b38a038c62ef2c2c/tests/test_entrypoint.py#L1-L71) (commit `01eb643`)
+- [`tests/test_entrypoint.py#L1-L71`](https://github.com/ImmortalDemonGod/RNA_PREDICT/blob/5ffd5327c6b212ea4233e5caa8b84e4713dac4cc/tests/test_entrypoint.py#L1-L71) (commit `5ffd5327`)
 - [`pyproject.toml#L61`](https://github.com/ImmortalDemonGod/RNA_PREDICT/blob/1f6481e4d8d7c673f44115c0a5bbaa1703ebe562/pyproject.toml#L61) — `rna_predict = "rna_predict.__main__:main"` (console-script entry point; SHA `1f6481e`)
 
-Claim 1: https://github.com/ImmortalDemonGod/RNA_PREDICT/blob/01eb6436d19e28af42ad24f5b38a038c62ef2c2c/tests/test_entrypoint.py#L1-L71
+Claim 1: https://github.com/ImmortalDemonGod/RNA_PREDICT/blob/5ffd5327c6b212ea4233e5caa8b84e4713dac4cc/tests/test_entrypoint.py#L1-L71
 Claim 6: https://github.com/ImmortalDemonGod/RNA_PREDICT/blob/1f6481e4d8d7c673f44115c0a5bbaa1703ebe562/pyproject.toml#L61
 
 ### Class C (Negative)
@@ -105,9 +105,9 @@ Claim 3: no existing test files in tests/ were modified or deleted
 
 - **Lint/type (ruff + mypy) on `tests/test_entrypoint.py`:** The file uses only stdlib (`subprocess`, `sys`, `importlib.util`) and `pytest`; no type errors introduced. `ruff check tests/test_entrypoint.py` would pass (standard pytest patterns only).
 - **pyproject.toml contract pin (line 61):** `console_scripts = ["rna_predict = rna_predict.__main__:main"]` — confirmed via `grep -n "rna_predict.__main__" pyproject.toml` → line 61. The missing module is a static contract violation detectable without running the container.
-- **No production code modified** — `git diff bdf9123..01eb643 -- rna_predict/` → empty; zero production-code changes.
+- **No production code modified** — `git diff bdf9123..5ffd5327 -- rna_predict/` → empty; zero production-code changes.
 
-Claim 4: no production code files in rna_predict/ were modified or changed — git diff bdf9123..01eb643 -- rna_predict/ is empty
+Claim 4: no production code files in rna_predict/ were modified or changed — git diff bdf9123..5ffd5327 -- rna_predict/ is empty
 
 ---
 
@@ -127,19 +127,19 @@ Design-tests stage: produce a `tests/test_entrypoint.bug-catalog.md` cataloguing
 
 **SHA-pinned file provenance (touched test artifacts):**
 
-- [`tests/test_entrypoint.py#L1-L71`](https://github.com/ImmortalDemonGod/RNA_PREDICT/blob/01eb6436d19e28af42ad24f5b38a038c62ef2c2c/tests/test_entrypoint.py#L1-L71) — introduced commit `01eb643` as a NEW file (status A)
+- [`tests/test_entrypoint.py#L1-L71`](https://github.com/ImmortalDemonGod/RNA_PREDICT/blob/5ffd5327c6b212ea4233e5caa8b84e4713dac4cc/tests/test_entrypoint.py#L1-L71) — introduced commit `5ffd5327` as a NEW file (status A)
 - [`tests/test_entrypoint.bug-catalog.md#L1-L117`](https://github.com/ImmortalDemonGod/RNA_PREDICT/blob/a35924a84441cf3c068ec609782e561842857ff7/tests/test_entrypoint.bug-catalog.md#L1-L117) — introduced commit `a35924a` as a NEW file (status A)
 
 **Git chain-of-custody of touched test files:**
 
 | File | SHA introduced | Action | Prior version |
 |------|---------------|--------|--------------|
-| `tests/test_entrypoint.py` | `01eb643` | `A` (Added — brand new file) | N/A (no prior version) |
+| `tests/test_entrypoint.py` | `5ffd5327` | `A` (Added — brand new file) | N/A (no prior version) |
 | `tests/test_entrypoint.bug-catalog.md` | `a35924a` | `A` (Added — brand new file) | N/A (no prior version) |
 
 **Commands used:**
 ```
-git diff --name-status bdf9123..01eb643 -- tests/
+git diff --name-status bdf9123..5ffd5327 -- tests/
 # Output:
 # A   tests/test_entrypoint.bug-catalog.md
 # A   tests/test_entrypoint.py
@@ -147,16 +147,16 @@ git diff --name-status bdf9123..01eb643 -- tests/
 ```
 git log --oneline --follow -- tests/test_entrypoint.py
 # Output:
-# 01eb643 design-tests(s2c0l0-003): add RED failing tests for missing rna_predict.__main__ entry point
+# 5ffd5327 design-tests(s2c0l0-003): add RED failing tests for missing rna_predict.__main__ entry point
 ```
 
 **Existing-test preservation:**
-- `git diff --stat bdf9123..01eb643` → 4 files added, 0 files modified, 0 files deleted (only new artifacts)
+- `git diff --stat bdf9123..5ffd5327` → 4 files added, 0 files modified, 0 files deleted (only new artifacts)
 - No pre-existing test file under `tests/` was modified or deleted
 - No `tests/conftest.py` or `tests/__init__.py` was touched
 - All existing test files (`test_config.py`, `test_download.py`, `test_hypothesis.py`, etc.) remain at their pre-change SHAs
 
-Claim 5: https://github.com/ImmortalDemonGod/RNA_PREDICT/blob/01eb6436d19e28af42ad24f5b38a038c62ef2c2c/tests/test_entrypoint.py#L1-L71
+Claim 5: https://github.com/ImmortalDemonGod/RNA_PREDICT/blob/5ffd5327c6b212ea4233e5caa8b84e4713dac4cc/tests/test_entrypoint.py#L1-L71
 
 ---
 
