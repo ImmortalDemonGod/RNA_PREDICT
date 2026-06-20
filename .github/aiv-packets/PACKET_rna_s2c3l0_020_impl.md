@@ -87,21 +87,21 @@ rna_predict/pipeline/stageA/input_embedding/legacy/encoder/input_feature_embeddi
 ### Class C (Negative Evidence — what was searched for and NOT found)
 
 **Zero production callers (Gate 1):**
-```
+```bash
 $ grep -rn "from rna_predict.pipeline.stageA.input_embedding.legacy.encoder.input_feature_embedding" rna_predict/
 EXIT:1  (0 matches)
 ```
 Claim 4 VERIFIED. No file in `rna_predict/` imports this module.
 
 **rna_predict.models does not exist:**
-```
+```bash
 $ ls rna_predict/models
 ls: cannot access 'rna_predict/models': No such file or directory
 ```
 The nonexistent package that the pre-fix imports referenced never existed.
 
 **No out-of-scope files modified:**
-```
+```bash
 $ git diff a8120fef~1 a8120fef --name-only
 .github/aiv-evidence/EVIDENCE_...INPUT_FEATURE_EMBEDDING.md
 rna_predict/pipeline/stageA/input_embedding/legacy/encoder/input_feature_embedding.py
@@ -109,7 +109,7 @@ rna_predict/pipeline/stageA/input_embedding/legacy/encoder/input_feature_embeddi
 Zero files from the §6 "do not touch" list appear in the diff.
 
 **No broken `rna_predict.models` references remain in the patched file:**
-```
+```bash
 $ grep -n "rna_predict.models" rna_predict/pipeline/stageA/input_embedding/legacy/encoder/input_feature_embedding.py
 EXIT:1  (0 matches)
 ```
@@ -120,7 +120,7 @@ EXIT:1  (0 matches)
 - `trunk_pair` branch tests: deferred per bug catalog Skipped section — out of scope
 
 **Claim 6 — no test files modified:**
-```
+```bash
 $ git diff a8120fef~1 a8120fef --name-only -- tests/
 (empty output — no test files in diff)
 ```
@@ -130,7 +130,7 @@ $ git diff a8120fef~1 a8120fef --name-only -- tests/
 ### Class D (Static Analysis: lint/type/build)
 
 **Gate 6 — TYPECHECK-LOCAL (mypy on target directory, post-patch):**
-```
+```bash
 $ mypy rna_predict/pipeline/stageA/input_embedding/legacy/encoder/ --ignore-missing-imports 2>&1 | tail -1
 Success: no issues found in 3 source files
 EXIT:0
@@ -138,7 +138,7 @@ EXIT:0
 Error count = 0, equal to pre-patch baseline (0). Claim 3 supported.
 
 **Ruff lint on changed file:**
-```
+```bash
 $ uv run ruff check rna_predict/pipeline/stageA/input_embedding/legacy/encoder/input_feature_embedding.py
 All checks passed!
 EXIT:0
@@ -163,7 +163,7 @@ EXIT:0
 ### Class F (Provenance — git chain-of-custody of touched test files)
 
 **Git chain for this change:**
-```
+```text
 d8280ca7  (base) docs(aiv): fix verification packet — add all evidence classes A-F
 a8120fef  (functional) fix(s2c3l0-020): repair broken models.encoder import path in legacy InputFeatureEmbedder
 ea1a9196  (packet) docs(aiv): verification packet for change 'rna-s2c3l0-020-impl'
