@@ -7,7 +7,7 @@
 | **Repository** | github.com/ImmortalDemonGod/aiv-protocol |
 | **Change ID** | rna-s2c0l0-003-impl |
 | **Commits** | `75b619b` |
-| **Head SHA** | `75b619b` |
+| **Head SHA** | `b3d5f7fc` |
 | **Base SHA** | `7538862` |
 | **Created** | 2026-06-20T16:16:01Z |
 
@@ -39,7 +39,8 @@ classification:
 
 | # | Evidence File | Commit SHA | Classes |
 |---|---------------|------------|---------|
-| 1 | EVIDENCE_RNA_PREDICT___MAIN__.md | `75b619b` | A, B, E |
+| 1 | EVIDENCE_RNA_PREDICT___MAIN__.md | `75b619b` | B, E |
+| 2 | evidence/rna-s2c0l0-003/head_green.txt | `093f884b` | A |
 
 
 
