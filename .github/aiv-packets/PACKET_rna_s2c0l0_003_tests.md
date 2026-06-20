@@ -53,6 +53,20 @@ classification:
 
 ---
 
+### Class E (Intent Alignment)
+
+**Canonical intent URL (SHA-pinned):**
+https://github.com/ImmortalDemonGod/RNA_PREDICT/blob/1f6481e4d8d7c673f44115c0a5bbaa1703ebe562/audit/02-static-audit.md#L48
+
+**Finding s2c0l0-003 (HIGH):** `CMD ["rna_predict"]` invokes the console script defined at `pyproject.toml:61`, whose target module `rna_predict.__main__:main` does not exist anywhere in the tree (verified via `find`). Even if the image built, the container's default command would crash at startup with an import error.
+
+**Requirement satisfied by this change:**
+Design-tests stage: produce a `tests/test_entrypoint.bug-catalog.md` cataloguing the plausible bugs and `tests/test_entrypoint.py` with 3 RED tests that each name the catalog bug they catch. The tests are intentionally failing until the fix stage creates `rna_predict/__main__.py` with a callable `main`.
+
+**Alignment verdict:** ALIGNED — the bug catalog and test file directly operationalize Finding s2c0l0-003. Every test description references either the missing `__main__.py` module, the missing `main` callable, or the broken `python -m rna_predict` invocation. No scope creep; no deferred requirements.
+
+---
+
 ## Verification Methodology
 
 **Zero-Touch Mandate:** Verifier inspects artifacts only.
