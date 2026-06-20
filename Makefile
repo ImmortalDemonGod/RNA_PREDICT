@@ -44,7 +44,7 @@ format:           ## Format code with ruff
 	$(ENV_PREFIX)ruff format rna_predict/ tests/
 
 .PHONY: test
-test: lint        ## Run tests and generate coverage report.
+test:             ## Run tests and generate coverage report.
 	$(ENV_PREFIX)pytest -v --cov-config .coveragerc --cov=rna_predict -l --tb=short --maxfail=1 tests/
 	$(ENV_PREFIX)coverage xml
 	$(ENV_PREFIX)coverage html
