@@ -77,7 +77,7 @@ Pre-change failure verification (git stash + re-run): test 3 failed with `Module
 [`atom_encoder.py#L6`](https://github.com/ImmortalDemonGod/RNA_PREDICT/blob/a8120fef7db0e3e925ee33953fab6f3a89fe4245/rna_predict/pipeline/stageA/input_embedding/legacy/encoder/atom_encoder.py#L6) — `# Corrected import path from models.attention to legacy.attention`
 
 **Scope boundary** — only 2 files changed in functional commit `a8120fef`:
-```
+```text
 rna_predict/pipeline/stageA/input_embedding/legacy/encoder/input_feature_embedding.py  (4 lines: +2 corrected, -2 broken)
 .github/aiv-evidence/EVIDENCE_...INPUT_FEATURE_EMBEDDING.md  (94 lines: new evidence file)
 ```
