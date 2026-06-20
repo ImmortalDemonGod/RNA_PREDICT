@@ -1,0 +1,20 @@
+# ARTIFACT: baseline_red.txt
+# CLAIM: The defect EXISTS on origin/main (SHA 1f6481e4d8d7c673f44115c0a5bbaa1703ebe562)
+# COMMAND: cd /tmp/rna-s2c3l0-020_base && uv run python -c 'from rna_predict.pipeline.stageA.input_embedding.legacy.encoder.input_feature_embedding import InputFeatureEmbedder'
+# CAPTURED: 2026-06-20
+# AIV CLASS: A (behavioral/direct), D (differential — baseline side)
+
+Using CPython 3.11.15 interpreter at: /usr/local/bin/python3
+Creating virtual environment at: .venv
+   Building rna-predict @ file:///tmp/rna-s2c3l0-020_base
+      Built rna-predict @ file:///tmp/rna-s2c3l0-020_base
+Installed 201 packages in 160ms
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/tmp/rna-s2c3l0-020_base/rna_predict/pipeline/stageA/input_embedding/legacy/encoder/input_feature_embedding.py", line 4, in <module>
+    from rna_predict.models.encoder.atom_encoder import AtomAttentionEncoder
+ModuleNotFoundError: No module named 'rna_predict.models'
+EXIT_CODE=1
+
+# VERDICT: CONFIRMS DEFECT — line 4 raises ModuleNotFoundError at module load time.
+# rna_predict.models package does not exist at baseline.

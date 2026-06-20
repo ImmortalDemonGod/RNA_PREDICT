@@ -1,0 +1,33 @@
+# ARTIFACT: file_diff.txt
+# CLAIM: Before/after diff of input_feature_embedding.py between baseline and HEAD
+# COMMAND: git diff 1f6481e4d8d7c673f44115c0a5bbaa1703ebe562 HEAD -- rna_predict/pipeline/stageA/input_embedding/legacy/encoder/input_feature_embedding.py
+# BASELINE SHA: 1f6481e4d8d7c673f44115c0a5bbaa1703ebe562  (= origin/main)
+# HEAD SHA:     fa1d25b6fdc311b9a9986094fc3dd7b401ee390c
+# CAPTURED: 2026-06-20
+# AIV CLASS: D (differential — before/after bound to cited baseline)
+
+diff --git a/rna_predict/pipeline/stageA/input_embedding/legacy/encoder/input_feature_embedding.py b/rna_predict/pipeline/stageA/input_embedding/legacy/encoder/input_feature_embedding.py
+index e6b3be93..cf848415 100644
+--- a/rna_predict/pipeline/stageA/input_embedding/legacy/encoder/input_feature_embedding.py
++++ b/rna_predict/pipeline/stageA/input_embedding/legacy/encoder/input_feature_embedding.py
+@@ -1,7 +1,7 @@
+ import torch
+ import torch.nn as nn
+
+-from rna_predict.models.encoder.atom_encoder import AtomAttentionEncoder
++from rna_predict.pipeline.stageA.input_embedding.legacy.encoder.atom_encoder import AtomAttentionEncoder
+
+ ###############################################################################
+ # Input Feature Embedder
+@@ -33,7 +33,7 @@ class InputFeatureEmbedder(nn.Module):
+         import torch.nn as nn
+
+         # We'll get our AtomAttentionEncoder from the same module
+-        from rna_predict.models.encoder.atom_encoder import (
++        from rna_predict.pipeline.stageA.input_embedding.legacy.encoder.atom_encoder import (
+             AtomEncoderConfig,
+         )
+
+# EXACTLY 2 import lines changed: both rna_predict.models.encoder.atom_encoder →
+# rna_predict.pipeline.stageA.input_embedding.legacy.encoder.atom_encoder
+# No other changes to this file.

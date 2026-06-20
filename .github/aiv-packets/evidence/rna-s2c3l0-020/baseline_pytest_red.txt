@@ -1,0 +1,28 @@
+# ARTIFACT: baseline_pytest_red.txt
+# CLAIM: All 4 regression tests FAIL on origin/main (SHA 1f6481e4d8d7c673f44115c0a5bbaa1703ebe562)
+# COMMAND: cd /tmp/rna-s2c3l0-020_base && uv run python -m pytest tests/stageA/unit/input_embeding/legacy/test_input_feature_embedding.py -v --maxfail=10 --tb=short
+# NOTE: test file was post-baseline (added in commit 4f940e73); copied into worktree to demonstrate RED
+# CAPTURED: 2026-06-20
+# AIV CLASS: A (behavioral/direct), D (differential — baseline side)
+
+============================= test session starts ==============================
+platform linux -- Python 3.11.15, pytest-9.1.1, pluggy-1.6.0
+collected 4 items
+
+tests/stageA/unit/input_embeding/legacy/test_input_feature_embedding.py::test_module_is_importable__guards_against_missing_rna_predict_models_package FAILED [ 25%]
+tests/stageA/unit/input_embeding/legacy/test_input_feature_embedding.py::test_class_is_nn_module_subclass__guards_against_phantom_class_from_broken_import FAILED [ 50%]
+tests/stageA/unit/input_embeding/legacy/test_input_feature_embedding.py::test_instantiation_succeeds__guards_against_init_lazy_import_of_missing_models_package FAILED [ 75%]
+tests/stageA/unit/input_embeding/legacy/test_input_feature_embedding.py::test_goal_verification_import_exits_clean__primary_deliverable_of_finding_s2c3l0_020 FAILED [100%]
+
+FAILURES (all four): ModuleNotFoundError: No module named 'rna_predict.models'
+  At: rna_predict/pipeline/stageA/input_embedding/legacy/encoder/input_feature_embedding.py:4
+
+=========================== short test summary info ============================
+FAILED test_module_is_importable__guards_against_missing_rna_predict_models_package
+FAILED test_class_is_nn_module_subclass__guards_against_phantom_class_from_broken_import
+FAILED test_instantiation_succeeds__guards_against_init_lazy_import_of_missing_models_package
+FAILED test_goal_verification_import_exits_clean__primary_deliverable_of_finding_s2c3l0_020
+============================== 4 failed in 1.16s ==============================
+EXIT_CODE=1
+
+# VERDICT: ALL 4 TESTS FAIL on baseline — every failure is ModuleNotFoundError for rna_predict.models.

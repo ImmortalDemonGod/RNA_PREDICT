@@ -1,0 +1,21 @@
+# ARTIFACT: negative_check.txt
+# CLAIM: No live Python import of rna_predict.models in rna_predict/ source at HEAD
+# COMMAND: grep -rn "rna_predict.models" rna_predict/ (excluding __pycache__)
+# HEAD SHA: fa1d25b6fdc311b9a9986094fc3dd7b401ee390c
+# CAPTURED: 2026-06-20
+# AIV CLASS: C (negative — searched for disallowed pattern, confirmed absent in live code)
+
+SEARCH SCOPE: rna_predict/**/*.py and rna_predict/**/*.md (excluding __pycache__)
+PATTERN: "rna_predict.models"
+
+RESULTS:
+rna_predict/training/rna_lightning_module.py:27:# from rna_predict.models.latent_merger import LatentMerger          (COMMENTED OUT)
+rna_predict/training/rna_lightning_module.py:28:# from rna_predict.models.stageB_pairformer import ...               (COMMENTED OUT)
+rna_predict/training/rna_lightning_module.py:29:# from rna_predict.models.stageB_torsion import ...                  (COMMENTED OUT)
+rna_predict/pipeline/stageA/input_embedding/legacy/encoder/test_wrapped_input_feature_embedding.md (doc file, not executed)
+rna_predict/dataset/tmp_tests/test_lightning_combined_loader_error.py:10:# from rna_predict.models... (COMMENTED OUT)
+
+VERDICT: Zero LIVE Python imports of rna_predict.models in rna_predict/ source.
+- All Python hits are commented-out lines (# prefix) — not executed.
+- The .md file is documentation, not Python source.
+- The fixed file (input_feature_embedding.py) contains NO reference to rna_predict.models.

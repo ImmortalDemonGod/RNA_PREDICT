@@ -1,0 +1,15 @@
+# ARTIFACT: head_green.txt
+# CLAIM: The defect is ABSENT at HEAD (SHA fa1d25b6fdc311b9a9986094fc3dd7b401ee390c)
+# COMMAND: cd /home/user/RNA_PREDICT-rna-s2c3l0-020 && uv run python -c 'from rna_predict.pipeline.stageA.input_embedding.legacy.encoder.input_feature_embedding import InputFeatureEmbedder'
+# CAPTURED: 2026-06-20
+# AIV CLASS: A (behavioral/direct), D (differential — HEAD side)
+
+   Building rna-predict @ file:///home/user/RNA_PREDICT-rna-s2c3l0-020
+      Built rna-predict @ file:///home/user/RNA_PREDICT-rna-s2c3l0-020
+Uninstalled 1 package in 0.34ms
+Installed 1 package in 0.75ms
+block_sparse_attn not found; using only naive LocalBlockSparseAttention.
+EXIT_CODE=0
+
+# VERDICT: CONFIRMS FIX — import exits 0 at HEAD.
+# Matches the exact goal-verification command from finding s2c3l0-020.
