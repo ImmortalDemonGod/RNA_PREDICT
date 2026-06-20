@@ -236,3 +236,6 @@ auto-type-annotate/
 audit/.work/a_*.json
 audit/.work/*.log
 audit/.work/run*.pid
+# AIV scaffolding — reasoning trail, captured in the training corpus; kept off main (#1/#40)
+.aiv/launch-briefs/
+.aiv/plans/
