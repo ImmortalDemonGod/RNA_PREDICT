@@ -43,12 +43,51 @@ classification:
 
 
 
+### Class A (Behavioral / Direct Evidence)
+
+- `pytest tests/test_makefile_contract.py --maxfail=10` → 3 FAILED (all RED as required for the design-tests stage)
+  - `test_test_target_does_not_depend_on_lint_guards_lint_blocks_test_bug` FAILED: `'lint' not in ['lint']`
+  - `test_lint_recipe_does_not_use_unsafe_fixes_guards_source_mutation_side_effect_bug` FAILED: `'--unsafe-fixes' not in '$(ENV_PREFIX)ruff check --fix --unsafe-fixes rna_predict/ tests/'`
+  - `test_test_target_prerequisites_contain_only_test_tooling_guards_ci_silent_abort_bug` FAILED: `not {'lint'}`
+- `ruff check tests/test_makefile_contract.py` → All checks passed (0 errors)
+- `mypy tests/test_makefile_contract.py` → Success: no issues found
+
+### Class E (Intent Alignment)
+
+**Canonical intent URL (SHA-pinned):**
+https://github.com/ImmortalDemonGod/RNA_PREDICT/blob/1f6481e4d8d7c673f44115c0a5bbaa1703ebe562/audit/02-static-audit.md#L474
+
+**Requirement satisfied:** Finding s2c0l0-014 (medium) — `test: lint` makes the test target depend on the lint target, causing `make test` to abort before any test runs when ruff/mypy finds errors, and `--unsafe-fixes` mutates source as a side effect of running tests.
+
+**Alignment:** The three RED tests directly characterize the two bugs named in the finding: B1 (lint-blocks-test, Makefile:47) and B2 (unsafe-fixes-mutates-source, Makefile:34). Tests will turn GREEN only after the fix removes the `lint` prerequisite from `test` and removes `--unsafe-fixes` from the lint recipe.
+
 ### Class B (Referential Evidence)
 
 **Scope Inventory** (from 2 file references across evidence files)
 
-- `tests/Makefile.bug-catalog.md#L1-L130`
-- `tests/test_makefile_contract.py#L1-L104`
+- `Makefile:47` — `test: lint` (prerequisite dependency, root of B1/B3)
+- `Makefile:34` — `ruff check --fix --unsafe-fixes rna_predict/ tests/` (source mutation, root of B2)
+- `.github/workflows/main.yml:104` — `make test` invoked by CI test job (blast radius confirmation)
+- `tests/Makefile.bug-catalog.md#L1-L130` (SHA: `17be8e3`)
+- `tests/test_makefile_contract.py#L1-L104` (SHA: `152a051`)
+
+### Class C (Negative Evidence)
+
+- Searched all files under `tests/` for any existing Makefile structure tests: **none found** before this change.
+- Searched for `test: lint` and `--unsafe-fixes` in any pre-existing test file: **none found**.
+- Bug catalog Skipped section lists 4 explicitly considered-but-deferred bugs: `watch` not `.PHONY`, `--ignore-missing-imports` suppression, `ruff --fix` (without `--unsafe-fixes`), CI linter git-push pattern.
+
+### Class D (Static Analysis)
+
+- `ruff check tests/test_makefile_contract.py` → `All checks passed!` (0 errors)
+- `mypy tests/test_makefile_contract.py` → `Success: no issues found in 1 source file`
+- `ruff check tests/Makefile.bug-catalog.md` → N/A (Markdown, not Python)
+
+### Class F (Provenance)
+
+- No pre-existing test files were modified or deleted.
+- Two new files created: `tests/Makefile.bug-catalog.md` (commit `17be8e3`) and `tests/test_makefile_contract.py` (commit `152a051`).
+- Both commits are on branch `fix/rna-s2c0l0-014` opened by `aiv begin rna-s2c0l0-014-tests --mode pr`.
 
 ---
 
