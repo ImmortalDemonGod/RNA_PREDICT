@@ -24,7 +24,7 @@ classification:
 
 1. rna_predict/__main__.py exists at rna_predict/__main__.py (find rna_predict -name __main__.py returns exactly one path)
 2. uv run rna_predict --help exits 0 and prints Hydra help text — canonical gate from finding s2c0l0-003
-3. python -m rna_predict --help exits 0 and prints Hydra help text
+3. uv run python -m rna_predict --help exits 0 and prints Hydra help text (venv Python / sys.executable; bare system Python fails without hydra-core)
 4. from rna_predict.__main__ import main resolves without ImportError under uv run
 5. __main__.py imports main from rna_predict.interface without redefining @hydra.main — no double-decoration crash
 6. No existing tests were modified or deleted during this change.
@@ -44,10 +44,11 @@ verified against MANIFEST.md).
 |------|---------|--------|-----------------|
 | G1 MODULE EXISTS | `find rna_predict -name __main__.py` | `rna_predict/__main__.py` EXIT:0 | 1 |
 | G2 PYTEST 3/3 | `uv run pytest tests/test_entrypoint.py -v --tb=short` | `3 passed in 12.87s` EXIT:0 | 1, 3, 4 |
-| G3 PYTHON -m HELP | `python -m rna_predict --help` | Hydra config groups printed EXIT:0 | 2, 3 |
+| G3 VENV PYTHON -m HELP | `uv run python -m rna_predict --help` | Hydra config groups printed EXIT:0 | 3 |
 | G4 IMPORT RESOLVES | `test_main_module_importable` PASSED | exit 0, no ImportError | 4 |
 | G5 CALLABLE | `test_main_callable` PASSED | `main` symbol present and callable | 4, 5 |
 | G6 NO DOUBLE-HYDRA | `grep "@hydra.main" rna_predict/__main__.py` | no output (exit 1 — no match) | 5 |
+| G7 UV CONSOLE SCRIPT | `uv run rna_predict --help` | Hydra config groups printed EXIT:0 | 2 |
 
 **head_green.txt excerpt (lines 16–18, 32–34, 36–53):**
 
@@ -60,7 +61,7 @@ tests/test_entrypoint.py::test_python_m_rna_predict_help_exits_zero__guards_cmd_
 rna_predict/__main__.py
 EXIT:0
 ...
-## python -m rna_predict --help at HEAD (first 40 lines):
+## uv run python -m rna_predict --help at HEAD (first 40 lines — venv Python via sys.executable):
 ...
 interface is powered by Hydra.
 == Configuration groups ==
@@ -70,9 +71,12 @@ device_management: default
 EXIT:0
 ```
 
-Claim 2 (`uv run rna_predict --help`) is proved transitively by G3: both paths invoke the
-same `@hydra.main`-decorated `main()` via the same registered entry point; the console-script
-and `-m` invocations differ only in interpreter dispatch, not in what `main()` does.
+Claim 2 (`uv run rna_predict --help`) is proved directly by G7: live-fire execution in the
+current worktree exits 0 and prints Hydra config groups (verified 2026-06-20). G3 uses
+`uv run python` (venv Python / sys.executable) to prove claim 3; bare `python -m rna_predict
+--help` outside the uv-managed venv fails with `ModuleNotFoundError: No module named 'hydra'`
+because `hydra-core` is absent from the system Python — that is expected and correct; the entry
+point is designed for `uv run` / the managed venv.
 
 Claim 5 (no double-decoration) additionally confirmed by:
 
@@ -123,7 +127,7 @@ Both present in baseline before this change.
 
 - **Link:** [audit/02-static-audit.md#L48](https://github.com/ImmortalDemonGod/RNA_PREDICT/blob/1f6481e4d8d7c673f44115c0a5bbaa1703ebe562/audit/02-static-audit.md#L48) (SHA-pinned: `1f6481e4d8d7c673f44115c0a5bbaa1703ebe562`)
 - **Requirements Verified:** Finding s2c0l0-003 records that `CMD ["rna_predict"]` (Containerfile:5) crashes at startup because `rna_predict.__main__:main` does not exist; recommendation is to add `rna_predict/__main__.py` defining `main()`.
-- **Alignment:** This change creates `rna_predict/__main__.py` (3 lines) importing `main` from `rna_predict.interface` — the module carrying the authoritative `@hydra.main` decorator (interface.py:14). The new file does not redeclare `@hydra.main`, does not re-call `register_configs()`, and introduces no new logic. `python -m rna_predict --help` exits 0 and prints Hydra help (G3 live-fire), satisfying the defect's completion criterion. `CMD ["rna_predict"]` in `Containerfile:5` is fixed transitively: once `rna_predict.__main__:main` resolves, the container's default command no longer crashes.
+- **Alignment:** This change creates `rna_predict/__main__.py` (3 lines) importing `main` from `rna_predict.interface` — the module carrying the authoritative `@hydra.main` decorator (interface.py:14). The new file does not redeclare `@hydra.main`, does not re-call `register_configs()`, and introduces no new logic. `uv run rna_predict --help` exits 0 and prints Hydra help (G7 direct live-fire 2026-06-20); `uv run python -m rna_predict --help` also exits 0 (G3), satisfying the defect's completion criterion. `CMD ["rna_predict"]` in `Containerfile:5` is fixed transitively: once `rna_predict.__main__:main` resolves, the container's default command no longer crashes.
 
 ### Class F (Provenance)
 
@@ -150,8 +154,8 @@ remain at their pre-change SHAs.
 | # | Claim | Type | Evidence | Verdict |
 |---|-------|------|----------|---------|
 | 1 | rna_predict/__main__.py exists (find returns exactly one path) | behavioral | head_green.txt L33: `rna_predict/__main__.py` EXIT:0; G2 pytest PASSED | PASS |
-| 2 | uv run rna_predict --help exits 0 and prints Hydra help text | behavioral | G3 python -m EXIT:0 Hydra help printed (equivalent path); G2 test_python_m PASSED | PASS |
-| 3 | python -m rna_predict --help exits 0 and prints Hydra help text | behavioral | head_green.txt L36–53: Hydra config groups printed EXIT:0; test_python_m PASSED | PASS |
+| 2 | uv run rna_predict --help exits 0 and prints Hydra help text | behavioral | G7 `uv run rna_predict --help` EXIT:0 Hydra config groups printed (direct live-fire 2026-06-20) | PASS |
+| 3 | uv run python -m rna_predict --help exits 0 and prints Hydra help text (venv Python) | behavioral | G3 `uv run python -m rna_predict --help` EXIT:0; head_green.txt L36–53 EXIT:0; test_python_m PASSED | PASS |
 | 4 | from rna_predict.__main__ import main resolves without ImportError | behavioral | head_green.txt: test_main_module_importable PASSED; test_main_callable PASSED | PASS |
 | 5 | __main__.py imports main without redefining @hydra.main | structural + behavioral | grep @hydra.main → no match; grep delegate import → L1 match; G3 passes without HydraException | PASS |
 | 6 | No existing tests were modified or deleted during this change | structural | git show --stat 75b619b → 2 files added, 0 modified; Class C confirmed no test touches | PASS |
@@ -170,9 +174,10 @@ Packet generated by `aiv close`.
 
 ## Known Limitations
 
-- Claim 2 (`uv run rna_predict --help`) is verified transitively via the equivalent
-  `python -m rna_predict --help` path (G3) and the passing `test_python_m_rna_predict_help_exits_zero`
-  test; console-script and `-m` paths differ only in interpreter dispatch.
+- Claim 2 (`uv run rna_predict --help`) is now verified directly by G7 live-fire (2026-06-20).
+  Bare `python -m rna_predict --help` (system Python without uv venv) fails with
+  `ModuleNotFoundError: No module named 'hydra'`; G3 and all tests use the uv-managed venv
+  Python (`sys.executable`) where `hydra-core` is installed.
 - Evidence references point to Layer 1 evidence files at specific commit SHAs.
   Use `git show <sha>:.github/aiv-evidence/<file>` to retrieve.
 
