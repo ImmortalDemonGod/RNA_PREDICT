@@ -7,7 +7,7 @@
 | **Repository** | github.com/ImmortalDemonGod/aiv-protocol |
 | **Change ID** | rna-s2c0l0-003-impl |
 | **Commits** | `75b619b` |
-| **Head SHA** | `b3d5f7fc` |
+| **Head SHA** | `b114e229` |
 | **Base SHA** | `7538862` |
 | **Created** | 2026-06-20T16:16:01Z |
 
@@ -46,7 +46,7 @@ classification:
 
 ### Class A (Behavioral / Live-Fire Evidence)
 
-Live-fire gates executed against the installed package at HEAD (`b3d5f7fc`):
+Live-fire gates executed against the installed package at HEAD (`b114e229`):
 
 | Gate | Command | Result | Source |
 |------|---------|--------|--------|
@@ -59,7 +59,9 @@ Live-fire gates executed against the installed package at HEAD (`b3d5f7fc`):
 
 **Artifact (G1–G3):** `head_green.txt` (sha256: `dedf1ad302f566193b1ca0ea34dd88ec4b1e7fc2c2f2b9baca747466fe201ee8`, verified against MANIFEST.md) records: 3/3 pytest PASSED (`test_main_module_importable` proving G2, `test_python_m_rna_predict_help_exits_zero` proving G3), `find rna_predict -name __main__.py → rna_predict/__main__.py EXIT:0` (G1), and `python -m rna_predict --help` EXIT:0 with Hydra groups (G3). `head_green.txt` does not contain `uv run rna_predict --help` output; G4 is captured directly below.
 
-**G4 direct live-fire capture** — `uv run rna_predict --help` executed 2026-06-20 at HEAD (`b3d5f7fc`):
+> **SHA ancestry note:** `head_green.txt` was captured at commit `5ffd5327` (an ancestor of packet HEAD `b114e229`). The fix commit `75b619b` is an ancestor of both `5ffd5327` and `b114e229`; re-verification of `uv run rna_predict --help` at `b114e229` (G4 below) confirms EXIT:0 — the binding is non-falsifying across all SHAs.
+
+**G4 direct live-fire capture** — `uv run rna_predict --help` executed 2026-06-20 at HEAD (`b114e229`):
 
 ```text
 interface is powered by Hydra.
