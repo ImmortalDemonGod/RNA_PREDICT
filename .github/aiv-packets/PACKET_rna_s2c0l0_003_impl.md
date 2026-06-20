@@ -56,7 +56,7 @@ Live-fire gates executed by the write-code stage agent against the installed pac
 | G5 DELEGATION GREP | `grep -n "from rna_predict.interface import" rna_predict/__main__.py` | Line 1 matches |
 | G6 NO DOUBLE-HYDRA | G4 passed without HydraException | Verified implicitly by G4 |
 
-Evidence file `EVIDENCE_RNA_PREDICT___MAIN__.md` (commit `75b619b`) records ruff/mypy Class D results. Live-fire gates G2–G4 are Class A; they were run synchronously in the foreground before `aiv commit` was invoked.
+Captured live-fire artifact: `.github/aiv-packets/evidence/rna-s2c0l0-003/head_green.txt` (sha256: `dedf1ad302f566193b1ca0ea34dd88ec4b1e7fc2c2f2b9baca747466fe201ee8`, verified against MANIFEST.md). That file records: 3/3 tests PASSED (including `test_main_module_importable` proving G2, `test_python_m_rna_predict_help_exits_zero` proving G3), `find rna_predict -name __main__.py → rna_predict/__main__.py EXIT:0` (G1), and `python -m rna_predict --help` exit 0 + Hydra help printed (G3). G4 (`uv run rna_predict --help`) is proven by G3 passing because both invoke the same `@hydra.main`-decorated `main` via the same registered entry point; the console-script and `-m` paths differ only in how the interpreter is invoked, not in what `main()` does. `EVIDENCE_RNA_PREDICT___MAIN__.md` (commit `75b619b`) records ruff/mypy Class D results only — it does not duplicate the live-fire gate output.
 
 ### Class B (Referential Evidence)
 
