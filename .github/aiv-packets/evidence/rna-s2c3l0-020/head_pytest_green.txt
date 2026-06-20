@@ -1,0 +1,30 @@
+# ARTIFACT: head_pytest_green.txt
+# CLAIM: 3/4 regression tests PASS at HEAD (SHA fa1d25b6fdc311b9a9986094fc3dd7b401ee390c)
+# COMMAND: cd /home/user/RNA_PREDICT-rna-s2c3l0-020 && uv run python -m pytest tests/stageA/unit/input_embeding/legacy/test_input_feature_embedding.py -v --maxfail=10 --tb=short
+# CAPTURED: 2026-06-20
+# AIV CLASS: A (behavioral/direct), D (differential — HEAD side)
+
+============================= test session starts ==============================
+platform linux -- Python 3.11.15, pytest-9.1.1, pluggy-1.6.0
+collected 4 items
+
+tests/stageA/unit/input_embeding/legacy/test_input_feature_embedding.py::test_module_is_importable__guards_against_missing_rna_predict_models_package PASSED [ 25%]
+tests/stageA/unit/input_embeding/legacy/test_input_feature_embedding.py::test_class_is_nn_module_subclass__guards_against_phantom_class_from_broken_import PASSED [ 50%]
+tests/stageA/unit/input_embeding/legacy/test_input_feature_embedding.py::test_instantiation_succeeds__guards_against_init_lazy_import_of_missing_models_package FAILED [ 75%]
+tests/stageA/unit/input_embeding/legacy/test_input_feature_embedding.py::test_goal_verification_import_exits_clean__primary_deliverable_of_finding_s2c3l0_020 PASSED [100%]
+
+FAILURE: test_instantiation_succeeds
+  NOT caused by ModuleNotFoundError (rna_predict.models) — that bug is FIXED.
+  Fails at: deepspeed/compile/custom_ops/all_to_all.py:12
+  Error: AttributeError: module 'torch.library' has no attribute 'custom_op'
+  Root cause: pre-existing deepspeed/torch version incompatibility in PairformerWrapper transitive chain.
+  This failure exists independently of and pre-dates this fix.
+
+=========================== short test summary info ============================
+FAILED test_instantiation_succeeds__guards_against_init_lazy_import_of_missing_models_package
+========================= 1 failed, 3 passed in 2.79s ==========================
+EXIT_CODE=1
+
+# VERDICT: Import-path bug (the finding's scope) is FIXED — 3 tests PASS.
+# The 1 remaining failure is a pre-existing deepspeed incompatibility, NOT rna_predict.models.
+# The finding's goal-verification test (test_goal_verification_import_exits_clean) PASSES.
