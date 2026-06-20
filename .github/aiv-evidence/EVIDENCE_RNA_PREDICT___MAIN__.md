@@ -1,7 +1,7 @@
 # AIV Evidence File (v1.0)
 
 **File:** `rna_predict/__main__.py`
-**Commit:** `7538862`
+**Commit:** `75b619b`
 **Generated:** 2026-06-20T16:15:54Z
 **Protocol:** AIV v2.0 + Addendum 2.7 (Zero-Touch Mandate)
 
@@ -40,9 +40,9 @@ classification:
 
 ### Class B (Referential Evidence)
 
-**Scope Inventory** (SHA: [`7538862`](https://github.com/ImmortalDemonGod/RNA_PREDICT/tree/7538862d1df87318a3b29b1f038e48e1b02b7ece))
+**Scope Inventory** (SHA: [`75b619b`](https://github.com/ImmortalDemonGod/RNA_PREDICT/tree/75b619b02603ce969e1e7d27668c2d33b6d9567f))
 
-- [`rna_predict/__main__.py#L1-L4`](https://github.com/ImmortalDemonGod/RNA_PREDICT/blob/7538862d1df87318a3b29b1f038e48e1b02b7ece/rna_predict/__main__.py#L1-L4)
+- [`rna_predict/__main__.py#L1-L4`](https://github.com/ImmortalDemonGod/RNA_PREDICT/blob/75b619b02603ce969e1e7d27668c2d33b6d9567f/rna_predict/__main__.py#L1-L4)
 
 ### Class A (Execution Evidence)
 
