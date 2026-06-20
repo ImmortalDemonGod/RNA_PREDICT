@@ -50,6 +50,20 @@ classification:
 - `tests/stageA/unit/input_embeding/legacy/input_feature_embedding.bug-catalog.md#L1-L123`
 - `tests/stageA/unit/input_embeding/legacy/test_input_feature_embedding.py#L1-L108`
 
+### Class E (Intent Alignment)
+
+**Canonical intent source (SHA-pinned):**  
+https://github.com/ImmortalDemonGod/RNA_PREDICT/blob/1f6481e4d8d7c673f44115c0a5bbaa1703ebe562/audit/02-static-audit.md#L18
+
+**Finding s2c3l0-020 requirement:**  
+`InputFeatureEmbedder` must be importable without `ModuleNotFoundError`; the goal-verification command `uv run python -c 'from rna_predict.pipeline.stageA.input_embedding.legacy.encoder.input_feature_embedding import InputFeatureEmbedder'` must exit 0.
+
+**Alignment verdict:**  
+- Bug catalog (commit `1c4377d`) enumerates BUG-1 (line 4 top-level import), BUG-2 (line 36 lazy import in `__init__`), and BUG-3 (latent `psutil` dep), directly derived from the finding description.
+- Test `test_goal_verification_import_exits_clean__primary_deliverable_of_finding_s2c3l0_020` mirrors the exact goal-verification command from the finding.
+- All 4 tests fail with `ModuleNotFoundError: No module named 'rna_predict.models'` — matching the stated root cause.
+- No fix is implemented; tests are intentionally RED per the design-tests stage contract.
+
 ---
 
 ## Verification Methodology
