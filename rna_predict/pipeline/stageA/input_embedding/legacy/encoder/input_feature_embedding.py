@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from rna_predict.models.encoder.atom_encoder import AtomAttentionEncoder
+from rna_predict.pipeline.stageA.input_embedding.legacy.encoder.atom_encoder import AtomAttentionEncoder
 
 ###############################################################################
 # Input Feature Embedder
@@ -33,7 +33,7 @@ class InputFeatureEmbedder(nn.Module):
         import torch.nn as nn
 
         # We'll get our AtomAttentionEncoder from the same module
-        from rna_predict.models.encoder.atom_encoder import (
+        from rna_predict.pipeline.stageA.input_embedding.legacy.encoder.atom_encoder import (
             AtomEncoderConfig,
         )
         from rna_predict.pipeline.stageB.pairwise.pairformer_wrapper import (
