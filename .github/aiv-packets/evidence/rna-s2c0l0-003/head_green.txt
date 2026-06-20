@@ -1,0 +1,52 @@
+## Artifact: head_green.txt
+## HEAD SHA: 5ffd5327c6b212ea4233e5caa8b84e4713dac4cc (fix/rna-s2c0l0-003)
+## Working dir: /home/user/RNA_PREDICT-rna-s2c0l0-003
+## Command: uv run pytest tests/test_entrypoint.py -v --tb=short
+
+============================= test session starts ==============================
+platform linux -- Python 3.11.15, pytest-9.1.1, pluggy-1.6.0 -- /home/user/RNA_PREDICT-rna-s2c0l0-003/.venv/bin/python3
+cachedir: .pytest_cache
+hypothesis profile 'default'
+rootdir: /home/user/RNA_PREDICT-rna-s2c0l0-003
+configfile: pytest.ini (WARNING: ignoring pytest config in pyproject.toml!)
+plugins: xdist-3.8.0, hypothesis-6.155.6, anyio-4.14.0, hydra-core-1.3.2, asyncio-1.4.0, timeout-2.4.0, memprof-0.2.0, cov-7.1.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 3 items
+
+tests/test_entrypoint.py::test_main_module_importable__guards_missing_dunder_main PASSED [ 33%]
+tests/test_entrypoint.py::test_main_callable__guards_missing_entry_point_symbol PASSED [ 66%]
+tests/test_entrypoint.py::test_python_m_rna_predict_help_exits_zero__guards_cmd_crash PASSED [100%]
+========================= memory consumption estimates =========================
+RNA_PREDICT-rna-s2c0l0-003::tests::test_entrypoint.py::test_python_m_rna_predict_help_exits_zero__guards_cmd_crash  - 273.1 MB
+RNA_PREDICT-rna-s2c0l0-003::tests::test_entrypoint.py::test_main_module_importable__guards_missing_dunder_main      - 226.0 MB
+RNA_PREDICT-rna-s2c0l0-003::tests::test_entrypoint.py::test_main_callable__guards_missing_entry_point_symbol        - 116.0 KB
+
+============================= slowest 10 durations =============================
+8.59s call     tests/test_entrypoint.py::test_python_m_rna_predict_help_exits_zero__guards_cmd_crash
+3.65s call     tests/test_entrypoint.py::test_main_module_importable__guards_missing_dunder_main
+
+(7 durations < 0.005s hidden.  Use -vv to show these durations.)
+========================= 3 passed in 12.87s ==============================
+EXIT:0
+
+## find rna_predict -name __main__.py at HEAD:
+rna_predict/__main__.py
+EXIT:0
+
+## python -m rna_predict --help at HEAD (first 40 lines):
+[transformers] Disabling PyTorch because PyTorch >= 2.4 is required but found 2.3.1
+[transformers] PyTorch was not found. Models won't be available and only tokenizers, configuration and file/data utilities can be used.
+<frozen runpy>:198: UserWarning: 'data/default' is validated against ConfigStore schema...
+<frozen runpy>:198: UserWarning: 'model/stageA' is validated against ConfigStore schema...
+...
+interface is powered by Hydra.
+
+== Configuration groups ==
+Compose your configuration from those groups (group=option)
+
+data: default
+device_management: default
+feature_dimensions: default
+model: dimensions, latent_merger, protenix_integration, stageA, stageB_pairformer, stageB_torsion, stageC, stageC_config, stageD, stageD_atom_decoder, stageD_atom_encoder, stageD_diffusion, stageD_input_features, stageD_model_arch, stageD_transformer
+optimization: energy, memory
+EXIT:0

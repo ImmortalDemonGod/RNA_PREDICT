@@ -1,0 +1,49 @@
+## Artifact: baseline_red.txt
+## Baseline SHA: 1f6481e4d8d7c673f44115c0a5bbaa1703ebe562 (origin/main)
+## Worktree: /tmp/rna-s2c0l0-003_base
+## Command: uv run pytest tests/test_entrypoint.py -v --tb=short
+## (test file copied from HEAD; rna_predict/__main__.py absent at baseline)
+
+============================= test session starts ==============================
+platform linux -- Python 3.11.15, pytest-9.1.1, pluggy-1.6.0 -- /tmp/rna-s2c0l0-003_base/.venv/bin/python
+cachedir: .pytest_cache
+hypothesis profile 'default'
+rootdir: /tmp/rna-s2c0l0-003_base
+configfile: pytest.ini (WARNING: ignoring pytest config in pyproject.toml!)
+plugins: hypothesis-6.155.6, anyio-4.14.0, hydra-core-1.3.2, asyncio-1.4.0, timeout-2.4.0, memprof-0.2.0, cov-7.1.0, cov-7.1.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 3 items
+
+tests/test_entrypoint.py::test_main_module_importable__guards_missing_dunder_main FAILED [ 33%]
+
+=================================== FAILURES ===================================
+___________ test_main_module_importable__guards_missing_dunder_main ____________
+tests/test_entrypoint.py:29: in test_main_module_importable__guards_missing_dunder_main
+    mod = importlib.import_module("rna_predict.__main__")
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.11/importlib/__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1204: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1176: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1140: in _find_and_load_unlocked
+    ???
+E   ModuleNotFoundError: No module named 'rna_predict.__main__'
+============================= slowest 10 durations =============================
+
+(3 durations < 0.005s hidden.  Use -vv to show these durations.)
+=========================== short test summary info ============================
+FAILED tests/test_entrypoint.py::test_main_module_importable__guards_missing_dunder_main
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+============================== 1 failed in 0.92s ==============================
+EXIT:1
+
+## find rna_predict -name __main__.py at baseline:
+(no output — file absent)
+EXIT:0
+
+## python -m rna_predict --help at baseline:
+/tmp/rna-s2c0l0-003_base/.venv/bin/python: No module named rna_predict.__main__; 'rna_predict' is a package and cannot be directly executed
+EXIT:1
