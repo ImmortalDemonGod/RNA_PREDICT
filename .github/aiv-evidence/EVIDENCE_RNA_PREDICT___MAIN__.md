@@ -69,6 +69,7 @@ classification:
 | 6 | No existing tests were modified or deleted during this chang... | structural | Class C not collected | REVIEW MANUAL REVIEW |
 
 **Verdict summary:** 0 verified, 0 unverified, 6 manual review.
+
 ---
 
 ## Verification Methodology

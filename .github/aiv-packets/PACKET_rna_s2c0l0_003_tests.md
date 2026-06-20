@@ -49,19 +49,19 @@ classification:
 Tests are intentionally RED at the design-tests stage — the module under test (`rna_predict/__main__.py`) does not yet exist. Local execution evidence (2026-06-20):
 
 **Test 1** — `test_main_module_importable__guards_missing_dunder_main`:
-```
+```text
 FAILED tests/test_entrypoint.py::test_main_module_importable__guards_missing_dunder_main
 E   ModuleNotFoundError: No module named 'rna_predict.__main__'
 ```
 
 **Test 2** — `test_main_callable__guards_missing_entry_point_symbol`:
-```
+```text
 FAILED tests/test_entrypoint.py::test_main_callable__guards_missing_entry_point_symbol
 E   ModuleNotFoundError: No module named 'rna_predict.__main__'
 ```
 
 **Test 3** — `test_python_m_rna_predict_help_exits_zero__guards_cmd_crash`:
-```
+```text
 FAILED tests/test_entrypoint.py::test_python_m_rna_predict_help_exits_zero__guards_cmd_crash
 E   AssertionError: python -m rna_predict --help exited 1.
 E     stderr: "/usr/local/bin/python: No module named rna_predict.__main__;
@@ -138,13 +138,13 @@ Design-tests stage: produce a `tests/test_entrypoint.bug-catalog.md` cataloguing
 | `tests/test_entrypoint.bug-catalog.md` | `a35924a` | `A` (Added — brand new file) | N/A (no prior version) |
 
 **Commands used:**
-```
+```bash
 git diff --name-status bdf9123..5ffd5327 -- tests/
 # Output:
 # A   tests/test_entrypoint.bug-catalog.md
 # A   tests/test_entrypoint.py
 ```
-```
+```bash
 git log --oneline --follow -- tests/test_entrypoint.py
 # Output:
 # 5ffd5327 design-tests(s2c0l0-003): add RED failing tests for missing rna_predict.__main__ entry point
