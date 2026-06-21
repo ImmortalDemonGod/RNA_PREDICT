@@ -78,7 +78,7 @@ Canonical audit finding (Class E origin, SHA-pinned to original audit):
 Command: `make -n test` (executed synchronously before commit at fix commit state)
 
 Output:
-```
+```text
 .venv/bin/pytest -v --cov-config .coveragerc --cov=rna_predict -l --tb=short --maxfail=1 tests/
 .venv/bin/coverage xml
 .venv/bin/coverage html
