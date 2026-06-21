@@ -1,0 +1,22 @@
+diff --git a/Makefile b/Makefile
+index b4f0e252..46358d59 100644
+--- a/Makefile
++++ b/Makefile
+@@ -31,7 +31,7 @@ fmt:              ## Format code using black & isort.
+ 
+ .PHONY: lint
+ lint:             ## Run Ruff (with auto-fixes) and mypy linters.
+-	$(ENV_PREFIX)ruff check --fix --unsafe-fixes rna_predict/ tests/
++	$(ENV_PREFIX)ruff check --fix rna_predict/ tests/
+ 	$(ENV_PREFIX)mypy --ignore-missing-imports rna_predict/
+ 
+ lint-fix:         ## Run Ruff with auto-fixes
+@@ -44,7 +44,7 @@ format:           ## Format code with ruff
+ 	$(ENV_PREFIX)ruff format rna_predict/ tests/
+ 
+ .PHONY: test
+-test: lint        ## Run tests and generate coverage report.
++test:             ## Run tests and generate coverage report.
+ 	$(ENV_PREFIX)pytest -v --cov-config .coveragerc --cov=rna_predict -l --tb=short --maxfail=1 tests/
+ 	$(ENV_PREFIX)coverage xml
+ 	$(ENV_PREFIX)coverage html

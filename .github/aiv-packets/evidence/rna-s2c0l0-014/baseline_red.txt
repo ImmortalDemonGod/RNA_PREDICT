@@ -1,0 +1,34 @@
+============================= test session starts ==============================
+collecting ... collected 3 items
+
+../../../tmp/rna-s2c0l0-014_base/tests/test_makefile_contract.py::test_test_target_does_not_depend_on_lint_guards_lint_blocks_test_bug FAILED [ 33%]
+../../../tmp/rna-s2c0l0-014_base/tests/test_makefile_contract.py::test_lint_recipe_does_not_use_unsafe_fixes_guards_source_mutation_side_effect_bug FAILED [ 66%]
+../../../tmp/rna-s2c0l0-014_base/tests/test_makefile_contract.py::test_test_target_prerequisites_contain_only_test_tooling_guards_ci_silent_abort_bug FAILED [100%]
+
+=================================== FAILURES ===================================
+_____ test_test_target_does_not_depend_on_lint_guards_lint_blocks_test_bug _____
+/tmp/rna-s2c0l0-014_base/tests/test_makefile_contract.py:56: in test_test_target_does_not_depend_on_lint_guards_lint_blocks_test_bug
+    assert "lint" not in prereqs, (
+E   AssertionError: 'test' target must not list 'lint' as a prerequisite; found: ['lint']. A lint failure must never prevent pytest from running.
+E   assert 'lint' not in ['lint']
+_ test_lint_recipe_does_not_use_unsafe_fixes_guards_source_mutation_side_effect_bug _
+/tmp/rna-s2c0l0-014_base/tests/test_makefile_contract.py:76: in test_lint_recipe_does_not_use_unsafe_fixes_guards_source_mutation_side_effect_bug
+    assert "--unsafe-fixes" not in line, (
+E   AssertionError: lint recipe must not contain '--unsafe-fixes' (mutates source as a side effect of running tests): '$(ENV_PREFIX)ruff check --fix --unsafe-fixes rna_predict/ tests/'
+E   assert '--unsafe-fixes' not in '$(ENV_PREFI...dict/ tests/'
+E     
+E     '--unsafe-fixes' is contained here:
+E       $(ENV_PREFIX)ruff check --fix --unsafe-fixes rna_predict/ tests/
+E     ?                               ++++++++++++++
+_ test_test_target_prerequisites_contain_only_test_tooling_guards_ci_silent_abort_bug _
+/tmp/rna-s2c0l0-014_base/tests/test_makefile_contract.py:97: in test_test_target_prerequisites_contain_only_test_tooling_guards_ci_silent_abort_bug
+    assert not overlap, (
+E   AssertionError: 'test' target must not list linting tools as prerequisites; found disallowed prereqs: ['lint']. Linting must run in a separate CI step so test failures are attributable to broken assertions, not to annotation regressions.
+E   assert not {'lint'}
+=========================== short test summary info ============================
+FAILED ../../../tmp/rna-s2c0l0-014_base/tests/test_makefile_contract.py::test_test_target_does_not_depend_on_lint_guards_lint_blocks_test_bug
+FAILED ../../../tmp/rna-s2c0l0-014_base/tests/test_makefile_contract.py::test_lint_recipe_does_not_use_unsafe_fixes_guards_source_mutation_side_effect_bug
+FAILED ../../../tmp/rna-s2c0l0-014_base/tests/test_makefile_contract.py::test_test_target_prerequisites_contain_only_test_tooling_guards_ci_silent_abort_bug
+============================== 3 failed in 0.03s ===============================
+
+pytest exit code: 1  (1=failures, 0=all passed, 4=no tests collected)

@@ -1,0 +1,141 @@
+{
+  "packet_version": "2.2",
+  "finding_id": "s2c0l0-014",
+  "change_id": "rna-s2c0l0-014-impl",
+  "category": "design_defect",
+  "severity": "medium",
+  "repository": "ImmortalDemonGod/RNA_PREDICT",
+  "branch": "fix/rna-s2c0l0-014",
+  "commits": [
+    "0ccb5003ccd430c063d8dd220a0ae1ea11949494",
+    "589c726a16e6241b339e754db9c66501519806c0",
+    "f3ad60370f7b1d03b1e9e7d4a1099c0af2c3a0b1",
+    "cd90290c",
+    "e965d1e1c304c53a3cc9baf20b9da40cb6ffc4c7"
+  ],
+  "fix_commit": "0ccb5003ccd430c063d8dd220a0ae1ea11949494",
+  "risk_tier": "R0",
+  "primary_file": "Makefile",
+  "primary_line": 47,
+  "change_before": "test: lint        ## Run tests and generate coverage report.",
+  "change_after": "test:             ## Run tests and generate coverage report.",
+  "class_e_url": "https://github.com/ImmortalDemonGod/RNA_PREDICT/blob/1f6481e4d8d7c673f44115c0a5bbaa1703ebe562/audit/02-static-audit.md#L474",
+  "class_e_alignment": "Source records design_defect at Makefile:47-48: test:lint coupling causes make test to abort before pytest runs when mypy/ruff exit non-zero, and --unsafe-fixes mutates source as a side effect. This change removes lint from the test: prerequisite list (Makefile:47: test: lint -> test:) so make test exit code reflects only pytest outcomes. The lint target at Makefile:33-35 is preserved intact. CI lint quality is maintained via needs:linter at main.yml:85,113,135.",
+  "evidence": {
+    "class_a": {
+      "description": "make -n test dry-run executed synchronously before commit",
+      "gate": "Gate [5]",
+      "output": [
+        ".venv/bin/pytest -v --cov-config .coveragerc --cov=rna_predict -l --tb=short --maxfail=1 tests/",
+        ".venv/bin/coverage xml",
+        ".venv/bin/coverage html"
+      ],
+      "result": "PASS",
+      "assertion": "Output contains ONLY pytest and coverage invocations from Makefile:48-50; zero lines containing ruff, mypy, lint, or --unsafe-fixes",
+      "pre_existing_failures": {
+        "ruff": "8 errors confirmed at base commit a63f4e6 before this change (stash-verified)",
+        "mypy": "binary absent at .venv/bin/mypy; not caused by this change"
+      }
+    },
+    "class_b": {
+      "changed_lines": [
+        {
+          "url": "https://github.com/ImmortalDemonGod/RNA_PREDICT/blob/0ccb5003ccd430c063d8dd220a0ae1ea11949494/Makefile#L47",
+          "description": "test: (was test: lint; prerequisite removed)"
+        }
+      ],
+      "unchanged_verified": [
+        {
+          "url": "https://github.com/ImmortalDemonGod/RNA_PREDICT/blob/0ccb5003ccd430c063d8dd220a0ae1ea11949494/Makefile#L33-L35",
+          "description": "lint target with ruff+mypy recipes intact"
+        },
+        {
+          "url": "https://github.com/ImmortalDemonGod/RNA_PREDICT/blob/0ccb5003ccd430c063d8dd220a0ae1ea11949494/Makefile#L34",
+          "description": "--unsafe-fixes present only in lint recipe"
+        },
+        {
+          "url": "https://github.com/ImmortalDemonGod/RNA_PREDICT/blob/0ccb5003ccd430c063d8dd220a0ae1ea11949494/Makefile#L48-L50",
+          "description": "pytest + coverage xml + coverage html recipe unchanged"
+        },
+        {
+          "url": "https://github.com/ImmortalDemonGod/RNA_PREDICT/blob/0ccb5003ccd430c063d8dd220a0ae1ea11949494/.github/workflows/main.yml#L85",
+          "description": "needs: linter on tests_linux (CI-level separation already enforced)"
+        },
+        {
+          "url": "https://github.com/ImmortalDemonGod/RNA_PREDICT/blob/0ccb5003ccd430c063d8dd220a0ae1ea11949494/.github/workflows/main.yml#L104",
+          "description": "make test in tests_linux job"
+        },
+        {
+          "url": "https://github.com/ImmortalDemonGod/RNA_PREDICT/blob/0ccb5003ccd430c063d8dd220a0ae1ea11949494/.github/workflows/main.yml#L132",
+          "description": "make test in tests_mac job"
+        }
+      ]
+    },
+    "class_c": {
+      "searched_not_found": [
+        {
+          "search": "grep -rn 'make test' . --include='*.sh' --include='*.yml' --include='*.yaml' --include='Makefile'",
+          "result": "Only main.yml:104 and main.yml:132 are real execution sites; CONTRIBUTING.md:26,46 are docs only; tests_win at main.yml:155 uses pytest directly"
+        },
+        {
+          "search": "grep -n '^test:' Makefile after fix",
+          "result": "47:test: with no lint token"
+        },
+        {
+          "search": "make -n test output for ruff/mypy/lint/--unsafe-fixes",
+          "result": "Zero lines matching (Gate [5] confirmed)"
+        }
+      ],
+      "bug_catalog_skipped": [],
+      "bug_catalog_shipped": [
+        {"id": "B2", "name": "unsafe-fixes-mutate-source", "classification": "nice-to-have", "status": "shipped", "shipped_in": "e965d1e1c304c53a3cc9baf20b9da40cb6ffc4c7"}
+      ]
+    },
+    "class_d": {
+      "gates": [
+        {"id": 1, "command": "grep -n '^test:' Makefile", "expected": "test: with no lint token", "result": "47:test:             ## Run tests and generate coverage report.", "status": "PASS"},
+        {"id": 2, "command": "grep -A6 '^.PHONY: test' Makefile", "expected": "Only pytest/coverage; no ruff/mypy/lint/--unsafe-fixes", "result": "Confirmed pytest + coverage xml + coverage html only", "status": "PASS"},
+        {"id": 3, "command": "grep -A3 '^lint:' Makefile", "expected": "ruff and mypy lines still present (--unsafe-fixes removed by B2 fix e965d1e1)", "result": "ruff check --fix rna_predict/ tests/ and mypy --ignore-missing-imports present; --unsafe-fixes absent", "status": "PASS"},
+        {"id": 4, "command": "grep -n 'unsafe-fixes' Makefile", "expected": "Absent from entire Makefile (B2 fix complete at HEAD)", "result": "No output (exit 1) — zero occurrences of --unsafe-fixes in Makefile", "status": "PASS"},
+        {"id": "AC-5", "command": "git diff origin/main -- . | grep -iE 'secret|token|password|key|credential' | grep '^+'", "expected": "Zero real-secret matches", "result": "Only documentation false-positives on word token in lint-token context; no actual credentials", "status": "PASS"}
+      ],
+      "pre_existing_failures": [
+        {"tool": "ruff", "count": 8, "confirmed_pre_existing": true, "method": "stash-verified before change"},
+        {"tool": "mypy", "error": "binary absent at .venv/bin/mypy", "confirmed_pre_existing": true}
+      ]
+    },
+    "class_f": {
+      "test_files_modified": [],
+      "test_files_created": [],
+      "test_files_deleted": [],
+      "justification": "This change addresses a Makefile dependency design defect. The fix is a 1-line Makefile edit; test files are neither the cause nor the target. Existing tests/test_makefile_contract.py (from rna-s2c0l0-014-tests) is intact at HEAD f3ad6037 and will turn GREEN after this fix is applied.",
+      "commit_tree_confirmation": "git show 0ccb5003 --name-only: only Makefile and .github/aiv-evidence/EVIDENCE_MAKEFILE.md"
+    }
+  },
+  "acceptance_criteria": {
+    "AC-1": "PASS",
+    "AC-2": "PASS",
+    "AC-3": "PASS",
+    "AC-4": "PASS",
+    "AC-5": "PASS (documentation false-positives on word token only)",
+    "AC-6": "PASS",
+    "AC-7": "PRE-EXISTING FAILURES DOCUMENTED (8 ruff errors, mypy binary absent; not caused by this change)",
+    "AC-8": "PRE-EXISTING FAILURES DOCUMENTED (ruff errors prevent pytest from running in aiv commit; make -n test dry-run confirms pytest/coverage only)",
+    "AC-9": "PASS (aiv check --no-strict: 0 blocking errors; E012 pre-push warning; E004 info)",
+    "AC-10": "PASS (all commits are legitimate aiv workflow artifacts)",
+    "AC-11": "PASS (make -n test output: only pytest and coverage lines)"
+  },
+  "deferred_items": [
+    {"item": "remove --unsafe-fixes from lint target", "classification": "nice-to-have", "status": "shipped", "shipped_in": "e965d1e1c304c53a3cc9baf20b9da40cb6ffc4c7"},
+    {"item": "extract typecheck target", "classification": "nice-to-have", "status": "deferred"},
+    {"item": "pyproject.toml lint tool version pinning", "classification": "nice-to-have", "status": "deferred per plan §10 (pyproject.toml explicitly excluded from scope)"}
+  ],
+  "aiv_check_result": {
+    "blocking_errors": 0,
+    "warnings": 1,
+    "warnings_detail": ["E012: Class A execution evidence needs CI run URL (pre-push limitation; no CI run exists yet)"],
+    "info": 1,
+    "info_detail": ["E004: Class E plain text reference (informational only)"],
+    "no_strict_exit_code": 0
+  }
+}
