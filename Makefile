@@ -31,7 +31,7 @@ fmt:              ## Format code using black & isort.
 
 .PHONY: lint
 lint:             ## Run Ruff (with auto-fixes) and mypy linters.
-	$(ENV_PREFIX)ruff check --fix --unsafe-fixes rna_predict/ tests/
+	$(ENV_PREFIX)ruff check --fix rna_predict/ tests/
 	$(ENV_PREFIX)mypy --ignore-missing-imports rna_predict/
 
 lint-fix:         ## Run Ruff with auto-fixes
