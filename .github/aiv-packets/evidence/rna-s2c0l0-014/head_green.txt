@@ -1,0 +1,13 @@
+HEAD SHA: e965d1e1c304c53a3cc9baf20b9da40cb6ffc4c7
+Baseline SHA: 1f6481e4d8d7c673f44115c0a5bbaa1703ebe562
+
+============================= test session starts ==============================
+collecting ... collected 3 items
+
+tests/test_makefile_contract.py::test_test_target_does_not_depend_on_lint_guards_lint_blocks_test_bug PASSED [ 33%]
+tests/test_makefile_contract.py::test_lint_recipe_does_not_use_unsafe_fixes_guards_source_mutation_side_effect_bug PASSED [ 66%]
+tests/test_makefile_contract.py::test_test_target_prerequisites_contain_only_test_tooling_guards_ci_silent_abort_bug PASSED [100%]
+
+============================== 3 passed in 0.01s ===============================
+
+pytest exit code: 0  (0=all passed)

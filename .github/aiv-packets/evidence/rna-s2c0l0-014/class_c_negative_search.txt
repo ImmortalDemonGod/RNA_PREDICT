@@ -1,0 +1,5 @@
+47:test:             ## Run tests and generate coverage report.
+--- grep for 'test: lint' pattern ---
+NOT FOUND (GOOD — defect absent at HEAD)
+--- grep for '--unsafe-fixes' in lint recipe ---
+NOT FOUND (GOOD — defect absent at HEAD)
