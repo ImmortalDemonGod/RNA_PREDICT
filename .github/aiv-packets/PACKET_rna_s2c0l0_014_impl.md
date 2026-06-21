@@ -6,7 +6,7 @@
 |-------|-------|
 | **Repository** | github.com/ImmortalDemonGod/aiv-protocol |
 | **Change ID** | rna-s2c0l0-014-impl |
-| **Commits** | `0ccb500` |
+| **Commits** | `0ccb500`, `e965d1e1` |
 | **Head SHA** | `589c726` |
 | **Base SHA** | `a63f4e6` |
 | **Created** | 2026-06-21T00:02:43Z |
@@ -28,9 +28,10 @@ classification:
 
 1. Makefile:47 test: target has no prerequisites — make -n test resolves to pytest and coverage invocations only, with zero ruff/mypy/lint/--unsafe-fixes lines
 2. lint target at Makefile:33-35 remains intact with ruff and mypy recipes unchanged
-3. --unsafe-fixes flag appears only in lint recipe (Makefile:34) and is not reachable from the test target
+3. --unsafe-fixes flag removed from lint recipe (Makefile:34) in commit `e965d1e1` — `grep -n 'unsafe-fixes' Makefile` returns zero matches at HEAD (B2 fix complete; no longer deferred)
 4. No existing tests were modified or deleted during this change — confirmed by commit diff [`0ccb5003`](https://github.com/ImmortalDemonGod/RNA_PREDICT/commit/0ccb5003ccd430c063d8dd220a0ae1ea11949494) which touches only `Makefile` and `.github/aiv-evidence/EVIDENCE_MAKEFILE.md`; zero files under `tests/` are present in the diff.
-5. Git chain-of-custody of test files is unaffected — `git show 0ccb5003 --name-only` confirms no `tests/` files in the fix commit; existing [`tests/test_makefile_contract.py`](https://github.com/ImmortalDemonGod/RNA_PREDICT/blob/f3ad6037/tests/test_makefile_contract.py) is intact at HEAD `f3ad6037` and will turn GREEN after this fix is applied.
+5. Git chain-of-custody of test files is unaffected — `git show 0ccb5003 --name-only` confirms no `tests/` files in the fix commit; existing [`tests/test_makefile_contract.py`](https://github.com/ImmortalDemonGod/RNA_PREDICT/blob/152a051b/tests/test_makefile_contract.py) is intact at HEAD `9f4398f9` and turns GREEN (3 PASSED) after both fix commits apply.
+6. All three contract tests PASS at HEAD `9f4398f9`: `pytest tests/test_makefile_contract.py` → 3 passed (B1+B2+B3 defects resolved)
 
 ---
 
@@ -54,13 +55,13 @@ Primary changed line (SHA-pinned blob):
 
 **Full scope inventory** — all references SHA-pinned to fix commit [`0ccb5003`](https://github.com/ImmortalDemonGod/RNA_PREDICT/commit/0ccb5003ccd430c063d8dd220a0ae1ea11949494):
 
-Changed lines:
-- [`Makefile#L47`](https://github.com/ImmortalDemonGod/RNA_PREDICT/blob/0ccb5003ccd430c063d8dd220a0ae1ea11949494/Makefile#L47) — `test:` (was `test: lint`; prerequisite removed)
+Changed lines (both commits in scope):
+- [`Makefile#L47`](https://github.com/ImmortalDemonGod/RNA_PREDICT/blob/0ccb5003ccd430c063d8dd220a0ae1ea11949494/Makefile#L47) — `test:` (was `test: lint`; prerequisite removed) — commit `0ccb5003` (B1 fix)
+- [`Makefile#L34`](https://github.com/ImmortalDemonGod/RNA_PREDICT/blob/e965d1e1c304c53a3cc9baf20b9da40cb6ffc4c7/Makefile#L34) — `ruff check --fix rna_predict/ tests/` (was `ruff check --fix --unsafe-fixes`; `--unsafe-fixes` removed) — commit `e965d1e1` (B2 fix)
 
-Unchanged lines verified present at fix SHA:
-- [`Makefile#L33-L35`](https://github.com/ImmortalDemonGod/RNA_PREDICT/blob/0ccb5003ccd430c063d8dd220a0ae1ea11949494/Makefile#L33-L35) — lint target with ruff+mypy recipes intact
-- [`Makefile#L34`](https://github.com/ImmortalDemonGod/RNA_PREDICT/blob/0ccb5003ccd430c063d8dd220a0ae1ea11949494/Makefile#L34) — `--unsafe-fixes` present in lint recipe only
-- [`Makefile#L48-L50`](https://github.com/ImmortalDemonGod/RNA_PREDICT/blob/0ccb5003ccd430c063d8dd220a0ae1ea11949494/Makefile#L48-L50) — pytest + coverage xml + coverage html recipe unchanged
+Unchanged lines verified present at HEAD:
+- [`Makefile#L33-L35`](https://github.com/ImmortalDemonGod/RNA_PREDICT/blob/e965d1e1c304c53a3cc9baf20b9da40cb6ffc4c7/Makefile#L33-L35) — lint target with ruff+mypy recipes intact (ruff now without --unsafe-fixes)
+- [`Makefile#L48-L50`](https://github.com/ImmortalDemonGod/RNA_PREDICT/blob/e965d1e1c304c53a3cc9baf20b9da40cb6ffc4c7/Makefile#L48-L50) — pytest + coverage xml + coverage html recipe unchanged
 
 CI call sites (read-only — workflow unchanged):
 - [`.github/workflows/main.yml#L85`](https://github.com/ImmortalDemonGod/RNA_PREDICT/blob/0ccb5003ccd430c063d8dd220a0ae1ea11949494/.github/workflows/main.yml#L85) — `needs: linter` on tests_linux (CI-level lint/test separation already enforced)
@@ -96,7 +97,7 @@ Searched for and did NOT find:
 1. Additional `make test` call sites beyond main.yml:104,132: command `grep -rn 'make test' . --include='*.sh' --include='*.yml' --include='*.yaml' --include='Makefile'` found only main.yml:104, main.yml:132 as real execution sites; CONTRIBUTING.md:26,46 are documentation only; tests_win at main.yml:155 already uses `pytest -s -vvvv` directly
 2. `lint` token in `test:` prerequisite after fix: `grep -n '^test:' Makefile` returns `47:test:` with no lint token
 3. `ruff`, `mypy`, `lint`, or `--unsafe-fixes` in `make -n test` dry-run output: confirmed absent (Gate [5])
-4. Bug-catalog items in scope beyond B1 (lint-blocks-test — this change): B2 (--unsafe-fixes) classified nice-to-have, deferred per plan §6
+4. Bug-catalog items in scope: B2 (--unsafe-fixes-mutate-source) now FIXED in commit `e965d1e1` — `grep -n 'unsafe-fixes' Makefile` returns zero matches at HEAD; all three contract tests PASS (B1+B2+B3 confirmed resolved)
 
 ### Class D (Static Analysis)
 
@@ -106,8 +107,8 @@ All five gates executed synchronously, results captured before commit:
 |------|---------|----------|--------|
 | [1] | `grep -n '^test:' Makefile` | `test:` with no `lint` token | `47:test:             ## Run tests and generate coverage report.` — **PASS** |
 | [2] | `grep -A6 '^\.PHONY: test' Makefile` | Only pytest/coverage; no ruff/mypy/lint/--unsafe-fixes | Confirmed pytest + coverage xml + coverage html only — **PASS** |
-| [3] | `grep -A3 '^lint:' Makefile` | ruff and mypy lines still present | `ruff check --fix --unsafe-fixes` and `mypy --ignore-missing-imports` present — **PASS** |
-| [4] | `grep -n 'unsafe-fixes' Makefile` | Present only at Makefile:34 (lint recipe) | `34: $(ENV_PREFIX)ruff check --fix --unsafe-fixes rna_predict/ tests/` — **PASS** |
+| [3] | `grep -A3 '^lint:' Makefile` | ruff and mypy lines still present (--unsafe-fixes removed by B2 fix) | `ruff check --fix rna_predict/ tests/` and `mypy --ignore-missing-imports` present; `--unsafe-fixes` absent — **PASS** |
+| [4] | `grep -n 'unsafe-fixes' Makefile` | Absent from entire Makefile (B2 fix complete at HEAD) | No output (exit 1) — zero occurrences of `--unsafe-fixes` in Makefile — **PASS** |
 | AC-5 | `git diff origin/main -- . \| grep -iE 'secret\|token\|password\|key\|credential' \| grep '^+'` | Zero matches | NONE — **PASS** |
 
 Pre-existing static analysis failures (documented):
@@ -143,4 +144,4 @@ Classes A–F all addressed: A (make -n test dry-run output), B (8 SHA-pinned li
 
 ## Summary
 
-Change 'rna-s2c0l0-014-impl': 1 commit(s) across 1 file(s).
+Change 'rna-s2c0l0-014-impl': 2 commit(s) across 1 file(s). Commits: `0ccb5003` (B1: remove lint from test prerequisite), `e965d1e1` (B2: remove --unsafe-fixes from lint recipe).

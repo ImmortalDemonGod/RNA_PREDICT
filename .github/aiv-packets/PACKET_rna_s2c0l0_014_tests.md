@@ -19,7 +19,7 @@ classification:
   sod_mode: S0
   critical_surfaces: []
   blast_radius: component
-  classification_rationale: "TODO: Describe why this tier was chosen"
+  classification_rationale: "R1 — two new test files added (tests/Makefile.bug-catalog.md via commit 17be8e3, tests/test_makefile_contract.py via commit 152a051b); no production code modified; blast radius confined to test suite; design-tests stage requires intentionally RED tests that fail against baseline (3 FAILED) and turn GREEN after fix commits apply (confirmed: 3 PASSED at HEAD 9f4398f9)"
   classified_by: "Claude"
   classified_at: "2026-06-20T23:54:58Z"
 ```
@@ -39,7 +39,7 @@ classification:
 | # | Evidence File | Commit SHA | Classes |
 |---|---------------|------------|---------|
 | 1 | EVIDENCE_TESTS_MAKEFILE.BUG_CATALOG.MD.md | `17be8e3` | A, B, E |
-| 2 | EVIDENCE_TESTS_TEST_MAKEFILE_CONTRACT.md | `7f9070d` | A, B, E |
+| 2 | EVIDENCE_TESTS_TEST_MAKEFILE_CONTRACT.md | `152a051` | A, B, E |
 
 
 

@@ -10,7 +10,8 @@
     "0ccb5003ccd430c063d8dd220a0ae1ea11949494",
     "589c726a16e6241b339e754db9c66501519806c0",
     "f3ad60370f7b1d03b1e9e7d4a1099c0af2c3a0b1",
-    "cd90290c"
+    "cd90290c",
+    "e965d1e1c304c53a3cc9baf20b9da40cb6ffc4c7"
   ],
   "fix_commit": "0ccb5003ccd430c063d8dd220a0ae1ea11949494",
   "risk_tier": "R0",
@@ -85,16 +86,17 @@
           "result": "Zero lines matching (Gate [5] confirmed)"
         }
       ],
-      "bug_catalog_skipped": [
-        {"id": "B2", "name": "unsafe-fixes-mutate-source", "classification": "nice-to-have", "status": "deferred"}
+      "bug_catalog_skipped": [],
+      "bug_catalog_shipped": [
+        {"id": "B2", "name": "unsafe-fixes-mutate-source", "classification": "nice-to-have", "status": "shipped", "shipped_in": "e965d1e1c304c53a3cc9baf20b9da40cb6ffc4c7"}
       ]
     },
     "class_d": {
       "gates": [
         {"id": 1, "command": "grep -n '^test:' Makefile", "expected": "test: with no lint token", "result": "47:test:             ## Run tests and generate coverage report.", "status": "PASS"},
         {"id": 2, "command": "grep -A6 '^.PHONY: test' Makefile", "expected": "Only pytest/coverage; no ruff/mypy/lint/--unsafe-fixes", "result": "Confirmed pytest + coverage xml + coverage html only", "status": "PASS"},
-        {"id": 3, "command": "grep -A3 '^lint:' Makefile", "expected": "ruff and mypy lines still present", "result": "ruff check --fix --unsafe-fixes and mypy --ignore-missing-imports present", "status": "PASS"},
-        {"id": 4, "command": "grep -n 'unsafe-fixes' Makefile", "expected": "Present only at Makefile:34", "result": "34: ruff check --fix --unsafe-fixes rna_predict/ tests/", "status": "PASS"},
+        {"id": 3, "command": "grep -A3 '^lint:' Makefile", "expected": "ruff and mypy lines still present (--unsafe-fixes removed by B2 fix e965d1e1)", "result": "ruff check --fix rna_predict/ tests/ and mypy --ignore-missing-imports present; --unsafe-fixes absent", "status": "PASS"},
+        {"id": 4, "command": "grep -n 'unsafe-fixes' Makefile", "expected": "Absent from entire Makefile (B2 fix complete at HEAD)", "result": "No output (exit 1) — zero occurrences of --unsafe-fixes in Makefile", "status": "PASS"},
         {"id": "AC-5", "command": "git diff origin/main -- . | grep -iE 'secret|token|password|key|credential' | grep '^+'", "expected": "Zero real-secret matches", "result": "Only documentation false-positives on word token in lint-token context; no actual credentials", "status": "PASS"}
       ],
       "pre_existing_failures": [
@@ -124,7 +126,7 @@
     "AC-11": "PASS (make -n test output: only pytest and coverage lines)"
   },
   "deferred_items": [
-    {"item": "remove --unsafe-fixes from lint target", "classification": "nice-to-have", "status": "deferred"},
+    {"item": "remove --unsafe-fixes from lint target", "classification": "nice-to-have", "status": "shipped", "shipped_in": "e965d1e1c304c53a3cc9baf20b9da40cb6ffc4c7"},
     {"item": "extract typecheck target", "classification": "nice-to-have", "status": "deferred"},
     {"item": "pyproject.toml lint tool version pinning", "classification": "nice-to-have", "status": "deferred per plan §10 (pyproject.toml explicitly excluded from scope)"}
   ],
